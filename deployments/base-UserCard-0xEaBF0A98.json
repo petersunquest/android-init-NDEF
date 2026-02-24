@@ -1,1 +1,13 @@
-{"network":"base","chainId":"8453","eoa":"0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61","userCard":"0x57052780925448Ce1dB7aC409cCcCf13Bcc4eb71","factory":"0xbDC8a165820bB8FA23f5d953632409F73E804eE5","uri":"https://api.beamio.io/metadata/{id}.json","currency":0,"price6":"1000000","timestamp":"2026-02-13T23:50:00.000Z"}
+{
+  "network": "base",
+  "chainId": "8453",
+  "eoa": "0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61",
+  "userCard": "0x6870acA2f4f6aBed6B10B0C8D76C75343398fd64",
+  "factory": "0x86879fE3fbd958f468B1e5E6Cd075a9149ADB48F",
+  "uri": "https://api.beamio.io/metadata/{id}.json",
+  "currency": 0,
+  "price6": "1000000",
+  "timestamp": "2026-02-24T23:09:44.000Z",
+  "txHash": "0x61fa3e56239a9ee8b27f633768e3b245f13e8479a5b078886dc83355ebc119e4",
+  "note": "Redeployed on new infrastructure factory 0x86879fE3..."
+}
