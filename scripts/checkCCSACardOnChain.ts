@@ -44,8 +44,8 @@ async function main() {
     const contracts = data.contracts || {};
     const existing = data.existing || {};
     if (!CCSA_CARD) {
-      // 从 x402sdk/chainAddresses BASE_CCSA_CARD_ADDRESS 常用值
-      CCSA_CARD = "0x3A578f47d68a5f2C1f2930E9548E240AB8d40048";
+      // 从 x402sdk/chainAddresses BASE_CCSA_CARD_ADDRESS（与 chainAddresses.ts 一致）
+      CCSA_CARD = "0x57052780925448Ce1dB7aC409cCcCf13Bcc4eb71";
     }
     const ucf = contracts.beamioUserCardFactoryPaymaster;
     if (ucf?.address) CARD_FACTORY = ucf.address;
