@@ -35,18 +35,26 @@
     "set:oracle-cad:base": "hardhat run scripts/setOracleCadRate.ts --network base",
     "check:oracle-quote:base": "hardhat run scripts/checkOracleQuoteHelperChain.ts --network base",
     "check:createcard-deployer:base": "hardhat run scripts/checkCreateCardDeployerConfig.ts --network base",
+    "debug:nfc-topup-tx": "hardhat run scripts/debugNfcTopupTx.ts --network base",
+    "debug:nfc-topup-tx:1rpc": "npx tsx scripts/debugNfcTopupTx.ts",
+    "debug:nfc-topup": "node scripts/debugNfcTopupTxSimple.js",
+    "debug:signer": "node scripts/debugSigner.js",
     "sync:card-artifact": "cp artifacts/src/BeamioUserCard/BeamioUserCard.sol/BeamioUserCard.json src/x402sdk/src/ABI/BeamioUserCardArtifact.json",
     "deploy:quote-helper-and-set-factories:base": "hardhat run scripts/deployQuoteHelperV07AndSetFactories.ts --network base",
     "verify": "hardhat verify",
     "test": "echo \"Error: no test specified\" && exit 1",
     "redeploy:aa-factory:base": "hardhat run scripts/redeployAAFactoryAndUpdateConfig.ts --network base",
     "redeploy:card-factory:base": "hardhat run scripts/redeployCardFactoryAndUpdateConfig.ts --network base",
+    "deploy:card-factory-only:base": "hardhat run scripts/deployCardFactoryOnlyWithSettleAdmin.ts --network base",
     "set:card-factory-aa:base": "hardhat run scripts/setCardFactoryAAFactory.ts --network base",
     "update:card-and-aa-admins:base": "hardhat run scripts/updateCardFactoryAndRegisterAAAdmins.ts --network base",
     "add:settle-wallets-to-factories": "hardhat run scripts/addSettleWalletsToFactories.ts --network base",
     "deploy:indexer-diamond:conet": "hardhat run scripts/deployCoNETIndexerDiamond.ts --network conet",
     "add:indexer-diamond-admins:conet": "hardhat run scripts/addSettleAdminsToBeamioIndexerDiamond.ts --network conet",
-    "verify:indexer-diamond:conet": "hardhat run scripts/verifyCoNETIndexerDiamond.ts --network conet"
+    "verify:indexer-diamond:conet": "npx tsx scripts/verifyAllDiamondFacets.ts",
+    "verify:indexer-diamond:diamond-only": "npx tsx scripts/verifyBeamioIndexerDiamondStandardJson.ts",
+    "verify:indexer-diamond:conet:flattened": "npx hardhat flatten src/CoNETIndexTaskdiamond/BeamioIndexerDiamond.sol 2>/dev/null > scripts/BeamioIndexerDiamond_flat.sol && npx tsx scripts/verifyCoNETViaBlockscoutAPI.ts",
+    "verify:buint-airdrop:conet": "hardhat run scripts/verifyBUintAndAirdropConet.ts --network conet"
   },
   "dependencies": {
     "colors": "^1.4.0",
@@ -61,6 +69,14 @@
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.2",
     "dotenv": "^17.2.3",
     "hardhat": "^3.1.6"
+  },
+  "overrides": {
+    "base-x": "3.0.11",
+    "bn.js": "5.2.3",
+    "diff": "^8.0.3",
+    "minimatch": "^9.0.6",
+    "qs": "^6.14.2",
+    "lodash-es": "^4.17.23"
   },
   "exports": {
     ".": "./config/base-addresses.ts",

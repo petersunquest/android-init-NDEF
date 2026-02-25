@@ -95,7 +95,7 @@ struct Transaction {
   bytes32 originalPaymentHash;      // 父支付 hash；主支付为 0x0，小费原子交易指向被追加的主支付
   uint256 chainId;                  // 单笔请求支付所属链 ID
   bytes32 txCategory;               // 可扩展分类键（可组合原 txType + settlement 语义）
-  string displayJson;               // title/handle 合并后的 JSON string
+  string displayJson;               // 账单附加字符 JSON（DisplayJsonData：title, source, finishedHash, handle, forText, card；金额由本 struct 其他字段表达）
   uint64 timestamp;                 // ms 时间戳（或按实现统一为 s）
   address payer;                    // 整单支付方（根层字段）
   address payee;                    // 整单收款方（根层字段）
@@ -114,6 +114,12 @@ struct Transaction {
   TransactionMeta meta;
 }
 ```
+
+**内部转账 payer/payee 语义（API 组装必须正确）**：
+- **AA→EOA（Withdraw from Express Pay）**：`payer`=AA 地址，`payee`=EOA 地址。来源：ContainerRelay / AAtoEOA。
+- **EOA→AA（Add to Express Pay）**：`payer`=EOA 地址，`payee`=AA 地址。来源：BeamioTransfer（EIP-3009），客户端 note 需含 `isInternalTransfer: true`。
+- UI 按 `payee` 区分：payee=EOA → Withdraw；payee=AA → Add to Express Pay。
+- **强制约束**：`payer` 与 `payee` 必须不同；API 收到 from=to 时返回 400 拒绝记账。
 
 #### ABI 返回为 tuple/array 时的 positional 索引（供 TypeScript/API 组装用）
 
@@ -174,7 +180,10 @@ bytes32 constant TX_VOUCHER_BURN_CONFIRMED   = keccak256("voucher_burn:confirmed
 bytes32 constant TX_REQUEST_CREATE_CONFIRMED = keccak256("request_create:confirmed");
 bytes32 constant TX_REQUEST_FULFILLED_CONFIRMED = keccak256("request_fulfilled:confirmed");
 bytes32 constant TX_REQUEST_EXPIRED_CONFIRMED = keccak256("request_expired:confirmed");
+bytes32 constant TX_REQUEST_CANCEL_CONFIRMED = keccak256("request_cancel:confirmed");
 bytes32 constant TX_BEAMIO_USERCARD_MINT_CONFIRMED = keccak256("beamio_usercard_mint:confirmed");
+// 新卡发行与 Top Up 共用（cardRedeem API 记账）
+bytes32 constant TX_CARDMINT_CONFIRMED = keccak256("cardmint:confirmed");
 ```
 
 #### 2.3.1 BeamioUserCard Mint Role 约束

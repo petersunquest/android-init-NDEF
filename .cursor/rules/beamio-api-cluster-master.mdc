@@ -6,22 +6,38 @@ alwaysApply: true
 
 # Beamio API：Cluster/Master 协议
 
-Beamio 的 API 服务器**必须**遵守 cluster/master 协议。
+Beamio 的 API 服务器**必须**遵守 cluster/master 协议。**请勿违反以下约定。**
+
+## 核心原则：预检在 Cluster，Master 信任合格数据
+
+为减少 Master 负荷，**Master 不对任何入站数据再次进行校验**。所有校验必须在 Cluster 阶段完成。
+
+- **Cluster**：负责**所有**预检（格式、必填项、业务校验如 requestHash 过期/已支付、验签等）。预检通过后才转发。
+- **Master**：收到数据时**默认已合格**。Master **不重复做**任何校验，直接执行业务逻辑、队列、链上操作。
+- 若将校验逻辑放在 Master，属于**违反协议**，需迁移到 Cluster。
 
 ## 架构
 
-- **Cluster (beamioServer, port 2222)**：对外入口，接收请求
+- **Cluster (beamioServer, port 2222)**：对外入口，接收请求，做预检
 - **Master (beamioMaster, port 1111)**：后端，处理队列、链上操作、DB 写入
 
 ## 写操作
 
 所有**写区块链的 process**必须：
 
-1. Cluster 做**预检**（格式、必填项、基本校验）
+1. Cluster 做**完整预检**（格式、必填项、业务校验）
 2. 预检通过后通过 `postLocalhost('/api/xxx', body, res)` **转发到 Master**
-3. Master 实现实际逻辑，使用 **admin array** 进行**并行**区块链写入（Settle_ContractPool 等）
+3. Master 实现实际逻辑，**假定数据已合格**，使用 **admin array** 进行**并行**区块链写入（Settle_ContractPool 等）
 
 示例：createCard、purchasingCard、registerSeries、registerMintMetadata、executeForOwner、AAtoEOA、beamioTransferIndexerAccounting 等。
+
+## requestHash 相关预检（Cluster 必须做）
+
+AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`：
+
+- Cluster 必须调用 `GET /api/checkRequestStatus?requestHash=...&validDays=...&payee=...` 校验
+- 若 `expired` 或 `fulfilled`，Cluster 返回 403，**不转发**到 Master
+- 仅校验通过后才 `postLocalhost` 转发
 
 ## 读操作
 
@@ -35,6 +51,7 @@ Beamio 的 API 服务器**必须**遵守 cluster/master 协议。
 
 新增 API 时：
 
-- [ ] 若是**写操作**：在 Master 添加 handler，在 Cluster 添加预检 + `postLocalhost` 转发
+- [ ] 若是**写操作**：在 Master 添加 handler，在 Cluster 添加**完整预检** + `postLocalhost` 转发
 - [ ] 若是**读操作**：在 Cluster 添加 handler，Master 建议同步实现（便于直连 Master 或容错）
-- [ ] 不要仅在 Cluster 实现写操作的完整逻辑
+- [ ] **不要**仅在 Cluster 实现写操作的完整逻辑
+- [ ] **不要**在 Master 做任何入站数据校验（格式、业务、验签等），全部在 Cluster 完成

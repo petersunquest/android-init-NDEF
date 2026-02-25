@@ -1,0 +1,30 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "settle_contractAdmin": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+  ],
+  "timestamp": "2026-02-22T00:42:07.821Z",
+  "contracts": {
+    "BUint": {
+      "address": "0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9",
+      "admins": [
+        "0x5Bf7b014190c05957cc1A84976f958674628578c"
+      ]
+    },
+    "BUnitAirdrop": {
+      "address": "0x5Bf7b014190c05957cc1A84976f958674628578c",
+      "dailyClaimLimit": "20e6",
+      "admins": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+        "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+        "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+      ]
+    }
+  }
+}

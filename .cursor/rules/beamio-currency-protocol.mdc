@@ -1,0 +1,29 @@
+---
+description: Beamio 右对齐金额显示 protocol：currency 格式与小数位
+globs: src/SilentPassUI/**/*.{tsx,ts}
+alwaysApply: false
+---
+
+# Beamio Currency Protocol（右对齐金额）
+
+右对齐的金额展示必须遵循 Beamio currency protocol。
+
+## 格式规则
+
+- **非 USDC**：`CURRENCY` + 空格 + `amount`（例如：`USD 10.00`、`CAD 25.50`、`JPY 1000`）
+- **USDC**：`amount` + 空格 + `USDC`（例如：`10.00 USDC`）
+
+## 小数位（沿用 currency.ts getDecimals）
+
+- **USDC**：2 位
+- **TWD、JPY**：0 位
+- **其他**：2 位
+
+## 实现
+
+使用 `formatAmountWithCurrencyProtocol(v, c)`（定义于 `@/services/currency`），内部调用 `formatAmount` + `getDecimals`。
+
+## 适用场景
+
+- History 列表行右对齐金额（如 Request Canceled 状态）
+- 其他需按 Beamio 规范展示「金额 + 币种」的右对齐区域

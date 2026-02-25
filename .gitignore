@@ -19,6 +19,9 @@ node_modules/
 *.swo
 *~
 
+# Script state
+scripts/.base-sync-state
+
 # OS
 .DS_Store
 Thumbs.db

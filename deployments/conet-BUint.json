@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-02-21T07:53:38.062Z",
+  "contracts": {
+    "BUint": {
+      "address": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+      "name": "B-Units",
+      "symbol": "BUNIT",
+      "decimals": 6,
+      "transactionHash": "0x1ec5524d7cbfef8b5533bc7d0ef89dea194428b4e07e3b447cb9664e890516a3"
+    }
+  }
+}

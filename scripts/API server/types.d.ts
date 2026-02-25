@@ -3,6 +3,8 @@ type IMasterSetup = {
 	settle_admin: string
 	settle_u1: string
 	base_endpoint: string
+	/** 12 字助记词，用于 NFC Topup 时从 UID 派生私钥（UID 不在 DB 时） */
+	cryptoPayWallet?: string
 	base: {
 		CDP_API_KEY_ID: string
 		CDP_API_KEY_SECRET: string

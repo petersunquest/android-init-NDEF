@@ -60,6 +60,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     // Owner-signed execute: nonce replay protection（通用 executeForOwner）
     mapping(bytes32 => bool) public usedOwnerExecuteNonces;
 
+    // Admin-signed execute: nonce replay protection（executeForAdmin，per card per admin）
+    mapping(bytes32 => bool) public usedAdminExecuteNonces;
+
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event PaymasterStatusChanged(address indexed account, bool allowed);
 
@@ -89,6 +92,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 usdcAmount6,
         bytes32 nonce
     );
+    event AdminExecuteExecuted(address indexed card, address indexed adminSigner, bytes32 nonce);
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert BM_NotAuthorized();
@@ -424,6 +428,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes32 public constant EXECUTE_FOR_OWNER_TYPEHASH = keccak256(
         "ExecuteForOwner(address cardAddress,bytes32 dataHash,uint256 deadline,bytes32 nonce)"
     );
+    bytes32 public constant EXECUTE_FOR_ADMIN_TYPEHASH = keccak256(
+        "ExecuteForAdmin(address cardAddress,bytes32 dataHash,uint256 deadline,bytes32 nonce)"
+    );
 
     bytes32 public immutable DOMAIN_SEPARATOR;
 
@@ -465,5 +472,45 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
             }
             revert BM_CallFailed();
         }
+    }
+
+    /// @notice 通用：Card Admin 离线签名授权对 card 的调用（如 mint），由 paymaster 代付 gas 执行。
+    /// @param data abi.encodeWithSelector(selector, ...args)，如 mintPointsByAdmin(target, points6)、mintMemberCardByAdmin(target, tierIndex)
+    /// @dev 验签在 Factory 内完成；恢复的 signer 必须为 card.isAdmin(signer)
+    function executeForAdmin(
+        address cardAddr,
+        bytes calldata data,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata adminSignature
+    ) external onlyPaymaster {
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (data.length == 0) revert F_InvalidRedeemHash();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        bytes32 structHash = keccak256(abi.encode(
+            EXECUTE_FOR_ADMIN_TYPEHASH,
+            cardAddr,
+            keccak256(data),
+            deadline,
+            nonce
+        ));
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, adminSignature);
+        if (!BeamioUserCard(cardAddr).isAdmin(signer)) revert UC_NotAdmin();
+
+        bytes32 nonceKey = keccak256(abi.encode(cardAddr, signer, nonce));
+        if (usedAdminExecuteNonces[nonceKey]) revert UC_NonceUsed();
+        usedAdminExecuteNonces[nonceKey] = true;
+
+        (bool ok, bytes memory revertData) = cardAddr.call(data);
+        if (!ok) {
+            if (revertData.length > 0) {
+                assembly { revert(add(revertData, 32), mload(revertData)) }
+            }
+            revert BM_CallFailed();
+        }
+        emit AdminExecuteExecuted(cardAddr, signer, nonce);
     }
 }
