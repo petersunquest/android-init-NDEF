@@ -2,4 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioQuoteHelperV07 } from './BeamioQuoteHelperV07.js';
+export type { BeamioQuoteHelperV072 } from './BeamioQuoteHelperV072.js';
+export type { BeamioQuoteHelperV073 } from './BeamioQuoteHelperV073.js';
 export type { IBeamioOracle } from './IBeamioOracle.js';
+export type { IBeamioOracle2 } from './IBeamioOracle2.js';
+export type { IBeamioOracle3 } from './IBeamioOracle3.js';

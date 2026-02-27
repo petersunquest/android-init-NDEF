@@ -2,5 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioAccount } from './BeamioAccount.js';
+export type { BeamioAccount2 } from './BeamioAccount2.js';
 export type { IBeamioAccountFactoryConfigV2 } from './IBeamioAccountFactoryConfigV2.js';
+export type { IBeamioAccountFactoryConfigV22 } from './IBeamioAccountFactoryConfigV22.js';
 export type { IBeamioContainerModuleV07 } from './IBeamioContainerModuleV07.js';
+export type { IBeamioContainerModuleV072 } from './IBeamioContainerModuleV072.js';

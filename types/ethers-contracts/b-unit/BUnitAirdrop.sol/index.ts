@@ -2,4 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BUnitAirdrop } from './BUnitAirdrop.js';
+export type { BUnitAirdrop2 } from './BUnitAirdrop2.js';
 export type { IBeamioIndexerDiamond } from './IBeamioIndexerDiamond.js';
+export type { IBeamioIndexerDiamond2 } from './IBeamioIndexerDiamond2.js';

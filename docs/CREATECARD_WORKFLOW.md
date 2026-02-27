@@ -2,10 +2,23 @@
 
 基于成功测试（`CARD_OWNER=0x23ad...401 npm run create:ccsa:base`）的对照检查。
 
+## 配置来源（createCard 使用）
+
+| 配置项 | 来源文件 | 说明 |
+|--------|----------|------|
+| **Factory 地址** | `src/x402sdk/src/chainAddresses.ts` → `BASE_CARD_FACTORY` | 与 config/base-addresses.ts 一致 |
+| **BeamioUserCard initCode** | `src/x402sdk/src/ABI/BeamioUserCardArtifact.json` | 由 `npm run sync:card-artifact` 从 artifacts 同步 |
+| **Settle_ContractPool** | `~/.master.json` → `settle_contractAdmin` | 每项私钥对应 Factory 登记的 paymaster |
+
+**重部署 Factory/BeamioUserCard 后必做：**
+1. 更新 `config/base-addresses.ts` 和 `src/x402sdk/src/chainAddresses.ts` 的 CARD_FACTORY
+2. `npm run compile && npm run sync:card-artifact`
+3. **重启 Master 服务**（否则仍用旧 artifact/配置）
+
 ## 成功测试条件（Hardhat createCCSACard.ts）
 
 - **Caller/signer**: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`（Factory owner）
-- **Card Factory**: `0x73e3b722Eb55C92Fe73DEC01c064a5C677079E03`
+- **Card Factory**: 见 config/base-addresses.ts
 - **Deployer**: 已通过 `setFactory(Card Factory)` 指向当前工厂
 - **Gateway**: Card Factory 地址（必须与工厂一致）
 
@@ -54,7 +67,7 @@ npm run set:card-deployer-factory:base
 
 ### 3. chainAddresses BASE_CARD_FACTORY
 
-与 `deployments/base-FullAccountAndUserCard.json` 中 `beamioUserCardFactoryPaymaster.address` 一致：`0x73e3b722Eb55C92Fe73DEC01c064a5C677079E03`
+与 `config/base-addresses.ts` 的 `CARD_FACTORY` 一致。重部署后运行 `npm run redeploy:card-factory:base` 会自动更新。
 
 ### 4. BeamioUserCardArtifact 同步
 

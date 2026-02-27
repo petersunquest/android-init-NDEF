@@ -23,7 +23,7 @@ const ADDR_REGEX = /0x[a-fA-F0-9]{40}/
 
 const FILES = [
   { path: 'src/x402sdk/src/chainAddresses.ts', pattern: /BASE_CCSA_CARD_ADDRESS\s*=\s*'0x[a-fA-F0-9]{40}'/ },
-  { path: 'src/SilentPassUI/src/config/chainAddresses.ts', pattern: /BeamioCardCCSA_ADDRESS:\s*'0x[a-fA-F0-9]{40}'/ },
+  { path: 'src/SilentPassUI/src/config/chainAddresses.ts', pattern: /BeamioCardCCSA_ADDRESS:\s*'0x[a-fA-F0-9]{40}'/, alsoUpdateOld: true },
   { path: 'deployments/base-UserCard-0xEaBF0A98.json', pattern: /"userCard"\s*:\s*"0x[a-fA-F0-9]{40}"/ },
 ]
 
@@ -38,7 +38,7 @@ function main() {
   const oldAddr = process.env.OLD_CCSA_ADDRESS || null
   let replaced = 0
 
-  for (const { path: rel, pattern } of FILES) {
+  for (const { path: rel, pattern, alsoUpdateOld } of FILES) {
     const file = path.join(ROOT, rel)
     if (!fs.existsSync(file)) {
       console.warn('Skip (not found):', rel)
@@ -55,6 +55,14 @@ function main() {
           continue
         }
         content = content.replace(pattern, match[0].replace(current, newAddr))
+        if (alsoUpdateOld && rel.includes('chainAddresses')) {
+          const oldPattern = /OLD_CCSA_CARD_ADDRESS:\s*'0x[a-fA-F0-9]{40}'/
+          const oldMatch = content.match(oldPattern)
+          if (oldMatch) {
+            content = content.replace(oldPattern, `OLD_CCSA_CARD_ADDRESS: '${current}'`)
+            console.log('Updated OLD_CCSA_CARD_ADDRESS ->', current)
+          }
+        }
         fs.writeFileSync(file, content)
         console.log('Updated:', rel, current, '->', newAddr)
         replaced++

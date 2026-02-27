@@ -9,5 +9,5 @@
   "price6": "1000000",
   "timestamp": "2026-02-24T23:09:44.000Z",
   "txHash": "0x61fa3e56239a9ee8b27f633768e3b245f13e8479a5b078886dc83355ebc119e4",
-  "note": "Redeployed on new infrastructure factory 0x86879fE3..."
+  "note": "Legacy card (factoryGateway=0x86879fE3). New CCSA: run createCCSA + add admins."
 }

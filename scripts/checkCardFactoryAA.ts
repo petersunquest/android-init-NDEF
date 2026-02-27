@@ -3,7 +3,7 @@
  */
 import { network as networkModule } from "hardhat";
 
-const CARD_FACTORY = "0x86879fE3fbd958f468B1e5E6Cd075a9149ADB48F";
+const CARD_FACTORY = "0x19C000c00e6A2b254b39d16797930431E310BEdd";
 const AA_FACTORY = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
 
 async function main() {

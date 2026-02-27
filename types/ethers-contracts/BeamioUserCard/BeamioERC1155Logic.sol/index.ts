@@ -2,7 +2,17 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioERC1155Logic } from './BeamioERC1155Logic.js';
+export type { BeamioERC1155Logic2 } from './BeamioERC1155Logic2.js';
+export type { BeamioERC1155Logic3 } from './BeamioERC1155Logic3.js';
 export type { IBeamioAccountFactoryV07 } from './IBeamioAccountFactoryV07.js';
+export type { IBeamioAccountFactoryV072 } from './IBeamioAccountFactoryV072.js';
+export type { IBeamioAccountFactoryV073 } from './IBeamioAccountFactoryV073.js';
 export type { IBeamioFactoryOracle } from './IBeamioFactoryOracle.js';
+export type { IBeamioFactoryOracle2 } from './IBeamioFactoryOracle2.js';
+export type { IBeamioFactoryOracle3 } from './IBeamioFactoryOracle3.js';
 export type { IERC3009BytesSig } from './IERC3009BytesSig.js';
+export type { IERC3009BytesSig2 } from './IERC3009BytesSig2.js';
+export type { IERC3009BytesSig3 } from './IERC3009BytesSig3.js';
 export type { IRedeemModule } from './IRedeemModule.js';
+export type { IRedeemModule2 } from './IRedeemModule2.js';
+export type { IRedeemModule3 } from './IRedeemModule3.js';

@@ -2,5 +2,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioUserCardFactoryPaymasterV07 } from './BeamioUserCardFactoryPaymasterV07.js';
+export type { BeamioUserCardFactoryPaymasterV072 } from './BeamioUserCardFactoryPaymasterV072.js';
+export type { BeamioUserCardFactoryPaymasterV073 } from './BeamioUserCardFactoryPaymasterV073.js';
 export type { IBeamioDeployerV07 } from './IBeamioDeployerV07.js';
+export type { IBeamioDeployerV072 } from './IBeamioDeployerV072.js';
+export type { IBeamioDeployerV073 } from './IBeamioDeployerV073.js';
 export type { IBeamioQuoteHelper } from './IBeamioQuoteHelper.js';
+export type { IBeamioQuoteHelper2 } from './IBeamioQuoteHelper2.js';
+export type { IBeamioQuoteHelper3 } from './IBeamioQuoteHelper3.js';

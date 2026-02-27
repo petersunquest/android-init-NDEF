@@ -2,6 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioContainerModuleV07__factory } from './BeamioContainerModuleV07__factory.js';
+export { BeamioContainerModuleV072__factory } from './BeamioContainerModuleV072__factory.js';
 export { IBeamioAccountFactoryConfigV2__factory } from './IBeamioAccountFactoryConfigV2__factory.js';
+export { IBeamioAccountFactoryConfigV22__factory } from './IBeamioAccountFactoryConfigV22__factory.js';
 export { IBeamioQuoteHelperV07Like__factory } from './IBeamioQuoteHelperV07Like__factory.js';
+export { IBeamioQuoteHelperV07Like2__factory } from './IBeamioQuoteHelperV07Like2__factory.js';
 export { IBeamioUserCardLike__factory } from './IBeamioUserCardLike__factory.js';
+export { IBeamioUserCardLike2__factory } from './IBeamioUserCardLike2__factory.js';

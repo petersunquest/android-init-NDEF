@@ -495,21 +495,35 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         }
     }
 
+    /// @notice 最大迭代次数，防止存储损坏（如旧布局/异常数据）导致 length 异常大而 overflow
+    uint256 private constant _MAX_BUNDLE_LEN = 64;
+    uint256 private constant _MAX_POOL_CONTAINERS = 32;
+
     /// @notice 计算 one-time redeem 总点数：r.points6 + token bundle 中 POINTS_ID 的 amounts
+    /// @dev 使用 min(tokenIds.length, amounts.length) 防止存储损坏导致两数组长度不一致时越界 revert
     function _redeemTotalPoints(RedeemStorage.Redeem storage r) internal view returns (uint256) {
         uint256 t = r.points6;
-        for (uint256 i = 0; i < r.tokenIds.length; i++) {
+        uint256 len = r.tokenIds.length;
+        if (r.amounts.length < len) len = r.amounts.length;
+        if (len > _MAX_BUNDLE_LEN) len = _MAX_BUNDLE_LEN;
+        for (uint256 i = 0; i < len; i++) {
             if (r.tokenIds[i] == POINTS_ID) t += r.amounts[i];
         }
         return t;
     }
 
     /// @notice 计算 pool 总点数：遍历 containers 中 POINTS_ID 的 amounts
+    /// @dev 使用 min(tokenIds.length, amounts.length) 防止存储损坏导致两数组长度不一致时越界 revert
     function _poolTotalPoints(RedeemStorage.RedeemPool storage p) internal view returns (uint256) {
         uint256 t = 0;
-        for (uint256 c = 0; c < p.containers.length; c++) {
+        uint256 cLen = p.containers.length;
+        if (cLen > _MAX_POOL_CONTAINERS) cLen = _MAX_POOL_CONTAINERS;
+        for (uint256 c = 0; c < cLen; c++) {
             RedeemStorage.PoolContainer storage pc = p.containers[c];
-            for (uint256 i = 0; i < pc.tokenIds.length; i++) {
+            uint256 pcLen = pc.tokenIds.length;
+            if (pc.amounts.length < pcLen) pcLen = pc.amounts.length;
+            if (pcLen > _MAX_BUNDLE_LEN) pcLen = _MAX_BUNDLE_LEN;
+            for (uint256 i = 0; i < pcLen; i++) {
                 if (pc.tokenIds[i] == POINTS_ID) t += pc.amounts[i];
             }
         }

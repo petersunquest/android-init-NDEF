@@ -9,6 +9,9 @@
  *   或
  *   PRIVATE_KEY=<factory_owner_pk> CARD_OWNER_PK=<card_owner_pk> npx hardhat run scripts/deployCCSAAndAddAdmins.ts --network base
  *
+ * 添加额外 admin（如 0xfb49c43f2444221fbcb1099929a907b3e4a4a15c）:
+ *   EXTRA_ADMIN=0xfb49c43f2444221fbcb1099929a907b3e4a4a15c npm run deploy:ccsa-and-admins:base
+ *
  * 配置:
  *   - PRIVATE_KEY: 工厂 owner 或 paymaster 私钥（用于 createCardCollectionWithInitCode）
  *   - CARD_OWNER_PK: CCSA 卡 owner 私钥（用于 addAdmin，必须与 CARD_OWNER 对应）
@@ -129,9 +132,13 @@ async function main() {
 
   console.log("\n✅ CCSA 卡已创建:", cardAddress);
 
-  // ========== 步骤 2: 添加 settle_contractAdmin 为 admin ==========
+  // ========== 步骤 2: 添加 settle_contractAdmin + EXTRA_ADMIN 为 admin ==========
   const master = loadMasterSetup();
   const adminAddresses = master.settle_contractAdmin.map((pk: string) => new (ethers.Wallet)(pk).address);
+  const extraAdmin = process.env.EXTRA_ADMIN; // 如 0xfb49c43f2444221fbcb1099929a907b3e4a4a15c
+  if (extraAdmin && ethers.isAddress(extraAdmin) && !adminAddresses.find((a) => a.toLowerCase() === extraAdmin.toLowerCase())) {
+    adminAddresses.push(ethers.getAddress(extraAdmin));
+  }
 
   console.log("\n" + "=".repeat(60));
   console.log("步骤 2: 添加 settle_contractAdmin 为 CCSA admin");
