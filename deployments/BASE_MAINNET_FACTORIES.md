@@ -26,18 +26,18 @@
 | 项目 | 值 |
 |------|-----|
 | **合约** | BeamioUserCardFactoryPaymasterV07 |
-| **地址** | 见 config/base-addresses.ts（当前为 `0xbDC8a165820bB8FA23f5d953632409F73E804eE5`） |
+| **地址** | 见 config/base-addresses.ts（当前为 `0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b`） |
 | **网络** | Base Mainnet (Chain ID: 8453) |
 
-**重部署 Card Factory：** `npm run redeploy:card-factory:base`。自动更新 SilentPassUI、x402sdk、config。
+**重部署 Card Factory：** `npm run redeploy:card-factory:base` 或 `npm run deploy:card-factory-only:base`。自动更新 SilentPassUI、x402sdk、config。
 
 ---
 
 ## 区块浏览器
 
 - AA Factory: https://basescan.org/address/0xD86403DD1755F7add19540489Ea10cdE876Cc1CE
-- Card Factory: https://basescan.org/address/0xbDC8a165820bB8FA23f5d953632409F73E804eE5
+- Card Factory: https://basescan.org/address/0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b
 
 ---
 
-*Card Factory 重部署后请运行 `npm run redeploy:card-factory:base` 以自动更新所有配置。*
+*Card Factory 重部署后请运行 `npm run redeploy:card-factory:base` 或 `npm run deploy:card-factory-only:base` 以自动更新所有配置。*

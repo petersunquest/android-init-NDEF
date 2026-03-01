@@ -2,6 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioBUnits__factory } from './BeamioBUnits__factory.js';
-export { BeamioBUnits2__factory } from './BeamioBUnits2__factory.js';
 export { IERC20__factory } from './IERC20__factory.js';
-export { IERC202__factory } from './IERC202__factory.js';

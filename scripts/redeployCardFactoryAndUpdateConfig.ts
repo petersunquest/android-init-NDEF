@@ -253,6 +253,17 @@ export const BASE_CARD_FACTORY = '${factoryAddress}'
  * 与 SilentPassUI config/chainAddresses.ts BeamioCardCCSA_ADDRESS 必须一致；重发卡后运行 replace-ccsa-address.js 同步两处。
  */
 export const BASE_CCSA_CARD_ADDRESS = '${BASE_CCSA_CARD}'
+
+/**
+ * Base 主网基础设施卡地址（BeamioUserCard 实例）。
+ * 与服务端 getWalletAssets/getUIDAssets 的基础设施卡查询保持一致。
+ */
+export const BEAMIO_USER_CARD_ASSET_ADDRESS = '0xB7644DDb12656F4854dC746464af47D33C206F0E'
+
+/**
+ * CoNET BUnit Airdrop 合约地址（用于 claimBUnits）。
+ */
+export const CONET_BUNIT_AIRDROP_ADDRESS = '0x5Bf7b014190c05957cc1A84976f958674628578c'
 `;
   fs.writeFileSync(sdkChainPath, sdkChainContent);
   console.log("7. 已更新 src/x402sdk/src/chainAddresses.ts");

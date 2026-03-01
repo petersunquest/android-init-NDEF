@@ -2,10 +2,13 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
-export * as beamioOracleSol from './BeamioOracle.sol/index.js';
 export * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
 export * as beamioUserCardSol from './BeamioUserCard.sol/index.js';
-export * as beamioUserCardDeployerV07Sol from './BeamioUserCardDeployerV07.sol/index.js';
 export * as beamioUserCardFactoryPaymasterV07Sol from './BeamioUserCardFactoryPaymasterV07.sol/index.js';
-export * as beamioUserCardPlaceholderSol from './BeamioUserCardPlaceholder.sol/index.js';
+export * as faucetModuleSol from './FaucetModule.sol/index.js';
+export * as governanceModuleSol from './GovernanceModule.sol/index.js';
+export * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export * as redeemModuleSol from './RedeemModule.sol/index.js';
+export { BeamioOracle__factory } from './BeamioOracle__factory.js';
+export { BeamioUserCardDeployerV07__factory } from './BeamioUserCardDeployerV07__factory.js';
+export { BeamioUserCardPlaceholder__factory } from './BeamioUserCardPlaceholder__factory.js';

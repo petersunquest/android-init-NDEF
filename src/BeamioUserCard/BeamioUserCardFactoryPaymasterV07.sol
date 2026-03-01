@@ -5,6 +5,7 @@ import "./BeamioUserCard.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
 import "./Errors.sol";
+import "./FaucetStorage.sol";
 import "../contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -41,6 +42,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
     // ===== modules / helpers =====
     address public defaultRedeemModule;
+    address public defaultFaucetModule;
+    address public defaultIssuedNftModule;
+    address public defaultGovernanceModule;
     address public quoteHelper;
     address public deployer;
 
@@ -67,12 +71,17 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     event PaymasterStatusChanged(address indexed account, bool allowed);
 
     event DefaultRedeemModuleUpdated(address indexed oldM, address indexed newM);
+    event DefaultFaucetModuleUpdated(address indexed oldM, address indexed newM);
+    event DefaultIssuedNftModuleUpdated(address indexed oldM, address indexed newM);
+    event DefaultGovernanceModuleUpdated(address indexed oldM, address indexed newM);
     event QuoteHelperChanged(address indexed oldH, address indexed newH);
     event DeployerChanged(address indexed oldD, address indexed newD);
     event AAFactoryChanged(address indexed oldFactory, address indexed newFactory);
 
     event CardDeployed(address indexed cardOwner, address indexed card, uint8 currency, uint256 priceE18);
     event CardRegistered(address indexed cardOwner, address indexed card);
+    /// @notice createCard 失败时标记步骤：0=CREATE 失败，1=gateway，2=owner，3=currency，4=price
+    event DeployFailedStep(uint8 step);
     event RedeemExecuted(address indexed card, address indexed user, bytes32 redeemHash);
     event TokenIdIssued(address indexed card, uint256 indexed id, bool isNft);
     event PointsPurchasedForUser(
@@ -127,6 +136,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         isPaymaster[initialOwner] = true;
 
         defaultRedeemModule = redeemModule_;
+        defaultFaucetModule = redeemModule_;      // owner can setFaucetModule to dedicated module
+        defaultIssuedNftModule = redeemModule_;
+        defaultGovernanceModule = redeemModule_;
         quoteHelper = quoteHelper_;
         deployer = deployer_;
         _aaFactory = aaFactory_;
@@ -187,6 +199,24 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         defaultRedeemModule = m;
     }
 
+    function setFaucetModule(address m) external onlyOwner {
+        if (m == address(0)) revert BM_ZeroAddress();
+        emit DefaultFaucetModuleUpdated(defaultFaucetModule, m);
+        defaultFaucetModule = m;
+    }
+
+    function setIssuedNftModule(address m) external onlyOwner {
+        if (m == address(0)) revert BM_ZeroAddress();
+        emit DefaultIssuedNftModuleUpdated(defaultIssuedNftModule, m);
+        defaultIssuedNftModule = m;
+    }
+
+    function setGovernanceModule(address m) external onlyOwner {
+        if (m == address(0)) revert BM_ZeroAddress();
+        emit DefaultGovernanceModuleUpdated(defaultGovernanceModule, m);
+        defaultGovernanceModule = m;
+    }
+
     function setAAFactory(address f) external onlyOwner {
         if (f == address(0)) revert BM_ZeroAddress();
         emit AAFactoryChanged(_aaFactory, f);
@@ -217,6 +247,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
     // ==========================================================
     // Deploy with initCode (creationCode + abi.encode(args))
+    // 失败时 emit DeployFailedStep(step) 并 revert BM_DeployFailedAtStep(step)，便于定位。
     // ==========================================================
     function createCardCollectionWithInitCode(
         address cardOwner,
@@ -228,14 +259,29 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (initCode.length == 0) revert BM_DeployFailed();
 
         card = IBeamioDeployerV07(deployer).deploy(initCode);
-        if (card == address(0) || card.code.length == 0) revert BM_DeployFailed();
+        if (card == address(0) || card.code.length == 0) {
+            emit DeployFailedStep(0); // CREATE 失败（OOG / EIP-170 / EIP-3860 / constructor revert）
+            revert BM_DeployFailedAtStep(0);
+        }
 
         // validate
         BeamioUserCard c = BeamioUserCard(card);
-        if (c.factoryGateway() != address(this)) revert F_BadDeployedCard();
-        if (c.owner() != cardOwner) revert F_BadDeployedCard();
-        if (uint8(c.currency()) != currency) revert F_BadDeployedCard();
-        if (c.pointsUnitPriceInCurrencyE6() != priceInCurrencyE6) revert F_BadDeployedCard();
+        if (c.factoryGateway() != address(this)) {
+            emit DeployFailedStep(1);
+            revert BM_DeployFailedAtStep(1);
+        }
+        if (c.owner() != cardOwner) {
+            emit DeployFailedStep(2);
+            revert BM_DeployFailedAtStep(2);
+        }
+        if (uint8(c.currency()) != currency) {
+            emit DeployFailedStep(3);
+            revert BM_DeployFailedAtStep(3);
+        }
+        if (c.pointsUnitPriceInCurrencyE6() != priceInCurrencyE6) {
+            emit DeployFailedStep(4);
+            revert BM_DeployFailedAtStep(4);
+        }
 
         _registerCard(cardOwner, card);
         beamioUserCardOwner[card] = cardOwner;
@@ -369,12 +415,12 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         address cardOwner = card.owner();
         if (cardOwner == address(0)) revert BM_ZeroAddress();
 
-        (,,,, bool enabled, uint8 currency,, uint128 priceInCurrency6) = card.faucetConfig(id);
-        if (!enabled) revert UC_FaucetNotEnabled();
-        if (priceInCurrency6 == 0) revert UC_PurchaseDisabledBecauseFree();
+        FaucetStorage.FaucetConfig memory cfg = card.faucetConfig(id);
+        if (!cfg.enabled) revert UC_FaucetNotEnabled();
+        if (cfg.priceInCurrency6 == 0) revert UC_PurchaseDisabledBecauseFree();
 
-        uint256 amountInCurrency6 = (uint256(priceInCurrency6) * amount6) / POINTS_ONE;
-        uint256 usdcAmount6 = this.quoteCurrencyAmountInUSDC6(currency, amountInCurrency6);
+        uint256 amountInCurrency6 = (uint256(cfg.priceInCurrency6) * amount6) / POINTS_ONE;
+        uint256 usdcAmount6 = this.quoteCurrencyAmountInUSDC6(cfg.currency, amountInCurrency6);
 
         // 1) USDC: userEOA -> cardOwner (merchant)
         IERC3009BytesSig(USDC_TOKEN).transferWithAuthorization(

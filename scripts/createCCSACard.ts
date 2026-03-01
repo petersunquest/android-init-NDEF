@@ -5,11 +5,13 @@
  * 用法：
  *   CARD_OWNER=0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61 npm run create:ccsa:base
  *   npm run create:ccsa:base
+ * 若未设置 PRIVATE_KEY，会尝试使用 ~/.master.json 的 settle_contractAdmin[0] 作为 signer。
  */
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { homedir } from "os";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,9 +20,42 @@ const DEFAULT_URI = "https://api.beamio.io/metadata/{id}.json";
 const CAD_CURRENCY = 0; // BeamioCurrency.CurrencyType.CAD
 const ONE_CAD_E6 = 1_000_000n;
 
+function getMasterJsonPath(): string {
+  const candidates = [
+    path.join(homedir(), ".master.json"),
+    process.env.HOME ? path.join(process.env.HOME, ".master.json") : "",
+    process.env.USERPROFILE ? path.join(process.env.USERPROFILE, ".master.json") : "",
+  ].filter(Boolean) as string[];
+  return candidates.find((p) => fs.existsSync(p)) ?? candidates[0] ?? path.join(homedir(), ".master.json");
+}
+
+function loadAdminFromMaster(): { privateKey: string } | null {
+  const f = getMasterJsonPath();
+  if (!fs.existsSync(f)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(f, "utf-8"));
+    const pks = data?.settle_contractAdmin;
+    if (!Array.isArray(pks) || pks.length === 0) return null;
+    const pk = String(pks[0]).trim();
+    const key = pk.startsWith("0x") ? pk : `0x${pk}`;
+    if (key.length < 64) return null;
+    return { privateKey: key };
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [signer] = await ethers.getSigners();
+  let signer = (await ethers.getSigners())[0];
+  if (!signer) {
+    const masterAdmin = loadAdminFromMaster();
+    if (!masterAdmin) {
+      throw new Error("无 signer：请设置 PRIVATE_KEY 或配置 ~/.master.json 的 settle_contractAdmin[0]");
+    }
+    signer = new ethers.Wallet(masterAdmin.privateKey, ethers.provider);
+    console.log("使用 ~/.master.json settle_contractAdmin[0] 作为 signer:", signer.address);
+  }
 
   const cardOwner = process.env.CARD_OWNER
     ? ethers.getAddress(process.env.CARD_OWNER)
@@ -47,7 +82,8 @@ async function main() {
 
   const cardFactory = await ethers.getContractAt(
     "BeamioUserCardFactoryPaymasterV07",
-    cardFactoryAddress
+    cardFactoryAddress,
+    signer
   );
   const factoryOwner = await cardFactory.owner();
   const isPm = await cardFactory.isPaymaster(signer.address);
@@ -81,7 +117,8 @@ async function main() {
     cardOwner,
     CAD_CURRENCY,
     ONE_CAD_E6,
-    initCode
+    initCode,
+    { gasLimit: 6_000_000 }
   );
   const receipt = await tx.wait();
   if (!receipt) throw new Error("Transaction failed");

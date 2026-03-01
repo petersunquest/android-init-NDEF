@@ -4,7 +4,7 @@
  */
 import { ethers } from 'ethers'
 
-const BASE_CARD_FACTORY = '0x19C000c00e6A2b254b39d16797930431E310BEdd'
+const BASE_CARD_FACTORY = '0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b'
 const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
 /** 与 UI baseRpc 一致：优先 1rpc.io 免费 RPC；部分 call 可能返回 missing revert data，可设 BASE_RPC_FALLBACK 备用 */
 const RPC = process.env.BASE_RPC || 'https://1rpc.io/base'

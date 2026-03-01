@@ -43,7 +43,7 @@ contract BeamioUserCardDeployerV07 {
     }
 
     /**
-     * @notice 部署合约（CREATE）
+     * @notice 部署合约（CREATE）。失败时返回 address(0)，由 Factory 统一 emit DeployFailedStep(0) 并 revert BM_DeployFailedAtStep(0)。
      */
     function deploy(bytes calldata initCode) external onlyFactory returns (address addr) {
         if (initCode.length == 0) revert BM_DeployFailed();
@@ -54,6 +54,7 @@ contract BeamioUserCardDeployerV07 {
             calldatacopy(ptr, initCode.offset, len)
             addr := create(0, ptr, len)
         }
-        if (addr == address(0)) revert BM_DeployFailed();
+        // CREATE 失败（OOG、size、constructor revert）时返回 0，不 revert，让 Factory 冒泡 step
+        if (addr == address(0)) return address(0);
     }
 }

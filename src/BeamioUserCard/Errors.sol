@@ -12,6 +12,10 @@ error BM_NotAuthorized();
 error BM_CallFailed();
 error BM_InvalidSecret();
 error BM_DeployFailed();
+/// @notice createCard 失败时冒泡步骤：0=CREATE 失败，1=gateway 不匹配，2=owner 不匹配，3=currency 不匹配，4=price 不匹配
+error BM_DeployFailedAtStep(uint8 step);
+/// @notice 若用 try new Contract() catch (bytes reason) 时可冒泡 constructor 的 revert 原因
+error BM_DeployFailedWithReason(bytes reason);
 error UC_TiersNotDecreasing();
 
 // -------- ERC1155 / UserCard (UC_) --------

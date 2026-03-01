@@ -2,14 +2,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioUserCard } from './BeamioUserCard.js';
-export type { BeamioUserCard2 } from './BeamioUserCard2.js';
-export type { BeamioUserCard3 } from './BeamioUserCard3.js';
+export type { IBeamioFaucetModuleV1 } from './IBeamioFaucetModuleV1.js';
 export type { IBeamioGatewayAAFactoryGetter } from './IBeamioGatewayAAFactoryGetter.js';
-export type { IBeamioGatewayAAFactoryGetter2 } from './IBeamioGatewayAAFactoryGetter2.js';
-export type { IBeamioGatewayAAFactoryGetter3 } from './IBeamioGatewayAAFactoryGetter3.js';
+export type { IBeamioGovernanceModuleV1 } from './IBeamioGovernanceModuleV1.js';
+export type { IBeamioIssuedNftModuleV1 } from './IBeamioIssuedNftModuleV1.js';
 export type { IBeamioRedeemModuleVNext } from './IBeamioRedeemModuleVNext.js';
-export type { IBeamioRedeemModuleVNext2 } from './IBeamioRedeemModuleVNext2.js';
-export type { IBeamioRedeemModuleVNext3 } from './IBeamioRedeemModuleVNext3.js';
 export type { IBeamioUserCardFactoryPaymasterV07 } from './IBeamioUserCardFactoryPaymasterV07.js';
-export type { IBeamioUserCardFactoryPaymasterV072 } from './IBeamioUserCardFactoryPaymasterV072.js';
-export type { IBeamioUserCardFactoryPaymasterV073 } from './IBeamioUserCardFactoryPaymasterV073.js';

@@ -2,10 +2,6 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioContainerModuleV07 } from './BeamioContainerModuleV07.js';
-export type { BeamioContainerModuleV072 } from './BeamioContainerModuleV072.js';
 export type { IBeamioAccountFactoryConfigV2 } from './IBeamioAccountFactoryConfigV2.js';
-export type { IBeamioAccountFactoryConfigV22 } from './IBeamioAccountFactoryConfigV22.js';
 export type { IBeamioQuoteHelperV07Like } from './IBeamioQuoteHelperV07Like.js';
-export type { IBeamioQuoteHelperV07Like2 } from './IBeamioQuoteHelperV07Like2.js';
 export type { IBeamioUserCardLike } from './IBeamioUserCardLike.js';
-export type { IBeamioUserCardLike2 } from './IBeamioUserCardLike2.js';

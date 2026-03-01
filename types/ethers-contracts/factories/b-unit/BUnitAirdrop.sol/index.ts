@@ -2,6 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BUnitAirdrop__factory } from './BUnitAirdrop__factory.js';
-export { BUnitAirdrop2__factory } from './BUnitAirdrop2__factory.js';
 export { IBeamioIndexerDiamond__factory } from './IBeamioIndexerDiamond__factory.js';
-export { IBeamioIndexerDiamond2__factory } from './IBeamioIndexerDiamond2__factory.js';

@@ -6,13 +6,19 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "defaultRedeemModule"): FunctionFragment;
+    getFunction(nameOrSignature: "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultRedeemModule"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
   }
 
   
@@ -51,6 +57,30 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 
     
     
+    defaultFaucetModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    defaultGovernanceModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    defaultIssuedNftModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     defaultRedeemModule: TypedContractMethod<
       [],
       [string],
@@ -61,7 +91,22 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'defaultRedeemModule'): TypedContractMethod<
+    getFunction(nameOrSignature: 'defaultFaucetModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'defaultGovernanceModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'defaultIssuedNftModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'defaultRedeemModule'): TypedContractMethod<
       [],
       [string],
       'view'

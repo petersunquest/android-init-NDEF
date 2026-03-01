@@ -64,7 +64,7 @@ import type { NonPayableOverrides } from "../../../../common.js"
   }
 ] as const;
 
-  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea2646970667358221220631246b896a701cf7b8fdb71b90f7c5e2e48f5577167c924dc77485d3622e31e64736f6c63430008210033";
+  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea26469706673582212200d55667b469b18798b92e27cc86ad39a9b0a1f1e8647017ac425decb5c9b046864736f6c63430008210033";
 
   
       type SafeCastConstructorParams = [signer?: Signer] | ConstructorParameters<typeof ContractFactory>;

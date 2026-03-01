@@ -2,11 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioUserCardFactoryPaymasterV07__factory } from './BeamioUserCardFactoryPaymasterV07__factory.js';
-export { BeamioUserCardFactoryPaymasterV072__factory } from './BeamioUserCardFactoryPaymasterV072__factory.js';
-export { BeamioUserCardFactoryPaymasterV073__factory } from './BeamioUserCardFactoryPaymasterV073__factory.js';
 export { IBeamioDeployerV07__factory } from './IBeamioDeployerV07__factory.js';
-export { IBeamioDeployerV072__factory } from './IBeamioDeployerV072__factory.js';
-export { IBeamioDeployerV073__factory } from './IBeamioDeployerV073__factory.js';
 export { IBeamioQuoteHelper__factory } from './IBeamioQuoteHelper__factory.js';
-export { IBeamioQuoteHelper2__factory } from './IBeamioQuoteHelper2__factory.js';
-export { IBeamioQuoteHelper3__factory } from './IBeamioQuoteHelper3__factory.js';

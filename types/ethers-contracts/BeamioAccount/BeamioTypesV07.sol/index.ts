@@ -2,14 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { IAccountV07 } from './IAccountV07.js';
-export type { IAccountV072 } from './IAccountV072.js';
 export type { IERC1155Like } from './IERC1155Like.js';
-export type { IERC1155Like2 } from './IERC1155Like2.js';
 export type { IERC1271 } from './IERC1271.js';
-export type { IERC12712 } from './IERC12712.js';
 export type { IERC20Like } from './IERC20Like.js';
-export type { IERC20Like2 } from './IERC20Like2.js';
 export type { IEntryPointV07 } from './IEntryPointV07.js';
-export type { IEntryPointV072 } from './IEntryPointV072.js';
 export type { IPaymasterV07 } from './IPaymasterV07.js';
-export type { IPaymasterV072 } from './IPaymasterV072.js';

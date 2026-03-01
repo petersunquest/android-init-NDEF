@@ -1,6 +1,6 @@
 /**
  * 为 BeamioUserCardDeployerV07 设置 factory 地址（Card Factory）。
- * 若部署时 setFactory 未成功调用，可手动执行此脚本。
+ * 使用 Factory.deployer() 作为要设置的 Deployer（与 createCard 实际调用的合约一致）。
  *
  * 用法：npm run set:card-deployer-factory:base
  * 或：npx hardhat run scripts/setCardDeployerFactory.ts --network base
@@ -18,24 +18,29 @@ async function main() {
   const networkInfo = await ethers.provider.getNetwork();
   const deploymentsDir = path.join(__dirname, "..", "deployments");
 
-  const netName = networkInfo.name === "base-mainnet" ? "base" : networkInfo.name;
-  const fullFile = path.join(deploymentsDir, `base-FullAccountAndUserCard.json`);
+  const fullFile = path.join(deploymentsDir, "base-FullAccountAndUserCard.json");
   if (!fs.existsSync(fullFile)) {
     console.error("未找到 deployments/base-FullAccountAndUserCard.json");
     process.exit(1);
   }
   const data = JSON.parse(fs.readFileSync(fullFile, "utf-8"));
   const cardFactoryAddress = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-  const userCardDeployerAddress = data.contracts?.beamioUserCardDeployer?.address;
+  if (!cardFactoryAddress) {
+    console.error("部署文件中缺少 beamioUserCardFactoryPaymaster 地址");
+    process.exit(1);
+  }
 
-  if (!cardFactoryAddress || !userCardDeployerAddress) {
-    console.error("部署文件中缺少 beamioUserCardFactoryPaymaster 或 beamioUserCardDeployer 地址");
+  const factoryAbi = ["function deployer() view returns (address)"];
+  const factory = new ethers.Contract(cardFactoryAddress, factoryAbi, ethers.provider);
+  const userCardDeployerAddress = await factory.deployer();
+  if (!userCardDeployerAddress || userCardDeployerAddress === ethers.ZeroAddress) {
+    console.error("Card Factory.deployer() 未设置");
     process.exit(1);
   }
 
   const deployer = await ethers.getContractAt("BeamioUserCardDeployerV07", userCardDeployerAddress);
   const current = await deployer.factory();
-  console.log("UserCard Deployer:", userCardDeployerAddress);
+  console.log("UserCard Deployer (Factory.deployer()):", userCardDeployerAddress);
   console.log("当前 Deployer.factory:", current);
   console.log("目标 Card Factory:", cardFactoryAddress);
 

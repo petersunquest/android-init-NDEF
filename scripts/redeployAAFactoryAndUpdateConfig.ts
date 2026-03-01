@@ -29,6 +29,23 @@ const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.ts");
 const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
 const DEPLOYMENT_FILE = path.join(DEPLOYMENTS_DIR, "base-FactoryAndModule.json");
+const FULL_ACCOUNT_FILE = path.join(DEPLOYMENTS_DIR, "base-FullAccountAndUserCard.json");
+
+/** 当前 Base 主网 Card Factory，写入 config 时保持不改；与 config/base-addresses.ts 一致 */
+function getCardFactoryForConfig(): string {
+  if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
+  if (fs.existsSync(FULL_ACCOUNT_FILE)) {
+    const data = JSON.parse(fs.readFileSync(FULL_ACCOUNT_FILE, "utf-8"));
+    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
+    if (addr) return addr;
+  }
+  if (fs.existsSync(CONFIG_PATH)) {
+    const content = fs.readFileSync(CONFIG_PATH, "utf-8");
+    const m = content.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
+    if (m) return m[1];
+  }
+  return "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";
+}
 
 async function main() {
   const { ethers } = await networkModule.connect();
@@ -147,7 +164,7 @@ export const BASE_MAINNET_FACTORIES = {
   /** AA 账户工厂 (BeamioFactoryPaymasterV07) */
   AA_FACTORY: '${newFactoryAddress}',
   /** UserCard 工厂 (BeamioUserCardFactoryPaymasterV07) */
-  CARD_FACTORY: '0x7Ec828BAbA1c58C5021a6E7D29ccDDdB2d8D84bd',
+  CARD_FACTORY: '${getCardFactoryForConfig()}',
 } as const
 
 /** 按链聚合，便于多链扩展 */
@@ -172,7 +189,7 @@ export type ChainKey = keyof typeof CONTRACT_ADDRESSES
       {
         BASE_MAINNET_CHAIN_ID: 8453,
         AA_FACTORY: newFactoryAddress,
-        CARD_FACTORY: process.env.CARD_FACTORY_ADDRESS || "0x7Ec828BAbA1c58C5021a6E7D29ccDDdB2d8D84bd",
+        CARD_FACTORY: process.env.CARD_FACTORY_ADDRESS || getCardFactoryForConfig(),
       },
       null,
       2
@@ -195,7 +212,7 @@ export const BASE_AA_FACTORY = '${newFactoryAddress}'
 
   // 同步更新 SilentPassUI 内 chainAddresses（避免 webpack 解析 repo 根 config）
   const uiChainPath = path.join(__dirname, "..", "src", "SilentPassUI", "src", "config", "chainAddresses.ts");
-  const CARD_FACTORY_ADDR = process.env.CARD_FACTORY_ADDRESS || "0x7Ec828BAbA1c58C5021a6E7D29ccDDdB2d8D84bd";
+  const CARD_FACTORY_ADDR = process.env.CARD_FACTORY_ADDRESS || getCardFactoryForConfig();
   const uiChainContent = `/**
  * Base 主网合约地址（与项目根 config/base-addresses.ts 保持一致）。
  * 重部署 AA Factory 后运行 npm run redeploy:aa-factory:base 会同步更新根 config 与本文件。
@@ -216,7 +233,7 @@ export const BASE_MAINNET_FACTORIES = {
 
   // 6. 可选：Card Factory setAAFactory
   const CARD_FACTORY_ADDRESS =
-    process.env.CARD_FACTORY_ADDRESS || "0x7Ec828BAbA1c58C5021a6E7D29ccDDdB2d8D84bd";
+    process.env.CARD_FACTORY_ADDRESS || getCardFactoryForConfig();
   const CARD_FACTORY_OWNER_PK = process.env.CARD_FACTORY_OWNER_PK;
   if (CARD_FACTORY_OWNER_PK) {
     console.log("6. 调用 Card Factory setAAFactory...");

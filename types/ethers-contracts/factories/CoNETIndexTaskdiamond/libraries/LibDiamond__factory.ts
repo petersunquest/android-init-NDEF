@@ -29,7 +29,7 @@ import type { NonPayableOverrides } from "../../../common.js"
   }
 ] as const;
 
-  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea26469706673582212201516c5dfc446b6df1b44ce728afdad069aec56d4d8396c5a0791686891bf597a64736f6c63430008210033";
+  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea2646970667358221220b4726f71b070a950cf384e2a37a4230ee4fbb0f3351e562c1304cdf1f71fee3c64736f6c63430008210033";
 
   
       type LibDiamondConstructorParams = [signer?: Signer] | ConstructorParameters<typeof ContractFactory>;

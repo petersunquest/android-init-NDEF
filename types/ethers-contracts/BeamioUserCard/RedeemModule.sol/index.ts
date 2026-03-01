@@ -2,8 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioUserCardRedeemModuleVNext } from './BeamioUserCardRedeemModuleVNext.js';
-export type { BeamioUserCardRedeemModuleVNext2 } from './BeamioUserCardRedeemModuleVNext2.js';
-export type { BeamioUserCardRedeemModuleVNext3 } from './BeamioUserCardRedeemModuleVNext3.js';
 export type { IUserCardCtx } from './IUserCardCtx.js';
-export type { IUserCardCtx2 } from './IUserCardCtx2.js';
-export type { IUserCardCtx3 } from './IUserCardCtx3.js';

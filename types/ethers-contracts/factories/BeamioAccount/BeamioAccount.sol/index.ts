@@ -2,8 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioAccount__factory } from './BeamioAccount__factory.js';
-export { BeamioAccount2__factory } from './BeamioAccount2__factory.js';
 export { IBeamioAccountFactoryConfigV2__factory } from './IBeamioAccountFactoryConfigV2__factory.js';
-export { IBeamioAccountFactoryConfigV22__factory } from './IBeamioAccountFactoryConfigV22__factory.js';
 export { IBeamioContainerModuleV07__factory } from './IBeamioContainerModuleV07__factory.js';
-export { IBeamioContainerModuleV072__factory } from './IBeamioContainerModuleV072__factory.js';

@@ -31,7 +31,7 @@ export default defineConfig({
     settings: {
       optimizer: {
         enabled: true,
-        runs: 50
+        runs: 1  // 偏向部署体积，便于 BeamioUserCard 满足 EIP-170 24KB
       },
       viaIR: true  // 解决 "Stack too deep" 错误
     }
@@ -40,7 +40,7 @@ export default defineConfig({
     base: {
       type: "http",
       chainType: "l1",
-      url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
+      url: process.env.BASE_RPC_URL || "https://1rpc.io/base",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 8453
     },

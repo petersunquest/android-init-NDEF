@@ -2,6 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioBUnits } from './BeamioBUnits.js';
-export type { BeamioBUnits2 } from './BeamioBUnits2.js';
 export type { IERC20 } from './IERC20.js';
-export type { IERC202 } from './IERC202.js';

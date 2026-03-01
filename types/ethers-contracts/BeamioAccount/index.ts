@@ -3,11 +3,9 @@
 /* eslint-disable */
 import type * as beamioAccountSol from './BeamioAccount.sol/index.js';
 export type { beamioAccountSol };
-import type * as beamioAccountDeployerSol from './BeamioAccountDeployer.sol/index.js';
-export type { beamioAccountDeployerSol };
 import type * as beamioContainerModuleV07Sol from './BeamioContainerModuleV07.sol/index.js';
 export type { beamioContainerModuleV07Sol };
-import type * as beamioFactoryPaymasterV07Sol from './BeamioFactoryPaymasterV07.sol/index.js';
-export type { beamioFactoryPaymasterV07Sol };
 import type * as beamioTypesV07Sol from './BeamioTypesV07.sol/index.js';
 export type { beamioTypesV07Sol };
+export type { BeamioAccountDeployer } from './BeamioAccountDeployer.js';
+export type { BeamioFactoryPaymasterV07 } from './BeamioFactoryPaymasterV07.js';

@@ -8,16 +8,8 @@ export const BASE_MAINNET_FACTORIES = {
   /** AA 账户工厂 (BeamioFactoryPaymasterV07) */
   AA_FACTORY: '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE',
   /** UserCard 工厂 (BeamioUserCardFactoryPaymasterV07) */
-  CARD_FACTORY: '0x19C000c00e6A2b254b39d16797930431E310BEdd',
+  CARD_FACTORY: '0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b',
 } as const
-
-/** CARD_FACTORY 的 paymaster/admin 地址（与 conet-BUintAirdrop settle_contractAdmin 一致） */
-export const CARD_FACTORY_ADMINS = [
-  '0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1',
-  '0x678F3570F9173373bB75e7544fcF383153aDAF4C',
-  '0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695',
-  '0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2',
-] as const
 
 /** 按链聚合，便于多链扩展 */
 export const CONTRACT_ADDRESSES = {
