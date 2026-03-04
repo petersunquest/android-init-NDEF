@@ -129,3 +129,20 @@ function consumeFuel(address user, uint256 amount) external onlyAdmin {
 | **L2 释放法币** | Relayer 向 Base L2 的 Treasury 合约发送指令 |
 | **法币记账** | Base L2 Treasury 收到指令，内部记账：NodeDividendPool += 0.25 USDC（因为 25 Units = $0.25） |
 | **节点提现** | 全球的创世节点随时可以通过调用 Base L2 Treasury 的 claimYield()，提取属于自己的 USDC 现金流 |
+
+## 6. CoNET 主网部署合约 (mainnet.conet.network)
+
+| 合约 | 地址 | 说明 |
+|------|------|------|
+| **ConetTreasury** | `0x55758EF81535Ae49926C5D7ef347f2f2e66A0144` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
+| **USDC** (FactoryERC20) | `0x0aA42D428D2D17257AF4C382078373AbC482D8CB` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
+| **BUnitAirdrop** | `0x36dEc4b91ee3b9a0cF0F6f0df47955745Eae4a30` | B-Unit 空投与 USDC 购买入口 |
+| **BUint** | `0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879` | B-Units 代币合约 |
+
+**关联地址**：
+- ConetTreasury.guardianNodesInfoV6: `0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D`
+- USDC baseToken (Base 主网 USDC): `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+
+**记账**：BUnitAirdrop 向 BeamioIndexerDiamond (0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612) 记账：claim/claimFor→buintClaim，mintForUsdcPurchase→buintUSDC，consumeFromUser→keccak256(kind 名称)。需将 BUnitAirdrop 设为 BeamioIndexerDiamond 的 admin（AdminFacet.setAdmin）。
+
+Explorer: https://mainnet.conet.network

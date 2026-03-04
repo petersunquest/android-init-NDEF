@@ -4,9 +4,10 @@
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "timestamp": "2026-02-21T07:53:38.062Z",
+  "_comment": "BUint 权威地址见 deployments/conet-addresses.json",
   "contracts": {
     "BUint": {
-      "address": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+      "address": "0x0a4D6c977518B01Edf467Cca3d3c24C6e207eF40",
       "name": "B-Units",
       "symbol": "BUNIT",
       "decimals": 6,

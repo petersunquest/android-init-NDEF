@@ -112,6 +112,13 @@ async function main() {
   const outPath = path.join(deploymentsDir, "conet-BUintAirdrop.json");
   fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
   console.log("\nsaved:", outPath);
+
+  // 同步更新 conet-addresses.json 为权威配置
+  const addrPath = path.join(deploymentsDir, "conet-addresses.json");
+  const addrData = fs.existsSync(addrPath) ? JSON.parse(fs.readFileSync(addrPath, "utf-8")) : {};
+  addrData.BUint = buintAddress;
+  fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
+  console.log("updated conet-addresses.json BUint:", buintAddress);
 }
 
 main().catch((e) => {

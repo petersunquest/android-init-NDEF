@@ -1,0 +1,21 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-03-04T11:26:50.901Z",
+  "contracts": {
+    "beamioOracle": {
+      "address": "0x373639E4004f43C508b227644139F7b0c29f3cfF"
+    },
+    "beamioQuoteHelperV07": {
+      "address": "0x02D81a4Cb7d6F05102E60bF6F05A38D8832c2AA5",
+      "oracle": "0x373639E4004f43C508b227644139F7b0c29f3cfF",
+      "transactionHash": "0xc2b18b26ce8992d2e7d1c0711c2c75a348d516c48a8ce6acc0f772175dee857e"
+    }
+  },
+  "verification": {
+    "ok": false,
+    "finalMessage": "Fail - Unable to verify"
+  },
+  "explorer": "https://mainnet.conet.network/address/0x02D81a4Cb7d6F05102E60bF6F05A38D8832c2AA5#code"
+}

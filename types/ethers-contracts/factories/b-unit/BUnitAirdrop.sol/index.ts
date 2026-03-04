@@ -2,4 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BUnitAirdrop__factory } from './BUnitAirdrop__factory.js';
+export { IActionFacet__factory } from './IActionFacet__factory.js';
+export { IBeamioBUnits__factory } from './IBeamioBUnits__factory.js';
 export { IBeamioIndexerDiamond__factory } from './IBeamioIndexerDiamond__factory.js';
+export { IBeamioQuoteHelper__factory } from './IBeamioQuoteHelper__factory.js';
+export { IConetTreasury__factory } from './IConetTreasury__factory.js';

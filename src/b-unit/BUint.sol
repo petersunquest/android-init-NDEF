@@ -40,6 +40,28 @@ contract BeamioBUnits is IERC20 {
     // --- 权限控制：统一 Admin Group ---
     mapping(address => bool) public admins;
 
+    // --- 焚烧统计：累计已燃烧量 (6 位精度) ---
+    uint256 public totalFreeBurned;  // 免费池累计焚烧量
+    uint256 public totalPaidBurned;  // 付费池累计焚烧量
+
+    // --- 每小时原子 mint/burn 记账 (6 位精度)，统一 UTC 自然时间 ---
+    struct PeriodStats {
+        uint256 mint;
+        uint256 burn;
+    }
+    mapping(uint256 => PeriodStats) private _hourlyStats;   // slot = ts/3600，整点 UTC
+    mapping(uint256 => PeriodStats) private _dailyStats;    // slot = ts/86400，0:00 UTC
+    mapping(uint256 => PeriodStats) private _weeklyStats;   // slot = (ts+WEEK_OFFSET)/604800，周一 0:00 UTC
+    mapping(uint256 => PeriodStats) private _monthlyStats; // slot = 自然月，1 日 0:00 UTC
+    mapping(uint256 => PeriodStats) private _quarterlyStats; // slot = 自然季度，1/4/7/10 月 1 日 0:00 UTC
+    mapping(uint256 => PeriodStats) private _yearlyStats;  // slot = 自然年，1 月 1 日 0:00 UTC
+
+    uint256 private constant HOUR = 3600;
+    uint256 private constant DAY = 86400;
+    uint256 private constant WEEK = 604800;
+    /// @dev Jan 1 1970 00:00 UTC 为周四，周一 0:00 UTC 为 Dec 29 1969 = -345600
+    uint256 private constant WEEK_OFFSET = 345600;
+
     // --- 自定义业务事件 ---
     event MintReward(address indexed to, uint256 amount);
     event MintPaid(address indexed to, uint256 amount);
@@ -56,6 +78,74 @@ contract BeamioBUnits is IERC20 {
 
     constructor() {
         admins[msg.sender] = true;
+    }
+
+    function _recordMint(uint256 amount) internal {
+        uint256 ts = block.timestamp;
+        _hourlyStats[ts / HOUR].mint += amount;
+        _dailyStats[ts / DAY].mint += amount;
+        _weeklyStats[(ts + WEEK_OFFSET) / WEEK].mint += amount;
+        _monthlyStats[_getMonthSlot(ts)].mint += amount;
+        _quarterlyStats[_getQuarterSlot(ts)].mint += amount;
+        _yearlyStats[_getYearSlot(ts)].mint += amount;
+    }
+
+    function _recordBurn(uint256 amount) internal {
+        uint256 ts = block.timestamp;
+        _hourlyStats[ts / HOUR].burn += amount;
+        _dailyStats[ts / DAY].burn += amount;
+        _weeklyStats[(ts + WEEK_OFFSET) / WEEK].burn += amount;
+        _monthlyStats[_getMonthSlot(ts)].burn += amount;
+        _quarterlyStats[_getQuarterSlot(ts)].burn += amount;
+        _yearlyStats[_getYearSlot(ts)].burn += amount;
+    }
+
+    function _isLeap(uint256 year) internal pure returns (bool) {
+        return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    }
+
+    function _getDaysInMonth(uint256 month, uint256 year) internal pure returns (uint256) {
+        if (month == 1) return _isLeap(year) ? 29 : 28; // Feb
+        if (month == 0 || month == 2 || month == 4 || month == 6 || month == 7 || month == 9 || month == 11) return 31;
+        return 30;
+    }
+
+    /// @dev 返回自然月 slot，0 = Jan 1970
+    function _getMonthSlot(uint256 timestamp) internal pure returns (uint256) {
+        uint256 d = timestamp / DAY;
+        uint256 y = 1970;
+        for (;;) {
+            uint256 daysInYear = _isLeap(y) ? 366 : 365;
+            if (d < daysInYear) break;
+            d -= daysInYear;
+            y++;
+        }
+        uint256 month = 0;
+        for (uint256 m = 0; m < 12; m++) {
+            uint256 dim = _getDaysInMonth(m, y);
+            if (d < dim) break;
+            d -= dim;
+            month++;
+        }
+        return (y - 1970) * 12 + month;
+    }
+
+    /// @dev 返回自然季度 slot，0 = Q1 1970 (Jan-Mar)
+    function _getQuarterSlot(uint256 timestamp) internal pure returns (uint256) {
+        return _getMonthSlot(timestamp) / 3;
+    }
+
+    /// @dev 返回自然年 slot，0 = 1970
+    function _getYearSlot(uint256 timestamp) internal pure returns (uint256) {
+        uint256 d = timestamp / DAY;
+        uint256 y = 1970;
+        for (;;) {
+            uint256 daysInYear = _isLeap(y) ? 366 : 365;
+            if (d < daysInYear) break;
+            d -= daysInYear;
+            y++;
+        }
+        return y - 1970;
     }
 
     // --- Admin Group 管理 ---
@@ -84,6 +174,16 @@ contract BeamioBUnits is IERC20 {
      */
     function balanceOf(address account) public view override returns (uint256) {
         return uint256(_fuelBalances[account].freePool) + uint256(_fuelBalances[account].paidPool);
+    }
+
+    /**
+     * @dev 返回用户 B-Unit 明细：总数、免费池、USDC 购买（付费池）。6 位精度。
+     */
+    function balanceOfAll(address account) external view returns (uint256 total, uint256 free, uint256 paid) {
+        FuelBalance storage bal = _fuelBalances[account];
+        free = uint256(bal.freePool);
+        paid = uint256(bal.paidPool);
+        total = free + paid;
     }
 
     // ==========================================
@@ -119,9 +219,9 @@ contract BeamioBUnits is IERC20 {
         require(amount <= type(uint128).max, "B-Units: Amount exceeds uint128");
         _fuelBalances[to].freePool += uint128(amount);
         _totalSupply += amount;
-        
+        _recordMint(amount);
         emit MintReward(to, amount);
-        emit Transfer(address(0), to, amount); // 触发标准事件适配浏览器
+        emit Transfer(address(0), to, amount);
     }
 
     /**
@@ -131,7 +231,7 @@ contract BeamioBUnits is IERC20 {
         require(amount <= type(uint128).max, "B-Units: Amount exceeds uint128");
         _fuelBalances[to].paidPool += uint128(amount);
         _totalSupply += amount;
-
+        _recordMint(amount);
         emit MintPaid(to, amount);
         emit Transfer(address(0), to, amount);
     }
@@ -150,9 +250,9 @@ contract BeamioBUnits is IERC20 {
             _fuelBalances[to].freePool += uint128(rewardAmount);
             emit MintReward(to, rewardAmount);
         }
-        
         uint256 total = paidAmount + rewardAmount;
         _totalSupply += total;
+        _recordMint(total);
         emit Transfer(address(0), to, total);
     }
 
@@ -164,27 +264,34 @@ contract BeamioBUnits is IERC20 {
      * @dev 业务网关扣除燃料专用接口，执行优先消耗 Free Pool 逻辑
      * @param user 被扣费用户
      * @param amount 扣减总金额 (需包含 6 位精度, 例: 2 Units 传入 2000000)
+     * @return paidBurned 本次从付费池实际燃烧的数量（仅此部分可触发 USDC airdrop 等分润）
      */
-    function consumeFuel(address user, uint256 amount) external onlyAdmin {
+    function consumeFuel(address user, uint256 amount) external onlyAdmin returns (uint256 paidBurned) {
         FuelBalance storage bal = _fuelBalances[user];
         uint256 totalBal = uint256(bal.freePool) + uint256(bal.paidPool);
         require(totalBal >= amount, "B-Units: Insufficient balance");
 
-        uint256 paidBurned = 0; // 记录真实燃烧的“付费DNA”燃料
+        uint256 freeBurned;
 
         // 瀑布流逻辑：优先抽干免费池
         if (bal.freePool >= amount) {
             // 免费池充足，全部由营销补贴吸收，不触发分润
+            freeBurned = amount;
+            paidBurned = 0;
             bal.freePool -= uint128(amount);
         } else {
             // 免费池不足，抽干免费池后，剩余部分由付费池扣除
-            uint256 remaining = amount - uint256(bal.freePool);
+            freeBurned = uint256(bal.freePool);
+            uint256 remaining = amount - freeBurned;
             bal.freePool = 0;
             bal.paidPool -= uint128(remaining);
-            paidBurned = remaining; // 记录付费池的燃烧量
+            paidBurned = remaining;
         }
 
+        totalFreeBurned += freeBurned;
+        totalPaidBurned += paidBurned;
         _totalSupply -= amount;
+        _recordBurn(amount);
 
         // --- 节点分润计算核心 (Real Yield) ---
         if (paidBurned > 0) {
@@ -198,7 +305,71 @@ contract BeamioBUnits is IERC20 {
         }
 
         emit FuelConsumed(user, amount);
-        emit Transfer(user, address(0), amount); // 燃烧销毁事件，标准地址为 0x0
+        emit Transfer(user, address(0), amount);
+    }
+
+    // ==========================================
+    // 周期统计报告 (offset n = 本周期 - n)
+    // ==========================================
+
+    /**
+     * @dev 本小时 - n 小时的 mint/burn 统计。n=0 为当前小时。UTC 整点。
+     */
+    function getHourlyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = block.timestamp / HOUR;
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _hourlyStats[slot - n];
+        return (s.mint, s.burn);
+    }
+
+    /**
+     * @dev 本日 - n 日的 mint/burn 统计。n=0 为今日。UTC 0:00。
+     */
+    function getDailyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = block.timestamp / DAY;
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _dailyStats[slot - n];
+        return (s.mint, s.burn);
+    }
+
+    /**
+     * @dev 本周 - n 周的 mint/burn 统计。n=0 为本周。周一 0:00 UTC 起。
+     */
+    function getWeeklyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = (block.timestamp + WEEK_OFFSET) / WEEK;
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _weeklyStats[slot - n];
+        return (s.mint, s.burn);
+    }
+
+    /**
+     * @dev 本月 - n 月的 mint/burn 统计。n=0 为本月。自然月，1 日 0:00 UTC。
+     */
+    function getMonthlyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = _getMonthSlot(block.timestamp);
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _monthlyStats[slot - n];
+        return (s.mint, s.burn);
+    }
+
+    /**
+     * @dev 本季度 - n 季度的 mint/burn 统计。n=0 为本季度。1/4/7/10 月 1 日 0:00 UTC。
+     */
+    function getQuarterlyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = _getQuarterSlot(block.timestamp);
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _quarterlyStats[slot - n];
+        return (s.mint, s.burn);
+    }
+
+    /**
+     * @dev 本年 - n 年的 mint/burn 统计。n=0 为本年。自然年，1 月 1 日 0:00 UTC。
+     */
+    function getYearlyReport(uint256 n) external view returns (uint256 mint, uint256 burn) {
+        uint256 slot = _getYearSlot(block.timestamp);
+        if (n > slot) return (0, 0);
+        PeriodStats storage s = _yearlyStats[slot - n];
+        return (s.mint, s.burn);
     }
 }
 

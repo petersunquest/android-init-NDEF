@@ -57,7 +57,9 @@
     "verify:indexer-diamond:conet": "npx tsx scripts/verifyAllDiamondFacets.ts",
     "verify:indexer-diamond:diamond-only": "npx tsx scripts/verifyBeamioIndexerDiamondStandardJson.ts",
     "verify:indexer-diamond:conet:flattened": "npx hardhat flatten src/CoNETIndexTaskdiamond/BeamioIndexerDiamond.sol 2>/dev/null > scripts/BeamioIndexerDiamond_flat.sol && npx tsx scripts/verifyCoNETViaBlockscoutAPI.ts",
-    "verify:buint-airdrop:conet": "hardhat run scripts/verifyBUintAndAirdropConet.ts --network conet"
+    "verify:buint-airdrop:conet": "hardhat run scripts/verifyBUintAndAirdropConet.ts --network conet",
+    "verify:buint-airdrop:conet:standard-json": "npx tsx scripts/verifyBUintAirdropStandardJson.ts",
+    "verify:buint-airdrop:conet:try-hardhat": "npx tsx scripts/verifyBUintAirdropStandardJson.ts --airdrop-only --try-hardhat"
   },
   "dependencies": {
     "colors": "^1.4.0",

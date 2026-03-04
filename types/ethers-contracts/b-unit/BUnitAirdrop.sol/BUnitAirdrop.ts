@@ -4,55 +4,160 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
   
+    export type BUnitReportStruct = {freeAirdropped: BigNumberish, paidAirdropped: BigNumberish, totalAirdropped: BigNumberish, freeBurned: BigNumberish, paidBurned: BigNumberish, totalBurned: BigNumberish}
+
+    export type BUnitReportStructOutput = [freeAirdropped: bigint, paidAirdropped: bigint, totalAirdropped: bigint, freeBurned: bigint, paidBurned: bigint, totalBurned: bigint] & {freeAirdropped: bigint, paidAirdropped: bigint, totalAirdropped: bigint, freeBurned: bigint, paidBurned: bigint, totalBurned: bigint }
+  
+
     export type CardBalanceStruct = {card: AddressLike, tokenId: BigNumberish, balanceE6: BigNumberish}
 
     export type CardBalanceStructOutput = [card: string, tokenId: bigint, balanceE6: bigint] & {card: string, tokenId: bigint, balanceE6: bigint }
   
 
+    export type KindBurnDetailStruct = {kind: BigNumberish, amount: BigNumberish, count: BigNumberish, gas: BigNumberish, gasUSDC: BigNumberish}
+
+    export type KindBurnDetailStructOutput = [kind: bigint, amount: bigint, count: bigint, gas: bigint, gasUSDC: bigint] & {kind: bigint, amount: bigint, count: bigint, gas: bigint, gasUSDC: bigint }
+  
+
+    export type PeriodSummaryStruct = {airdropCount: BigNumberish, burnCount: BigNumberish, gas: BigNumberish, gasUSDC: BigNumberish, bunitMint: BigNumberish, bunitBurn: BigNumberish, kindBurns: KindBurnDetailStruct[]}
+
+    export type PeriodSummaryStructOutput = [airdropCount: bigint, burnCount: bigint, gas: bigint, gasUSDC: bigint, bunitMint: bigint, bunitBurn: bigint, kindBurns: KindBurnDetailStructOutput[]] & {airdropCount: bigint, burnCount: bigint, gas: bigint, gasUSDC: bigint, bunitMint: bigint, bunitBurn: bigint, kindBurns: KindBurnDetailStructOutput[] }
+  
+
   export interface BUnitAirdropInterface extends Interface {
-    getFunction(nameOrSignature: "CLAIM_AMOUNT" | "addAdmin" | "admins" | "beamioIndexerDiamond" | "bunit" | "claim" | "claimFor" | "claimNonces" | "eip712Domain" | "getBUnitBalance" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getClaimDigest" | "hasClaimed" | "owner" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "transferOwnership"): FunctionFragment;
+    getFunction(nameOrSignature: "BUNIT_TO_USDC_RATE" | "addAdmin" | "admins" | "airdropCount" | "beamioIndexerDiamond" | "bunit" | "burnCount" | "claim" | "claimAmount" | "claimFor" | "claimNonces" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "eip712Domain" | "getAirdropStats" | "getAllKinds" | "getAllKindsWithNames" | "getBUnitBalance" | "getBUnitReport" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getBurnStats" | "getClaimDigest" | "getCumulativeKindBurns" | "getCumulativeReport" | "getCumulativeReportFull" | "getDailyKindBurns" | "getDailyReport" | "getDailyReportFull" | "getEventStats" | "getHourlyKindBurns" | "getHourlyReport" | "getHourlyReportFull" | "getKindName" | "getMonthlyKindBurns" | "getMonthlyReport" | "getMonthlyReportFull" | "getQuarterlyKindBurns" | "getQuarterlyReport" | "getQuarterlyReportFull" | "getWeeklyKindBurns" | "getWeeklyReport" | "getWeeklyReportFull" | "getYearlyKindBurns" | "getYearlyReport" | "getYearlyReportFull" | "hasClaimed" | "mintForUsdcPurchase" | "owner" | "quoteHelper" | "registerKind" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "setClaimAmount" | "setConetTreasuryAndUsdc" | "setQuoteHelper" | "totalBaseGas" | "totalBaseGasUSDC" | "totalFreeAirdropped" | "totalPaidAirdropped" | "transferOwnership" | "withdrawUsdc"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "BeamioIndexerDiamondUpdated" | "Claimed" | "ClaimedFor" | "EIP712DomainChanged" | "OwnershipTransferred"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "BeamioIndexerDiamondUpdated" | "ClaimAmountUpdated" | "Claimed" | "ClaimedFor" | "ConetTreasuryAndUsdcUpdated" | "ConsumedAndAirdropped" | "EIP712DomainChanged" | "KindRegistered" | "OwnershipTransferred" | "QuoteHelperUpdated" | "WithdrewUsdc"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'CLAIM_AMOUNT', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'BUNIT_TO_USDC_RATE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'airdropCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'beamioIndexerDiamond', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bunit', values?: undefined): string;
+encodeFunctionData(functionFragment: 'burnCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'claim', values?: undefined): string;
+encodeFunctionData(functionFragment: 'claimAmount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'claimFor', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimNonces', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'conetTreasury', values?: undefined): string;
+encodeFunctionData(functionFragment: 'conetUsdc', values?: undefined): string;
+encodeFunctionData(functionFragment: 'consumeFromUser', values: [AddressLike, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getAirdropStats', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getAllKinds', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getAllKindsWithNames', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getBUnitBalance', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getBUnitReport', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardBalances', values: [AddressLike, AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardBalancesFromCatalog', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getBurnStats', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getClaimDigest', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getCumulativeKindBurns', values: [BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getCumulativeReport', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getCumulativeReportFull', values: [BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getDailyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getDailyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getDailyReportFull', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getEventStats', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getHourlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getHourlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getHourlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getKindName', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getMonthlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getMonthlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getMonthlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getQuarterlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getQuarterlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getQuarterlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getWeeklyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getWeeklyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getWeeklyReportFull', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getYearlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'getYearlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getYearlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'hasClaimed', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'mintForUsdcPurchase', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+encodeFunctionData(functionFragment: 'quoteHelper', values?: undefined): string;
+encodeFunctionData(functionFragment: 'registerKind', values: [BigNumberish, string]): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setBeamioIndexerDiamond', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setClaimAmount', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setConetTreasuryAndUsdc', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'setQuoteHelper', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'totalBaseGas', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalBaseGasUSDC', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalFreeAirdropped', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalPaidAirdropped', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'withdrawUsdc', values: [AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'CLAIM_AMOUNT', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'BUNIT_TO_USDC_RATE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'airdropCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beamioIndexerDiamond', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claim', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimNonces', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'conetTreasury', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'conetUsdc', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumeFromUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAirdropStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAllKinds', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAllKindsWithNames', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBUnitBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBUnitReport', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardBalances', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardBalancesFromCatalog', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBurnStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getClaimDigest', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getCumulativeKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getCumulativeReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getCumulativeReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getDailyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getDailyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getDailyReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getEventStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getHourlyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getHourlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getHourlyReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getKindName', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getMonthlyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getMonthlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getMonthlyReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getQuarterlyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getQuarterlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getQuarterlyReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getWeeklyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getWeeklyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getWeeklyReportFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getYearlyKindBurns', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getYearlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getYearlyReportFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasClaimed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'quoteHelper', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'registerKind', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBeamioIndexerDiamond', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setClaimAmount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConetTreasuryAndUsdc', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setQuoteHelper', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalBaseGas', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalBaseGasUSDC', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalFreeAirdropped', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalPaidAirdropped', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
   }
 
   
@@ -92,6 +197,18 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
 
   
 
+    export namespace ClaimAmountUpdatedEvent {
+      export type InputTuple = [oldAmount: BigNumberish, newAmount: BigNumberish];
+      export type OutputTuple = [oldAmount: bigint, newAmount: bigint];
+      export interface OutputObject {oldAmount: bigint, newAmount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ClaimedEvent {
       export type InputTuple = [account: AddressLike, amount: BigNumberish];
       export type OutputTuple = [account: string, amount: bigint];
@@ -116,6 +233,30 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
 
   
 
+    export namespace ConetTreasuryAndUsdcUpdatedEvent {
+      export type InputTuple = [conetTreasury: AddressLike, conetUsdc: AddressLike];
+      export type OutputTuple = [conetTreasury: string, conetUsdc: string];
+      export interface OutputObject {conetTreasury: string, conetUsdc: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ConsumedAndAirdroppedEvent {
+      export type InputTuple = [user: AddressLike, bunitBurned: BigNumberish, usdcAirdropped: BigNumberish, baseHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish];
+      export type OutputTuple = [user: string, bunitBurned: bigint, usdcAirdropped: bigint, baseHash: string, baseGas: bigint, kind: bigint];
+      export interface OutputObject {user: string, bunitBurned: bigint, usdcAirdropped: bigint, baseHash: string, baseGas: bigint, kind: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace EIP712DomainChangedEvent {
       export type InputTuple = [];
       export type OutputTuple = [];
@@ -128,10 +269,46 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
 
   
 
+    export namespace KindRegisteredEvent {
+      export type InputTuple = [kind: BigNumberish, name: string];
+      export type OutputTuple = [kind: bigint, name: string];
+      export interface OutputObject {kind: bigint, name: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace OwnershipTransferredEvent {
       export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
       export type OutputTuple = [previousOwner: string, newOwner: string];
       export interface OutputObject {previousOwner: string, newOwner: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace QuoteHelperUpdatedEvent {
+      export type InputTuple = [oldHelper: AddressLike, newHelper: AddressLike];
+      export type OutputTuple = [oldHelper: string, newHelper: string];
+      export interface OutputObject {oldHelper: string, newHelper: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace WithdrewUsdcEvent {
+      export type InputTuple = [to: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [to: string, amount: bigint];
+      export interface OutputObject {to: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -174,7 +351,7 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
 
     
     
-    CLAIM_AMOUNT: TypedContractMethod<
+    BUNIT_TO_USDC_RATE: TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -198,6 +375,14 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    airdropCount: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     beamioIndexerDiamond: TypedContractMethod<
       [],
       [string],
@@ -214,10 +399,26 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    burnCount: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     claim: TypedContractMethod<
       [],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    claimAmount: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
     >
     
 
@@ -238,6 +439,30 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    conetTreasury: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    conetUsdc: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    consumeFromUser: TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, baseHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     eip712Domain: TypedContractMethod<
       [],
       [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
@@ -246,9 +471,41 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    getAirdropStats: TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint] & {freeAirdropped: bigint, paidAirdropped: bigint, totalAirdropped: bigint }],
+      'view'
+    >
+    
+
+    
+    getAllKinds: TypedContractMethod<
+      [],
+      [bigint[]],
+      'view'
+    >
+    
+
+    
+    getAllKindsWithNames: TypedContractMethod<
+      [],
+      [[bigint[], string[]] & {kinds: bigint[], names: string[] }],
+      'view'
+    >
+    
+
+    
     getBUnitBalance: TypedContractMethod<
       [account: AddressLike, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    getBUnitReport: TypedContractMethod<
+      [],
+      [BUnitReportStructOutput],
       'view'
     >
     
@@ -270,9 +527,201 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    getBurnStats: TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint] & {freeBurned: bigint, paidBurned: bigint, totalBurned: bigint }],
+      'view'
+    >
+    
+
+    
     getClaimDigest: TypedContractMethod<
       [claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
+      'view'
+    >
+    
+
+    
+    getCumulativeKindBurns: TypedContractMethod<
+      [kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getCumulativeReport: TypedContractMethod<
+      [],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getCumulativeReportFull: TypedContractMethod<
+      [kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getDailyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getDailyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getDailyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getEventStats: TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint, bigint] & {_airdropCount: bigint, _burnCount: bigint, _totalBaseGas: bigint, _totalBaseGasUSDC: bigint }],
+      'view'
+    >
+    
+
+    
+    getHourlyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getHourlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getHourlyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getKindName: TypedContractMethod<
+      [kind: BigNumberish, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    getMonthlyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getMonthlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getMonthlyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getQuarterlyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getQuarterlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getQuarterlyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getWeeklyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getWeeklyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getWeeklyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getYearlyKindBurns: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >
+    
+
+    
+    getYearlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >
+    
+
+    
+    getYearlyReportFull: TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
       'view'
     >
     
@@ -286,10 +735,34 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    mintForUsdcPurchase: TypedContractMethod<
+      [to: AddressLike, bunitAmount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     owner: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    quoteHelper: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    registerKind: TypedContractMethod<
+      [kind: BigNumberish, name: string, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -318,8 +791,72 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
     
 
     
+    setClaimAmount: TypedContractMethod<
+      [_amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setConetTreasuryAndUsdc: TypedContractMethod<
+      [_conetTreasury: AddressLike, _conetUsdc: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setQuoteHelper: TypedContractMethod<
+      [_quoteHelper: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    totalBaseGas: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalBaseGasUSDC: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalFreeAirdropped: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalPaidAirdropped: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     transferOwnership: TypedContractMethod<
       [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    withdrawUsdc: TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -328,7 +865,7 @@ decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Re
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'CLAIM_AMOUNT'): TypedContractMethod<
+    getFunction(nameOrSignature: 'BUNIT_TO_USDC_RATE'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -343,6 +880,11 @@ getFunction(nameOrSignature: 'admins'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'airdropCount'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'beamioIndexerDiamond'): TypedContractMethod<
       [],
       [string],
@@ -353,10 +895,20 @@ getFunction(nameOrSignature: 'bunit'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'burnCount'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'claim'): TypedContractMethod<
       [],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'claimAmount'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'claimFor'): TypedContractMethod<
       [claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
@@ -368,14 +920,49 @@ getFunction(nameOrSignature: 'claimNonces'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'conetTreasury'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'conetUsdc'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'consumeFromUser'): TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, baseHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'eip712Domain'): TypedContractMethod<
       [],
       [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
       'view'
     >;
+getFunction(nameOrSignature: 'getAirdropStats'): TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint] & {freeAirdropped: bigint, paidAirdropped: bigint, totalAirdropped: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAllKinds'): TypedContractMethod<
+      [],
+      [bigint[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAllKindsWithNames'): TypedContractMethod<
+      [],
+      [[bigint[], string[]] & {kinds: bigint[], names: string[] }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getBUnitBalance'): TypedContractMethod<
       [account: AddressLike, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBUnitReport'): TypedContractMethod<
+      [],
+      [BUnitReportStructOutput],
       'view'
     >;
 getFunction(nameOrSignature: 'getBeamioUserCardBalances'): TypedContractMethod<
@@ -388,9 +975,129 @@ getFunction(nameOrSignature: 'getBeamioUserCardBalancesFromCatalog'): TypedContr
       [[string[], bigint[]] & {cards: string[], balancesE6: bigint[] }],
       'view'
     >;
+getFunction(nameOrSignature: 'getBurnStats'): TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint] & {freeBurned: bigint, paidBurned: bigint, totalBurned: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getClaimDigest'): TypedContractMethod<
       [claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getCumulativeKindBurns'): TypedContractMethod<
+      [kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getCumulativeReport'): TypedContractMethod<
+      [],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getCumulativeReportFull'): TypedContractMethod<
+      [kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getDailyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getDailyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getDailyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getEventStats'): TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint, bigint] & {_airdropCount: bigint, _burnCount: bigint, _totalBaseGas: bigint, _totalBaseGasUSDC: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getHourlyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getHourlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getHourlyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getKindName'): TypedContractMethod<
+      [kind: BigNumberish, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getMonthlyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getMonthlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getMonthlyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getQuarterlyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getQuarterlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getQuarterlyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getWeeklyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getWeeklyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getWeeklyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getYearlyKindBurns'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [KindBurnDetailStructOutput[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getYearlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [PeriodSummaryStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getYearlyReportFull'): TypedContractMethod<
+      [n: BigNumberish, kinds: BigNumberish[], ],
+      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'hasClaimed'): TypedContractMethod<
@@ -398,10 +1105,25 @@ getFunction(nameOrSignature: 'hasClaimed'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'mintForUsdcPurchase'): TypedContractMethod<
+      [to: AddressLike, bunitAmount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'quoteHelper'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'registerKind'): TypedContractMethod<
+      [kind: BigNumberish, name: string, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
       [account: AddressLike, ],
@@ -418,8 +1140,48 @@ getFunction(nameOrSignature: 'setBeamioIndexerDiamond'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setClaimAmount'): TypedContractMethod<
+      [_amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setConetTreasuryAndUsdc'): TypedContractMethod<
+      [_conetTreasury: AddressLike, _conetUsdc: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setQuoteHelper'): TypedContractMethod<
+      [_quoteHelper: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'totalBaseGas'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalBaseGasUSDC'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalFreeAirdropped'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalPaidAirdropped'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
       [newOwner: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'withdrawUsdc'): TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -427,10 +1189,16 @@ getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
     getEvent(key: 'AdminAdded'): TypedContractEvent<AdminAddedEvent.InputTuple, AdminAddedEvent.OutputTuple, AdminAddedEvent.OutputObject>;
 getEvent(key: 'AdminRemoved'): TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
 getEvent(key: 'BeamioIndexerDiamondUpdated'): TypedContractEvent<BeamioIndexerDiamondUpdatedEvent.InputTuple, BeamioIndexerDiamondUpdatedEvent.OutputTuple, BeamioIndexerDiamondUpdatedEvent.OutputObject>;
+getEvent(key: 'ClaimAmountUpdated'): TypedContractEvent<ClaimAmountUpdatedEvent.InputTuple, ClaimAmountUpdatedEvent.OutputTuple, ClaimAmountUpdatedEvent.OutputObject>;
 getEvent(key: 'Claimed'): TypedContractEvent<ClaimedEvent.InputTuple, ClaimedEvent.OutputTuple, ClaimedEvent.OutputObject>;
 getEvent(key: 'ClaimedFor'): TypedContractEvent<ClaimedForEvent.InputTuple, ClaimedForEvent.OutputTuple, ClaimedForEvent.OutputObject>;
+getEvent(key: 'ConetTreasuryAndUsdcUpdated'): TypedContractEvent<ConetTreasuryAndUsdcUpdatedEvent.InputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputObject>;
+getEvent(key: 'ConsumedAndAirdropped'): TypedContractEvent<ConsumedAndAirdroppedEvent.InputTuple, ConsumedAndAirdroppedEvent.OutputTuple, ConsumedAndAirdroppedEvent.OutputObject>;
 getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+getEvent(key: 'KindRegistered'): TypedContractEvent<KindRegisteredEvent.InputTuple, KindRegisteredEvent.OutputTuple, KindRegisteredEvent.OutputObject>;
 getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+getEvent(key: 'QuoteHelperUpdated'): TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;
+getEvent(key: 'WithdrewUsdc'): TypedContractEvent<WithdrewUsdcEvent.InputTuple, WithdrewUsdcEvent.OutputTuple, WithdrewUsdcEvent.OutputObject>;
 
     filters: {
       
@@ -446,6 +1214,10 @@ getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEv
       BeamioIndexerDiamondUpdated: TypedContractEvent<BeamioIndexerDiamondUpdatedEvent.InputTuple, BeamioIndexerDiamondUpdatedEvent.OutputTuple, BeamioIndexerDiamondUpdatedEvent.OutputObject>;
     
 
+      'ClaimAmountUpdated(uint256,uint256)': TypedContractEvent<ClaimAmountUpdatedEvent.InputTuple, ClaimAmountUpdatedEvent.OutputTuple, ClaimAmountUpdatedEvent.OutputObject>;
+      ClaimAmountUpdated: TypedContractEvent<ClaimAmountUpdatedEvent.InputTuple, ClaimAmountUpdatedEvent.OutputTuple, ClaimAmountUpdatedEvent.OutputObject>;
+    
+
       'Claimed(address,uint256)': TypedContractEvent<ClaimedEvent.InputTuple, ClaimedEvent.OutputTuple, ClaimedEvent.OutputObject>;
       Claimed: TypedContractEvent<ClaimedEvent.InputTuple, ClaimedEvent.OutputTuple, ClaimedEvent.OutputObject>;
     
@@ -454,12 +1226,32 @@ getEvent(key: 'OwnershipTransferred'): TypedContractEvent<OwnershipTransferredEv
       ClaimedFor: TypedContractEvent<ClaimedForEvent.InputTuple, ClaimedForEvent.OutputTuple, ClaimedForEvent.OutputObject>;
     
 
+      'ConetTreasuryAndUsdcUpdated(address,address)': TypedContractEvent<ConetTreasuryAndUsdcUpdatedEvent.InputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputObject>;
+      ConetTreasuryAndUsdcUpdated: TypedContractEvent<ConetTreasuryAndUsdcUpdatedEvent.InputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputObject>;
+    
+
+      'ConsumedAndAirdropped(address,uint256,uint256,bytes32,uint256,uint256)': TypedContractEvent<ConsumedAndAirdroppedEvent.InputTuple, ConsumedAndAirdroppedEvent.OutputTuple, ConsumedAndAirdroppedEvent.OutputObject>;
+      ConsumedAndAirdropped: TypedContractEvent<ConsumedAndAirdroppedEvent.InputTuple, ConsumedAndAirdroppedEvent.OutputTuple, ConsumedAndAirdroppedEvent.OutputObject>;
+    
+
       'EIP712DomainChanged()': TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
       EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
     
 
+      'KindRegistered(uint256,string)': TypedContractEvent<KindRegisteredEvent.InputTuple, KindRegisteredEvent.OutputTuple, KindRegisteredEvent.OutputObject>;
+      KindRegistered: TypedContractEvent<KindRegisteredEvent.InputTuple, KindRegisteredEvent.OutputTuple, KindRegisteredEvent.OutputObject>;
+    
+
       'OwnershipTransferred(address,address)': TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
       OwnershipTransferred: TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
+    
+
+      'QuoteHelperUpdated(address,address)': TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;
+      QuoteHelperUpdated: TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;
+    
+
+      'WithdrewUsdc(address,uint256)': TypedContractEvent<WithdrewUsdcEvent.InputTuple, WithdrewUsdcEvent.OutputTuple, WithdrewUsdcEvent.OutputObject>;
+      WithdrewUsdc: TypedContractEvent<WithdrewUsdcEvent.InputTuple, WithdrewUsdcEvent.OutputTuple, WithdrewUsdcEvent.OutputObject>;
     
     };
   }

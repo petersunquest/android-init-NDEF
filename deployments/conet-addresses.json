@@ -1,0 +1,11 @@
+{
+  "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件或 conet-BUint.json 读取，禁止硬编码旧地址。",
+  "network": "conet",
+  "chainId": "224400",
+  "BUint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
+  "BUnitAirdrop": "0x36dEc4b91ee3b9a0cF0F6f0df47955745Eae4a30",
+  "DEPRECATED_BUINT": [
+    "0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9",
+    "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB"
+  ]
+}

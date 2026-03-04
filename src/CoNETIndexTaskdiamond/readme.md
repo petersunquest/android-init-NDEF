@@ -184,6 +184,10 @@ bytes32 constant TX_REQUEST_CANCEL_CONFIRMED = keccak256("request_cancel:confirm
 bytes32 constant TX_BEAMIO_USERCARD_MINT_CONFIRMED = keccak256("beamio_usercard_mint:confirmed");
 // 新卡发行与 Top Up 共用（cardRedeem API 记账）
 bytes32 constant TX_CARDMINT_CONFIRMED = keccak256("cardmint:confirmed");
+// B-Unit 免费池申领（BUnitAirdrop claim/claimFor 成功后记账）
+bytes32 constant TX_BUINT_CLAIM = keccak256("buintClaim");
+// B-Unit USDC 购买（BUnitAirdrop mintForUsdcPurchase 成功后记账）
+bytes32 constant TX_BUINT_USDC = keccak256("buintUSDC");
 ```
 
 #### 2.3.1 BeamioUserCard Mint Role 约束
@@ -199,6 +203,30 @@ bytes32 constant TX_CARDMINT_CONFIRMED = keccak256("cardmint:confirmed");
 与查询接口对应关系：
 - `getBeamioUserCardMintStatsBy*` 的 `mintTxCategoryFilter` 必须传 `TX_BEAMIO_USERCARD_MINT_CONFIRMED`。
 - `mintTxTotal` 统计该分类命中交易数；`mintWalletCount` 按窗口内 `payee` 去重计数。
+
+#### 2.3.2 BUnit Claim 记账（buintClaim）
+
+BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTokenAction` 记账。
+
+**数据来源**：BUnitAirdrop（部署地址见 `deployments/conet-BUintAirdrop.json`），BeamioIndexerDiamond 地址 `0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612`。
+
+**Transaction 字段**：
+
+| 字段 | 值 |
+|------|-----|
+| txCategory | `keccak256("buintClaim")` |
+| chainId | 224400（CoNET 主网） |
+| payer | BUint 合约地址 |
+| payee | claimant（申领人） |
+| finalRequestAmountFiat6 | claimAmount（BUnitAirdrop.claimAmount，6 位精度） |
+| route | 空数组 |
+| isAAAccount | false |
+
+**权限**：BUnitAirdrop 需为 BeamioIndexerDiamond 的 admin（`AdminFacet.setAdmin(BUnitAirdrop, true)`），否则 syncTokenAction 调用失败（BUnitAirdrop 使用 try/catch，失败不阻塞 claim）。
+
+**USDC 购买（buintUSDC）**：`mintForUsdcPurchase(to, bunitAmount)` 成功后同样记账，txCategory=`keccak256("buintUSDC")`，payer=BUint，payee=to，finalRequestAmountFiat6=bunitAmount，route 为空。
+
+**焚烧（consumeFromUser）**：`consumeFromUser(user, amount, baseHash, baseGas, kind)` 成功后记账，txCategory=`keccak256(kind 对应 string)`（未登记 kind 时用 `keccak256("buintBurn")`），payer=user，payee=BUint，finalRequestAmountFiat6=焚烧总额 amount，finalRequestAmountUSDC6=焚烧付费池 paidBurned，fees 含 baseGas/gasUSDC/feePayer=user。
 
 ethers.js 调用示例（mintTxCategoryFilter + chainIdFilter）：
 

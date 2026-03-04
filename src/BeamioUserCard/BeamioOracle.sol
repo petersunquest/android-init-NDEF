@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "../contracts/access/Ownable.sol";
 import "./BeamioCurrency.sol";
 
-/// @notice 汇率预言机。禁止重新部署，仅使用已有链上地址；新环境请配置 EXISTING_ORACLE_ADDRESS 引用现有合约。
 contract BeamioOracle is Ownable {
     error OracleError();
     error RateLimitExceeded();
@@ -18,8 +17,7 @@ contract BeamioOracle is Ownable {
         uint120 maxRateE18;    // 0 => no cap
     }
 
-    /// 设计：所有汇率均为「该货币 → USD」的 E18 精度。换算到 USDC 时由 QuoteHelper 先换成 USD 再按 USDC 对 USD 换算（故意设计）。
-    mapping(uint8 => uint256) public rates;        // currencyId => 该货币对 USD 的汇率 (E18)
+    mapping(uint8 => uint256) public rates;        // currencyId => USD rate (E18)
     mapping(uint8 => Breaker) public breakers;
 
     uint256 public defaultMaxRateChangeBps = 2000;
@@ -29,7 +27,6 @@ contract BeamioOracle is Ownable {
     event DefaultMaxChangeUpdated(uint256 oldBps, uint256 newBps);
 
     constructor() Ownable(msg.sender) {
-        // 基准：所有货币均按「对 USD」报价；换算 USDC 时用 USD 与 USDC 汇率（设计如此）
         rates[BeamioCurrency.USD] = E18;
         rates[BeamioCurrency.USDC] = E18;
     }

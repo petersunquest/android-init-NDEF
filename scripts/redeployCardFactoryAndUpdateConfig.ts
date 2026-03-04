@@ -263,7 +263,7 @@ export const BEAMIO_USER_CARD_ASSET_ADDRESS = '0xB7644DDb12656F4854dC746464af47D
 /**
  * CoNET BUnit Airdrop 合约地址（用于 claimBUnits）。
  */
-export const CONET_BUNIT_AIRDROP_ADDRESS = '0x5Bf7b014190c05957cc1A84976f958674628578c'
+export const CONET_BUNIT_AIRDROP_ADDRESS = '0x36dEc4b91ee3b9a0cF0F6f0df47955745Eae4a30'
 `;
   fs.writeFileSync(sdkChainPath, sdkChainContent);
   console.log("7. 已更新 src/x402sdk/src/chainAddresses.ts");

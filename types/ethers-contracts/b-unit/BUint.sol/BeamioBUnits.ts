@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioBUnitsInterface extends Interface {
-    getFunction(nameOrSignature: "addAdmin" | "admins" | "allowance" | "approve" | "balanceOf" | "consumeFuel" | "decimals" | "mintCombo" | "mintPaid" | "mintReward" | "name" | "removeAdmin" | "symbol" | "totalSupply" | "transfer" | "transferFrom"): FunctionFragment;
+    getFunction(nameOrSignature: "addAdmin" | "admins" | "allowance" | "approve" | "balanceOf" | "balanceOfAll" | "consumeFuel" | "decimals" | "getDailyReport" | "getHourlyReport" | "getMonthlyReport" | "getQuarterlyReport" | "getWeeklyReport" | "getYearlyReport" | "mintCombo" | "mintPaid" | "mintReward" | "name" | "removeAdmin" | "symbol" | "totalFreeBurned" | "totalPaidBurned" | "totalSupply" | "transfer" | "transferFrom"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "Approval" | "FuelConsumed" | "MintPaid" | "MintReward" | "NodeYieldGenerated" | "Transfer"): EventFragment;
 
@@ -15,14 +15,23 @@ encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'balanceOfAll', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'decimals', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getDailyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getHourlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getMonthlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getQuarterlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getWeeklyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getYearlyReport', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintCombo', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPaid', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'name', values?: undefined): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalFreeBurned', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalPaidBurned', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
@@ -32,14 +41,23 @@ decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'balanceOfAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'decimals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getDailyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getHourlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getMonthlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getQuarterlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getWeeklyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getYearlyReport', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintCombo', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalFreeBurned', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
@@ -216,9 +234,17 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     
 
     
+    balanceOfAll: TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >
+    
+
+    
     consumeFuel: TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
-      [void],
+      [bigint],
       'nonpayable'
     >
     
@@ -227,6 +253,54 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     decimals: TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >
+    
+
+    
+    getDailyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >
+    
+
+    
+    getHourlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >
+    
+
+    
+    getMonthlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >
+    
+
+    
+    getQuarterlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >
+    
+
+    
+    getWeeklyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >
+    
+
+    
+    getYearlyReport: TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
       'view'
     >
     
@@ -275,6 +349,22 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     symbol: TypedContractMethod<
       [],
       [string],
+      'view'
+    >
+    
+
+    
+    totalFreeBurned: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalPaidBurned: TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >
     
@@ -331,14 +421,49 @@ getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'balanceOfAll'): TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
-      [void],
+      [bigint],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'decimals'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getDailyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getHourlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getMonthlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getQuarterlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getWeeklyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getYearlyReport'): TypedContractMethod<
+      [n: BigNumberish, ],
+      [[bigint, bigint] & {mint: bigint, burn: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'mintCombo'): TypedContractMethod<
@@ -369,6 +494,16 @@ getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
 getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
       [],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalFreeBurned'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalPaidBurned'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'totalSupply'): TypedContractMethod<

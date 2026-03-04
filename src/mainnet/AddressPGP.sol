@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "./contracts/utils/cryptography/EIP712.sol";
-import "./contracts/utils/cryptography/ECDSA.sol";
-import "./GuardianNodesInfoV6.sol";
+import "../contracts/utils/cryptography/EIP712.sol";
+import "../contracts/utils/cryptography/ECDSA.sol";
+import "../b-unit/GuardianNodesInfoV6.sol";
 
 // ------- PGP Public Key -------
 struct PGPKey {

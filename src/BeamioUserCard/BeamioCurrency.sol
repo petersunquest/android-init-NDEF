@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /// @notice Shared currency enum across UserCard / Oracle / Factory
 ///         Future currency additions should happen ONLY here.
 library BeamioCurrency {
-    enum CurrencyType { CAD, USD, JPY, CNY, USDC, HKD, EUR, SGD, TWD, ETH, BNB, SOLANA, BTC }
+    enum CurrencyType { CAD, USD, JPY, CNY, USDC, HKD, EUR, SGD, TWD }
 
     uint8 internal constant CAD  = uint8(CurrencyType.CAD);
     uint8 internal constant USD  = uint8(CurrencyType.USD);
@@ -15,8 +15,4 @@ library BeamioCurrency {
     uint8 internal constant EUR  = uint8(CurrencyType.EUR);
     uint8 internal constant SGD  = uint8(CurrencyType.SGD);
     uint8 internal constant TWD  = uint8(CurrencyType.TWD);
-    uint8 internal constant ETH  = uint8(CurrencyType.ETH);
-    uint8 internal constant BNB  = uint8(CurrencyType.BNB);
-    uint8 internal constant SOLANA = uint8(CurrencyType.SOLANA);
-    uint8 internal constant BTC  = uint8(CurrencyType.BTC);
 }

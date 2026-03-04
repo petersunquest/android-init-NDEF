@@ -1,0 +1,33 @@
+---
+description: CoNET 部署与合约地址配置
+globs: scripts/deploy*.ts, deployments/*.json
+alwaysApply: false
+---
+
+# CoNET 部署与地址配置
+
+## BUint / BUnitAirdrop 权威地址
+
+- **当前 BUint (CoNET mainnet)**: `0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879`
+- **当前 BUnitAirdrop (CoNET mainnet)**: `0x36dEc4b91ee3b9a0cF0F6f0df47955745Eae4a30`
+- 配置来源: `deployments/conet-addresses.json`
+
+## 禁止使用的废弃地址
+
+以下 BUint 地址已废弃，**禁止**在部署脚本、配置或代码中引用：
+
+- `0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9`
+- `0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB`
+
+## 部署 BUnitAirdrop
+
+- 必须从 `deployments/conet-addresses.json` 或 `deployments/conet-BUint.json` 读取 BUint 地址
+- 脚本 `deployBUnitAirdropToConet.ts` 已内置 `assertNotDeprecated()` 校验
+- 新增部署脚本时，需复用相同地址加载逻辑，不得硬编码旧地址
+
+## BUnitAirdrop 重部署后需执行（链上）
+
+运行脚本完成登记：`npx hardhat run scripts/registerBUnitAirdropToConet.ts --network conet`
+
+- **ConetTreasury.setBUnitAirdrop(新地址)**：ConetTreasury owner 执行
+- **BeamioIndexerDiamond AdminFacet.setAdmin(新地址, true)**：Indexer owner 执行，用于 claim/焚烧/USDC 购买记账
