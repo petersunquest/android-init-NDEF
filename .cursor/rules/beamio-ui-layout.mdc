@@ -27,3 +27,21 @@ Beamio 各页面的**首个显示控件与顶部**的间距必须统一，使用
 - **Fuel Center (FuelView)**：全屏 overlay，根容器加 `pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[calc(8rem+env(safe-area-inset-bottom))]`。两种顶部间距：
   - **返回按钮 + title**：对齐 Home 胶囊，`paddingTop: 'max(1rem, env(safe-area-inset-top))'`
   - **首内容**（Network Fuel Balance）：对齐 Home 首内容，spacer `minHeight: calc(env(safe-area-inset-top) + 5rem)` + 内容区 `pt-6`
+
+## B-Units 视觉标准（全局）
+
+涉及 `B-Units` 数值与 `Fuel` 图标的 UI（尤其是 `/home` Recent Activity detail、`/History`、Fuel Center）必须使用 Beamio 标准橙色，不得用灰色/蓝色替代：
+
+- 图标：`text-orange-500`
+- 数值文字：`text-orange-500`
+- 胶囊底与边框：`bg-orange-50 border-orange-200`（暗色模式用 `dark:bg-orange-900/20 dark:border-orange-800/50`）
+
+若同一行展示的是 B-Units（例如 `Network Gas`、`Beamio Fee` 右侧），颜色需与 Fuel Center 的 B-Units 表达保持一致。
+
+## B-Units 数值格式标准（全局）
+
+Beamio 项目中所有面向用户显示的 `B-Units` 金额，统一使用 **2 位小数**：
+
+- 示例：`2.00 B-Units`、`-1.50 B-Units`、`+100.00 B-Units`
+- 适用范围：`/home` Recent Activity、detail 面板、Fuel Center、History 相关明细、所有新 UI
+- 禁止混用整数与不同小数位（除非明确是开发调试日志，不对用户展示）

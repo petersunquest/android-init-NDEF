@@ -17,6 +17,27 @@ Beamio Wallet - 交易历史模块 (Transactions History) 开发规格说明书
 - 先事件、后聚合，UI 展示的是聚合视图
 - 允许重组 (reorg) 后修正，不允许静默错误
 
+### 1.1 链上拉取与缓存一致性守则（Fuel Center / B-Units Ledger）
+
+为避免“网络故障被误判为零资产/零记录”，链上拉取必须遵循以下规则：
+
+- **访问失败不等于零数据**：RPC 超时、网络错误、429/5xx、解析失败时，禁止将结果写成 `[]` 或 `0`。
+- **仅成功空返回可清空**：只有链上成功响应且明确返回空数据时，才能信任“无记录”并清空缓存/UI。
+- **交易记录永久性**：Transaction 视为永久审计记录。单次访问失败不得删除本地历史记录。
+- **失败保留缓存**：链上拉取失败时必须保留缓存（stale but usable），并等待下一次成功校验。
+
+items 拉取与渲染优先级：
+
+1. 优先拉取并渲染新入库 items（最新时间戳/区块）
+2. 优先满足当前视口与交互所必需的 items（首屏先可用）
+3. 非可见历史 items 在后台小批量、长间隔补全（避免阻塞主线程）
+
+推荐策略：
+
+- 首屏使用本地缓存快速渲染，后台异步增量刷新。
+- 对后台补全采用小批量（如 10~30 条/批）+ 较长间隔（如 100~500ms/批）。
+- 若链上成功返回数据，以链上为准更新缓存；若链上失败，禁止负向覆盖缓存。
+
 ## 2. 数据结构定义 (Data Schema)
 
 前端从 Indexer 获取标准化对象，不直接拼链上原始日志。数据分两层：`Raw` 和 `View`。
@@ -114,6 +135,29 @@ struct Transaction {
   TransactionMeta meta;
 }
 ```
+
+**txCategory 可扩展分类键一览**（组合规则：`keccak256("<biz_type>:<phase>")` 或 `keccak256("<biz_type>")`）：
+
+| 常量名 | 原始字符串 | 语义 |
+|--------|------------|------|
+| TX_MERCHANT_PAY_CONFIRMED | `merchant_pay:confirmed` | 商户支付主单确认 |
+| TX_MERCHANT_PAY_TIP_UPDATED | `merchant_pay:tip_updated` | 商户支付小费追加 |
+| TX_TRANSFER_IN_CONFIRMED | `transfer_in:confirmed` | 转入确认 |
+| TX_TRANSFER_OUT_CONFIRMED | `transfer_out:confirmed` | 转出确认 |
+| TX_TOPUP_CONFIRMED | `topup:confirmed` | 充值确认 |
+| TX_INTERNAL_TRANSFER_CONFIRMED | `internal_transfer:confirmed` | 内部转账（AA↔EOA）确认 |
+| TX_VOUCHER_BURN_CONFIRMED | `voucher_burn:confirmed` | 券核销确认 |
+| TX_REQUEST_CREATE_CONFIRMED | `request_create:confirmed` | 请求创建确认 |
+| TX_REQUEST_FULFILLED_CONFIRMED | `request_fulfilled:confirmed` | 请求履行确认 |
+| TX_REQUEST_EXPIRED_CONFIRMED | `request_expired:confirmed` | 请求过期确认 |
+| TX_REQUEST_CANCEL_CONFIRMED | `request_cancel:confirmed` | 请求取消确认 |
+| TX_BEAMIO_USERCARD_MINT_CONFIRMED | `beamio_usercard_mint:confirmed` | BeamioUserCard mint 确认 |
+| TX_CARDMINT_CONFIRMED | `cardmint:confirmed` | 卡发行/兑换确认（cardRedeem API） |
+| TX_BUINT_CLAIM | `buintClaim` | B-Unit 免费池申领 |
+| TX_BUINT_USDC | `buintUSDC` | B-Unit USDC 购买 |
+| buintBurn（默认） | `buintBurn` | B-Unit 焚烧（consumeFromUser，kind 未登记时） |
+
+> consumeFromUser 的 txCategory 为 `keccak256(kind 对应 string)`，未登记 kind 时用 `keccak256("buintBurn")`。完整常量定义见 2.3 节。
 
 **内部转账 payer/payee 语义（API 组装必须正确）**：
 - **AA→EOA（Withdraw from Express Pay）**：`payer`=AA 地址，`payee`=EOA 地址。来源：ContainerRelay / AAtoEOA。
@@ -933,7 +977,38 @@ Master 成功 mint 后，必须写入一条 `syncTokenAction`：
 - 实时性：Waiting 状态通过 websocket/轮询刷新为 Received
 - 安全性：禁止信任客户端时间和浮点金额作为结算依据
 
-## 9. 交付物清单
+## 9. 附录：CoNET 主网 BeamioIndexerDiamond 数据快照
+
+> 数据获取时间：2026-03-07；获取脚本：`npx hardhat run scripts/fetchConetIndexerData.ts --network conet`
+
+| 项目 | 值 |
+|------|-----|
+| RPC | `https://mainnet-rpc.conet.network` |
+| Indexer 地址 | `0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612` |
+| 交易总数 (txCount) | **262** |
+
+### 9.1 最新 100 条交易 txCategory 分布
+
+| txCategory | 数量 | 说明 |
+|------------|------|------|
+| internal_transfer:confirmed | 19 | 内部转账（AA↔EOA） |
+| buintClaim | 16 | B-Unit 免费池申领 |
+| buintUSDC | 14 | B-Unit USDC 购买 |
+| request_create:confirmed | 14 | 请求创建 |
+| 0xe572e693... | 12 | consumeFromUser kind 变体 |
+| 0xf27bd0abb4... | 8 | consumeFromUser kind 变体 |
+| transfer_out:confirmed | 6 | 转出 |
+| 0x5e7605f3... | 4 | consumeFromUser kind 变体 |
+| request_cancel:confirmed | 4 | 请求取消 |
+| 0xc78fb7b2... | 2 | consumeFromUser kind 变体 |
+| buintBurn | 1 | B-Unit 焚烧 |
+
+### 9.2 链分布
+
+- **chainId 8453**：Base 主网（transfer、internal_transfer、request_create 等）
+- **chainId 224400**：CoNET 主网（buintClaim、buintUSDC、buintBurn 等）
+
+## 10. 交付物清单
 
 - 本规格说明书 (`readme.md`)
 - React 原型代码 (`BeamioTransactions.jsx`)
