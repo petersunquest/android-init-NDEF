@@ -152,7 +152,10 @@ struct Transaction {
 | TX_REQUEST_EXPIRED_CONFIRMED | `request_expired:confirmed` | 请求过期确认 |
 | TX_REQUEST_CANCEL_CONFIRMED | `request_cancel:confirmed` | 请求取消确认 |
 | TX_BEAMIO_USERCARD_MINT_CONFIRMED | `beamio_usercard_mint:confirmed` | BeamioUserCard mint 确认 |
-| TX_CARDMINT_CONFIRMED | `cardmint:confirmed` | 卡发行/兑换确认（cardRedeem API） |
+| TX_CARDMINT_CONFIRMED | `cardmint:confirmed` | 卡发行/兑换确认（仅 cardRedeem API） |
+| TX_ISSUE_NEW_CARD | `iuuseNewCard` | Top Up 触发首次发行新卡 |
+| TX_UPGRADE_NEW_CARD | `upgradeNewCard` | Top Up 触发卡等级升级（产生新 tier NFT） |
+| TX_TOPUP_CARD | `topupCard` | 常规 Top Up（不触发首次发行/升级） |
 | TX_BUINT_CLAIM | `buintClaim` | B-Unit 免费池申领 |
 | TX_BUINT_USDC | `buintUSDC` | B-Unit USDC 购买 |
 | buintBurn（默认） | `buintBurn` | B-Unit 焚烧（consumeFromUser，kind 未登记时） |
@@ -228,6 +231,10 @@ bytes32 constant TX_REQUEST_CANCEL_CONFIRMED = keccak256("request_cancel:confirm
 bytes32 constant TX_BEAMIO_USERCARD_MINT_CONFIRMED = keccak256("beamio_usercard_mint:confirmed");
 // 新卡发行与 Top Up 共用（cardRedeem API 记账）
 bytes32 constant TX_CARDMINT_CONFIRMED = keccak256("cardmint:confirmed");
+// Top Up 业务专用分类（purchasingCardProcess）
+bytes32 constant TX_ISSUE_NEW_CARD = keccak256("iuuseNewCard");       // 首次发行新卡
+bytes32 constant TX_UPGRADE_NEW_CARD = keccak256("upgradeNewCard");   // 升级新卡
+bytes32 constant TX_TOPUP_CARD = keccak256("topupCard");              // 常规充值
 // B-Unit 免费池申领（BUnitAirdrop claim/claimFor 成功后记账）
 bytes32 constant TX_BUINT_CLAIM = keccak256("buintClaim");
 // B-Unit USDC 购买（BUnitAirdrop mintForUsdcPurchase 成功后记账）
@@ -271,6 +278,22 @@ BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTo
 **USDC 购买（buintUSDC）**：`mintForUsdcPurchase(to, bunitAmount)` 成功后同样记账，txCategory=`keccak256("buintUSDC")`，payer=BUint，payee=to，finalRequestAmountFiat6=bunitAmount，route 为空。
 
 **焚烧（consumeFromUser）**：`consumeFromUser(user, amount, baseHash, baseGas, kind)` 成功后记账，txCategory=`keccak256(kind 对应 string)`（未登记 kind 时用 `keccak256("buintBurn")`），payer=user，payee=BUint，finalRequestAmountFiat6=焚烧总额 amount，finalRequestAmountUSDC6=焚烧付费池 paidBurned，fees 含 baseGas/gasUSDC/feePayer=user。
+
+#### 2.3.3 Top Up 记账规则（purchasingCardProcess）
+
+Top Up 业务（`buyPointsForUser` 成功后）必须使用以下 `txCategory`：
+
+- 首次发行新卡：`keccak256("iuuseNewCard")`
+- Top Up 导致升级：`keccak256("upgradeNewCard")`
+- 其余普通 Top Up：`keccak256("topupCard")`
+
+`TransactionMeta` 记账口径（Top Up 专用）：
+
+- `meta.discountAmountFiat6`：记录 `beforePoint`（本次 Top Up 前用户 points 余额，E6）
+- `meta.requestAmountFiat6`：记录 `currentTopupPoint`（本次 Top Up 增加的 points，E6）
+- `meta.requestAmountUSDC6`：记录本次 Top Up 的 USDC 金额（E6）
+
+说明：以上字段用于 Top Up 业务的审计与历史回放，前端/分析系统在读取 Top Up 记录时应按上述口径解释。
 
 ethers.js 调用示例（mintTxCategoryFilter + chainIdFilter）：
 
