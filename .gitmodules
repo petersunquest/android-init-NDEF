@@ -1,0 +1,6 @@
+[submodule "src/Alliance"]
+	path = src/Alliance
+	url = https://github.com/CoNET-project/SilentPassUI.git
+[submodule "src/CoNET-DL"]
+	path = src/CoNET-DL
+	url = https://github.com/CoNET-project/CoNET-DL.git
