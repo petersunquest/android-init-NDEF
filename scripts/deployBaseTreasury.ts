@@ -38,7 +38,7 @@ async function main() {
   if (!deployerPk) throw new Error("settle_contractAdmin[0] 为空");
 
   const { ethers } = await networkModule.connect();
-  const baseRpc = master.base_endpoint || process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
+  const baseRpc = master.base_endpoint || process.env.BASE_RPC_URL || "https://1rpc.io/base";
   const provider = new ethers.JsonRpcProvider(baseRpc);
   const deployer = new ethers.Wallet(deployerPk, provider);
 

@@ -30,7 +30,7 @@ try {
 	console.log('请确保 ~/.master.json 文件存在且格式正确:')
 	console.log('  {')
 	console.log('    "settle_contractAdmin": ["pk1", "pk2", "pk3"],')
-	console.log('    "base_endpoint": "https://base-rpc.conet.network"')
+	console.log('    "base_endpoint": "https://1rpc.io/base"')
 	console.log('  }')
 	process.exit(1)
 }
@@ -53,12 +53,12 @@ async function main() {
 		console.log('请检查 ~/.master.json 文件，确保包含:')
 		console.log('  {')
 		console.log('    "settle_contractAdmin": ["pk1", "pk2", "pk3"],')
-		console.log('    "base_endpoint": "https://base-rpc.conet.network"')
+		console.log('    "base_endpoint": "https://1rpc.io/base"')
 		console.log('  }')
 		process.exit(1)
 	}
 
-	const baseEndpoint = masterSetup?.base_endpoint || 'https://base-rpc.conet.network'
+	const baseEndpoint = masterSetup?.base_endpoint || 'https://1rpc.io/base'
 	const provider = new ethers.JsonRpcProvider(baseEndpoint)
 	
 	// 确保私钥格式正确（可能需要添加 0x 前缀）

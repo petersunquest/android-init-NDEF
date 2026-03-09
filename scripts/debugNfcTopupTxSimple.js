@@ -6,8 +6,8 @@ import { ethers } from 'ethers'
 
 const BASE_CARD_FACTORY = '0xbDC8a165820bB8FA23f5d953632409F73E804eE5'
 const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
-const RPC = process.env.BASE_RPC || 'https://base-rpc.conet.network'
-const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://base-rpc.conet.network'
+const RPC = process.env.BASE_RPC || 'https://1rpc.io/base'
+const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://1rpc.io/base'
 
 async function providerCallWithFallback(provider, fallback, params) {
 	try {

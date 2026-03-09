@@ -41,7 +41,7 @@ function loadMasterSetup(): { settle_contractAdmin: string[]; base_endpoint: str
   }
   return {
     settle_contractAdmin: data.settle_contractAdmin.map((pk: string) => (pk.startsWith("0x") ? pk : `0x${pk}`)),
-    base_endpoint: data.base_endpoint || "https://base-rpc.conet.network",
+    base_endpoint: data.base_endpoint || "https://1rpc.io/base",
   };
 }
 

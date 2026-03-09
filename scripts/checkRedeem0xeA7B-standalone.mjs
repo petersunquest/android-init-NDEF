@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 
 const CARD = "0xeA7B248CFcD457c4884371c55Ae5aFb0F428c483";
 const CODE = "3UszMjLTvv3H57m2dpz3v0";
-const BASE_RPC = "https://base-rpc.conet.network";
+const BASE_RPC = "https://1rpc.io/base";
 
 const CURRENCY_NAMES = { 0: "CAD", 1: "USD", 2: "JPY", 3: "CNY", 4: "USDC", 5: "HKD", 6: "EUR", 7: "SGD", 8: "TWD" };
 

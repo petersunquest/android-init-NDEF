@@ -81,11 +81,11 @@ async function testCard(
 
 async function main() {
   const provider = new ethers.JsonRpcProvider(
-    process.env.BASE_RPC || "https://base-rpc.conet.network"
+    process.env.BASE_RPC || "https://1rpc.io/base"
   );
 
   console.log("========== Redeem Asset 诊断：UserCard vs CCSA ==========");
-  console.log("RPC:", process.env.BASE_RPC || "https://base-rpc.conet.network");
+  console.log("RPC:", process.env.BASE_RPC || "https://1rpc.io/base");
 
   const userResults = await testCard("UserCard 0xeA7B...", USER_CARD, USER_CARD_CODE, provider);
   const ccsResults = await testCard("CCSA 0xA1A9...", CCSA_CARD, CCSA_CODE, provider);

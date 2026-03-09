@@ -28,7 +28,7 @@ async function main() {
   const pk = (master.settle_contractAdmin[0] || '').startsWith('0x')
     ? master.settle_contractAdmin[0] : '0x' + master.settle_contractAdmin[0];
 
-  const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL || 'https://base-rpc.conet.network');
+  const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL || 'https://1rpc.io/base');
   const wallet = new ethers.Wallet(pk, provider);
   console.log('Deployer:', wallet.address);
 

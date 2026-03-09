@@ -50,4 +50,4 @@ console.log('points6:', points6?.toString());
 console.log('deadline:', deadline.toString(), '(block.timestamp 需 < deadline)');
 console.log('nonce:', nonce);
 console.log('\n链上检查命令:');
-console.log('  cast call', cardAddr, '"isAdmin(address)(bool)"', signer, '--rpc-url https://base-rpc.conet.network');
+console.log('  cast call', cardAddr, '"isAdmin(address)(bool)"', signer, '--rpc-url https://1rpc.io/base');

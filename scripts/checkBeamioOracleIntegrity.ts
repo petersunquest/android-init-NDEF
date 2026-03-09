@@ -21,7 +21,7 @@ const CURRENCIES: Record<number, string> = {
 	9: 'ETH',
 }
 
-const BASE_RPC = process.env.BASE_RPC_URL || 'https://base-rpc.conet.network'
+const BASE_RPC = process.env.BASE_RPC_URL || 'https://1rpc.io/base'
 const CONET_RPC = process.env.CONET_RPC_URL || 'https://mainnet-rpc.conet.network'
 
 const ORACLE_BASE = process.env.BASE_BEAMIO_ORACLE_ADDRESS || '0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B'

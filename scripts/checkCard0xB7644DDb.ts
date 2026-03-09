@@ -18,7 +18,7 @@ const ABI = {
 
 async function main() {
   const provider = new ethers.JsonRpcProvider(
-    process.env.BASE_RPC_URL || process.env.BASE_RPC || "https://base-rpc.conet.network"
+    process.env.BASE_RPC_URL || process.env.BASE_RPC || "https://1rpc.io/base"
   );
   const card = new ethers.Contract(CARD, Object.values(ABI), provider);
 
