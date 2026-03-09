@@ -57,7 +57,7 @@ async function main() {
     : "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1";
 
   console.log("========== createCard 本地排查（Base）==========\n");
-  const hardhatBaseRpc = process.env.BASE_RPC_URL || "https://1rpc.io/base";
+  const hardhatBaseRpc = process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
   console.log("  Base RPC (Hardhat):", hardhatBaseRpc);
   if (masterAdmin) {
     console.log("使用 ~/.master.json settle_contractAdmin[0] 作为 admin:", ADMIN, "\n");

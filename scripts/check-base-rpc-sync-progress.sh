@@ -9,7 +9,7 @@ set -e
 
 RPC="${1:-http://127.0.0.1:8547}"
 STATE_FILE="${2:-$(dirname "$0")/.base-sync-state}"
-PUBLIC_RPC="${PUBLIC_BASE_RPC:-https://1rpc.io/base}"
+PUBLIC_RPC="${PUBLIC_BASE_RPC:-https://base-rpc.conet.network}"
 BASE_BLOCK_TIME=2  # Base 主网约 2 秒/块
 
 jq_cmd() {

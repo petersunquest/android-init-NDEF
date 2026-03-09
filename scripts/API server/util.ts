@@ -383,7 +383,7 @@ const FaucetUserProcess = async () => {
 }
 
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
-const providerBaseBackup = new ethers.JsonRpcProvider('https://1rpc.io/base')
+const providerBaseBackup = new ethers.JsonRpcProvider('https://base-rpc.conet.network')
 
 const providerConet = new ethers.JsonRpcProvider(conetEndpoint)
 const oracleSC = new ethers.Contract(oracleSC_addr, GuardianOracle_ABI, providerConet)
