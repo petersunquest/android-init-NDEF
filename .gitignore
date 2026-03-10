@@ -25,3 +25,4 @@ scripts/.base-sync-state
 # OS
 .DS_Store
 Thumbs.db
+.cursor

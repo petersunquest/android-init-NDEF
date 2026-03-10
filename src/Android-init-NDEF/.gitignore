@@ -14,3 +14,7 @@
 .cxx
 local.properties
 .cursor
+
+# Keystore - never commit signing keys
+*.keystore
+keystore.properties

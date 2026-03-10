@@ -69,7 +69,8 @@
     "verify:buint-airdrop:conet:try-hardhat": "npx tsx scripts/verifyBUintAirdropStandardJson.ts --airdrop-only --try-hardhat",
     "deploy:base-treasury:base": "hardhat run scripts/deployBaseTreasury.ts --network base",
     "verify:base-treasury:base": "npx tsx scripts/verifyBaseTreasuryStandardJson.ts",
-    "base-treasury:listen": "npx tsx src/x402sdk/src/BaseTreasury/node.ts"
+    "base-treasury:listen": "npx tsx src/x402sdk/src/BaseTreasury/node.ts",
+    "diagnose:restore-user-pin": "npx tsx scripts/diagnoseRestoreWithUserPin.ts"
   },
   "dependencies": {
     "@settle402/sdk": "github:settleonbase/x402sdk#main",
