@@ -13,7 +13,10 @@ import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.Tag
 import android.os.Build
+import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -74,9 +77,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
@@ -93,6 +94,16 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+
+private fun performButtonHaptic(context: Context) {
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+    if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(50)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
@@ -157,7 +168,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.TopCenter)
-                                .padding(top = 64.dp, bottom = 16.dp),
+                                .padding(top = 96.dp, bottom = 16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -224,6 +235,16 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                     }
                 }
             }
+        }
+    }
+
+    private fun performCompletionVibration() {
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(80, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(80)
         }
     }
 
@@ -461,6 +482,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 )
                 runOnUiThread {
                     cardReadResult = result
+                    performCompletionVibration()
                     Log.d("NFC", "UID=${result.uidHex}")
                     Log.d("NFC", "fileNo=${result.ndefFileNo}")
                     Log.d("NFC", "urlSource=${result.urlSource}")
@@ -535,6 +557,7 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
                 }
                 runOnUiThread {
                     initResult = verifiedResult
+                    performCompletionVibration()
                     Log.d("NFC", "Provision: $verifiedResult")
                 }
             } catch (e: Exception) {
@@ -756,7 +779,6 @@ fun KeyInitScreen(
     var key0Input by remember { mutableStateOf("") }
     var key2Input by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
-    val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
@@ -810,7 +832,7 @@ fun KeyInitScreen(
         }
         Button(
             onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                performButtonHaptic(context)
                 val k0 = KeyStorageManager.parseKeyInput(key0Input)
                 val k2 = KeyStorageManager.parseKeyInput(key2Input)
                 when {
@@ -840,6 +862,7 @@ fun TapCardScreen(
     onReadAnother: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scanLineY by rememberInfiniteTransition(label = "nfcScanLine").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -865,7 +888,10 @@ fun TapCardScreen(
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
             IconButton(
-                onClick = onBack,
+                onClick = {
+                    performButtonHaptic(context)
+                    onBack()
+                },
                 modifier = Modifier.fillMaxSize()
             ) {
                 Icon(
@@ -972,7 +998,6 @@ private fun CardInfoContent(
     onReadAnother: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val detectedDynamicUrl = result.ndefUrl?.takeIf { !result.isTemplatePlaceholder }
@@ -1017,13 +1042,9 @@ private fun CardInfoContent(
         copyLabel = "Copy JSON",
         primaryActionLabel = "Read Another",
         onCopy = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             clipboard.setPrimaryClip(ClipData.newPlainText("check_result", rawJson))
         },
-        onPrimaryAction = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onReadAnother()
-        },
+        onPrimaryAction = { onReadAnother() },
         modifier = modifier
     )
 }
@@ -1034,7 +1055,6 @@ private fun InitSuccessContent(
     onReadAnother: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val key2Hex = remember(context) {
@@ -1085,13 +1105,9 @@ private fun InitSuccessContent(
         copyLabel = "Copy JSON",
         primaryActionLabel = "Init Another",
         onCopy = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             clipboard.setPrimaryClip(ClipData.newPlainText("init_result", rawJson))
         },
-        onPrimaryAction = {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            onReadAnother()
-        },
+        onPrimaryAction = { onReadAnother() },
         modifier = modifier
     )
 }
@@ -1110,6 +1126,7 @@ private fun ResultSuccessContent(
     onPrimaryAction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var rawExpanded by remember { mutableStateOf(false) }
     var copied by remember(rawJson) { mutableStateOf(false) }
 
@@ -1174,11 +1191,12 @@ private fun ResultSuccessContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(
-                onClick = {
-                    copied = true
-                    onCopy()
-                },
+        OutlinedButton(
+            onClick = {
+                performButtonHaptic(context)
+                copied = true
+                onCopy()
+            },
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
@@ -1196,14 +1214,20 @@ private fun ResultSuccessContent(
                 }
             }
             Button(
-                onClick = onPrimaryAction,
+                onClick = {
+                    performButtonHaptic(context)
+                    onPrimaryAction()
+                },
                 modifier = Modifier.weight(1f)
             ) {
                 Text(primaryActionLabel)
             }
         }
         OutlinedButton(
-            onClick = { rawExpanded = !rawExpanded },
+            onClick = {
+                performButtonHaptic(context)
+                rawExpanded = !rawExpanded
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -1339,7 +1363,6 @@ private fun CardErrorContent(
     onReadAnother: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val haptic = LocalHapticFeedback.current
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     var showDiagnostics by rememberSaveable(error) { mutableStateOf(false) }
@@ -1385,7 +1408,7 @@ private fun CardErrorContent(
         }
         OutlinedButton(
             onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                performButtonHaptic(context)
                 showDiagnostics = !showDiagnostics
             },
             modifier = Modifier
@@ -1417,7 +1440,7 @@ private fun CardErrorContent(
         ) {
             OutlinedButton(
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    performButtonHaptic(context)
                     clipboard.setPrimaryClip(ClipData.newPlainText("error", error))
                 },
                 modifier = Modifier.weight(1f)
@@ -1426,7 +1449,7 @@ private fun CardErrorContent(
             }
             Button(
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    performButtonHaptic(context)
                     onReadAnother()
                 },
                 modifier = Modifier.weight(1f)
@@ -1445,12 +1468,12 @@ fun MenuButton(
     onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                performButtonHaptic(context)
                 onClick()
             },
         shape = RoundedCornerShape(12.dp),
