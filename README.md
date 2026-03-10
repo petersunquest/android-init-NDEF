@@ -4,9 +4,14 @@
 [![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-blue)](https://docs.soliditylang.org/)
 [![Status](https://img.shields.io/badge/Status-Beta-orange)]()
 
-**A standard interface for programmable cascading payments and atomic asset containers on EVM chains.**
+**An open-source Beamio stack for programmable payments, ERC-4337 accounts, ERC-1155 cards, NTAG 424 DNA provisioning, and SUN verification.**
 
 Beamio Commerce Protocol (BCP) is a set of open-source smart contracts designed to bridge the gap between Web3 asset sovereignty and Web2 commercial usability. It provides the infrastructure for **Tethered Hybrid Accounts** and **Asset-Agnostic Settlements**.
+
+This repository also contains:
+
+- `src/x402sdk` - the Beamio API / cluster server, including the `/api/sun` endpoint used to verify NTAG 424 DNA SUN taps.
+- `src/Android-init-NDEF` - the Android app used to initialize cards, read SUN URLs, decode local payloads, and compare local results with server-side verification.
 
 ---
 
@@ -59,6 +64,48 @@ cp .env.example .env
 npm run compile
 ```
 
+### Build The Android APK
+
+The Android NTAG 424 DNA app lives in `src/Android-init-NDEF`.
+
+```bash
+cd src/Android-init-NDEF
+./gradlew assembleDebug
+```
+
+The debug APK will be generated under:
+
+```bash
+src/Android-init-NDEF/app/build/outputs/apk/debug/
+```
+
+For a quick Kotlin-only validation during development:
+
+```bash
+cd src/Android-init-NDEF
+./gradlew :app:compileDebugKotlin
+```
+
+### Run The SUN Server
+
+The SUN verification endpoint is implemented in `src/x402sdk`.
+
+```bash
+cd src/x402sdk
+corepack enable
+corepack yarn install
+corepack yarn build
+node dist/server.js
+```
+
+The app expects the canonical endpoint:
+
+```text
+https://beamio.app/api/sun
+```
+
+You must deploy the cluster entry so that `GET /api/sun` returns JSON from the x402 server.
+
 ### Example: Resolving a Tethered Account
 
 ```solidity
@@ -97,6 +144,8 @@ address card = cardFactory.latestCardOfOwner(cardOwnerEOA);
 │   │   ├── BeamioQuoteHelperV07.sol
 │   │   ├── RedeemModule.sol
 │   │   └── ...
+│   ├── Android-init-NDEF/          # Android NTAG 424 DNA init/check app
+│   ├── x402sdk/                    # Beamio API server, SUN verification, helpers
 │   └── contracts/                  # Shared (ERC20, ERC721, ERC1155, utils)
 ├── scripts/                        # Deployment and tooling
 │   ├── deployUserCardFactory.ts
@@ -108,6 +157,74 @@ address card = cardFactory.latestCardOfOwner(cardOwnerEOA);
 ├── hardhat.config.ts
 └── package.json
 ```
+
+---
+
+## NTAG 424 DNA Quick Rules
+
+These are the final practical rules used in this repo to avoid repeated SUN provisioning regressions.
+
+### Route Detection
+
+- `fresh`: authenticate with `defaultKey0` only after `globalKey0` fails with the expected auth error.
+- `rewritten`: authenticate with `globalKey0` successfully. This includes cards that were partially initialized before and now already carry Beamio keys.
+
+### Fresh Card Flow
+
+1. Authenticate with `defaultKey0`.
+2. Change `key0` to `globalKey0`.
+3. Re-authenticate with `globalKey0`.
+4. Change `key2` to `globalKey2`.
+5. Prefer secure chunked NDEF write; if needed, fall back to ISO `UPDATE BINARY`.
+6. Apply compact SDM settings derived from the template URL.
+7. Success for `fresh` means the readback URL matches the expected template exactly.
+
+### Rewritten Card Flow
+
+1. Authenticate with `globalKey0`.
+2. Refresh `key2` using `globalKey2` when possible; fall back only when the card clearly requires it.
+3. Prefer native NDEF file `0x02`.
+4. If a valid dynamic Beamio SUN URL is already active, preserve it instead of destroying and rebuilding it.
+5. If repair is needed, prefer same-session write and settings changes first, then ISO rewrite fallback, then post-write fallback.
+6. Success for `rewritten` means the card exposes a valid dynamic URL under `https://beamio.app/api/sun` and local decode returns a non-placeholder `tagId` / `counter`.
+
+### Verification Rules
+
+- Android `check` first performs local decode with `globalKey2`.
+- Android then calls `https://beamio.app/api/sun?debug=1`.
+- A healthy result means:
+  - local `tagId` equals server `tagId`
+  - local `counter` equals server `counter`
+  - server `valid=true`
+  - server `macValid=true`
+
+### Operational Notes
+
+- A card may enter the `rewritten` path even when the user believes it is "new" if a prior attempt already rotated keys or partially enabled dynamic SUN.
+- For user-facing success screens, only compact notes should be shown. Deep fallback probes and low-level APDU diagnostics are for failure analysis, not normal success output.
+- The canonical SUN endpoint in this repo is `https://beamio.app/api/sun`.
+
+---
+
+## NFC Components
+
+### Android App
+
+- Path: `src/Android-init-NDEF`
+- Purpose: initialize NTAG 424 DNA cards, read dynamic URLs, locally decode `tagId` / `counter`, and compare with server verification.
+
+### Server Verification
+
+- Path: `src/x402sdk`
+- Endpoint: `GET /api/sun`
+- Purpose: verify `uid`, `e`, `c`, and `m`, derive `tagId`, and maintain counter freshness state.
+
+### Deployment Notes
+
+- Android app package: `com.beamio.beamiondefinit`
+- Android app requires `INTERNET` permission for `/api/sun?debug=1`
+- `x402sdk` uses Yarn 4 via Corepack
+- Production routing must expose `GET /api/sun` through the cluster server, not just the website frontend
 
 ---
 
