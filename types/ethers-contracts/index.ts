@@ -71,10 +71,14 @@ export type { IBeamioGovernanceModuleV1 } from './BeamioUserCard/BeamioUserCard.
 export { IBeamioGovernanceModuleV1__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioGovernanceModuleV1__factory.js';
 export type { IBeamioIssuedNftModuleV1 } from './BeamioUserCard/BeamioUserCard.sol/IBeamioIssuedNftModuleV1.js';
 export { IBeamioIssuedNftModuleV1__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioIssuedNftModuleV1__factory.js';
+export type { IBeamioMembershipStatsModuleV1 } from './BeamioUserCard/BeamioUserCard.sol/IBeamioMembershipStatsModuleV1.js';
+export { IBeamioMembershipStatsModuleV1__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioMembershipStatsModuleV1__factory.js';
 export type { IBeamioRedeemModuleVNext } from './BeamioUserCard/BeamioUserCard.sol/IBeamioRedeemModuleVNext.js';
 export { IBeamioRedeemModuleVNext__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioRedeemModuleVNext__factory.js';
 export type { IBeamioUserCardFactoryPaymasterV07 } from './BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryPaymasterV07.js';
 export { IBeamioUserCardFactoryPaymasterV07__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryPaymasterV07__factory.js';
+export type { BeamioUserCardBase } from './BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase.js';
+export { BeamioUserCardBase__factory } from './factories/BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase__factory.js';
 export type { BeamioUserCardDeployerV07 } from './BeamioUserCard/BeamioUserCardDeployerV07.js';
 export { BeamioUserCardDeployerV07__factory } from './factories/BeamioUserCard/BeamioUserCardDeployerV07__factory.js';
 export type { BeamioUserCardFactoryPaymasterV07 } from './BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol/BeamioUserCardFactoryPaymasterV07.js';
@@ -93,6 +97,12 @@ export type { BeamioUserCardGovernanceModuleV1 } from './BeamioUserCard/Governan
 export { BeamioUserCardGovernanceModuleV1__factory } from './factories/BeamioUserCard/GovernanceModule.sol/BeamioUserCardGovernanceModuleV1__factory.js';
 export type { BeamioUserCardIssuedNftModuleV1 } from './BeamioUserCard/IssuedNftModule.sol/BeamioUserCardIssuedNftModuleV1.js';
 export { BeamioUserCardIssuedNftModuleV1__factory } from './factories/BeamioUserCard/IssuedNftModule.sol/BeamioUserCardIssuedNftModuleV1__factory.js';
+export type { BeamioUserCardMembershipStatsModuleV1 } from './BeamioUserCard/MembershipStatsModule.sol/BeamioUserCardMembershipStatsModuleV1.js';
+export { BeamioUserCardMembershipStatsModuleV1__factory } from './factories/BeamioUserCard/MembershipStatsModule.sol/BeamioUserCardMembershipStatsModuleV1__factory.js';
+export type { BeamioUserCardMembershipStatsQueryModuleV1 } from './BeamioUserCard/MembershipStatsQueryModule.sol/BeamioUserCardMembershipStatsQueryModuleV1.js';
+export { BeamioUserCardMembershipStatsQueryModuleV1__factory } from './factories/BeamioUserCard/MembershipStatsQueryModule.sol/BeamioUserCardMembershipStatsQueryModuleV1__factory.js';
+export type { IBeamioMembershipStatsCardView } from './BeamioUserCard/MembershipStatsQueryModule.sol/IBeamioMembershipStatsCardView.js';
+export { IBeamioMembershipStatsCardView__factory } from './factories/BeamioUserCard/MembershipStatsQueryModule.sol/IBeamioMembershipStatsCardView__factory.js';
 export type { BeamioUserCardRedeemModuleVNext } from './BeamioUserCard/RedeemModule.sol/BeamioUserCardRedeemModuleVNext.js';
 export { BeamioUserCardRedeemModuleVNext__factory } from './factories/BeamioUserCard/RedeemModule.sol/BeamioUserCardRedeemModuleVNext__factory.js';
 export type { BeamioIndexerDiamond } from './CoNETIndexTaskdiamond/BeamioIndexerDiamond.js';

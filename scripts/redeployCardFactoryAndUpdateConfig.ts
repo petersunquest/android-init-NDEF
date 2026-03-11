@@ -102,6 +102,7 @@ async function main() {
 
   // ---------- 2. 部署 BeamioUserCardFactoryPaymasterV07 ----------
   console.log("\n步骤 2: 部署 BeamioUserCardFactoryPaymasterV07...");
+  const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
   const factory = await FactoryFactory.deploy(
     USDC_ADDRESS,
@@ -113,6 +114,7 @@ async function main() {
   );
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
+  await (await factory.setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
   console.log("  BeamioUserCardFactoryPaymasterV07:", factoryAddress);
 
   await new Promise((r) => setTimeout(r, 5000));
@@ -155,6 +157,7 @@ async function main() {
         quoteHelper: QUOTE_HELPER_ADDRESS,
         deployer: deployerContractAddress,
         aaFactory: AA_FACTORY_ADDRESS,
+        metadataBaseURI: USER_CARD_METADATA_BASE_URI,
         owner: deployer.address,
         transactionHash: factory.deploymentTransaction()?.hash,
       },
@@ -223,6 +226,13 @@ export const BASE_MAINNET_FACTORIES = {
   /** CCSA 卡 (BeamioUserCard 实例)。与 x402sdk chainAddresses.ts BASE_CCSA_CARD_ADDRESS 必须一致；重发卡后运行 replace-ccsa-address.js 同步两处 */
   BeamioCardCCSA_ADDRESS: '${BeamioCardCCSA}',
 } as const
+
+export const BASE_AA_FACTORY = BASE_MAINNET_FACTORIES.AA_FACTORY
+export const BASE_CARD_FACTORY = BASE_MAINNET_FACTORIES.CARD_FACTORY
+export const BASE_CCSA_CARD_ADDRESS = BASE_MAINNET_FACTORIES.BeamioCardCCSA_ADDRESS
+
+/** Base 主网 BaseTreasury：USDC 购买 B-Unit。 */
+export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
 `;
   fs.writeFileSync(uiChainPath, uiChainContent);
   console.log("6. 已更新 src/SilentPassUI/src/config/chainAddresses.ts");
@@ -262,15 +272,30 @@ export const BASE_CARD_FACTORY = '${factoryAddress}'
 export const BASE_CCSA_CARD_ADDRESS = '${BASE_CCSA_CARD}'
 
 /**
+ * Base 主网 BaseTreasury：USDC 购买 B-Unit，用户 EIP-3009 签字后由服务端提交 purchaseBUnitWith3009Authorization。
+ */
+export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
+
+/**
  * Base 主网基础设施卡地址（BeamioUserCard 实例）。
  * 与服务端 getWalletAssets/getUIDAssets 的基础设施卡查询保持一致。
  */
 export const BEAMIO_USER_CARD_ASSET_ADDRESS = '0xB7644DDb12656F4854dC746464af47D33C206F0E'
 
 /**
+ * 购买卡时用于获取 metadata 的发行卡地址（卡名、tiers 等展示信息从此卡获取）。
+ */
+export const PURCHASING_CARD_METADATA_ADDRESS = '0xf99018dffdb0c5657c93ca14db2900cebe1168a7'
+
+/**
  * CoNET BUnit Airdrop 合约地址（用于 claimBUnits）。来自 deployments/conet-addresses.json
  */
 export const CONET_BUNIT_AIRDROP_ADDRESS = '${CONET_BUNIT_AIRDROP}'
+
+/**
+ * CoNET 主网 MerchantPOSManagement 合约地址（商家 POS 终端登记/删除）。
+ */
+export const MERCHANT_POS_MANAGEMENT_CONET = '0x3Eb57035d3237Fce4b1cB273662E875EdfA0D54f'
 `;
   fs.writeFileSync(sdkChainPath, sdkChainContent);
   console.log("7. 已更新 src/x402sdk/src/chainAddresses.ts");

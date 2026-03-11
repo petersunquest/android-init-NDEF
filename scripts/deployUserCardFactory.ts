@@ -131,6 +131,7 @@ async function main() {
   // 部署 BeamioUserCardFactoryPaymasterV07
   console.log("部署 BeamioUserCardFactoryPaymasterV07...");
   
+  const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
   const factory = await FactoryFactory.deploy(
     USDC_ADDRESS,
@@ -143,6 +144,7 @@ async function main() {
   
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
+  await (await factory.setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
   
   console.log("✅ BeamioUserCardFactoryPaymasterV07 部署成功!");
   console.log("合约地址:", factoryAddress);
@@ -180,6 +182,7 @@ async function main() {
         quoteHelper: QUOTE_HELPER_ADDRESS || null,
         deployer: DEPLOYER_ADDRESS,
         aaFactory: AA_FACTORY_ADDRESS || null,
+        metadataBaseURI: USER_CARD_METADATA_BASE_URI,
         owner: deployer.address,
         transactionHash: factory.deploymentTransaction()?.hash
       }

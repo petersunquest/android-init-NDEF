@@ -18,8 +18,8 @@ x402sdk 是独立项目，创建卡等逻辑依赖 BeamioUserCard 的 ABI 与 by
    ```bash
    cd /path/to/x402sdk
    git status   # 应看到 src/ABI/BeamioUserCard.json 等被修改
-   git add src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardArtifact.json "scripts/API server/ABI/BeamioUserCardArtifact.json"
-   git commit -m "chore: sync BeamioUserCard ABI/artifact from BeamioContract"
+   git add src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardArtifact.json src/ABI/BeamioUserCardFactoryPaymaster.json "scripts/API server/ABI/BeamioUserCardArtifact.json" "scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json"
+   git commit -m "chore: sync BeamioUserCard and factory ABI/artifact from BeamioContract"
    git push
    ```
 
@@ -42,7 +42,9 @@ x402sdk 是独立项目，创建卡等逻辑依赖 BeamioUserCard 的 ABI 与 by
 |----------------------|------------------------|
 | `artifacts/.../BeamioUserCard.json` | `src/ABI/BeamioUserCardArtifact.json`（完整 artifact） |
 | 同上（仅 abi 部分） | `src/ABI/BeamioUserCard.json`（仅 ABI） |
+| `artifacts/.../BeamioUserCardFactoryPaymasterV07.json` | `src/ABI/BeamioUserCardFactoryPaymaster.json`（完整 factory artifact） |
 | 同上（完整 artifact） | `scripts/API server/ABI/BeamioUserCardArtifact.json` |
+| 同上（完整 artifact） | `scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json` |
 
 ## 操作步骤（在 BeamioContract 仓库）
 
@@ -67,8 +69,8 @@ x402sdk 是独立项目，创建卡等逻辑依赖 BeamioUserCard 的 ABI 与 by
 
    # 在 x402sdk 目录提交并推送
    cd /path/to/x402sdk
-   git add src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardArtifact.json "scripts/API server/ABI/BeamioUserCardArtifact.json"
-   git commit -m "chore: sync BeamioUserCard ABI/artifact from BeamioContract"
+   git add src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardArtifact.json src/ABI/BeamioUserCardFactoryPaymaster.json "scripts/API server/ABI/BeamioUserCardArtifact.json" "scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json"
+   git commit -m "chore: sync BeamioUserCard and factory ABI/artifact from BeamioContract"
    git push
    ```
    服务器上更新依赖：
@@ -79,4 +81,4 @@ x402sdk 是独立项目，创建卡等逻辑依赖 BeamioUserCard 的 ABI 与 by
 ## 说明
 
 - `sync:card-artifact` 和 `sync:card-artifact:full` 是 **BeamioContract** 的 npm 脚本，需在 BeamioContract 目录下执行。
-- x402sdk 自身不依赖 BeamioContract 路径；更新合约后把同步得到的 JSON 提交进 x402sdk 仓库，服务器只要 pull x402sdk 即可获得最新 ABI 和编译码。
+- x402sdk 自身不依赖 BeamioContract 路径；更新合约后把同步得到的 `BeamioUserCard` 与 `BeamioUserCardFactoryPaymasterV07` JSON 一并提交进 x402sdk 仓库，服务器只要 pull x402sdk 即可获得最新 ABI 和编译码。

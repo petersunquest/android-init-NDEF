@@ -84,7 +84,7 @@ async function main() {
   USER_CARD_FACTORY_ADDRESS = mustAddress(ethers, USER_CARD_FACTORY_ADDRESS, "USER_CARD_FACTORY_ADDRESS")
 
   // 2) Read params (IMPORTANT: price is 6-decimals integer)
-  const USER_CARD_URI = process.env.USER_CARD_URI || "https://api.beamio.io/metadata/{id}.json"
+  const USER_CARD_URI = process.env.USER_CARD_URI || "https://beamio.app/api/metadata/0x"
   const USER_CARD_CURRENCY = Number.parseInt(process.env.USER_CARD_CURRENCY || "0", 10) // default CAD=0
   if (!Number.isFinite(USER_CARD_CURRENCY) || USER_CARD_CURRENCY < 0 || USER_CARD_CURRENCY > 255) {
     throw new Error(`USER_CARD_CURRENCY 非法: ${process.env.USER_CARD_CURRENCY}`)

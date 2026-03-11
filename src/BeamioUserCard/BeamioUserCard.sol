@@ -8,6 +8,7 @@ import "./RedeemStorage.sol";
 import "./FaucetStorage.sol";
 import "./IssuedNftStorage.sol";
 import "./GovernanceStorage.sol";
+import "./MembershipStatsStorage.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -27,6 +28,8 @@ interface IBeamioUserCardFactoryPaymasterV07 {
     function defaultFaucetModule() external view returns (address);
     function defaultIssuedNftModule() external view returns (address);
     function defaultGovernanceModule() external view returns (address);
+    function defaultMembershipStatsModule() external view returns (address);
+    function metadataBaseURI() external view returns (string memory);
 }
 
 /**
@@ -99,6 +102,16 @@ interface IBeamioGovernanceModuleV1 {
     function executeProposal(uint256 id) external returns (bytes4 selector, address target, uint256 v1, uint256 v2, uint256 v3);
 }
 
+interface IBeamioMembershipStatsModuleV1 {
+    function mintMemberCardInternal(address user, uint256 tierIndex) external;
+    function removeNft(address user, uint256 id) external;
+    function maybeUpgradeByPointsBalance(address acct) external;
+    function maybeUpgrade(address acct, uint256 pointsDelta6) external;
+    function syncActiveToBestValid(address user) external;
+    function maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) external;
+    function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external;
+}
+
 
 
 /* =========================================================
@@ -109,7 +122,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 10;
+    uint256 public constant VERSION = 11;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -118,6 +131,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     uint256 public constant NFT_START_ID = BeamioERC1155Logic.NFT_START_ID;
     uint256 public constant ISSUED_NFT_START_ID = BeamioERC1155Logic.ISSUED_NFT_START_ID;
+    uint8 private constant MODULE_REDEEM = 0;
+    uint8 private constant MODULE_FAUCET = 1;
+    uint8 private constant MODULE_ISSUED_NFT = 2;
+    uint8 private constant MODULE_GOVERNANCE = 3;
+    uint8 private constant MODULE_MEMBERSHIP_STATS = 4;
 
     // ===== Immutable / gateway =====
     address public immutable deployer;
@@ -185,6 +203,12 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     mapping(address => uint256) public activeMembershipId;
     mapping(address => uint256) public activeTierIndexOrMax;
+    mapping(uint256 => uint256) public activeMembershipCountByTokenId;
+    mapping(uint256 => uint256) public activeMembershipCountByTierIndex;
+    uint256 public totalMembershipIssued;
+    uint256 public totalMembershipUpgraded;
+    uint256 public totalActiveMemberships;
+    mapping(uint256 => uint256) public totalMembershipIssuedByTierIndex;
 
     struct NFTDetail {
         uint256 tokenId;
@@ -242,13 +266,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint256 pointsUnitPriceInCurrencyE6_,
         address initialOwner,
         address gateway_
-    ) ERC1155(uri_) Ownable(initialOwner) {
+    ) ERC1155("") Ownable(initialOwner) {
         if (initialOwner == address(0)) revert BM_ZeroAddress();
         if (gateway_ == address(0) || gateway_.code.length == 0) revert UC_GlobalMisconfigured();
 
         deployer = msg.sender;
         gateway = gateway_;
         debugGateway = gateway_;
+        uri_; // kept for constructor ABI compatibility; metadata base URI is shared in factory
 
         currency = currency_;
         pointsUnitPriceInCurrencyE6 = pointsUnitPriceInCurrencyE6_;
@@ -262,13 +287,21 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         inft.issuedNftIndex = ISSUED_NFT_START_ID;
     }
 
-    /// @notice Base Explorer / EIP-1155 约定：唯一 metadata URL 为 0x{合约地址}{id}.json，{id} 由客户端替换为 tokenId（64 位十六进制）
+    /// @notice Base Explorer / EIP-1155 约定：base URI 前缀 + 0x{合约地址}{id}.json，{id} 由客户端替换为 tokenId（64 位十六进制）
     function uri(uint256) public view override returns (string memory) {
         return string(abi.encodePacked(_metadataBaseURI(), _addressToHex40(address(this)), "{id}.json"));
     }
 
-    function _metadataBaseURI() internal pure virtual returns (string memory) {
-        return "https://api.beamio.io/metadata/0x";
+    function metadataBaseURI() external view returns (string memory) {
+        return _metadataBaseURI();
+    }
+
+    function _metadataBaseURI() internal view returns (string memory) {
+        address gw = factoryGateway();
+        if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
+        string memory baseURI = IBeamioUserCardFactoryPaymasterV07(gw).metadataBaseURI();
+        if (bytes(baseURI).length == 0) revert UC_GlobalMisconfigured();
+        return baseURI;
     }
 
     function _addressToHex40(address a) internal pure returns (string memory) {
@@ -364,8 +397,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         BeamioCurrency.CurrencyType cur,
         uint128 priceInCurrency6
     ) external onlyAuthorizedGateway {
-        address module = _faucetModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        _callModule(
+            MODULE_FAUCET,
             abi.encodeWithSelector(
                 IBeamioFaucetModuleV1.setFaucetConfig.selector,
                 id,
@@ -378,7 +411,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 priceInCurrency6
             )
         );
-        if (!ok) _revertDelegate(data);
         emit FaucetConfigUpdated(id, FaucetStorage.layout().faucetConfig[id]);
     }
 
@@ -398,11 +430,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (amount == 0) revert UC_AmountZero();
 
-        address module = _faucetModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        bytes memory data = _callModule(
+            MODULE_FAUCET,
             abi.encodeWithSelector(IBeamioFaucetModuleV1.validateAndRecordFreeFaucet.selector, userEOA, id, amount)
         );
-        if (!ok) _revertDelegate(data);
         (uint256 outId, uint256 outAmount) = abi.decode(data, (uint256, uint256));
 
         address acct = _toAccount(userEOA);
@@ -419,11 +450,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (amount6 == 0) revert UC_AmountZero();
 
-        address module = _faucetModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        bytes memory data = _callModule(
+            MODULE_FAUCET,
             abi.encodeWithSelector(IBeamioFaucetModuleV1.validateAndRecordPaidFaucet.selector, userEOA, id, amount6)
         );
-        if (!ok) _revertDelegate(data);
         (uint256 outId, uint256 outAmount) = abi.decode(data, (uint256, uint256));
 
         address acct = _toAccount(userEOA);
@@ -446,9 +476,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint256[] calldata amounts
     ) external nonReentrant {
         _requireOwnerOrGateway();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        _callModule(
+            MODULE_REDEEM,
             abi.encodeWithSelector(
                 IBeamioRedeemModuleVNext.createRedeem.selector,
                 hash,
@@ -460,8 +489,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 amounts
             )
         );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
-
         emit RedeemCreated(hash, points6, attr);
     }
 
@@ -476,9 +503,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint256[] calldata amounts
     ) external nonReentrant {
         _requireOwnerOrGateway();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        _callModule(
+            MODULE_REDEEM,
             abi.encodeWithSelector(
                 IBeamioRedeemModuleVNext.createRedeemBatch.selector,
                 hashes,
@@ -490,8 +516,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 amounts
             )
         );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
-
         for (uint256 i = 0; i < hashes.length; i++) {
             emit RedeemCreated(hashes[i], points6, attr);
         }
@@ -602,13 +626,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     /// @notice card owner (or gateway) cancels redeem by code string
     function cancelRedeem(string calldata code) external nonReentrant {
         _requireOwnerOrGateway();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
-            abi.encodeWithSelector(IBeamioRedeemModuleVNext.cancelRedeem.selector, code)
-        );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
-
+        _callModule(MODULE_REDEEM, abi.encodeWithSelector(IBeamioRedeemModuleVNext.cancelRedeem.selector, code));
         emit RedeemCancelled(keccak256(bytes(code)));
     }
 
@@ -622,9 +640,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint32[] calldata counts
     ) external nonReentrant {
         _requireOwnerOrGateway();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        _callModule(
+            MODULE_REDEEM,
             abi.encodeWithSelector(
                 IBeamioRedeemModuleVNext.createRedeemPool.selector,
                 poolHash,
@@ -635,18 +652,12 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 counts
             )
         );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
     }
 
     /// @notice card owner (or gateway) terminates pool
     function terminateRedeemPool(bytes32 poolHash) external nonReentrant {
         _requireOwnerOrGateway();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
-            abi.encodeWithSelector(IBeamioRedeemModuleVNext.terminateRedeemPool.selector, poolHash)
-        );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
+        _callModule(MODULE_REDEEM, abi.encodeWithSelector(IBeamioRedeemModuleVNext.terminateRedeemPool.selector, poolHash));
     }
 
     /// @notice gateway 兑换 redeem（统一处理 one-time 与 pool）
@@ -660,13 +671,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function _redeemByGatewayInternal(string calldata code, address userEOA) internal {
         if (userEOA == address(0)) revert BM_ZeroAddress();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        bytes memory data = _callModule(
+            MODULE_REDEEM,
             abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeem.selector, code, userEOA)
         );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
-
         (uint256 points6, uint256 attr, uint256[] memory tokenIds, uint256[] memory amounts) =
             abi.decode(data, (uint256, uint256, uint256[], uint256[]));
         attr; // 未使用的变量
@@ -717,13 +725,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (codes.length == 0) revert UC_InvalidProposal();
-
-        address module = _redeemModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        bytes memory data = _callModule(
+            MODULE_REDEEM,
             abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeemBatch.selector, codes, userEOA)
         );
-        if (!ok) revert UC_RedeemDelegateFailed(data);
-
         (uint256 points6, uint256 attr, uint256[] memory tokenIds, uint256[] memory amounts) =
             abi.decode(data, (uint256, uint256, uint256[], uint256[]));
         attr; // 未使用的变量
@@ -775,33 +780,24 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         _redeemByGatewayInternal(code, userEOA);
     }
 
-    function _redeemModule() internal view returns (address module) {
+    function _module(uint8 moduleKind) internal view returns (address module) {
         address gw = factoryGateway();
         if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-
-        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultRedeemModule();
-        if (module == address(0)) revert UC_RedeemModuleZero();
+        IBeamioUserCardFactoryPaymasterV07 f = IBeamioUserCardFactoryPaymasterV07(gw);
+        if (moduleKind == MODULE_REDEEM) module = f.defaultRedeemModule();
+        else if (moduleKind == MODULE_FAUCET) module = f.defaultFaucetModule();
+        else if (moduleKind == MODULE_ISSUED_NFT) module = f.defaultIssuedNftModule();
+        else if (moduleKind == MODULE_GOVERNANCE) module = f.defaultGovernanceModule();
+        else module = f.defaultMembershipStatsModule();
+        if (module != address(0)) return module;
+        if (moduleKind == MODULE_MEMBERSHIP_STATS) revert UC_StatsModuleZero();
+        revert UC_RedeemModuleZero();
     }
 
-    function _faucetModule() internal view returns (address module) {
-        address gw = factoryGateway();
-        if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultFaucetModule();
-        if (module == address(0)) revert UC_RedeemModuleZero(); // reuse for "module zero"
-    }
-
-    function _issuedNftModule() internal view returns (address module) {
-        address gw = factoryGateway();
-        if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultIssuedNftModule();
-        if (module == address(0)) revert UC_RedeemModuleZero();
-    }
-
-    function _governanceModule() internal view returns (address module) {
-        address gw = factoryGateway();
-        if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultGovernanceModule();
-        if (module == address(0)) revert UC_RedeemModuleZero();
+    function _callModule(uint8 moduleKind, bytes memory data) internal returns (bytes memory ret) {
+        (bool ok, bytes memory out) = _module(moduleKind).delegatecall(data);
+        ret = out;
+        if (!ok) _revertDelegate(ret);
     }
 
     function _requireOwnerOrGateway() internal view {
@@ -876,14 +872,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function addAdmin(address newAdmin, uint256 newThreshold) public {
         _requireOwnerOrGateway();
-        address module = _governanceModule();
+        address module = _module(MODULE_GOVERNANCE);
         (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.addAdmin.selector, newAdmin, newThreshold));
         if (!ok) revert UC_InvalidProposal();
     }
 
     function removeAdmin(address adminToRemove, uint256 newThreshold) public {
         _requireOwnerOrGateway();
-        address module = _governanceModule();
+        address module = _module(MODULE_GOVERNANCE);
         (bool ok,) = module.delegatecall(
             abi.encodeWithSelector(IBeamioGovernanceModuleV1.removeAdmin.selector, adminToRemove, newThreshold)
         );
@@ -909,25 +905,25 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         onlyAuthorizedGateway
         returns (uint256)
     {
-        address module = _governanceModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        address module = _module(MODULE_GOVERNANCE);
+        bytes memory data = _callModule(
+            MODULE_GOVERNANCE,
             abi.encodeWithSelector(IBeamioGovernanceModuleV1.createProposal.selector, selector, target, v1, v2, v3)
         );
-        if (!ok) _revertDelegate(data);
         uint256 id = abi.decode(data, (uint256));
         _maybeExecuteProposal(module, id);
         return id;
     }
 
     function approveProposalByGateway(uint256 id, address adminSigner) external onlyAuthorizedGateway {
-        address module = _governanceModule();
+        address module = _module(MODULE_GOVERNANCE);
         (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.approveProposalByGateway.selector, id, adminSigner));
         if (!ok) revert UC_NotAdmin();
         _maybeExecuteProposal(module, id);
     }
 
     function approveProposal(uint256 id) external onlyAdmin {
-        address module = _governanceModule();
+        address module = _module(MODULE_GOVERNANCE);
         (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.approveProposal.selector, id));
         if (!ok) revert UC_InvalidProposal();
         _maybeExecuteProposal(module, id);
@@ -967,8 +963,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         bytes32 sharedMetadataHash
     ) external nonReentrant returns (uint256 tokenId) {
         _requireOwnerOrGateway();
-        address module = _issuedNftModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        bytes memory data = _callModule(
+            MODULE_ISSUED_NFT,
             abi.encodeWithSelector(
                 IBeamioIssuedNftModuleV1.createIssuedNft.selector,
                 title,
@@ -979,7 +975,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 sharedMetadataHash
             )
         );
-        if (!ok) _revertDelegate(data);
         tokenId = abi.decode(data, (uint256));
         emit IssuedNftCreated(tokenId, title, validAfter, validBefore, maxSupply, priceInCurrency6, sharedMetadataHash);
     }
@@ -1001,11 +996,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function _mintIssuedNftChecked(address acct, uint256 tokenId, uint256 amount) internal {
-        address module = _issuedNftModule();
-        (bool ok, bytes memory data) = module.delegatecall(
+        _callModule(
+            MODULE_ISSUED_NFT,
             abi.encodeWithSelector(IBeamioIssuedNftModuleV1.validateAndRecordMintIssuedNft.selector, acct, tokenId, amount)
         );
-        if (!ok) _revertDelegate(data);
         _mint(acct, tokenId, amount, "");
         emit IssuedNftMinted(tokenId, acct, amount);
     }
@@ -1023,29 +1017,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function _mintMemberCardInternal(address user, uint256 tierIndex) internal {
-        if (user == address(0)) revert BM_ZeroAddress();
-        if (tiers.length == 0) revert UC_MustGrow();
-        if (tierIndex >= tiers.length) revert UC_MustGrow();
-
-        address acct = _toAccount(user);
-
-        uint256 currentActiveId = activeMembershipId[acct];
-        if (currentActiveId != 0 && !_isExpired(currentActiveId)) revert UC_AlreadyHasValidCard();
-
-        uint256 newId = _currentIndex++;
-        Tier memory tier = tiers[tierIndex];
-        uint256 effExpiry = _effectiveExpirySeconds(tierIndex);
-
-        _mint(acct, newId, 1, "");
-
-        expiresAt[newId] = (effExpiry == 0) ? 0 : (block.timestamp + effExpiry);
-        attributes[newId] = tier.attr;
-        tokenTierIndexOrMax[newId] = tierIndex;
-        _userOwnedNfts[acct].push(newId);
-        activeMembershipId[acct] = newId;
-        activeTierIndexOrMax[acct] = tierIndex;
-
-        emit AdminCardMinted(acct, newId, tier.attr, expiresAt[newId]);
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.mintMemberCardInternal.selector, user, tierIndex)
+        );
     }
 
     // ==========================================================
@@ -1053,13 +1028,20 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // ==========================================================
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
         bool isRealTransfer = (from != address(0) && to != address(0));
+        address[] memory burnedFrom = new address[](ids.length);
+        uint256[] memory burnedIds = new uint256[](ids.length);
+        uint256 burnedCount = 0;
 
         for (uint256 i = 0; i < ids.length; i++) {
             uint256 id = ids[i];
 
             if (id >= NFT_START_ID && id < ISSUED_NFT_START_ID) {
                 if (!(from == address(0) || to == address(0))) revert UC_SBTNonTransferable();
-                if (to == address(0) && from != address(0)) _removeNft(from, id);
+                if (to == address(0) && from != address(0)) {
+                    burnedFrom[burnedCount] = from;
+                    burnedIds[burnedCount] = id;
+                    burnedCount++;
+                }
                 continue;
             }
 
@@ -1077,21 +1059,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         }
 
         super._update(from, to, ids, values);
+
+        for (uint256 i = 0; i < burnedCount; i++) {
+            _removeNft(burnedFrom[i], burnedIds[i]);
+        }
     }
 
     function _removeNft(address user, uint256 id) internal {
-        uint256[] storage list = _userOwnedNfts[user];
-        for (uint256 i = 0; i < list.length; i++) {
-            if (list[i] == id) {
-                list[i] = list[list.length - 1];
-                list.pop();
-                break;
-            }
-        }
-        if (activeMembershipId[user] == id) {
-            activeMembershipId[user] = 0;
-            activeTierIndexOrMax[user] = type(uint256).max;
-        }
+        _callModule(MODULE_MEMBERSHIP_STATS, abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.removeNft.selector, user, id));
     }
 
     // ==========================================================
@@ -1116,12 +1091,61 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return getOwnership(acct);
     }
 
+    function membershipFlowBucketAtHour(uint64 hourIndex)
+        external
+        view
+        returns (
+            uint256 issuedCount,
+            uint256 upgradedCount,
+            uint256 expiredDiscoveredCount,
+            uint256 activeSwitchCount,
+            uint256 activatedCount,
+            uint256 deactivatedCount,
+            bool hasData
+        )
+    {
+        MembershipStatsStorage.FlowBucket storage b = MembershipStatsStorage.layout().hourlyGlobal[hourIndex];
+        return (
+            b.issuedCount,
+            b.upgradedCount,
+            b.expiredDiscoveredCount,
+            b.activeSwitchCount,
+            b.activatedCount,
+            b.deactivatedCount,
+            b.hasData
+        );
+    }
+
+    function membershipScopedFlowBucketAtHour(uint8 scopeType, uint256 scopeKey, uint64 hourIndex)
+        external
+        view
+        returns (
+            uint256 issuedCount,
+            uint256 upgradedCount,
+            uint256 expiredDiscoveredCount,
+            uint256 activeSwitchCount,
+            uint256 activatedCount,
+            uint256 deactivatedCount,
+            bool hasData
+        )
+    {
+        MembershipStatsStorage.Layout storage s = MembershipStatsStorage.layout();
+        MembershipStatsStorage.FlowBucket storage b =
+            scopeType == 1 ? s.hourlyByTokenId[scopeKey][hourIndex] : s.hourlyByTierIndex[scopeKey][hourIndex];
+        return (
+            b.issuedCount,
+            b.upgradedCount,
+            b.expiredDiscoveredCount,
+            b.activeSwitchCount,
+            b.activatedCount,
+            b.deactivatedCount,
+            b.hasData
+        );
+    }
+
     // ==========================================================
     // Membership helpers
     // ==========================================================
-    function _tierMinPoints6(uint256 i) internal view returns (uint256) { return tiers[i].minUsdc6; }
-
-    /// @dev 返回 minUsdc6 最小的 tier 的 index（用于 redeem 最低门槛等）；tiers 顺序无关
     function _tierIndexWithMinThreshold() internal view returns (uint256) {
         if (tiers.length == 0) return type(uint256).max;
         uint256 idx = 0;
@@ -1135,108 +1159,18 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return idx;
     }
 
-    /// @dev 根据当前余额计算可达到的最高 tier（minUsdc6 最大的且 balance >= minUsdc6 的档位）；tiers 顺序无关
-    function _tierFromPointsBalance(uint256 points6) internal view returns (bool ok, uint256 tierIndex, uint256 attr) {
-        if (tiers.length == 0) return (true, type(uint256).max, defaultAttrWhenNoTiers);
-        uint256 bestIdx = type(uint256).max;
-        uint256 bestMin = 0;
-        for (uint256 i = 0; i < tiers.length; i++) {
-            if (points6 >= tiers[i].minUsdc6 && tiers[i].minUsdc6 > bestMin) {
-                bestMin = tiers[i].minUsdc6;
-                bestIdx = i;
-            }
-        }
-        if (bestIdx == type(uint256).max) return (false, 0, 0);
-        return (true, bestIdx, tiers[bestIdx].attr);
-    }
-
-    /// @dev 返回「比 currentTierIdx 高一档」的 tier index：minUsdc6 严格大于当前档的 minUsdc6 且最小的那一档；无则 type(uint256).max。tiers 顺序无关
-    function _nextTierIndexAbove(uint256 currentTierIdx) internal view returns (uint256) {
-        if (currentTierIdx >= tiers.length) return type(uint256).max;
-        uint256 currentMin = tiers[currentTierIdx].minUsdc6;
-        uint256 nextIdx = type(uint256).max;
-        uint256 nextMin = type(uint256).max;
-        for (uint256 i = 0; i < tiers.length; i++) {
-            uint256 m = tiers[i].minUsdc6;
-            if (m > currentMin && m < nextMin) {
-                nextMin = m;
-                nextIdx = i;
-            }
-        }
-        return nextIdx;
-    }
-
-    /// @dev 若用户已有较低 tier 的 NFT，且当前 points 余额已达到更高 tier，则铸造新 NFT（升级）。tiers 顺序无关；「更高」指 minUsdc6 更大。
     function _maybeUpgradeByPointsBalance(address acct) internal {
-        if (tiers.length == 0) return;
-        _syncActiveToBestValid(acct);
-
-        uint256 points = balanceOf(acct, POINTS_ID);
-        (bool okTier, uint256 tierIdx, uint256 attr) = _tierFromPointsBalance(points);
-        if (!okTier) return;
-
-        uint256 currentActiveId = activeMembershipId[acct];
-        if (currentActiveId == 0 || _isExpired(currentActiveId)) return;
-        uint256 currentTierIdx = activeTierIndexOrMax[acct];
-        if (currentTierIdx >= tiers.length) return;
-        if (tiers[tierIdx].minUsdc6 <= tiers[currentTierIdx].minUsdc6) return;
-
-        uint256 effExpiry = _effectiveExpirySeconds(tierIdx);
-        uint256 expiry = (effExpiry == 0) ? 0 : (block.timestamp + effExpiry);
-        uint256 newId = _currentIndex++;
-
-        expiresAt[newId] = expiry;
-        attributes[newId] = attr;
-        tokenTierIndexOrMax[newId] = tierIdx;
-        _userOwnedNfts[acct].push(newId);
-        _mint(acct, newId, 1, "");
-
-        emit MemberNFTUpgraded(acct, currentActiveId, newId, currentTierIdx, tierIdx, expiry);
-
-        activeMembershipId[acct] = newId;
-        activeTierIndexOrMax[acct] = tierIdx;
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.maybeUpgradeByPointsBalance.selector, acct)
+        );
     }
 
-    /// @dev 统一升级逻辑：若用户已有有效 NFT，则找「下一档」；按该档的 upgradeByBalance 决定用余额还是本笔 delta 判断，达标则铸造新 NFT。tiers 顺序无关。
     function _maybeUpgrade(address acct, uint256 pointsDelta6) internal {
-        if (tiers.length == 0) return;
-        _syncActiveToBestValid(acct);
-
-        uint256 currentActiveId = activeMembershipId[acct];
-        if (currentActiveId == 0 || _isExpired(currentActiveId)) return;
-        uint256 currentTierIdx = activeTierIndexOrMax[acct];
-        if (currentTierIdx >= tiers.length) return;
-
-        uint256 nextTierIdx = _nextTierIndexAbove(currentTierIdx);
-        if (nextTierIdx == type(uint256).max) return;
-
-        Tier memory nextTier = tiers[nextTierIdx];
-        if (nextTier.upgradeByBalance) {
-            if (balanceOf(acct, POINTS_ID) < nextTier.minUsdc6) return;
-        } else {
-            if (pointsDelta6 < nextTier.minUsdc6) return;
-        }
-
-        uint256 effExpiry = _effectiveExpirySeconds(nextTierIdx);
-        uint256 expiry = (effExpiry == 0) ? 0 : (block.timestamp + effExpiry);
-        uint256 newId = _currentIndex++;
-
-        expiresAt[newId] = expiry;
-        attributes[newId] = nextTier.attr;
-        tokenTierIndexOrMax[newId] = nextTierIdx;
-        _userOwnedNfts[acct].push(newId);
-        _mint(acct, newId, 1, "");
-
-        emit MemberNFTUpgraded(acct, currentActiveId, newId, currentTierIdx, nextTierIdx, expiry);
-
-        activeMembershipId[acct] = newId;
-        activeTierIndexOrMax[acct] = nextTierIdx;
-    }
-
-    /// @dev Returns effective expiry seconds for a tier: tier.tierExpirySeconds if > 0, else global expirySeconds.
-    function _effectiveExpirySeconds(uint256 tierIndex) internal view returns (uint256) {
-        uint256 ts = tiers[tierIndex].tierExpirySeconds;
-        return ts > 0 ? ts : expirySeconds;
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.maybeUpgrade.selector, acct, pointsDelta6)
+        );
     }
 
     function _isExpired(uint256 tokenId) internal view returns (bool) {
@@ -1249,150 +1183,33 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return (id != 0 && balanceOf(acct, id) > 0 && !_isExpired(id));
     }
 
-    function _syncAndHasValidCard(address acct) internal returns (bool) {
-        _syncActiveToBestValid(acct);
-        return _hasValidCard(acct);
-    }
-
     function _syncActiveToBestValid(address user) internal {
-        uint256 cur = activeMembershipId[user];
-        if (cur != 0) {
-            if (balanceOf(user, cur) > 0 && !_isExpired(cur)) {
-                activeTierIndexOrMax[user] = tokenTierIndexOrMax[cur];
-                return;
-            }
-        }
-
-        uint256[] storage nftIds = _userOwnedNfts[user];
-        if (nftIds.length == 0) {
-            activeMembershipId[user] = 0;
-            activeTierIndexOrMax[user] = type(uint256).max;
-            return;
-        }
-
-        uint256 bestId = 0;
-        uint256 bestTierIndex = type(uint256).max;
-
-        for (uint256 i = 0; i < nftIds.length; i++) {
-            uint256 id = nftIds[i];
-            if (balanceOf(user, id) == 0) continue;
-            if (_isExpired(id)) continue;
-
-            uint256 tierIdx = tokenTierIndexOrMax[id];
-            if (tierIdx >= tiers.length) continue;
-            if (bestTierIndex == type(uint256).max || tiers[tierIdx].minUsdc6 > tiers[bestTierIndex].minUsdc6) {
-                bestId = id;
-                bestTierIndex = tierIdx;
-            }
-        }
-
-        activeMembershipId[user] = bestId;
-        activeTierIndexOrMax[user] = bestTierIndex;
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.syncActiveToBestValid.selector, user)
+        );
     }
 
     function _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) internal {
-        address acct = _toAccount(acctOrEOA);
-        _syncActiveToBestValid(acct);
-
-        if (activeMembershipId[acct] != 0) return;
-
-        if (tiers.length == 0) {
-            uint256 expiry = (expirySeconds == 0) ? 0 : (block.timestamp + expirySeconds);
-            uint256 newId = _currentIndex++;
-
-            _mint(acct, newId, 1, "");
-
-            expiresAt[newId] = expiry;
-            attributes[newId] = defaultAttrWhenNoTiers;
-            tokenTierIndexOrMax[newId] = type(uint256).max;
-            _userOwnedNfts[acct].push(newId);
-
-            emit MemberNFTIssued(acct, newId, type(uint256).max, 0, expiry);
-
-            activeMembershipId[acct] = newId;
-            activeTierIndexOrMax[acct] = type(uint256).max;
-            return;
-        }
-
-        uint256 tierIdx = type(uint256).max;
-        uint256 attr = 0;
-
-        for (uint256 i = 0; i < tiers.length; i++) {
-            if (pointsDelta6 >= _tierMinPoints6(i)) {
-                if (tierIdx == type(uint256).max || _tierMinPoints6(i) > _tierMinPoints6(tierIdx)) {
-                    tierIdx = i;
-                    attr = tiers[i].attr;
-                }
-            }
-        }
-        if (tierIdx == type(uint256).max) return;
-
-        uint256 effExpiry = _effectiveExpirySeconds(tierIdx);
-        uint256 expiry2 = (effExpiry == 0) ? 0 : (block.timestamp + effExpiry);
-        uint256 newId2 = _currentIndex++;
-
-        _mint(acct, newId2, 1, "");
-
-        expiresAt[newId2] = expiry2;
-        attributes[newId2] = attr;
-        tokenTierIndexOrMax[newId2] = tierIdx;
-        _userOwnedNfts[acct].push(newId2);
-
-        emit MemberNFTIssued(acct, newId2, tierIdx, tiers[tierIdx].minUsdc6, expiry2);
-
-        activeMembershipId[acct] = newId2;
-        activeTierIndexOrMax[acct] = tierIdx;
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(
+                IBeamioMembershipStatsModuleV1.maybeIssueOnlyIfNoneOrExpiredByPointsDelta.selector,
+                acctOrEOA,
+                pointsDelta6
+            )
+        );
     }
 
     function _issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) internal {
-        if (activeMembershipId[acct] != 0) revert UC_AlreadyHasValidCard();
-
-        if (tiers.length == 0) {
-            uint256 expiry = (expirySeconds == 0) ? 0 : (block.timestamp + expirySeconds);
-            uint256 newId = _currentIndex++;
-
-            _mint(acct, newId, 1, "");
-
-            expiresAt[newId] = expiry;
-            attributes[newId] = defaultAttrWhenNoTiers;
-            tokenTierIndexOrMax[newId] = type(uint256).max;
-            _userOwnedNfts[acct].push(newId);
-
-            emit MemberNFTIssued(acct, newId, type(uint256).max, 0, expiry);
-
-            activeMembershipId[acct] = newId;
-            activeTierIndexOrMax[acct] = type(uint256).max;
-            return;
-        }
-
-        uint256 tierIdx = type(uint256).max;
-        uint256 attr = 0;
-
-        for (uint256 i = 0; i < tiers.length; i++) {
-            if (pointsDelta6 >= tiers[i].minUsdc6) {
-                if (tierIdx == type(uint256).max || tiers[i].minUsdc6 > tiers[tierIdx].minUsdc6) {
-                    tierIdx = i;
-                    attr = tiers[i].attr;
-                }
-            }
-        }
-        if (tierIdx == type(uint256).max) return;
-
-        uint256 effExpiry = _effectiveExpirySeconds(tierIdx);
-        uint256 expiry2 = (effExpiry == 0) ? 0 : (block.timestamp + effExpiry);
-        uint256 newId2 = _currentIndex++;
-
-        _mint(acct, newId2, 1, "");
-
-        expiresAt[newId2] = expiry2;
-        attributes[newId2] = attr;
-        tokenTierIndexOrMax[newId2] = tierIdx;
-        _userOwnedNfts[acct].push(newId2);
-
-        emit MemberNFTIssued(acct, newId2, tierIdx, tiers[tierIdx].minUsdc6, expiry2);
-
-        activeMembershipId[acct] = newId2;
-        activeTierIndexOrMax[acct] = tierIdx;
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(
+                IBeamioMembershipStatsModuleV1.issueCardByPointsDelta_AssumingNoValidCard.selector,
+                acct,
+                pointsDelta6
+            )
+        );
     }
 
     // ==========================================================

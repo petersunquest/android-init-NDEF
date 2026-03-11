@@ -16,7 +16,7 @@ import { homedir } from "os";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_CARD_OWNER = "0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61";
-const DEFAULT_URI = "https://api.beamio.io/metadata/{id}.json";
+const DEFAULT_URI = "https://beamio.app/api/metadata/0x";
 const CAD_CURRENCY = 0; // BeamioCurrency.CurrencyType.CAD
 const ONE_CAD_E6 = 1_000_000n;
 

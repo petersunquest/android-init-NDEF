@@ -1,14 +1,16 @@
 {
   "network": "base",
   "chainId": "8453",
-  "timestamp": "2026-03-02T20:52:19.214Z",
+  "timestamp": "2026-03-11T03:18:54.271Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0x331a8ebc41afbAf01D78Fd2684D609407527DA18",
+  "factory": "0x46E8a69f7296deF53e33844bb00D92309ab46233",
   "modules": {
-    "redeemModule": "0x57657e8Bd4567D7d06235dE055F2e7d437324d71",
-    "issuedNftModule": "0x1c2F759958c5742694cBC99C57D2Bf2b6b54755D",
-    "faucetModule": "0x2CE5554e4ED559418265179c7A8a407E42A9D2a5",
-    "governanceModule": "0xF35D059D2eA40CDe205D61f1c280Dc7A9769Ce33"
+    "redeemModule": "0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84",
+    "issuedNftModule": "0xa6Ba46C351182206c719BA2b29A02357d5580344",
+    "faucetModule": "0x60154A9C51A33994A3873a8E53f7595717ae29ED",
+    "governanceModule": "0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd",
+    "membershipStatsModule": "0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb",
+    "membershipStatsQueryModule": "0x55bbc609101F4137eaD08cf8D47F06f58575a4e1"
   },
   "checks": {
     "appendTierForCardWithOwnerSignature": true,

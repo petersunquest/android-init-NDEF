@@ -169,6 +169,7 @@ async function main() {
   console.log("\n" + "=".repeat(60));
   console.log("步骤 7: 部署 BeamioUserCardFactoryPaymasterV07");
   console.log("=".repeat(60));
+  const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const UserCardFactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
   const userCardFactory = await UserCardFactoryFactory.deploy(
     USDC_ADDRESS,
@@ -180,6 +181,7 @@ async function main() {
   );
   await userCardFactory.waitForDeployment();
   const userCardFactoryAddress = await userCardFactory.getAddress();
+  await (await userCardFactory.setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
   (out.contracts as Record<string, unknown>).beamioUserCardFactoryPaymaster = {
     address: userCardFactoryAddress,
     usdc: USDC_ADDRESS,
@@ -187,6 +189,7 @@ async function main() {
     quoteHelper: quoteHelperAddress,
     deployer: userCardDeployerAddress,
     aaFactory: aaFactoryAddress,
+    metadataBaseURI: USER_CARD_METADATA_BASE_URI,
     tx: userCardFactory.deploymentTransaction()?.hash,
   };
   console.log("✅ BeamioUserCardFactoryPaymasterV07:", userCardFactoryAddress);
@@ -202,7 +205,7 @@ async function main() {
   console.log("\n" + "=".repeat(60));
   console.log("步骤 8: 部署 BeamioUserCard（gateway = AA Factory）");
   console.log("=".repeat(60));
-  const USER_CARD_URI = process.env.USER_CARD_URI || "https://api.beamio.io/metadata/{id}.json";
+  const USER_CARD_URI = process.env.USER_CARD_URI || "https://beamio.app/api/metadata/0x";
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6
   const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard");

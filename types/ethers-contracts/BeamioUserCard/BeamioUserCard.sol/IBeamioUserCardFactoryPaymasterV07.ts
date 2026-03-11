@@ -6,19 +6,23 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultRedeemModule"): FunctionFragment;
+    getFunction(nameOrSignature: "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "metadataBaseURI"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultMembershipStatsModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'metadataBaseURI', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultMembershipStatsModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Result;
   }
 
   
@@ -81,7 +85,23 @@ decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): 
     
 
     
+    defaultMembershipStatsModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     defaultRedeemModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    metadataBaseURI: TypedContractMethod<
       [],
       [string],
       'view'
@@ -106,7 +126,17 @@ getFunction(nameOrSignature: 'defaultIssuedNftModule'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'defaultMembershipStatsModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'defaultRedeemModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'metadataBaseURI'): TypedContractMethod<
       [],
       [string],
       'view'

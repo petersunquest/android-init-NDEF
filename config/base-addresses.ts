@@ -8,11 +8,8 @@ export const BASE_MAINNET_FACTORIES = {
   /** AA 账户工厂 (BeamioFactoryPaymasterV07) */
   AA_FACTORY: '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE',
   /** UserCard 工厂 (BeamioUserCardFactoryPaymasterV07) */
-  CARD_FACTORY: '0x331a8ebc41afbAf01D78Fd2684D609407527DA18',
+  CARD_FACTORY: '0x46E8a69f7296deF53e33844bb00D92309ab46233',
 } as const
-
-/** BaseTreasury: USDC 购买 B-Unit 入口，用户 EIP-3009 离线签字后由服务端提交 */
-export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
 
 /** 按链聚合，便于多链扩展 */
 export const CONTRACT_ADDRESSES = {

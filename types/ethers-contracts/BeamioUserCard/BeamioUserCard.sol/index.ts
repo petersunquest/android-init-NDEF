@@ -6,5 +6,6 @@ export type { IBeamioFaucetModuleV1 } from './IBeamioFaucetModuleV1.js';
 export type { IBeamioGatewayAAFactoryGetter } from './IBeamioGatewayAAFactoryGetter.js';
 export type { IBeamioGovernanceModuleV1 } from './IBeamioGovernanceModuleV1.js';
 export type { IBeamioIssuedNftModuleV1 } from './IBeamioIssuedNftModuleV1.js';
+export type { IBeamioMembershipStatsModuleV1 } from './IBeamioMembershipStatsModuleV1.js';
 export type { IBeamioRedeemModuleVNext } from './IBeamioRedeemModuleVNext.js';
 export type { IBeamioUserCardFactoryPaymasterV07 } from './IBeamioUserCardFactoryPaymasterV07.js';

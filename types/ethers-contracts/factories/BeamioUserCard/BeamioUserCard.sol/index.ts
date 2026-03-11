@@ -6,5 +6,6 @@ export { IBeamioFaucetModuleV1__factory } from './IBeamioFaucetModuleV1__factory
 export { IBeamioGatewayAAFactoryGetter__factory } from './IBeamioGatewayAAFactoryGetter__factory.js';
 export { IBeamioGovernanceModuleV1__factory } from './IBeamioGovernanceModuleV1__factory.js';
 export { IBeamioIssuedNftModuleV1__factory } from './IBeamioIssuedNftModuleV1__factory.js';
+export { IBeamioMembershipStatsModuleV1__factory } from './IBeamioMembershipStatsModuleV1__factory.js';
 export { IBeamioRedeemModuleVNext__factory } from './IBeamioRedeemModuleVNext__factory.js';
 export { IBeamioUserCardFactoryPaymasterV07__factory } from './IBeamioUserCardFactoryPaymasterV07__factory.js';

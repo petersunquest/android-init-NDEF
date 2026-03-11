@@ -47,8 +47,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     address public defaultFaucetModule;
     address public defaultIssuedNftModule;
     address public defaultGovernanceModule;
+    address public defaultMembershipStatsModule;
     address public quoteHelper;
     address public deployer;
+    string private _metadataBaseURIValue;
 
     // AA factory (BeamioAccountFactory)
     address public _aaFactory;
@@ -76,9 +78,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     event DefaultFaucetModuleUpdated(address indexed oldM, address indexed newM);
     event DefaultIssuedNftModuleUpdated(address indexed oldM, address indexed newM);
     event DefaultGovernanceModuleUpdated(address indexed oldM, address indexed newM);
+    event DefaultMembershipStatsModuleUpdated(address indexed oldM, address indexed newM);
     event QuoteHelperChanged(address indexed oldH, address indexed newH);
     event DeployerChanged(address indexed oldD, address indexed newD);
     event AAFactoryChanged(address indexed oldFactory, address indexed newFactory);
+    event MetadataBaseURIUpdated(string oldURI, string newURI);
 
     event CardDeployed(address indexed cardOwner, address indexed card, uint8 currency, uint256 priceE18);
     event CardRegistered(address indexed cardOwner, address indexed card);
@@ -141,6 +145,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         defaultFaucetModule = redeemModule_;      // owner can setFaucetModule to dedicated module
         defaultIssuedNftModule = redeemModule_;
         defaultGovernanceModule = redeemModule_;
+        defaultMembershipStatsModule = redeemModule_;
         quoteHelper = quoteHelper_;
         deployer = deployer_;
         _aaFactory = aaFactory_;
@@ -170,6 +175,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function quoteUnitPointInUSDC6(address card) external view returns (uint256) {
         BeamioUserCard c = BeamioUserCard(card);
         return IBeamioQuoteHelper(quoteHelper).quoteUnitPointInUSDC6(uint8(c.currency()), c.pointsUnitPriceInCurrencyE6());
+    }
+
+    function metadataBaseURI() external view returns (string memory) {
+        return _metadataBaseURIValue;
     }
 
     // ===== owner->cards view =====
@@ -219,10 +228,21 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         defaultGovernanceModule = m;
     }
 
+    function setMembershipStatsModule(address m) external onlyOwner {
+        if (m == address(0)) revert BM_ZeroAddress();
+        emit DefaultMembershipStatsModuleUpdated(defaultMembershipStatsModule, m);
+        defaultMembershipStatsModule = m;
+    }
+
     function setAAFactory(address f) external onlyOwner {
         if (f == address(0)) revert BM_ZeroAddress();
         emit AAFactoryChanged(_aaFactory, f);
         _aaFactory = f;
+    }
+
+    /// @notice 更新所有 BeamioUserCard 共享的 metadata base URI；仅工厂 owner 可更新
+    function setMetadataBaseURI(string calldata newBaseURI) external onlyOwner {
+        _setMetadataBaseURI(newBaseURI);
     }
 
     function transferOwner(address newOwner) external onlyOwner {
@@ -339,6 +359,13 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function _registerCard(address cardOwner, address card) internal {
         isCardOfOwner[cardOwner][card] = true;
         _cardsOfOwner[cardOwner].push(card);
+    }
+
+    function _setMetadataBaseURI(string memory newBaseURI) internal {
+        if (bytes(newBaseURI).length == 0) revert BM_ZeroAddress();
+        string memory oldURI = _metadataBaseURIValue;
+        _metadataBaseURIValue = newBaseURI;
+        emit MetadataBaseURIUpdated(oldURI, newBaseURI);
     }
 
     // ==========================================================

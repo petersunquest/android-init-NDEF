@@ -13,9 +13,9 @@ export declare namespace BeamioUserCard {
     }
 
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultRedeemModule" | "deployer" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'EXECUTE_FOR_ADMIN_TYPEHASH', values?: undefined): string;
@@ -35,6 +35,7 @@ encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers',
 encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultMembershipStatsModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executeForAdmin', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
@@ -45,6 +46,7 @@ encodeFunctionData(functionFragment: 'isPaymaster', values: [AddressLike]): stri
 encodeFunctionData(functionFragment: 'isTokenIdIssued', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issueTokenId', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'latestCardOfOwner', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'metadataBaseURI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nextFungibleId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nextNftId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
@@ -62,6 +64,8 @@ encodeFunctionData(functionFragment: 'setDeployer', values: [AddressLike]): stri
 encodeFunctionData(functionFragment: 'setFaucetModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setGovernanceModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setIssuedNftModule', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setMembershipStatsModule', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setMetadataBaseURI', values: [string]): string;
 encodeFunctionData(functionFragment: 'setQuoteHelper', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setRedeemModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'tokenIdIssued', values: [AddressLike, BigNumberish]): string;
@@ -87,6 +91,7 @@ decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCodeAndTiers
 decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultMembershipStatsModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForAdmin', data: BytesLike): Result;
@@ -97,6 +102,7 @@ decodeFunctionResult(functionFragment: 'isPaymaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isTokenIdIssued', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueTokenId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'latestCardOfOwner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextFungibleId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextNftId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
@@ -114,6 +120,8 @@ decodeFunctionResult(functionFragment: 'setDeployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setIssuedNftModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setMembershipStatsModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setMetadataBaseURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setQuoteHelper', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setRedeemModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tokenIdIssued', data: BytesLike): Result;
@@ -207,6 +215,18 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
   
 
+    export namespace DefaultMembershipStatsModuleUpdatedEvent {
+      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
+      export type OutputTuple = [oldM: string, newM: string];
+      export interface OutputObject {oldM: string, newM: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace DefaultRedeemModuleUpdatedEvent {
       export type InputTuple = [oldM: AddressLike, newM: AddressLike];
       export type OutputTuple = [oldM: string, newM: string];
@@ -247,6 +267,18 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
       export type InputTuple = [card: AddressLike, userEOA: AddressLike, cardOwner: AddressLike, tokenId: BigNumberish, amount: BigNumberish, usdcAmount6: BigNumberish, nonce: BytesLike];
       export type OutputTuple = [card: string, userEOA: string, cardOwner: string, tokenId: bigint, amount: bigint, usdcAmount6: bigint, nonce: string];
       export interface OutputObject {card: string, userEOA: string, cardOwner: string, tokenId: bigint, amount: bigint, usdcAmount6: bigint, nonce: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace MetadataBaseURIUpdatedEvent {
+      export type InputTuple = [oldURI: string, newURI: string];
+      export type OutputTuple = [oldURI: string, newURI: string];
+      export interface OutputObject {oldURI: string, newURI: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -505,6 +537,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    defaultMembershipStatsModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     defaultRedeemModule: TypedContractMethod<
       [],
       [string],
@@ -579,6 +619,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
     latestCardOfOwner: TypedContractMethod<
       [cardOwner: AddressLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    metadataBaseURI: TypedContractMethod<
+      [],
       [string],
       'view'
     >
@@ -715,6 +763,22 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
     setIssuedNftModule: TypedContractMethod<
       [m: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setMembershipStatsModule: TypedContractMethod<
+      [m: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setMetadataBaseURI: TypedContractMethod<
+      [newBaseURI: string, ],
       [void],
       'nonpayable'
     >
@@ -861,6 +925,11 @@ getFunction(nameOrSignature: 'defaultIssuedNftModule'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'defaultMembershipStatsModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'defaultRedeemModule'): TypedContractMethod<
       [],
       [string],
@@ -908,6 +977,11 @@ getFunction(nameOrSignature: 'issueTokenId'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'latestCardOfOwner'): TypedContractMethod<
       [cardOwner: AddressLike, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'metadataBaseURI'): TypedContractMethod<
+      [],
       [string],
       'view'
     >;
@@ -996,6 +1070,16 @@ getFunction(nameOrSignature: 'setIssuedNftModule'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setMembershipStatsModule'): TypedContractMethod<
+      [m: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setMetadataBaseURI'): TypedContractMethod<
+      [newBaseURI: string, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setQuoteHelper'): TypedContractMethod<
       [h: AddressLike, ],
       [void],
@@ -1034,10 +1118,12 @@ getEvent(key: 'CardRegistered'): TypedContractEvent<CardRegisteredEvent.InputTup
 getEvent(key: 'DefaultFaucetModuleUpdated'): TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultGovernanceModuleUpdated'): TypedContractEvent<DefaultGovernanceModuleUpdatedEvent.InputTuple, DefaultGovernanceModuleUpdatedEvent.OutputTuple, DefaultGovernanceModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultIssuedNftModuleUpdated'): TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
+getEvent(key: 'DefaultMembershipStatsModuleUpdated'): TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultRedeemModuleUpdated'): TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DeployFailedStep'): TypedContractEvent<DeployFailedStepEvent.InputTuple, DeployFailedStepEvent.OutputTuple, DeployFailedStepEvent.OutputObject>;
 getEvent(key: 'DeployerChanged'): TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
 getEvent(key: 'IssuedNftPurchasedForUser'): TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;
+getEvent(key: 'MetadataBaseURIUpdated'): TypedContractEvent<MetadataBaseURIUpdatedEvent.InputTuple, MetadataBaseURIUpdatedEvent.OutputTuple, MetadataBaseURIUpdatedEvent.OutputObject>;
 getEvent(key: 'OwnerChanged'): TypedContractEvent<OwnerChangedEvent.InputTuple, OwnerChangedEvent.OutputTuple, OwnerChangedEvent.OutputObject>;
 getEvent(key: 'PaymasterStatusChanged'): TypedContractEvent<PaymasterStatusChangedEvent.InputTuple, PaymasterStatusChangedEvent.OutputTuple, PaymasterStatusChangedEvent.OutputObject>;
 getEvent(key: 'PointsPurchasedForUser'): TypedContractEvent<PointsPurchasedForUserEvent.InputTuple, PointsPurchasedForUserEvent.OutputTuple, PointsPurchasedForUserEvent.OutputObject>;
@@ -1075,6 +1161,10 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
       DefaultIssuedNftModuleUpdated: TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
     
 
+      'DefaultMembershipStatsModuleUpdated(address,address)': TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
+      DefaultMembershipStatsModuleUpdated: TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
+    
+
       'DefaultRedeemModuleUpdated(address,address)': TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
       DefaultRedeemModuleUpdated: TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
     
@@ -1089,6 +1179,10 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
 
       'IssuedNftPurchasedForUser(address,address,address,uint256,uint256,uint256,bytes32)': TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;
       IssuedNftPurchasedForUser: TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;
+    
+
+      'MetadataBaseURIUpdated(string,string)': TypedContractEvent<MetadataBaseURIUpdatedEvent.InputTuple, MetadataBaseURIUpdatedEvent.OutputTuple, MetadataBaseURIUpdatedEvent.OutputObject>;
+      MetadataBaseURIUpdated: TypedContractEvent<MetadataBaseURIUpdatedEvent.InputTuple, MetadataBaseURIUpdatedEvent.OutputTuple, MetadataBaseURIUpdatedEvent.OutputObject>;
     
 
       'OwnerChanged(address,address)': TypedContractEvent<OwnerChangedEvent.InputTuple, OwnerChangedEvent.OutputTuple, OwnerChangedEvent.OutputObject>;

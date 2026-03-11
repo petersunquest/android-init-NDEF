@@ -43,6 +43,7 @@ error UC_BelowMinThreshold();
 error UC_PointsToNotWhitelisted();
 error UC_SBTNonTransferable();
 error UC_RedeemModuleZero();
+error UC_StatsModuleZero();
 error UC_RedeemDelegateFailed(bytes data);
 error UC_GlobalMisconfigured();
 error UC_NoBeamioAccount();

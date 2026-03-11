@@ -1,0 +1,62 @@
+Compiler Version: 0.8.33+commit.64118f21
+Optimization: Enabled
+Runs: 1
+viaIR: true
+
+Standard JSON: /Users/peter/Downloads/BeamioContract/deployments/base-UserCard-standard-input.json
+
+Factory
+  Address: 0x46E8a69f7296deF53e33844bb00D92309ab46233
+  Contract Name: project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+  Constructor Arguments Hex: 000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000ca220cbc4aeb8d5c59eadfadcff025fc9339cd84000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff000000000000000000000000324dcda8ff2ce1e9126e528d5a41cf72a6612e96000000000000000000000000d86403dd1755f7add19540489ea10cde876cc1ce00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+Modules
+  Address: 0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84
+  Contract Name: project/src/BeamioUserCard/RedeemModule.sol:BeamioUserCardRedeemModuleVNext
+  Constructor Arguments Hex: (empty)
+
+  Address: 0xa6Ba46C351182206c719BA2b29A02357d5580344
+  Contract Name: project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+  Constructor Arguments Hex: (empty)
+
+  Address: 0x60154A9C51A33994A3873a8E53f7595717ae29ED
+  Contract Name: project/src/BeamioUserCard/FaucetModule.sol:BeamioUserCardFaucetModuleV1
+  Constructor Arguments Hex: (empty)
+
+  Address: 0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd
+  Contract Name: project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1
+  Constructor Arguments Hex: (empty)
+
+  Address: 0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb
+  Contract Name: project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1
+  Constructor Arguments Hex: (empty)
+
+  Address: 0x55bbc609101F4137eaD08cf8D47F06f58575a4e1
+  Contract Name: project/src/BeamioUserCard/MembershipStatsQueryModule.sol:BeamioUserCardMembershipStatsQueryModuleV1
+  Constructor Arguments Hex: (empty)
+
+Verification Card (optional)
+  Address: 0x5f981BBC6c3fD6b30C6ed8068977e86b502D7d42
+  Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard
+  Constructor Arguments Hex: 00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e100000000000000000000000046e8a69f7296def53e33844bb00d92309ab46233000000000000000000000000000000000000000000000000000000000000002268747470733a2f2f6265616d696f2e6170702f6170692f6d657461646174612f3078000000000000000000000000000000000000000000000000000000000000
+  Constructor Values:
+    uri=https://beamio.app/api/metadata/0x
+    currency=0
+    priceInCurrencyE6=1000000
+    owner=0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+    gateway=0x46E8a69f7296deF53e33844bb00D92309ab46233
+
+Relevant Source Files
+  project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol
+  project/src/BeamioUserCard/BeamioUserCard.sol
+  project/src/BeamioUserCard/RedeemModule.sol
+  project/src/BeamioUserCard/IssuedNftModule.sol
+  project/src/BeamioUserCard/FaucetModule.sol
+  project/src/BeamioUserCard/GovernanceModule.sol
+  project/src/BeamioUserCard/MembershipStatsModule.sol
+  project/src/BeamioUserCard/MembershipStatsQueryModule.sol
+
+Manual BaseScan Tips
+  Code Format: solidity-standard-json-input
+  Use the exact Contract Name above
+  Paste constructor args hex without 0x if BaseScan asks for it separately

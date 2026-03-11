@@ -47,10 +47,10 @@ node scripts/replace-ccsa-address.js 0x<新地址>
 
 ## 4. 工厂与 Gateway 地址
 
-- **Card Factory**：见 `chainAddresses.BASE_CARD_FACTORY`、`config/base-addresses.ts`（当前 Base 主网为 `0x73e3b722Eb55C92Fe73DEC01c064a5C677079E03`）
-- **Gateway**：AA Factory 地址（与 `config/base-addresses.ts` AA_FACTORY 一致，当前为 `0xD4759c85684e47A02223152b85C25D2E5cD2E738`，仅在 MemberCard 内使用）
+- **Card Factory**：见 `chainAddresses.BASE_CARD_FACTORY`、`config/base-addresses.ts`（当前 Base 主网为 `0x46E8a69f7296deF53e33844bb00D92309ab46233`）
+- **Gateway**：AA Factory 地址（与 `config/base-addresses.ts` `AA_FACTORY` 一致，当前为 `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`，仅在 MemberCard 内使用）
 
-重发卡只改**卡实例地址**；UI 与 API 均从上述配置读取，跑完步骤 2 即生效。
+重发卡只改**卡实例地址**；UI 与 API 均从上述配置读取，跑完步骤 2 即生效。若工厂已切到新的共享 modules，后续新发卡会自动跟随工厂当前 module 能力。
 
 ## 5. 若 createCCSA 链上 revert
 

@@ -67,7 +67,7 @@ async function main() {
   }
   
   // UserCard 部署参数（从环境变量获取，或使用默认值）
-  const USER_CARD_URI = process.env.USER_CARD_URI || "https://api.beamio.io/metadata/{id}.json";
+  const USER_CARD_URI = process.env.USER_CARD_URI || "https://beamio.app/api/metadata/0x";
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6 pts
   const USER_CARD_OWNER = process.env.USER_CARD_OWNER || deployer.address;

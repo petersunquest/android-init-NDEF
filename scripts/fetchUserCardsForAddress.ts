@@ -7,8 +7,9 @@
  * 或：TARGET_ADDRESS=0x... npx hardhat run scripts/fetchUserCardsForAddress.ts --network base
  */
 import { network as networkModule } from "hardhat";
+import { BASE_MAINNET_FACTORIES } from "../config/base-addresses.js";
 
-const BASE_CARD_FACTORY = "0x331a8ebc41afbAf01D78Fd2684D609407527DA18";
+const BASE_CARD_FACTORY = BASE_MAINNET_FACTORIES.CARD_FACTORY;
 const BEAMIO_API = "https://beamio.app";
 
 const TARGET_ADDRESS = process.env.TARGET_ADDRESS ?? "0x513087820Af94A7f4d21bC5B68090f3080022E0e";

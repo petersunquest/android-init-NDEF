@@ -2,7 +2,7 @@
  * 重新部署 BeamioUserCardDeployerV07 与 BeamioUserCardFactoryPaymasterV07。
  * 不部署 BeamioOracle、BeamioAAAccountFactoryPaymaster，使用已有地址：
  *   BeamioOracle = 0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B
- *   BASE_AA_FACTORY = 0xD4759c85684e47A02223152b85C25D2E5cD2E738（见 config/base-addresses.ts）
+ *   BASE_AA_FACTORY = 0xD86403DD1755F7add19540489Ea10cdE876Cc1CE（见 config/base-addresses.ts）
  *
  * RedeemModule、QuoteHelper 从已有部署 base-UserCardFactory.json 读取（或环境变量覆盖）。
  *
@@ -18,7 +18,7 @@ import { verifyContract } from "./utils/verifyContract.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_AA_FACTORY = "0xD4759c85684e47A02223152b85C25D2E5cD2E738";
+const BASE_AA_FACTORY = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 async function main() {
@@ -94,6 +94,7 @@ async function main() {
 
   // ---------- 2. 部署 BeamioUserCardFactoryPaymasterV07 ----------
   console.log("\n步骤 2: 部署 BeamioUserCardFactoryPaymasterV07...");
+  const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
   const factory = await FactoryFactory.deploy(
     USDC_ADDRESS,
@@ -105,6 +106,7 @@ async function main() {
   );
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
+  await (await factory.setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
   console.log("  BeamioUserCardFactoryPaymasterV07:", factoryAddress);
 
   await new Promise((r) => setTimeout(r, 5000));
@@ -147,6 +149,7 @@ async function main() {
         quoteHelper: QUOTE_HELPER_ADDRESS,
         deployer: deployerContractAddress,
         aaFactory: AA_FACTORY_ADDRESS,
+        metadataBaseURI: USER_CARD_METADATA_BASE_URI,
         owner: deployer.address,
         transactionHash: factory.deploymentTransaction()?.hash,
       },

@@ -16,18 +16,32 @@ async function main() {
   const { ethers } = await networkModule.connect();
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   const fullPath = path.join(deploymentsDir, "base-FullAccountAndUserCard.json");
+  const factoryPath = path.join(deploymentsDir, "base-UserCardFactory.json");
+  const configPath = path.join(__dirname, "..", "config", "base-addresses.ts");
 
-  if (!fs.existsSync(fullPath)) {
-    console.error("未找到 deployments/base-FullAccountAndUserCard.json");
-    process.exit(1);
+  let cardFactoryAddr = "";
+  let deployerFromFile = "";
+
+  if (fs.existsSync(configPath)) {
+    const content = fs.readFileSync(configPath, "utf-8");
+    const m = content.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
+    if (m) cardFactoryAddr = m[1];
   }
 
-  const data = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
-  const cardFactoryAddr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-  const deployerFromFile = data.contracts?.beamioUserCardDeployer?.address;
+  if (fs.existsSync(factoryPath)) {
+    const data = JSON.parse(fs.readFileSync(factoryPath, "utf-8"));
+    cardFactoryAddr = cardFactoryAddr || data.contracts?.beamioUserCardFactoryPaymaster?.address || "";
+    deployerFromFile = data.contracts?.beamioUserCardDeployer?.address || "";
+  }
+
+  if ((!cardFactoryAddr || !deployerFromFile) && fs.existsSync(fullPath)) {
+    const data = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
+    cardFactoryAddr = cardFactoryAddr || data.contracts?.beamioUserCardFactoryPaymaster?.address || "";
+    deployerFromFile = deployerFromFile || data.contracts?.beamioUserCardDeployer?.address || "";
+  }
 
   if (!cardFactoryAddr) {
-    console.error("部署文件中缺少 beamioUserCardFactoryPaymaster");
+    console.error("未找到当前 Card Factory 地址（请检查 config/base-addresses.ts 或 deployments/base-UserCardFactory.json）");
     process.exit(1);
   }
 
