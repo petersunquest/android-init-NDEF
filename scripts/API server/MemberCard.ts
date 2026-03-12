@@ -6,7 +6,6 @@ import { Request, Response} from 'express'
 import { logger } from './logger'
 import { inspect } from 'util'
 import Colors from 'colors/safe'
-import BeamioUserCardABI from './ABI/BeamioUserCard.json'
 import USDC_ABI from './ABI/usdc_abi.json'
 import BeamioAAAccountFactoryPaymasterABI from './ABI/BeamioAAAccountFactoryPaymaster.json'
 import IDiamondCutABI from "./ABI/DiamondCutFacetABI.json";
@@ -19,8 +18,11 @@ import CatalogABI from "./ABI/CatalogABI.json";
 import ActionABI from "./ABI/ActionABI.json";
 import AdminFacetABI from "./ABI/adminFacet_ABI.json";
 import beamioConetABI from './ABI/beamio-conet.abi.json'
-import BeamioUserCardArtifact from './ABI/BeamioUserCardArtifact.json'
 import BeamioUserCardGatewayABI from './ABI/BeamioUserCardGatewayABI.json'
+import { BeamioUserCard__factory } from '../../types/ethers-contracts/factories/BeamioUserCard/BeamioUserCard.sol/BeamioUserCard__factory'
+
+const BeamioUserCardABI = BeamioUserCard__factory.abi
+const BeamioUserCardBytecode = BeamioUserCard__factory.bytecode
 
 /** Currency label for payMe / cardNote (matches BeamioCurrency enum) */
 export type ICurrency = 'CAD' | 'USD' | 'JPY' | 'CNY' | 'USDC' | 'HKD' | 'EUR' | 'SGD' | 'TWD'
@@ -579,10 +581,10 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	const priceE18 = ethers.parseUnits(currencyToPointValue, 18);
 	const currencyId = CurrencyMap[currencyType]; // uint8/number
   
-	const abi = BeamioUserCardArtifact.abi ?? BeamioUserCardABI;
+	const abi = BeamioUserCardABI;
 	if (!abi) throw new Error("Missing ABI");
   
-	const bytecodeRaw = BeamioUserCardArtifact.bytecode;
+	const bytecodeRaw = BeamioUserCardBytecode;
 	if (!bytecodeRaw) throw new Error("Missing bytecode in artifact");
   
 	const bytecode = bytecodeRaw.startsWith("0x") ? bytecodeRaw : `0x${bytecodeRaw}`;
@@ -1486,7 +1488,7 @@ export async function addWhitelistViaGov({
 		targetAddr: string
 		allowed: boolean
 	}) {
-		const card = new ethers.Contract(cardAddr, BeamioUserCardArtifact.abi, Settle_ContractPool[0].walletBase)
+		const card = new ethers.Contract(cardAddr, BeamioUserCardABI, Settle_ContractPool[0].walletBase)
 	
 		// 0xe2316652 => _setTransferWhitelist(address,bool)
 		const selector = "0xe2316652"

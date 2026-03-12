@@ -200,6 +200,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) public attributes;
     mapping(uint256 => uint256) public tokenTierIndexOrMax;
     mapping(address => uint256[]) public _userOwnedNfts;
+    mapping(uint256 => uint256) private _totalSupplyById;
+    uint256 private _totalSupplyAll;
 
     mapping(address => uint256) public activeMembershipId;
     mapping(address => uint256) public activeTierIndexOrMax;
@@ -446,6 +448,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     }
 
     /// @notice Gateway mint for paid faucet；资金流由 FactoryPaymaster.purchaseFaucetForUser 处理
+    /// @dev 与 mintPointsByGateway 一致：mint 后需触发会员发卡/升级，否则 totalActiveMemberships 不更新
     function mintFaucetByGateway(address userEOA, uint256 id, uint256 amount6) external onlyAuthorizedGateway nonReentrant {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (amount6 == 0) revert UC_AmountZero();
@@ -458,6 +461,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
         address acct = _toAccount(userEOA);
         _mint(acct, outId, outAmount, "");
+        uint256 pointsDelta6 = (outId == POINTS_ID) ? outAmount : 0;
+        if (pointsDelta6 > 0) {
+            _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(acct, pointsDelta6);
+            _maybeUpgrade(acct, pointsDelta6);
+        }
         emit FaucetClaimed(outId, userEOA, acct, outAmount, FaucetStorage.layout().faucetClaimed[outId][userEOA]);
     }
 
@@ -1060,6 +1068,30 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
         super._update(from, to, ids, values);
 
+        if (from == address(0)) {
+            uint256 totalMintValue = 0;
+            for (uint256 i = 0; i < ids.length; i++) {
+                uint256 value = values[i];
+                _totalSupplyById[ids[i]] += value;
+                totalMintValue += value;
+            }
+            _totalSupplyAll += totalMintValue;
+        }
+
+        if (to == address(0)) {
+            uint256 totalBurnValue = 0;
+            for (uint256 i = 0; i < ids.length; i++) {
+                uint256 value = values[i];
+                unchecked {
+                    _totalSupplyById[ids[i]] -= value;
+                    totalBurnValue += value;
+                }
+            }
+            unchecked {
+                _totalSupplyAll -= totalBurnValue;
+            }
+        }
+
         for (uint256 i = 0; i < burnedCount; i++) {
             _removeNft(burnedFrom[i], burnedIds[i]);
         }
@@ -1072,6 +1104,18 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // ==========================================================
     // Views
     // ==========================================================
+    function totalSupply(uint256 id) public view returns (uint256) {
+        return _totalSupplyById[id];
+    }
+
+    function totalSupply() public view returns (uint256) {
+        return _totalSupplyAll;
+    }
+
+    function exists(uint256 id) external view returns (bool) {
+        return _totalSupplyById[id] > 0;
+    }
+
     function getOwnership(address user) public view returns (uint256 pt, NFTDetail[] memory nfts) {
         uint256[] storage nftIds = _userOwnedNfts[user];
         nfts = new NFTDetail[](nftIds.length);
