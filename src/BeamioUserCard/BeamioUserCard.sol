@@ -443,6 +443,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         _mint(acct, outId, outAmount, "");
         uint256 pointsDelta6 = (outId == POINTS_ID) ? outAmount : 0;
         if (!hasValidCard) _issueCardByPointsDelta_AssumingNoValidCard(acct, pointsDelta6);
+        else if (pointsDelta6 > 0) _maybeUpgrade(acct, pointsDelta6);
         emit FaucetClaimed(outId, userEOA, acct, outAmount, FaucetStorage.layout().faucetClaimed[outId][userEOA]);
     }
 
