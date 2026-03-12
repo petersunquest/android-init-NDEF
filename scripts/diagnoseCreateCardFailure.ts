@@ -146,7 +146,7 @@ async function main() {
       const runtimeBytes = (artifact.deployedBytecode || "").length;
       const runtimeLen = runtimeBytes >= 2 ? (runtimeBytes - 2) / 2 : 0;
       console.log("3. Runtime bytecode (EIP-170):", runtimeLen, "bytes, 限制 24576, OK:", runtimeLen <= EIP170_LIMIT);
-      const uri = "https://api.beamio.io/metadata/";
+      const uri = "https://beamio.app/api/metadata/0x";
       const cf = new ethers.ContractFactory(artifact.abi, artifact.bytecode);
       const deployTx = await cf.getDeployTransaction(uri, CURRENCY_CAD, PRICE_E6, CARD_OWNER, BASE_CARD_FACTORY);
       const initCode = deployTx?.data;
@@ -186,7 +186,7 @@ async function main() {
     const artifact2 = JSON.parse(raw2) as { abi: ethers.InterfaceAbi; bytecode?: string };
     const cf2 = new ethers.ContractFactory(artifact2.abi, artifact2.bytecode!);
     const deployTx2 = await cf2.getDeployTransaction(
-      "https://api.beamio.io/metadata/",
+      "https://beamio.app/api/metadata/0x",
       CURRENCY_CAD,
       PRICE_E6,
       CARD_OWNER,

@@ -34,6 +34,7 @@ export default defineConfig({
         runs: 1  // 偏向部署体积，便于 BeamioUserCard 满足 EIP-170 24KB
       },
       viaIR: true  // 解决 "Stack too deep" 错误
+      , evmVersion: "cancun"  // 必须：Bytes.sol 使用 mcopy (Cancun)
     }
   },
   networks: {

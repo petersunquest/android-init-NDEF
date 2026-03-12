@@ -26,7 +26,7 @@ import type { NonPayableOverrides } from "../../../common.js"
   }
 ] as const;
 
-  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea2646970667358221220d4362b78404cf175a603ebe9329043dbdb6ed9ca1dacea92accb7e2a34d6531b64736f6c63430008210033";
+  const _bytecode = "0x6080806040523460175760399081601c823930815050f35b5f80fdfe5f80fdfea2646970667358221220a243be7e96e1accde4468e9ff4e8ad265a1d1a3fdbc7ff094123bea0f8ecd30964736f6c63430008210033";
 
   
       type ShortStringsConstructorParams = [signer?: Signer] | ConstructorParameters<typeof ContractFactory>;

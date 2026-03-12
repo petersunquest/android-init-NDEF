@@ -409,7 +409,7 @@ const initCardTest_old = async (
 	  minX?: number // default 10 (防止误传 1)
 	}
   ) => {
-	const uri = opts?.uri ?? 'https://api.beamio.io/metadata/default_card.json'
+	const uri = opts?.uri ?? 'https://beamio.app/api/metadata/default_card.json'
 	const previewPayUsdc = opts?.previewPayUsdc ?? 0.01
 	const minX = opts?.minX ?? 10
   
@@ -564,7 +564,7 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	currencyType: CurrencyType,
 	currencyToPointValue: string
   ) => {
-	const uri = "https://api.beamio.io/metadata/default_card.json";
+	const uri = "https://beamio.app/api/metadata/default_card.json";
   
 	// ===== your existing config =====
 	const SC = Settle_ContractPool[0];

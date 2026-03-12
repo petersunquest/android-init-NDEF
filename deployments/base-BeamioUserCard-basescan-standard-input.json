@@ -306,7 +306,7 @@
     }
   },
   "settings": {
-    "evmVersion": "osaka",
+    "evmVersion": "cancun",
     "optimizer": {
       "enabled": true,
       "runs": 1

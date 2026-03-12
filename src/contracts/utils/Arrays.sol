@@ -59,8 +59,7 @@ library Arrays {
         // We use assembly to calculate the storage slot of the element at index `pos` of the dynamic array `arr`
         // following https://docs.soliditylang.org/en/v0.8.20/internals/layout_in_storage.html#mappings-and-dynamic-arrays.
 
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0, arr.slot)
             slot := add(keccak256(0, 0x20), pos)
         }
@@ -77,8 +76,7 @@ library Arrays {
         // We use assembly to calculate the storage slot of the element at index `pos` of the dynamic array `arr`
         // following https://docs.soliditylang.org/en/v0.8.20/internals/layout_in_storage.html#mappings-and-dynamic-arrays.
 
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0, arr.slot)
             slot := add(keccak256(0, 0x20), pos)
         }
@@ -95,8 +93,7 @@ library Arrays {
         // We use assembly to calculate the storage slot of the element at index `pos` of the dynamic array `arr`
         // following https://docs.soliditylang.org/en/v0.8.20/internals/layout_in_storage.html#mappings-and-dynamic-arrays.
 
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             mstore(0, arr.slot)
             slot := add(keccak256(0, 0x20), pos)
         }

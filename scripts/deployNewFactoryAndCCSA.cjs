@@ -11,7 +11,7 @@ const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const CARD_OWNER = '0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61';
 const CAD_CURRENCY = 0;
 const ONE_CAD_E6 = 1_000_000n;
-const DEFAULT_URI = 'https://api.beamio.io/metadata/{id}.json';
+const DEFAULT_URI = 'https://beamio.app/api/metadata/0x';
 
 // 从 base-UserCardFactory.json 读取依赖
 const deploymentsDir = path.join(__dirname, '..', 'deployments');

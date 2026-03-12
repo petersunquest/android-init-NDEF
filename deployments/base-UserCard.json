@@ -6,7 +6,7 @@
   "factory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
   "userCard": {
     "address": "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270",
-    "uri": "https://api.beamio.io/metadata/{id}.json",
+    "uri": "https://beamio.app/api/metadata/0x",
     "currency": 4,
     "price": "1000000",
     "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",

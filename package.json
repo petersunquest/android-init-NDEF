@@ -43,6 +43,8 @@
     "sync:card-artifact": "node scripts/syncBeamioUserCardToX402sdk.mjs",
     "sync:card-artifact:full": "npm run compile && node scripts/syncBeamioUserCardToX402sdk.mjs",
     "sync:card-abis-to-ui": "node scripts/syncBeamioCardAbisToUI.mjs",
+    "export:usercard-basescan-json": "npx tsx scripts/exportBeamioUserCardBasescanStandardJson.ts",
+    "verify:usercard:base": "hardhat run scripts/verifyBeamioUserCard.ts --network base",
     "deploy:quote-helper-and-set-factories:base": "hardhat run scripts/deployQuoteHelperV07AndSetFactories.ts --network base",
     "verify": "hardhat verify",
     "test": "echo \"Error: no test specified\" && exit 1",
