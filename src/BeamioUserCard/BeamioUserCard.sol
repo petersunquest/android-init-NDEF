@@ -9,6 +9,7 @@ import "./FaucetStorage.sol";
 import "./IssuedNftStorage.sol";
 import "./GovernanceStorage.sol";
 import "./MembershipStatsStorage.sol";
+import "./TotalSupplyStorage.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -200,8 +201,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) public attributes;
     mapping(uint256 => uint256) public tokenTierIndexOrMax;
     mapping(address => uint256[]) public _userOwnedNfts;
-    mapping(uint256 => uint256) private _totalSupplyById;
-    uint256 private _totalSupplyAll;
 
     mapping(address => uint256) public activeMembershipId;
     mapping(address => uint256) public activeTierIndexOrMax;
@@ -1069,26 +1068,28 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         super._update(from, to, ids, values);
 
         if (from == address(0)) {
+            TotalSupplyStorage.Layout storage ts = TotalSupplyStorage.layout();
             uint256 totalMintValue = 0;
             for (uint256 i = 0; i < ids.length; i++) {
                 uint256 value = values[i];
-                _totalSupplyById[ids[i]] += value;
+                ts.totalSupplyById[ids[i]] += value;
                 totalMintValue += value;
             }
-            _totalSupplyAll += totalMintValue;
+            ts.totalSupplyAll += totalMintValue;
         }
 
         if (to == address(0)) {
+            TotalSupplyStorage.Layout storage ts = TotalSupplyStorage.layout();
             uint256 totalBurnValue = 0;
             for (uint256 i = 0; i < ids.length; i++) {
                 uint256 value = values[i];
                 unchecked {
-                    _totalSupplyById[ids[i]] -= value;
+                    ts.totalSupplyById[ids[i]] -= value;
                     totalBurnValue += value;
                 }
             }
             unchecked {
-                _totalSupplyAll -= totalBurnValue;
+                ts.totalSupplyAll -= totalBurnValue;
             }
         }
 
@@ -1105,15 +1106,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // Views
     // ==========================================================
     function totalSupply(uint256 id) public view returns (uint256) {
-        return _totalSupplyById[id];
+        return TotalSupplyStorage.layout().totalSupplyById[id];
     }
 
     function totalSupply() public view returns (uint256) {
-        return _totalSupplyAll;
+        return TotalSupplyStorage.layout().totalSupplyAll;
     }
 
     function exists(uint256 id) external view returns (bool) {
-        return _totalSupplyById[id] > 0;
+        return TotalSupplyStorage.layout().totalSupplyById[id] > 0;
     }
 
     function getOwnership(address user) public view returns (uint256 pt, NFTDetail[] memory nfts) {
