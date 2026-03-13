@@ -1,0 +1,64 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-03-12T23:20:14.060Z",
+  "existing": {
+    "beamioOracle": "0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4",
+    "beamioQuoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d"
+  },
+  "contracts": {
+    "beamioAccountDeployer": {
+      "address": "0x466691E5499834c8695b37A4C868cEe79Ebc5526",
+      "tx": "0xa2ddbe83085cb5d95ccc2b0f282cc14b1eeb552c6e0bcf9a4b85325b86db6ee1"
+    },
+    "beamioAccount": {
+      "address": "0x720e7abcD51D0A0f1f8488574c7868B9600d24e0",
+      "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "tx": "0xccacb42ec46247736b9cb750244345cead36c33204f6cda1078247e662559e9d"
+    },
+    "beamioContainerModule": {
+      "address": "0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD",
+      "tx": "0x91c5528065249a1a631eb68141b7f3b0948afada94a7e2441eec144e5a9135e2"
+    },
+    "beamioUserCardPlaceholder": {
+      "address": "0x0026e5ea3000f2c030f730b13C12f774A1939e1D",
+      "tx": "0x2a797221b6b3a9d6379daf9f3d5717d8a9ccd26617b4abdc4997c9eced67e79c"
+    },
+    "beamioFactoryPaymaster": {
+      "address": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
+      "deployer": "0x466691E5499834c8695b37A4C868cEe79Ebc5526",
+      "containerModule": "0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD",
+      "quoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d",
+      "userCard": "0x0026e5ea3000f2c030f730b13C12f774A1939e1D",
+      "usdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
+      "tx": "0x01b856c4a14cd9a7697c95c780e3a41569c6e3357fae28f75271f4156376a94a"
+    },
+    "redeemModule": {
+      "address": "0x03E71a400Df4F0A18Ae4dB1c6D4018a9Baf4d862",
+      "tx": "0xdc780fc0925add7fd79ae48953359bdb1482e3c89df65ce24455d07634b8f51f"
+    },
+    "beamioUserCardDeployer": {
+      "address": "0x5BEA2762417b0DF778273199131Ac1A23Cc6ed7d",
+      "tx": "0xcca1863967e79da8fea07853aab9193a7ebd2ed0e087462132fb2623675a3155"
+    },
+    "beamioUserCardFactoryPaymaster": {
+      "address": "0xd57eac0372aa2fbfC6625D20fA9E4a963F3F5063",
+      "usdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
+      "redeemModule": "0x03E71a400Df4F0A18Ae4dB1c6D4018a9Baf4d862",
+      "quoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d",
+      "deployer": "0x5BEA2762417b0DF778273199131Ac1A23Cc6ed7d",
+      "aaFactory": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
+      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
+      "tx": "0x5d69a45243a673814f6fab717d05212943770876c1e51c87a96c995b1f616ede"
+    },
+    "beamioUserCard": {
+      "address": "0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e",
+      "uri": "https://beamio.app/api/metadata/0x",
+      "currency": 4,
+      "price": "1000000",
+      "gateway": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
+      "tx": "0x0c6468b7f84e014de0b34e653410214c8bc05a99466511d05ef11bb89de2d693"
+    }
+  }
+}
