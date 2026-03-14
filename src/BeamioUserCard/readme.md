@@ -118,6 +118,12 @@ Additional deployed operational modules:
 - `BeamioUserCardGovernanceModuleV1`: [`0x1442728d179019c7210B91a227b43318fb1900eE`](https://mainnet.conet.network/address/0x1442728d179019c7210B91a227b43318fb1900eE)
 - `BeamioUserCardMembershipStatsModuleV1`: [`0x53DDb53B2F0B015EB497E9687010d2A93191b711`](https://mainnet.conet.network/address/0x53DDb53B2F0B015EB497E9687010d2A93191b711)
 
+Runtime-size note:
+
+- To keep `BeamioUserCard` under the EIP-170 runtime bytecode limit, part of the admin subtree management logic was moved out of the main card runtime and into `BeamioUserCardGovernanceModuleV1`
+- This now includes the subtree airdrop-limit enforcement / accumulation path and the subordinate clear path for subtree airdrop usage + admin stats reset
+- External card-facing behavior stayed the same; the card now forwards these operations into the governance module through the existing delegatecall module architecture
+
 ## BeamioUserCard Constructor Arguments
 
 - `uri_`: `https://beamio.app/api/metadata/0x`
@@ -129,6 +135,17 @@ Additional deployed operational modules:
 ## Admin Stats
 
 The card now keeps on-chain admin-scoped hourly stats for token `0` and membership flows.
+
+### Admin Hierarchy And Airdrop Limit Rules
+
+- `owner` can add first-level admins directly
+- A first-level admin (`adminParent == address(0)`) can add only one more layer of subordinate admins
+- A second-level admin (`adminParent != address(0)`) cannot add further subordinate admins
+- A second-level admin cannot manage subordinate limits and cannot clear subordinate counters
+- `owner` is unlimited for admin-airdrop limit checks
+- For every non-owner admin, `limit` constrains the cumulative airdrop volume of `self + all descendants` since the last clear
+- When a parent admin sets a direct subordinate's `limit`, the check is `subordinate.limit <= parent.limit`; it does not depend on the parent's currently remaining headroom
+- During `mintPointsByAdmin`, the card validates the signer and every ancestor admin on the `adminParent` chain; if any subtree total would exceed that admin's `limit`, the mint reverts
 
 ### Operator Attribution
 
@@ -165,6 +182,9 @@ Admin/global stats queries were moved out of `BeamioUserCard` runtime code to re
 - `getAdminPeriodReports(admin, periodType, periods, anchorTs)`
 - `getGlobalStatsFull(periodType, anchorTs, cumulativeStartTs)`
 - `getAdminStatsFull(admin, periodType, anchorTs, cumulativeStartTs)`
+- `getAdminAirdropLimit(admin)`
+- `getAdminAndSubordinateLimits(admin)`
+- `getAdminAndSubordinateLimitsPage(to, adminOffset, adminPageSize, subordinateOffset, subordinatePageSize)`
 
 ### Return Notes
 
@@ -251,11 +271,54 @@ The following query APIs now return structs instead of long tuples, so the ABI i
 | `usdcMintCounterFromClear` | USDC-topup-only mint counter since last clear for self + subordinates |
 | `subordinates` | subordinate admin address list |
 
+**`getAdminAirdropLimit(admin) -> AdminAirdropLimitView`**
+
+| Field | Meaning |
+|------|------|
+| `admin` | queried admin address |
+| `parent` | direct parent admin; `address(0)` means owner-added top-level admin or no parent |
+| `limit` | subtree airdrop limit; `type(uint256).max` for `owner` |
+| `usedFromClear` | subtree cumulative airdrop amount since the last clear |
+| `remainingAvailable` | remaining subtree airdrop headroom; `type(uint256).max` for `owner` |
+| `unlimited` | whether this admin is unlimited (`owner`) |
+
+**`getAdminAndSubordinateLimits(admin) -> (AdminAirdropLimitView self, AdminAirdropLimitView[] subordinates)`**
+
+| Field | Meaning |
+|------|------|
+| `self` | current admin's own subtree limit record |
+| `subordinates` | direct subordinate admins and each subordinate's subtree limit record |
+
+**`getAdminAndSubordinateLimitsPage(to, adminOffset, adminPageSize, subordinateOffset, subordinatePageSize) -> AdminAirdropLimitPageView`**
+
+| Field | Meaning |
+|------|------|
+| `queryTarget` | requested target admin; `address(0)` means query owner's direct admins |
+| `adminOffset` / `adminPageSize` | pagination window applied to the returned top-level admin list |
+| `adminTotal` | total number of top-level admins matched by the query |
+| `subordinateOffset` / `subordinatePageSize` | pagination window applied to each returned admin's direct subordinate list |
+| `admins` | page of `AdminAirdropLimitNodeView` items |
+
+**`AdminAirdropLimitNodeView`**
+
+| Field | Meaning |
+|------|------|
+| `self` | this admin's own limit / used / remaining view |
+| `subordinateAdmins` | paged direct subordinate admin address list |
+| `subordinateTotal` | total direct subordinate admin count before pagination |
+
+### Clear And Limit Management Notes
+
+- `setAdminAirdropLimitByAdmin` is restricted to first-level admins managing their direct subordinates
+- `clearAdminMintCounterForSubordinate` is also restricted to first-level admins clearing their direct subordinates
+- When clear succeeds, the card resets both the subordinate subtree stats counters and the subtree-level `adminAirdropUsed` tracking
+
 ## Notes
 
 - `BeamioUserCardFactoryPaymasterV07` was deployed first, then `BeamioUserCardDeployerV07.setFactory(...)` was executed.
 - After deploying `BeamioUserCard`, `BeamioFactoryPaymasterV07.setUserCard(...)` was executed so the AA factory points to the live card contract.
 - Explorer verification was completed through CoNET Explorer API using minimal `standard-input` payloads, because direct `hardhat verify` fallback to full solc input hit `413 Request Entity Too Large`.
+- To eliminate the Solidity runtime code size warning on `BeamioUserCard`, admin subtree limit logic and subordinate-clear bookkeeping were refactored into `BeamioUserCardGovernanceModuleV1`; this preserved the public API while reducing the main card runtime size enough for compile-time deployment checks to pass without the EIP-170 warning.
 - Deployment records are stored in:
   - `deployments/conet-FullAccountAndUserCard.json`
   - `deployments/conet-UserCardModules.json`

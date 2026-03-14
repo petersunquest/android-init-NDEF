@@ -6,23 +6,35 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardGovernanceModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "adminManager" | "adminManagerByAdmin" | "approveProposal" | "approveProposalByGateway" | "createProposal" | "executeProposal"): FunctionFragment;
+    getFunction(nameOrSignature: "adminManager(address,bool,uint256,string)" | "adminManager(address,bool,uint256,string,uint256)" | "adminManagerByAdmin(address,bool,uint256,string,address)" | "adminManagerByAdmin(address,bool,uint256,string,address,uint256)" | "approveProposal" | "approveProposalByGateway" | "clearAdminStatsAndAirdropUsageForSubordinate" | "createProposal" | "enforceAndRecordAdminAirdropLimit" | "executeProposal" | "setAdminAirdropLimit" | "setAdminAirdropLimitByAdmin"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ProposalApproved" | "ProposalCreated" | "ProposalExecuted"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'adminManager', values: [AddressLike, boolean, BigNumberish, string]): string;
-encodeFunctionData(functionFragment: 'adminManagerByAdmin', values: [AddressLike, boolean, BigNumberish, string, AddressLike]): string;
+    encodeFunctionData(functionFragment: 'adminManager(address,bool,uint256,string)', values: [AddressLike, boolean, BigNumberish, string]): string;
+encodeFunctionData(functionFragment: 'adminManager(address,bool,uint256,string,uint256)', values: [AddressLike, boolean, BigNumberish, string, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address)', values: [AddressLike, boolean, BigNumberish, string, AddressLike]): string;
+encodeFunctionData(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address,uint256)', values: [AddressLike, boolean, BigNumberish, string, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposal', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposalByGateway', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'clearAdminStatsAndAirdropUsageForSubordinate', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'enforceAndRecordAdminAirdropLimit', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'executeProposal', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setAdminAirdropLimit', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setAdminAirdropLimitByAdmin', values: [AddressLike, BigNumberish, AddressLike]): string;
 
-    decodeFunctionResult(functionFragment: 'adminManager', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'adminManagerByAdmin', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'adminManager(address,bool,uint256,string)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminManager(address,bool,uint256,string,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address,uint256)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposalByGateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'clearAdminStatsAndAirdropUsageForSubordinate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'enforceAndRecordAdminAirdropLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAdminAirdropLimit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAdminAirdropLimitByAdmin', data: BytesLike): Result;
   }
 
   
@@ -96,7 +108,7 @@ decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Resu
 
     
     
-    adminManager: TypedContractMethod<
+    "adminManager(address,bool,uint256,string)": TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, ],
       [void],
       'nonpayable'
@@ -104,8 +116,24 @@ decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Resu
     
 
     
-    adminManagerByAdmin: TypedContractMethod<
+    "adminManager(address,bool,uint256,string,uint256)": TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "adminManagerByAdmin(address,bool,uint256,string,address)": TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "adminManagerByAdmin(address,bool,uint256,string,address,uint256)": TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, mintLimit: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -128,9 +156,25 @@ decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Resu
     
 
     
+    clearAdminStatsAndAirdropUsageForSubordinate: TypedContractMethod<
+      [subordinate: AddressLike, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     createProposal: TypedContractMethod<
       [selector: BytesLike, target: AddressLike, v1: BigNumberish, v2: BigNumberish, v3: BigNumberish, ],
       [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    enforceAndRecordAdminAirdropLimit: TypedContractMethod<
+      [admin: AddressLike, points6: BigNumberish, ],
+      [void],
       'nonpayable'
     >
     
@@ -143,16 +187,42 @@ decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Resu
     >
     
 
+    
+    setAdminAirdropLimit: TypedContractMethod<
+      [adminAddr: AddressLike, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setAdminAirdropLimitByAdmin: TypedContractMethod<
+      [adminAddr: AddressLike, mintLimit: BigNumberish, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'adminManager'): TypedContractMethod<
+    getFunction(nameOrSignature: 'adminManager(address,bool,uint256,string)'): TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'adminManagerByAdmin'): TypedContractMethod<
+getFunction(nameOrSignature: 'adminManager(address,bool,uint256,string,uint256)'): TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminManagerByAdmin(address,bool,uint256,string,address)'): TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminManagerByAdmin(address,bool,uint256,string,address,uint256)'): TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, mintLimit: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -166,14 +236,34 @@ getFunction(nameOrSignature: 'approveProposalByGateway'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'clearAdminStatsAndAirdropUsageForSubordinate'): TypedContractMethod<
+      [subordinate: AddressLike, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'createProposal'): TypedContractMethod<
       [selector: BytesLike, target: AddressLike, v1: BigNumberish, v2: BigNumberish, v3: BigNumberish, ],
       [bigint],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'enforceAndRecordAdminAirdropLimit'): TypedContractMethod<
+      [admin: AddressLike, points6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'executeProposal'): TypedContractMethod<
       [id: BigNumberish, ],
       [[string, string, bigint, bigint, bigint] & {selector: string, target: string, v1: bigint, v2: bigint, v3: bigint }],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setAdminAirdropLimit'): TypedContractMethod<
+      [adminAddr: AddressLike, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setAdminAirdropLimitByAdmin'): TypedContractMethod<
+      [adminAddr: AddressLike, mintLimit: BigNumberish, authorizer: AddressLike, ],
+      [void],
       'nonpayable'
     >;
 

@@ -28,6 +28,8 @@ library GovernanceStorage {
         mapping(address => string) adminMetadata; // 添加时写入，移除时保留（adminMetadata 可查历史）
         mapping(address => address) adminParent; // 谁添加了该 admin；owner 添加的为 address(0)
         mapping(address => address[]) adminChildren; // 该 admin 添加的子 admin 列表
+        mapping(address => uint256) adminAirdropLimit; // admin 自身可管理的 subtree airdrop limit；owner 视为无限制
+        mapping(address => uint256) adminAirdropUsed; // 从上次 clear 起，自己 + 所有下层累计空投额
     }
 
     function layout() internal pure returns (Layout storage l) {

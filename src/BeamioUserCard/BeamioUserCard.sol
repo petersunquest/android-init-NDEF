@@ -113,7 +113,13 @@ interface IBeamioIssuedNftModuleV1 {
 
 interface IBeamioGovernanceModuleV1 {
     function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external;
+    function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata, uint256 mintLimit) external;
     function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer) external;
+    function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer, uint256 mintLimit) external;
+    function setAdminAirdropLimit(address adminAddr, uint256 mintLimit) external;
+    function setAdminAirdropLimitByAdmin(address adminAddr, uint256 mintLimit, address authorizer) external;
+    function enforceAndRecordAdminAirdropLimit(address admin, uint256 points6) external;
+    function clearAdminStatsAndAirdropUsageForSubordinate(address subordinate, address authorizer) external;
     function createProposal(bytes4 selector, address target, uint256 v1, uint256 v2, uint256 v3) external returns (uint256 id);
     function approveProposalByGateway(uint256 id, address adminSigner) external;
     function approveProposal(uint256 id) external;
@@ -140,7 +146,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 11;
+    uint256 public constant VERSION = 12;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -160,6 +166,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     bytes4 private constant GET_ADMIN_PERIOD_REPORTS_SELECTOR = bytes4(keccak256("getAdminPeriodReports(address,uint8,uint256,uint256)"));
     bytes4 private constant GET_ADMIN_LIST_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminListWithMetadata()"));
     bytes4 private constant GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminSubordinatesWithMetadata(address)"));
+    bytes4 private constant GET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("getAdminAirdropLimit(address)"));
+    bytes4 private constant GET_ADMIN_AND_SUBORDINATE_LIMITS_SELECTOR = bytes4(keccak256("getAdminAndSubordinateLimits(address)"));
+    bytes4 private constant GET_ADMIN_AND_SUBORDINATE_LIMITS_PAGE_SELECTOR =
+        bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"));
     bytes4 private constant CREATE_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"));
     bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
     bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
@@ -185,7 +195,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
     bytes4 private constant TERMINATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("terminateRedeemPool(bytes32)"));
     bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
+    bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
     bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
+    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"));
+    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("setAdminAirdropLimit(address,uint256)"));
+    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR = bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
     bytes4 private constant SET_FAUCET_CONFIG_SELECTOR = bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"));
     bytes4 private constant CREATE_ISSUED_NFT_SELECTOR = bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"));
 
@@ -425,6 +439,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     function adminParent(address a) external view returns (address) {
         return GovernanceStorage.layout().adminParent[a];
     }
+
     // ==========================================================
     // Faucet config (delegatecall)
     // ==========================================================
@@ -500,7 +515,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         string memory metadata = abi.decode(out, (string));
         address module = _module(MODULE_GOVERNANCE);
         uint256 newThreshold = 1; // redeem 添加的 admin 使用 threshold=1
-        (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.adminManager.selector, to, true, newThreshold, metadata));
+        (bool ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_SELECTOR, to, true, newThreshold, metadata));
         if (!ok) revert UC_InvalidProposal();
     }
 
@@ -698,7 +713,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             sel == GET_ADMIN_STATS_FULL_SELECTOR ||
             sel == GET_ADMIN_PERIOD_REPORTS_SELECTOR ||
             sel == GET_ADMIN_LIST_WITH_METADATA_SELECTOR ||
-            sel == GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR;
+            sel == GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR ||
+            sel == GET_ADMIN_AIRDROP_LIMIT_SELECTOR ||
+            sel == GET_ADMIN_AND_SUBORDINATE_LIMITS_SELECTOR ||
+            sel == GET_ADMIN_AND_SUBORDINATE_LIMITS_PAGE_SELECTOR;
     }
 
     function _isRedeemModuleSelector(bytes4 sel) internal pure returns (bool) {
@@ -730,7 +748,13 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function _isGovernanceModuleSelector(bytes4 sel) internal pure returns (bool) {
-        return sel == ADMIN_MANAGER_SELECTOR || sel == ADMIN_MANAGER_BY_ADMIN_SELECTOR;
+        return
+            sel == ADMIN_MANAGER_SELECTOR ||
+            sel == ADMIN_MANAGER_WITH_LIMIT_SELECTOR ||
+            sel == ADMIN_MANAGER_BY_ADMIN_SELECTOR ||
+            sel == ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR ||
+            sel == SET_ADMIN_AIRDROP_LIMIT_SELECTOR ||
+            sel == SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR;
     }
 
     function _isFaucetModuleSelector(bytes4 sel) internal pure returns (bool) {
@@ -824,6 +848,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     {
         if (user == address(0) || operator == address(0)) revert BM_ZeroAddress();
         if (points6 == 0) revert UC_AmountZero();
+        if (!GovernanceStorage.layout().isAdmin[operator]) revert UC_NotAdmin();
+        _callModule(
+            MODULE_GOVERNANCE,
+            abi.encodeWithSelector(IBeamioGovernanceModuleV1.enforceAndRecordAdminAirdropLimit.selector, operator, points6)
+        );
 
         address acct = _toAccount(user);
         (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
@@ -890,15 +919,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     /// @param subordinate 被清零的 admin
     /// @param authorizer 必须等于 adminParent[subordinate]，即 parent；Factory 验签后传入 signer
     function clearAdminMintCounterForSubordinate(address subordinate, address authorizer) external onlyAuthorizedGateway {
-        if (subordinate == address(0)) revert BM_ZeroAddress();
-        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
-        if (g.adminParent[subordinate] != authorizer) revert UC_NotAdmin();
-        AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
-        s.adminMintCounter[subordinate] = 0;
-        s.adminBurnCounter[subordinate] = 0;
-        s.adminTransferCounter[subordinate] = 0;
-        s.adminRedeemMintCounter[subordinate] = 0;
-        s.adminUSDCMintCounter[subordinate] = 0;
+        _callModule(
+            MODULE_GOVERNANCE,
+            abi.encodeWithSelector(
+                IBeamioGovernanceModuleV1.clearAdminStatsAndAirdropUsageForSubordinate.selector,
+                subordinate,
+                authorizer
+            )
+        );
     }
 
     function _executeWith(bytes4 sel, address target, uint256 v1, uint256 v2, uint256 /* v3 */) internal {

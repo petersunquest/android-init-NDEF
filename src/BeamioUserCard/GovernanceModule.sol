@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./Errors.sol";
 import "./GovernanceStorage.sol";
+import "./AdminStatsStorage.sol";
 
 interface IUserCardCtx {
     function owner() external view returns (address);
@@ -28,7 +29,78 @@ contract BeamioUserCardGovernanceModuleV1 {
         _;
     }
 
-    function _addAdmin(address newAdmin, uint256 newThreshold, string calldata metadata, address parentAdmin) internal {
+    function _maxAssignableAirdropLimit(address authorizer) internal view returns (uint256) {
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        if (authorizer == cardOwner) return type(uint256).max;
+        return GovernanceStorage.layout().adminAirdropLimit[authorizer];
+    }
+
+    function _setAdminAirdropLimit(address adminAddr, uint256 mintLimit, address authorizer) internal {
+        uint256 maxAllowed = _maxAssignableAirdropLimit(authorizer);
+        if (mintLimit > maxAllowed) revert UC_AdminAirdropLimitTooHigh(adminAddr, mintLimit, maxAllowed);
+        GovernanceStorage.layout().adminAirdropLimit[adminAddr] = mintLimit;
+    }
+
+    function _enforceAndRecordAdminAirdropLimit(address admin, uint256 points6) internal {
+        if (admin == address(0) || points6 == 0) return;
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        address current = admin;
+        address cardOwner = IUserCardCtx(address(this)).owner();
+
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            if (current != cardOwner) {
+                uint256 used = g.adminAirdropUsed[current];
+                uint256 limit = g.adminAirdropLimit[current];
+                if (used + points6 > limit) revert UC_AdminAirdropLimitExceeded(current, used, points6, limit);
+            }
+            g.adminAirdropUsed[current] += points6;
+            current = g.adminParent[current];
+        }
+    }
+
+    function _clearAdminAirdropUsageForSubtree(address subordinate) internal {
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        uint256 maxNodes = g.adminList.length + 1;
+        address[] memory nodes = new address[](maxNodes);
+        uint256 nodeCount = 1;
+        nodes[0] = subordinate;
+
+        for (uint256 i = 0; i < nodeCount; i++) {
+            address[] storage children = g.adminChildren[nodes[i]];
+            for (uint256 j = 0; j < children.length; j++) {
+                address child = children[j];
+                if (g.isAdmin[child]) {
+                    nodes[nodeCount++] = child;
+                }
+            }
+        }
+
+        uint256 clearedUsed = g.adminAirdropUsed[subordinate];
+        for (uint256 i = 0; i < nodeCount; i++) {
+            g.adminAirdropUsed[nodes[i]] = 0;
+        }
+
+        address current = g.adminParent[subordinate];
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            uint256 currentUsed = g.adminAirdropUsed[current];
+            g.adminAirdropUsed[current] = currentUsed > clearedUsed ? currentUsed - clearedUsed : 0;
+            current = g.adminParent[current];
+        }
+    }
+
+    function _requireCanAddSubordinateAdmin(address authorizer, GovernanceStorage.Layout storage l) internal view {
+        if (!l.isAdmin[authorizer]) revert UC_NotAdmin();
+        if (l.adminParent[authorizer] != address(0)) revert UC_AdminDepthExceeded(authorizer);
+    }
+
+    function _addAdmin(
+        address newAdmin,
+        uint256 newThreshold,
+        string calldata metadata,
+        address parentAdmin,
+        uint256 mintLimit,
+        bool applyMintLimit
+    ) internal {
         if (newAdmin == address(0)) revert BM_ZeroAddress();
         GovernanceStorage.Layout storage l = GovernanceStorage.layout();
         if (!l.isAdmin[newAdmin]) {
@@ -40,6 +112,11 @@ contract BeamioUserCardGovernanceModuleV1 {
             }
         }
         l.adminMetadata[newAdmin] = metadata;
+        if (applyMintLimit) {
+            _setAdminAirdropLimit(newAdmin, mintLimit, parentAdmin == address(0) ? IUserCardCtx(address(this)).owner() : parentAdmin);
+        } else if (!l.isAdmin[newAdmin] || l.adminAirdropLimit[newAdmin] == 0) {
+            l.adminAirdropLimit[newAdmin] = 0;
+        }
         if (newThreshold > l.adminList.length) revert UC_InvalidProposal();
         l.threshold = newThreshold;
     }
@@ -57,6 +134,7 @@ contract BeamioUserCardGovernanceModuleV1 {
 
         l.isAdmin[adminToRemove] = false;
         l.adminParent[adminToRemove] = address(0);
+        l.adminAirdropLimit[adminToRemove] = 0;
         if (parent != address(0)) {
             _removeFromAdminChildren(l, parent, adminToRemove);
         }
@@ -88,16 +166,73 @@ contract BeamioUserCardGovernanceModuleV1 {
 
     /// @notice owner 离线签字后经 gateway 的 executeForOwner 执行。admin=true 添加（parent=0），admin=false 仅 parent 或 owner 可移除
     function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external onlyGateway {
-        if (admin) _addAdmin(to, newThreshold, metadata, address(0));
+        if (admin) _addAdmin(to, newThreshold, metadata, address(0), 0, false);
+        else _removeAdmin(to, newThreshold, IUserCardCtx(address(this)).owner());
+    }
+
+    function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata, uint256 mintLimit) external onlyGateway {
+        if (admin) _addAdmin(to, newThreshold, metadata, address(0), mintLimit, true);
         else _removeAdmin(to, newThreshold, IUserCardCtx(address(this)).owner());
     }
 
     /// @notice admin 离线签字后经 gateway 的 executeForAdmin 执行。添加时 authorizer 为 parent；移除时仅 authorizer==parent 可删
     function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer) external onlyGateway {
         GovernanceStorage.Layout storage l = GovernanceStorage.layout();
-        if (!l.isAdmin[authorizer]) revert UC_NotAdmin();
-        if (admin) _addAdmin(to, newThreshold, metadata, authorizer);
+        if (admin) {
+            _requireCanAddSubordinateAdmin(authorizer, l);
+            _addAdmin(to, newThreshold, metadata, authorizer, 0, false);
+        }
         else _removeAdmin(to, newThreshold, authorizer);
+    }
+
+    function adminManagerByAdmin(
+        address to,
+        bool admin,
+        uint256 newThreshold,
+        string calldata metadata,
+        address authorizer,
+        uint256 mintLimit
+    ) external onlyGateway {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        if (admin) {
+            _requireCanAddSubordinateAdmin(authorizer, l);
+            _addAdmin(to, newThreshold, metadata, authorizer, mintLimit, true);
+        }
+        else _removeAdmin(to, newThreshold, authorizer);
+    }
+
+    function setAdminAirdropLimit(address adminAddr, uint256 mintLimit) external onlyGateway {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        if (!l.isAdmin[adminAddr]) revert UC_NotAdmin();
+        _setAdminAirdropLimit(adminAddr, mintLimit, IUserCardCtx(address(this)).owner());
+    }
+
+    function setAdminAirdropLimitByAdmin(address adminAddr, uint256 mintLimit, address authorizer) external onlyGateway {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        _requireCanAddSubordinateAdmin(authorizer, l);
+        if (!l.isAdmin[authorizer] || !l.isAdmin[adminAddr]) revert UC_NotAdmin();
+        if (l.adminParent[adminAddr] != authorizer) revert UC_NotAdmin();
+        _setAdminAirdropLimit(adminAddr, mintLimit, authorizer);
+    }
+
+    function enforceAndRecordAdminAirdropLimit(address admin, uint256 points6) external onlyGateway {
+        _enforceAndRecordAdminAirdropLimit(admin, points6);
+    }
+
+    function clearAdminStatsAndAirdropUsageForSubordinate(address subordinate, address authorizer) external onlyGateway {
+        if (subordinate == address(0)) revert BM_ZeroAddress();
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (g.adminParent[subordinate] != authorizer) revert UC_NotAdmin();
+        if (g.adminParent[authorizer] != address(0)) revert UC_AdminDepthExceeded(authorizer);
+
+        _clearAdminAirdropUsageForSubtree(subordinate);
+
+        AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
+        s.adminMintCounter[subordinate] = 0;
+        s.adminBurnCounter[subordinate] = 0;
+        s.adminTransferCounter[subordinate] = 0;
+        s.adminRedeemMintCounter[subordinate] = 0;
+        s.adminUSDCMintCounter[subordinate] = 0;
     }
 
     /// @notice Create proposal; gateway or admin can call. Returns proposal id.

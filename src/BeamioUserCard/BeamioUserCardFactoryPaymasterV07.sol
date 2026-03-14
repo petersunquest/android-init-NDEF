@@ -36,7 +36,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant MINT_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("mintPointsByAdmin(address,uint256)"));
     bytes4 private constant BURN_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("burnPointsByAdmin(address,uint256)"));
     bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
+    bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
     bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
+    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"));
+    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("setAdminAirdropLimit(address,uint256)"));
+    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR = bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
     bytes4 private constant CLEAR_ADMIN_MINT_COUNTER_SELECTOR = bytes4(keccak256("clearAdminMintCounterForSubordinate(address,address)"));
     bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
     bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
@@ -762,7 +766,14 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
         if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         bytes4 selector = bytes4(data[:4]);
-        if (selector != MINT_POINTS_BY_ADMIN_SELECTOR && selector != BURN_POINTS_BY_ADMIN_SELECTOR && selector != ADMIN_MANAGER_SELECTOR && selector != CLEAR_ADMIN_MINT_COUNTER_SELECTOR) revert UC_InvalidProposal();
+        if (
+            selector != MINT_POINTS_BY_ADMIN_SELECTOR &&
+            selector != BURN_POINTS_BY_ADMIN_SELECTOR &&
+            selector != ADMIN_MANAGER_SELECTOR &&
+            selector != ADMIN_MANAGER_WITH_LIMIT_SELECTOR &&
+            selector != SET_ADMIN_AIRDROP_LIMIT_SELECTOR &&
+            selector != CLEAR_ADMIN_MINT_COUNTER_SELECTOR
+        ) revert UC_InvalidProposal();
 
         bytes32 structHash = keccak256(abi.encode(
             EXECUTE_FOR_ADMIN_TYPEHASH,
@@ -791,10 +802,33 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
                 metadata,
                 signer
             );
+        } else if (selector == ADMIN_MANAGER_WITH_LIMIT_SELECTOR) {
+            (address to, bool admin, uint256 newThreshold, string memory metadata, uint256 mintLimit) =
+                abi.decode(data[4:], (address, bool, uint256, string, uint256));
+            callData = abi.encodeWithSelector(
+                ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR,
+                to,
+                admin,
+                newThreshold,
+                metadata,
+                signer,
+                mintLimit
+            );
+        } else if (selector == SET_ADMIN_AIRDROP_LIMIT_SELECTOR) {
+            (address subordinate, uint256 mintLimit) = abi.decode(data[4:], (address, uint256));
+            if (BeamioUserCard(cardAddr).adminParent(subordinate) != signer) revert UC_NotAdmin();
+            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
+            callData = abi.encodeWithSelector(
+                SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR,
+                subordinate,
+                mintLimit,
+                signer
+            );
         } else if (selector == CLEAR_ADMIN_MINT_COUNTER_SELECTOR) {
             (address subordinate, address authorizer) = abi.decode(data[4:], (address, address));
             if (authorizer != signer) revert UC_NotAdmin();
             if (BeamioUserCard(cardAddr).adminParent(subordinate) != authorizer) revert UC_NotAdmin();
+            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
             callData = abi.encodeWithSelector(
                 BeamioUserCard.clearAdminMintCounterForSubordinate.selector,
                 subordinate,
@@ -850,6 +884,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         address parent = BeamioUserCard(cardAddr).adminParent(subordinate);
         if (parent == address(0)) revert UC_NotAdmin();
         if (signer != parent) revert UC_NotAdmin();
+        if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
 
         bytes32 nonceKey = keccak256(abi.encode(cardAddr, subordinate, nonce));
         if (usedClearAdminMintCounterNonces[nonceKey]) revert UC_NonceUsed();

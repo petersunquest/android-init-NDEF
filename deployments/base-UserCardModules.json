@@ -1,16 +1,16 @@
 {
   "network": "base",
   "chainId": "8453",
-  "timestamp": "2026-03-14T00:17:58.831Z",
+  "timestamp": "2026-03-14T19:05:40.359Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0xE091a0A974a40bCee36288193376294a19a293aE",
+  "factory": "0x01D1dA915ed265B587C71a529395e0f0ed5DA619",
   "modules": {
-    "redeemModule": "0x7AD391Eea7f21472872DA9E98b76aC70107432AD",
-    "issuedNftModule": "0x6ee95325dEF45445604F5790e5690CbB6ae00150",
-    "faucetModule": "0x1406EfDC2b00881c38497E3933861934dfbaB355",
-    "governanceModule": "0x7AF12402E341007188c048175266a48b0B4440de",
-    "membershipStatsModule": "0x082F5b7d824871B2B5cc2142F2609d5F03060EF3",
-    "adminStatsQueryModule": "0xDF69297B891840648dafb66d2799499301561BdE"
+    "redeemModule": "0xAC58141507EfCfca728F92bb105871e217B4E9FB",
+    "issuedNftModule": "0x9f246ecb3bdcE7A6e1092fd118745Ef57CD7F482",
+    "faucetModule": "0x9B3a3f9A3d0D37E5C8cE66Ce4dD99650D05727B4",
+    "governanceModule": "0x8adb27b428Af00073BBa93E37f2C29B0E2228574",
+    "membershipStatsModule": "0xB4b2282DE39fA4254e7879E509Af83c2EFB5A1dc",
+    "adminStatsQueryModule": "0xA4974cBeA67E831de9dFbcDF3e0D68Be7D413C92"
   },
   "checks": {
     "appendTierForCardWithOwnerSignature": true,

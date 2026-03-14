@@ -11,6 +11,31 @@ interface IUserCardCtx {
 }
 
 contract BeamioUserCardAdminStatsQueryModuleV1 {
+    struct AdminAirdropLimitView {
+        address admin;
+        address parent;
+        uint256 limit;
+        uint256 usedFromClear;
+        uint256 remainingAvailable;
+        bool unlimited;
+    }
+
+    struct AdminAirdropLimitNodeView {
+        AdminAirdropLimitView self;
+        address[] subordinateAdmins;
+        uint256 subordinateTotal;
+    }
+
+    struct AdminAirdropLimitPageView {
+        address queryTarget;
+        uint256 adminOffset;
+        uint256 adminPageSize;
+        uint256 adminTotal;
+        uint256 subordinateOffset;
+        uint256 subordinatePageSize;
+        AdminAirdropLimitNodeView[] admins;
+    }
+
     struct AdminStatsFullView {
         uint256 cumulativeMint;
         uint256 cumulativeBurn;
@@ -270,11 +295,162 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         }
     }
 
+    function getAdminAirdropLimit(address admin) external view returns (AdminAirdropLimitView memory result) {
+        result = _buildAdminAirdropLimitView(admin);
+    }
+
+    function getAdminAndSubordinateLimits(address admin)
+        external
+        view
+        returns (AdminAirdropLimitView memory self, AdminAirdropLimitView[] memory subordinates)
+    {
+        self = _buildAdminAirdropLimitView(admin);
+        address[] memory directSubs = _getDirectSubordinates(admin);
+        subordinates = new AdminAirdropLimitView[](directSubs.length);
+        for (uint256 i = 0; i < directSubs.length; i++) {
+            subordinates[i] = _buildAdminAirdropLimitView(directSubs[i]);
+        }
+    }
+
+    function getAdminAndSubordinateLimitsPage(
+        address to,
+        uint256 adminOffset,
+        uint256 adminPageSize,
+        uint256 subordinateOffset,
+        uint256 subordinatePageSize
+    ) external view returns (AdminAirdropLimitPageView memory result) {
+        address[] memory targets = _getAdminLimitTargets(to);
+        uint256 total = targets.length;
+        uint256 start = adminOffset > total ? total : adminOffset;
+        uint256 end = start + adminPageSize;
+        if (end > total) end = total;
+
+        result.queryTarget = to;
+        result.adminOffset = start;
+        result.adminPageSize = adminPageSize;
+        result.adminTotal = total;
+        result.subordinateOffset = subordinateOffset;
+        result.subordinatePageSize = subordinatePageSize;
+        result.admins = new AdminAirdropLimitNodeView[](end - start);
+
+        for (uint256 i = start; i < end; i++) {
+            address admin = targets[i];
+            uint256 outIndex = i - start;
+            result.admins[outIndex].self = _buildAdminAirdropLimitView(admin);
+            result.admins[outIndex].subordinateTotal = _countDirectSubordinates(admin);
+            result.admins[outIndex].subordinateAdmins = _getDirectSubordinatesPage(
+                admin,
+                subordinateOffset,
+                subordinatePageSize
+            );
+        }
+    }
+
     function _getAllAdmins() internal view returns (address[] memory) {
         address[] storage list = GovernanceStorage.layout().adminList;
         address[] memory result = new address[](list.length);
         for (uint256 i = 0; i < list.length; i++) result[i] = list[i];
         return result;
+    }
+
+    function _buildAdminAirdropLimitView(address admin) internal view returns (AdminAirdropLimitView memory result) {
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        result.admin = admin;
+        result.parent = g.adminParent[admin];
+        result.usedFromClear = g.adminAirdropUsed[admin];
+        result.unlimited = admin == cardOwner;
+        result.limit = result.unlimited ? type(uint256).max : g.adminAirdropLimit[admin];
+        result.remainingAvailable = result.unlimited
+            ? type(uint256).max
+            : (result.limit > result.usedFromClear ? result.limit - result.usedFromClear : 0);
+    }
+
+    function _getAdminLimitTargets(address to) internal view returns (address[] memory result) {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        if (to == address(0)) {
+            return _getDirectSubordinates(cardOwner);
+        }
+        if (to == cardOwner) {
+            result = new address[](1);
+            result[0] = cardOwner;
+            return result;
+        }
+        if (!l.isAdmin[to]) {
+            return new address[](0);
+        }
+        result = new address[](1);
+        result[0] = to;
+    }
+
+    function _countDirectSubordinates(address admin) internal view returns (uint256 total) {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        if (admin == cardOwner || admin == address(0)) {
+            for (uint256 i = 0; i < l.adminList.length; i++) {
+                address a = l.adminList[i];
+                if (l.isAdmin[a] && l.adminParent[a] == address(0) && a != cardOwner) total++;
+            }
+            return total;
+        }
+
+        address[] storage children = l.adminChildren[admin];
+        for (uint256 i = 0; i < children.length; i++) {
+            if (l.isAdmin[children[i]]) total++;
+        }
+    }
+
+    function _getDirectSubordinates(address admin) internal view returns (address[] memory result) {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        uint256 n = 0;
+
+        if (admin == cardOwner || admin == address(0)) {
+            for (uint256 i = 0; i < l.adminList.length; i++) {
+                address a = l.adminList[i];
+                if (l.isAdmin[a] && l.adminParent[a] == address(0) && a != cardOwner) n++;
+            }
+
+            result = new address[](n);
+            uint256 rootIndex = 0;
+            for (uint256 i = 0; i < l.adminList.length; i++) {
+                address a = l.adminList[i];
+                if (l.isAdmin[a] && l.adminParent[a] == address(0) && a != cardOwner) {
+                    result[rootIndex++] = a;
+                }
+            }
+            return result;
+        }
+
+        address[] storage children = l.adminChildren[admin];
+        for (uint256 i = 0; i < children.length; i++) {
+            if (l.isAdmin[children[i]]) n++;
+        }
+
+        result = new address[](n);
+        uint256 j = 0;
+        for (uint256 i = 0; i < children.length; i++) {
+            address child = children[i];
+            if (l.isAdmin[child]) {
+                result[j++] = child;
+            }
+        }
+    }
+
+    function _getDirectSubordinatesPage(address admin, uint256 offset, uint256 pageSize)
+        internal
+        view
+        returns (address[] memory result)
+    {
+        address[] memory all = _getDirectSubordinates(admin);
+        uint256 start = offset > all.length ? all.length : offset;
+        uint256 end = start + pageSize;
+        if (end > all.length) end = all.length;
+        result = new address[](end - start);
+        for (uint256 i = start; i < end; i++) {
+            result[i - start] = all[i];
+        }
     }
 
     function _getSelfAndSubordinates(address admin) internal view returns (address[] memory) {

@@ -6,6 +6,21 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
       
+    export type AdminAirdropLimitViewStruct = {admin: AddressLike, parent: AddressLike, limit: BigNumberish, usedFromClear: BigNumberish, remainingAvailable: BigNumberish, unlimited: boolean}
+
+    export type AdminAirdropLimitViewStructOutput = [admin: string, parent: string, limit: bigint, usedFromClear: bigint, remainingAvailable: bigint, unlimited: boolean] & {admin: string, parent: string, limit: bigint, usedFromClear: bigint, remainingAvailable: bigint, unlimited: boolean }
+  
+
+    export type AdminAirdropLimitNodeViewStruct = {self: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStruct, subordinateAdmins: AddressLike[], subordinateTotal: BigNumberish}
+
+    export type AdminAirdropLimitNodeViewStructOutput = [self: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, subordinateAdmins: string[], subordinateTotal: bigint] & {self: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, subordinateAdmins: string[], subordinateTotal: bigint }
+  
+
+    export type AdminAirdropLimitPageViewStruct = {queryTarget: AddressLike, adminOffset: BigNumberish, adminPageSize: BigNumberish, adminTotal: BigNumberish, subordinateOffset: BigNumberish, subordinatePageSize: BigNumberish, admins: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitNodeViewStruct[]}
+
+    export type AdminAirdropLimitPageViewStructOutput = [queryTarget: string, adminOffset: bigint, adminPageSize: bigint, adminTotal: bigint, subordinateOffset: bigint, subordinatePageSize: bigint, admins: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitNodeViewStructOutput[]] & {queryTarget: string, adminOffset: bigint, adminPageSize: bigint, adminTotal: bigint, subordinateOffset: bigint, subordinatePageSize: bigint, admins: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitNodeViewStructOutput[] }
+  
+
     export type AdminHourlyDataViewStruct = {nftMinted: BigNumberish, tokenMinted: BigNumberish, tokenBurned: BigNumberish, transferCount: BigNumberish, transferAmount: BigNumberish, redeemMintAmount: BigNumberish, usdcMintAmount: BigNumberish, issuedCount: BigNumberish, upgradedCount: BigNumberish, hasData: boolean}
 
     export type AdminHourlyDataViewStructOutput = [nftMinted: bigint, tokenMinted: bigint, tokenBurned: bigint, transferCount: bigint, transferAmount: bigint, redeemMintAmount: bigint, usdcMintAmount: bigint, issuedCount: bigint, upgradedCount: bigint, hasData: boolean] & {nftMinted: bigint, tokenMinted: bigint, tokenBurned: bigint, transferCount: bigint, transferAmount: bigint, redeemMintAmount: bigint, usdcMintAmount: bigint, issuedCount: bigint, upgradedCount: bigint, hasData: boolean }
@@ -28,18 +43,24 @@ export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
     }
 
   export interface BeamioUserCardAdminStatsQueryModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull"): FunctionFragment;
+    getFunction(nameOrSignature: "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'getAdminHourlyData', values: [AddressLike, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'getAdminAirdropLimit', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminAndSubordinateLimits', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminAndSubordinateLimitsPage', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminHourlyData', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminListWithMetadata', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAdminPeriodReports', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminStatsFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminSubordinatesWithMetadata', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getGlobalStatsFull', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'getAdminHourlyData', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'getAdminAirdropLimit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminAndSubordinateLimits', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminAndSubordinateLimitsPage', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminHourlyData', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminListWithMetadata', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminPeriodReports', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminStatsFull', data: BytesLike): Result;
@@ -82,6 +103,30 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
 
 
     
+    
+    getAdminAirdropLimit: TypedContractMethod<
+      [admin: AddressLike, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminAndSubordinateLimits: TypedContractMethod<
+      [admin: AddressLike, ],
+      [[BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput[]] & {self: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, subordinates: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getAdminAndSubordinateLimitsPage: TypedContractMethod<
+      [to: AddressLike, adminOffset: BigNumberish, adminPageSize: BigNumberish, subordinateOffset: BigNumberish, subordinatePageSize: BigNumberish, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitPageViewStructOutput],
+      'view'
+    >
+    
+
     
     getAdminHourlyData: TypedContractMethod<
       [admin: AddressLike, hourIndex: BigNumberish, ],
@@ -133,7 +178,22 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'getAdminHourlyData'): TypedContractMethod<
+    getFunction(nameOrSignature: 'getAdminAirdropLimit'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminAndSubordinateLimits'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [[BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput[]] & {self: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput, subordinates: BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitViewStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminAndSubordinateLimitsPage'): TypedContractMethod<
+      [to: AddressLike, adminOffset: BigNumberish, adminPageSize: BigNumberish, subordinateOffset: BigNumberish, subordinatePageSize: BigNumberish, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitPageViewStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminHourlyData'): TypedContractMethod<
       [admin: AddressLike, hourIndex: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminHourlyDataViewStructOutput],
       'view'
