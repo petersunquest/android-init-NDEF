@@ -17,7 +17,7 @@
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0xE091a0A974a40bCee36288193376294a19a293aE`](https://basescan.org/address/0xE091a0A974a40bCee36288193376294a19a293aE)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -30,21 +30,21 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 - Historical `BeamioUserCardFactoryPaymasterV07`: [`0x19C000c00e6A2b254b39d16797930431E310BEdd`](https://basescan.org/address/0x19C000c00e6A2b254b39d16797930431E310BEdd)
 - `BeamioUserCard`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
-From `deployments/base-UserCardFactory.json` (`2026-03-14T00:16:32.334Z`):
+From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
-- Current `BeamioUserCardDeployerV07`: [`0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0`](https://basescan.org/address/0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0xE091a0A974a40bCee36288193376294a19a293aE`](https://basescan.org/address/0xE091a0A974a40bCee36288193376294a19a293aE)
+- Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
 
 ### Base Registered Module Addresses
 
 From on-chain reads and `deployments/base-UserCardModules.json`:
 
-- `defaultRedeemModule`: [`0x7AD391Eea7f21472872DA9E98b76aC70107432AD`](https://basescan.org/address/0x7AD391Eea7f21472872DA9E98b76aC70107432AD)
-- `defaultIssuedNftModule`: [`0x6ee95325dEF45445604F5790e5690CbB6ae00150`](https://basescan.org/address/0x6ee95325dEF45445604F5790e5690CbB6ae00150)
-- `defaultFaucetModule`: [`0x1406EfDC2b00881c38497E3933861934dfbaB355`](https://basescan.org/address/0x1406EfDC2b00881c38497E3933861934dfbaB355)
-- `defaultGovernanceModule`: [`0x7AF12402E341007188c048175266a48b0B4440de`](https://basescan.org/address/0x7AF12402E341007188c048175266a48b0B4440de)
-- `defaultMembershipStatsModule`: [`0x082F5b7d824871B2B5cc2142F2609d5F03060EF3`](https://basescan.org/address/0x082F5b7d824871B2B5cc2142F2609d5F03060EF3)
-- `defaultAdminStatsQueryModule`: [`0xDF69297B891840648dafb66d2799499301561BdE`](https://basescan.org/address/0xDF69297B891840648dafb66d2799499301561BdE)
+- `defaultRedeemModule`: [`0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2`](https://basescan.org/address/0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2)
+- `defaultIssuedNftModule`: [`0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3`](https://basescan.org/address/0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3)
+- `defaultFaucetModule`: [`0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F`](https://basescan.org/address/0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F)
+- `defaultGovernanceModule`: [`0x3f38A0df1c9339e801487f244b885aEe0041E7eF`](https://basescan.org/address/0x3f38A0df1c9339e801487f244b885aEe0041E7eF)
+- `defaultMembershipStatsModule`: [`0x5E5C920103f0952c39b2839D64883C6697fd5eB3`](https://basescan.org/address/0x5E5C920103f0952c39b2839D64883C6697fd5eB3)
+- `defaultAdminStatsQueryModule`: [`0x737B9a91a9afD4779057dddF157237aD1818db89`](https://basescan.org/address/0x737B9a91a9afD4779057dddF157237aD1818db89)
 
 ### Base Factory Configuration
 
@@ -52,7 +52,7 @@ Current on-chain `BeamioUserCardFactoryPaymasterV07` configuration:
 
 - `USDC_TOKEN`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `quoteHelper`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
-- `deployer`: `0x324dCda8fF2CE1E9126e528d5A41CF72a6612E96`
+- `deployer`: `0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`
 - `aaFactory`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
 - `metadataBaseURI`: `https://beamio.app/api/metadata/0x`
 

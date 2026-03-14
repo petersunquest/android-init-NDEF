@@ -2,27 +2,27 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-14T19:04:39.877Z",
+  "timestamp": "2026-03-14T19:53:37.772Z",
   "contracts": {
     "beamioUserCardDeployer": {
-      "address": "0x8BbD166F8954C0DfDc999AA8159033fF49A1A494",
-      "transactionHash": "0x35916b2f0d5278086810be392a99e6343c003ac6f46f97e6ab1f532c42a4c0d5"
+      "address": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
+      "transactionHash": "0xaa67df8a6f44278a2934571ebf41152ff08400f687f55e9d814ef54bad0d0570"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x01D1dA915ed265B587C71a529395e0f0ed5DA619",
+      "address": "0x2F45f38f2B6EF97b606ec2557E237529e8db9281",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "redeemModule": "0xAC58141507EfCfca728F92bb105871e217B4E9FB",
+      "redeemModule": "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
-      "deployer": "0x8BbD166F8954C0DfDc999AA8159033fF49A1A494",
+      "deployer": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
       "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0x359dc51bff681735365d7b1eef21154f85e28834798340ceac862908642f3e2f",
-      "issuedNftModule": "0x9f246ecb3bdcE7A6e1092fd118745Ef57CD7F482",
-      "faucetModule": "0x9B3a3f9A3d0D37E5C8cE66Ce4dD99650D05727B4",
-      "governanceModule": "0x8adb27b428Af00073BBa93E37f2C29B0E2228574",
-      "membershipStatsModule": "0xB4b2282DE39fA4254e7879E509Af83c2EFB5A1dc",
-      "adminStatsQueryModule": "0xA4974cBeA67E831de9dFbcDF3e0D68Be7D413C92"
+      "transactionHash": "0x2376ba0a4d778a9330226e3edd061caca2ed633102e34993d56a42eaca8e5a90",
+      "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
+      "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
+      "governanceModule": "0x3f38A0df1c9339e801487f244b885aEe0041E7eF",
+      "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
+      "adminStatsQueryModule": "0x737B9a91a9afD4779057dddF157237aD1818db89"
     }
   }
 }

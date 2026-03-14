@@ -13,11 +13,12 @@ import { AbiCoder } from "ethers";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BUILD_INFO_DIR = path.join(__dirname, "..", "artifacts", "build-info");
+const ROOT_DIR = path.join(__dirname, "..");
 const FACTORY_DEPLOY_PATH = path.join(__dirname, "..", "deployments", "base-UserCardFactory.json");
 const MODULE_DEPLOY_PATH = path.join(__dirname, "..", "deployments", "base-UserCardModules.json");
 const OUT_DIR = path.join(__dirname, "..", "deployments");
 
+const COMPILER_VERSION = "0.8.33+commit.64118f21";
 const USER_CARD_SOURCE = "project/src/BeamioUserCard/BeamioUserCard.sol";
 const FACTORY_SOURCE = "project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol";
 const MODULE_SOURCES = [
@@ -26,7 +27,7 @@ const MODULE_SOURCES = [
   "project/src/BeamioUserCard/FaucetModule.sol",
   "project/src/BeamioUserCard/GovernanceModule.sol",
   "project/src/BeamioUserCard/MembershipStatsModule.sol",
-  "project/src/BeamioUserCard/MembershipStatsQueryModule.sol",
+  "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
 ];
 
 const VERIFICATION_CARD = {
@@ -37,16 +38,71 @@ const VERIFICATION_CARD = {
   owner: "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
 };
 
-function getBuildInfoPath(): string {
-  const files = fs.readdirSync(BUILD_INFO_DIR).filter((f) => f.endsWith(".json") && !f.includes(".output."));
-  for (const file of files) {
-    const fullPath = path.join(BUILD_INFO_DIR, file);
-    const content = fs.readFileSync(fullPath, "utf-8");
-    if (content.includes(USER_CARD_SOURCE) && content.includes(FACTORY_SOURCE)) {
-      return fullPath;
-    }
+type SourceMap = Record<string, { content: string }>;
+
+function toPosix(p: string): string {
+  return p.split(path.sep).join(path.posix.sep);
+}
+
+function toAbsolutePath(sourceKey: string): string {
+  if (!sourceKey.startsWith("project/")) {
+    throw new Error(`sourceKey 必须以 project/ 开头，收到: ${sourceKey}`);
   }
-  throw new Error("未找到包含 BeamioUserCard 的 build-info，请先运行: npm run compile");
+  return path.resolve(ROOT_DIR, sourceKey.slice("project/".length));
+}
+
+function toSourceKey(absPath: string): string {
+  return `project/${toPosix(path.relative(ROOT_DIR, absPath))}`;
+}
+
+function resolveImport(absImporter: string, importPath: string): string {
+  if (importPath.startsWith("./") || importPath.startsWith("../")) {
+    return path.resolve(path.dirname(absImporter), importPath);
+  }
+  const fromRoot = path.resolve(ROOT_DIR, importPath);
+  if (fs.existsSync(fromRoot)) return fromRoot;
+  throw new Error(`无法解析 import: ${importPath} (from ${absImporter})`);
+}
+
+function collectSources(absEntry: string, sources: SourceMap, visited = new Set<string>()): void {
+  const absPath = path.resolve(absEntry);
+  if (visited.has(absPath)) return;
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`源码不存在: ${absPath}`);
+  }
+
+  visited.add(absPath);
+  const content = fs.readFileSync(absPath, "utf-8");
+  sources[toSourceKey(absPath)] = { content };
+
+  const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
+  for (const match of content.matchAll(importRegex)) {
+    collectSources(resolveImport(absPath, match[1]), sources, visited);
+  }
+}
+
+function buildSettings() {
+  return {
+    metadata: {
+      bytecodeHash: "none",
+    },
+    debug: {
+      revertStrings: "strip",
+    },
+    optimizer: {
+      enabled: true,
+      runs: 0,
+    },
+    viaIR: true,
+    evmVersion: "cancun",
+    remappings: [],
+    outputSelection: {
+      "*": {
+        "": ["ast"],
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"],
+      },
+    },
+  };
 }
 
 function hexArgs(types: string[], values: unknown[]): string {
@@ -61,19 +117,15 @@ function main() {
     throw new Error(`未找到部署文件: ${MODULE_DEPLOY_PATH}`);
   }
 
-  const buildInfoPath = getBuildInfoPath();
-  const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
-  const fullInput = buildInfo.input as {
-    language: string;
-    sources: Record<string, { content: string }>;
-    settings: Record<string, unknown>;
-  };
-  const compilerVersion = buildInfo.solcLongVersion || "v0.8.33+commit.64118f21";
+  const sources: SourceMap = {};
+  collectSources(toAbsolutePath(USER_CARD_SOURCE), sources);
+  const sourceCount = Object.keys(sources).length;
+  const settings = buildSettings();
 
   const standardJsonInput = {
-    language: fullInput.language,
-    sources: fullInput.sources,
-    settings: fullInput.settings,
+    language: "Solidity",
+    sources,
+    settings,
   };
 
   const factoryDeploy = JSON.parse(fs.readFileSync(FACTORY_DEPLOY_PATH, "utf-8"));
@@ -107,10 +159,11 @@ function main() {
   fs.writeFileSync(verifyCardArgsPath, verificationCardConstructorArgs + "\n", "utf-8");
 
   const lines = [
-    `Compiler Version: ${compilerVersion}`,
+    `Compiler Version: ${COMPILER_VERSION}`,
     `Optimization: Enabled`,
-    `Runs: 1`,
-    `viaIR: ${String((fullInput.settings as { viaIR?: boolean }).viaIR ?? false)}`,
+    `Runs: 0`,
+    `viaIR: ${String(settings.viaIR)}`,
+    `Source Count: ${sourceCount}`,
     ``,
     `Standard JSON: ${standardJsonPath}`,
     ``,
@@ -140,8 +193,8 @@ function main() {
     `  Contract Name: project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1`,
     `  Constructor Arguments Hex: (empty)`,
     ``,
-    `  Address: ${modules.membershipStatsQueryModule}`,
-    `  Contract Name: project/src/BeamioUserCard/MembershipStatsQueryModule.sol:BeamioUserCardMembershipStatsQueryModuleV1`,
+    `  Address: ${modules.adminStatsQueryModule}`,
+    `  Contract Name: project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1`,
     `  Constructor Arguments Hex: (empty)`,
     ``,
     `Verification Card (optional)`,
@@ -172,7 +225,7 @@ function main() {
   console.log("  验证元数据:", metaPath);
   console.log("  Factory constructor args:", factoryArgsPath);
   console.log("  Verification card constructor args:", verifyCardArgsPath);
-  console.log("\nCompiler Version:", compilerVersion);
+  console.log("\nCompiler Version:", COMPILER_VERSION);
 }
 
 main();

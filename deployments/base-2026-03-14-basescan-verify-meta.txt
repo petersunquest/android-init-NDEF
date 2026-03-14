@@ -11,14 +11,14 @@ Compiler settings
 - debug.revertStrings: strip
 
 Deployed addresses
-- BeamioUserCardDeployerV07: 0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0
-- BeamioUserCardFactoryPaymasterV07: 0xE091a0A974a40bCee36288193376294a19a293aE
-- BeamioUserCardRedeemModuleVNext: 0x7AD391Eea7f21472872DA9E98b76aC70107432AD
-- BeamioUserCardIssuedNftModuleV1: 0x6ee95325dEF45445604F5790e5690CbB6ae00150
-- BeamioUserCardFaucetModuleV1: 0x1406EfDC2b00881c38497E3933861934dfbaB355
-- BeamioUserCardGovernanceModuleV1: 0x7AF12402E341007188c048175266a48b0B4440de
-- BeamioUserCardMembershipStatsModuleV1: 0x082F5b7d824871B2B5cc2142F2609d5F03060EF3
-- BeamioUserCardAdminStatsQueryModuleV1: 0xDF69297B891840648dafb66d2799499301561BdE
+- BeamioUserCardDeployerV07: 0xA6a824cA25E0cd95EEB98f2b8a911396f6672685
+- BeamioUserCardFactoryPaymasterV07: 0x2F45f38f2B6EF97b606ec2557E237529e8db9281
+- BeamioUserCardRedeemModuleVNext: 0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2
+- BeamioUserCardIssuedNftModuleV1: 0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3
+- BeamioUserCardFaucetModuleV1: 0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F
+- BeamioUserCardGovernanceModuleV1: 0x3f38A0df1c9339e801487f244b885aEe0041E7eF
+- BeamioUserCardMembershipStatsModuleV1: 0x5E5C920103f0952c39b2839D64883C6697fd5eB3
+- BeamioUserCardAdminStatsQueryModuleV1: 0x737B9a91a9afD4779057dddF157237aD1818db89
 
 Standard JSON files
 - deployments/base-BeamioUserCard-basescan-standard-input.json
@@ -47,9 +47,9 @@ Constructor arguments
 - BeamioUserCardFactoryPaymasterV07:
   [
     "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "0x7AD391Eea7f21472872DA9E98b76aC70107432AD",
+    "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
     "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
-    "0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0",
+    "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
     "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
     "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
   ]

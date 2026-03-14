@@ -1,5 +1,10 @@
 /**
- * 从 Hardhat build-info 导出某个 Solidity 根文件的最小 Standard JSON Input。
+ * 从当前文件系统递归导出某个 Solidity 根文件的最小 Standard JSON Input。
+ *
+ * 说明:
+ * - 不依赖 artifacts/build-info，避免旧编译缓存导致导出过期源码
+ * - 直接按当前 workspace 文件内容递归收集 import 依赖
+ * - 输出 settings 与 hardhat.config.ts 的 Solidity 配置保持一致
  *
  * 用法:
  *   npx tsx scripts/exportMinimalStandardJson.ts \
@@ -13,6 +18,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.join(__dirname, "..");
 
 const args = process.argv.slice(2);
 
@@ -24,72 +30,95 @@ function getArg(name: string): string {
   return args[idx + 1];
 }
 
-function getBuildInfoPath(rootSource: string): string {
-  const buildInfoDir = path.join(__dirname, "..", "artifacts", "build-info");
-  const files = fs.readdirSync(buildInfoDir).filter((f) => f.endsWith(".json") && !f.includes(".output."));
-  for (const file of files) {
-    const full = path.join(buildInfoDir, file);
-    const content = fs.readFileSync(full, "utf-8");
-    if (content.includes(rootSource)) return full;
-  }
-  throw new Error(`未找到包含 ${rootSource} 的 build-info，请先运行 npm run compile`);
+function toPosix(p: string): string {
+  return p.split(path.sep).join(path.posix.sep);
 }
 
-function normalizeImport(importPath: string, currentFile: string): string {
+function toSourceKey(absPath: string): string {
+  return `project/${toPosix(path.relative(ROOT_DIR, absPath))}`;
+}
+
+function toAbsolutePath(rootSource: string): string {
+  if (!rootSource.startsWith("project/")) {
+    throw new Error(`--root 必须以 project/ 开头，收到: ${rootSource}`);
+  }
+  return path.resolve(ROOT_DIR, rootSource.slice("project/".length));
+}
+
+function resolveImport(absImporter: string, importPath: string): string {
   if (importPath.startsWith("./") || importPath.startsWith("../")) {
-    const currentDir = path.posix.dirname(currentFile);
-    return path.posix.normalize(path.posix.join(currentDir, importPath));
+    return path.resolve(path.dirname(absImporter), importPath);
   }
-  return importPath;
+  const fromRoot = path.resolve(ROOT_DIR, importPath);
+  if (fs.existsSync(fromRoot)) return fromRoot;
+  throw new Error(`无法解析 import: ${importPath} (from ${absImporter})`);
 }
 
-function collectDeps(
-  root: string,
+function collectSources(
+  absEntry: string,
   sources: Record<string, { content: string }>,
   visited = new Set<string>()
 ): Set<string> {
-  if (visited.has(root)) return visited;
-  if (!sources[root]) throw new Error(`Standard JSON sources 中找不到: ${root}`);
-  visited.add(root);
+  const absPath = path.resolve(absEntry);
+  if (visited.has(absPath)) return visited;
+  if (!fs.existsSync(absPath)) {
+    throw new Error(`源码不存在: ${absPath}`);
+  }
 
-  const content = sources[root].content;
+  visited.add(absPath);
+  const content = fs.readFileSync(absPath, "utf-8");
+  sources[toSourceKey(absPath)] = { content };
+
   const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
   for (const match of content.matchAll(importRegex)) {
-    const next = normalizeImport(match[1], root);
-    if (sources[next]) {
-      collectDeps(next, sources, visited);
-    }
+    collectSources(resolveImport(absPath, match[1]), sources, visited);
   }
+
   return visited;
+}
+
+function buildSettings() {
+  return {
+    metadata: {
+      bytecodeHash: "none",
+    },
+    debug: {
+      revertStrings: "strip",
+    },
+    optimizer: {
+      enabled: true,
+      runs: 0,
+    },
+    viaIR: true,
+    evmVersion: "cancun",
+    remappings: [],
+    outputSelection: {
+      "*": {
+        "": ["ast"],
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"],
+      },
+    },
+  };
 }
 
 function main() {
   const rootSource = getArg("--root");
   const outPath = path.resolve(process.cwd(), getArg("--out"));
-
-  const buildInfoPath = getBuildInfoPath(rootSource);
-  const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
-  const fullInput = buildInfo.input as {
-    language: string;
-    sources: Record<string, { content: string }>;
-    settings: Record<string, unknown>;
-  };
-
-  const deps = Array.from(collectDeps(rootSource, fullInput.sources)).sort();
+  const rootAbsPath = toAbsolutePath(rootSource);
   const minimalSources: Record<string, { content: string }> = {};
-  for (const key of deps) {
-    minimalSources[key] = fullInput.sources[key];
-  }
+  const deps = Array.from(collectSources(rootAbsPath, minimalSources))
+    .map((absPath) => toSourceKey(absPath))
+    .sort();
 
   const minimalInput = {
-    language: fullInput.language,
+    language: "Solidity",
     sources: minimalSources,
-    settings: fullInput.settings,
+    settings: buildSettings(),
   };
 
   fs.writeFileSync(outPath, JSON.stringify(minimalInput, null, 2), "utf-8");
   console.log(`已导出 ${deps.length} 个源码文件到: ${outPath}`);
-  console.log(`build-info: ${path.basename(buildInfoPath)}`);
+  console.log(`source root: ${rootSource}`);
 }
 
 main();

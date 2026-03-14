@@ -1,50 +1,51 @@
 Compiler Version: 0.8.33+commit.64118f21
 Optimization: Enabled
-Runs: 1
+Runs: 0
 viaIR: true
+Source Count: 28
 
 Standard JSON: /Users/peter/Downloads/BeamioContract/deployments/base-UserCard-standard-input.json
 
 Factory
-  Address: 0x46E8a69f7296deF53e33844bb00D92309ab46233
+  Address: 0x2F45f38f2B6EF97b606ec2557E237529e8db9281
   Contract Name: project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
-  Constructor Arguments Hex: 000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000ca220cbc4aeb8d5c59eadfadcff025fc9339cd84000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff000000000000000000000000324dcda8ff2ce1e9126e528d5a41cf72a6612e96000000000000000000000000d86403dd1755f7add19540489ea10cde876cc1ce00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+  Constructor Arguments Hex: 000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000973c5fbf8ca88c31e416e2d39aff4d52e47398e2000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff000000000000000000000000a6a824ca25e0cd95eeb98f2b8a911396f6672685000000000000000000000000d86403dd1755f7add19540489ea10cde876cc1ce00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 
 Modules
-  Address: 0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84
+  Address: 0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2
   Contract Name: project/src/BeamioUserCard/RedeemModule.sol:BeamioUserCardRedeemModuleVNext
   Constructor Arguments Hex: (empty)
 
-  Address: 0xa6Ba46C351182206c719BA2b29A02357d5580344
+  Address: 0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3
   Contract Name: project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
   Constructor Arguments Hex: (empty)
 
-  Address: 0x60154A9C51A33994A3873a8E53f7595717ae29ED
+  Address: 0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F
   Contract Name: project/src/BeamioUserCard/FaucetModule.sol:BeamioUserCardFaucetModuleV1
   Constructor Arguments Hex: (empty)
 
-  Address: 0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd
+  Address: 0x3f38A0df1c9339e801487f244b885aEe0041E7eF
   Contract Name: project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1
   Constructor Arguments Hex: (empty)
 
-  Address: 0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb
+  Address: 0x5E5C920103f0952c39b2839D64883C6697fd5eB3
   Contract Name: project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1
   Constructor Arguments Hex: (empty)
 
-  Address: 0x55bbc609101F4137eaD08cf8D47F06f58575a4e1
-  Contract Name: project/src/BeamioUserCard/MembershipStatsQueryModule.sol:BeamioUserCardMembershipStatsQueryModuleV1
+  Address: 0x737B9a91a9afD4779057dddF157237aD1818db89
+  Contract Name: project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1
   Constructor Arguments Hex: (empty)
 
 Verification Card (optional)
   Address: 0x5f981BBC6c3fD6b30C6ed8068977e86b502D7d42
   Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard
-  Constructor Arguments Hex: 00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e100000000000000000000000046e8a69f7296def53e33844bb00d92309ab46233000000000000000000000000000000000000000000000000000000000000002268747470733a2f2f6265616d696f2e6170702f6170692f6d657461646174612f3078000000000000000000000000000000000000000000000000000000000000
+  Constructor Arguments Hex: 00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000f424000000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e10000000000000000000000002f45f38f2b6ef97b606ec2557e237529e8db9281000000000000000000000000000000000000000000000000000000000000002268747470733a2f2f6265616d696f2e6170702f6170692f6d657461646174612f3078000000000000000000000000000000000000000000000000000000000000
   Constructor Values:
     uri=https://beamio.app/api/metadata/0x
     currency=0
     priceInCurrencyE6=1000000
     owner=0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
-    gateway=0x46E8a69f7296deF53e33844bb00D92309ab46233
+    gateway=0x2F45f38f2B6EF97b606ec2557E237529e8db9281
 
 Relevant Source Files
   project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol
@@ -54,7 +55,7 @@ Relevant Source Files
   project/src/BeamioUserCard/FaucetModule.sol
   project/src/BeamioUserCard/GovernanceModule.sol
   project/src/BeamioUserCard/MembershipStatsModule.sol
-  project/src/BeamioUserCard/MembershipStatsQueryModule.sol
+  project/src/BeamioUserCard/AdminStatsQueryModule.sol
 
 Manual BaseScan Tips
   Code Format: solidity-standard-json-input
