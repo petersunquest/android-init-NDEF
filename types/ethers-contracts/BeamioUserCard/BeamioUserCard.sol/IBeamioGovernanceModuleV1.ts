@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioGovernanceModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "adminManager(address,bool,uint256,string)" | "adminManager(address,bool,uint256,string,uint256)" | "adminManagerByAdmin(address,bool,uint256,string,address)" | "adminManagerByAdmin(address,bool,uint256,string,address,uint256)" | "approveProposal" | "approveProposalByGateway" | "clearAdminStatsAndAirdropUsageForSubordinate" | "createProposal" | "enforceAndRecordAdminAirdropLimit" | "executeProposal" | "setAdminAirdropLimit" | "setAdminAirdropLimitByAdmin"): FunctionFragment;
+    getFunction(nameOrSignature: "adminManager(address,bool,uint256,string)" | "adminManager(address,bool,uint256,string,uint256)" | "adminManagerByAdmin(address,bool,uint256,string,address)" | "adminManagerByAdmin(address,bool,uint256,string,address,uint256)" | "approveProposal" | "approveProposalByGateway" | "clearAdminStatsAndAirdropUsageForSubordinate" | "createProposal" | "enforceAndRecordAdminAirdropLimit" | "executeProposal" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "setAdminAirdropLimit" | "setAdminAirdropLimitByAdmin"): FunctionFragment;
 
     
 
@@ -20,6 +20,8 @@ encodeFunctionData(functionFragment: 'clearAdminStatsAndAirdropUsageForSubordina
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'enforceAndRecordAdminAirdropLimit', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'executeProposal', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'resetAdminLimit', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'resetAdminLimitByAdmin', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAdminAirdropLimit', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setAdminAirdropLimitByAdmin', values: [AddressLike, BigNumberish, AddressLike]): string;
 
@@ -33,6 +35,8 @@ decodeFunctionResult(functionFragment: 'clearAdminStatsAndAirdropUsageForSubordi
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'enforceAndRecordAdminAirdropLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'resetAdminLimit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'resetAdminLimitByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAdminAirdropLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAdminAirdropLimitByAdmin', data: BytesLike): Result;
   }
@@ -153,6 +157,22 @@ decodeFunctionResult(functionFragment: 'setAdminAirdropLimitByAdmin', data: Byte
     
 
     
+    resetAdminLimit: TypedContractMethod<
+      [adminAddr: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    resetAdminLimitByAdmin: TypedContractMethod<
+      [adminAddr: AddressLike, authorizer: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setAdminAirdropLimit: TypedContractMethod<
       [adminAddr: AddressLike, mintLimit: BigNumberish, ],
       [void],
@@ -219,6 +239,16 @@ getFunction(nameOrSignature: 'enforceAndRecordAdminAirdropLimit'): TypedContract
 getFunction(nameOrSignature: 'executeProposal'): TypedContractMethod<
       [id: BigNumberish, ],
       [[string, string, bigint, bigint, bigint] & {selector: string, target: string, v1: bigint, v2: bigint, v3: bigint }],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'resetAdminLimit'): TypedContractMethod<
+      [adminAddr: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'resetAdminLimitByAdmin'): TypedContractMethod<
+      [adminAddr: AddressLike, authorizer: AddressLike, ],
+      [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'setAdminAirdropLimit'): TypedContractMethod<

@@ -1,0 +1,74 @@
+# BaseScan 验证 - resetAdminLimit 部署 (2026-03-14)
+
+## 1. GovernanceModule
+
+| 项目 | 值 |
+|------|-----|
+| **地址** | 0x5c56536e833d0bfCC5BF575B3566edbE61987eAD |
+| **Contract Name** | project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1 |
+| **Compiler** | v0.8.33 |
+| **Constructor args** | 无 |
+| **Standard JSON** | deployments/base-GovernanceModule-standard-input.min.json |
+
+**验证步骤**：
+1. 打开 https://basescan.org/address/0x5c56536e833d0bfCC5BF575B3566edbE61987eAD#code
+2. 点击 "Verify and Publish"
+3. 选择 "Solidity (Standard-Json-Input)"
+4. 上传 `deployments/base-GovernanceModule-standard-input.min.json`
+5. Compiler: v0.8.33+commit.xxx
+6. Contract Name: `project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1`
+7. Constructor Arguments: 留空
+
+---
+
+## 2. BeamioUserCardFactoryPaymasterV07
+
+| 项目 | 值 |
+|------|-----|
+| **地址** | 0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a |
+| **Contract Name** | project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07 |
+| **Compiler** | v0.8.33 |
+| **Constructor args** | 见下方 |
+| **Standard JSON** | deployments/base-UserCardFactory-standard-input.min.json |
+
+**Constructor 参数** (按顺序):
+1. usdcToken_: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+2. redeemModule_: 0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2
+3. quoteHelper_: 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF
+4. deployer_: 0xA6a824cA25E0cd95EEB98f2b8a911396f6672685
+5. aaFactory_: 0xD86403DD1755F7add19540489Ea10cdE876Cc1CE
+6. initialOwner: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+
+**ABI-encoded constructor args** (用于 BaseScan 验证):
+```
+000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000973c5fbf8ca88c31e416e2d39aff4d52e47398e2000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff000000000000000000000000a6a824ca25e0cd95eeb98f2b8a911396f6672685000000000000000000000000d86403dd1755f7add19540489ea10cde876cc1ce00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+```
+
+**验证步骤**：
+1. 打开 https://basescan.org/address/0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a#code
+2. 点击 "Verify and Publish"
+3. 选择 "Solidity (Standard-Json-Input)"
+4. 上传 `deployments/base-UserCardFactory-standard-input.min.json`
+5. Compiler: v0.8.33+commit.xxx
+6. Contract Name: `project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07`
+7. Constructor Arguments (ABI-encoded): 粘贴上方 hex 字符串
+
+---
+
+## 使用 Hardhat 验证（可选）
+
+```bash
+# GovernanceModule（无 constructor args）
+npx hardhat verify --network base 0x5c56536e833d0bfCC5BF575B3566edbE61987eAD
+
+# Factory（需 constructor args）
+npx hardhat verify --network base 0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a \
+  "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" \
+  "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2" \
+  "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF" \
+  "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685" \
+  "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE" \
+  "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+```
+
+若 hardhat verify 因 payload 过大失败，请使用 Standard JSON 手动验证。

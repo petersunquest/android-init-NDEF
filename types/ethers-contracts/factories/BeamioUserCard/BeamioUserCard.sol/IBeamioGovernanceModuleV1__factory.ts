@@ -289,6 +289,37 @@
         "internalType": "address",
         "name": "adminAddr",
         "type": "address"
+      }
+    ],
+    "name": "resetAdminLimit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adminAddr",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "authorizer",
+        "type": "address"
+      }
+    ],
+    "name": "resetAdminLimitByAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "adminAddr",
+        "type": "address"
       },
       {
         "internalType": "uint256",

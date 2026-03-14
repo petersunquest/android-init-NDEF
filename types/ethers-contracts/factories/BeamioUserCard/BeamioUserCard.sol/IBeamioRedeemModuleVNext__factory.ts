@@ -85,6 +85,11 @@
         "internalType": "string",
         "name": "metadata",
         "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "mintLimit",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -197,6 +202,39 @@
       }
     ],
     "name": "createRedeem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "hash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "mintLimit",
+        "type": "uint256"
+      }
+    ],
+    "name": "createRedeemAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

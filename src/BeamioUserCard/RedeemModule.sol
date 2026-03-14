@@ -225,6 +225,15 @@ contract BeamioUserCardRedeemModuleVNext {
 
     /// @notice 创建 redeem-admin：必须由 owner 离线签字后经 gateway 的 executeForOwner 执行。hash=keccak256(secretCode)
     function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore) external onlyGateway {
+        _createRedeemAdminImpl(hash, metadata, validAfter, validBefore, 0);
+    }
+
+    /// @notice 创建 redeem-admin（带 topup limit）。mintLimit 为 points6，0 表示无限制
+    function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore, uint256 mintLimit) external onlyGateway {
+        _createRedeemAdminImpl(hash, metadata, validAfter, validBefore, mintLimit);
+    }
+
+    function _createRedeemAdminImpl(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore, uint256 mintLimit) internal {
         if (hash == bytes32(0)) revert BM_InvalidSecret();
         RedeemStorage.Layout storage l = RedeemStorage.layout();
         RedeemStorage.RedeemAdmin storage ra = l.redeemAdmins[hash];
@@ -233,13 +242,14 @@ contract BeamioUserCardRedeemModuleVNext {
         ra.metadata = metadata;
         ra.validAfter = validAfter;
         ra.validBefore = validBefore;
+        ra.mintLimit = mintLimit;
         l.redeemAdminHashes.push(hash);
         l.redeemAdminIndex[hash] = l.redeemAdminHashes.length; // 1-based
         emit RedeemAdminCreated(hash, validAfter, validBefore);
     }
 
-    /// @notice 内部：校验 code 并消费 redeemAdmin，返回 metadata。仅由 card.redeemAdminByGateway 经 gateway 调用
-    function consumeRedeemAdmin(string calldata code) external onlyGateway returns (string memory metadata) {
+    /// @notice 内部：校验 code 并消费 redeemAdmin，返回 (metadata, mintLimit)。仅由 card.redeemAdminByGateway 经 gateway 调用
+    function consumeRedeemAdmin(string calldata code) external onlyGateway returns (string memory metadata, uint256 mintLimit) {
         bytes memory b = bytes(code);
         if (b.length == 0) revert BM_InvalidSecret();
         bytes32 hash = keccak256(b);
@@ -249,6 +259,7 @@ contract BeamioUserCardRedeemModuleVNext {
         if (!_timeOk(ra.validAfter, ra.validBefore)) revert UC_InvalidTimeWindow(block.timestamp, ra.validAfter, ra.validBefore);
         ra.active = false;
         metadata = ra.metadata;
+        mintLimit = ra.mintLimit;
         _removeRedeemAdminFromList(l, hash);
         emit RedeemAdminConsumed(hash, msg.sender);
     }

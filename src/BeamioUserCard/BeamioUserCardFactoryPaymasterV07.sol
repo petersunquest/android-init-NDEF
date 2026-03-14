@@ -42,6 +42,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("setAdminAirdropLimit(address,uint256)"));
     bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR = bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
     bytes4 private constant CLEAR_ADMIN_MINT_COUNTER_SELECTOR = bytes4(keccak256("clearAdminMintCounterForSubordinate(address,address)"));
+    bytes4 private constant RESET_ADMIN_LIMIT_SELECTOR = bytes4(keccak256("resetAdminLimit(address)"));
     bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
     bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
     bytes4 private constant CREATE_REDEEM_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
@@ -772,7 +773,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
             selector != ADMIN_MANAGER_SELECTOR &&
             selector != ADMIN_MANAGER_WITH_LIMIT_SELECTOR &&
             selector != SET_ADMIN_AIRDROP_LIMIT_SELECTOR &&
-            selector != CLEAR_ADMIN_MINT_COUNTER_SELECTOR
+            selector != CLEAR_ADMIN_MINT_COUNTER_SELECTOR &&
+            selector != RESET_ADMIN_LIMIT_SELECTOR
         ) revert UC_InvalidProposal();
 
         bytes32 structHash = keccak256(abi.encode(
@@ -833,6 +835,13 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
                 BeamioUserCard.clearAdminMintCounterForSubordinate.selector,
                 subordinate,
                 authorizer
+            );
+        } else if (selector == RESET_ADMIN_LIMIT_SELECTOR) {
+            (address adminAddr) = abi.decode(data[4:], (address));
+            callData = abi.encodeWithSelector(
+                BeamioUserCard.resetAdminLimitByAdmin.selector,
+                adminAddr,
+                signer
             );
         } else if (selector == BURN_POINTS_BY_ADMIN_SELECTOR) {
             (address target, uint256 amount) = abi.decode(data[4:], (address, uint256));

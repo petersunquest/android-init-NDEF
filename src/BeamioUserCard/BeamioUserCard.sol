@@ -40,7 +40,8 @@ interface IBeamioUserCardFactoryPaymasterV07 {
  */
 interface IBeamioRedeemModuleVNext {
     function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore) external;
-    function consumeRedeemAdmin(string calldata code) external returns (string memory metadata);
+    function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore, uint256 mintLimit) external;
+    function consumeRedeemAdmin(string calldata code) external returns (string memory metadata, uint256 mintLimit);
     function cancelRedeemAdmin(bytes32 hash) external;
 
     function createRedeem(
@@ -120,6 +121,8 @@ interface IBeamioGovernanceModuleV1 {
     function setAdminAirdropLimitByAdmin(address adminAddr, uint256 mintLimit, address authorizer) external;
     function enforceAndRecordAdminAirdropLimit(address admin, uint256 points6) external;
     function clearAdminStatsAndAirdropUsageForSubordinate(address subordinate, address authorizer) external;
+    function resetAdminLimit(address adminAddr) external;
+    function resetAdminLimitByAdmin(address adminAddr, address authorizer) external;
     function createProposal(bytes4 selector, address target, uint256 v1, uint256 v2, uint256 v3) external returns (uint256 id);
     function approveProposalByGateway(uint256 id, address adminSigner) external;
     function approveProposal(uint256 id) external;
@@ -171,6 +174,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     bytes4 private constant GET_ADMIN_AND_SUBORDINATE_LIMITS_PAGE_SELECTOR =
         bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"));
     bytes4 private constant CREATE_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"));
+    bytes4 private constant CREATE_REDEEM_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64,uint256)"));
     bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
     bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
     bytes4 private constant CREATE_REDEEM_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
@@ -512,10 +516,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             MODULE_REDEEM,
             abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeemAdmin.selector, code)
         );
-        string memory metadata = abi.decode(out, (string));
+        (string memory metadata, uint256 mintLimit) = abi.decode(out, (string, uint256));
         address module = _module(MODULE_GOVERNANCE);
         uint256 newThreshold = 1; // redeem 添加的 admin 使用 threshold=1
-        (bool ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_SELECTOR, to, true, newThreshold, metadata));
+        bool ok;
+        if (mintLimit > 0) {
+            (ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_WITH_LIMIT_SELECTOR, to, true, newThreshold, metadata, mintLimit));
+        } else {
+            (ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_SELECTOR, to, true, newThreshold, metadata));
+        }
         if (!ok) revert UC_InvalidProposal();
     }
 
@@ -722,6 +731,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     function _isRedeemModuleSelector(bytes4 sel) internal pure returns (bool) {
         return
             sel == CREATE_REDEEM_ADMIN_SELECTOR ||
+            sel == CREATE_REDEEM_ADMIN_WITH_LIMIT_SELECTOR ||
             sel == CREATE_REDEEM_SELECTOR ||
             sel == CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR ||
             sel == CREATE_REDEEM_WITH_CREATOR_SELECTOR ||
@@ -926,6 +936,22 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 subordinate,
                 authorizer
             )
+        );
+    }
+
+    /// @notice Owner 离线签字后经 gateway 的 executeForOwner 执行。仅清零 adminAddr 的 topup 相关计数（adminRedeemMintCounter、adminUSDCMintCounter），恢复 mintLimitPoints6 预定的 topup 额度。
+    function resetAdminLimit(address adminAddr) external onlyAuthorizedGateway {
+        _callModule(
+            MODULE_GOVERNANCE,
+            abi.encodeWithSelector(IBeamioGovernanceModuleV1.resetAdminLimit.selector, adminAddr)
+        );
+    }
+
+    /// @notice Admin 离线签字后经 gateway 的 executeForAdmin 执行。仅 adminParent[adminAddr] 可重置 subordinate，admin 自身无自重置权限。
+    function resetAdminLimitByAdmin(address adminAddr, address authorizer) external onlyAuthorizedGateway {
+        _callModule(
+            MODULE_GOVERNANCE,
+            abi.encodeWithSelector(IBeamioGovernanceModuleV1.resetAdminLimitByAdmin.selector, adminAddr, authorizer)
         );
     }
 

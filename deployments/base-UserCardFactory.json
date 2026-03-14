@@ -9,20 +9,19 @@
       "transactionHash": "0xaa67df8a6f44278a2934571ebf41152ff08400f687f55e9d814ef54bad0d0570"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x2F45f38f2B6EF97b606ec2557E237529e8db9281",
+      "address": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "redeemModule": "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
       "deployer": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
       "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
-      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
-      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0x2376ba0a4d778a9330226e3edd061caca2ed633102e34993d56a42eaca8e5a90",
+      "governanceModule": "0x5c56536e833d0bfCC5BF575B3566edbE61987eAD",
       "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
-      "governanceModule": "0x3f38A0df1c9339e801487f244b885aEe0041E7eF",
       "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
-      "adminStatsQueryModule": "0x737B9a91a9afD4779057dddF157237aD1818db89"
+      "adminStatsQueryModule": "0x737B9a91a9afD4779057dddF157237aD1818db89",
+      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
+      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
     }
   }
 }

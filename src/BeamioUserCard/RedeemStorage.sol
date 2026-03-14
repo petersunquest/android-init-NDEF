@@ -56,6 +56,7 @@ library RedeemStorage {
         string metadata;
         uint64 validAfter;
         uint64 validBefore;
+        uint256 mintLimit;  // adminAirdropLimit (points6) when redeemer becomes admin; 0 = no limit
     }
 
     struct Layout {

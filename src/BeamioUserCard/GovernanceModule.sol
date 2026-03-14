@@ -219,14 +219,44 @@ contract BeamioUserCardGovernanceModuleV1 {
         _enforceAndRecordAdminAirdropLimit(admin, points6);
     }
 
+    /// @notice Parent 清零 subordinate 的 airdrop 相关计数（adminAirdropUsed、adminMintCounter、adminBurnCounter、adminTransferCounter、adminRedeemMintCounter、adminUSDCMintCounter）。
     function clearAdminStatsAndAirdropUsageForSubordinate(address subordinate, address authorizer) external onlyGateway {
         if (subordinate == address(0)) revert BM_ZeroAddress();
         GovernanceStorage.Layout storage g = GovernanceStorage.layout();
         if (g.adminParent[subordinate] != authorizer) revert UC_NotAdmin();
         if (g.adminParent[authorizer] != address(0)) revert UC_AdminDepthExceeded(authorizer);
 
-        _clearAdminAirdropUsageForSubtree(subordinate);
+        _clearAdminStatsAndAirdropUsageImpl(subordinate);
+    }
 
+    /// @notice Owner 离线签字后经 gateway 的 executeForOwner 执行。仅清零 adminAddr 的 topup 相关计数（adminRedeemMintCounter、adminUSDCMintCounter），恢复 mintLimitPoints6 预定的 topup 额度。
+    function resetAdminLimit(address adminAddr) external onlyGateway {
+        if (adminAddr == address(0)) revert BM_ZeroAddress();
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (!g.isAdmin[adminAddr]) revert UC_NotAdmin();
+        _resetAdminLimitImpl(adminAddr);
+    }
+
+    /// @notice Admin 离线签字后经 gateway 的 executeForAdmin 执行。仅 adminParent[adminAddr] 可重置 subordinate 的 topup 额度。
+    function resetAdminLimitByAdmin(address adminAddr, address authorizer) external onlyGateway {
+        if (adminAddr == address(0)) revert BM_ZeroAddress();
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (!g.isAdmin[adminAddr]) revert UC_NotAdmin();
+        if (g.adminParent[adminAddr] != authorizer) revert UC_NotAdmin();
+        if (g.adminParent[authorizer] != address(0)) revert UC_AdminDepthExceeded(authorizer);
+        _resetAdminLimitImpl(adminAddr);
+    }
+
+    /// @notice 仅清零 topup 相关：adminRedeemMintCounter、adminUSDCMintCounter
+    function _resetAdminLimitImpl(address adminAddr) internal {
+        AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
+        s.adminRedeemMintCounter[adminAddr] = 0;
+        s.adminUSDCMintCounter[adminAddr] = 0;
+    }
+
+    /// @notice 清零 airdrop 及其他统计：adminAirdropUsed、adminMintCounter、adminBurnCounter、adminTransferCounter、adminRedeemMintCounter、adminUSDCMintCounter
+    function _clearAdminStatsAndAirdropUsageImpl(address subordinate) internal {
+        _clearAdminAirdropUsageForSubtree(subordinate);
         AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
         s.adminMintCounter[subordinate] = 0;
         s.adminBurnCounter[subordinate] = 0;
