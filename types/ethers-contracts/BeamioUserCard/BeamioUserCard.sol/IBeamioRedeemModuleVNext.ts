@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioRedeemModuleVNextInterface extends Interface {
-    getFunction(nameOrSignature: "cancelRedeem" | "consumeRedeem" | "consumeRedeemAdmin" | "consumeRedeemBatch" | "consumeRedeemPool" | "createRedeem" | "createRedeemAdmin" | "createRedeemBatch" | "createRedeemBatchWithCreator" | "createRedeemBatchWithCreatorAndRecommender" | "createRedeemPool" | "createRedeemPoolWithCreator" | "createRedeemPoolWithCreatorAndRecommender" | "createRedeemWithCreator" | "createRedeemWithCreatorAndRecommender" | "getRedeemCreator" | "getRedeemRecommender" | "terminateRedeemPool"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelRedeem" | "cancelRedeemAdmin" | "consumeRedeem" | "consumeRedeemAdmin" | "consumeRedeemBatch" | "consumeRedeemPool" | "createRedeem" | "createRedeemAdmin" | "createRedeemBatch" | "createRedeemBatchWithCreator" | "createRedeemBatchWithCreatorAndRecommender" | "createRedeemPool" | "createRedeemPoolWithCreator" | "createRedeemPoolWithCreatorAndRecommender" | "createRedeemWithCreator" | "createRedeemWithCreatorAndRecommender" | "getRedeemAdminList" | "getRedeemAdminStatus" | "getRedeemCreator" | "getRedeemRecommender" | "terminateRedeemPool"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
+encodeFunctionData(functionFragment: 'cancelRedeemAdmin', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'consumeRedeem', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'consumeRedeemAdmin', values: [string]): string;
 encodeFunctionData(functionFragment: 'consumeRedeemBatch', values: [string[], AddressLike]): string;
@@ -25,11 +26,14 @@ encodeFunctionData(functionFragment: 'createRedeemPoolWithCreator', values: [Byt
 encodeFunctionData(functionFragment: 'createRedeemPoolWithCreatorAndRecommender', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish[][], BigNumberish[][], BigNumberish[], AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createRedeemWithCreator', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'createRedeemWithCreatorAndRecommender', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[], AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'getRedeemAdminList', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getRedeemAdminStatus', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getRedeemCreator', values: [string]): string;
 encodeFunctionData(functionFragment: 'getRedeemRecommender', values: [string]): string;
 encodeFunctionData(functionFragment: 'terminateRedeemPool', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeemBatch', data: BytesLike): Result;
@@ -44,6 +48,8 @@ decodeFunctionResult(functionFragment: 'createRedeemPoolWithCreator', data: Byte
 decodeFunctionResult(functionFragment: 'createRedeemPoolWithCreatorAndRecommender', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeemWithCreator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeemWithCreatorAndRecommender', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getRedeemAdminList', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getRedeemAdminStatus', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeemCreator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeemRecommender', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): Result;
@@ -87,6 +93,14 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
     
     cancelRedeem: TypedContractMethod<
       [code: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    cancelRedeemAdmin: TypedContractMethod<
+      [hash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -205,6 +219,22 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
     
 
     
+    getRedeemAdminList: TypedContractMethod<
+      [],
+      [string[]],
+      'view'
+    >
+    
+
+    
+    getRedeemAdminStatus: TypedContractMethod<
+      [hash: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     getRedeemCreator: TypedContractMethod<
       [code: string, ],
       [string],
@@ -233,6 +263,11 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
 
     getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
       [code: string, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'cancelRedeemAdmin'): TypedContractMethod<
+      [hash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -305,6 +340,16 @@ getFunction(nameOrSignature: 'createRedeemWithCreatorAndRecommender'): TypedCont
       [hash: BytesLike, points6: BigNumberish, attr: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, tokenIds: BigNumberish[], amounts: BigNumberish[], creator: AddressLike, recommender: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'getRedeemAdminList'): TypedContractMethod<
+      [],
+      [string[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getRedeemAdminStatus'): TypedContractMethod<
+      [hash: BytesLike, ],
+      [boolean],
+      'view'
     >;
 getFunction(nameOrSignature: 'getRedeemCreator'): TypedContractMethod<
       [code: string, ],

@@ -15,7 +15,7 @@ const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresse
 
 async function main() {
   const addrs = JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8"));
-  const diamondAddr = addrs.BeamioIndexerDiamond || "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+  const diamondAddr = addrs.BeamioIndexerDiamond || "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
 
   const { ethers } = await networkModule.connect();
 

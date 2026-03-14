@@ -4,7 +4,7 @@
 
 - Network: `base`
 - Chain ID: `8453`
-- RPC: `https://base-rpc.conet.network`
+- RPC: `https://1rpc.io/base`
 - Explorer: [https://basescan.org/](https://basescan.org/)
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 

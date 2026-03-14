@@ -18,13 +18,18 @@ import { fileURLToPath } from "url"
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DIAMOND = "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612"
+const DEPLOY_PATH = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json")
 /** Blockscout legacy API - 避免 v2 的 413 限制 */
 const BLOCKSCOUT_API = "https://mainnet.conet.network/api"
-const INITIAL_OWNER = "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
-const DIAMOND_CUT_FACET = "0xf079eA83B3dDBaB64473df13Fa49021BA85E80C4"
 
 async function main() {
+	const deploy = JSON.parse(fs.readFileSync(DEPLOY_PATH, "utf-8"))
+	const diamond = deploy.diamond
+	const initialOwner = deploy.deployer
+	const diamondCutFacet = deploy.facets?.DiamondCutFacet
+	if (!diamond || !initialOwner || !diamondCutFacet) {
+		throw new Error("deployment 文件缺少 diamond / deployer / DiamondCutFacet")
+	}
 	const flatPath = path.join(__dirname, "BeamioIndexerDiamond_flat.sol")
 	let sourceCode = fs.readFileSync(flatPath, "utf-8")
 	// 移除 hardhat flatten 可能混入的 dotenv 等非源码行
@@ -34,13 +39,13 @@ async function main() {
 	}
 
 	const coder = ethers.AbiCoder.defaultAbiCoder()
-	const encoded = coder.encode(["address", "address"], [INITIAL_OWNER, DIAMOND_CUT_FACET])
+	const encoded = coder.encode(["address", "address"], [initialOwner, diamondCutFacet])
 	const constructorArgsHex = encoded.startsWith("0x") ? encoded.slice(2) : encoded
 
 	// 优先尝试 Blockscout legacy API (module=contract&action=verify)
 	// 参考: https://docs.blockscout.com/devs/apis/rpc/contract
 	const legacyBody: Record<string, unknown> = {
-		addressHash: DIAMOND,
+		addressHash: diamond,
 		name: "BeamioIndexerDiamond",
 		compilerVersion: "v0.8.33+commit.64118f21",
 		optimization: "1",

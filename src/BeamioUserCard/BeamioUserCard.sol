@@ -41,6 +41,7 @@ interface IBeamioUserCardFactoryPaymasterV07 {
 interface IBeamioRedeemModuleVNext {
     function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore) external;
     function consumeRedeemAdmin(string calldata code) external returns (string memory metadata);
+    function cancelRedeemAdmin(bytes32 hash) external;
 
     function createRedeem(
         bytes32 hash,
@@ -95,6 +96,8 @@ interface IBeamioRedeemModuleVNext {
     function createRedeemPoolWithCreatorAndRecommender(bytes32 poolHash, uint64 validAfter, uint64 validBefore, uint256[][] calldata tokenIdsList, uint256[][] calldata amountsList, uint32[] calldata counts, address creator, address recommender) external;
     function getRedeemCreator(string calldata code) external view returns (address creator);
     function getRedeemRecommender(string calldata code) external view returns (address recommender);
+    function getRedeemAdminStatus(bytes32 hash) external view returns (bool active);
+    function getRedeemAdminList() external view returns (bytes32[] memory);
 }
 
 interface IBeamioFaucetModuleV1 {
@@ -155,6 +158,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     bytes4 private constant GET_GLOBAL_STATS_FULL_SELECTOR = bytes4(keccak256("getGlobalStatsFull(uint8,uint256,uint256)"));
     bytes4 private constant GET_ADMIN_STATS_FULL_SELECTOR = bytes4(keccak256("getAdminStatsFull(address,uint8,uint256,uint256)"));
     bytes4 private constant GET_ADMIN_PERIOD_REPORTS_SELECTOR = bytes4(keccak256("getAdminPeriodReports(address,uint8,uint256,uint256)"));
+    bytes4 private constant GET_ADMIN_LIST_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminListWithMetadata()"));
+    bytes4 private constant GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminSubordinatesWithMetadata(address)"));
     bytes4 private constant CREATE_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"));
     bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
     bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
@@ -171,6 +176,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     bytes4 private constant GET_REDEEM_CREATOR_SELECTOR = bytes4(keccak256("getRedeemCreator(string)"));
     bytes4 private constant GET_REDEEM_RECOMMENDER_SELECTOR = bytes4(keccak256("getRedeemRecommender(string)"));
     bytes4 private constant GET_REDEEM_ADMIN_STATUS_SELECTOR = bytes4(keccak256("getRedeemAdminStatus(bytes32)"));
+    bytes4 private constant GET_REDEEM_ADMIN_LIST_SELECTOR = bytes4(keccak256("getRedeemAdminList()"));
+    bytes4 private constant CANCEL_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("cancelRedeemAdmin(bytes32)"));
     bytes4 private constant CANCEL_REDEEM_SELECTOR = bytes4(keccak256("cancelRedeem(string)"));
     bytes4 private constant CREATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])"));
     bytes4 private constant CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
@@ -689,7 +696,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             sel == GET_ADMIN_HOURLY_DATA_SELECTOR ||
             sel == GET_GLOBAL_STATS_FULL_SELECTOR ||
             sel == GET_ADMIN_STATS_FULL_SELECTOR ||
-            sel == GET_ADMIN_PERIOD_REPORTS_SELECTOR;
+            sel == GET_ADMIN_PERIOD_REPORTS_SELECTOR ||
+            sel == GET_ADMIN_LIST_WITH_METADATA_SELECTOR ||
+            sel == GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR;
     }
 
     function _isRedeemModuleSelector(bytes4 sel) internal pure returns (bool) {
@@ -710,6 +719,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             sel == GET_REDEEM_CREATOR_SELECTOR ||
             sel == GET_REDEEM_RECOMMENDER_SELECTOR ||
             sel == GET_REDEEM_ADMIN_STATUS_SELECTOR ||
+            sel == GET_REDEEM_ADMIN_LIST_SELECTOR ||
+            sel == CANCEL_REDEEM_ADMIN_SELECTOR ||
             sel == CANCEL_REDEEM_SELECTOR ||
             sel == CREATE_REDEEM_POOL_SELECTOR ||
             sel == CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR ||

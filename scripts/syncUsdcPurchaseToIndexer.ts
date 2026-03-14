@@ -31,7 +31,7 @@ async function main() {
 
   const addrs = JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8"));
   const buintAddr = addrs.BUint;
-  const diamondAddr = addrs.BeamioIndexerDiamond || "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+  const diamondAddr = addrs.BeamioIndexerDiamond || "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
 
   const master = JSON.parse(fs.readFileSync(MASTER_PATH, "utf-8"));
   const pk = master?.settle_contractAdmin?.[0];

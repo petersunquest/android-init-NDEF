@@ -147,7 +147,7 @@ struct KindBurnDetail {
 
 contract BUnitAirdrop is Ownable, EIP712 {
     /// @dev 当前 CoNET mainnet 上部署的 BeamioIndexerDiamond 地址（硬编码默认值）
-    address private constant DEFAULT_BEAMIO_INDEXER = 0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612;
+    address private constant DEFAULT_BEAMIO_INDEXER = 0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5;
     /// @dev CoNET 主网 chainId（claim 记账用）
     uint256 private constant CONET_CHAIN_ID = 224400;
     /// @dev claim 记账 txCategory

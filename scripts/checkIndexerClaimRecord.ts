@@ -6,7 +6,7 @@
 import { network as networkModule } from "hardhat";
 import { ethers } from "ethers";
 
-const INDEXER = "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+const INDEXER = "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
 const TX_BUINT_CLAIM = ethers.keccak256(ethers.toUtf8Bytes("buintClaim"));
 const TX_BUINT_USDC = ethers.keccak256(ethers.toUtf8Bytes("buintUSDC"));
 const TX_BUINT_BURN = ethers.keccak256(ethers.toUtf8Bytes("buintBurn"));

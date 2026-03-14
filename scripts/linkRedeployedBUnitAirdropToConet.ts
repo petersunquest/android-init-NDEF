@@ -70,7 +70,7 @@ async function main() {
   // 4. BeamioIndexerDiamond.setAdmin
   const diamondAddr = fs.existsSync(INDEXER_PATH)
     ? JSON.parse(fs.readFileSync(INDEXER_PATH, "utf-8")).diamond
-    : "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+    : "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
   const diamond = await ethers.getContractAt(
     ["function setAdmin(address admin, bool enabled) external"],
     diamondAddr,

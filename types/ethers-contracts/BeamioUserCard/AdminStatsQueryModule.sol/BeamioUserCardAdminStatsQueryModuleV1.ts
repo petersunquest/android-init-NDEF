@@ -28,18 +28,22 @@ export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
     }
 
   export interface BeamioUserCardAdminStatsQueryModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "getAdminHourlyData" | "getAdminPeriodReports" | "getAdminStatsFull" | "getGlobalStatsFull"): FunctionFragment;
+    getFunction(nameOrSignature: "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'getAdminHourlyData', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminListWithMetadata', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getAdminPeriodReports', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminStatsFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminSubordinatesWithMetadata', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getGlobalStatsFull', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'getAdminHourlyData', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminListWithMetadata', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminPeriodReports', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminStatsFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminSubordinatesWithMetadata', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): Result;
   }
 
@@ -87,6 +91,14 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
     
 
     
+    getAdminListWithMetadata: TypedContractMethod<
+      [],
+      [[string[], string[], string[]] & {admins: string[], metadatas: string[], parents: string[] }],
+      'view'
+    >
+    
+
+    
     getAdminPeriodReports: TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminPeriodReportsViewStructOutput],
@@ -98,6 +110,14 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
     getAdminStatsFull: TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, anchorTs: BigNumberish, cumulativeStartTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminStatsFullViewStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminSubordinatesWithMetadata: TypedContractMethod<
+      [admin: AddressLike, ],
+      [[string[], string[], string[]] & {subordinates: string[], metadatas: string[], parents: string[] }],
       'view'
     >
     
@@ -118,6 +138,11 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
       [BeamioUserCardAdminStatsQueryModuleV1.AdminHourlyDataViewStructOutput],
       'view'
     >;
+getFunction(nameOrSignature: 'getAdminListWithMetadata'): TypedContractMethod<
+      [],
+      [[string[], string[], string[]] & {admins: string[], metadatas: string[], parents: string[] }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getAdminPeriodReports'): TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminPeriodReportsViewStructOutput],
@@ -126,6 +151,11 @@ getFunction(nameOrSignature: 'getAdminPeriodReports'): TypedContractMethod<
 getFunction(nameOrSignature: 'getAdminStatsFull'): TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, anchorTs: BigNumberish, cumulativeStartTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminStatsFullViewStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminSubordinatesWithMetadata'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [[string[], string[], string[]] & {subordinates: string[], metadatas: string[], parents: string[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'getGlobalStatsFull'): TypedContractMethod<

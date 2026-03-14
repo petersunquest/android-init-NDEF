@@ -15,7 +15,7 @@ import OwnershipABI from "./ABI/OwnershipABI.json";
 import TaskABI from "./ABI/TaskABI.json";
 import StatsABI from "./ABI/StatsABI.json";
 import CatalogABI from "./ABI/CatalogABI.json";
-import ActionABI from "./ABI/ActionABI.json";
+import { ActionFacet__factory } from '../../types/ethers-contracts/factories/CoNETIndexTaskdiamond/facets/ActionFacet__factory';
 import AdminFacetABI from "./ABI/adminFacet_ABI.json";
 import beamioConetABI from './ABI/beamio-conet.abi.json'
 import BeamioUserCardGatewayABI from './ABI/BeamioUserCardGatewayABI.json'
@@ -49,7 +49,7 @@ const beamioConetAddress = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 /** UserCard gateway = AA Factory（与 config/base-addresses AA_FACTORY 一致） */
 const BeamioUserCardGatewayAddress = BeamioAAAccountFactoryPaymaster
 
-const BeamioTaskIndexerAddress = '0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612'
+const BeamioTaskIndexerAddress = '0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5'
 const DIAMOND = BeamioTaskIndexerAddress
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
 const providerBaseBackup = new ethers.JsonRpcProvider('https://1rpc.io/base')
@@ -95,7 +95,7 @@ masterSetup.settle_contractAdmin.forEach(n => {
 	const BeamioTaskDiamondTask = new ethers.Contract(BeamioTaskIndexerAddress, TaskABI, walletConet)
 	const BeamioTaskDiamondStats = new ethers.Contract(BeamioTaskIndexerAddress, StatsABI, walletConet)
 	const BeamioTaskDiamondCatalog = new ethers.Contract(BeamioTaskIndexerAddress, CatalogABI, walletConet)
-	const BeamioTaskDiamondAction = new ethers.Contract(BeamioTaskIndexerAddress, ActionABI, walletConet)
+	const BeamioTaskDiamondAction = ActionFacet__factory.connect(BeamioTaskIndexerAddress, walletConet)
 	const BeamioTaskDiamondAdmin = new ethers.Contract(BeamioTaskIndexerAddress, AdminFacetABI, walletConet)
 	const beamioConet = new ethers.Contract(beamioConetAddress, beamioConetABI, walletConet)
 	const conetSC = new ethers.Contract(beamioConetAddress, beamioConetABI, walletConet)
@@ -1112,7 +1112,7 @@ export const purchasingCardProcess = async () => {
 			return
 		}
 
-		const { cardAddress, userSignature, nonce, usdcAmount, from, validAfter, validBefore } = obj
+		const { cardAddress, userSignature, nonce, usdcAmount, from, validAfter, validBefore, recommender } = obj
 
 		// 1. 获取受益人 (Owner) - 仅作为签名参数，不需要 Owner 签名
 		const card = new ethers.Contract(cardAddress, BeamioUserCardABI, SC.walletBase); // 使用 adminn 账户进行提交
@@ -1151,9 +1151,7 @@ export const purchasingCardProcess = async () => {
 
 
 
-		const to = owner
 		const currency = getICurrency(_currency)
-		const ACTION_TOKEN_MINT = 1; // ActionFacet: 1 mint
 		const payMe = cardNote(cardAddress, currencyAmount.usdc, currency, tx.hash, currencyAmount.points, isMember)
 
 		logger(Colors.green(`✅ purchasingCardProcess payMe cardAddress = ${cardAddress} payMe = ${inspect(payMe, false, 3, true)}`));
@@ -1164,31 +1162,6 @@ export const purchasingCardProcess = async () => {
 			return
 		}
 
-		
-
-		const input = {
-			actionType: ACTION_TOKEN_MINT,
-			card: cardAddress,
-			from: ethers.ZeroAddress,
-			to: from, // ✅ points 归属 from
-			amount: currencyAmount.points6,
-			ts: 0n,
-
-			title: `${payMe.title}`,
-			note: JSON.stringify(payMe),
-			tax: 0n,
-			tip: 0n,
-			beamioFee1: 0n,
-			beamioFee2: 0n,
-			cardServiceFee: 0n,
-	
-			afterTatchNoteByFrom: "",
-			afterTatchNoteByTo: "",
-			afterTatchNoteByCardOwner: "",
-		};
-		
-		
-
 		logger(Colors.green(`✅ purchasingCardProcess note: ${payMe}`));
 
 		await tx.wait()
@@ -1196,7 +1169,73 @@ export const purchasingCardProcess = async () => {
 		if (obj.res && !obj.res.headersSent) obj.res.status(200).json({ success: true, USDC_tx: tx.hash }).end()
 
 		try {
-			const actionFacet = await SC.BeamioTaskDiamondAction
+			// 购点后查询 activeMembershipId 以确定 tokenId 和 txCategory
+			const [activeIdAfter, ownAfter] = await Promise.all([
+				card.activeMembershipId(accountAddress),
+				card.getOwnership(accountAddress),
+			])
+			const nftsAfter = (Array.isArray(ownAfter) ? ownAfter[1] : (ownAfter as { nfts?: unknown[] })?.nfts) ?? []
+			const tokenId = activeIdAfter > 0n ? activeIdAfter : 0n
+			// txCategory: usdcNewCard | usdcUpgradeNewCard | usdcTopupCard
+			let txCategoryName: string
+			if (!isMember && tokenId > 0n) txCategoryName = 'usdcNewCard'
+			else if (isMember && nftsAfter?.length > 0) {
+				const hadSameToken = nfts?.some((n: { tokenId: bigint }) => n.tokenId === tokenId)
+				txCategoryName = hadSameToken ? 'usdcTopupCard' : 'usdcUpgradeNewCard'
+			} else txCategoryName = 'usdcTopupCard'
+
+			const BASE_CHAIN_ID = 8453n
+			const txId = ethers.keccak256(ethers.toUtf8Bytes(`usdcTopup:${cardAddress}:${from}:${tx.hash}:${Date.now()}`))
+			const txCategory = ethers.keccak256(ethers.toUtf8Bytes(txCategoryName))
+			const displayJson = JSON.stringify(payMe)
+			const operator = (recommender && ethers.isAddress(recommender) && await card.isAdmin(recommender)) ? recommender : owner
+
+			const input = {
+				txId,
+				originalPaymentHash: tx.hash as `0x${string}`,
+				chainId: BASE_CHAIN_ID,
+				txCategory,
+				displayJson,
+				timestamp: BigInt(Math.floor(Date.now() / 1000)),
+				payer: cardAddress,
+				payee: from,
+				finalRequestAmountFiat6: currencyAmount.points6,
+				finalRequestAmountUSDC6: BigInt(usdcAmount),
+				isAAAccount: true,
+				route: [{
+					asset: cardAddress,
+					amountE6: currencyAmount.points6,
+					assetType: 1,
+					source: 1,
+					tokenId,
+					itemCurrencyType: Number(_currency),
+					offsetInRequestCurrencyE6: 0n,
+				}],
+				fees: {
+					gasChainType: 0,
+					gasWei: 0n,
+					gasUSDC6: 0n,
+					serviceUSDC6: 0n,
+					bServiceUSDC6: 0n,
+					bServiceUnits6: 0n,
+					feePayer: ethers.ZeroAddress,
+				},
+				meta: {
+					requestAmountFiat6: currencyAmount.points6,
+					requestAmountUSDC6: BigInt(usdcAmount),
+					currencyFiat: Number(_currency),
+					discountAmountFiat6: pointsBalance,
+					discountRateBps: 0,
+					taxAmountFiat6: 0n,
+					taxRateBps: 0,
+					afterNotePayer: '',
+					afterNotePayee: '',
+				},
+				operator,
+				operatorParentChain: [] as string[],
+			}
+
+			const actionFacet = SC.BeamioTaskDiamondAction
 			const tx2 = await actionFacet.syncTokenAction(input)
 			await tx2.wait()
 			logger(Colors.green(`✅ purchasingCardProcess success! Hash: ${tx.hash}`), `✅ syncTokenAction Hash: ${tx2.hash}`)

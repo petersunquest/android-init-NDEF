@@ -10,13 +10,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BUILD_INFO = "solc-0_8_33-a5304f0ba6b2e3b473484c91ac6aa6f3d69c9c92.json";
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";
 const BASE_URL = "https://mainnet.conet.network";
 
-const DIAMOND = "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
-const DIAMOND_INITIAL_OWNER = "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1";
-const DIAMOND_CUT_FACET = "0xf079eA83B3dDBaB64473df13Fa49021BA85E80C4";
 const DEPLOY_PATH = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
 
 function getTargetsFromDeployment(): { name: string; address: string; constructorArgs?: string }[] {
@@ -25,10 +21,10 @@ function getTargetsFromDeployment(): { name: string; address: string; constructo
   }
   const deploy = JSON.parse(fs.readFileSync(DEPLOY_PATH, "utf-8"));
   const facets = deploy.facets || {};
-  const diamond = deploy.diamond || DIAMOND;
+  const diamond = deploy.diamond;
   return [
     { name: "BeamioIndexerDiamond", address: diamond },
-    { name: "DiamondCutFacet", address: facets.DiamondCutFacet || DIAMOND_CUT_FACET },
+    { name: "DiamondCutFacet", address: facets.DiamondCutFacet },
     { name: "DiamondLoupeFacet", address: facets.DiamondLoupeFacet },
     { name: "OwnershipFacet", address: facets.OwnershipFacet },
     { name: "TaskFacet", address: facets.TaskFacet },
@@ -42,11 +38,17 @@ function getTargetsFromDeployment(): { name: string; address: string; constructo
 }
 
 async function encodeDiamondConstructor(): Promise<string> {
+  const deploy = JSON.parse(fs.readFileSync(DEPLOY_PATH, "utf-8"));
+  const initialOwner = deploy.deployer;
+  const diamondCutFacet = deploy.facets?.DiamondCutFacet;
+  if (!initialOwner || !diamondCutFacet) {
+    throw new Error("deployment 文件缺少 deployer 或 DiamondCutFacet");
+  }
   const { AbiCoder } = await import("ethers");
   const coder = AbiCoder.defaultAbiCoder();
   const encoded = coder.encode(
     ["address", "address"],
-    [DIAMOND_INITIAL_OWNER, DIAMOND_CUT_FACET]
+    [initialOwner, diamondCutFacet]
   );
   return encoded.startsWith("0x") ? encoded.slice(2) : encoded;
 }
@@ -91,10 +93,10 @@ async function verifyOne(
 }
 
 async function main() {
-  const buildInfoPath = path.join(__dirname, "..", "artifacts", "build-info", BUILD_INFO);
-  if (!fs.existsSync(buildInfoPath)) {
-    throw new Error("build-info 不存在，请先运行: npx hardhat compile");
-  }
+  const buildInfoDir = path.join(__dirname, "..", "artifacts", "build-info");
+  const buildInfoFile = fs.readdirSync(buildInfoDir).find((name) => name.endsWith(".json") && !name.endsWith(".output.json"));
+  if (!buildInfoFile) throw new Error("build-info 不存在，请先运行: npx hardhat compile");
+  const buildInfoPath = path.join(buildInfoDir, buildInfoFile);
 
   const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
   const fullInput = buildInfo.input as {

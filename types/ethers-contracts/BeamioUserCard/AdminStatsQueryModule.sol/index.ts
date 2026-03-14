@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioUserCardAdminStatsQueryModuleV1 } from './BeamioUserCardAdminStatsQueryModuleV1.js';
+export type { IUserCardCtx } from './IUserCardCtx.js';

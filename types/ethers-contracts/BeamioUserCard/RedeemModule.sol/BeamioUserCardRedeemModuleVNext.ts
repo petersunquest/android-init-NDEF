@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardRedeemModuleVNextInterface extends Interface {
-    getFunction(nameOrSignature: "cancelRedeem" | "consumeRedeem" | "consumeRedeemAdmin" | "consumeRedeemBatch" | "consumeRedeemPool" | "createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])" | "createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)" | "createRedeemAdmin" | "createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])" | "createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)" | "createRedeemBatchWithCreator" | "createRedeemBatchWithCreatorAndRecommender" | "createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])" | "createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)" | "createRedeemPoolWithCreator" | "createRedeemPoolWithCreatorAndRecommender" | "createRedeemWithCreator" | "createRedeemWithCreatorAndRecommender" | "getRedeemAdminStatus" | "getRedeemCreator" | "getRedeemRecommender" | "getRedeemStatus" | "getRedeemStatusBatch(string[])" | "getRedeemStatusBatch(bytes32[])" | "getRedeemStatusEx" | "terminateRedeemPool"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelRedeem" | "cancelRedeemAdmin" | "consumeRedeem" | "consumeRedeemAdmin" | "consumeRedeemBatch" | "consumeRedeemPool" | "createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])" | "createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)" | "createRedeemAdmin" | "createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])" | "createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)" | "createRedeemBatchWithCreator" | "createRedeemBatchWithCreatorAndRecommender" | "createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])" | "createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)" | "createRedeemPoolWithCreator" | "createRedeemPoolWithCreatorAndRecommender" | "createRedeemWithCreator" | "createRedeemWithCreatorAndRecommender" | "getRedeemAdminList" | "getRedeemAdminStatus" | "getRedeemCreator" | "getRedeemRecommender" | "getRedeemStatus" | "getRedeemStatusBatch(string[])" | "getRedeemStatusBatch(bytes32[])" | "getRedeemStatusEx" | "terminateRedeemPool"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "RedeemAdminConsumed" | "RedeemAdminCreated" | "RedeemCancelled" | "RedeemConsumed" | "RedeemCreated" | "RedeemPoolConsumed" | "RedeemPoolCreated" | "RedeemPoolTerminated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "RedeemAdminCancelled" | "RedeemAdminConsumed" | "RedeemAdminCreated" | "RedeemCancelled" | "RedeemConsumed" | "RedeemCreated" | "RedeemPoolConsumed" | "RedeemPoolCreated" | "RedeemPoolTerminated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
+encodeFunctionData(functionFragment: 'cancelRedeemAdmin', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'consumeRedeem', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'consumeRedeemAdmin', values: [string]): string;
 encodeFunctionData(functionFragment: 'consumeRedeemBatch', values: [string[], AddressLike]): string;
@@ -28,6 +29,7 @@ encodeFunctionData(functionFragment: 'createRedeemPoolWithCreator', values: [Byt
 encodeFunctionData(functionFragment: 'createRedeemPoolWithCreatorAndRecommender', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish[][], BigNumberish[][], BigNumberish[], AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createRedeemWithCreator', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'createRedeemWithCreatorAndRecommender', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[], AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'getRedeemAdminList', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getRedeemAdminStatus', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getRedeemCreator', values: [string]): string;
 encodeFunctionData(functionFragment: 'getRedeemRecommender', values: [string]): string;
@@ -38,6 +40,7 @@ encodeFunctionData(functionFragment: 'getRedeemStatusEx', values: [BytesLike, Ad
 encodeFunctionData(functionFragment: 'terminateRedeemPool', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeRedeemBatch', data: BytesLike): Result;
@@ -55,6 +58,7 @@ decodeFunctionResult(functionFragment: 'createRedeemPoolWithCreator', data: Byte
 decodeFunctionResult(functionFragment: 'createRedeemPoolWithCreatorAndRecommender', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeemWithCreator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeemWithCreatorAndRecommender', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getRedeemAdminList', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeemAdminStatus', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeemCreator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeemRecommender', data: BytesLike): Result;
@@ -66,6 +70,18 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
   }
 
   
+    export namespace RedeemAdminCancelledEvent {
+      export type InputTuple = [hash: BytesLike];
+      export type OutputTuple = [hash: string];
+      export interface OutputObject {hash: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace RedeemAdminConsumedEvent {
       export type InputTuple = [hash: BytesLike, to: AddressLike];
       export type OutputTuple = [hash: string, to: string];
@@ -198,6 +214,14 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
     
     cancelRedeem: TypedContractMethod<
       [code: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    cancelRedeemAdmin: TypedContractMethod<
+      [hash: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -340,6 +364,14 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
     
 
     
+    getRedeemAdminList: TypedContractMethod<
+      [],
+      [string[]],
+      'view'
+    >
+    
+
+    
     getRedeemAdminStatus: TypedContractMethod<
       [hash: BytesLike, ],
       [boolean],
@@ -408,6 +440,11 @@ decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): 
 
     getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
       [code: string, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'cancelRedeemAdmin'): TypedContractMethod<
+      [hash: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -496,6 +533,11 @@ getFunction(nameOrSignature: 'createRedeemWithCreatorAndRecommender'): TypedCont
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'getRedeemAdminList'): TypedContractMethod<
+      [],
+      [string[]],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getRedeemAdminStatus'): TypedContractMethod<
       [hash: BytesLike, ],
       [boolean],
@@ -537,7 +579,8 @@ getFunction(nameOrSignature: 'terminateRedeemPool'): TypedContractMethod<
       'nonpayable'
     >;
 
-    getEvent(key: 'RedeemAdminConsumed'): TypedContractEvent<RedeemAdminConsumedEvent.InputTuple, RedeemAdminConsumedEvent.OutputTuple, RedeemAdminConsumedEvent.OutputObject>;
+    getEvent(key: 'RedeemAdminCancelled'): TypedContractEvent<RedeemAdminCancelledEvent.InputTuple, RedeemAdminCancelledEvent.OutputTuple, RedeemAdminCancelledEvent.OutputObject>;
+getEvent(key: 'RedeemAdminConsumed'): TypedContractEvent<RedeemAdminConsumedEvent.InputTuple, RedeemAdminConsumedEvent.OutputTuple, RedeemAdminConsumedEvent.OutputObject>;
 getEvent(key: 'RedeemAdminCreated'): TypedContractEvent<RedeemAdminCreatedEvent.InputTuple, RedeemAdminCreatedEvent.OutputTuple, RedeemAdminCreatedEvent.OutputObject>;
 getEvent(key: 'RedeemCancelled'): TypedContractEvent<RedeemCancelledEvent.InputTuple, RedeemCancelledEvent.OutputTuple, RedeemCancelledEvent.OutputObject>;
 getEvent(key: 'RedeemConsumed'): TypedContractEvent<RedeemConsumedEvent.InputTuple, RedeemConsumedEvent.OutputTuple, RedeemConsumedEvent.OutputObject>;
@@ -548,6 +591,10 @@ getEvent(key: 'RedeemPoolTerminated'): TypedContractEvent<RedeemPoolTerminatedEv
 
     filters: {
       
+      'RedeemAdminCancelled(bytes32)': TypedContractEvent<RedeemAdminCancelledEvent.InputTuple, RedeemAdminCancelledEvent.OutputTuple, RedeemAdminCancelledEvent.OutputObject>;
+      RedeemAdminCancelled: TypedContractEvent<RedeemAdminCancelledEvent.InputTuple, RedeemAdminCancelledEvent.OutputTuple, RedeemAdminCancelledEvent.OutputObject>;
+    
+
       'RedeemAdminConsumed(bytes32,address)': TypedContractEvent<RedeemAdminConsumedEvent.InputTuple, RedeemAdminConsumedEvent.OutputTuple, RedeemAdminConsumedEvent.OutputObject>;
       RedeemAdminConsumed: TypedContractEvent<RedeemAdminConsumedEvent.InputTuple, RedeemAdminConsumedEvent.OutputTuple, RedeemAdminConsumedEvent.OutputObject>;
     

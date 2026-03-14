@@ -9,7 +9,7 @@ alwaysApply: true
 
 ## 端点
 
-- **HTTP**: `https://base-rpc.conet.network`
+- **HTTP**: `https://1rpc.io/base`
 - **WebSocket**: `wss://base-rpc.conet.network/ws`
 
 ## 适用范围
@@ -21,10 +21,10 @@ alwaysApply: true
 
 ## 配置
 
-- `.env`：`BASE_RPC_URL=https://base-rpc.conet.network`
-- `~/.master.json`：`base_endpoint: "https://base-rpc.conet.network"`
-- CoNET-SI：优先 `BASE_RPC=wss://base-rpc.conet.network/ws`，否则 `BASE_RPC_HTTP=https://base-rpc.conet.network`
+- `.env`：`BASE_RPC_URL=https://1rpc.io/base`
+- `~/.master.json`：`base_endpoint: "https://1rpc.io/base"`
+- CoNET-SI：优先 `BASE_RPC=wss://base-rpc.conet.network/ws`，否则 `BASE_RPC_HTTP=https://1rpc.io/base`
 
 ## 新增代码
 
-新增 Base 链 RPC 调用时，默认使用 `https://base-rpc.conet.network`，勿使用 1rpc.io、mainnet.base.org、publicnode 等作为默认。
+新增 Base 链 RPC 调用时，默认使用 `https://1rpc.io/base`。

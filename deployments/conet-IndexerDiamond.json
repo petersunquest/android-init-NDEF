@@ -2,19 +2,18 @@
   "network": "conet",
   "chainId": "224400",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-02-19T04:02:44.145Z",
-  "diamond": "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612",
+  "timestamp": "2026-03-14T04:59:25.786Z",
+  "diamond": "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5",
   "facets": {
-    "DiamondCutFacet": "0xf079eA83B3dDBaB64473df13Fa49021BA85E80C4",
-    "DiamondLoupeFacet": "0x980340A8Eb23117b624b1f037b8a489F54C7b6a5",
-    "OwnershipFacet": "0x3EBf14813932E6206c448a58A6ecFf32DC1981B2",
-    "TaskFacet": "0x2334225a4C70EF86590B454Cd2e8f01fD23F0Da0",
-    "StatsFacet": "0x0D6E32f683998EFc2026dE7E36e124D2A8771272",
-    "CatalogFacet": "0x070BcBd163a3a280Ab6106bA62A079f228139379",
-    "ActionFacet": "0xda9f055d3D56bCb321123520f4A4412Abb998d5c",
-    "FeeStatsFacet": "0x51796E6413Da09179D431b0F16F47480053de7a5",
-    "BeamioUserCardStatsFacet": "0x008b49e4d8B490c508787283b25E3A4A62d826B0",
-    "AdminFacet": "0x729149e5B6c9F835cF8f6B3235Adee8813A17144"
-  },
-  "lastActionFacetMigrationAt": "2026-03-07T05:51:37.981Z"
+    "DiamondCutFacet": "0x47deB3A550efdB2e5F99cEa212992c13Bec0E513",
+    "DiamondLoupeFacet": "0xB0a4F52c2b23Fd8cAb1C0BA28D63C13478b87dD2",
+    "OwnershipFacet": "0xF0cD291EbDAbF9C16556Dc86932Eba09b984faDA",
+    "TaskFacet": "0xE7bDCC9b1E981AA79B0887DD302F0dF819A5bCF5",
+    "StatsFacet": "0xb3F7D6a24661cFA1DFD78b520e6EF1e4d2127efB",
+    "CatalogFacet": "0xf03a130DBfB3FfceBc17455a0E5B5E33cDEfBA73",
+    "ActionFacet": "0xd45e63c111EAB02eE48501c755f3654f4F997740",
+    "FeeStatsFacet": "0xe2368f48f2C9181Af07249E5a376A20336a0C654",
+    "BeamioUserCardStatsFacet": "0x395a5f374bCB8B6fD619D2634B734B955Ca306fe",
+    "AdminFacet": "0xa393182503BF25F34cCa7924ADCB65e5A3D6e989"
+  }
 }

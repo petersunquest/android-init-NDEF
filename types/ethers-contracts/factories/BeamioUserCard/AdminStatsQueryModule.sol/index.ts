@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioUserCardAdminStatsQueryModuleV1__factory } from './BeamioUserCardAdminStatsQueryModuleV1__factory.js';
+export { IUserCardCtx__factory } from './IUserCardCtx__factory.js';

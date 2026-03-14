@@ -63,6 +63,9 @@ library RedeemStorage {
         mapping(bytes32 => RedeemPool) pools; // pool: hash=keccak256(password)，与 redeems 共用 hash 空间但互斥
         mapping(bytes32 => mapping(address => bool)) poolClaimed;  // poolHash => user => claimed
         mapping(bytes32 => RedeemAdmin) redeemAdmins; // hash=keccak256(secretCode)，与 redeems/pools 独立
+        /// @dev Enumerable: unredeemed redeem-admin hashes (consumed are removed)
+        bytes32[] redeemAdminHashes;
+        mapping(bytes32 => uint256) redeemAdminIndex; // hash => index in redeemAdminHashes (1-based, 0 = not in list)
     }
 
     function layout() internal pure returns (Layout storage l) {

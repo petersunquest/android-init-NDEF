@@ -5,6 +5,11 @@ import "./AdminStatsPeriodLib.sol";
 import "./AdminStatsStorage.sol";
 import "./GovernanceStorage.sol";
 
+interface IUserCardCtx {
+    function owner() external view returns (address);
+    function factoryGateway() external view returns (address);
+}
+
 contract BeamioUserCardAdminStatsQueryModuleV1 {
     struct AdminStatsFullView {
         uint256 cumulativeMint;
@@ -195,6 +200,74 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
             result.totalUpgradeds[i] = r.reports[i].stats.totalUpgraded;
         }
         result.adminMintCounter = r.adminMintCounter;
+    }
+
+    /// @notice 返回现有 admin 一览，含 address、metadata、parent
+    function getAdminListWithMetadata()
+        external
+        view
+        returns (address[] memory admins, string[] memory metadatas, address[] memory parents)
+    {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        uint256 n = l.adminList.length;
+        admins = new address[](n);
+        metadatas = new string[](n);
+        parents = new address[](n);
+        for (uint256 i = 0; i < n; i++) {
+            address a = l.adminList[i];
+            admins[i] = a;
+            metadatas[i] = l.adminMetadata[a];
+            parents[i] = l.adminParent[a];
+        }
+    }
+
+    /// @notice 返回某一 admin 下层的 admin 一览（直接子 admin），含 metadata
+    /// @param admin 父 admin 地址；传 address(0) 可查 owner 直接添加的 admin（adminParent==0 且非 owner）
+    function getAdminSubordinatesWithMetadata(address admin)
+        external
+        view
+        returns (address[] memory subordinates, string[] memory metadatas, address[] memory parents)
+    {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        uint256 n = 0;
+        if (admin == address(0)) {
+            for (uint256 i = 0; i < l.adminList.length; i++) {
+                address a = l.adminList[i];
+                if (l.isAdmin[a] && l.adminParent[a] == address(0) && a != cardOwner) n++;
+            }
+        } else {
+            address[] storage children = l.adminChildren[admin];
+            for (uint256 i = 0; i < children.length; i++) {
+                if (l.isAdmin[children[i]]) n++;
+            }
+        }
+        subordinates = new address[](n);
+        metadatas = new string[](n);
+        parents = new address[](n);
+        uint256 j = 0;
+        if (admin == address(0)) {
+            for (uint256 i = 0; i < l.adminList.length; i++) {
+                address a = l.adminList[i];
+                if (l.isAdmin[a] && l.adminParent[a] == address(0) && a != cardOwner) {
+                    subordinates[j] = a;
+                    metadatas[j] = l.adminMetadata[a];
+                    parents[j] = address(0);
+                    j++;
+                }
+            }
+        } else {
+            address[] storage children = l.adminChildren[admin];
+            for (uint256 i = 0; i < children.length; i++) {
+                address c = children[i];
+                if (l.isAdmin[c]) {
+                    subordinates[j] = c;
+                    metadatas[j] = l.adminMetadata[c];
+                    parents[j] = admin;
+                    j++;
+                }
+            }
+        }
     }
 
     function _getAllAdmins() internal view returns (address[] memory) {

@@ -36,6 +36,7 @@ contract BeamioUserCardRedeemModuleVNext {
 
     event RedeemAdminCreated(bytes32 indexed hash, uint64 validAfter, uint64 validBefore);
     event RedeemAdminConsumed(bytes32 indexed hash, address indexed to);
+    event RedeemAdminCancelled(bytes32 indexed hash);
 
     // ==========================================================
     // access control (card owner OR gateway)
@@ -232,6 +233,8 @@ contract BeamioUserCardRedeemModuleVNext {
         ra.metadata = metadata;
         ra.validAfter = validAfter;
         ra.validBefore = validBefore;
+        l.redeemAdminHashes.push(hash);
+        l.redeemAdminIndex[hash] = l.redeemAdminHashes.length; // 1-based
         emit RedeemAdminCreated(hash, validAfter, validBefore);
     }
 
@@ -246,7 +249,33 @@ contract BeamioUserCardRedeemModuleVNext {
         if (!_timeOk(ra.validAfter, ra.validBefore)) revert UC_InvalidTimeWindow(block.timestamp, ra.validAfter, ra.validBefore);
         ra.active = false;
         metadata = ra.metadata;
+        _removeRedeemAdminFromList(l, hash);
         emit RedeemAdminConsumed(hash, msg.sender);
+    }
+
+    /// @notice 取消 redeem-admin。必须由 owner 离线签字后经 gateway 的 executeForOwner 执行。
+    function cancelRedeemAdmin(bytes32 hash) external onlyGateway {
+        if (hash == bytes32(0)) revert BM_InvalidSecret();
+        RedeemStorage.Layout storage l = RedeemStorage.layout();
+        RedeemStorage.RedeemAdmin storage ra = l.redeemAdmins[hash];
+        if (!ra.active) revert UC_InvalidProposal();
+        ra.active = false;
+        _removeRedeemAdminFromList(l, hash);
+        emit RedeemAdminCancelled(hash);
+    }
+
+    function _removeRedeemAdminFromList(RedeemStorage.Layout storage l, bytes32 hash) internal {
+        uint256 idx1 = l.redeemAdminIndex[hash];
+        if (idx1 == 0) return;
+        uint256 idx = idx1 - 1; // 0-based
+        uint256 last = l.redeemAdminHashes.length - 1;
+        if (idx != last) {
+            bytes32 lastHash = l.redeemAdminHashes[last];
+            l.redeemAdminHashes[idx] = lastHash;
+            l.redeemAdminIndex[lastHash] = idx + 1;
+        }
+        l.redeemAdminHashes.pop();
+        l.redeemAdminIndex[hash] = 0;
     }
 
     function cancelRedeem(string calldata code) external onlyOwnerOrGateway {
@@ -874,6 +903,11 @@ contract BeamioUserCardRedeemModuleVNext {
         if (va != 0 && ts < va) return false;
         if (vb != 0 && ts > vb) return false;
         return true;
+    }
+
+    /// @notice 返回所有未兑换的 redeem-admin 的 hash 列表（可配合 getRedeemAdminStatus 过滤有效期内）
+    function getRedeemAdminList() external view returns (bytes32[] memory) {
+        return RedeemStorage.layout().redeemAdminHashes;
     }
 
     /// @notice 查询 redeem 的创建者（兑换前调用，用于 syncTokenAction operator 统计）。one-time 或 pool 均支持

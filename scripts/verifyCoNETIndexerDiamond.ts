@@ -11,7 +11,7 @@
  *
  * 若程序验证失败，可手动走 Sourcify：
  *   1. 打开 https://mainnet.conet.network/ → Other → Verify contract
- *   2. 输入 Diamond 地址 0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612
+ *   2. 输入当前 deployments/conet-IndexerDiamond.json 中的 Diamond 地址
  *   3. 选择 Verification method: Sourcify
  *   4. 上传 artifacts + 源码，或粘贴 Standard JSON Input
  */

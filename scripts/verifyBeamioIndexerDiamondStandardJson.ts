@@ -12,9 +12,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DIAMOND = "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
-const INITIAL_OWNER = "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1";
-const DIAMOND_CUT_FACET = "0xf079eA83B3dDBaB64473df13Fa49021BA85E80C4";
+const DEPLOY_PATH = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
 
 // BeamioIndexerDiamond 及其直接/间接依赖（仅此 5 个文件）
 const DIAMOND_SOURCES = [
@@ -26,16 +24,18 @@ const DIAMOND_SOURCES = [
 ];
 
 async function main() {
-  const buildInfoPath = path.join(
-    __dirname,
-    "..",
-    "artifacts",
-    "build-info",
-    "solc-0_8_33-a5304f0ba6b2e3b473484c91ac6aa6f3d69c9c92.json"
-  );
-  if (!fs.existsSync(buildInfoPath)) {
-    throw new Error("build-info 不存在，请先运行: npx hardhat compile");
+  const deploy = JSON.parse(fs.readFileSync(DEPLOY_PATH, "utf-8"));
+  const diamond = deploy.diamond;
+  const initialOwner = deploy.deployer;
+  const diamondCutFacet = deploy.facets?.DiamondCutFacet;
+  if (!diamond || !initialOwner || !diamondCutFacet) {
+    throw new Error("deployment 文件缺少 diamond / deployer / DiamondCutFacet");
   }
+
+  const buildInfoDir = path.join(__dirname, "..", "artifacts", "build-info");
+  const buildInfoFile = fs.readdirSync(buildInfoDir).find((name) => name.endsWith(".json") && !name.endsWith(".output.json"));
+  if (!buildInfoFile) throw new Error("build-info 不存在，请先运行: npx hardhat compile");
+  const buildInfoPath = path.join(buildInfoDir, buildInfoFile);
 
   const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
   const fullInput = buildInfo.input as {
@@ -62,7 +62,7 @@ async function main() {
   const coder = AbiCoder.defaultAbiCoder();
   const encoded = coder.encode(
     ["address", "address"],
-    [INITIAL_OWNER, DIAMOND_CUT_FACET]
+    [initialOwner, diamondCutFacet]
   );
   const constructorArgs =
     encoded.startsWith("0x") ? encoded.slice(2) : encoded;
@@ -72,7 +72,7 @@ async function main() {
   console.log("包含 viaIR:", (minimalInput.settings as { viaIR?: boolean }).viaIR);
 
   // 使用 v2 standard-input API（支持 Standard JSON，含 via-IR）
-  const v2Url = `https://mainnet.conet.network/api/v2/smart-contracts/${DIAMOND}/verification/via/standard-input`;
+  const v2Url = `https://mainnet.conet.network/api/v2/smart-contracts/${diamond}/verification/via/standard-input`;
   const formData = new FormData();
   formData.append("compiler_version", "v0.8.33+commit.64118f21");
   formData.append("contract_name", "BeamioIndexerDiamond");

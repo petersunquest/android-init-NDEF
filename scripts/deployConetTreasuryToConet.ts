@@ -163,7 +163,7 @@ async function main() {
   const indexerPath = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
   const diamondAddr = fs.existsSync(indexerPath)
     ? JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond
-    : "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+    : "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
   const masterData = JSON.parse(fs.readFileSync(path.join(homedir(), ".master.json"), "utf-8"));
   const ownerPk = masterData?.settle_contractAdmin?.[0];
   if (ownerPk && airdropAddress) {

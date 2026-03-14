@@ -47,6 +47,8 @@ export type { IPaymasterV07 } from './BeamioAccount/BeamioTypesV07.sol/IPaymaste
 export { IPaymasterV07__factory } from './factories/BeamioAccount/BeamioTypesV07.sol/IPaymasterV07__factory.js';
 export type { BeamioUserCardAdminStatsQueryModuleV1 } from './BeamioUserCard/AdminStatsQueryModule.sol/BeamioUserCardAdminStatsQueryModuleV1.js';
 export { BeamioUserCardAdminStatsQueryModuleV1__factory } from './factories/BeamioUserCard/AdminStatsQueryModule.sol/BeamioUserCardAdminStatsQueryModuleV1__factory.js';
+export type { IUserCardCtx } from './BeamioUserCard/AdminStatsQueryModule.sol/IUserCardCtx.js';
+export { IUserCardCtx__factory } from './factories/BeamioUserCard/AdminStatsQueryModule.sol/IUserCardCtx__factory.js';
 export type { BeamioERC1155Logic } from './BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic.js';
 export { BeamioERC1155Logic__factory } from './factories/BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic__factory.js';
 export type { IBeamioAccountFactoryV07 } from './BeamioUserCard/BeamioERC1155Logic.sol/IBeamioAccountFactoryV07.js';
@@ -93,8 +95,6 @@ export type { BeamioUserCardPlaceholder } from './BeamioUserCard/BeamioUserCardP
 export { BeamioUserCardPlaceholder__factory } from './factories/BeamioUserCard/BeamioUserCardPlaceholder__factory.js';
 export type { BeamioUserCardFaucetModuleV1 } from './BeamioUserCard/FaucetModule.sol/BeamioUserCardFaucetModuleV1.js';
 export { BeamioUserCardFaucetModuleV1__factory } from './factories/BeamioUserCard/FaucetModule.sol/BeamioUserCardFaucetModuleV1__factory.js';
-export type { IUserCardCtx } from './BeamioUserCard/FaucetModule.sol/IUserCardCtx.js';
-export { IUserCardCtx__factory } from './factories/BeamioUserCard/FaucetModule.sol/IUserCardCtx__factory.js';
 export type { BeamioUserCardGovernanceModuleV1 } from './BeamioUserCard/GovernanceModule.sol/BeamioUserCardGovernanceModuleV1.js';
 export { BeamioUserCardGovernanceModuleV1__factory } from './factories/BeamioUserCard/GovernanceModule.sol/BeamioUserCardGovernanceModuleV1__factory.js';
 export type { BeamioUserCardIssuedNftModuleV1 } from './BeamioUserCard/IssuedNftModule.sol/BeamioUserCardIssuedNftModuleV1.js';
