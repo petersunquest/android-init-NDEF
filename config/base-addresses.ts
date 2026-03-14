@@ -1,23 +1,10 @@
 /**
- * Base Mainnet 合约地址与链配置（供 SilentPassUI、SDK 等跨项目引用）
- * 与 deployments/BASE_MAINNET_FACTORIES.md 保持一致，请勿在 APP 中写死其他来源的地址。
+ * Base Mainnet 合约地址 - 从全局 config/contract-addresses.ts 导入
+ * 部署脚本应更新 config/base-addresses.json，本文件自动反映最新值。
  */
-export const BASE_MAINNET_CHAIN_ID = 8453
-
-export const BASE_MAINNET_FACTORIES = {
-  /** AA 账户工厂 (BeamioFactoryPaymasterV07) */
-  AA_FACTORY: '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE',
-  /** UserCard 工厂 (BeamioUserCardFactoryPaymasterV07) */
-  CARD_FACTORY: '0x2F45f38f2B6EF97b606ec2557E237529e8db9281',
-} as const
-
-/** 按链聚合，便于多链扩展 */
-export const CONTRACT_ADDRESSES = {
-  base: {
-    chainId: BASE_MAINNET_CHAIN_ID,
-    aaFactory: BASE_MAINNET_FACTORIES.AA_FACTORY,
-    cardFactory: BASE_MAINNET_FACTORIES.CARD_FACTORY,
-  },
-} as const
-
-export type ChainKey = keyof typeof CONTRACT_ADDRESSES
+export {
+  BASE_MAINNET_CHAIN_ID,
+  BASE_MAINNET_FACTORIES,
+  CONTRACT_ADDRESSES,
+  type ChainKey,
+} from './contract-addresses'

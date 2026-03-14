@@ -270,7 +270,7 @@ bytes32 constant TX_BUINT_USDC = keccak256("buintUSDC");
 
 BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTokenAction` 记账。
 
-**数据来源**：BUnitAirdrop（部署地址见 `deployments/conet-BUintAirdrop.json`），BeamioIndexerDiamond 地址 `0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612`。
+**数据来源**：BUnitAirdrop（部署地址见 `deployments/conet-BUintAirdrop.json`），BeamioIndexerDiamond 地址见 `deployments/conet-addresses.json`（当前 `0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5`）。
 
 **Transaction 字段**：
 
@@ -1146,7 +1146,7 @@ const admins = await card.getAdminList()
 | 项目 | 值 |
 |------|-----|
 | RPC | `https://mainnet-rpc.conet.network` |
-| Indexer 地址 | `0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612` |
+| Indexer 地址 | 见 `deployments/conet-addresses.json`（当前 `0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5`） |
 | 交易总数 (txCount) | **262** |
 
 ### 9.1 最新 100 条交易 txCategory 分布
