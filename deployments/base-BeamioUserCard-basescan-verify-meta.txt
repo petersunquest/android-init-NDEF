@@ -2,22 +2,14 @@ BeamioUserCard BaseScan 合约验证
 ================================
 
 Compiler Version: 0.8.33+commit.64118f21
-Optimization: Enabled, Runs: 1
+Optimization: Enabled, Runs: 0
 viaIR: true, evmVersion: cancun
 
 Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard
 
 Standard JSON 文件:
-  - base-BeamioUserCard-basescan-standard-input.json (完整版，与部署时编译一致，推荐)
-  - base-BeamioUserCard-basescan-minimal.json (27 个源，可作备选)
+  - base-BeamioUserCard-basescan-standard-input.json (28 个当前源码依赖，推荐)
+  - base-BeamioUserCard-basescan-minimal.json (28 个当前源码依赖，内容相同，作为备份)
 
-err_code_2 排查:
-  1. Constructor Arguments 必须与 createCard 部署时完全一致 (uri, currency, price, owner, gateway)
-  2. owner 为 createCard 时的 cardOwner (AA 会 resolve 为 EOA)
-  3. 或: npx hardhat verify --network base <地址> "uri" 4 "1000000" "0xOwner" "0xGateway"
-
-Constructor 编码 (Node):
-  require("ethers").AbiCoder.defaultAbiCoder().encode(
-    ["string","uint8","uint256","address","address"],
-    ["https://beamio.app/api/metadata/0x", 4, "1000000", "0x...", "0x46E8a69f7296deF53e33844bb00D92309ab46233"]
-  ).slice(2)
+重要：BaseScan 新版 STANDARD_JSON_INPUT 页面不会手动选择 Contract Name，
+它会从上传 JSON 自动匹配；若失败，请先确认 Constructor Arguments ABI-encoded 未留空。
