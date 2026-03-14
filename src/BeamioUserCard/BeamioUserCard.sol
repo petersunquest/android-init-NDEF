@@ -35,6 +35,10 @@ interface IBeamioUserCardFactoryPaymasterV07 {
     function metadataBaseURI() external view returns (string memory);
 }
 
+interface IBeamioUserCardSelectorRouter {
+    function selectorModuleKind(bytes4 sel) external pure returns (uint8);
+}
+
 /**
  * @dev RedeemModule VNext ABI (delegatecall target)
  */
@@ -163,49 +167,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     uint8 private constant MODULE_ISSUED_NFT = 2;
     uint8 private constant MODULE_GOVERNANCE = 3;
     uint8 private constant MODULE_MEMBERSHIP_STATS = 4;
-    bytes4 private constant GET_ADMIN_HOURLY_DATA_SELECTOR = bytes4(keccak256("getAdminHourlyData(address,uint256)"));
-    bytes4 private constant GET_GLOBAL_STATS_FULL_SELECTOR = bytes4(keccak256("getGlobalStatsFull(uint8,uint256,uint256)"));
-    bytes4 private constant GET_ADMIN_STATS_FULL_SELECTOR = bytes4(keccak256("getAdminStatsFull(address,uint8,uint256,uint256)"));
-    bytes4 private constant GET_ADMIN_PERIOD_REPORTS_SELECTOR = bytes4(keccak256("getAdminPeriodReports(address,uint8,uint256,uint256)"));
-    bytes4 private constant GET_ADMIN_LIST_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminListWithMetadata()"));
-    bytes4 private constant GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR = bytes4(keccak256("getAdminSubordinatesWithMetadata(address)"));
-    bytes4 private constant GET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("getAdminAirdropLimit(address)"));
-    bytes4 private constant GET_ADMIN_AND_SUBORDINATE_LIMITS_SELECTOR = bytes4(keccak256("getAdminAndSubordinateLimits(address)"));
-    bytes4 private constant GET_ADMIN_AND_SUBORDINATE_LIMITS_PAGE_SELECTOR =
-        bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"));
-    bytes4 private constant CREATE_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"));
-    bytes4 private constant CREATE_REDEEM_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64,uint256)"));
-    bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
-    bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemWithCreatorAndRecommender(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreator(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreatorAndRecommender(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
-    bytes4 private constant GET_REDEEM_STATUS_SELECTOR = bytes4(keccak256("getRedeemStatus(bytes32)"));
-    bytes4 private constant GET_REDEEM_STATUS_BATCH_STRING_SELECTOR = bytes4(keccak256("getRedeemStatusBatch(string[])"));
-    bytes4 private constant GET_REDEEM_STATUS_BATCH_HASH_SELECTOR = bytes4(keccak256("getRedeemStatusBatch(bytes32[])"));
-    bytes4 private constant GET_REDEEM_STATUS_EX_SELECTOR = bytes4(keccak256("getRedeemStatusEx(bytes32,address)"));
-    bytes4 private constant GET_REDEEM_CREATOR_SELECTOR = bytes4(keccak256("getRedeemCreator(string)"));
-    bytes4 private constant GET_REDEEM_RECOMMENDER_SELECTOR = bytes4(keccak256("getRedeemRecommender(string)"));
-    bytes4 private constant GET_REDEEM_ADMIN_STATUS_SELECTOR = bytes4(keccak256("getRedeemAdminStatus(bytes32)"));
-    bytes4 private constant GET_REDEEM_ADMIN_LIST_SELECTOR = bytes4(keccak256("getRedeemAdminList()"));
-    bytes4 private constant CANCEL_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("cancelRedeemAdmin(bytes32)"));
-    bytes4 private constant CANCEL_REDEEM_SELECTOR = bytes4(keccak256("cancelRedeem(string)"));
-    bytes4 private constant CREATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
-    bytes4 private constant TERMINATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("terminateRedeemPool(bytes32)"));
-    bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
-    bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
-    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
-    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"));
-    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("setAdminAirdropLimit(address,uint256)"));
-    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR = bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
-    bytes4 private constant SET_FAUCET_CONFIG_SELECTOR = bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"));
-    bytes4 private constant CREATE_ISSUED_NFT_SELECTOR = bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"));
+    uint8 private constant ROUTE_STATS_QUERY = type(uint8).max - 1;
 
     // ===== Immutable / gateway =====
     address public immutable deployer;
@@ -521,9 +483,26 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint256 newThreshold = 1; // redeem 添加的 admin 使用 threshold=1
         bool ok;
         if (mintLimit > 0) {
-            (ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_WITH_LIMIT_SELECTOR, to, true, newThreshold, metadata, mintLimit));
+            (ok,) = module.delegatecall(
+                abi.encodeWithSelector(
+                    bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)")),
+                    to,
+                    true,
+                    newThreshold,
+                    metadata,
+                    mintLimit
+                )
+            );
         } else {
-            (ok,) = module.delegatecall(abi.encodeWithSelector(ADMIN_MANAGER_SELECTOR, to, true, newThreshold, metadata));
+            (ok,) = module.delegatecall(
+                abi.encodeWithSelector(
+                    bytes4(keccak256("adminManager(address,bool,uint256,string)")),
+                    to,
+                    true,
+                    newThreshold,
+                    metadata
+                )
+            );
         }
         if (!ok) revert UC_InvalidProposal();
     }
@@ -715,73 +694,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (module == address(0) || module.code.length == 0) revert UC_GlobalMisconfigured();
     }
 
-    function _isStatsQuerySelector(bytes4 sel) internal pure returns (bool) {
-        return
-            sel == GET_ADMIN_HOURLY_DATA_SELECTOR ||
-            sel == GET_GLOBAL_STATS_FULL_SELECTOR ||
-            sel == GET_ADMIN_STATS_FULL_SELECTOR ||
-            sel == GET_ADMIN_PERIOD_REPORTS_SELECTOR ||
-            sel == GET_ADMIN_LIST_WITH_METADATA_SELECTOR ||
-            sel == GET_ADMIN_SUBORDINATES_WITH_METADATA_SELECTOR ||
-            sel == GET_ADMIN_AIRDROP_LIMIT_SELECTOR ||
-            sel == GET_ADMIN_AND_SUBORDINATE_LIMITS_SELECTOR ||
-            sel == GET_ADMIN_AND_SUBORDINATE_LIMITS_PAGE_SELECTOR;
-    }
-
-    function _isRedeemModuleSelector(bytes4 sel) internal pure returns (bool) {
-        return
-            sel == CREATE_REDEEM_ADMIN_SELECTOR ||
-            sel == CREATE_REDEEM_ADMIN_WITH_LIMIT_SELECTOR ||
-            sel == CREATE_REDEEM_SELECTOR ||
-            sel == CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR ||
-            sel == CREATE_REDEEM_WITH_CREATOR_SELECTOR ||
-            sel == CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
-            sel == CREATE_REDEEM_BATCH_SELECTOR ||
-            sel == CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR ||
-            sel == CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR ||
-            sel == CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
-            sel == GET_REDEEM_STATUS_SELECTOR ||
-            sel == GET_REDEEM_STATUS_BATCH_STRING_SELECTOR ||
-            sel == GET_REDEEM_STATUS_BATCH_HASH_SELECTOR ||
-            sel == GET_REDEEM_STATUS_EX_SELECTOR ||
-            sel == GET_REDEEM_CREATOR_SELECTOR ||
-            sel == GET_REDEEM_RECOMMENDER_SELECTOR ||
-            sel == GET_REDEEM_ADMIN_STATUS_SELECTOR ||
-            sel == GET_REDEEM_ADMIN_LIST_SELECTOR ||
-            sel == CANCEL_REDEEM_ADMIN_SELECTOR ||
-            sel == CANCEL_REDEEM_SELECTOR ||
-            sel == CREATE_REDEEM_POOL_SELECTOR ||
-            sel == CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR ||
-            sel == CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR ||
-            sel == CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
-            sel == TERMINATE_REDEEM_POOL_SELECTOR;
-    }
-
-    function _isGovernanceModuleSelector(bytes4 sel) internal pure returns (bool) {
-        return
-            sel == ADMIN_MANAGER_SELECTOR ||
-            sel == ADMIN_MANAGER_WITH_LIMIT_SELECTOR ||
-            sel == ADMIN_MANAGER_BY_ADMIN_SELECTOR ||
-            sel == ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR ||
-            sel == SET_ADMIN_AIRDROP_LIMIT_SELECTOR ||
-            sel == SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR;
-    }
-
-    function _isFaucetModuleSelector(bytes4 sel) internal pure returns (bool) {
-        return sel == SET_FAUCET_CONFIG_SELECTOR;
-    }
-
-    function _isIssuedNftModuleSelector(bytes4 sel) internal pure returns (bool) {
-        return sel == CREATE_ISSUED_NFT_SELECTOR;
-    }
-
     fallback() external {
+        address statsModule = _statsQueryModule();
+        uint8 route = IBeamioUserCardSelectorRouter(statsModule).selectorModuleKind(msg.sig);
         address module;
-        if (_isStatsQuerySelector(msg.sig)) module = _statsQueryModule();
-        else if (_isRedeemModuleSelector(msg.sig)) module = _module(MODULE_REDEEM);
-        else if (_isGovernanceModuleSelector(msg.sig)) module = _module(MODULE_GOVERNANCE);
-        else if (_isFaucetModuleSelector(msg.sig)) module = _module(MODULE_FAUCET);
-        else if (_isIssuedNftModuleSelector(msg.sig)) module = _module(MODULE_ISSUED_NFT);
+        if (route == ROUTE_STATS_QUERY) module = statsModule;
+        else if (route == MODULE_REDEEM) module = _module(MODULE_REDEEM);
+        else if (route == MODULE_GOVERNANCE) module = _module(MODULE_GOVERNANCE);
+        else if (route == MODULE_FAUCET) module = _module(MODULE_FAUCET);
+        else if (route == MODULE_ISSUED_NFT) module = _module(MODULE_ISSUED_NFT);
         else revert BM_CallFailed();
         assembly {
             calldatacopy(0, 0, calldatasize())

@@ -9,3 +9,4 @@ export { IBeamioIssuedNftModuleV1__factory } from './IBeamioIssuedNftModuleV1__f
 export { IBeamioMembershipStatsModuleV1__factory } from './IBeamioMembershipStatsModuleV1__factory.js';
 export { IBeamioRedeemModuleVNext__factory } from './IBeamioRedeemModuleVNext__factory.js';
 export { IBeamioUserCardFactoryPaymasterV07__factory } from './IBeamioUserCardFactoryPaymasterV07__factory.js';
+export { IBeamioUserCardSelectorRouter__factory } from './IBeamioUserCardSelectorRouter__factory.js';

@@ -20,7 +20,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CARD_OWNER = "0xe5f4205e9377CCc3684E4dBFB6CF67AE1721F27E";
 const CURRENCY_CAD = 0;
 const PRICE_E6 = 1_000_000n;
-const BASE_CARD_FACTORY = "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";
+
+function getBaseCardFactory(): string {
+  try {
+    const cfgPath = path.join(__dirname, "..", "config", "base-addresses.json");
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
+      if (cfg.CARD_FACTORY) return cfg.CARD_FACTORY;
+    }
+    const factoryPath = path.join(__dirname, "..", "deployments", "base-UserCardFactory.json");
+    if (existsSync(factoryPath)) {
+      const data = JSON.parse(readFileSync(factoryPath, "utf-8"));
+      const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
+      if (addr) return addr;
+    }
+  } catch {}
+  return process.env.CARD_FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+}
+const BASE_CARD_FACTORY = getBaseCardFactory();
 
 function getMasterJsonPath(): string {
   const candidates = [

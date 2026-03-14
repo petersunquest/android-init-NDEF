@@ -81,6 +81,8 @@ export type { IBeamioRedeemModuleVNext } from './BeamioUserCard/BeamioUserCard.s
 export { IBeamioRedeemModuleVNext__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioRedeemModuleVNext__factory.js';
 export type { IBeamioUserCardFactoryPaymasterV07 } from './BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryPaymasterV07.js';
 export { IBeamioUserCardFactoryPaymasterV07__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryPaymasterV07__factory.js';
+export type { IBeamioUserCardSelectorRouter } from './BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardSelectorRouter.js';
+export { IBeamioUserCardSelectorRouter__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardSelectorRouter__factory.js';
 export type { BeamioUserCardBase } from './BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase.js';
 export { BeamioUserCardBase__factory } from './factories/BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase__factory.js';
 export type { BeamioUserCardDeployerV07 } from './BeamioUserCard/BeamioUserCardDeployerV07.js';

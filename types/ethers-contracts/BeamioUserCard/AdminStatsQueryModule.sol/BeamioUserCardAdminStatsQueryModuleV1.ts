@@ -43,7 +43,7 @@ export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
     }
 
   export interface BeamioUserCardAdminStatsQueryModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull"): FunctionFragment;
+    getFunction(nameOrSignature: "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull" | "selectorModuleKind"): FunctionFragment;
 
     
 
@@ -56,6 +56,7 @@ encodeFunctionData(functionFragment: 'getAdminPeriodReports', values: [AddressLi
 encodeFunctionData(functionFragment: 'getAdminStatsFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminSubordinatesWithMetadata', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getGlobalStatsFull', values: [BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'selectorModuleKind', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'getAdminAirdropLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminAndSubordinateLimits', data: BytesLike): Result;
@@ -66,6 +67,7 @@ decodeFunctionResult(functionFragment: 'getAdminPeriodReports', data: BytesLike)
 decodeFunctionResult(functionFragment: 'getAdminStatsFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminSubordinatesWithMetadata', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'selectorModuleKind', data: BytesLike): Result;
   }
 
   
@@ -175,6 +177,14 @@ decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): R
     >
     
 
+    
+    selectorModuleKind: TypedContractMethod<
+      [sel: BytesLike, ],
+      [bigint],
+      'view'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -221,6 +231,11 @@ getFunction(nameOrSignature: 'getAdminSubordinatesWithMetadata'): TypedContractM
 getFunction(nameOrSignature: 'getGlobalStatsFull'): TypedContractMethod<
       [periodType: BigNumberish, anchorTs: BigNumberish, cumulativeStartTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.GlobalStatsFullViewStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'selectorModuleKind'): TypedContractMethod<
+      [sel: BytesLike, ],
+      [bigint],
       'view'
     >;
 

@@ -11,6 +11,13 @@ interface IUserCardCtx {
 }
 
 contract BeamioUserCardAdminStatsQueryModuleV1 {
+    uint8 private constant ROUTE_INVALID = type(uint8).max;
+    uint8 private constant ROUTE_STATS_QUERY = type(uint8).max - 1;
+    uint8 private constant ROUTE_REDEEM = 0;
+    uint8 private constant ROUTE_FAUCET = 1;
+    uint8 private constant ROUTE_ISSUED_NFT = 2;
+    uint8 private constant ROUTE_GOVERNANCE = 3;
+
     struct AdminAirdropLimitView {
         address admin;
         address parent;
@@ -92,6 +99,66 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         uint256 periodIssued;
         uint256 periodUpgraded;
         uint256 adminCount;
+    }
+
+    /// @dev Keep selector classification out of BeamioUserCard runtime so the card stays below EIP-170.
+    function selectorModuleKind(bytes4 sel) external pure returns (uint8) {
+        if (
+            sel == bytes4(keccak256("getAdminHourlyData(address,uint256)"))
+                || sel == bytes4(keccak256("getGlobalStatsFull(uint8,uint256,uint256)"))
+                || sel == bytes4(keccak256("getAdminStatsFull(address,uint8,uint256,uint256)"))
+                || sel == bytes4(keccak256("getAdminPeriodReports(address,uint8,uint256,uint256)"))
+                || sel == bytes4(keccak256("getAdminListWithMetadata()"))
+                || sel == bytes4(keccak256("getAdminSubordinatesWithMetadata(address)"))
+                || sel == bytes4(keccak256("getAdminAirdropLimit(address)"))
+                || sel == bytes4(keccak256("getAdminAndSubordinateLimits(address)"))
+                || sel == bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"))
+        ) return ROUTE_STATS_QUERY;
+
+        if (
+            sel == bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"))
+                || sel == bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64,uint256)"))
+                || sel == bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"))
+                || sel == bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
+                || sel == bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
+                || sel == bytes4(keccak256("createRedeemWithCreatorAndRecommender(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"))
+                || sel == bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])"))
+                || sel == bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
+                || sel == bytes4(keccak256("createRedeemBatchWithCreator(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
+                || sel == bytes4(keccak256("createRedeemBatchWithCreatorAndRecommender(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"))
+                || sel == bytes4(keccak256("getRedeemStatus(bytes32)"))
+                || sel == bytes4(keccak256("getRedeemStatusBatch(string[])"))
+                || sel == bytes4(keccak256("getRedeemStatusBatch(bytes32[])"))
+                || sel == bytes4(keccak256("getRedeemStatusEx(bytes32,address)"))
+                || sel == bytes4(keccak256("getRedeemCreator(string)"))
+                || sel == bytes4(keccak256("getRedeemRecommender(string)"))
+                || sel == bytes4(keccak256("getRedeemAdminStatus(bytes32)"))
+                || sel == bytes4(keccak256("getRedeemAdminList()"))
+                || sel == bytes4(keccak256("cancelRedeemAdmin(bytes32)"))
+                || sel == bytes4(keccak256("cancelRedeem(string)"))
+                || sel == bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])"))
+                || sel == bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"))
+                || sel == bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"))
+                || sel == bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"))
+                || sel == bytes4(keccak256("terminateRedeemPool(bytes32)"))
+        ) return ROUTE_REDEEM;
+
+        if (
+            sel == bytes4(keccak256("adminManager(address,bool,uint256,string)"))
+                || sel == bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"))
+                || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"))
+                || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"))
+                || sel == bytes4(keccak256("setAdminAirdropLimit(address,uint256)"))
+                || sel == bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"))
+        ) return ROUTE_GOVERNANCE;
+
+        if (sel == bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"))) {
+            return ROUTE_FAUCET;
+        }
+        if (sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))) {
+            return ROUTE_ISSUED_NFT;
+        }
+        return ROUTE_INVALID;
     }
 
     struct AdminPeriodReportsView {

@@ -9,3 +9,4 @@ export type { IBeamioIssuedNftModuleV1 } from './IBeamioIssuedNftModuleV1.js';
 export type { IBeamioMembershipStatsModuleV1 } from './IBeamioMembershipStatsModuleV1.js';
 export type { IBeamioRedeemModuleVNext } from './IBeamioRedeemModuleVNext.js';
 export type { IBeamioUserCardFactoryPaymasterV07 } from './IBeamioUserCardFactoryPaymasterV07.js';
+export type { IBeamioUserCardSelectorRouter } from './IBeamioUserCardSelectorRouter.js';
