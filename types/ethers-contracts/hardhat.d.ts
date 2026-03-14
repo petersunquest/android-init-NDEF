@@ -26,6 +26,7 @@ getContractFactory(name: 'IERC1271', signerOrOptions?: ethers.Signer | FactoryOp
 getContractFactory(name: 'IERC20Like', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20Like__factory>
 getContractFactory(name: 'IEntryPointV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IEntryPointV07__factory>
 getContractFactory(name: 'IPaymasterV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IPaymasterV07__factory>
+getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1__factory>
 getContractFactory(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioERC1155Logic__factory>
 getContractFactory(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountFactoryV07__factory>
 getContractFactory(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioFactoryOracle__factory>
@@ -151,6 +152,7 @@ getContractAt(name: 'IERC1271', address: string | ethers.Addressable, signer?: e
 getContractAt(name: 'IERC20Like', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20Like>
 getContractAt(name: 'IEntryPointV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IEntryPointV07>
 getContractAt(name: 'IPaymasterV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IPaymasterV07>
+getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 getContractAt(name: 'BeamioERC1155Logic', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioERC1155Logic>
 getContractAt(name: 'IBeamioAccountFactoryV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryV07>
 getContractAt(name: 'IBeamioFactoryOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioFactoryOracle>
@@ -276,6 +278,7 @@ deployContract(name: 'IERC1271', signerOrOptions?: ethers.Signer | DeployContrac
 deployContract(name: 'IERC20Like', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Like>
 deployContract(name: 'IEntryPointV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IEntryPointV07>
 deployContract(name: 'IPaymasterV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IPaymasterV07>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 deployContract(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>
@@ -401,6 +404,7 @@ deployContract(name: 'IERC1271', args: any[], signerOrOptions?: ethers.Signer | 
 deployContract(name: 'IERC20Like', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Like>
 deployContract(name: 'IEntryPointV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IEntryPointV07>
 deployContract(name: 'IPaymasterV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IPaymasterV07>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 deployContract(name: 'BeamioERC1155Logic', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>

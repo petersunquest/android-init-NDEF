@@ -14,7 +14,7 @@ type ModuleAddresses = {
   faucetModule: string;
   governanceModule: string;
   membershipStatsModule: string;
-  membershipStatsQueryModule: string;
+  adminStatsQueryModule: string;
 };
 
 function loadSignerPk(): string {
@@ -119,14 +119,14 @@ async function main() {
   const FaucetFactory = await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
   const GovernanceFactory = await hhEthers.getContractFactory("BeamioUserCardGovernanceModuleV1");
   const MembershipStatsFactory = await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
-  const MembershipStatsQueryFactory = await hhEthers.getContractFactory("BeamioUserCardMembershipStatsQueryModuleV1");
+  const AdminStatsQueryFactory = await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
   const existingRedeem = await resolveModuleAddress(provider, process.env.REDEEM_MODULE_ADDRESS, "RedeemModule");
   const existingIssued = await resolveModuleAddress(provider, process.env.ISSUED_NFT_MODULE_ADDRESS, "IssuedNftModule");
   const existingFaucet = await resolveModuleAddress(provider, process.env.FAUCET_MODULE_ADDRESS, "FaucetModule");
   const existingGovernance = await resolveModuleAddress(provider, process.env.GOVERNANCE_MODULE_ADDRESS, "GovernanceModule");
   const existingMembershipStats = await resolveModuleAddress(provider, process.env.MEMBERSHIP_STATS_MODULE_ADDRESS, "MembershipStatsModule");
-  const existingMembershipStatsQuery =
-    await resolveModuleAddress(provider, process.env.MEMBERSHIP_STATS_QUERY_MODULE_ADDRESS, "MembershipStatsQueryModule");
+  const existingAdminStatsQuery =
+    await resolveModuleAddress(provider, process.env.ADMIN_STATS_QUERY_MODULE_ADDRESS, "AdminStatsQueryModule");
 
   const redeem = existingRedeem ? undefined : await RedeemFactory.connect(signer).deploy(txOverrides);
   if (redeem) await redeem.waitForDeployment();
@@ -139,9 +139,9 @@ async function main() {
   const membershipStats =
     existingMembershipStats ? undefined : await MembershipStatsFactory.connect(signer).deploy(txOverrides);
   if (membershipStats) await membershipStats.waitForDeployment();
-  const membershipStatsQuery =
-    existingMembershipStatsQuery ? undefined : await MembershipStatsQueryFactory.connect(signer).deploy(txOverrides);
-  if (membershipStatsQuery) await membershipStatsQuery.waitForDeployment();
+  const adminStatsQuery =
+    existingAdminStatsQuery ? undefined : await AdminStatsQueryFactory.connect(signer).deploy(txOverrides);
+  if (adminStatsQuery) await adminStatsQuery.waitForDeployment();
 
   const modules: ModuleAddresses = {
     redeemModule: existingRedeem ?? await redeem!.getAddress(),
@@ -149,7 +149,7 @@ async function main() {
     faucetModule: existingFaucet ?? await faucet!.getAddress(),
     governanceModule: existingGovernance ?? await governance!.getAddress(),
     membershipStatsModule: existingMembershipStats ?? await membershipStats!.getAddress(),
-    membershipStatsQueryModule: existingMembershipStatsQuery ?? await membershipStatsQuery!.getAddress(),
+    adminStatsQueryModule: existingAdminStatsQuery ?? await adminStatsQuery!.getAddress(),
   };
 
   console.log("RedeemModule:", modules.redeemModule);
@@ -157,7 +157,7 @@ async function main() {
   console.log("FaucetModule:", modules.faucetModule);
   console.log("GovernanceModule:", modules.governanceModule);
   console.log("MembershipStatsModule:", modules.membershipStatsModule);
-  console.log("MembershipStatsQueryModule:", modules.membershipStatsQueryModule);
+  console.log("AdminStatsQueryModule:", modules.adminStatsQueryModule);
 
   const factoryAbi = [
     "function setRedeemModule(address m) external",
@@ -165,11 +165,13 @@ async function main() {
     "function setFaucetModule(address m) external",
     "function setGovernanceModule(address m) external",
     "function setMembershipStatsModule(address m) external",
+    "function setAdminStatsQueryModule(address m) external",
     "function defaultRedeemModule() view returns (address)",
     "function defaultIssuedNftModule() view returns (address)",
     "function defaultFaucetModule() view returns (address)",
     "function defaultGovernanceModule() view returns (address)",
     "function defaultMembershipStatsModule() view returns (address)",
+    "function defaultAdminStatsQueryModule() view returns (address)",
   ];
   const factory = new hhEthers.Contract(factoryAddress, factoryAbi, signer);
 
@@ -178,6 +180,7 @@ async function main() {
   await (await factory.setFaucetModule(modules.faucetModule, txOverrides)).wait();
   await (await factory.setGovernanceModule(modules.governanceModule, txOverrides)).wait();
   await (await factory.setMembershipStatsModule(modules.membershipStatsModule, txOverrides)).wait();
+  await (await factory.setAdminStatsQueryModule(modules.adminStatsQueryModule, txOverrides)).wait();
 
   const bound = {
     redeem: (await factory.defaultRedeemModule()) as string,
@@ -185,6 +188,7 @@ async function main() {
     faucet: (await factory.defaultFaucetModule()) as string,
     governance: (await factory.defaultGovernanceModule()) as string,
     membershipStats: (await factory.defaultMembershipStatsModule()) as string,
+    adminStatsQuery: (await factory.defaultAdminStatsQueryModule()) as string,
   };
 
   if (bound.redeem.toLowerCase() !== modules.redeemModule.toLowerCase()) throw new Error("setRedeemModule 未生效");
@@ -192,6 +196,7 @@ async function main() {
   if (bound.faucet.toLowerCase() !== modules.faucetModule.toLowerCase()) throw new Error("setFaucetModule 未生效");
   if (bound.governance.toLowerCase() !== modules.governanceModule.toLowerCase()) throw new Error("setGovernanceModule 未生效");
   if (bound.membershipStats.toLowerCase() !== modules.membershipStatsModule.toLowerCase()) throw new Error("setMembershipStatsModule 未生效");
+  if (bound.adminStatsQuery.toLowerCase() !== modules.adminStatsQueryModule.toLowerCase()) throw new Error("setAdminStatsQueryModule 未生效");
 
   const deployedFactoryCode = await provider.getCode(factoryAddress);
   assertSelectorPresent(
@@ -222,7 +227,7 @@ async function main() {
   factoryData.contracts.beamioUserCardFactoryPaymaster.faucetModule = modules.faucetModule;
   factoryData.contracts.beamioUserCardFactoryPaymaster.governanceModule = modules.governanceModule;
   factoryData.contracts.beamioUserCardFactoryPaymaster.membershipStatsModule = modules.membershipStatsModule;
-  factoryData.contracts.beamioUserCardFactoryPaymaster.membershipStatsQueryModule = modules.membershipStatsQueryModule;
+  factoryData.contracts.beamioUserCardFactoryPaymaster.adminStatsQueryModule = modules.adminStatsQueryModule;
   fs.writeFileSync(factoryFile, JSON.stringify(factoryData, null, 2));
 
   console.log("绑定完成并写入:");

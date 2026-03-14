@@ -29,6 +29,30 @@ contract StatsFacet {
         AggregatedStats stats;
     }
 
+    /// @notice admin 每小时查询的完整返回：原子小时数据 + 从开始起的累计 + 从清零起的 mintCounter
+    struct AdminHourlyStatsResult {
+        LibStatsStorage.HourlyStats hourly;
+        uint256 cumulativeTokenMintedFromBegin;
+        uint256 cumulativeTokenBurnedFromBegin;
+        uint256 adminMintCounterByCard;
+    }
+
+    /// @notice admin 聚合/周期查询的完整返回：聚合统计 + 从开始起的累计 + 从清零起的 mintCounter
+    struct AdminAggregatedResult {
+        AggregatedStats stats;
+        uint256 cumulativeTokenMintedFromBegin;
+        uint256 cumulativeTokenBurnedFromBegin;
+        uint256 adminMintCounterByCard;
+    }
+
+    /// @notice admin 商业周期报表的完整返回：周期报表 + 从开始起的累计 + 从清零起的 mintCounter
+    struct AdminPeriodReportsResult {
+        PeriodReport[] reports;
+        uint256 cumulativeTokenMintedFromBegin;
+        uint256 cumulativeTokenBurnedFromBegin;
+        uint256 adminMintCounterByCard;
+    }
+
     function _enforceIsOwnerOrAdmin() internal view {
         if (msg.sender == LibDiamond.contractOwner()) return;
         require(LibAdminStorage.layout().isAdmin[msg.sender], "not admin");
@@ -66,6 +90,24 @@ contract StatsFacet {
     ) external {
         _enforceIsOwnerOrAdmin();
         _recordDetailedActivityAt(ts, card, user, nftCount, mintAmount, burnAmount, transfers);
+    }
+
+    /**
+     * @notice 按 admin 记录 token #0 (points) 的 mint/burn，用于小时原子统计
+     * @dev 可由 diamond owner/admin 调用，或经 syncTokenAction 传入 operator 时由 ActionFacet 内部更新
+     */
+    function recordAdminToken0ActivityAt(
+        uint256 ts,
+        address admin,
+        uint256 mintAmount,
+        uint256 burnAmount
+    ) external {
+        _enforceIsOwnerOrAdmin();
+        if (admin == address(0)) return;
+        if (mintAmount == 0 && burnAmount == 0) return;
+        LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+        uint256 hourIndex = ts / 3600;
+        _updateHourlyStats(s.adminHourlyData[admin][hourIndex], 0, mintAmount, burnAmount, 0);
     }
 
     function _recordDetailedActivityAt(
@@ -134,8 +176,8 @@ contract StatsFacet {
 
     /**
      * @notice 按商业报表周期返回最近 N 个周期统计（从 anchor 所在周期向前）
-     * @param mode 0=全局, 1=按 card, 2=按 user
-     * @param account mode=1/2 时对应地址，其它模式可传 address(0)
+     * @param mode 0=全局, 1=按 card, 2=按 user, 3=按 admin（token #0 mint/burn）
+     * @param account mode=1/2/3 时对应地址，其它模式可传 address(0)
      * @param periodType 1=日,2=周,3=月,4=季度,5=年
      * @param periods 需要返回的周期数量（最大 MAX_PERIODS）
      * @param anchorTs 参考时间戳，传 0 时使用 block.timestamp
@@ -146,7 +188,7 @@ contract StatsFacet {
         uint8 periodType,
         uint256 periods,
         uint256 anchorTs
-    ) external view returns (PeriodReport[] memory reports) {
+    ) public view returns (PeriodReport[] memory reports) {
         require(_isValidPeriodType(periodType), "bad periodType");
         require(periods > 0 && periods <= MAX_PERIODS, "bad periods");
 
@@ -165,6 +207,7 @@ contract StatsFacet {
 
     /**
      * @notice 返回指定小时的“原子统计”
+     * @param mode 0=全局, 1=按 card, 2=按 user, 3=按 admin（token #0 mint/burn）
      */
     function getAtomicHourStats(uint8 mode, address account, uint256 hourIndex)
         external
@@ -174,8 +217,117 @@ contract StatsFacet {
         LibStatsStorage.Layout storage s = LibStatsStorage.layout();
         if (mode == 0) return s.hourlyData[hourIndex];
         if (mode == 1) return s.cardHourlyData[account][hourIndex];
-        require(mode == 2, "bad mode");
-        return s.userHourlyData[account][hourIndex];
+        if (mode == 2) return s.userHourlyData[account][hourIndex];
+        require(mode == 3, "bad mode");
+        return s.adminHourlyData[account][hourIndex];
+    }
+
+    /// @notice 按 admin 返回指定小时的 token #0 mint/burn 原子统计
+    function getAdminHourlyData(address admin, uint256 hourIndex)
+        external
+        view
+        returns (LibStatsStorage.HourlyStats memory)
+    {
+        return LibStatsStorage.layout().adminHourlyData[admin][hourIndex];
+    }
+
+    /// @notice 按 admin 返回指定小时的完整统计：原子数据 + 从开始起的累计 + 从清零起的 adminMintCounterByCard
+    /// @param cumulativeStartHour 累计起点 hourIndex；type(uint256).max 表示自动取 max(0, hourIndex - MAX_HOURS + 1)
+    function getAdminHourlyDataFull(
+        address admin,
+        address card,
+        uint256 hourIndex,
+        uint256 cumulativeStartHour
+    ) external view returns (AdminHourlyStatsResult memory result) {
+        LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+        result.hourly = s.adminHourlyData[admin][hourIndex];
+        result.adminMintCounterByCard = card != address(0) ? s.adminMintCounterByCard[card][admin] : 0;
+        uint256 startH = cumulativeStartHour == type(uint256).max ? (hourIndex >= MAX_HOURS ? hourIndex - MAX_HOURS + 1 : 0) : cumulativeStartHour;
+        if (startH <= hourIndex && hourIndex - startH < MAX_HOURS) {
+            for (uint256 i = startH; i <= hourIndex; i++) {
+                LibStatsStorage.HourlyStats storage h = s.adminHourlyData[admin][i];
+                if (h.hasData) {
+                    result.cumulativeTokenMintedFromBegin += h.tokenMinted;
+                    result.cumulativeTokenBurnedFromBegin += h.tokenBurned;
+                }
+            }
+        }
+    }
+
+    /// @notice 按 admin 返回指定小时的原子统计 + adminMintCounterByCard；card 为 address(0) 时 mintCounter 返回 0
+    /// @dev 如需累计信息请用 getAdminHourlyDataFull
+    function getAdminHourlyDataWithMintCounter(address admin, address card, uint256 hourIndex)
+        external
+        view
+        returns (LibStatsStorage.HourlyStats memory hourly, uint256 mintCounter)
+    {
+        LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+        hourly = s.adminHourlyData[admin][hourIndex];
+        mintCounter = card != address(0) ? s.adminMintCounterByCard[card][admin] : 0;
+    }
+
+    /// @notice 按 admin 返回时间区间聚合统计 + 从开始起的累计 + adminMintCounterByCard
+    /// @param cumulativeStartTs 累计起点时间戳；0 时使用 endTimestamp - MAX_HOURS*3600
+    function getAdminAggregatedStatsWithMintCounter(
+        address admin,
+        address card,
+        uint256 startTimestamp,
+        uint256 endTimestamp,
+        uint256 cumulativeStartTs
+    ) external view returns (AdminAggregatedResult memory result) {
+        result.stats = getAggregatedStats(3, admin, startTimestamp, endTimestamp);
+        result.adminMintCounterByCard = card != address(0) ? LibStatsStorage.layout().adminMintCounterByCard[card][admin] : 0;
+        uint256 endHour = endTimestamp / 3600;
+        uint256 startHour = cumulativeStartTs == 0 ? (endHour >= MAX_HOURS ? endHour - MAX_HOURS + 1 : 0) : cumulativeStartTs / 3600;
+        if (startHour <= endHour && endHour - startHour < MAX_HOURS) {
+            LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+            for (uint256 i = startHour; i <= endHour; i++) {
+                LibStatsStorage.HourlyStats storage h = s.adminHourlyData[admin][i];
+                if (h.hasData) {
+                    result.cumulativeTokenMintedFromBegin += h.tokenMinted;
+                    result.cumulativeTokenBurnedFromBegin += h.tokenBurned;
+                }
+            }
+        }
+    }
+
+    /// @notice 按 admin 返回商业周期报表 + 从开始起的累计 + adminMintCounterByCard
+    /// @param cumulativeStartTs 累计起点时间戳；0 时使用 anchorTs - MAX_HOURS*3600
+    function getAdminBusinessPeriodReportsWithMintCounter(
+        address admin,
+        address card,
+        uint8 periodType,
+        uint256 periods,
+        uint256 anchorTs,
+        uint256 cumulativeStartTs
+    ) external view returns (AdminPeriodReportsResult memory result) {
+        result.reports = getBusinessPeriodReports(3, admin, periodType, periods, anchorTs);
+        result.adminMintCounterByCard = card != address(0) ? LibStatsStorage.layout().adminMintCounterByCard[card][admin] : 0;
+        uint256 useAnchor = anchorTs == 0 ? block.timestamp : anchorTs;
+        uint256 endHour = useAnchor / 3600;
+        uint256 startHour = cumulativeStartTs == 0 ? (endHour >= MAX_HOURS ? endHour - MAX_HOURS + 1 : 0) : cumulativeStartTs / 3600;
+        if (startHour <= endHour && endHour - startHour < MAX_HOURS) {
+            LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+            for (uint256 i = startHour; i <= endHour; i++) {
+                LibStatsStorage.HourlyStats storage h = s.adminHourlyData[admin][i];
+                if (h.hasData) {
+                    result.cumulativeTokenMintedFromBegin += h.tokenMinted;
+                    result.cumulativeTokenBurnedFromBegin += h.tokenBurned;
+                }
+            }
+        }
+    }
+
+    /// @notice 按 (card, admin) 返回 cumulative mint token 0 计数；查询 admin 时连同其他信息一起回送
+    function getAdminMintCounter(address card, address admin) external view returns (uint256) {
+        return LibStatsStorage.layout().adminMintCounterByCard[card][admin];
+    }
+
+    /// @notice parent admin 清零 subordinate 的 mint 计数；仅 diamond owner/admin 可调用，调用前需校验 card.adminParent(subordinate)==authorizer
+    function clearAdminMintCounterForSubordinate(address card, address subordinate) external {
+        _enforceIsOwnerOrAdmin();
+        if (card == address(0) || subordinate == address(0)) return;
+        LibStatsStorage.layout().adminMintCounterByCard[card][subordinate] = 0;
     }
 
     function _aggregateBetween(
@@ -196,9 +348,10 @@ contract StatsFacet {
             LibStatsStorage.HourlyStats storage h;
             if (mode == 0) h = s.hourlyData[i];
             else if (mode == 1) h = s.cardHourlyData[account][i];
+            else if (mode == 2) h = s.userHourlyData[account][i];
             else {
-                require(mode == 2, "bad mode");
-                h = s.userHourlyData[account][i];
+                require(mode == 3, "bad mode");
+                h = s.adminHourlyData[account][i];
             }
 
             if (h.hasData) {

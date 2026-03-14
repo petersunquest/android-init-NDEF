@@ -383,6 +383,8 @@ async function queryMintStats() {
 
 链上统计以“小时桶”作为最小原子单位，所有日/周/月/季/年报表都由小时桶聚合而来，避免重复口径和精度漂移。
 
+**Admin 维度统计**：当 `syncTokenAction` 传入 `operator != address(0)` 且 route 含 `UserCardPoint` 时，自动按 admin 地址记录 token #0 (points) 的 mint/burn 到 `adminHourlyData`。可通过 `getAggregatedStats(mode=3, admin, startTs, endTs)` 或 `getBusinessPeriodReports(mode=3, admin, periodType, periods, anchorTs)` 按时/日/周/月/季/年聚合查询。
+
 ```ts
 interface HourlyStats {
   nftMinted: number;
@@ -405,6 +407,59 @@ interface PeriodReport {
   stats: AggregatedStats;
 }
 ```
+
+### 2.5 BeamioUserCard Mint 权限与统计口径
+
+UserCard points (token #0) 的 mint 权限及 admin 维度统计口径，按空投、Redeem、USDC Topup 分类。
+
+#### 2.5.1 空投 (Admin Airdrop)
+
+| 项目 | 说明 |
+|------|------|
+| **权限** | Admin 离线签 `ExecuteForAdmin`，Factory 校验 `card.isAdmin(signer)` |
+| **入口** | `mintPointsByAdmin`，经 `executeForAdmin` |
+| **operator** | Admin signer |
+| **operatorParentChain** | 从 `card.adminParent(operator)` 向上追溯的 parent 链 |
+| **txCategory 示例** | usdcTopupCard (NFC)、newCard、topupCard |
+
+#### 2.5.2 Redeem 兑换
+
+| 项目 | 说明 |
+|------|------|
+| **权限** | 仅 card owner 可创建 redeem（`executeForOwner`）；任意用户可兑换 |
+| **入口** | `createRedeem*`（创建）→ `redeemForUser`（兑换） |
+| **operator** | `getRedeemCreator(code)`（创建者），无则用 card owner |
+| **operatorParentChain** | creator/owner 的 parent 链 |
+| **txCategory 示例** | redeemNewCard、redeemUpgradeNewCard、redeemTopupCard |
+
+#### 2.5.3 USDC Topup
+
+| 项目 | 说明 |
+|------|------|
+| **权限** | 用户签 EIP-3009 授权 USDC，Factory 调用 `buyPointsForUser`；可选 `recommender`，若传则**必须为 card admin** |
+| **入口** | `buyPointsForUser`，经 `/api/purchasingCard` 或 `/api/usdcTopup` |
+| **operator** | Recommender 非零且为 admin 时 = recommender；否则 = Card owner |
+| **operatorParentChain** | operator 的 parent 链 |
+| **Recommender 规则** | 为零时只计入 owner 链；非零时必须为 admin，计入该 admin 的统计口径 |
+| **txCategory 示例** | usdcNewCard、usdcUpgradeNewCard、usdcTopupCard |
+
+#### 2.5.4 统计规则 (ActionFacet)
+
+当 `syncTokenAction` 传入 `operator != address(0)` 且 route 含 `source == UserCardPoint` 时：
+
+- 对 route 中每条 `UserCardPoint` 的 `amountE6` 累加到 `token0Mint`
+- 调用 `_recordAdminToken0Stats(ts, operator, token0Mint, token0Burn)` 写入 `adminHourlyData[operator]`
+- 对 `operatorParentChain` 中每个非零地址同样调用 `_recordAdminToken0Stats`
+
+**查询**：`StatsFacet.getAggregatedStats(mode=3, admin, startTs, endTs)` 或 `getBusinessPeriodReports(mode=3, admin, ...)`
+
+#### 2.5.5 对照表
+
+| 分类 | 权限主体 | operator | operatorParentChain |
+|------|----------|----------|---------------------|
+| **空投** | Admin | Admin signer | admin 的 parent 链 |
+| **Redeem** | Owner 创建 | Redeem creator (owner) | creator 的 parent 链 |
+| **USDC Topup** | 用户自助 | Recommender 非零且为 admin 时 recommender，否则 owner | operator 的 parent 链 |
 
 ## 3. 区块链规则 (Blockchain Rules)
 
@@ -1019,12 +1074,62 @@ Master 成功 mint 后，必须写入一条 `syncTokenAction`：
 | Holder TopN（窗口末快照） | `BeamioUserCardStatsFacet` | `getBeamioUserCardTokenTopHoldersByCurrentPeriodOffset(...)` + `Hour...Year` | 严格小时快照口径，取窗口末状态 TopN | `beamioUserCard/tokenId/periodOffset/topN` | `holders/balancesE6/periodStart/periodEnd` |
 | 卡 mint 统计（全卡） | `BeamioUserCardStatsFacet` | `getBeamioUserCardMintStatsByCurrentPeriodOffset(...)` + `Hour...Year` | 窗口内 mint 总笔数 + mint 钱包去重数（按 `payee`） | `beamioUserCard/mintTxCategoryFilter/accountMode/chainIdFilter` | `MintStats(mintTxTotal,mintWalletCount,periodStart,periodEnd)` |
 | 卡 mint 统计（按 tokenId） | `BeamioUserCardStatsFacet` | `getBeamioUserCardTokenMintStatsByCurrentPeriodOffset(...)` + `Hour...Year` | 窗口内指定 `tokenId` 的 mint 总笔数 + 钱包去重数 | `beamioUserCard/tokenId/mintTxCategoryFilter/accountMode/chainIdFilter` | `MintStats(mintTxTotal,mintWalletCount,periodStart,periodEnd)` |
+| Admin token #0 mint/burn 统计 | `StatsFacet` | `getAtomicHourStats(3, admin, hourIndex)` / `getAdminHourlyData(admin, hourIndex)` / `getAggregatedStats(3, admin, startTs, endTs)` / `getBusinessPeriodReports(3, admin, periodType, periods, anchorTs)` | 按 admin 地址统计 token #0 (points) 的 mint/burn，可按时/日/周/月/季/年聚合 | `mode=3` 表示 admin 维度，`account` 为 admin 地址 | `HourlyStats` / `AggregatedStats` / `PeriodReport[]` |
 
 使用建议（工程侧）：
 - 报表类优先使用“周期 + offset”接口，保持与小时原子桶一致。
 - 涉及多链资产时，显式传 `chainIdFilter`，避免跨链混算。
 - mint 统计必须传固定 `mintTxCategoryFilter`（如 `keccak256("beamio_usercard_mint:confirmed")`）。
 - TopN 类查询建议限制 `topN` 上限（如 100）以控制节点查询成本。
+
+### 7.10 BeamioUserCard Admin 管理（adminManager）
+
+BeamioUserCard 的 admin 增删统一为单一接口 `adminManager`，必须由 owner 离线签字后经 gateway 的 `executeForOwner` 执行。
+
+#### 7.10.1 接口定义
+
+```solidity
+// 统一管理 admin：admin=true 添加并写入 metadata，admin=false 仅从 adminList 移除（metadata 保留）
+function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external;
+
+// 返回所有 admin 地址
+function getAdminList() external view returns (address[] memory);
+
+```
+
+#### 7.10.2 约束
+
+| 约束 | 说明 |
+|------|------|
+| 调用方 | 仅 gateway（Factory）可调用；owner 不可直接调用 |
+| 执行路径 | 必须经 `BeamioUserCardFactoryPaymaster.executeForOwner(cardAddr, data, deadline, nonce, ownerSignature)` |
+| owner 保护 | `admin=false` 时，若 `to == owner()` 则 revert `UC_OwnerCannotBeRemoved` |
+| 添加时 to | `admin=true` 时，`to` 必须为 EOA（非 AA/合约） |
+| newThreshold | 添加/移除后 multisig 所需签名数，必须 `> 0` 且 `<= adminList.length` |
+| metadata | 添加时随 `adminManager` 写入治理存储；当前主卡不再暴露单独的 `adminMetadata(address)` getter |
+
+#### 7.10.3 前端调用示例
+
+```ts
+import { encodeAdminManager, signExecuteForOwner } from './BeamioCard'
+
+// 添加 admin（带 metadata）
+const data = encodeAdminManager(newAdminAddress, true, 1, 'Partner: Store #001')
+const sig = await signExecuteForOwner(ownerPrivateKey, cardAddress, data, deadline, nonce)
+await postCardAddAdmin({ cardAddress, data, deadline, nonce, ownerSignature: sig })
+
+// 移除 admin
+const data = encodeAdminManager(adminToRemove, false, 1, '')
+const sig = await signExecuteForOwner(ownerPrivateKey, cardAddress, data, deadline, nonce)
+await postCardAddAdmin({ cardAddress, data, deadline, nonce, ownerSignature: sig })
+
+// 查询所有 admin
+const admins = await card.getAdminList()
+```
+
+#### 7.10.4 API 端点
+
+- **POST `/api/cardAddAdmin`**：Cluster 预检 `data` 为 `adminManager(address,bool,uint256,string)` calldata，`admin=true` 时校验 `to` 为 EOA，合格后转发 Master `executeForOwner`。
 
 ## 8. 开发注意事项 (Dev Notes)
 

@@ -10,17 +10,40 @@
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
+import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { ethers as ethersJs } from "ethers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
+function loadSignerPk(): string {
+  if (process.env.PRIVATE_KEY && process.env.PRIVATE_KEY.trim()) {
+    return process.env.PRIVATE_KEY.startsWith("0x")
+      ? process.env.PRIVATE_KEY
+      : `0x${process.env.PRIVATE_KEY}`;
+  }
+
+  const setupPath = path.join(homedir(), ".master.json");
+  if (!fs.existsSync(setupPath)) {
+    throw new Error("未找到 PRIVATE_KEY，且 ~/.master.json 不存在");
+  }
+  const data = JSON.parse(fs.readFileSync(setupPath, "utf-8"));
+  const pk = data?.settle_contractAdmin?.[0];
+  if (!pk || typeof pk !== "string") {
+    throw new Error("未找到 PRIVATE_KEY，且 ~/.master.json 缺少 settle_contractAdmin[0]");
+  }
+  return pk.startsWith("0x") ? pk : `0x${pk}`;
+}
+
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [deployer] = await ethers.getSigners();
+  const pk = loadSignerPk();
+  const deployer = new ethersJs.NonceManager(new ethers.Wallet(pk, ethers.provider));
+  const deployerAddress = await deployer.getAddress();
   const networkInfo = await ethers.provider.getNetwork();
   const chainId = Number(networkInfo.chainId);
   const deploymentsDir = path.join(__dirname, "..", "deployments");
@@ -29,7 +52,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log("重新部署 Card Factory 并更新配置");
   console.log("=".repeat(60));
-  console.log("部署账户:", deployer.address);
+  console.log("部署账户:", deployerAddress);
   console.log("网络:", networkInfo.name, "Chain ID:", chainId);
   console.log();
 
@@ -78,7 +101,7 @@ async function main() {
   console.log("  RedeemModule:", REDEEM_MODULE_ADDRESS);
   console.log("  QuoteHelper:", QUOTE_HELPER_ADDRESS);
   console.log("  AA_FACTORY:", AA_FACTORY_ADDRESS);
-  console.log("  Owner:", deployer.address);
+    console.log("  Owner:", deployerAddress);
   console.log();
 
   const checkCode = async (addr: string, name: string) => {
@@ -92,7 +115,7 @@ async function main() {
   // ---------- 1. 部署 BeamioUserCardDeployerV07 ----------
   console.log("步骤 1: 部署 BeamioUserCardDeployerV07...");
   const DeployerFactory = await ethers.getContractFactory("BeamioUserCardDeployerV07");
-  const userCardDeployer = await DeployerFactory.deploy();
+  const userCardDeployer = await DeployerFactory.connect(deployer).deploy();
   await userCardDeployer.waitForDeployment();
   const deployerContractAddress = await userCardDeployer.getAddress();
   console.log("  BeamioUserCardDeployerV07:", deployerContractAddress);
@@ -104,13 +127,13 @@ async function main() {
   console.log("\n步骤 2: 部署 BeamioUserCardFactoryPaymasterV07...");
   const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
-  const factory = await FactoryFactory.deploy(
+  const factory = await FactoryFactory.connect(deployer).deploy(
     USDC_ADDRESS,
     REDEEM_MODULE_ADDRESS,
     QUOTE_HELPER_ADDRESS,
     deployerContractAddress,
     AA_FACTORY_ADDRESS,
-    deployer.address
+    deployerAddress
   );
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
@@ -126,7 +149,7 @@ async function main() {
       QUOTE_HELPER_ADDRESS,
       deployerContractAddress,
       AA_FACTORY_ADDRESS,
-      deployer.address,
+      deployerAddress,
     ],
     "BeamioUserCardFactoryPaymasterV07"
   );
@@ -143,7 +166,7 @@ async function main() {
   const deploymentInfo = {
     network: networkInfo.name,
     chainId: networkInfo.chainId.toString(),
-    deployer: deployer.address,
+    deployer: deployerAddress,
     timestamp: new Date().toISOString(),
     contracts: {
       beamioUserCardDeployer: {
@@ -158,7 +181,7 @@ async function main() {
         deployer: deployerContractAddress,
         aaFactory: AA_FACTORY_ADDRESS,
         metadataBaseURI: USER_CARD_METADATA_BASE_URI,
-        owner: deployer.address,
+        owner: deployerAddress,
         transactionHash: factory.deploymentTransaction()?.hash,
       },
     },

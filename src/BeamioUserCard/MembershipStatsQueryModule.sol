@@ -43,6 +43,7 @@ contract BeamioUserCardMembershipStatsQueryModuleV1 {
     uint8 internal constant SCOPE_TOKEN = 1;
     uint8 internal constant SCOPE_TIER = 2;
 
+
     function getMembershipFlowStatsByCurrentPeriodOffset(address card, uint8 periodType, uint256 periodOffset)
         external
         view

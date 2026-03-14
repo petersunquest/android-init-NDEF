@@ -61,6 +61,25 @@
   {
     "inputs": [
       {
+        "internalType": "string",
+        "name": "code",
+        "type": "string"
+      }
+    ],
+    "name": "consumeRedeemAdmin",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string[]",
         "name": "codes",
         "type": "string[]"
@@ -172,6 +191,34 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32",
+        "name": "hash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      }
+    ],
+    "name": "createRedeemAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32[]",
         "name": "hashes",
         "type": "bytes32[]"
@@ -215,6 +262,107 @@
   {
     "inputs": [
       {
+        "internalType": "bytes32[]",
+        "name": "hashes",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "points6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "attr",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemBatchWithCreator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "hashes",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "points6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "attr",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "recommender",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemBatchWithCreatorAndRecommender",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes32",
         "name": "poolHash",
         "type": "bytes32"
@@ -248,6 +396,236 @@
     "name": "createRedeemPool",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[][]",
+        "name": "tokenIdsList",
+        "type": "uint256[][]"
+      },
+      {
+        "internalType": "uint256[][]",
+        "name": "amountsList",
+        "type": "uint256[][]"
+      },
+      {
+        "internalType": "uint32[]",
+        "name": "counts",
+        "type": "uint32[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemPoolWithCreator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "poolHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[][]",
+        "name": "tokenIdsList",
+        "type": "uint256[][]"
+      },
+      {
+        "internalType": "uint256[][]",
+        "name": "amountsList",
+        "type": "uint256[][]"
+      },
+      {
+        "internalType": "uint32[]",
+        "name": "counts",
+        "type": "uint32[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "recommender",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemPoolWithCreatorAndRecommender",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "hash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "points6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "attr",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemWithCreator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "hash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "points6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "attr",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validAfter",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "validBefore",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "recommender",
+        "type": "address"
+      }
+    ],
+    "name": "createRedeemWithCreatorAndRecommender",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "code",
+        "type": "string"
+      }
+    ],
+    "name": "getRedeemCreator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "code",
+        "type": "string"
+      }
+    ],
+    "name": "getRedeemRecommender",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "recommender",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

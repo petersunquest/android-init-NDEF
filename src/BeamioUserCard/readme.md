@@ -17,7 +17,7 @@
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x46E8a69f7296deF53e33844bb00D92309ab46233`](https://basescan.org/address/0x46E8a69f7296deF53e33844bb00D92309ab46233)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0xE091a0A974a40bCee36288193376294a19a293aE`](https://basescan.org/address/0xE091a0A974a40bCee36288193376294a19a293aE)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -30,21 +30,21 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 - Historical `BeamioUserCardFactoryPaymasterV07`: [`0x19C000c00e6A2b254b39d16797930431E310BEdd`](https://basescan.org/address/0x19C000c00e6A2b254b39d16797930431E310BEdd)
 - `BeamioUserCard`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
-From `deployments/base-UserCardFactory.json` (`2026-03-11T03:18:05.030Z`):
+From `deployments/base-UserCardFactory.json` (`2026-03-14T00:16:32.334Z`):
 
-- Current `BeamioUserCardDeployerV07`: [`0x324dCda8fF2CE1E9126e528d5A41CF72a6612E96`](https://basescan.org/address/0x324dCda8fF2CE1E9126e528d5A41CF72a6612E96)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x46E8a69f7296deF53e33844bb00D92309ab46233`](https://basescan.org/address/0x46E8a69f7296deF53e33844bb00D92309ab46233)
+- Current `BeamioUserCardDeployerV07`: [`0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0`](https://basescan.org/address/0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0xE091a0A974a40bCee36288193376294a19a293aE`](https://basescan.org/address/0xE091a0A974a40bCee36288193376294a19a293aE)
 
 ### Base Registered Module Addresses
 
 From on-chain reads and `deployments/base-UserCardModules.json`:
 
-- `defaultRedeemModule`: [`0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84`](https://basescan.org/address/0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84)
-- `defaultIssuedNftModule`: [`0xa6Ba46C351182206c719BA2b29A02357d5580344`](https://basescan.org/address/0xa6Ba46C351182206c719BA2b29A02357d5580344)
-- `defaultFaucetModule`: [`0x60154A9C51A33994A3873a8E53f7595717ae29ED`](https://basescan.org/address/0x60154A9C51A33994A3873a8E53f7595717ae29ED)
-- `defaultGovernanceModule`: [`0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd`](https://basescan.org/address/0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd)
-- `defaultMembershipStatsModule`: [`0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb`](https://basescan.org/address/0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb)
-- `membershipStatsQueryModule`: [`0x55bbc609101F4137eaD08cf8D47F06f58575a4e1`](https://basescan.org/address/0x55bbc609101F4137eaD08cf8D47F06f58575a4e1)
+- `defaultRedeemModule`: [`0x7AD391Eea7f21472872DA9E98b76aC70107432AD`](https://basescan.org/address/0x7AD391Eea7f21472872DA9E98b76aC70107432AD)
+- `defaultIssuedNftModule`: [`0x6ee95325dEF45445604F5790e5690CbB6ae00150`](https://basescan.org/address/0x6ee95325dEF45445604F5790e5690CbB6ae00150)
+- `defaultFaucetModule`: [`0x1406EfDC2b00881c38497E3933861934dfbaB355`](https://basescan.org/address/0x1406EfDC2b00881c38497E3933861934dfbaB355)
+- `defaultGovernanceModule`: [`0x7AF12402E341007188c048175266a48b0B4440de`](https://basescan.org/address/0x7AF12402E341007188c048175266a48b0B4440de)
+- `defaultMembershipStatsModule`: [`0x082F5b7d824871B2B5cc2142F2609d5F03060EF3`](https://basescan.org/address/0x082F5b7d824871B2B5cc2142F2609d5F03060EF3)
+- `defaultAdminStatsQueryModule`: [`0xDF69297B891840648dafb66d2799499301561BdE`](https://basescan.org/address/0xDF69297B891840648dafb66d2799499301561BdE)
 
 ### Base Factory Configuration
 
@@ -126,6 +126,131 @@ Additional deployed operational modules:
 - `initialOwner`: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 - `gateway_`: `0x16B868162963C6E540d4F2fdC8BE503c19fe6E71`
 
+## Admin Stats
+
+The card now keeps on-chain admin-scoped hourly stats for token `0` and membership flows.
+
+### Operator Attribution
+
+- `mintPointsByAdmin`: operator = admin signer
+- `burnPointsByAdmin`: operator = admin signer
+- `mintPointsByGateway` / `mintPointsByGatewayWithOperator`: operator = recommender admin when provided, otherwise `owner()`
+- `redeemByGateway` / `redeemBatchByGateway`: operator = redeem creator, fallback `owner()`; if the owner-signed redeem creation payload includes a recommender admin, redeem completion also increments that admin's separate `redeem_mint` counter
+- `mintMemberCardByAdmin`: operator = `owner()`
+- `safeTransferFrom` / `safeBatchTransferFrom` for `POINTS_ID`: operator prefers `msg.sender`; if `msg.sender` is an AA/account contract, fallback to `from.owner()`
+
+For all supported flows, stats are written to the operator and recursively accumulated to every parent admin via `adminParent`.
+
+### What Is Tracked
+
+- `mint`: token `0` minted amount
+- `redeemMintCounter`: separate redeem-only minted amount credited to the optional recommender admin
+- `usdcMintCounter`: separate USDC-topup-only minted amount credited to the optional recommender admin
+- `burn`: token `0` burned amount
+- `transfer`: token `0` transfer count
+- `transferAmount`: token `0` transfer amount
+- `redeemMint`: redeem-only minted amount credited to the optional recommender admin
+- `usdcMint`: USDC-topup-only minted amount credited to the optional recommender admin
+- `issued`: membership card issued count
+- `upgraded`: membership card upgraded count
+
+### Main Query APIs
+
+- `getAdminRedeemMintCounter(admin)`
+- `getAdminUSDCMintCounter(admin)`
+
+Admin/global stats queries were moved out of `BeamioUserCard` runtime code to reduce bytecode size. Keep calling the same card address, but use the ABI of `BeamioUserCardAdminStatsQueryModuleV1` through the card's fallback route:
+
+- `getAdminHourlyData(admin, hourIndex)`
+- `getAdminPeriodReports(admin, periodType, periods, anchorTs)`
+- `getGlobalStatsFull(periodType, anchorTs, cumulativeStartTs)`
+- `getAdminStatsFull(admin, periodType, anchorTs, cumulativeStartTs)`
+
+### Return Notes
+
+The following query APIs now return structs instead of long tuples, so the ABI is easier to consume and avoids Solidity `stack too deep` issues.
+
+**`getAdminHourlyData(admin, hourIndex) -> AdminHourlyDataView`**
+
+| Field | Meaning |
+|------|------|
+| `nftMinted` | NFT mint count in the target hour |
+| `tokenMinted` | token `0` mint amount in the target hour |
+| `tokenBurned` | token `0` burn amount in the target hour |
+| `transferCount` | token `0` transfer count in the target hour |
+| `transferAmount` | token `0` transfer amount in the target hour |
+| `redeemMintAmount` | redeem-only minted amount credited in the target hour |
+| `usdcMintAmount` | USDC-topup-only minted amount credited in the target hour |
+| `issuedCount` | membership card issued count in the target hour |
+| `upgradedCount` | membership card upgraded count in the target hour |
+| `hasData` | whether this hour bucket has any recorded data |
+
+**`getAdminPeriodReports(admin, periodType, periods, anchorTs) -> AdminPeriodReportsView`**
+
+| Field | Meaning |
+|------|------|
+| `periodStarts` | start timestamps of each returned period |
+| `periodEnds` | end timestamps of each returned period |
+| `totalNftMinteds` | NFT mint count for each period |
+| `totalTokenMinteds` | token `0` mint amount for each period |
+| `totalTokenBurneds` | token `0` burn amount for each period |
+| `totalTransferss` | token `0` transfer count for each period |
+| `totalTransferAmounts` | token `0` transfer amount for each period |
+| `totalRedeemMints` | redeem-only minted amount for each period |
+| `totalUSDCMints` | USDC-topup-only minted amount for each period |
+| `totalIssueds` | membership card issued count for each period |
+| `totalUpgradeds` | membership card upgraded count for each period |
+| `adminMintCounter` | this admin's mint counter since last clear |
+
+**`getGlobalStatsFull(periodType, anchorTs, cumulativeStartTs) -> GlobalStatsFullView`**
+
+| Field | Meaning |
+|------|------|
+| `cumulativeMint` | global cumulative token `0` mint amount since `cumulativeStartTs` |
+| `cumulativeBurn` | global cumulative token `0` burn amount since `cumulativeStartTs` |
+| `cumulativeTransfer` | global cumulative token `0` transfer count since `cumulativeStartTs` |
+| `cumulativeTransferAmount` | global cumulative token `0` transfer amount since `cumulativeStartTs` |
+| `cumulativeRedeemMint` | global cumulative redeem-only minted amount since `cumulativeStartTs` |
+| `cumulativeUSDCMint` | global cumulative USDC-topup-only minted amount since `cumulativeStartTs` |
+| `cumulativeIssued` | global cumulative issued count since `cumulativeStartTs` |
+| `cumulativeUpgraded` | global cumulative upgraded count since `cumulativeStartTs` |
+| `periodMint` | token `0` mint amount in the selected period |
+| `periodBurn` | token `0` burn amount in the selected period |
+| `periodTransfer` | token `0` transfer count in the selected period |
+| `periodTransferAmount` | token `0` transfer amount in the selected period |
+| `periodRedeemMint` | redeem-only minted amount in the selected period |
+| `periodUSDCMint` | USDC-topup-only minted amount in the selected period |
+| `periodIssued` | issued count in the selected period |
+| `periodUpgraded` | upgraded count in the selected period |
+| `adminCount` | total admin count without hierarchy |
+
+**`getAdminStatsFull(admin, periodType, anchorTs, cumulativeStartTs) -> AdminStatsFullView`**
+
+| Field | Meaning |
+|------|------|
+| `cumulativeMint` | cumulative token `0` mint amount for self + subordinates since `cumulativeStartTs` |
+| `cumulativeBurn` | cumulative token `0` burn amount for self + subordinates since `cumulativeStartTs` |
+| `cumulativeTransfer` | cumulative token `0` transfer count for self + subordinates since `cumulativeStartTs` |
+| `cumulativeTransferAmount` | cumulative token `0` transfer amount for self + subordinates since `cumulativeStartTs` |
+| `cumulativeRedeemMint` | cumulative redeem-only minted amount for self + subordinates since `cumulativeStartTs` |
+| `cumulativeUSDCMint` | cumulative USDC-topup-only minted amount for self + subordinates since `cumulativeStartTs` |
+| `cumulativeIssued` | cumulative issued count for self + subordinates since `cumulativeStartTs` |
+| `cumulativeUpgraded` | cumulative upgraded count for self + subordinates since `cumulativeStartTs` |
+| `periodMint` | token `0` mint amount for the selected period |
+| `periodBurn` | token `0` burn amount for the selected period |
+| `periodTransfer` | token `0` transfer count for the selected period |
+| `periodTransferAmount` | token `0` transfer amount for the selected period |
+| `periodRedeemMint` | redeem-only minted amount for the selected period |
+| `periodUSDCMint` | USDC-topup-only minted amount for the selected period |
+| `periodIssued` | issued count for the selected period |
+| `periodUpgraded` | upgraded count for the selected period |
+| `mintCounterFromClear` | mint counter since last clear for self + subordinates |
+| `burnCounterFromClear` | burn counter since last clear for self + subordinates |
+| `transferCounterFromClear` | transfer counter since last clear for self + subordinates |
+| `redeemMintCounterFromClear` | redeem-only mint counter since last clear for self + subordinates |
+| `usdcMintCounterFromClear` | USDC-topup-only mint counter since last clear for self + subordinates |
+| `subordinates` | subordinate admin address list |
+
 ## Notes
 
 - `BeamioUserCardFactoryPaymasterV07` was deployed first, then `BeamioUserCardDeployerV07.setFactory(...)` was executed.
@@ -143,6 +268,7 @@ Additional deployed operational modules:
   - `defaultFaucetModule()`
   - `defaultGovernanceModule()`
   - `defaultMembershipStatsModule()`
+  - `defaultAdminStatsQueryModule()`
   - `aaFactory()`
   - `quoteHelper()`
   - `deployer()`
@@ -154,6 +280,7 @@ Additional deployed operational modules:
   - `currency()`
   - `pointsUnitPriceInCurrencyE6()`
   - `uri(0)`
+  - `getAdminList()` / `adminParent(address)` — admin 列表与 parent 关系
 - Check `BeamioFactoryPaymasterV07.beamioUserCard()` and confirm it equals `0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e`.
 - Confirm all deployed module addresses show verified source code on [CoNET Explorer](https://mainnet.conet.network/).
 

@@ -20,6 +20,9 @@ error UC_TiersNotDecreasing();
 
 // -------- ERC1155 / UserCard (UC_) --------
 error UC_OwnerLocked();
+error UC_OwnerCannotBeRemoved();
+error UC_AdminManagerRequiresOwnerSignature();
+error UC_OnlyParentCanRemoveAdmin(address adminToRemove, address requiredParent);
 error UC_NotAdmin();
 error UC_UnauthorizedGateway();
 error UC_AmountZero();

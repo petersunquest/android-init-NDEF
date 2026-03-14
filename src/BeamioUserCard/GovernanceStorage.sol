@@ -25,6 +25,9 @@ library GovernanceStorage {
         mapping(uint256 => Proposal) proposals;
         mapping(uint256 => mapping(address => bool)) isApproved;
         uint256 proposalCount;
+        mapping(address => string) adminMetadata; // 添加时写入，移除时保留（adminMetadata 可查历史）
+        mapping(address => address) adminParent; // 谁添加了该 admin；owner 添加的为 address(0)
+        mapping(address => address[]) adminChildren; // 该 admin 添加的子 admin 列表
     }
 
     function layout() internal pure returns (Layout storage l) {

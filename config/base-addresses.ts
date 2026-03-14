@@ -8,7 +8,7 @@ export const BASE_MAINNET_FACTORIES = {
   /** AA 账户工厂 (BeamioFactoryPaymasterV07) */
   AA_FACTORY: '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE',
   /** UserCard 工厂 (BeamioUserCardFactoryPaymasterV07) */
-  CARD_FACTORY: '0x46E8a69f7296deF53e33844bb00D92309ab46233',
+  CARD_FACTORY: '0xE091a0A974a40bCee36288193376294a19a293aE',
 } as const
 
 /** 按链聚合，便于多链扩展 */

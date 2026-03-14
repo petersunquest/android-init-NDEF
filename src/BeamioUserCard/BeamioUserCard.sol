@@ -10,6 +10,7 @@ import "./IssuedNftStorage.sol";
 import "./GovernanceStorage.sol";
 import "./MembershipStatsStorage.sol";
 import "./TotalSupplyStorage.sol";
+import "./AdminStatsStorage.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -30,6 +31,7 @@ interface IBeamioUserCardFactoryPaymasterV07 {
     function defaultIssuedNftModule() external view returns (address);
     function defaultGovernanceModule() external view returns (address);
     function defaultMembershipStatsModule() external view returns (address);
+    function defaultAdminStatsQueryModule() external view returns (address);
     function metadataBaseURI() external view returns (string memory);
 }
 
@@ -37,6 +39,9 @@ interface IBeamioUserCardFactoryPaymasterV07 {
  * @dev RedeemModule VNext ABI (delegatecall target)
  */
 interface IBeamioRedeemModuleVNext {
+    function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore) external;
+    function consumeRedeemAdmin(string calldata code) external returns (string memory metadata);
+
     function createRedeem(
         bytes32 hash,
         uint256 points6,
@@ -81,6 +86,15 @@ interface IBeamioRedeemModuleVNext {
     function consumeRedeemPool(string calldata code, address user)
         external
         returns (uint256[] memory tokenIds, uint256[] memory amounts);
+
+    function createRedeemWithCreator(bytes32 hash, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] calldata tokenIds, uint256[] calldata amounts, address creator) external;
+    function createRedeemWithCreatorAndRecommender(bytes32 hash, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] calldata tokenIds, uint256[] calldata amounts, address creator, address recommender) external;
+    function createRedeemBatchWithCreator(bytes32[] calldata hashes, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] calldata tokenIds, uint256[] calldata amounts, address creator) external;
+    function createRedeemBatchWithCreatorAndRecommender(bytes32[] calldata hashes, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] calldata tokenIds, uint256[] calldata amounts, address creator, address recommender) external;
+    function createRedeemPoolWithCreator(bytes32 poolHash, uint64 validAfter, uint64 validBefore, uint256[][] calldata tokenIdsList, uint256[][] calldata amountsList, uint32[] calldata counts, address creator) external;
+    function createRedeemPoolWithCreatorAndRecommender(bytes32 poolHash, uint64 validAfter, uint64 validBefore, uint256[][] calldata tokenIdsList, uint256[][] calldata amountsList, uint32[] calldata counts, address creator, address recommender) external;
+    function getRedeemCreator(string calldata code) external view returns (address creator);
+    function getRedeemRecommender(string calldata code) external view returns (address recommender);
 }
 
 interface IBeamioFaucetModuleV1 {
@@ -95,8 +109,8 @@ interface IBeamioIssuedNftModuleV1 {
 }
 
 interface IBeamioGovernanceModuleV1 {
-    function addAdmin(address newAdmin, uint256 newThreshold) external;
-    function removeAdmin(address adminToRemove, uint256 newThreshold) external;
+    function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external;
+    function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer) external;
     function createProposal(bytes4 selector, address target, uint256 v1, uint256 v2, uint256 v3) external returns (uint256 id);
     function approveProposalByGateway(uint256 id, address adminSigner) external;
     function approveProposal(uint256 id) external;
@@ -137,6 +151,36 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     uint8 private constant MODULE_ISSUED_NFT = 2;
     uint8 private constant MODULE_GOVERNANCE = 3;
     uint8 private constant MODULE_MEMBERSHIP_STATS = 4;
+    bytes4 private constant GET_ADMIN_HOURLY_DATA_SELECTOR = bytes4(keccak256("getAdminHourlyData(address,uint256)"));
+    bytes4 private constant GET_GLOBAL_STATS_FULL_SELECTOR = bytes4(keccak256("getGlobalStatsFull(uint8,uint256,uint256)"));
+    bytes4 private constant GET_ADMIN_STATS_FULL_SELECTOR = bytes4(keccak256("getAdminStatsFull(address,uint8,uint256,uint256)"));
+    bytes4 private constant GET_ADMIN_PERIOD_REPORTS_SELECTOR = bytes4(keccak256("getAdminPeriodReports(address,uint8,uint256,uint256)"));
+    bytes4 private constant CREATE_REDEEM_ADMIN_SELECTOR = bytes4(keccak256("createRedeemAdmin(bytes32,string,uint64,uint64)"));
+    bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
+    bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
+    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
+    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemWithCreatorAndRecommender(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
+    bytes4 private constant CREATE_REDEEM_BATCH_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])"));
+    bytes4 private constant CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
+    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreator(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
+    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreatorAndRecommender(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
+    bytes4 private constant GET_REDEEM_STATUS_SELECTOR = bytes4(keccak256("getRedeemStatus(bytes32)"));
+    bytes4 private constant GET_REDEEM_STATUS_BATCH_STRING_SELECTOR = bytes4(keccak256("getRedeemStatusBatch(string[])"));
+    bytes4 private constant GET_REDEEM_STATUS_BATCH_HASH_SELECTOR = bytes4(keccak256("getRedeemStatusBatch(bytes32[])"));
+    bytes4 private constant GET_REDEEM_STATUS_EX_SELECTOR = bytes4(keccak256("getRedeemStatusEx(bytes32,address)"));
+    bytes4 private constant GET_REDEEM_CREATOR_SELECTOR = bytes4(keccak256("getRedeemCreator(string)"));
+    bytes4 private constant GET_REDEEM_RECOMMENDER_SELECTOR = bytes4(keccak256("getRedeemRecommender(string)"));
+    bytes4 private constant GET_REDEEM_ADMIN_STATUS_SELECTOR = bytes4(keccak256("getRedeemAdminStatus(bytes32)"));
+    bytes4 private constant CANCEL_REDEEM_SELECTOR = bytes4(keccak256("cancelRedeem(string)"));
+    bytes4 private constant CREATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])"));
+    bytes4 private constant CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
+    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
+    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
+    bytes4 private constant TERMINATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("terminateRedeemPool(bytes32)"));
+    bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
+    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
+    bytes4 private constant SET_FAUCET_CONFIG_SELECTOR = bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"));
+    bytes4 private constant CREATE_ISSUED_NFT_SELECTOR = bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"));
 
     // ===== Immutable / gateway =====
     address public immutable deployer;
@@ -249,6 +293,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     event AdminCardMinted(address indexed beneficiaryAccount, uint256 indexed tokenId, uint256 attr, uint256 expiry);
     event AdminPointsMinted(address indexed beneficiaryAccount, uint256 points6);
+    event AdminPointsBurned(address indexed account, uint256 amount);
     event PointsMintedByGateway(address indexed userEOA, address indexed acct, uint256 points6);
 
     // ===== current index (membership NFT; issued NFT index in IssuedNftStorage) =====
@@ -344,9 +389,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         emit TiersUpdated(newTiers.length);
     }
 
-    function getTiersCount() external view returns (uint256) { return tiers.length; }
-    function getTierAt(uint256 idx) external view returns (Tier memory) { return tiers[idx]; }
-
     // ==========================================================
     // Pricing
     // ==========================================================
@@ -363,58 +405,22 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         expirySeconds = secs;
     }
 
-    // -------- Faucet / IssuedNFT / Governance views (from delegatecall storage) --------
-    function faucetConfig(uint256 id) public view returns (FaucetStorage.FaucetConfig memory) {
+    function faucetConfig(uint256 id) external view returns (FaucetStorage.FaucetConfig memory) {
         return FaucetStorage.layout().faucetConfig[id];
     }
 
-    function issuedNftIndex() external view returns (uint256) {
-        return IssuedNftStorage.layout().issuedNftIndex;
+    function issuedNftPriceInCurrency6(uint256 tokenId) external view returns (uint256) {
+        return IssuedNftStorage.layout().issuedNftPriceInCurrency6[tokenId];
     }
-    function issuedNftValidAfter(uint256 tokenId) external view returns (uint64) { return IssuedNftStorage.layout().issuedNftValidAfter[tokenId]; }
-    function issuedNftValidBefore(uint256 tokenId) external view returns (uint64) { return IssuedNftStorage.layout().issuedNftValidBefore[tokenId]; }
-    function issuedNftTitle(uint256 tokenId) external view returns (bytes32) { return IssuedNftStorage.layout().issuedNftTitle[tokenId]; }
-    function issuedNftSharedMetadataHash(uint256 tokenId) external view returns (bytes32) { return IssuedNftStorage.layout().issuedNftSharedMetadataHash[tokenId]; }
-    function issuedNftMaxSupply(uint256 tokenId) external view returns (uint256) { return IssuedNftStorage.layout().issuedNftMaxSupply[tokenId]; }
-    function issuedNftMintedCount(uint256 tokenId) external view returns (uint256) { return IssuedNftStorage.layout().issuedNftMintedCount[tokenId]; }
-    function issuedNftPriceInCurrency6(uint256 tokenId) external view returns (uint256) { return IssuedNftStorage.layout().issuedNftPriceInCurrency6[tokenId]; }
 
-    function threshold() public view returns (uint256) { return GovernanceStorage.layout().threshold; }
-    function isAdmin(address a) public view returns (bool) { return GovernanceStorage.layout().isAdmin[a]; }
-    function adminList(uint256 i) external view returns (address) { return GovernanceStorage.layout().adminList[i]; }
-    function proposalCount() external view returns (uint256) { return GovernanceStorage.layout().proposalCount; }
-    function proposals(uint256 id) external view returns (GovernanceStorage.Proposal memory) { return GovernanceStorage.layout().proposals[id]; }
-
+    function isAdmin(address a) external view returns (bool) { return GovernanceStorage.layout().isAdmin[a]; }
+    /// @notice 查询 admin 的 parent（谁添加了该 admin；owner 添加的为 address(0)）
+    function adminParent(address a) external view returns (address) {
+        return GovernanceStorage.layout().adminParent[a];
+    }
     // ==========================================================
     // Faucet config (delegatecall)
     // ==========================================================
-    function setFaucetConfig(
-        uint256 id,
-        uint64 validUntil,
-        uint64 perClaimMax,
-        uint128 maxPerUser,
-        uint128 maxGlobal,
-        bool enabled,
-        BeamioCurrency.CurrencyType cur,
-        uint128 priceInCurrency6
-    ) external onlyAuthorizedGateway {
-        _callModule(
-            MODULE_FAUCET,
-            abi.encodeWithSelector(
-                IBeamioFaucetModuleV1.setFaucetConfig.selector,
-                id,
-                validUntil,
-                perClaimMax,
-                maxPerUser,
-                maxGlobal,
-                enabled,
-                uint8(cur),
-                priceInCurrency6
-            )
-        );
-        emit FaucetConfigUpdated(id, FaucetStorage.layout().faucetConfig[id]);
-    }
-
     function _revertDelegate(bytes memory data) internal pure {
         if (data.length > 0) assembly { revert(add(data, 32), mload(data)) }
         revert UC_RedeemDelegateFailed(data);
@@ -442,8 +448,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         bool hasValidCard = (activeMembershipId[acct] != 0);
         _mint(acct, outId, outAmount, "");
         uint256 pointsDelta6 = (outId == POINTS_ID) ? outAmount : 0;
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         if (!hasValidCard) _issueCardByPointsDelta_AssumingNoValidCard(acct, pointsDelta6);
         else if (pointsDelta6 > 0) _maybeUpgrade(acct, pointsDelta6);
+        _recordAdminMembershipFlowForOperatorAndParents(owner(), issuedBefore, upgradedBefore);
         emit FaucetClaimed(outId, userEOA, acct, outAmount, FaucetStorage.layout().faucetClaimed[outId][userEOA]);
     }
 
@@ -463,8 +471,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         _mint(acct, outId, outAmount, "");
         uint256 pointsDelta6 = (outId == POINTS_ID) ? outAmount : 0;
         if (pointsDelta6 > 0) {
+            (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
             _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(acct, pointsDelta6);
             _maybeUpgrade(acct, pointsDelta6);
+            _recordAdminMembershipFlowForOperatorAndParents(owner(), issuedBefore, upgradedBefore);
         }
         emit FaucetClaimed(outId, userEOA, acct, outAmount, FaucetStorage.layout().faucetClaimed[outId][userEOA]);
     }
@@ -473,199 +483,40 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // Redeem suite (owner issues; gateway consumes)
     // ==========================================================
 
-    /// @notice card owner (or gateway) creates a one-time redeem
-    function createRedeem(
-        bytes32 hash,
-        uint256 points6,
-        uint256 attr,
-        uint64 validAfter,
-        uint64 validBefore,
-        uint256[] calldata tokenIds,
-        uint256[] calldata amounts
-    ) external nonReentrant {
-        _requireOwnerOrGateway();
-        _callModule(
+    /// @notice gateway 兑换 redeem-admin：用户提供秘密 code，匹配合格后添加 to 为 admin
+    function redeemAdminByGateway(string calldata code, address to) external onlyAuthorizedGateway nonReentrant {
+        if (to == address(0)) revert BM_ZeroAddress();
+        bytes memory out = _callModule(
             MODULE_REDEEM,
-            abi.encodeWithSelector(
-                IBeamioRedeemModuleVNext.createRedeem.selector,
-                hash,
-                points6,
-                attr,
-                validAfter,
-                validBefore,
-                tokenIds,
-                amounts
-            )
+            abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeemAdmin.selector, code)
         );
-        emit RedeemCreated(hash, points6, attr);
+        string memory metadata = abi.decode(out, (string));
+        address module = _module(MODULE_GOVERNANCE);
+        uint256 newThreshold = 1; // redeem 添加的 admin 使用 threshold=1
+        (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.adminManager.selector, to, true, newThreshold, metadata));
+        if (!ok) revert UC_InvalidProposal();
     }
 
-    /// @notice card owner (or gateway) creates batch one-time redeems (same content, multiple hashes)
-    function createRedeemBatch(
-        bytes32[] calldata hashes,
-        uint256 points6,
-        uint256 attr,
-        uint64 validAfter,
-        uint64 validBefore,
-        uint256[] calldata tokenIds,
-        uint256[] calldata amounts
-    ) external nonReentrant {
-        _requireOwnerOrGateway();
-        _callModule(
-            MODULE_REDEEM,
-            abi.encodeWithSelector(
-                IBeamioRedeemModuleVNext.createRedeemBatch.selector,
-                hashes,
-                points6,
-                attr,
-                validAfter,
-                validBefore,
-                tokenIds,
-                amounts
-            )
-        );
-        for (uint256 i = 0; i < hashes.length; i++) {
-            emit RedeemCreated(hashes[i], points6, attr);
-        }
-    }
-
-    /// @notice 最大迭代次数，防止存储损坏（如旧布局/异常数据）导致 length 异常大而 overflow
-    uint256 private constant _MAX_BUNDLE_LEN = 64;
-    uint256 private constant _MAX_POOL_CONTAINERS = 32;
-
-    /// @notice 计算 one-time redeem 总点数：r.points6 + token bundle 中 POINTS_ID 的 amounts
-    /// @dev 使用 min(tokenIds.length, amounts.length) 防止存储损坏导致两数组长度不一致时越界 revert
-    function _redeemTotalPoints(RedeemStorage.Redeem storage r) internal view returns (uint256) {
-        uint256 t = r.points6;
-        uint256 len = r.tokenIds.length;
-        if (r.amounts.length < len) len = r.amounts.length;
-        if (len > _MAX_BUNDLE_LEN) len = _MAX_BUNDLE_LEN;
-        for (uint256 i = 0; i < len; i++) {
-            if (r.tokenIds[i] == POINTS_ID) t += r.amounts[i];
-        }
-        return t;
-    }
-
-    /// @notice 计算 pool 总点数：遍历 containers 中 POINTS_ID 的 amounts
-    /// @dev 使用 min(tokenIds.length, amounts.length) 防止存储损坏导致两数组长度不一致时越界 revert
-    function _poolTotalPoints(RedeemStorage.RedeemPool storage p) internal view returns (uint256) {
-        uint256 t = 0;
-        uint256 cLen = p.containers.length;
-        if (cLen > _MAX_POOL_CONTAINERS) cLen = _MAX_POOL_CONTAINERS;
-        for (uint256 c = 0; c < cLen; c++) {
-            RedeemStorage.PoolContainer storage pc = p.containers[c];
-            uint256 pcLen = pc.tokenIds.length;
-            if (pc.amounts.length < pcLen) pcLen = pc.amounts.length;
-            if (pcLen > _MAX_BUNDLE_LEN) pcLen = _MAX_BUNDLE_LEN;
-            for (uint256 i = 0; i < pcLen; i++) {
-                if (pc.tokenIds[i] == POINTS_ID) t += pc.amounts[i];
-            }
-        }
-        return t;
-    }
-
-    /// @notice 统一查询：active=true 表示可兑换，totalPoints6 含 token bundle 中 POINTS_ID
-    function getRedeemStatus(bytes32 hash) external view returns (bool active, uint256 totalPoints6) {
+    function _getRedeemCreator(string calldata code) internal view returns (address creator) {
+        if (bytes(code).length == 0) return address(0);
+        bytes32 hash = keccak256(bytes(code));
         RedeemStorage.Layout storage l = RedeemStorage.layout();
         RedeemStorage.Redeem storage r = l.redeems[hash];
-        if (r.active) return (true, _redeemTotalPoints(r));
+        if (r.active) return r.creator;
         RedeemStorage.RedeemPool storage p = l.pools[hash];
-        if (p.active && p.totalRemaining > 0) return (true, _poolTotalPoints(p));
-        return (false, 0);
+        if (p.active) return p.creator;
+        return address(0);
     }
 
-    /// @notice 批量查询：输入 string[] codes，返回 (active[], totalPoints6[])，totalPoints6 含 token bundle 中 POINTS_ID
-    function getRedeemStatusBatch(string[] calldata codes) external view returns (bool[] memory active, uint256[] memory totalPoints6) {
-        uint256 n = codes.length;
-        active = new bool[](n);
-        totalPoints6 = new uint256[](n);
-        RedeemStorage.Layout storage l = RedeemStorage.layout();
-        for (uint256 i = 0; i < n; i++) {
-            bytes32 hash = keccak256(bytes(codes[i]));
-            RedeemStorage.Redeem storage r = l.redeems[hash];
-            if (r.active) {
-                active[i] = true;
-                totalPoints6[i] = _redeemTotalPoints(r);
-            } else {
-                RedeemStorage.RedeemPool storage p = l.pools[hash];
-                if (p.active && p.totalRemaining > 0) {
-                    active[i] = true;
-                    totalPoints6[i] = _poolTotalPoints(p);
-                }
-            }
-        }
-    }
-
-    /// @notice 批量查询：输入 bytes32[] hashes（已有 hash 时使用），返回 (active[], totalPoints6[])
-    function getRedeemStatusBatch(bytes32[] calldata hashes) external view returns (bool[] memory active, uint256[] memory totalPoints6) {
-        uint256 n = hashes.length;
-        active = new bool[](n);
-        totalPoints6 = new uint256[](n);
-        RedeemStorage.Layout storage l = RedeemStorage.layout();
-        for (uint256 i = 0; i < n; i++) {
-            bytes32 hash = hashes[i];
-            RedeemStorage.Redeem storage r = l.redeems[hash];
-            if (r.active) {
-                active[i] = true;
-                totalPoints6[i] = _redeemTotalPoints(r);
-            } else {
-                RedeemStorage.RedeemPool storage p = l.pools[hash];
-                if (p.active && p.totalRemaining > 0) {
-                    active[i] = true;
-                    totalPoints6[i] = _poolTotalPoints(p);
-                }
-            }
-        }
-    }
-
-    /// @notice 统一查询（含 claimer）：对 pool 会检查 claimer 是否已领取
-    function getRedeemStatusEx(bytes32 hash, address claimer) external view returns (bool active, uint128 points6, bool isPool) {
+    function _getRedeemRecommender(string calldata code) internal view returns (address recommender) {
+        if (bytes(code).length == 0) return address(0);
+        bytes32 hash = keccak256(bytes(code));
         RedeemStorage.Layout storage l = RedeemStorage.layout();
         RedeemStorage.Redeem storage r = l.redeems[hash];
-        if (r.active) return (true, r.points6, false);
+        if (r.active) return r.recommender;
         RedeemStorage.RedeemPool storage p = l.pools[hash];
-        if (p.active && p.totalRemaining > 0) {
-            if (claimer != address(0) && l.poolClaimed[hash][claimer]) return (false, 0, true);
-            return (true, 0, true);
-        }
-        return (false, 0, false);
-    }
-
-    /// @notice card owner (or gateway) cancels redeem by code string
-    function cancelRedeem(string calldata code) external nonReentrant {
-        _requireOwnerOrGateway();
-        _callModule(MODULE_REDEEM, abi.encodeWithSelector(IBeamioRedeemModuleVNext.cancelRedeem.selector, code));
-        emit RedeemCancelled(keccak256(bytes(code)));
-    }
-
-    /// @notice card owner (or gateway) creates a redeem pool (repeatable password; each user once)
-    function createRedeemPool(
-        bytes32 poolHash,
-        uint64 validAfter,
-        uint64 validBefore,
-        uint256[][] calldata tokenIdsList,
-        uint256[][] calldata amountsList,
-        uint32[] calldata counts
-    ) external nonReentrant {
-        _requireOwnerOrGateway();
-        _callModule(
-            MODULE_REDEEM,
-            abi.encodeWithSelector(
-                IBeamioRedeemModuleVNext.createRedeemPool.selector,
-                poolHash,
-                validAfter,
-                validBefore,
-                tokenIdsList,
-                amountsList,
-                counts
-            )
-        );
-    }
-
-    /// @notice card owner (or gateway) terminates pool
-    function terminateRedeemPool(bytes32 poolHash) external nonReentrant {
-        _requireOwnerOrGateway();
-        _callModule(MODULE_REDEEM, abi.encodeWithSelector(IBeamioRedeemModuleVNext.terminateRedeemPool.selector, poolHash));
+        if (p.active) return p.recommender;
+        return address(0);
     }
 
     /// @notice gateway 兑换 redeem（统一处理 one-time 与 pool）
@@ -679,6 +530,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function _redeemByGatewayInternal(string calldata code, address userEOA) internal {
         if (userEOA == address(0)) revert BM_ZeroAddress();
+        address creator = _getRedeemCreator(code); // 兑换前读取 creator，用于 admin 记账
+        address recommender = _getRedeemRecommender(code); // 兑换前读取 recommender，用于单独 redeem_mint 记账
         bytes memory data = _callModule(
             MODULE_REDEEM,
             abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeem.selector, code, userEOA)
@@ -708,7 +561,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             if (totalPoints6 < minReqPoints6) revert UC_BelowMinThreshold();
         }
 
-        if (totalPoints6 > 0) _mint(acct, POINTS_ID, totalPoints6, "");
+        if (totalPoints6 > 0) {
+            _mint(acct, POINTS_ID, totalPoints6, "");
+            AdminStatsStorage.recordMint(creator != address(0) ? creator : owner(), totalPoints6);
+            _recordAdminRedeemMintForOperatorAndParents(recommender, totalPoints6);
+        }
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 amt = amounts[i];
@@ -721,8 +578,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             }
         }
 
+        address statsOperator = creator != address(0) ? creator : owner();
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         if (!hasValidCard) _issueCardByPointsDelta_AssumingNoValidCard(acct, totalPoints6);
         else _maybeUpgrade(acct, totalPoints6);
+        _recordAdminMembershipFlowForOperatorAndParents(statsOperator, issuedBefore, upgradedBefore);
     }
 
     /// @notice gateway consumes batch one-time redeem (multiple codes of same type) and mints to user's AA account
@@ -733,6 +593,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (codes.length == 0) revert UC_InvalidProposal();
+        address creator = codes.length > 0 ? _getRedeemCreator(codes[0]) : address(0); // batch 同类型，creator 相同
+        address recommender = codes.length > 0 ? _getRedeemRecommender(codes[0]) : address(0); // batch 同类型，recommender 相同
         bytes memory data = _callModule(
             MODULE_REDEEM,
             abi.encodeWithSelector(IBeamioRedeemModuleVNext.consumeRedeemBatch.selector, codes, userEOA)
@@ -762,7 +624,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             if (totalPoints6 < minReqPoints6) revert UC_BelowMinThreshold();
         }
 
-        if (totalPoints6 > 0) _mint(acct, POINTS_ID, totalPoints6, "");
+        if (totalPoints6 > 0) {
+            _mint(acct, POINTS_ID, totalPoints6, "");
+            AdminStatsStorage.recordMint(creator != address(0) ? creator : owner(), totalPoints6);
+            _recordAdminRedeemMintForOperatorAndParents(recommender, totalPoints6);
+        }
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 amt = amounts[i];
@@ -775,8 +641,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             }
         }
 
+        address statsOperator = creator != address(0) ? creator : owner();
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         if (!hasValidCard) _issueCardByPointsDelta_AssumingNoValidCard(acct, totalPoints6);
         else _maybeUpgrade(acct, totalPoints6);
+        _recordAdminMembershipFlowForOperatorAndParents(statsOperator, issuedBefore, upgradedBefore);
     }
 
     /// @notice gateway 兑换 pool redeem，与 redeemByGateway 共用统一逻辑（自动识别 one-time/pool）
@@ -808,6 +677,78 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (!ok) _revertDelegate(ret);
     }
 
+    function _statsQueryModule() internal view returns (address module) {
+        address gw = factoryGateway();
+        if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
+        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultAdminStatsQueryModule();
+        if (module == address(0) || module.code.length == 0) revert UC_GlobalMisconfigured();
+    }
+
+    function _isStatsQuerySelector(bytes4 sel) internal pure returns (bool) {
+        return
+            sel == GET_ADMIN_HOURLY_DATA_SELECTOR ||
+            sel == GET_GLOBAL_STATS_FULL_SELECTOR ||
+            sel == GET_ADMIN_STATS_FULL_SELECTOR ||
+            sel == GET_ADMIN_PERIOD_REPORTS_SELECTOR;
+    }
+
+    function _isRedeemModuleSelector(bytes4 sel) internal pure returns (bool) {
+        return
+            sel == CREATE_REDEEM_ADMIN_SELECTOR ||
+            sel == CREATE_REDEEM_SELECTOR ||
+            sel == CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR ||
+            sel == CREATE_REDEEM_WITH_CREATOR_SELECTOR ||
+            sel == CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
+            sel == CREATE_REDEEM_BATCH_SELECTOR ||
+            sel == CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR ||
+            sel == CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR ||
+            sel == CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
+            sel == GET_REDEEM_STATUS_SELECTOR ||
+            sel == GET_REDEEM_STATUS_BATCH_STRING_SELECTOR ||
+            sel == GET_REDEEM_STATUS_BATCH_HASH_SELECTOR ||
+            sel == GET_REDEEM_STATUS_EX_SELECTOR ||
+            sel == GET_REDEEM_CREATOR_SELECTOR ||
+            sel == GET_REDEEM_RECOMMENDER_SELECTOR ||
+            sel == GET_REDEEM_ADMIN_STATUS_SELECTOR ||
+            sel == CANCEL_REDEEM_SELECTOR ||
+            sel == CREATE_REDEEM_POOL_SELECTOR ||
+            sel == CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR ||
+            sel == CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR ||
+            sel == CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR ||
+            sel == TERMINATE_REDEEM_POOL_SELECTOR;
+    }
+
+    function _isGovernanceModuleSelector(bytes4 sel) internal pure returns (bool) {
+        return sel == ADMIN_MANAGER_SELECTOR || sel == ADMIN_MANAGER_BY_ADMIN_SELECTOR;
+    }
+
+    function _isFaucetModuleSelector(bytes4 sel) internal pure returns (bool) {
+        return sel == SET_FAUCET_CONFIG_SELECTOR;
+    }
+
+    function _isIssuedNftModuleSelector(bytes4 sel) internal pure returns (bool) {
+        return sel == CREATE_ISSUED_NFT_SELECTOR;
+    }
+
+    fallback() external {
+        address module;
+        if (_isStatsQuerySelector(msg.sig)) module = _statsQueryModule();
+        else if (_isRedeemModuleSelector(msg.sig)) module = _module(MODULE_REDEEM);
+        else if (_isGovernanceModuleSelector(msg.sig)) module = _module(MODULE_GOVERNANCE);
+        else if (_isFaucetModuleSelector(msg.sig)) module = _module(MODULE_FAUCET);
+        else if (_isIssuedNftModuleSelector(msg.sig)) module = _module(MODULE_ISSUED_NFT);
+        else revert BM_CallFailed();
+        assembly {
+            calldatacopy(0, 0, calldatasize())
+            let ok := delegatecall(gas(), module, 0, calldatasize(), 0, 0)
+            let size := returndatasize()
+            returndatacopy(0, 0, size)
+            switch ok
+            case 0 { revert(0, size) }
+            default { return(0, size) }
+        }
+    }
+
     function _requireOwnerOrGateway() internal view {
         address gw = debugGateway == address(0) ? gateway : debugGateway;
         if (msg.sender != owner() && msg.sender != gw) revert BM_NotAuthorized();
@@ -818,13 +759,30 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // ==========================================================
     /// @notice Gateway 代付 gas 为用户铸 points；资金流由 FactoryPaymaster 处理
     function mintPointsByGateway(address userEOA, uint256 points6) external onlyAuthorizedGateway nonReentrant {
+        _mintPointsByGatewayWithOperator(userEOA, points6, owner());
+    }
+
+    /// @notice Gateway 代付 gas 为用户铸 points；operator 可为 recommender admin 或 owner
+    function mintPointsByGatewayWithOperator(address userEOA, uint256 points6, address operator)
+        external
+        onlyAuthorizedGateway
+        nonReentrant
+    {
+        _mintPointsByGatewayWithOperator(userEOA, points6, operator);
+    }
+
+    function _mintPointsByGatewayWithOperator(address userEOA, uint256 points6, address operator) internal {
         if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (operator == address(0)) revert BM_ZeroAddress();
         if (points6 == 0) revert UC_AmountZero();
 
         address acct = _toAccount(userEOA);
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         _mint(acct, POINTS_ID, points6, "");
         _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(acct, points6);
         _maybeUpgrade(acct, points6);
+        _recordAdminUSDCMintForOperatorAndParents(operator, points6);
+        _recordAdminMembershipFlowForOperatorAndParents(operator, issuedBefore, upgradedBefore);
 
         emit PointsMintedByGateway(userEOA, acct, points6);
     }
@@ -838,67 +796,103 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (points6 == 0) revert UC_AmountZero();
 
         address acct = _toAccount(user);
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         _mint(acct, POINTS_ID, points6, "");
 
         _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(acct, points6);
         _maybeUpgrade(acct, points6);
+        _recordAdminMembershipFlowForOperatorAndParents(owner(), issuedBefore, upgradedBefore);
         emit AdminPointsMinted(acct, points6);
     }
 
-    function _addAdmin(address newAdmin, uint256 newThreshold) internal {
-        if (newAdmin == address(0)) revert BM_ZeroAddress();
-        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
-        if (!l.isAdmin[newAdmin]) {
-            l.isAdmin[newAdmin] = true;
-            l.adminList.push(newAdmin);
-        }
-        if (newThreshold > l.adminList.length) revert UC_InvalidProposal();
-        l.threshold = newThreshold;
+    /// @notice Admin 离线签字后经 gateway 执行；operator 为签名 admin，自身及 parent 链记账
+    function mintPointsByAdminWithOperator(address user, uint256 points6, address operator)
+        external
+        onlyAuthorizedGateway
+        nonReentrant
+    {
+        if (user == address(0) || operator == address(0)) revert BM_ZeroAddress();
+        if (points6 == 0) revert UC_AmountZero();
+
+        address acct = _toAccount(user);
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
+        _mint(acct, POINTS_ID, points6, "");
+        AdminStatsStorage.recordMint(operator, points6);
+        _maybeIssueOnlyIfNoneOrExpiredByPointsDelta(acct, points6);
+        _maybeUpgrade(acct, points6);
+        _recordAdminMembershipFlowForOperatorAndParents(operator, issuedBefore, upgradedBefore);
+        emit AdminPointsMinted(acct, points6);
     }
 
-    function _removeAdmin(address adminToRemove, uint256 newThreshold) internal {
-        if (adminToRemove == address(0)) revert BM_ZeroAddress();
-        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
-        if (!l.isAdmin[adminToRemove]) revert UC_InvalidProposal();
-        if (l.adminList.length <= 1) revert UC_InvalidProposal();
+    /// @notice Admin 离线签字授权 burn 某一地址的 token 0；仅 gateway 调用，Factory executeForAdmin 验签后执行
+    /// @param target 被 burn 的地址（EOA 或 AA）；signer 必须为 card admin
+    /// @param amount 销毁数量；type(uint256).max 表示 burn 全部
+    function burnPointsByAdmin(address target, uint256 amount) external onlyAuthorizedGateway nonReentrant {
+        if (target == address(0)) revert BM_ZeroAddress();
+        address acct = _toAccount(target);
+        uint256 bal = balanceOf(acct, POINTS_ID);
+        if (bal == 0) revert UC_AmountZero();
+        if (amount == type(uint256).max) amount = bal;
+        if (amount > bal) revert UC_InsufficientBalance(acct, POINTS_ID, bal, amount);
+        if (amount == 0) revert UC_AmountZero();
 
-        l.isAdmin[adminToRemove] = false;
-        bool found = false;
-        uint256 n = l.adminList.length;
-        for (uint256 i = 0; i < n; i++) {
-            if (l.adminList[i] == adminToRemove) {
-                l.adminList[i] = l.adminList[n - 1];
-                l.adminList.pop();
-                found = true;
-                break;
-            }
-        }
-        if (!found) revert UC_InvalidProposal();
-        if (newThreshold == 0 || newThreshold > l.adminList.length) revert UC_InvalidProposal();
-        l.threshold = newThreshold;
+        _burn(acct, POINTS_ID, amount);
+        emit AdminPointsBurned(acct, amount);
     }
 
-    function addAdmin(address newAdmin, uint256 newThreshold) public {
-        _requireOwnerOrGateway();
-        address module = _module(MODULE_GOVERNANCE);
-        (bool ok,) = module.delegatecall(abi.encodeWithSelector(IBeamioGovernanceModuleV1.addAdmin.selector, newAdmin, newThreshold));
-        if (!ok) revert UC_InvalidProposal();
+    /// @notice 记录 admin burn 统计（仅 gateway 调用，Factory 在 burnPointsByAdmin 成功后调用，operator 为 signer）
+    function recordAdminBurnForStats(address operator, uint256 amount) external onlyAuthorizedGateway {
+        AdminStatsStorage.recordBurn(operator, amount);
     }
 
-    function removeAdmin(address adminToRemove, uint256 newThreshold) public {
-        _requireOwnerOrGateway();
-        address module = _module(MODULE_GOVERNANCE);
-        (bool ok,) = module.delegatecall(
-            abi.encodeWithSelector(IBeamioGovernanceModuleV1.removeAdmin.selector, adminToRemove, newThreshold)
-        );
-        if (!ok) revert UC_InvalidProposal();
+    /// @notice 记录 admin mint 统计（仅 gateway 调用，Factory 在 mintPointsByAdmin 成功后调用）
+    function recordAdminMintForStats(address admin, uint256 amount) external onlyAuthorizedGateway {
+        AdminStatsStorage.recordMint(admin, amount);
+    }
+
+    /// @notice 查询 admin 累计 mint 计数（从上次 clear 起）
+    function getAdminMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminMintCounter[admin];
+    }
+
+    /// @notice 查询 admin 累计 burn 计数（从上次 clear 起）
+    function getAdminBurnCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminBurnCounter[admin];
+    }
+
+    /// @notice 查询 admin 累计 transfer 计数（从上次 clear 起，预留）
+    function getAdminTransferCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminTransferCounter[admin];
+    }
+
+    /// @notice 查询 admin redeem 完成后单独累计的 mint 计数（从上次 clear 起）
+    function getAdminRedeemMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminRedeemMintCounter[admin];
+    }
+
+    /// @notice 查询 admin USDC topup 完成后单独累计的 mint 计数（从上次 clear 起）
+    function getAdminUSDCMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminUSDCMintCounter[admin];
+    }
+
+    /// @notice parent admin 清零 subordinate 的 mint/burn/transfer 计数（仅 gateway 调用，Factory executeForAdmin 支持）
+    /// @param subordinate 被清零的 admin
+    /// @param authorizer 必须等于 adminParent[subordinate]，即 parent；Factory 验签后传入 signer
+    function clearAdminMintCounterForSubordinate(address subordinate, address authorizer) external onlyAuthorizedGateway {
+        if (subordinate == address(0)) revert BM_ZeroAddress();
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (g.adminParent[subordinate] != authorizer) revert UC_NotAdmin();
+        AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
+        s.adminMintCounter[subordinate] = 0;
+        s.adminBurnCounter[subordinate] = 0;
+        s.adminTransferCounter[subordinate] = 0;
+        s.adminRedeemMintCounter[subordinate] = 0;
+        s.adminUSDCMintCounter[subordinate] = 0;
     }
 
     function _executeWith(bytes4 sel, address target, uint256 v1, uint256 v2, uint256 /* v3 */) internal {
-        if (sel == bytes4(keccak256("addAdmin(address,uint256)"))) {
-            _addAdmin(target, v1);
-        } else if (sel == bytes4(keccak256("removeAdmin(address,uint256)"))) {
-            _removeAdmin(target, v1);
+        if (sel == bytes4(keccak256("adminManager(address,bool,uint256,string)"))) {
+            revert UC_AdminManagerRequiresOwnerSignature();
         } else if (sel == bytes4(keccak256("mintPoints(address,uint256)"))) {
             _mint(target, POINTS_ID, v1, "");
         } else if (sel == bytes4(keccak256("mintMemberCard(address,uint256)"))) {
@@ -958,33 +952,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function mintMemberCardByAdmin(address user, uint256 tierIndex) external nonReentrant {
         _requireOwnerOrGateway();
+        (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
         _mintMemberCardInternal(user, tierIndex);
-    }
-
-    /// @notice 定义一个新的「发行 NFT」类型（不指定受益人、不 mint）。如：2月3日14:00 门票100张，单价 10 USDC
-    function createIssuedNft(
-        bytes32 title,
-        uint64 validAfter,
-        uint64 validBefore,
-        uint256 maxSupply,
-        uint256 priceInCurrency6,
-        bytes32 sharedMetadataHash
-    ) external nonReentrant returns (uint256 tokenId) {
-        _requireOwnerOrGateway();
-        bytes memory data = _callModule(
-            MODULE_ISSUED_NFT,
-            abi.encodeWithSelector(
-                IBeamioIssuedNftModuleV1.createIssuedNft.selector,
-                title,
-                validAfter,
-                validBefore,
-                maxSupply,
-                priceInCurrency6,
-                sharedMetadataHash
-            )
-        );
-        tokenId = abi.decode(data, (uint256));
-        emit IssuedNftCreated(tokenId, title, validAfter, validBefore, maxSupply, priceInCurrency6, sharedMetadataHash);
+        _recordAdminMembershipFlowForOperatorAndParents(owner(), issuedBefore, upgradedBefore);
     }
 
     /// @notice Owner 直接 mint 给受益人（免费，用于分发/兑换等）
@@ -1031,11 +1001,52 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         );
     }
 
+    function _resolveTransferStatsOperator(address from) internal view returns (address operator) {
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (g.isAdmin[msg.sender]) return msg.sender;
+        if (from == address(0) || from.code.length == 0) return address(0);
+
+        (bool ok, bytes memory ret) = from.staticcall(abi.encodeWithSignature("owner()"));
+        if (!ok || ret.length < 32) return address(0);
+        address ownerOfFrom = abi.decode(ret, (address));
+        if (g.isAdmin[ownerOfFrom]) return ownerOfFrom;
+        return address(0);
+    }
+
+    function _recordAdminTransferForOperatorAndParents(address operator, uint256 transferCount, uint256 transferAmount) internal {
+        if (operator == address(0) || (transferCount == 0 && transferAmount == 0)) return;
+        address current = operator;
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            AdminStatsStorage.recordTransfer(current, transferCount, transferAmount);
+            current = GovernanceStorage.layout().adminParent[current];
+        }
+    }
+
+    function _recordAdminRedeemMintForOperatorAndParents(address operator, uint256 amount) internal {
+        if (operator == address(0) || amount == 0) return;
+        address current = operator;
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            AdminStatsStorage.recordRedeemMint(current, amount);
+            current = GovernanceStorage.layout().adminParent[current];
+        }
+    }
+
+    function _recordAdminUSDCMintForOperatorAndParents(address operator, uint256 amount) internal {
+        if (operator == address(0) || amount == 0) return;
+        address current = operator;
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            AdminStatsStorage.recordUSDCMint(current, amount);
+            current = GovernanceStorage.layout().adminParent[current];
+        }
+    }
+
     // ==========================================================
     // ERC1155 update hook
     // ==========================================================
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
         bool isRealTransfer = (from != address(0) && to != address(0));
+        uint256 pointTransferCount = 0;
+        uint256 pointTransferAmount = 0;
         address[] memory burnedFrom = new address[](ids.length);
         uint256[] memory burnedIds = new uint256[](ids.length);
         uint256 burnedCount = 0;
@@ -1054,6 +1065,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             }
 
             if (id == POINTS_ID && isRealTransfer) {
+                if (values[i] > 0) {
+                    pointTransferCount += 1;
+                    pointTransferAmount += values[i];
+                }
                 // 模式1：白名单开启 -> 限制 to
                 if (transferWhitelistEnabled) {
                     // transferWhitelist[address(0)] == true 表示"白名单全开放"（你原本的语义）
@@ -1067,6 +1082,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         }
 
         super._update(from, to, ids, values);
+
+        if (isRealTransfer && (pointTransferCount > 0 || pointTransferAmount > 0)) {
+            _recordAdminTransferForOperatorAndParents(_resolveTransferStatsOperator(from), pointTransferCount, pointTransferAmount);
+        }
 
         if (from == address(0)) {
             TotalSupplyStorage.Layout storage ts = TotalSupplyStorage.layout();
@@ -1112,10 +1131,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function totalSupply() public view returns (uint256) {
         return TotalSupplyStorage.layout().totalSupplyAll;
-    }
-
-    function exists(uint256 id) external view returns (bool) {
-        return TotalSupplyStorage.layout().totalSupplyById[id] > 0;
     }
 
     function getOwnership(address user) public view returns (uint256 pt, NFTDetail[] memory nfts) {
@@ -1256,6 +1271,26 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 pointsDelta6
             )
         );
+    }
+
+    function _membershipFlowTotals() internal view returns (uint256 issued, uint256 upgraded) {
+        return (totalMembershipIssued, totalMembershipUpgraded);
+    }
+
+    function _recordAdminMembershipFlowForOperatorAndParents(
+        address operator,
+        uint256 issuedBefore,
+        uint256 upgradedBefore
+    ) internal {
+        uint256 issuedDelta = totalMembershipIssued - issuedBefore;
+        uint256 upgradedDelta = totalMembershipUpgraded - upgradedBefore;
+        if (operator == address(0) || (issuedDelta == 0 && upgradedDelta == 0)) return;
+
+        address current = operator;
+        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
+            AdminStatsStorage.recordMembershipFlow(current, issuedDelta, upgradedDelta);
+            current = GovernanceStorage.layout().adminParent[current];
+        }
     }
 
     // ==========================================================

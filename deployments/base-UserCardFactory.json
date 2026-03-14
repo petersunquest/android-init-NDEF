@@ -2,27 +2,27 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-11T03:18:05.030Z",
+  "timestamp": "2026-03-14T00:16:32.334Z",
   "contracts": {
     "beamioUserCardDeployer": {
-      "address": "0x324dCda8fF2CE1E9126e528d5A41CF72a6612E96",
-      "transactionHash": "0x39b8687746194e14da971f052b90656dc8cd7d0c16ad9ff865479d22a47c398b"
+      "address": "0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0",
+      "transactionHash": "0x35916b2f0d5278086810be392a99e6343c003ac6f46f97e6ab1f532c42a4c0d5"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x46E8a69f7296deF53e33844bb00D92309ab46233",
+      "address": "0xE091a0A974a40bCee36288193376294a19a293aE",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "redeemModule": "0xCa220CBc4aeB8d5c59EaDfAdcFf025FC9339Cd84",
+      "redeemModule": "0x7AD391Eea7f21472872DA9E98b76aC70107432AD",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
-      "deployer": "0x324dCda8fF2CE1E9126e528d5A41CF72a6612E96",
+      "deployer": "0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0",
       "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0x29c6a66105f113c011fad4fcb8cbcd81b56cad2ee0cd6de9f857689b218e1223",
-      "issuedNftModule": "0xa6Ba46C351182206c719BA2b29A02357d5580344",
-      "faucetModule": "0x60154A9C51A33994A3873a8E53f7595717ae29ED",
-      "governanceModule": "0xF4EF9306eC41b0Ed7136db232A55600EAAfF1eFd",
-      "membershipStatsModule": "0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb",
-      "membershipStatsQueryModule": "0x55bbc609101F4137eaD08cf8D47F06f58575a4e1"
+      "transactionHash": "0x4144b191e0b3cb54b5444c84af66b7c6b4c6fe09018708fc60acf9e2570d4e2c",
+      "issuedNftModule": "0x6ee95325dEF45445604F5790e5690CbB6ae00150",
+      "faucetModule": "0x1406EfDC2b00881c38497E3933861934dfbaB355",
+      "governanceModule": "0x7AF12402E341007188c048175266a48b0B4440de",
+      "membershipStatsModule": "0x082F5b7d824871B2B5cc2142F2609d5F03060EF3",
+      "adminStatsQueryModule": "0xDF69297B891840648dafb66d2799499301561BdE"
     }
   }
 }

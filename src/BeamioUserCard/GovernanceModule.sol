@@ -11,7 +11,7 @@ interface IUserCardCtx {
 
 /**
  * @title BeamioUserCardGovernanceModuleV1
- * @notice Delegatecall module for multisig governance. Card executes (addAdmin/removeAdmin/mintPoints/mintMemberCard) after executeProposal returns.
+ * @notice Delegatecall module for multisig governance. Card executes (adminManager/mintPoints/mintMemberCard) after executeProposal returns.
  */
 contract BeamioUserCardGovernanceModuleV1 {
     event ProposalCreated(uint256 indexed id, bytes4 indexed selector, address indexed proposer);
@@ -28,24 +28,38 @@ contract BeamioUserCardGovernanceModuleV1 {
         _;
     }
 
-    function _addAdmin(address newAdmin, uint256 newThreshold) internal {
+    function _addAdmin(address newAdmin, uint256 newThreshold, string calldata metadata, address parentAdmin) internal {
         if (newAdmin == address(0)) revert BM_ZeroAddress();
         GovernanceStorage.Layout storage l = GovernanceStorage.layout();
         if (!l.isAdmin[newAdmin]) {
             l.isAdmin[newAdmin] = true;
             l.adminList.push(newAdmin);
+            l.adminParent[newAdmin] = parentAdmin;
+            if (parentAdmin != address(0)) {
+                l.adminChildren[parentAdmin].push(newAdmin);
+            }
         }
+        l.adminMetadata[newAdmin] = metadata;
         if (newThreshold > l.adminList.length) revert UC_InvalidProposal();
         l.threshold = newThreshold;
     }
 
-    function _removeAdmin(address adminToRemove, uint256 newThreshold) internal {
+    function _removeAdmin(address adminToRemove, uint256 newThreshold, address authorizer) internal {
         if (adminToRemove == address(0)) revert BM_ZeroAddress();
+        if (adminToRemove == IUserCardCtx(address(this)).owner()) revert UC_OwnerCannotBeRemoved();
         GovernanceStorage.Layout storage l = GovernanceStorage.layout();
         if (!l.isAdmin[adminToRemove]) revert UC_InvalidProposal();
         if (l.adminList.length <= 1) revert UC_InvalidProposal();
 
+        address cardOwner = IUserCardCtx(address(this)).owner();
+        address parent = l.adminParent[adminToRemove];
+        if (authorizer != cardOwner && authorizer != parent) revert UC_OnlyParentCanRemoveAdmin(adminToRemove, parent);
+
         l.isAdmin[adminToRemove] = false;
+        l.adminParent[adminToRemove] = address(0);
+        if (parent != address(0)) {
+            _removeFromAdminChildren(l, parent, adminToRemove);
+        }
         bool found = false;
         uint256 n = l.adminList.length;
         for (uint256 i = 0; i < n; i++) {
@@ -61,18 +75,29 @@ contract BeamioUserCardGovernanceModuleV1 {
         l.threshold = newThreshold;
     }
 
-    function addAdmin(address newAdmin, uint256 newThreshold) external {
-        address cardOwner = IUserCardCtx(address(this)).owner();
-        address gw = IUserCardCtx(address(this)).factoryGateway();
-        if (msg.sender != cardOwner && msg.sender != gw) revert BM_NotAuthorized();
-        _addAdmin(newAdmin, newThreshold);
+    function _removeFromAdminChildren(GovernanceStorage.Layout storage l, address parent, address child) internal {
+        address[] storage children = l.adminChildren[parent];
+        for (uint256 i = 0; i < children.length; i++) {
+            if (children[i] == child) {
+                children[i] = children[children.length - 1];
+                children.pop();
+                return;
+            }
+        }
     }
 
-    function removeAdmin(address adminToRemove, uint256 newThreshold) external {
-        address cardOwner = IUserCardCtx(address(this)).owner();
-        address gw = IUserCardCtx(address(this)).factoryGateway();
-        if (msg.sender != cardOwner && msg.sender != gw) revert BM_NotAuthorized();
-        _removeAdmin(adminToRemove, newThreshold);
+    /// @notice owner 离线签字后经 gateway 的 executeForOwner 执行。admin=true 添加（parent=0），admin=false 仅 parent 或 owner 可移除
+    function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external onlyGateway {
+        if (admin) _addAdmin(to, newThreshold, metadata, address(0));
+        else _removeAdmin(to, newThreshold, IUserCardCtx(address(this)).owner());
+    }
+
+    /// @notice admin 离线签字后经 gateway 的 executeForAdmin 执行。添加时 authorizer 为 parent；移除时仅 authorizer==parent 可删
+    function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer) external onlyGateway {
+        GovernanceStorage.Layout storage l = GovernanceStorage.layout();
+        if (!l.isAdmin[authorizer]) revert UC_NotAdmin();
+        if (admin) _addAdmin(to, newThreshold, metadata, authorizer);
+        else _removeAdmin(to, newThreshold, authorizer);
     }
 
     /// @notice Create proposal; gateway or admin can call. Returns proposal id.

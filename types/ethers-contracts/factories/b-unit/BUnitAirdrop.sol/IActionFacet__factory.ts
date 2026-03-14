@@ -200,6 +200,16 @@
             "internalType": "struct IActionFacet.TransactionMetaInput",
             "name": "meta",
             "type": "tuple"
+          },
+          {
+            "internalType": "address",
+            "name": "operator",
+            "type": "address"
+          },
+          {
+            "internalType": "address[]",
+            "name": "operatorParentChain",
+            "type": "address[]"
           }
         ],
         "internalType": "struct IActionFacet.TransactionInput",

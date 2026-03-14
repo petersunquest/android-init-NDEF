@@ -13,11 +13,12 @@ export declare namespace BeamioUserCard {
     }
 
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
+    getFunction(nameOrSignature: "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', values?: undefined): string;
+encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'EXECUTE_FOR_ADMIN_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'EXECUTE_FOR_OWNER_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'USDC', values?: undefined): string;
@@ -27,17 +28,20 @@ encodeFunctionData(functionFragment: 'aaFactory', values?: undefined): string;
 encodeFunctionData(functionFragment: 'appendTierForCard', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, boolean]): string;
 encodeFunctionData(functionFragment: 'appendTierForCardWithOwnerSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, boolean, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'beamioUserCardOwner', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'buyPointsForUser', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardsOfOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'changePaymasterStatus', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCode', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, BeamioUserCard.TierStruct[]]): string;
+encodeFunctionData(functionFragment: 'defaultAdminStatsQueryModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultMembershipStatsModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
+encodeFunctionData(functionFragment: 'executeClearAdminMintCounter', values: [AddressLike, AddressLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'executeForAdmin', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'executeForOwner', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'isBeamioUserCard', values: [AddressLike]): string;
@@ -55,11 +59,13 @@ encodeFunctionData(functionFragment: 'purchaseIssuedNftForUser', values: [Addres
 encodeFunctionData(functionFragment: 'quoteCurrencyAmountInUSDC6', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'quoteHelper', values?: undefined): string;
 encodeFunctionData(functionFragment: 'quoteUnitPointInUSDC6', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'redeemAdminForUser', values: [AddressLike, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemBatchForUser', values: [AddressLike, string[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemForUser', values: [AddressLike, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemPoolForUser', values: [AddressLike, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'registerExistingCard', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAAFactory', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setAdminStatsQueryModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setDeployer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setFaucetModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setGovernanceModule', values: [AddressLike]): string;
@@ -71,9 +77,11 @@ encodeFunctionData(functionFragment: 'setRedeemModule', values: [AddressLike]): 
 encodeFunctionData(functionFragment: 'tokenIdIssued', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'usedAdminExecuteNonces', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'usedClearAdminMintCounterNonces', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'usedOwnerExecuteNonces', values: [BytesLike]): string;
 
-    decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'EXECUTE_FOR_ADMIN_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'EXECUTE_FOR_OWNER_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'USDC', data: BytesLike): Result;
@@ -83,17 +91,20 @@ decodeFunctionResult(functionFragment: 'aaFactory', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'appendTierForCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'appendTierForCardWithOwnerSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beamioUserCardOwner', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'buyPointsForUser', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardsOfOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'changePaymasterStatus', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCodeAndTiers', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultAdminStatsQueryModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultMembershipStatsModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executeClearAdminMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isBeamioUserCard', data: BytesLike): Result;
@@ -111,11 +122,13 @@ decodeFunctionResult(functionFragment: 'purchaseIssuedNftForUser', data: BytesLi
 decodeFunctionResult(functionFragment: 'quoteCurrencyAmountInUSDC6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'quoteHelper', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'quoteUnitPointInUSDC6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'redeemAdminForUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemBatchForUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemForUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemPoolForUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerExistingCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAAFactory', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAdminStatsQueryModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDeployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setGovernanceModule', data: BytesLike): Result;
@@ -127,6 +140,7 @@ decodeFunctionResult(functionFragment: 'setRedeemModule', data: BytesLike): Resu
 decodeFunctionResult(functionFragment: 'tokenIdIssued', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedAdminExecuteNonces', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usedClearAdminMintCounterNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike): Result;
   }
 
@@ -171,6 +185,18 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
       export type InputTuple = [cardOwner: AddressLike, card: AddressLike];
       export type OutputTuple = [cardOwner: string, card: string];
       export interface OutputObject {cardOwner: string, card: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace DefaultAdminStatsQueryModuleUpdatedEvent {
+      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
+      export type OutputTuple = [oldM: string, newM: string];
+      export interface OutputObject {oldM: string, newM: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -393,6 +419,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     
     
+    CLEAR_ADMIN_MINT_COUNTER_TYPEHASH: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     DOMAIN_SEPARATOR: TypedContractMethod<
       [],
       [string],
@@ -473,8 +507,16 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
-    buyPointsForUser: TypedContractMethod<
+    "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)": TypedContractMethod<
       [cardAddr: AddressLike, fromEOA: AddressLike, usdcAmount6: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, minPointsOut6: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)": TypedContractMethod<
+      [cardAddr: AddressLike, fromEOA: AddressLike, usdcAmount6: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, minPointsOut6: BigNumberish, recommender: AddressLike, ],
       [bigint],
       'nonpayable'
     >
@@ -509,6 +551,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
       [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: BeamioUserCard.TierStruct[], ],
       [string],
       'nonpayable'
+    >
+    
+
+    
+    defaultAdminStatsQueryModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -557,6 +607,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
       [],
       [string],
       'view'
+    >
+    
+
+    
+    executeClearAdminMintCounter: TypedContractMethod<
+      [cardAddr: AddressLike, subordinate: AddressLike, deadline: BigNumberish, nonce: BytesLike, adminSignature: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -697,6 +755,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    redeemAdminForUser: TypedContractMethod<
+      [cardAddr: AddressLike, code: string, to: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     redeemBatchForUser: TypedContractMethod<
       [cardAddr: AddressLike, codes: string[], userEOA: AddressLike, ],
       [void],
@@ -731,6 +797,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
     setAAFactory: TypedContractMethod<
       [f: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setAdminStatsQueryModule: TypedContractMethod<
+      [m: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -825,6 +899,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    usedClearAdminMintCounterNonces: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     usedOwnerExecuteNonces: TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -835,7 +917,12 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
+    getFunction(nameOrSignature: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
       [],
       [string],
       'view'
@@ -885,8 +972,13 @@ getFunction(nameOrSignature: 'beamioUserCardOwner'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'buyPointsForUser'): TypedContractMethod<
+getFunction(nameOrSignature: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)'): TypedContractMethod<
       [cardAddr: AddressLike, fromEOA: AddressLike, usdcAmount6: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, minPointsOut6: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)'): TypedContractMethod<
+      [cardAddr: AddressLike, fromEOA: AddressLike, usdcAmount6: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, minPointsOut6: BigNumberish, recommender: AddressLike, ],
       [bigint],
       'nonpayable'
     >;
@@ -909,6 +1001,11 @@ getFunction(nameOrSignature: 'createCardCollectionWithInitCodeAndTiers'): TypedC
       [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: BeamioUserCard.TierStruct[], ],
       [string],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'defaultAdminStatsQueryModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'defaultFaucetModule'): TypedContractMethod<
       [],
@@ -939,6 +1036,11 @@ getFunction(nameOrSignature: 'deployer'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'executeClearAdminMintCounter'): TypedContractMethod<
+      [cardAddr: AddressLike, subordinate: AddressLike, deadline: BigNumberish, nonce: BytesLike, adminSignature: BytesLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'executeForAdmin'): TypedContractMethod<
       [cardAddr: AddressLike, data: BytesLike, deadline: BigNumberish, nonce: BytesLike, adminSignature: BytesLike, ],
@@ -1025,6 +1127,11 @@ getFunction(nameOrSignature: 'quoteUnitPointInUSDC6'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'redeemAdminForUser'): TypedContractMethod<
+      [cardAddr: AddressLike, code: string, to: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'redeemBatchForUser'): TypedContractMethod<
       [cardAddr: AddressLike, codes: string[], userEOA: AddressLike, ],
       [void],
@@ -1047,6 +1154,11 @@ getFunction(nameOrSignature: 'registerExistingCard'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'setAAFactory'): TypedContractMethod<
       [f: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setAdminStatsQueryModule'): TypedContractMethod<
+      [m: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -1105,6 +1217,11 @@ getFunction(nameOrSignature: 'usedAdminExecuteNonces'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'usedClearAdminMintCounterNonces'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'usedOwnerExecuteNonces'): TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -1115,6 +1232,7 @@ getFunction(nameOrSignature: 'usedOwnerExecuteNonces'): TypedContractMethod<
 getEvent(key: 'AdminExecuteExecuted'): TypedContractEvent<AdminExecuteExecutedEvent.InputTuple, AdminExecuteExecutedEvent.OutputTuple, AdminExecuteExecutedEvent.OutputObject>;
 getEvent(key: 'CardDeployed'): TypedContractEvent<CardDeployedEvent.InputTuple, CardDeployedEvent.OutputTuple, CardDeployedEvent.OutputObject>;
 getEvent(key: 'CardRegistered'): TypedContractEvent<CardRegisteredEvent.InputTuple, CardRegisteredEvent.OutputTuple, CardRegisteredEvent.OutputObject>;
+getEvent(key: 'DefaultAdminStatsQueryModuleUpdated'): TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultFaucetModuleUpdated'): TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultGovernanceModuleUpdated'): TypedContractEvent<DefaultGovernanceModuleUpdatedEvent.InputTuple, DefaultGovernanceModuleUpdatedEvent.OutputTuple, DefaultGovernanceModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultIssuedNftModuleUpdated'): TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
@@ -1147,6 +1265,10 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
 
       'CardRegistered(address,address)': TypedContractEvent<CardRegisteredEvent.InputTuple, CardRegisteredEvent.OutputTuple, CardRegisteredEvent.OutputObject>;
       CardRegistered: TypedContractEvent<CardRegisteredEvent.InputTuple, CardRegisteredEvent.OutputTuple, CardRegisteredEvent.OutputObject>;
+    
+
+      'DefaultAdminStatsQueryModuleUpdated(address,address)': TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
+      DefaultAdminStatsQueryModuleUpdated: TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
     
 
       'DefaultFaucetModuleUpdated(address,address)': TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;

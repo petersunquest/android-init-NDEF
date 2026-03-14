@@ -66,6 +66,8 @@ interface IActionFacet {
         RouteItemInput[] route;
         FeeInfoInput fees;
         TransactionMetaInput meta;
+        address operator;
+        address[] operatorParentChain;
     }
     function syncTokenAction(TransactionInput calldata in_) external returns (uint256 actionId);
 }
@@ -531,7 +533,9 @@ contract BUnitAirdrop is Ownable, EIP712 {
                 taxRateBps: 0,
                 afterNotePayer: "",
                 afterNotePayee: ""
-            })
+            }),
+            operator: address(0),
+            operatorParentChain: new address[](0)
         });
         try IActionFacet(idx).syncTokenAction(in_) {} catch Error(string memory reason) {
             emit IndexerSyncFailed(TX_BUINT_CLAIM, reason);
@@ -581,7 +585,9 @@ contract BUnitAirdrop is Ownable, EIP712 {
                 taxRateBps: 0,
                 afterNotePayer: "",
                 afterNotePayee: ""
-            })
+            }),
+            operator: address(0),
+            operatorParentChain: new address[](0)
         });
         try IActionFacet(idx).syncTokenAction(in_) {} catch Error(string memory reason) {
             emit IndexerSyncFailed(TX_BUINT_USDC, reason);
@@ -763,7 +769,9 @@ contract BUnitAirdrop is Ownable, EIP712 {
                 taxRateBps: 0,
                 afterNotePayer: "",
                 afterNotePayee: ""
-            })
+            }),
+            operator: address(0),
+            operatorParentChain: new address[](0)
         });
         try IActionFacet(idx).syncTokenAction(in_) {} catch Error(string memory reason) {
             emit IndexerSyncFailed(txCategory, reason);

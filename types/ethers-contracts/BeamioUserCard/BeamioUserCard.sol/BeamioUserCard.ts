@@ -25,18 +25,10 @@ export declare namespace BeamioUserCard {
   
     }
 
-export declare namespace GovernanceStorage {
-      
-    export type ProposalStruct = {target: AddressLike, v1: BigNumberish, v2: BigNumberish, v3: BigNumberish, selector: BytesLike, approvals: BigNumberish, executed: boolean}
-
-    export type ProposalStructOutput = [target: string, v1: bigint, v2: bigint, v3: bigint, selector: string, approvals: bigint, executed: boolean] & {target: string, v1: bigint, v2: bigint, v3: bigint, selector: string, approvals: bigint, executed: boolean }
-  
-    }
-
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "addAdmin" | "adminList" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "cancelRedeem" | "createIssuedNft" | "createProposal" | "createRedeem" | "createRedeemBatch" | "createRedeemPool" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "exists" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRedeemStatus" | "getRedeemStatusBatch(string[])" | "getRedeemStatusBatch(bytes32[])" | "getRedeemStatusEx" | "getTierAt" | "getTiersCount" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftIndex" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "issuedNftTitle" | "issuedNftValidAfter" | "issuedNftValidBefore" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByGateway" | "owner" | "pointsUnitPriceInCurrencyE6" | "proposalCount" | "proposals" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "removeAdmin" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setFaucetConfig" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "terminateRedeemPool" | "threshold" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftPriceInCurrency6" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ISSUED_NFT_START_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NFT_START_ID', values?: undefined): string;
@@ -48,50 +40,37 @@ encodeFunctionData(functionFragment: 'activeMembershipCountByTierIndex', values:
 encodeFunctionData(functionFragment: 'activeMembershipCountByTokenId', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'activeMembershipId', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'activeTierIndexOrMax', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'adminList', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'adminParent', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'appendTier', values: [BigNumberish, BigNumberish, BigNumberish, boolean]): string;
 encodeFunctionData(functionFragment: 'approveProposal', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposalByGateway', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
-encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'burnPointsByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'clearAdminMintCounterForSubordinate', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'createRedeemBatch', values: [BytesLike[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish[], BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'createRedeemPool', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish[][], BigNumberish[][], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'currency', values?: undefined): string;
 encodeFunctionData(functionFragment: 'debugGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultAttrWhenNoTiers', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
-encodeFunctionData(functionFragment: 'exists', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'expiresAt', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'expirySeconds', values?: undefined): string;
 encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'faucetByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'faucetConfig', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'gateway', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getAdminBurnCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminMintCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminRedeemMintCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminTransferCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminUSDCMintCounter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnershipByEOA', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getRedeemStatus', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'getRedeemStatusBatch(string[])', values: [string[]]): string;
-encodeFunctionData(functionFragment: 'getRedeemStatusBatch(bytes32[])', values: [BytesLike[]]): string;
-encodeFunctionData(functionFragment: 'getRedeemStatusEx', values: [BytesLike, AddressLike]): string;
-encodeFunctionData(functionFragment: 'getTierAt', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getTiersCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isIssuedNftValid', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftIndex', values?: undefined): string;
-encodeFunctionData(functionFragment: 'issuedNftMaxSupply', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftMintedCount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftPriceInCurrency6', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftTitle', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftValidAfter', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftValidBefore', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'membershipFlowBucketAtHour', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'membershipScopedFlowBucketAtHour', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'metadataBaseURI', values?: undefined): string;
@@ -100,29 +79,28 @@ encodeFunctionData(functionFragment: 'mintIssuedNftByGateway', values: [AddressL
 encodeFunctionData(functionFragment: 'mintIssuedNftByOwner', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintMemberCardByAdmin', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPointsByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintPointsByAdminWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintPointsByGateway', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintPointsByGatewayWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 encodeFunctionData(functionFragment: 'pointsUnitPriceInCurrencyE6', values?: undefined): string;
-encodeFunctionData(functionFragment: 'proposalCount', values?: undefined): string;
-encodeFunctionData(functionFragment: 'proposals', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordAdminBurnForStats', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordAdminMintForStats', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'redeemAdminByGateway', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemBatchByGateway', values: [string[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemByGateway', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemPoolByGateway', values: [string, AddressLike]): string;
-encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'safeBatchTransferFrom', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[], BytesLike]): string;
 encodeFunctionData(functionFragment: 'safeTransferFrom', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setDefaultAttr', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setExpirySeconds', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'setFaucetConfig', values: [BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, boolean, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setPointsUnitPrice', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTiers', values: [BeamioUserCard.TierStruct[]]): string;
 encodeFunctionData(functionFragment: 'setTransferWhitelist', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setTransferWhitelistEnabled', values: [boolean]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'terminateRedeemPool', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'threshold', values?: undefined): string;
 encodeFunctionData(functionFragment: 'tiers', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'tokenTierIndexOrMax', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalActiveMemberships', values?: undefined): string;
@@ -146,50 +124,37 @@ decodeFunctionResult(functionFragment: 'activeMembershipCountByTierIndex', data:
 decodeFunctionResult(functionFragment: 'activeMembershipCountByTokenId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeMembershipId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeTierIndexOrMax', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'adminList', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminParent', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'appendTier', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposalByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'attributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnPointsByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'clearAdminMintCounterForSubordinate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'createRedeemBatch', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'createRedeemPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'currency', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'debugGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultAttrWhenNoTiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'exists', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expiresAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expirySeconds', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetConfig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'gateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminBurnCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminRedeemMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminTransferCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminUSDCMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnershipByEOA', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRedeemStatus', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRedeemStatusBatch(string[])', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRedeemStatusBatch(bytes32[])', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRedeemStatusEx', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getTierAt', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getTiersCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isIssuedNftValid', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftIndex', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftMaxSupply', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftMintedCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftPriceInCurrency6', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftTitle', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftValidAfter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftValidBefore', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'membershipFlowBucketAtHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'membershipScopedFlowBucketAtHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Result;
@@ -198,29 +163,28 @@ decodeFunctionResult(functionFragment: 'mintIssuedNftByGateway', data: BytesLike
 decodeFunctionResult(functionFragment: 'mintIssuedNftByOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintMemberCardByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintPointsByAdminWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByGateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintPointsByGatewayWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsUnitPriceInCurrencyE6', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'proposalCount', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'proposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordAdminBurnForStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordAdminMintForStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'redeemAdminByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemBatchByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemPoolByGateway', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeBatchTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDefaultAttr', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setExpirySeconds', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'setFaucetConfig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setPointsUnitPrice', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTransferWhitelist', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTransferWhitelistEnabled', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'terminateRedeemPool', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'threshold', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tokenTierIndexOrMax', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalActiveMemberships', data: BytesLike): Result;
@@ -240,6 +204,18 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       export type InputTuple = [beneficiaryAccount: AddressLike, tokenId: BigNumberish, attr: BigNumberish, expiry: BigNumberish];
       export type OutputTuple = [beneficiaryAccount: string, tokenId: bigint, attr: bigint, expiry: bigint];
       export interface OutputObject {beneficiaryAccount: string, tokenId: bigint, attr: bigint, expiry: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace AdminPointsBurnedEvent {
+      export type InputTuple = [account: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [account: string, amount: bigint];
+      export interface OutputObject {account: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -662,16 +638,8 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    addAdmin: TypedContractMethod<
-      [newAdmin: AddressLike, newThreshold: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    adminList: TypedContractMethod<
-      [i: BigNumberish, ],
+    adminParent: TypedContractMethod<
+      [a: AddressLike, ],
       [string],
       'view'
     >
@@ -726,17 +694,17 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    cancelRedeem: TypedContractMethod<
-      [code: string, ],
+    burnPointsByAdmin: TypedContractMethod<
+      [target: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
     
 
     
-    createIssuedNft: TypedContractMethod<
-      [title: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, maxSupply: BigNumberish, priceInCurrency6: BigNumberish, sharedMetadataHash: BytesLike, ],
-      [bigint],
+    clearAdminMintCounterForSubordinate: TypedContractMethod<
+      [subordinate: AddressLike, authorizer: AddressLike, ],
+      [void],
       'nonpayable'
     >
     
@@ -745,30 +713,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     createProposal: TypedContractMethod<
       [selector: BytesLike, target: AddressLike, v1: BigNumberish, v2: BigNumberish, v3: BigNumberish, ],
       [bigint],
-      'nonpayable'
-    >
-    
-
-    
-    createRedeem: TypedContractMethod<
-      [hash: BytesLike, points6: BigNumberish, attr: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, tokenIds: BigNumberish[], amounts: BigNumberish[], ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    createRedeemBatch: TypedContractMethod<
-      [hashes: BytesLike[], points6: BigNumberish, attr: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, tokenIds: BigNumberish[], amounts: BigNumberish[], ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    createRedeemPool: TypedContractMethod<
-      [poolHash: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, tokenIdsList: BigNumberish[][], amountsList: BigNumberish[][], counts: BigNumberish[], ],
-      [void],
       'nonpayable'
     >
     
@@ -801,14 +745,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     deployer: TypedContractMethod<
       [],
       [string],
-      'view'
-    >
-    
-
-    
-    exists: TypedContractMethod<
-      [id: BigNumberish, ],
-      [boolean],
       'view'
     >
     
@@ -862,6 +798,46 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    getAdminBurnCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminRedeemMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminTransferCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminUSDCMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getOwnership: TypedContractMethod<
       [user: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
@@ -873,54 +849,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     getOwnershipByEOA: TypedContractMethod<
       [userEOA: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getRedeemStatus: TypedContractMethod<
-      [hash: BytesLike, ],
-      [[boolean, bigint] & {active: boolean, totalPoints6: bigint }],
-      'view'
-    >
-    
-
-    
-    "getRedeemStatusBatch(string[])": TypedContractMethod<
-      [codes: string[], ],
-      [[boolean[], bigint[]] & {active: boolean[], totalPoints6: bigint[] }],
-      'view'
-    >
-    
-
-    
-    "getRedeemStatusBatch(bytes32[])": TypedContractMethod<
-      [hashes: BytesLike[], ],
-      [[boolean[], bigint[]] & {active: boolean[], totalPoints6: bigint[] }],
-      'view'
-    >
-    
-
-    
-    getRedeemStatusEx: TypedContractMethod<
-      [hash: BytesLike, claimer: AddressLike, ],
-      [[boolean, bigint, boolean] & {active: boolean, points6: bigint, isPool: boolean }],
-      'view'
-    >
-    
-
-    
-    getTierAt: TypedContractMethod<
-      [idx: BigNumberish, ],
-      [BeamioUserCard.TierStructOutput],
-      'view'
-    >
-    
-
-    
-    getTiersCount: TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >
     
@@ -950,63 +878,7 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    issuedNftIndex: TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    issuedNftMaxSupply: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    issuedNftMintedCount: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
     issuedNftPriceInCurrency6: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    issuedNftSharedMetadataHash: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [string],
-      'view'
-    >
-    
-
-    
-    issuedNftTitle: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [string],
-      'view'
-    >
-    
-
-    
-    issuedNftValidAfter: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    issuedNftValidBefore: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
       'view'
@@ -1078,8 +950,24 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    mintPointsByAdminWithOperator: TypedContractMethod<
+      [user: AddressLike, points6: BigNumberish, operator: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     mintPointsByGateway: TypedContractMethod<
       [userEOA: AddressLike, points6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    mintPointsByGatewayWithOperator: TypedContractMethod<
+      [userEOA: AddressLike, points6: BigNumberish, operator: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -1102,18 +990,26 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    proposalCount: TypedContractMethod<
-      [],
-      [bigint],
-      'view'
+    recordAdminBurnForStats: TypedContractMethod<
+      [operator: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
     
-    proposals: TypedContractMethod<
-      [id: BigNumberish, ],
-      [GovernanceStorage.ProposalStructOutput],
-      'view'
+    recordAdminMintForStats: TypedContractMethod<
+      [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    redeemAdminByGateway: TypedContractMethod<
+      [code: string, to: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -1136,14 +1032,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     redeemPoolByGateway: TypedContractMethod<
       [code: string, userEOA: AddressLike, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    removeAdmin: TypedContractMethod<
-      [adminToRemove: AddressLike, newThreshold: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -1198,14 +1086,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    setFaucetConfig: TypedContractMethod<
-      [id: BigNumberish, validUntil: BigNumberish, perClaimMax: BigNumberish, maxPerUser: BigNumberish, maxGlobal: BigNumberish, enabled: boolean, cur: BigNumberish, priceInCurrency6: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
     setPointsUnitPrice: TypedContractMethod<
       [priceInCurrencyE6: BigNumberish, ],
       [void],
@@ -1241,22 +1121,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
-      'view'
-    >
-    
-
-    
-    terminateRedeemPool: TypedContractMethod<
-      [poolHash: BytesLike, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    threshold: TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >
     
@@ -1410,13 +1274,8 @@ getFunction(nameOrSignature: 'activeTierIndexOrMax'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'addAdmin'): TypedContractMethod<
-      [newAdmin: AddressLike, newThreshold: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'adminList'): TypedContractMethod<
-      [i: BigNumberish, ],
+getFunction(nameOrSignature: 'adminParent'): TypedContractMethod<
+      [a: AddressLike, ],
       [string],
       'view'
     >;
@@ -1450,34 +1309,19 @@ getFunction(nameOrSignature: 'balanceOfBatch'): TypedContractMethod<
       [bigint[]],
       'view'
     >;
-getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
-      [code: string, ],
+getFunction(nameOrSignature: 'burnPointsByAdmin'): TypedContractMethod<
+      [target: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'createIssuedNft'): TypedContractMethod<
-      [title: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, maxSupply: BigNumberish, priceInCurrency6: BigNumberish, sharedMetadataHash: BytesLike, ],
-      [bigint],
+getFunction(nameOrSignature: 'clearAdminMintCounterForSubordinate'): TypedContractMethod<
+      [subordinate: AddressLike, authorizer: AddressLike, ],
+      [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createProposal'): TypedContractMethod<
       [selector: BytesLike, target: AddressLike, v1: BigNumberish, v2: BigNumberish, v3: BigNumberish, ],
       [bigint],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
-      [hash: BytesLike, points6: BigNumberish, attr: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, tokenIds: BigNumberish[], amounts: BigNumberish[], ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'createRedeemBatch'): TypedContractMethod<
-      [hashes: BytesLike[], points6: BigNumberish, attr: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, tokenIds: BigNumberish[], amounts: BigNumberish[], ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'createRedeemPool'): TypedContractMethod<
-      [poolHash: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, tokenIdsList: BigNumberish[][], amountsList: BigNumberish[][], counts: BigNumberish[], ],
-      [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'currency'): TypedContractMethod<
@@ -1498,11 +1342,6 @@ getFunction(nameOrSignature: 'defaultAttrWhenNoTiers'): TypedContractMethod<
 getFunction(nameOrSignature: 'deployer'): TypedContractMethod<
       [],
       [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'exists'): TypedContractMethod<
-      [id: BigNumberish, ],
-      [boolean],
       'view'
     >;
 getFunction(nameOrSignature: 'expiresAt'): TypedContractMethod<
@@ -1535,6 +1374,31 @@ getFunction(nameOrSignature: 'gateway'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'getAdminBurnCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminRedeemMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminTransferCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminUSDCMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getOwnership'): TypedContractMethod<
       [user: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
@@ -1543,36 +1407,6 @@ getFunction(nameOrSignature: 'getOwnership'): TypedContractMethod<
 getFunction(nameOrSignature: 'getOwnershipByEOA'): TypedContractMethod<
       [userEOA: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRedeemStatus'): TypedContractMethod<
-      [hash: BytesLike, ],
-      [[boolean, bigint] & {active: boolean, totalPoints6: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRedeemStatusBatch(string[])'): TypedContractMethod<
-      [codes: string[], ],
-      [[boolean[], bigint[]] & {active: boolean[], totalPoints6: bigint[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRedeemStatusBatch(bytes32[])'): TypedContractMethod<
-      [hashes: BytesLike[], ],
-      [[boolean[], bigint[]] & {active: boolean[], totalPoints6: bigint[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRedeemStatusEx'): TypedContractMethod<
-      [hash: BytesLike, claimer: AddressLike, ],
-      [[boolean, bigint, boolean] & {active: boolean, points6: bigint, isPool: boolean }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getTierAt'): TypedContractMethod<
-      [idx: BigNumberish, ],
-      [BeamioUserCard.TierStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getTiersCount'): TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'isAdmin'): TypedContractMethod<
@@ -1590,42 +1424,7 @@ getFunction(nameOrSignature: 'isIssuedNftValid'): TypedContractMethod<
       [boolean],
       'view'
     >;
-getFunction(nameOrSignature: 'issuedNftIndex'): TypedContractMethod<
-      [],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftMaxSupply'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftMintedCount'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >;
 getFunction(nameOrSignature: 'issuedNftPriceInCurrency6'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftTitle'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftValidAfter'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftValidBefore'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
       'view'
@@ -1670,8 +1469,18 @@ getFunction(nameOrSignature: 'mintPointsByAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'mintPointsByAdminWithOperator'): TypedContractMethod<
+      [user: AddressLike, points6: BigNumberish, operator: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'mintPointsByGateway'): TypedContractMethod<
       [userEOA: AddressLike, points6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'mintPointsByGatewayWithOperator'): TypedContractMethod<
+      [userEOA: AddressLike, points6: BigNumberish, operator: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -1685,15 +1494,20 @@ getFunction(nameOrSignature: 'pointsUnitPriceInCurrencyE6'): TypedContractMethod
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'proposalCount'): TypedContractMethod<
-      [],
-      [bigint],
-      'view'
+getFunction(nameOrSignature: 'recordAdminBurnForStats'): TypedContractMethod<
+      [operator: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
-getFunction(nameOrSignature: 'proposals'): TypedContractMethod<
-      [id: BigNumberish, ],
-      [GovernanceStorage.ProposalStructOutput],
-      'view'
+getFunction(nameOrSignature: 'recordAdminMintForStats'): TypedContractMethod<
+      [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'redeemAdminByGateway'): TypedContractMethod<
+      [code: string, to: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'redeemBatchByGateway'): TypedContractMethod<
       [codes: string[], userEOA: AddressLike, ],
@@ -1707,11 +1521,6 @@ getFunction(nameOrSignature: 'redeemByGateway'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'redeemPoolByGateway'): TypedContractMethod<
       [code: string, userEOA: AddressLike, ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
-      [adminToRemove: AddressLike, newThreshold: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -1745,11 +1554,6 @@ getFunction(nameOrSignature: 'setExpirySeconds'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'setFaucetConfig'): TypedContractMethod<
-      [id: BigNumberish, validUntil: BigNumberish, perClaimMax: BigNumberish, maxPerUser: BigNumberish, maxGlobal: BigNumberish, enabled: boolean, cur: BigNumberish, priceInCurrency6: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >;
 getFunction(nameOrSignature: 'setPointsUnitPrice'): TypedContractMethod<
       [priceInCurrencyE6: BigNumberish, ],
       [void],
@@ -1773,16 +1577,6 @@ getFunction(nameOrSignature: 'setTransferWhitelistEnabled'): TypedContractMethod
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
-      'view'
-    >;
-getFunction(nameOrSignature: 'terminateRedeemPool'): TypedContractMethod<
-      [poolHash: BytesLike, ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'threshold'): TypedContractMethod<
-      [],
-      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<
@@ -1847,6 +1641,7 @@ getFunction(nameOrSignature: 'uri'): TypedContractMethod<
     >;
 
     getEvent(key: 'AdminCardMinted'): TypedContractEvent<AdminCardMintedEvent.InputTuple, AdminCardMintedEvent.OutputTuple, AdminCardMintedEvent.OutputObject>;
+getEvent(key: 'AdminPointsBurned'): TypedContractEvent<AdminPointsBurnedEvent.InputTuple, AdminPointsBurnedEvent.OutputTuple, AdminPointsBurnedEvent.OutputObject>;
 getEvent(key: 'AdminPointsMinted'): TypedContractEvent<AdminPointsMintedEvent.InputTuple, AdminPointsMintedEvent.OutputTuple, AdminPointsMintedEvent.OutputObject>;
 getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
 getEvent(key: 'DefaultAttrUpdated'): TypedContractEvent<DefaultAttrUpdatedEvent.InputTuple, DefaultAttrUpdatedEvent.OutputTuple, DefaultAttrUpdatedEvent.OutputObject>;
@@ -1877,6 +1672,10 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
       
       'AdminCardMinted(address,uint256,uint256,uint256)': TypedContractEvent<AdminCardMintedEvent.InputTuple, AdminCardMintedEvent.OutputTuple, AdminCardMintedEvent.OutputObject>;
       AdminCardMinted: TypedContractEvent<AdminCardMintedEvent.InputTuple, AdminCardMintedEvent.OutputTuple, AdminCardMintedEvent.OutputObject>;
+    
+
+      'AdminPointsBurned(address,uint256)': TypedContractEvent<AdminPointsBurnedEvent.InputTuple, AdminPointsBurnedEvent.OutputTuple, AdminPointsBurnedEvent.OutputObject>;
+      AdminPointsBurned: TypedContractEvent<AdminPointsBurnedEvent.InputTuple, AdminPointsBurnedEvent.OutputTuple, AdminPointsBurnedEvent.OutputObject>;
     
 
       'AdminPointsMinted(address,uint256)': TypedContractEvent<AdminPointsMintedEvent.InputTuple, AdminPointsMintedEvent.OutputTuple, AdminPointsMintedEvent.OutputObject>;

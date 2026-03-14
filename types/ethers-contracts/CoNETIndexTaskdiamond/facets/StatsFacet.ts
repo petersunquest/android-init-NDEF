@@ -11,9 +11,24 @@ export declare namespace StatsFacet {
     export type AggregatedStatsStructOutput = [totalNftMinted: bigint, totalTokenMinted: bigint, totalTokenBurned: bigint, totalTransfers: bigint] & {totalNftMinted: bigint, totalTokenMinted: bigint, totalTokenBurned: bigint, totalTransfers: bigint }
   
 
+    export type AdminAggregatedResultStruct = {stats: StatsFacet.AggregatedStatsStruct, cumulativeTokenMintedFromBegin: BigNumberish, cumulativeTokenBurnedFromBegin: BigNumberish, adminMintCounterByCard: BigNumberish}
+
+    export type AdminAggregatedResultStructOutput = [stats: StatsFacet.AggregatedStatsStructOutput, cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint] & {stats: StatsFacet.AggregatedStatsStructOutput, cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint }
+  
+
     export type PeriodReportStruct = {periodStart: BigNumberish, periodEnd: BigNumberish, stats: StatsFacet.AggregatedStatsStruct}
 
     export type PeriodReportStructOutput = [periodStart: bigint, periodEnd: bigint, stats: StatsFacet.AggregatedStatsStructOutput] & {periodStart: bigint, periodEnd: bigint, stats: StatsFacet.AggregatedStatsStructOutput }
+  
+
+    export type AdminPeriodReportsResultStruct = {reports: StatsFacet.PeriodReportStruct[], cumulativeTokenMintedFromBegin: BigNumberish, cumulativeTokenBurnedFromBegin: BigNumberish, adminMintCounterByCard: BigNumberish}
+
+    export type AdminPeriodReportsResultStructOutput = [reports: StatsFacet.PeriodReportStructOutput[], cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint] & {reports: StatsFacet.PeriodReportStructOutput[], cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint }
+  
+
+    export type AdminHourlyStatsResultStruct = {hourly: LibStatsStorage.HourlyStatsStruct, cumulativeTokenMintedFromBegin: BigNumberish, cumulativeTokenBurnedFromBegin: BigNumberish, adminMintCounterByCard: BigNumberish}
+
+    export type AdminHourlyStatsResultStructOutput = [hourly: LibStatsStorage.HourlyStatsStructOutput, cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint] & {hourly: LibStatsStorage.HourlyStatsStructOutput, cumulativeTokenMintedFromBegin: bigint, cumulativeTokenBurnedFromBegin: bigint, adminMintCounterByCard: bigint }
   
     }
 
@@ -26,7 +41,7 @@ export declare namespace LibStatsStorage {
     }
 
   export interface StatsFacetInterface extends Interface {
-    getFunction(nameOrSignature: "MAX_HOURS" | "MAX_PERIODS" | "PERIOD_DAY" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "getAggregatedStats" | "getAtomicHourStats" | "getBusinessPeriodReports" | "getCardHourlyData" | "getHourlyData" | "getStatsSince" | "getUserHourlyData" | "recordDetailedActivity" | "recordDetailedActivityAt"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_HOURS" | "MAX_PERIODS" | "PERIOD_DAY" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "clearAdminMintCounterForSubordinate" | "getAdminAggregatedStatsWithMintCounter" | "getAdminBusinessPeriodReportsWithMintCounter" | "getAdminHourlyData" | "getAdminHourlyDataFull" | "getAdminHourlyDataWithMintCounter" | "getAdminMintCounter" | "getAggregatedStats" | "getAtomicHourStats" | "getBusinessPeriodReports" | "getCardHourlyData" | "getHourlyData" | "getStatsSince" | "getUserHourlyData" | "recordAdminToken0ActivityAt" | "recordDetailedActivity" | "recordDetailedActivityAt"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "StatsUpdated"): EventFragment;
 
@@ -37,6 +52,13 @@ encodeFunctionData(functionFragment: 'PERIOD_MONTH', values?: undefined): string
 encodeFunctionData(functionFragment: 'PERIOD_QUARTER', values?: undefined): string;
 encodeFunctionData(functionFragment: 'PERIOD_WEEK', values?: undefined): string;
 encodeFunctionData(functionFragment: 'PERIOD_YEAR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'clearAdminMintCounterForSubordinate', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminAggregatedStatsWithMintCounter', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminBusinessPeriodReportsWithMintCounter', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminHourlyData', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminHourlyDataFull', values: [AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminHourlyDataWithMintCounter', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminMintCounter', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAggregatedStats', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAtomicHourStats', values: [BigNumberish, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBusinessPeriodReports', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
@@ -44,6 +66,7 @@ encodeFunctionData(functionFragment: 'getCardHourlyData', values: [AddressLike, 
 encodeFunctionData(functionFragment: 'getHourlyData', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getStatsSince', values: [BigNumberish, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getUserHourlyData', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordAdminToken0ActivityAt', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordDetailedActivity', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordDetailedActivityAt', values: [BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 
@@ -54,6 +77,13 @@ decodeFunctionResult(functionFragment: 'PERIOD_MONTH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_QUARTER', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_WEEK', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_YEAR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'clearAdminMintCounterForSubordinate', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminAggregatedStatsWithMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminBusinessPeriodReportsWithMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminHourlyData', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminHourlyDataFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminHourlyDataWithMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAggregatedStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAtomicHourStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBusinessPeriodReports', data: BytesLike): Result;
@@ -61,6 +91,7 @@ decodeFunctionResult(functionFragment: 'getCardHourlyData', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'getHourlyData', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getStatsSince', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getUserHourlyData', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordAdminToken0ActivityAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordDetailedActivity', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordDetailedActivityAt', data: BytesLike): Result;
   }
@@ -168,6 +199,62 @@ decodeFunctionResult(functionFragment: 'recordDetailedActivityAt', data: BytesLi
     
 
     
+    clearAdminMintCounterForSubordinate: TypedContractMethod<
+      [card: AddressLike, subordinate: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    getAdminAggregatedStatsWithMintCounter: TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, startTimestamp: BigNumberish, endTimestamp: BigNumberish, cumulativeStartTs: BigNumberish, ],
+      [StatsFacet.AdminAggregatedResultStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminBusinessPeriodReportsWithMintCounter: TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, cumulativeStartTs: BigNumberish, ],
+      [StatsFacet.AdminPeriodReportsResultStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminHourlyData: TypedContractMethod<
+      [admin: AddressLike, hourIndex: BigNumberish, ],
+      [LibStatsStorage.HourlyStatsStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminHourlyDataFull: TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, hourIndex: BigNumberish, cumulativeStartHour: BigNumberish, ],
+      [StatsFacet.AdminHourlyStatsResultStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminHourlyDataWithMintCounter: TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, hourIndex: BigNumberish, ],
+      [[LibStatsStorage.HourlyStatsStructOutput, bigint] & {hourly: LibStatsStorage.HourlyStatsStructOutput, mintCounter: bigint }],
+      'view'
+    >
+    
+
+    
+    getAdminMintCounter: TypedContractMethod<
+      [card: AddressLike, admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getAggregatedStats: TypedContractMethod<
       [mode: BigNumberish, account: AddressLike, startTimestamp: BigNumberish, endTimestamp: BigNumberish, ],
       [StatsFacet.AggregatedStatsStructOutput],
@@ -220,6 +307,14 @@ decodeFunctionResult(functionFragment: 'recordDetailedActivityAt', data: BytesLi
       [user: AddressLike, hourIndex: BigNumberish, ],
       [LibStatsStorage.HourlyStatsStructOutput],
       'view'
+    >
+    
+
+    
+    recordAdminToken0ActivityAt: TypedContractMethod<
+      [ts: BigNumberish, admin: AddressLike, mintAmount: BigNumberish, burnAmount: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -277,6 +372,41 @@ getFunction(nameOrSignature: 'PERIOD_YEAR'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'clearAdminMintCounterForSubordinate'): TypedContractMethod<
+      [card: AddressLike, subordinate: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'getAdminAggregatedStatsWithMintCounter'): TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, startTimestamp: BigNumberish, endTimestamp: BigNumberish, cumulativeStartTs: BigNumberish, ],
+      [StatsFacet.AdminAggregatedResultStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminBusinessPeriodReportsWithMintCounter'): TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, cumulativeStartTs: BigNumberish, ],
+      [StatsFacet.AdminPeriodReportsResultStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminHourlyData'): TypedContractMethod<
+      [admin: AddressLike, hourIndex: BigNumberish, ],
+      [LibStatsStorage.HourlyStatsStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminHourlyDataFull'): TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, hourIndex: BigNumberish, cumulativeStartHour: BigNumberish, ],
+      [StatsFacet.AdminHourlyStatsResultStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminHourlyDataWithMintCounter'): TypedContractMethod<
+      [admin: AddressLike, card: AddressLike, hourIndex: BigNumberish, ],
+      [[LibStatsStorage.HourlyStatsStructOutput, bigint] & {hourly: LibStatsStorage.HourlyStatsStructOutput, mintCounter: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminMintCounter'): TypedContractMethod<
+      [card: AddressLike, admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getAggregatedStats'): TypedContractMethod<
       [mode: BigNumberish, account: AddressLike, startTimestamp: BigNumberish, endTimestamp: BigNumberish, ],
       [StatsFacet.AggregatedStatsStructOutput],
@@ -311,6 +441,11 @@ getFunction(nameOrSignature: 'getUserHourlyData'): TypedContractMethod<
       [user: AddressLike, hourIndex: BigNumberish, ],
       [LibStatsStorage.HourlyStatsStructOutput],
       'view'
+    >;
+getFunction(nameOrSignature: 'recordAdminToken0ActivityAt'): TypedContractMethod<
+      [ts: BigNumberish, admin: AddressLike, mintAmount: BigNumberish, burnAmount: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'recordDetailedActivity'): TypedContractMethod<
       [card: AddressLike, user: AddressLike, nftCount: BigNumberish, mintAmount: BigNumberish, burnAmount: BigNumberish, transfers: BigNumberish, ],

@@ -45,6 +45,8 @@ export type { IEntryPointV07 } from './BeamioAccount/BeamioTypesV07.sol/IEntryPo
 export { IEntryPointV07__factory } from './factories/BeamioAccount/BeamioTypesV07.sol/IEntryPointV07__factory.js';
 export type { IPaymasterV07 } from './BeamioAccount/BeamioTypesV07.sol/IPaymasterV07.js';
 export { IPaymasterV07__factory } from './factories/BeamioAccount/BeamioTypesV07.sol/IPaymasterV07__factory.js';
+export type { BeamioUserCardAdminStatsQueryModuleV1 } from './BeamioUserCard/AdminStatsQueryModule.sol/BeamioUserCardAdminStatsQueryModuleV1.js';
+export { BeamioUserCardAdminStatsQueryModuleV1__factory } from './factories/BeamioUserCard/AdminStatsQueryModule.sol/BeamioUserCardAdminStatsQueryModuleV1__factory.js';
 export type { BeamioERC1155Logic } from './BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic.js';
 export { BeamioERC1155Logic__factory } from './factories/BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic__factory.js';
 export type { IBeamioAccountFactoryV07 } from './BeamioUserCard/BeamioERC1155Logic.sol/IBeamioAccountFactoryV07.js';

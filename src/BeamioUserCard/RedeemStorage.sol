@@ -22,6 +22,10 @@ library RedeemStorage {
 
         uint256[] tokenIds;
         uint256[] amounts;
+        /// @dev 创建者（owner 或 admin），兑换时计入其 admin 统计及 parent 链
+        address creator;
+        /// @dev 推荐 admin；兑换成功后单独计入其 redeem_mint 计数及 parent 链
+        address recommender;
     }
 
     // ===== RedeemPool（可重复密码，每用户一次，hash=keccak256(password)）=====
@@ -40,12 +44,25 @@ library RedeemStorage {
         uint32 cursor;
 
         PoolContainer[] containers;
+        /// @dev 创建者（owner 或 admin），兑换时计入其 admin 统计及 parent 链
+        address creator;
+        /// @dev 推荐 admin；兑换成功后单独计入其 redeem_mint 计数及 parent 链
+        address recommender;
+    }
+
+    // ===== RedeemAdmin（通过秘密 code 添加 admin，hash=keccak256(secretCode)）=====
+    struct RedeemAdmin {
+        bool   active;
+        string metadata;
+        uint64 validAfter;
+        uint64 validBefore;
     }
 
     struct Layout {
         mapping(bytes32 => Redeem) redeems;   // one-time: hash=keccak256(code)
         mapping(bytes32 => RedeemPool) pools; // pool: hash=keccak256(password)，与 redeems 共用 hash 空间但互斥
         mapping(bytes32 => mapping(address => bool)) poolClaimed;  // poolHash => user => claimed
+        mapping(bytes32 => RedeemAdmin) redeemAdmins; // hash=keccak256(secretCode)，与 redeems/pools 独立
     }
 
     function layout() internal pure returns (Layout storage l) {

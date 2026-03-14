@@ -10,16 +10,59 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "newAdmin",
+        "name": "to",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "admin",
+        "type": "bool"
       },
       {
         "internalType": "uint256",
         "name": "newThreshold",
         "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
       }
     ],
-    "name": "addAdmin",
+    "name": "adminManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "admin",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "newThreshold",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "metadata",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "authorizer",
+        "type": "address"
+      }
+    ],
+    "name": "adminManagerByAdmin",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -130,24 +173,6 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "adminToRemove",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "newThreshold",
-        "type": "uint256"
-      }
-    ],
-    "name": "removeAdmin",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   }

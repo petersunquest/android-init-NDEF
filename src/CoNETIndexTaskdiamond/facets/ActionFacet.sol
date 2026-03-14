@@ -77,6 +77,10 @@ contract ActionFacet {
         RouteItemInput[] route;
         FeeInfoInput fees;
         TransactionMetaInput meta;
+        /// @dev 当为 admin 操作（如 mintPointsByAdmin）时传入 admin 地址，用于 token #0 按 admin 维度统计 mint/burn
+        address operator;
+        /// @dev operator 的 parent 链（从直接 parent 到根），B 的 mint/burn 也累积到链上各 admin 的统计
+        address[] operatorParentChain;
     }
 
     // 完整返回模型：与 readme Transaction 结构对齐（含 route）
@@ -196,6 +200,36 @@ contract ActionFacet {
         }
 
         _recordTxStats(useTs, in_.payer, in_.payee);
+
+        if (in_.operator != address(0)) {
+            uint256 token0Mint = 0;
+            uint256 token0Burn = 0;
+            address cardAddr = address(0);
+            for (uint256 i = 0; i < in_.route.length; i++) {
+                RouteItemInput calldata r = in_.route[i];
+                if (r.source == uint8(LibActionStorage.RouteSource.UserCardPoint)) {
+                    token0Mint += r.amountE6;
+                    if (cardAddr == address(0) && r.asset != address(0)) cardAddr = r.asset;
+                }
+            }
+            if (token0Mint > 0 || token0Burn > 0) {
+                _recordAdminToken0Stats(useTs, in_.operator, token0Mint, token0Burn);
+                for (uint256 j = 0; j < in_.operatorParentChain.length; j++) {
+                    if (in_.operatorParentChain[j] != address(0)) {
+                        _recordAdminToken0Stats(useTs, in_.operatorParentChain[j], token0Mint, token0Burn);
+                    }
+                }
+                if (cardAddr != address(0)) {
+                    _addAdminMintCounterByCard(cardAddr, in_.operator, token0Mint);
+                    for (uint256 j = 0; j < in_.operatorParentChain.length; j++) {
+                        if (in_.operatorParentChain[j] != address(0)) {
+                            _addAdminMintCounterByCard(cardAddr, in_.operatorParentChain[j], token0Mint);
+                        }
+                    }
+                }
+            }
+        }
+
         emit TransactionRecordSynced(actionId, in_.txId, in_.txCategory, in_.payer, in_.payee);
     }
 
@@ -286,6 +320,17 @@ contract ActionFacet {
             _upd(s.userHourlyData[payee][hourIndex], 0, 0, 0, 1);
             emit StatsUpdated(hourIndex, payee);
         }
+    }
+
+    function _recordAdminToken0Stats(uint256 ts, address admin, uint256 mintAmount, uint256 burnAmount) internal {
+        LibStatsStorage.Layout storage s = LibStatsStorage.layout();
+        uint256 hourIndex = ts / 3600;
+        _upd(s.adminHourlyData[admin][hourIndex], 0, mintAmount, burnAmount, 0);
+    }
+
+    function _addAdminMintCounterByCard(address card, address admin, uint256 mintAmount) internal {
+        if (card == address(0) || admin == address(0) || mintAmount == 0) return;
+        LibStatsStorage.layout().adminMintCounterByCard[card][admin] += mintAmount;
     }
 
     function _upd(

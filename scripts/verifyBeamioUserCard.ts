@@ -7,7 +7,7 @@
  *   CURRENCY=4 \
  *   PRICE=1000000 \
  *   OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e \
- *   GATEWAY=0x46E8a69f7296deF53e33844bb00D92309ab46233 \
+ *   GATEWAY=0xE091a0A974a40bCee36288193376294a19a293aE \
  *   npx hardhat run scripts/verifyBeamioUserCard.ts --network base
  *
  * URI 必须与 Factory metadataBaseURI 一致：https://beamio.app/api/metadata/0x（api.beamio.io 域名已废弃）
@@ -19,7 +19,7 @@ const URI = process.env.URI || "https://beamio.app/api/metadata/0x";
 const CURRENCY = parseInt(process.env.CURRENCY || "4", 10);
 const PRICE = process.env.PRICE || "1000000";
 const OWNER = process.env.OWNER || "";
-const GATEWAY = process.env.GATEWAY || "0x46E8a69f7296deF53e33844bb00D92309ab46233";
+const GATEWAY = process.env.GATEWAY || "0xE091a0A974a40bCee36288193376294a19a293aE";
 
 async function main() {
   if (!CARD || CARD.length !== 42 || !CARD.startsWith("0x")) {

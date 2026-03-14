@@ -1,0 +1,65 @@
+Base Mainnet BaseScan Verification Notes
+=======================================
+
+Compiler settings
+- solc: 0.8.33
+- optimizer: enabled
+- runs: 0
+- viaIR: true
+- evmVersion: cancun
+- metadata.bytecodeHash: none
+- debug.revertStrings: strip
+
+Deployed addresses
+- BeamioUserCardDeployerV07: 0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0
+- BeamioUserCardFactoryPaymasterV07: 0xE091a0A974a40bCee36288193376294a19a293aE
+- BeamioUserCardRedeemModuleVNext: 0x7AD391Eea7f21472872DA9E98b76aC70107432AD
+- BeamioUserCardIssuedNftModuleV1: 0x6ee95325dEF45445604F5790e5690CbB6ae00150
+- BeamioUserCardFaucetModuleV1: 0x1406EfDC2b00881c38497E3933861934dfbaB355
+- BeamioUserCardGovernanceModuleV1: 0x7AF12402E341007188c048175266a48b0B4440de
+- BeamioUserCardMembershipStatsModuleV1: 0x082F5b7d824871B2B5cc2142F2609d5F03060EF3
+- BeamioUserCardAdminStatsQueryModuleV1: 0xDF69297B891840648dafb66d2799499301561BdE
+
+Standard JSON files
+- deployments/base-BeamioUserCard-basescan-standard-input.json
+- deployments/base-BeamioUserCard-basescan-minimal.json
+- deployments/base-UserCardDeployer-standard-input.min.json
+- deployments/base-UserCardFactory-standard-input.min.json
+- deployments/base-RedeemModule-standard-input.min.json
+- deployments/base-IssuedNftModule-standard-input.min.json
+- deployments/base-FaucetModule-standard-input.min.json
+- deployments/base-GovernanceModule-standard-input.min.json
+- deployments/base-MembershipStatsModule-standard-input.min.json
+- deployments/base-AdminStatsQueryModule-standard-input.min.json
+
+Contract Name values
+- project/src/BeamioUserCard/BeamioUserCardDeployerV07.sol:BeamioUserCardDeployerV07
+- project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+- project/src/BeamioUserCard/RedeemModule.sol:BeamioUserCardRedeemModuleVNext
+- project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+- project/src/BeamioUserCard/FaucetModule.sol:BeamioUserCardFaucetModuleV1
+- project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1
+- project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1
+- project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1
+
+Constructor arguments
+- BeamioUserCardDeployerV07: none
+- BeamioUserCardFactoryPaymasterV07:
+  [
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "0x7AD391Eea7f21472872DA9E98b76aC70107432AD",
+    "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
+    "0xc09a721dA54Ca3C492c169a0CB282f1ED8BD53e0",
+    "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  ]
+- BeamioUserCardRedeemModuleVNext: none
+- BeamioUserCardIssuedNftModuleV1: none
+- BeamioUserCardFaucetModuleV1: none
+- BeamioUserCardGovernanceModuleV1: none
+- BeamioUserCardMembershipStatsModuleV1: none
+- BeamioUserCardAdminStatsQueryModuleV1: none
+
+Notes
+- The new factory was later configured on-chain to point to the freshly deployed modules.
+- BaseScan manual verification should use the constructor args above, which match the deployment tx.

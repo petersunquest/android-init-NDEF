@@ -6,23 +6,23 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardGovernanceModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "addAdmin" | "approveProposal" | "approveProposalByGateway" | "createProposal" | "executeProposal" | "removeAdmin"): FunctionFragment;
+    getFunction(nameOrSignature: "adminManager" | "adminManagerByAdmin" | "approveProposal" | "approveProposalByGateway" | "createProposal" | "executeProposal"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ProposalApproved" | "ProposalCreated" | "ProposalExecuted"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'adminManager', values: [AddressLike, boolean, BigNumberish, string]): string;
+encodeFunctionData(functionFragment: 'adminManagerByAdmin', values: [AddressLike, boolean, BigNumberish, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'approveProposal', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposalByGateway', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'executeProposal', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'adminManager', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminManagerByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposalByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeProposal', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
   }
 
   
@@ -96,8 +96,16 @@ decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 
     
     
-    addAdmin: TypedContractMethod<
-      [newAdmin: AddressLike, newThreshold: BigNumberish, ],
+    adminManager: TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    adminManagerByAdmin: TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -135,19 +143,16 @@ decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
     >
     
 
-    
-    removeAdmin: TypedContractMethod<
-      [adminToRemove: AddressLike, newThreshold: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >
-    
-
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'addAdmin'): TypedContractMethod<
-      [newAdmin: AddressLike, newThreshold: BigNumberish, ],
+    getFunction(nameOrSignature: 'adminManager'): TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminManagerByAdmin'): TypedContractMethod<
+      [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, authorizer: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -169,11 +174,6 @@ getFunction(nameOrSignature: 'createProposal'): TypedContractMethod<
 getFunction(nameOrSignature: 'executeProposal'): TypedContractMethod<
       [id: BigNumberish, ],
       [[string, string, bigint, bigint, bigint] & {selector: string, target: string, v1: bigint, v2: bigint, v3: bigint }],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
-      [adminToRemove: AddressLike, newThreshold: BigNumberish, ],
-      [void],
       'nonpayable'
     >;
 
