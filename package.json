@@ -52,6 +52,7 @@
     "redeploy:card-factory:base": "hardhat run scripts/redeployCardFactoryAndUpdateConfig.ts --network base",
     "deploy:card-factory-only:base": "hardhat run scripts/deployCardFactoryOnlyWithSettleAdmin.ts --network base",
     "deploy:reset-admin-limit:base": "hardhat run scripts/deployResetAdminLimitContracts.ts --network base",
+    "deploy:admin-stats-module:base": "hardhat run scripts/deployAdminStatsQueryModuleForMintLimit.ts --network base",
     "set:card-factory-aa:base": "hardhat run scripts/setCardFactoryAAFactory.ts --network base",
     "update:card-and-aa-admins:base": "hardhat run scripts/updateCardFactoryAndRegisterAAAdmins.ts --network base",
     "add:settle-wallets-to-factories": "hardhat run scripts/addSettleWalletsToFactories.ts --network base",
