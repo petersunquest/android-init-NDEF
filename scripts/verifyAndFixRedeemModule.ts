@@ -16,11 +16,23 @@ import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { homedir } from "os";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CREATE_REDEEM_BATCH_SELECTOR = ethers.id("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])").slice(0, 10);
+const CREATE_REDEEM_ADMIN_5_SELECTOR = ethers.id("createRedeemAdmin(bytes32,string,uint64,uint64,uint256)").slice(0, 10);
+
+function loadMasterSetup(): { settle_contractAdmin: string[] } {
+  const setupPath = path.join(homedir(), ".master.json");
+  if (!fs.existsSync(setupPath)) throw new Error("未找到 ~/.master.json");
+  const data = JSON.parse(fs.readFileSync(setupPath, "utf-8"));
+  if (!data.settle_contractAdmin?.length) throw new Error("settle_contractAdmin 为空");
+  return {
+    settle_contractAdmin: data.settle_contractAdmin.map((pk: string) => (pk.startsWith("0x") ? pk : `0x${pk}`)),
+  };
+}
 
 async function main() {
   const { ethers } = await networkModule.connect();
@@ -48,6 +60,7 @@ async function main() {
   console.log("Factory:", factoryAddress);
   console.log("当前 RedeemModule:", currentModule);
   console.log("createRedeemBatch 预期 selector:", CREATE_REDEEM_BATCH_SELECTOR);
+  console.log("createRedeemAdmin(5参) 预期 selector:", CREATE_REDEEM_ADMIN_5_SELECTOR);
   console.log();
 
   const factory = await ethers.getContractAt("BeamioUserCardFactoryPaymasterV07", factoryAddress);
@@ -65,30 +78,38 @@ async function main() {
   }
   console.log("✅ RedeemModule 有代码，长度:", moduleCode.length, "字符");
 
-  const selectorHex = CREATE_REDEEM_BATCH_SELECTOR.slice(2).toLowerCase();
-  const hasSelector = moduleCode.toLowerCase().includes(selectorHex);
-  if (hasSelector && !forceUpdate) {
-    console.log("✅ RedeemModule 包含 createRedeemBatch selector");
+  const batchSelectorHex = CREATE_REDEEM_BATCH_SELECTOR.slice(2).toLowerCase();
+  const admin5SelectorHex = CREATE_REDEEM_ADMIN_5_SELECTOR.slice(2).toLowerCase();
+  const hasBatchSelector = moduleCode.toLowerCase().includes(batchSelectorHex);
+  const hasAdmin5Selector = moduleCode.toLowerCase().includes(admin5SelectorHex);
+  if (hasBatchSelector && hasAdmin5Selector && !forceUpdate) {
+    console.log("✅ RedeemModule 同时包含 createRedeemBatch 与 createRedeemAdmin(5参) selector");
     console.log("\n若仍出现 UC_RedeemDelegateFailed(空)，请检查:");
     console.log("  1. hashes 中是否有重复或已存在的 active redeem");
     console.log("  2. tokenIds/amounts 是否合法（同长、amounts>0）");
     console.log("  3. validAfter/validBefore 时间范围");
     return;
   }
-  if (forceUpdate && hasSelector) {
-    console.log("FORCE_UPDATE=1: 当前 Module 已有 createRedeemBatch，将仍部署新版并更新");
+  if (forceUpdate && hasBatchSelector && hasAdmin5Selector) {
+    console.log("FORCE_UPDATE=1: 当前 Module 已包含所需 selector，将仍部署新版并更新");
   }
 
-  console.log("❌ RedeemModule 缺少 createRedeemBatch，需要更新为新版 BeamioUserCardRedeemModuleVNext");
+  console.log("❌ RedeemModule 缺少所需 selector，需要更新为新版 BeamioUserCardRedeemModuleVNext");
+  console.log("   createRedeemBatch:", hasBatchSelector ? "✅" : "❌");
+  console.log("   createRedeemAdmin(5参):", hasAdmin5Selector ? "✅" : "❌");
   if (verifyOnly) {
     console.log("\n仅检查模式，未部署。要修复请去掉 VERIFY_ONLY=1 重新运行。");
     return;
   }
 
-  const [deployer] = await ethers.getSigners();
+  const master = loadMasterSetup();
+  const deployerPk = master.settle_contractAdmin[0];
+  if (!deployerPk) throw new Error("settle_contractAdmin[0] 为空");
+  const deployer = new ethers.NonceManager(new ethers.Wallet(deployerPk, ethers.provider));
+  const deployerAddress = await deployer.getAddress();
   const owner = await factory.owner();
-  if (deployer.address.toLowerCase() !== owner.toLowerCase()) {
-    console.log("\n⚠️  当前账户", deployer.address, "不是 Factory owner");
+  if (deployerAddress.toLowerCase() !== owner.toLowerCase()) {
+    console.log("\n⚠️  当前账户", deployerAddress, "不是 Factory owner");
     console.log("   Owner:", owner);
     console.log("   将只部署新 Module，owner 需自行调用 setRedeemModule。\n");
   }
@@ -99,23 +120,27 @@ async function main() {
   } else {
     console.log("\n部署新的 BeamioUserCardRedeemModuleVNext...");
     const ModuleFactory = await ethers.getContractFactory("BeamioUserCardRedeemModuleVNext");
-    const newModule = await ModuleFactory.deploy();
+    const newModule = await ModuleFactory.connect(deployer).deploy();
     await newModule.waitForDeployment();
     newModuleAddress = await newModule.getAddress();
     console.log("✅ 新 RedeemModule 已部署:", newModuleAddress);
   }
 
   const newCode = await ethers.provider.getCode(newModuleAddress);
-  const newHasSelector = newCode.toLowerCase().includes(selectorHex);
-  if (newHasSelector) {
-    console.log("✅ 新 Module 包含 createRedeemBatch selector");
+  const newHasBatchSelector = newCode.toLowerCase().includes(batchSelectorHex);
+  const newHasAdmin5Selector = newCode.toLowerCase().includes(admin5SelectorHex);
+  if (newHasBatchSelector && newHasAdmin5Selector) {
+    console.log("✅ 新 Module 包含 createRedeemBatch 与 createRedeemAdmin(5参) selector");
   } else {
-    console.log("⚠️  bytecode 中未检测到 selector（编译器优化可能导致），合约源码含 createRedeemBatch，继续执行");
+    console.log("⚠️  bytecode 中未检测到完整 selector 集合（编译器优化可能导致），继续执行");
+    console.log("   createRedeemBatch:", newHasBatchSelector ? "✅" : "❌");
+    console.log("   createRedeemAdmin(5参):", newHasAdmin5Selector ? "✅" : "❌");
   }
 
-  if (deployer.address.toLowerCase() === owner.toLowerCase()) {
+  if (deployerAddress.toLowerCase() === owner.toLowerCase()) {
     console.log("\n调用 setRedeemModule...");
-    const tx = await factory.setRedeemModule(newModuleAddress);
+    const ownerFactory = factory.connect(deployer);
+    const tx = await ownerFactory.setRedeemModule(newModuleAddress);
     await tx.wait();
     console.log("✅ setRedeemModule 成功, tx:", tx.hash);
   } else {
@@ -129,7 +154,7 @@ async function main() {
   const outFile = path.join(deploymentsDir, `${networkInfo.name}-UserCardDependencies.json`);
   const depData: Record<string, unknown> = fs.existsSync(outFile)
     ? JSON.parse(fs.readFileSync(outFile, "utf-8"))
-    : { network: networkInfo.name, chainId, deployer: deployer.address, timestamp: new Date().toISOString(), contracts: {} };
+    : { network: networkInfo.name, chainId, deployer: deployerAddress, timestamp: new Date().toISOString(), contracts: {} };
   (depData.contracts as Record<string, unknown>).redeemModule = {
     address: newModuleAddress,
     previous: onChainModule,
@@ -137,6 +162,25 @@ async function main() {
   };
   fs.writeFileSync(outFile, JSON.stringify(depData, null, 2));
   console.log("\n部署记录已更新:", outFile);
+
+  const factoryDeployPath = path.join(deploymentsDir, `${networkInfo.name}-UserCardFactory.json`);
+  if (fs.existsSync(factoryDeployPath)) {
+    const factoryData = JSON.parse(fs.readFileSync(factoryDeployPath, "utf-8"));
+    if (factoryData.contracts?.beamioUserCardFactoryPaymaster) {
+      factoryData.contracts.beamioUserCardFactoryPaymaster.redeemModule = newModuleAddress;
+      fs.writeFileSync(factoryDeployPath, JSON.stringify(factoryData, null, 2));
+      console.log("部署记录已更新:", factoryDeployPath);
+    }
+  }
+
+  const modulesPath = path.join(deploymentsDir, `${networkInfo.name}-UserCardModules.json`);
+  if (fs.existsSync(modulesPath)) {
+    const modulesData = JSON.parse(fs.readFileSync(modulesPath, "utf-8"));
+    if (modulesData.modules) modulesData.modules.redeemModule = newModuleAddress;
+    modulesData.redeemModule = newModuleAddress;
+    fs.writeFileSync(modulesPath, JSON.stringify(modulesData, null, 2));
+    console.log("部署记录已更新:", modulesPath);
+  }
 }
 
 main()

@@ -5,7 +5,7 @@
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0x2F45f38f2B6EF97b606ec2557E237529e8db9281",
   "modules": {
-    "redeemModule": "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
+    "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
     "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
     "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
     "governanceModule": "0x3f38A0df1c9339e801487f244b885aEe0041E7eF",
@@ -16,5 +16,6 @@
     "appendTierForCardWithOwnerSignature": true,
     "createCardCollectionWithInitCodeAndTiers": true
   },
-  "adminStatsQueryModule": "0x59e54Af96BeEB36C13753170DF0a9Bb7b0123438"
+  "adminStatsQueryModule": "0x59e54Af96BeEB36C13753170DF0a9Bb7b0123438",
+  "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6"
 }

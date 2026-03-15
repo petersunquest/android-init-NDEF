@@ -5,8 +5,9 @@
   "timestamp": "2026-03-14T19:03:58.302Z",
   "contracts": {
     "redeemModule": {
-      "address": "0x09fb1EDc6B2121311FaeE79bd4bc39E4646092Ae",
-      "transactionHash": "0xf9848f8935a3c0223300eb3ebf38a47d4c0668a937069e712ce4286aaca79e11"
+      "address": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
+      "previous": "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
+      "note": "BeamioUserCardRedeemModuleVNext (with createRedeemBatch)"
     },
     "beamioUserCardDeployer": {
       "address": "0x8BbD166F8954C0DfDc999AA8159033fF49A1A494",

@@ -11,7 +11,7 @@
     "beamioUserCardFactoryPaymaster": {
       "address": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "redeemModule": "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2",
+      "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
       "deployer": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
       "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
