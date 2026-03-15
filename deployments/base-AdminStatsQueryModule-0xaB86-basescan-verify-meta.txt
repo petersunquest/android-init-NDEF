@@ -1,0 +1,53 @@
+# BaseScan 验证 - AdminStatsQueryModule 0xaB86c44a0Eb63ff461D2b71f56D6b21D46357F5a
+
+## 合约信息
+
+| 项目 | 值 |
+|------|-----|
+| **地址** | 0xaB86c44a0Eb63ff461D2b71f56D6b21D46357F5a |
+| **Contract Name** | project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1 |
+| **Compiler** | v0.8.33 |
+| **Constructor args** | 无 |
+| **Standard JSON** | deployments/base-AdminStatsQueryModule-standard-input.min.json |
+
+## 验证步骤
+
+1. 打开 https://basescan.org/address/0xaB86c44a0Eb63ff461D2b71f56D6b21D46357F5a#code
+2. 点击 "Verify and Publish"
+3. 选择 **"Solidity (Standard-Json-Input)"**
+4. Compiler Type: 选 **Solidity (Standard-Json-Input)**
+5. Compiler Version: **v0.8.33+commit.xxx**（必须与 hardhat.config.ts 一致）
+6. 上传 `deployments/base-AdminStatsQueryModule-standard-input.min.json`
+7. Contract Name: 从下拉框选择或手动输入：
+   - 优先尝试：`project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1`
+   - 若失败，尝试：`src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1`
+8. Constructor Arguments: **留空**（无 constructor 参数）
+
+## Compiler 设置（需与 JSON 内 settings 一致）
+
+- Optimization: Yes, 200 runs → **改为 0 runs**（本项目用 runs=0）
+- EVM Version: **cancun**
+- Via IR: **Yes**（若 BaseScan 有此选项）
+
+## 若验证失败 (err_code_2)
+
+1. **Compiler 版本**：确认选 v0.8.33
+2. **Optimizer runs**：必须为 0（不是 200）
+3. **Contract Name**：必须精确匹配 `project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1`
+4. **Standard JSON**：确保使用刚导出的 `deployments/base-AdminStatsQueryModule-standard-input.min.json`（npm run 已重新生成）
+
+## 使用 Hardhat 验证（可选）
+
+```bash
+npx hardhat verify --network base 0xaB86c44a0Eb63ff461D2b71f56D6b21D46357F5a
+```
+
+若 hardhat verify 失败，请使用 Standard JSON 手动验证。
+
+## 重新导出 Standard JSON
+
+```bash
+npx tsx scripts/exportMinimalStandardJson.ts \
+  --root project/src/BeamioUserCard/AdminStatsQueryModule.sol \
+  --out deployments/base-AdminStatsQueryModule-standard-input.min.json
+```
