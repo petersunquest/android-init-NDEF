@@ -16,5 +16,5 @@
     "appendTierForCardWithOwnerSignature": true,
     "createCardCollectionWithInitCodeAndTiers": true
   },
-  "adminStatsQueryModule": "0xaB86c44a0Eb63ff461D2b71f56D6b21D46357F5a"
+  "adminStatsQueryModule": "0x59e54Af96BeEB36C13753170DF0a9Bb7b0123438"
 }
