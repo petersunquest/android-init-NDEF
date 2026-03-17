@@ -43,6 +43,25 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 
 **读操作**由 Cluster 直接处理，减轻 Master 负担。Master 可选择性实现相同读端点（如 latestCards 两端都有）。
 
+## 职责边界（读写分离）
+
+| 类型 | 处理方 | 说明 |
+|------|--------|------|
+| **读取** | Cluster 直接返回 | 查 DB、查链上 view、RPC 只读等，Cluster 处理并立即返回 |
+| **系统写入** | Master 排队处理 | DB 写入（如 registerNfcCardToDb、upsert 等）必须交由 Master，放入 pool 排队 |
+| **区块链交易** | Master 排队处理 | 链上写操作（createAccountFor、executeForOwner 等）必须交由 Master，使用 Settle_ContractPool 等 |
+
+## 需创建钱包时的流程
+
+当预检发现**合法卡但需创建钱包**（如 getUIDAssets 检测到合法 tagID 未绑定 EOA/AA）时：
+
+1. **Cluster**：仅做预检（如 SUN 校验），**成功的卡**才进入下一步
+2. **Cluster**：若需创建钱包（DB 写入 + AA 链上创建），**不得**在 Cluster 执行，必须 `postLocalhost` **转发到 Master**
+3. **Master**：不再预检，将「创建钱包」放入排队处理 pool，按队列执行
+4. **Master**：执行完毕后再做后续读操作（如拉资产）并返回
+
+**严禁**：在 Cluster 内执行 `registerNfcCardToDb`、`provisionOrGetNfcWalletByTagId` 等 DB 写入，或直接调用链上创建 AA。
+
 ## 特殊情况
 
 - **coinbase-hooks**：Webhook 需 raw body 验签，Cluster 与 Master 均可独立接收处理，不转发（转发会丢失 raw body）
@@ -55,3 +74,4 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 - [ ] 若是**读操作**：在 Cluster 添加 handler，Master 建议同步实现（便于直连 Master 或容错）
 - [ ] **不要**仅在 Cluster 实现写操作的完整逻辑
 - [ ] **不要**在 Master 做任何入站数据校验（格式、业务、验签等），全部在 Cluster 完成
+- [ ] 若读操作中**可能需创建钱包**（DB 写入 + AA 链上创建）：Cluster 仅预检，需创建时转发 Master 排队处理，**不得**在 Cluster 内执行 provision/registerNfcCardToDb
