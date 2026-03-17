@@ -4,7 +4,7 @@
  */
 import { ethers } from "ethers";
 
-const BASE_RPC = process.env.BASE_RPC_URL || "https://mainnet.base.org";
+const BASE_RPC = process.env.BASE_RPC_URL || "https://1rpc.io/base";
 const CONET_RPC = process.env.CONET_RPC || "https://mainnet-rpc.conet.network";
 const ACCOUNT_REGISTRY = "0x3E15607BCf98B01e6C7dF834a2CEc7B8B6aFb1BC";
 const CARD_FACTORY = "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";

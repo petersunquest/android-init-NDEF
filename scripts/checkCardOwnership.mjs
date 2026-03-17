@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 
 const CARD = '0x82b333da5c723DA6e98FEfEcd96cB1cA304C6125';
 const USER = '0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61';
-const RPC = process.env.BASE_RPC || 'https://mainnet.base.org';
+const RPC = process.env.BASE_RPC || 'https://1rpc.io/base';
 
 const abi = [
   'function balanceOf(address account, uint256 id) view returns (uint256)',
