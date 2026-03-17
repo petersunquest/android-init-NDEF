@@ -831,9 +831,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return AdminStatsStorage.layout().adminBurnCounter[admin];
     }
 
-    /// @notice 查询 admin 累计 transfer 计数（从上次 clear 起，预留）
+    /// @notice 查询 admin 累计 transfer 次数（从上次 clear 起）
     function getAdminTransferCounter(address admin) external view returns (uint256) {
         return AdminStatsStorage.layout().adminTransferCounter[admin];
+    }
+
+    /// @notice 查询 admin 累计 transfer 金额（从上次 clear 起）
+    function getAdminTransferAmountCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminTransferAmountCounter[admin];
     }
 
     /// @notice 查询 admin redeem 完成后单独累计的 mint 计数（从上次 clear 起）

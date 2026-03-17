@@ -63,6 +63,7 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         uint256 mintCounterFromClear;
         uint256 burnCounterFromClear;
         uint256 transferCounterFromClear;
+        uint256 transferAmountFromClear;
         uint256 redeemMintCounterFromClear;
         uint256 usdcMintCounterFromClear;
         address[] subordinates;
@@ -254,6 +255,7 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         result.mintCounterFromClear = r.mintCounterFromClear;
         result.burnCounterFromClear = r.burnCounterFromClear;
         result.transferCounterFromClear = r.transferCounterFromClear;
+        result.transferAmountFromClear = r.transferAmountFromClear;
         result.redeemMintCounterFromClear = r.redeemMintCounterFromClear;
         result.usdcMintCounterFromClear = r.usdcMintCounterFromClear;
         result.subordinates = r.subordinates;

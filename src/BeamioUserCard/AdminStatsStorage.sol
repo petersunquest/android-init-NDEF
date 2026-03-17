@@ -28,8 +28,10 @@ library AdminStatsStorage {
         mapping(address => uint256) adminMintCounter;
         /// @dev admin  cumulative burn token 0，从上次 clear 起
         mapping(address => uint256) adminBurnCounter;
-        /// @dev admin  cumulative transfer token 0，从上次 clear 起（预留，当前无写入路径）
+        /// @dev admin  cumulative transfer token 0 次数，从上次 clear 起
         mapping(address => uint256) adminTransferCounter;
+        /// @dev admin  cumulative transfer token 0 金额，从上次 clear 起
+        mapping(address => uint256) adminTransferAmountCounter;
         /// @dev admin redeem 完成后累计记入的 mint token 0（从上次 clear 起）
         mapping(address => uint256) adminRedeemMintCounter;
         /// @dev admin USDC topup 完成后累计记入的 mint token 0（从上次 clear 起）
@@ -85,11 +87,12 @@ library AdminStatsStorage {
         _upd(l.adminHourlyData[admin][hourIndex], 0, 0, amount, 0, 0, 0, 0, 0, 0);
     }
 
-    /// @dev 记录 admin transfer 次数，仅更新 hourly 与 adminTransferCounter
+    /// @dev 记录 admin transfer 次数与金额，更新 hourly、adminTransferCounter、adminTransferAmountCounter
     function recordTransfer(address admin, uint256 count, uint256 amount) internal {
         if (admin == address(0) || (count == 0 && amount == 0)) return;
         Layout storage l = layout();
         l.adminTransferCounter[admin] += count;
+        l.adminTransferAmountCounter[admin] += amount;
         uint256 hourIndex = block.timestamp / 3600;
         _upd(l.adminHourlyData[admin][hourIndex], 0, 0, 0, count, amount, 0, 0, 0, 0);
     }

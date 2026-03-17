@@ -254,13 +254,14 @@ contract BeamioUserCardGovernanceModuleV1 {
         s.adminUSDCMintCounter[adminAddr] = 0;
     }
 
-    /// @notice 清零 airdrop 及其他统计：adminAirdropUsed、adminMintCounter、adminBurnCounter、adminTransferCounter、adminRedeemMintCounter、adminUSDCMintCounter
+    /// @notice 清零 airdrop 及其他统计：adminAirdropUsed、adminMintCounter、adminBurnCounter、adminTransferCounter、adminTransferAmountCounter、adminRedeemMintCounter、adminUSDCMintCounter
     function _clearAdminStatsAndAirdropUsageImpl(address subordinate) internal {
         _clearAdminAirdropUsageForSubtree(subordinate);
         AdminStatsStorage.Layout storage s = AdminStatsStorage.layout();
         s.adminMintCounter[subordinate] = 0;
         s.adminBurnCounter[subordinate] = 0;
         s.adminTransferCounter[subordinate] = 0;
+        s.adminTransferAmountCounter[subordinate] = 0;
         s.adminRedeemMintCounter[subordinate] = 0;
         s.adminUSDCMintCounter[subordinate] = 0;
     }

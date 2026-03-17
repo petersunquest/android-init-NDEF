@@ -82,6 +82,7 @@ library AdminStatsPeriodLib {
         uint256 mintCounterFromClear;
         uint256 burnCounterFromClear;
         uint256 transferCounterFromClear;
+        uint256 transferAmountFromClear;
         uint256 redeemMintCounterFromClear;
         uint256 usdcMintCounterFromClear;
         address[] subordinates;
@@ -166,12 +167,14 @@ library AdminStatsPeriodLib {
         result.mintCounterFromClear = 0;
         result.burnCounterFromClear = 0;
         result.transferCounterFromClear = 0;
+        result.transferAmountFromClear = 0;
         result.redeemMintCounterFromClear = 0;
         result.usdcMintCounterFromClear = 0;
         for (uint256 i = 0; i < admins.length; i++) {
             result.mintCounterFromClear += l.adminMintCounter[admins[i]];
             result.burnCounterFromClear += l.adminBurnCounter[admins[i]];
             result.transferCounterFromClear += l.adminTransferCounter[admins[i]];
+            result.transferAmountFromClear += l.adminTransferAmountCounter[admins[i]];
             result.redeemMintCounterFromClear += l.adminRedeemMintCounter[admins[i]];
             result.usdcMintCounterFromClear += l.adminUSDCMintCounter[admins[i]];
         }

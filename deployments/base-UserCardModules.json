@@ -1,21 +1,19 @@
 {
   "network": "base",
   "chainId": "8453",
-  "timestamp": "2026-03-14T19:58:00.000Z",
+  "timestamp": "2026-03-17T00:00:00.000Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0x2F45f38f2B6EF97b606ec2557E237529e8db9281",
+  "factory": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
   "modules": {
     "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
     "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
     "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
-    "governanceModule": "0x3f38A0df1c9339e801487f244b885aEe0041E7eF",
+    "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
     "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
-    "adminStatsQueryModule": "0x737B9a91a9afD4779057dddF157237aD1818db89"
+    "adminStatsQueryModule": "0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70"
   },
   "checks": {
     "appendTierForCardWithOwnerSignature": true,
     "createCardCollectionWithInitCodeAndTiers": true
-  },
-  "adminStatsQueryModule": "0x59e54Af96BeEB36C13753170DF0a9Bb7b0123438",
-  "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6"
+  }
 }

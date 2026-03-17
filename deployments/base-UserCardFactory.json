@@ -15,11 +15,11 @@
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
       "deployer": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
       "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
-      "governanceModule": "0x5c56536e833d0bfCC5BF575B3566edbE61987eAD",
+      "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
       "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
       "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
-      "adminStatsQueryModule": "0x59e54Af96BeEB36C13753170DF0a9Bb7b0123438",
+      "adminStatsQueryModule": "0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
     }
