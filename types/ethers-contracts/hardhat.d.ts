@@ -10,8 +10,7 @@ import * as Contracts from "./index.js";
 
 declare module "@nomicfoundation/hardhat-ethers/types" {
   interface HardhatEthersHelpers extends HardhatEthersHelpersBase {
-  getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AccountRegistry__factory>
-getContractFactory(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioAccount__factory>
+  getContractFactory(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioAccount__factory>
 getContractFactory(name: 'IBeamioAccountFactoryConfigV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2__factory>
 getContractFactory(name: 'IBeamioContainerModuleV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioContainerModuleV07__factory>
 getContractFactory(name: 'BeamioAccountDeployer', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioAccountDeployer__factory>
@@ -80,7 +79,6 @@ getContractFactory(name: 'IDiamondCut', signerOrOptions?: ethers.Signer | Factor
 getContractFactory(name: 'IDiamondLoupe', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IDiamondLoupe__factory>
 getContractFactory(name: 'IERC165', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC165__factory>
 getContractFactory(name: 'LibDiamond', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LibDiamond__factory>
-getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
 getContractFactory(name: 'BeamioBUnits', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioBUnits__factory>
 getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
 getContractFactory(name: 'BUnitAirdrop', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BUnitAirdrop__factory>
@@ -138,8 +136,7 @@ getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Fa
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
 
-  getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AccountRegistry>
-getContractAt(name: 'BeamioAccount', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccount>
+  getContractAt(name: 'BeamioAccount', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccount>
 getContractAt(name: 'IBeamioAccountFactoryConfigV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryConfigV2>
 getContractAt(name: 'IBeamioContainerModuleV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioContainerModuleV07>
 getContractAt(name: 'BeamioAccountDeployer', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccountDeployer>
@@ -208,7 +205,6 @@ getContractAt(name: 'IDiamondCut', address: string | ethers.Addressable, signer?
 getContractAt(name: 'IDiamondLoupe', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IDiamondLoupe>
 getContractAt(name: 'IERC165', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC165>
 getContractAt(name: 'LibDiamond', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LibDiamond>
-getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
 getContractAt(name: 'BeamioBUnits', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioBUnits>
 getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
 getContractAt(name: 'BUnitAirdrop', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BUnitAirdrop>
@@ -266,8 +262,7 @@ getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, sig
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
 
-  deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
-deployContract(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
+  deployContract(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
 deployContract(name: 'IBeamioContainerModuleV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioContainerModuleV07>
 deployContract(name: 'BeamioAccountDeployer', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccountDeployer>
@@ -336,7 +331,6 @@ deployContract(name: 'IDiamondCut', signerOrOptions?: ethers.Signer | DeployCont
 deployContract(name: 'IDiamondLoupe', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IDiamondLoupe>
 deployContract(name: 'IERC165', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC165>
 deployContract(name: 'LibDiamond', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LibDiamond>
-deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'BeamioBUnits', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioBUnits>
 deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'BUnitAirdrop', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BUnitAirdrop>
@@ -394,8 +388,7 @@ deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Deploy
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 
-  deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
-deployContract(name: 'BeamioAccount', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
+  deployContract(name: 'BeamioAccount', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
 deployContract(name: 'IBeamioContainerModuleV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioContainerModuleV07>
 deployContract(name: 'BeamioAccountDeployer', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccountDeployer>
@@ -464,7 +457,6 @@ deployContract(name: 'IDiamondCut', args: any[], signerOrOptions?: ethers.Signer
 deployContract(name: 'IDiamondLoupe', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IDiamondLoupe>
 deployContract(name: 'IERC165', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC165>
 deployContract(name: 'LibDiamond', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LibDiamond>
-deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'BeamioBUnits', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioBUnits>
 deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'BUnitAirdrop', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BUnitAirdrop>

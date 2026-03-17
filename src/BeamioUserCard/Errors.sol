@@ -47,6 +47,7 @@ error UC_PointsZero();
 error UC_Slippage();
 error UC_BelowMinThreshold();
 error UC_PointsToNotWhitelisted();
+error UC_BeneficiaryMustBeAA();
 error UC_SBTNonTransferable();
 error UC_RedeemModuleZero();
 error UC_StatsModuleZero();

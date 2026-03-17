@@ -999,6 +999,45 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return address(0);
     }
 
+    /// @notice 当受益人为 admin 且其 parent 非 owner 时，解析实际收款地址为上层 admin 的 AA；否则返回原 to
+    /// @dev 受益人必须为 AA；通过 AA.owner() 获取 EOA，再以 EOA 检测 admin（admin 以 EOA 登记）
+    /// @return effectiveTo 实际转账目标地址
+    /// @return beneficiaryAdmin 指定受益人对应的 admin（EOA）；address(0) 表示无需重定向
+    /// @return upperAdmin 上层 admin（adminParent[beneficiaryAdmin]）；address(0) 表示无需重定向
+    function _resolveTransferRecipientForAdminRedirect(address to)
+        internal
+        view
+        returns (address effectiveTo, address beneficiaryAdmin, address upperAdmin)
+    {
+        effectiveTo = to;
+        beneficiaryAdmin = address(0);
+        upperAdmin = address(0);
+
+        // 受益人必须为 AA；从 AA.owner() 获取 EOA，admin 以 EOA 登记
+        if (to.code.length == 0) return (to, address(0), address(0));
+        (bool ok, bytes memory ret) = to.staticcall(abi.encodeWithSignature("owner()"));
+        if (!ok || ret.length < 32) return (to, address(0), address(0));
+        address eoa = abi.decode(ret, (address));
+
+        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
+        if (!g.isAdmin[eoa]) return (to, address(0), address(0));
+        address parent = g.adminParent[eoa];
+        if (parent == address(0)) return (to, address(0), address(0)); // owner 添加的 admin，不重定向
+
+        beneficiaryAdmin = eoa;
+        upperAdmin = parent;
+        effectiveTo = _toAccount(parent);
+    }
+
+    /// @dev 统计以 EOA 为键：from 侧取 owner(from)，to 侧 beneficiaryAdmin/upperAdmin 均为 EOA
+    function _recordPointTransferStats(address from, address beneficiaryAdmin, address upperAdmin, uint256 count, uint256 amount) internal {
+        _recordAdminTransferForOperatorAndParents(_resolveTransferStatsOperator(from), count, amount);
+        if (beneficiaryAdmin != address(0) && upperAdmin != address(0)) {
+            AdminStatsStorage.recordTransfer(beneficiaryAdmin, count, amount);
+            AdminStatsStorage.recordTransfer(upperAdmin, count, amount);
+        }
+    }
+
     function _recordAdminTransferForOperatorAndParents(address operator, uint256 transferCount, uint256 transferAmount) internal {
         if (operator == address(0) || (transferCount == 0 && transferAmount == 0)) return;
         address current = operator;
@@ -1029,78 +1068,86 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // ==========================================================
     // ERC1155 update hook
     // ==========================================================
-    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+    struct _UpdatePreResult {
+        address effectiveTo;
+        address beneficiaryAdmin;
+        address upperAdmin;
+        uint256 pointTransferCount;
+        uint256 pointTransferAmount;
+        address[] burnedFrom;
+        uint256[] burnedIds;
+        uint256 burnedCount;
+    }
+
+    function _updatePreProcess(address from, address to, uint256[] memory ids, uint256[] memory values)
+        internal
+        view
+        returns (_UpdatePreResult memory r)
+    {
         bool isRealTransfer = (from != address(0) && to != address(0));
-        uint256 pointTransferCount = 0;
-        uint256 pointTransferAmount = 0;
-        address[] memory burnedFrom = new address[](ids.length);
-        uint256[] memory burnedIds = new uint256[](ids.length);
-        uint256 burnedCount = 0;
+        if (isRealTransfer && to.code.length == 0) revert UC_BeneficiaryMustBeAA();
+
+        (r.effectiveTo, r.beneficiaryAdmin, r.upperAdmin) = _resolveTransferRecipientForAdminRedirect(to);
+        r.burnedFrom = new address[](ids.length);
+        r.burnedIds = new uint256[](ids.length);
 
         for (uint256 i = 0; i < ids.length; i++) {
             uint256 id = ids[i];
-
             if (id >= NFT_START_ID && id < ISSUED_NFT_START_ID) {
                 if (!(from == address(0) || to == address(0))) revert UC_SBTNonTransferable();
                 if (to == address(0) && from != address(0)) {
-                    burnedFrom[burnedCount] = from;
-                    burnedIds[burnedCount] = id;
-                    burnedCount++;
+                    r.burnedFrom[r.burnedCount] = from;
+                    r.burnedIds[r.burnedCount] = id;
+                    r.burnedCount++;
                 }
                 continue;
             }
-
             if (id == POINTS_ID && isRealTransfer) {
                 if (values[i] > 0) {
-                    pointTransferCount += 1;
-                    pointTransferAmount += values[i];
+                    r.pointTransferCount += 1;
+                    r.pointTransferAmount += values[i];
                 }
-                // 模式1：白名单开启 -> 限制 to
-                if (transferWhitelistEnabled) {
-                    // transferWhitelist[address(0)] == true 表示"白名单全开放"（你原本的语义）
-                    if (!transferWhitelist[address(0)]) {
-                        if (!transferWhitelist[to]) revert UC_PointsToNotWhitelisted();
-                    }
+                if (transferWhitelistEnabled && !transferWhitelist[address(0)] && !transferWhitelist[r.effectiveTo]) {
+                    revert UC_PointsToNotWhitelisted();
                 }
-
-                // 模式2：白名单关闭 -> 完全不限制（允许 EOA / 任意合约）
             }
         }
+    }
 
-        super._update(from, to, ids, values);
+    function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
+        _UpdatePreResult memory r = _updatePreProcess(from, to, ids, values);
 
-        if (isRealTransfer && (pointTransferCount > 0 || pointTransferAmount > 0)) {
-            _recordAdminTransferForOperatorAndParents(_resolveTransferStatsOperator(from), pointTransferCount, pointTransferAmount);
+        super._update(from, r.effectiveTo, ids, values);
+
+        bool isRealTransfer = (from != address(0) && to != address(0));
+        if (isRealTransfer && (r.pointTransferCount > 0 || r.pointTransferAmount > 0)) {
+            _recordPointTransferStats(from, r.beneficiaryAdmin, r.upperAdmin, r.pointTransferCount, r.pointTransferAmount);
         }
 
         if (from == address(0)) {
             TotalSupplyStorage.Layout storage ts = TotalSupplyStorage.layout();
-            uint256 totalMintValue = 0;
             for (uint256 i = 0; i < ids.length; i++) {
-                uint256 value = values[i];
-                ts.totalSupplyById[ids[i]] += value;
-                totalMintValue += value;
+                uint256 v = values[i];
+                ts.totalSupplyById[ids[i]] += v;
+                ts.totalSupplyAll += v;
             }
-            ts.totalSupplyAll += totalMintValue;
         }
 
         if (to == address(0)) {
             TotalSupplyStorage.Layout storage ts = TotalSupplyStorage.layout();
             uint256 totalBurnValue = 0;
             for (uint256 i = 0; i < ids.length; i++) {
-                uint256 value = values[i];
+                uint256 v = values[i];
                 unchecked {
-                    ts.totalSupplyById[ids[i]] -= value;
-                    totalBurnValue += value;
+                    ts.totalSupplyById[ids[i]] -= v;
+                    totalBurnValue += v;
                 }
             }
-            unchecked {
-                ts.totalSupplyAll -= totalBurnValue;
-            }
+            unchecked { ts.totalSupplyAll -= totalBurnValue; }
         }
 
-        for (uint256 i = 0; i < burnedCount; i++) {
-            _removeNft(burnedFrom[i], burnedIds[i]);
+        for (uint256 i = 0; i < r.burnedCount; i++) {
+            _removeNft(r.burnedFrom[i], r.burnedIds[i]);
         }
     }
 

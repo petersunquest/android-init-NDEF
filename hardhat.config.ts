@@ -22,9 +22,16 @@ function getConetAccounts(): string[] {
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthers],
   paths: {
-    // 合约目录，只包含 BeamioAccount 和 contracts（排除 x402sdk 和 SilentPassUI）
+    // 合约目录，排除 x402sdk（含 .tmp-op-reth-rc3 等 forge-std 依赖）
     // 注意：BeamioAccount.sol 使用相对路径 ../contracts/ 引用 contracts 目录
-    sources: "src",
+    sources: [
+      "src/BeamioUserCard",
+      "src/BeamioAccount",
+      "src/contracts",
+      "src/CoNETIndexTaskdiamond",
+      "src/b-unit",
+      "src/mainnet",
+    ],
   },
   solidity: {
     version: "0.8.33",
