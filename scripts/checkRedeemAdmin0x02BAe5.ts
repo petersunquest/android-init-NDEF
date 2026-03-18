@@ -5,7 +5,7 @@
  */
 import { network as networkModule } from "hardhat";
 
-const CARD = "0x02BAe511632354584b198951B42eC73BACBc4E98";
+const CARD = "0x74f35741ad8bc75d873a8d7d140ae5ffb529ac0f";
 const REDEEM_CODE = "6GyKhZCQL0FXo39byR1f7r";
 
 const cardAbi = [
