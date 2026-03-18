@@ -309,7 +309,8 @@ const DeployingSmartAccount = async (wallet: string, SC: ethers.Contract): Promi
 		// 尚无账户，由 Paymaster 创建（工厂会分配 index 0）
 		const tx = await SC.createAccountFor(wallet)
 		console.log(`交易成功！哈希: ${tx.hash}`)
-		await tx.wait()
+		// confirmations: 0 = 仅等待 tx 被打包，避免 1rpc/Lava 的 "block too new" 一致性检查
+		await tx.wait(0)
 
 		logger(`DeployingSmartAccount 已为 ${wallet} 创建 AA (index=0)`, tx.hash)
 		return { accountAddress: predictedAddress, alreadyExisted: false }
