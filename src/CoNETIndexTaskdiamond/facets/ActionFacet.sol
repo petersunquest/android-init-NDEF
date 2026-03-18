@@ -81,6 +81,10 @@ contract ActionFacet {
         address operator;
         /// @dev operator 的 parent 链（从直接 parent 到根），B 的 mint/burn 也累积到链上各 admin 的统计
         address[] operatorParentChain;
+        /// @dev top-level admin (owner or direct admin) for reporting
+        address topAdmin;
+        /// @dev terminal/subordinate that processed this tx for reporting
+        address subordinate;
     }
 
     // 完整返回模型：与 readme Transaction 结构对齐（含 route）
@@ -96,6 +100,8 @@ contract ActionFacet {
         uint256 finalRequestAmountFiat6;
         uint256 finalRequestAmountUSDC6;
         bool isAAAccount;
+        address topAdmin;
+        address subordinate;
         LibActionStorage.RouteItem[] route;
         LibActionStorage.FeeInfo fees;
         LibActionStorage.TransactionMeta meta;
@@ -139,6 +145,8 @@ contract ActionFacet {
         txr.finalRequestAmountFiat6 = in_.finalRequestAmountFiat6;
         txr.finalRequestAmountUSDC6 = in_.finalRequestAmountUSDC6;
         txr.isAAAccount = in_.isAAAccount;
+        txr.topAdmin = in_.topAdmin;
+        txr.subordinate = in_.subordinate;
         txr.exists = true;
 
         txr.fees = LibActionStorage.FeeInfo({
@@ -198,6 +206,8 @@ contract ActionFacet {
                 a.bServiceSeenAccounts.push(in_.fees.feePayer);
             }
         }
+        if (in_.topAdmin != address(0)) a.topAdminActionIds[in_.topAdmin].push(actionId);
+        if (in_.subordinate != address(0)) a.subordinateActionIds[in_.subordinate].push(actionId);
 
         _recordTxStats(useTs, in_.payer, in_.payee);
 
@@ -792,6 +802,140 @@ contract ActionFacet {
         );
     }
 
+    /**
+     * @notice 按 topAdmin 查询交易（周期分页 + EOA/AA 过滤）
+     */
+    function getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged(
+        address topAdmin,
+        uint8 periodType,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, LibActionStorage.TransactionRecord[] memory page)
+    {
+        require(topAdmin != address(0), "topAdmin=0");
+        require(_isValidActionPeriodType(periodType), "bad periodType");
+        require(_isValidAccountMode(accountMode), "bad accountMode");
+        uint256 currentStart;
+        (currentStart, ) = _resolveActionPeriodRange(block.timestamp, periodType);
+        periodStart = _shiftPeriodStartBack(currentStart, periodType, periodOffset);
+        periodEnd = _periodEndFromStart(periodStart, periodType);
+
+        (total, page) = _getTopAdminTransactionsByRangePaged(
+            topAdmin,
+            periodStart,
+            periodEnd,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
+    function getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull(
+        address topAdmin,
+        uint8 periodType,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, TransactionFull[] memory page)
+    {
+        require(topAdmin != address(0), "topAdmin=0");
+        require(_isValidActionPeriodType(periodType), "bad periodType");
+        require(_isValidAccountMode(accountMode), "bad accountMode");
+        uint256 currentStart;
+        (currentStart, ) = _resolveActionPeriodRange(block.timestamp, periodType);
+        periodStart = _shiftPeriodStartBack(currentStart, periodType, periodOffset);
+        periodEnd = _periodEndFromStart(periodStart, periodType);
+
+        (total, page) = _getTopAdminTransactionsByRangePagedFull(
+            topAdmin,
+            periodStart,
+            periodEnd,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
+    /**
+     * @notice 按 subordinate 查询交易（周期分页 + EOA/AA 过滤）
+     */
+    function getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged(
+        address subordinate,
+        uint8 periodType,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, LibActionStorage.TransactionRecord[] memory page)
+    {
+        require(subordinate != address(0), "subordinate=0");
+        require(_isValidActionPeriodType(periodType), "bad periodType");
+        require(_isValidAccountMode(accountMode), "bad accountMode");
+        uint256 currentStart;
+        (currentStart, ) = _resolveActionPeriodRange(block.timestamp, periodType);
+        periodStart = _shiftPeriodStartBack(currentStart, periodType, periodOffset);
+        periodEnd = _periodEndFromStart(periodStart, periodType);
+
+        (total, page) = _getSubordinateTransactionsByRangePaged(
+            subordinate,
+            periodStart,
+            periodEnd,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
+    function getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull(
+        address subordinate,
+        uint8 periodType,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, TransactionFull[] memory page)
+    {
+        require(subordinate != address(0), "subordinate=0");
+        require(_isValidActionPeriodType(periodType), "bad periodType");
+        require(_isValidAccountMode(accountMode), "bad accountMode");
+        uint256 currentStart;
+        (currentStart, ) = _resolveActionPeriodRange(block.timestamp, periodType);
+        periodStart = _shiftPeriodStartBack(currentStart, periodType, periodOffset);
+        periodEnd = _periodEndFromStart(periodStart, periodType);
+
+        (total, page) = _getSubordinateTransactionsByRangePagedFull(
+            subordinate,
+            periodStart,
+            periodEnd,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
     // ---- Convenience wrappers: 本/上 hour/day/week/month/quarter/year ----
     function getAccountTransactionsByHourOffsetPaged(
         address account,
@@ -874,6 +1018,52 @@ contract ActionFacet {
     {
         return this.getAccountTransactionsByCurrentPeriodOffsetAndAccountModePaged(
             account,
+            PERIOD_WEEK,
+            periodOffset,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
+    function getTopAdminTransactionsByWeekOffsetAndAccountModePaged(
+        address topAdmin,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, LibActionStorage.TransactionRecord[] memory page)
+    {
+        return this.getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged(
+            topAdmin,
+            PERIOD_WEEK,
+            periodOffset,
+            pageOffset,
+            pageLimit,
+            txCategoryFilter,
+            accountMode
+        );
+    }
+
+    function getSubordinateTransactionsByWeekOffsetAndAccountModePaged(
+        address subordinate,
+        uint256 periodOffset,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    )
+        external
+        view
+        returns (uint256 total, uint256 periodStart, uint256 periodEnd, LibActionStorage.TransactionRecord[] memory page)
+    {
+        return this.getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged(
+            subordinate,
             PERIOD_WEEK,
             periodOffset,
             pageOffset,
@@ -1079,6 +1269,174 @@ contract ActionFacet {
         }
     }
 
+    function _getTopAdminTransactionsByRangePaged(
+        address topAdmin,
+        uint256 periodStart,
+        uint256 periodEnd,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    ) internal view returns (uint256 total, LibActionStorage.TransactionRecord[] memory page) {
+        LibActionStorage.Layout storage a = LibActionStorage.layout();
+        uint256[] storage ids = a.topAdminActionIds[topAdmin];
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (_matchByPeriodAndCategory(a.txRecordByActionId[ids[i]], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                total++;
+            }
+        }
+
+        if (pageOffset >= total || pageLimit == 0) {
+            return (total, new LibActionStorage.TransactionRecord[](0));
+        }
+
+        uint256 end = pageOffset + pageLimit;
+        if (end > total) end = total;
+        page = new LibActionStorage.TransactionRecord[](end - pageOffset);
+
+        uint256 seen;
+        uint256 outIdx;
+        for (uint256 i = ids.length; i > 0; i--) {
+            uint256 actionId = ids[i - 1];
+            if (!_matchByPeriodAndCategory(a.txRecordByActionId[actionId], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                continue;
+            }
+            if (seen >= pageOffset && seen < end) {
+                page[outIdx] = a.txRecordByActionId[actionId];
+                outIdx++;
+            }
+            seen++;
+            if (seen >= end) break;
+        }
+    }
+
+    function _getTopAdminTransactionsByRangePagedFull(
+        address topAdmin,
+        uint256 periodStart,
+        uint256 periodEnd,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    ) internal view returns (uint256 total, TransactionFull[] memory page) {
+        LibActionStorage.Layout storage a = LibActionStorage.layout();
+        uint256[] storage ids = a.topAdminActionIds[topAdmin];
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (_matchByPeriodAndCategory(a.txRecordByActionId[ids[i]], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                total++;
+            }
+        }
+
+        if (pageOffset >= total || pageLimit == 0) {
+            return (total, new TransactionFull[](0));
+        }
+
+        uint256 end = pageOffset + pageLimit;
+        if (end > total) end = total;
+        page = new TransactionFull[](end - pageOffset);
+
+        uint256 seen;
+        uint256 outIdx;
+        for (uint256 i = ids.length; i > 0; i--) {
+            uint256 actionId = ids[i - 1];
+            if (!_matchByPeriodAndCategory(a.txRecordByActionId[actionId], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                continue;
+            }
+            if (seen >= pageOffset && seen < end) {
+                page[outIdx] = _buildFullTransaction(a.txRecordByActionId[actionId], a.routeByActionId[actionId]);
+                outIdx++;
+            }
+            seen++;
+            if (seen >= end) break;
+        }
+    }
+
+    function _getSubordinateTransactionsByRangePaged(
+        address subordinate,
+        uint256 periodStart,
+        uint256 periodEnd,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    ) internal view returns (uint256 total, LibActionStorage.TransactionRecord[] memory page) {
+        LibActionStorage.Layout storage a = LibActionStorage.layout();
+        uint256[] storage ids = a.subordinateActionIds[subordinate];
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (_matchByPeriodAndCategory(a.txRecordByActionId[ids[i]], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                total++;
+            }
+        }
+
+        if (pageOffset >= total || pageLimit == 0) {
+            return (total, new LibActionStorage.TransactionRecord[](0));
+        }
+
+        uint256 end = pageOffset + pageLimit;
+        if (end > total) end = total;
+        page = new LibActionStorage.TransactionRecord[](end - pageOffset);
+
+        uint256 seen;
+        uint256 outIdx;
+        for (uint256 i = ids.length; i > 0; i--) {
+            uint256 actionId = ids[i - 1];
+            if (!_matchByPeriodAndCategory(a.txRecordByActionId[actionId], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                continue;
+            }
+            if (seen >= pageOffset && seen < end) {
+                page[outIdx] = a.txRecordByActionId[actionId];
+                outIdx++;
+            }
+            seen++;
+            if (seen >= end) break;
+        }
+    }
+
+    function _getSubordinateTransactionsByRangePagedFull(
+        address subordinate,
+        uint256 periodStart,
+        uint256 periodEnd,
+        uint256 pageOffset,
+        uint256 pageLimit,
+        bytes32 txCategoryFilter,
+        uint8 accountMode
+    ) internal view returns (uint256 total, TransactionFull[] memory page) {
+        LibActionStorage.Layout storage a = LibActionStorage.layout();
+        uint256[] storage ids = a.subordinateActionIds[subordinate];
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (_matchByPeriodAndCategory(a.txRecordByActionId[ids[i]], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                total++;
+            }
+        }
+
+        if (pageOffset >= total || pageLimit == 0) {
+            return (total, new TransactionFull[](0));
+        }
+
+        uint256 end = pageOffset + pageLimit;
+        if (end > total) end = total;
+        page = new TransactionFull[](end - pageOffset);
+
+        uint256 seen;
+        uint256 outIdx;
+        for (uint256 i = ids.length; i > 0; i--) {
+            uint256 actionId = ids[i - 1];
+            if (!_matchByPeriodAndCategory(a.txRecordByActionId[actionId], periodStart, periodEnd, txCategoryFilter, accountMode)) {
+                continue;
+            }
+            if (seen >= pageOffset && seen < end) {
+                page[outIdx] = _buildFullTransaction(a.txRecordByActionId[actionId], a.routeByActionId[actionId]);
+                outIdx++;
+            }
+            seen++;
+            if (seen >= end) break;
+        }
+    }
+
     function _buildFullTransaction(
         LibActionStorage.TransactionRecord storage txr,
         LibActionStorage.RouteItem[] storage routeStore
@@ -1094,6 +1452,8 @@ contract ActionFacet {
         full_.finalRequestAmountFiat6 = txr.finalRequestAmountFiat6;
         full_.finalRequestAmountUSDC6 = txr.finalRequestAmountUSDC6;
         full_.isAAAccount = txr.isAAAccount;
+        full_.topAdmin = txr.topAdmin;
+        full_.subordinate = txr.subordinate;
         full_.route = _copyRoute(routeStore);
         full_.fees = txr.fees;
         full_.meta = txr.meta;

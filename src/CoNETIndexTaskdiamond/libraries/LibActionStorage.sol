@@ -62,6 +62,9 @@ library LibActionStorage {
         FeeInfo fees;
         TransactionMeta meta;
         bool exists;
+        // Appended for upgrade compatibility - existing records read as address(0)
+        address topAdmin;      // top-level admin (owner or direct admin) for this tx
+        address subordinate;  // terminal/subordinate that processed this tx
     }
 
     struct BalanceCheckpoint {
@@ -108,6 +111,11 @@ library LibActionStorage {
         // seen feePayer accounts for bService top-N scan
         address[] bServiceSeenAccounts;
         mapping(address => bool) bServiceSeenAccountIndexed;
+
+        // topAdmin => [actionId...] for reporting by top admin
+        mapping(address => uint256[]) topAdminActionIds;
+        // subordinate => [actionId...] for reporting by terminal/subordinate
+        mapping(address => uint256[]) subordinateActionIds;
     }
 
     function layout() internal pure returns (Layout storage l) {

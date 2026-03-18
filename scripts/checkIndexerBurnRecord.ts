@@ -7,7 +7,7 @@
 import { network as networkModule } from "hardhat";
 import { ethers } from "ethers";
 
-const INDEXER = "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
+const INDEXER = "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 const BUINT = "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879";
 const BUNIT_AIRDROP = "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
 

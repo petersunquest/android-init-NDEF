@@ -46,7 +46,7 @@ export const USDC_BASE = base.USDC_BASE ?? '0x833589fCD6eDb6E08f4c7C32D4f71b54bd
 // --- CoNET Mainnet ---
 export const CONET_BUINT = conet.BUint ?? '0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879'
 export const CONET_BUNIT_AIRDROP_ADDRESS = conet.BUnitAirdrop ?? '0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F'
-export const BEAMIO_INDEXER_DIAMOND = conet.BeamioIndexerDiamond ?? '0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5'
+export const BEAMIO_INDEXER_DIAMOND = conet.BeamioIndexerDiamond ?? '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
 export const CONET_TREASURY = conet.ConetTreasury ?? '0xA7fb50fE8e09E17E74081014d49f4E80729cCA48'
 export const CONET_USDC = conet.conetUsdc ?? '0x28fBBb6C5C06A4736B00A540b66378091c224456'
 

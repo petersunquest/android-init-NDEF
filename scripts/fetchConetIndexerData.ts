@@ -6,7 +6,7 @@
 import { network as networkModule } from "hardhat";
 import { ethers } from "ethers";
 
-const INDEXER = "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
+const INDEXER = "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 
 // txCategory 常量映射（便于显示）
 const TX_CATEGORY_LABELS: Record<string, string> = {

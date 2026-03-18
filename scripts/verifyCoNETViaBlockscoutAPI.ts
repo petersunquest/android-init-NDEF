@@ -51,8 +51,8 @@ async function main() {
 		optimization: "1",
 		contractSourceCode: sourceCode,
 		constructorArguments: constructorArgsHex,
-		optimizationRuns: "50",
-		evmVersion: "osaka",
+		optimizationRuns: "0",
+		evmVersion: "cancun",
 	}
 
 	const legacyUrl = `${BLOCKSCOUT_API}?module=contract&action=verify`
@@ -67,7 +67,7 @@ async function main() {
 	if (res.ok && (data.status === "1" || data.result)) {
 		const guid = (data as { result?: string }).result
 		console.log("Verification submitted. GUID:", guid)
-		console.log("\n✅ 验证已提交到 Blockscout！查看: https://mainnet.conet.network/address/" + DIAMOND)
+		console.log("\n✅ 验证已提交到 Blockscout！查看: https://mainnet.conet.network/address/" + diamond)
 		return
 	}
 
@@ -78,17 +78,17 @@ async function main() {
 		license_type: "mit",
 		source_code: sourceCode,
 		is_optimization_enabled: true,
-		optimization_runs: 50,
+		optimization_runs: 0,
 		contract_name: "BeamioIndexerDiamond",
 		constructor_arguments: constructorArgsHex,
 		autodetect_constructor_args: false,
-		evm_version: "osaka",
+		evm_version: "cancun",
 	} as Record<string, unknown>
 	if (process.env.VIA_IR !== "0") {
 		v2Body.via_ir = true
 	}
 	const v2Res = await fetch(
-		`https://mainnet.conet.network/api/v2/smart-contracts/${DIAMOND}/verification/via/flattened-code`,
+		`https://mainnet.conet.network/api/v2/smart-contracts/${diamond}/verification/via/flattened-code`,
 		{ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(v2Body) }
 	)
 	const v2Data = await v2Res.json().catch(() => ({}))
@@ -97,7 +97,7 @@ async function main() {
 		throw new Error("验证失败。可手动在 https://mainnet.conet.network/contract-verification 粘贴 flattened 源码验证")
 	}
 	console.log("V2 result:", v2Data)
-	console.log("\n✅ 验证已提交！查看: https://mainnet.conet.network/address/" + DIAMOND)
+	console.log("\n✅ 验证已提交！查看: https://mainnet.conet.network/address/" + diamond)
 }
 
 main().catch((e) => {

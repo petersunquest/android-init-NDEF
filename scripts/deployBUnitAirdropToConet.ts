@@ -103,7 +103,7 @@ async function main() {
   const indexerPath = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
   const beamioIndexerDiamond = fs.existsSync(indexerPath)
     ? JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond
-    : "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
+    : "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 
   const out = {
     network: "conet",

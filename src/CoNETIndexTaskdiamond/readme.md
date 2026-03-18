@@ -112,27 +112,29 @@ struct TransactionMeta {
 }
 
 struct Transaction {
-  bytes32 id;                       // 以整单 txHash 为依据
-  bytes32 originalPaymentHash;      // 父支付 hash；主支付为 0x0，小费原子交易指向被追加的主支付
-  uint256 chainId;                  // 单笔请求支付所属链 ID
-  bytes32 txCategory;               // 可扩展分类键（可组合原 txType + settlement 语义）
-  string displayJson;               // 账单附加字符 JSON（DisplayJsonData：title, source, finishedHash, handle, forText, card；金额由本 struct 其他字段表达）
-  uint64 timestamp;                 // ms 时间戳（或按实现统一为 s）
-  address payer;                    // 整单支付方（根层字段）
-  address payee;                    // 整单收款方（根层字段）
+	bytes32 id;                       // 以整单 txHash 为依据
+	bytes32 originalPaymentHash;      // 父支付 hash；主支付为 0x0，小费原子交易指向被追加的主支付
+	uint256 chainId;                  // 单笔请求支付所属链 ID
+	bytes32 txCategory;               // 可扩展分类键（可组合原 txType + settlement 语义）
+	string displayJson;               // 账单附加字符 JSON（DisplayJsonData：title, source, finishedHash, handle, forText, card；金额由本 struct 其他字段表达）
+	uint64 timestamp;                 // ms 时间戳（或按实现统一为 s）
+	address payer;                    // 整单支付方（根层字段）
+	address payee;                    // 整单收款方（根层字段）
 
-  // --- 金额显示层（根层仅保留最终值） ---
-  uint256 finalRequestAmountFiat6;
-  uint256 finalRequestAmountUSDC6;
+	// --- 金额显示层（根层仅保留最终值） ---
+	uint256 finalRequestAmountFiat6;
+	uint256 finalRequestAmountUSDC6;
 
-  bool isAAAccount;                 // false=EOA, true=AA
+	bool isAAAccount;                 // false=EOA, true=AA
 
-  // --- 智能路由 ---
-  RouteItem[] route;                // 原始支付凭证（EOA 可为空）
+	// --- 智能路由 ---
+	RouteItem[] route;                // 原始支付凭证（EOA 可为空）
+	address topAdmin;                 // top-level admin (owner or direct admin) for reporting
+	address subordinate;              // terminal/subordinate that processed this tx for reporting
 
-  // --- 费用与证明 ---
-  FeeInfo fees;                     // 当前原子交易对应费用（主支付或小费各自独立结算）
-  TransactionMeta meta;
+	// --- 费用与证明 ---
+	FeeInfo fees;                     // 当前原子交易对应费用（主支付或小费各自独立结算）
+	TransactionMeta meta;
 }
 ```
 
@@ -270,7 +272,7 @@ bytes32 constant TX_BUINT_USDC = keccak256("buintUSDC");
 
 BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTokenAction` 记账。
 
-**数据来源**：BUnitAirdrop（部署地址见 `deployments/conet-BUintAirdrop.json`），BeamioIndexerDiamond 地址见 `deployments/conet-addresses.json`（当前 `0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5`）。
+**数据来源**：BUnitAirdrop（部署地址见 `deployments/conet-BUintAirdrop.json`），BeamioIndexerDiamond 地址见 `deployments/conet-addresses.json`（当前 `0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe`）。
 
 **Transaction 字段**：
 
@@ -1063,12 +1065,18 @@ Master 成功 mint 后，必须写入一条 `syncTokenAction`：
 | 统计域 | Facet | 核心接口（示例） | 统计口径 | 关键过滤参数 | 主要返回 |
 |---|---|---|---|---|---|
 | 账户交易数量（周期） | `ActionFacet` | `getAccountActionIdsByPeriodPaged(...)` / `getAccountTransactionsByPeriodPaged(...)` | 某账户在周期窗口内命中交易数与分页 | `periodType/anchorTs/txCategoryFilter/gasChainTypeFilter/chainIdFilter` | `total/periodStart/periodEnd/page` |
+| topAdmin 交易分页 | `ActionFacet` | `getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` / `getTopAdminTransactionsByWeekOffsetAndAccountModePaged(...)` | 某 topAdmin 在周期窗口内所有交易 | `topAdmin/periodOffset/txCategoryFilter/accountMode` | `total/periodStart/periodEnd/page` |
+| subordinate 交易分页 | `ActionFacet` | `getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` / `getSubordinateTransactionsByWeekOffsetAndAccountModePaged(...)` | 某 subordinate 在周期窗口内所有交易 | `subordinate/periodOffset/txCategoryFilter/accountMode` | `total/periodStart/periodEnd/page` |
 | 账户 bService 分页统计 | `FeeStatsFacet` | `getAccountBServiceStatsByCurrentPeriodOffsetPaged(...)` + `Hour/Day/Week/Month/Quarter/Year` | 窗口总量 + 当前页总量（`bServiceUnits6/bServiceUSDC6`） | `account/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `FeeStatsPage` |
 | bService TopN（次数 + 数量） | `FeeStatsFacet` | `getBServiceTopNByCurrentPeriodOffset(...)` + `Hour...Year` | 按 `feePayer` 排名：交易次数 TopN + `bServiceUnits6` 累计 TopN | `periodOffset/topN/txCategoryFilter/accountMode/gasChainTypeFilter/chainIdFilter` | `topTxCountAccounts/topTxCounts/topUnitsAccounts/topUnits6` |
 | gasWei 统计（按 gas 链类型） | `FeeStatsFacet` | `getGasWeiStatsByGasChainTypeCurrentPeriodOffset(...)` + `Hour...Year` | 指定 `gasChainType` 的窗口内 `gasWei` 总和与笔数 | `gasChainType/periodOffset/txCategoryFilter/accountMode` | `GasWeiStats(total,totalGasWei,periodStart,periodEnd)` |
 | Asset 维度周期分页 | `BeamioUserCardStatsFacet` | `getAssetTransactionsByCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` | 指定资产地址（含 BeamioUserCard）的窗口分页统计 | `asset/account/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd/page` |
 | Asset+Token 维度周期分页 | `BeamioUserCardStatsFacet` | `getAssetTokenTransactionsByCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` | 指定 `asset+tokenId` 的窗口分页统计 | `asset/tokenId/account/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd/page` |
 | BeamioUserCard 交易总数（不指定 account） | `BeamioUserCardStatsFacet` | `getBeamioUserCardTransactionStatsByCurrentPeriodOffset(...)` | 某卡窗口内总交易数 | `beamioUserCard/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd` |
+| BeamioUserCard topAdmin 交易总数 | `BeamioUserCardStatsFacet` | `getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset(...)` | 某卡窗口内 topAdmin 匹配的交易数 | `beamioUserCard/topAdmin/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd` |
+| BeamioUserCard subordinate 交易总数 | `BeamioUserCardStatsFacet` | `getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset(...)` | 某卡窗口内 subordinate 匹配的交易数 | `beamioUserCard/subordinate/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd` |
+| Asset+topAdmin 分页 | `BeamioUserCardStatsFacet` | `getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` / `getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged(...)` | 某资产窗口内 topAdmin 匹配的交易分页 | `asset/topAdmin/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd/page` |
+| Asset+subordinate 分页 | `BeamioUserCardStatsFacet` | `getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged(...)` / `...PagedFull(...)` / `getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged(...)` | 某资产窗口内 subordinate 匹配的交易分页 | `asset/subordinate/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd/page` |
 | BeamioUserCard 账户交易总数 | `BeamioUserCardStatsFacet` | `getBeamioUserCardAccountTxCountByCurrentPeriodOffset(...)` + `Hour...Year` | 某账户在某卡窗口内交易总数 | `beamioUserCard/account/periodOffset/txCategoryFilter/accountMode/chainIdFilter` | `total/periodStart/periodEnd` |
 | Holder / Balance 快照查询 | `BeamioUserCardStatsFacet` | `getBeamioUserCardTokenHolderCount(...)` / `getBeamioUserCardTokenIndexedBalance(...)` | 当前索引余额与持币地址计数（非回溯窗口） | `beamioUserCard/tokenId/account` | `holderCount/balanceE6` |
 | Holder TopN（窗口末快照） | `BeamioUserCardStatsFacet` | `getBeamioUserCardTokenTopHoldersByCurrentPeriodOffset(...)` + `Hour...Year` | 严格小时快照口径，取窗口末状态 TopN | `beamioUserCard/tokenId/periodOffset/topN` | `holders/balancesE6/periodStart/periodEnd` |
@@ -1146,7 +1154,7 @@ const admins = await card.getAdminList()
 | 项目 | 值 |
 |------|-----|
 | RPC | `https://mainnet-rpc.conet.network` |
-| Indexer 地址 | 见 `deployments/conet-addresses.json`（当前 `0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5`） |
+| Indexer 地址 | 见 `deployments/conet-addresses.json`（当前 `0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe`） |
 | 交易总数 (txCount) | **262** |
 
 ### 9.1 最新 100 条交易 txCategory 分布

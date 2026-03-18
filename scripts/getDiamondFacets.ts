@@ -1,7 +1,7 @@
 /** 从链上获取 Diamond 的 facet 地址并映射到合约名 */
 import { ethers } from "ethers";
 
-const DIAMOND = "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
+const DIAMOND = "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 const RPC = "https://mainnet-rpc.conet.network";
 
 const LOUPE_ABI = [

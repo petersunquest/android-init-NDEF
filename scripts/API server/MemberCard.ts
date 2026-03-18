@@ -49,7 +49,7 @@ const beamioConetAddress = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 /** UserCard gateway = AA Factory（与 config/base-addresses AA_FACTORY 一致） */
 const BeamioUserCardGatewayAddress = BeamioAAAccountFactoryPaymaster
 
-const BeamioTaskIndexerAddress = '0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5'
+const BeamioTaskIndexerAddress = '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
 const DIAMOND = BeamioTaskIndexerAddress
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
 const providerBaseBackup = new ethers.JsonRpcProvider('https://1rpc.io/base')

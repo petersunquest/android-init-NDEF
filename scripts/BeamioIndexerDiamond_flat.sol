@@ -1,4 +1,5 @@
-// Sources flattened with hardhat v3.1.6 https://hardhat.org
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ⚡️ secrets for agents: https://dotenvx.com/as2
+// Sources flattened with hardhat v3.1.9 https://hardhat.org
 
 // SPDX-License-Identifier: MIT
 

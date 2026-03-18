@@ -16,9 +16,9 @@ export declare namespace LibActionStorage {
     export type TransactionMetaStructOutput = [requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string] & {requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string }
   
 
-    export type TransactionRecordStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct, exists: boolean}
+    export type TransactionRecordStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct, exists: boolean, topAdmin: AddressLike, subordinate: AddressLike}
 
-    export type TransactionRecordStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean }
+    export type TransactionRecordStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean, topAdmin: string, subordinate: string] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean, topAdmin: string, subordinate: string }
   
 
     export type RouteItemStruct = {asset: AddressLike, amountE6: BigNumberish, assetType: BigNumberish, source: BigNumberish, tokenId: BigNumberish, itemCurrencyType: BigNumberish, offsetInRequestCurrencyE6: BigNumberish}
@@ -29,9 +29,9 @@ export declare namespace LibActionStorage {
 
 export declare namespace BeamioUserCardStatsFacet {
       
-    export type TransactionFullStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, route: LibActionStorage.RouteItemStruct[], fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct}
+    export type TransactionFullStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, topAdmin: AddressLike, subordinate: AddressLike, route: LibActionStorage.RouteItemStruct[], fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct}
 
-    export type TransactionFullStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput }
+    export type TransactionFullStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, topAdmin: string, subordinate: string, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, topAdmin: string, subordinate: string, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput }
   
 
     export type MintStatsStruct = {mintTxTotal: BigNumberish, mintWalletCount: BigNumberish, periodStart: BigNumberish, periodEnd: BigNumberish}
@@ -41,7 +41,7 @@ export declare namespace BeamioUserCardStatsFacet {
     }
 
   export interface BeamioUserCardStatsFacetInterface extends Interface {
-    getFunction(nameOrSignature: "getAssetAccountTxCountByCurrentPeriodOffset" | "getAssetActionCount" | "getAssetActionIdsPaged" | "getAssetTokenActionCount" | "getAssetTokenActionIdsPaged" | "getAssetTokenTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAssetTokenTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTokenTransactionsPaged" | "getAssetTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTransactionsPaged" | "getBeamioUserCardAccountTxCountByCurrentPeriodOffset" | "getBeamioUserCardAccountTxCountByDayOffset" | "getBeamioUserCardAccountTxCountByHourOffset" | "getBeamioUserCardAccountTxCountByMonthOffset" | "getBeamioUserCardAccountTxCountByQuarterOffset" | "getBeamioUserCardAccountTxCountByWeekOffset" | "getBeamioUserCardAccountTxCountByYearOffset" | "getBeamioUserCardMintStatsByCurrentPeriodOffset" | "getBeamioUserCardMintStatsByDayOffset" | "getBeamioUserCardMintStatsByHourOffset" | "getBeamioUserCardMintStatsByMonthOffset" | "getBeamioUserCardMintStatsByQuarterOffset" | "getBeamioUserCardMintStatsByWeekOffset" | "getBeamioUserCardMintStatsByYearOffset" | "getBeamioUserCardNft0HolderCount" | "getBeamioUserCardTokenHolderCount" | "getBeamioUserCardTokenIndexedBalance" | "getBeamioUserCardTokenMintStatsByCurrentPeriodOffset" | "getBeamioUserCardTokenMintStatsByDayOffset" | "getBeamioUserCardTokenMintStatsByHourOffset" | "getBeamioUserCardTokenMintStatsByMonthOffset" | "getBeamioUserCardTokenMintStatsByQuarterOffset" | "getBeamioUserCardTokenMintStatsByWeekOffset" | "getBeamioUserCardTokenMintStatsByYearOffset" | "getBeamioUserCardTokenTopHoldersByCurrentPeriodOffset" | "getBeamioUserCardTokenTopHoldersByDayOffset" | "getBeamioUserCardTokenTopHoldersByHourOffset" | "getBeamioUserCardTokenTopHoldersByMonthOffset" | "getBeamioUserCardTokenTopHoldersByQuarterOffset" | "getBeamioUserCardTokenTopHoldersByWeekOffset" | "getBeamioUserCardTokenTopHoldersByYearOffset" | "getBeamioUserCardTokenTransactionsByWeekOffsetAndAccountModePaged" | "getBeamioUserCardTransactionStatsByCurrentPeriodOffset" | "getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged"): FunctionFragment;
+    getFunction(nameOrSignature: "getAssetAccountTxCountByCurrentPeriodOffset" | "getAssetActionCount" | "getAssetActionIdsPaged" | "getAssetTokenActionCount" | "getAssetTokenActionIdsPaged" | "getAssetTokenTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAssetTokenTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTokenTransactionsPaged" | "getAssetTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged" | "getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged" | "getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePagedFull" | "getAssetTransactionsPaged" | "getBeamioUserCardAccountTxCountByCurrentPeriodOffset" | "getBeamioUserCardAccountTxCountByDayOffset" | "getBeamioUserCardAccountTxCountByHourOffset" | "getBeamioUserCardAccountTxCountByMonthOffset" | "getBeamioUserCardAccountTxCountByQuarterOffset" | "getBeamioUserCardAccountTxCountByWeekOffset" | "getBeamioUserCardAccountTxCountByYearOffset" | "getBeamioUserCardMintStatsByCurrentPeriodOffset" | "getBeamioUserCardMintStatsByDayOffset" | "getBeamioUserCardMintStatsByHourOffset" | "getBeamioUserCardMintStatsByMonthOffset" | "getBeamioUserCardMintStatsByQuarterOffset" | "getBeamioUserCardMintStatsByWeekOffset" | "getBeamioUserCardMintStatsByYearOffset" | "getBeamioUserCardNft0HolderCount" | "getBeamioUserCardTokenHolderCount" | "getBeamioUserCardTokenIndexedBalance" | "getBeamioUserCardTokenMintStatsByCurrentPeriodOffset" | "getBeamioUserCardTokenMintStatsByDayOffset" | "getBeamioUserCardTokenMintStatsByHourOffset" | "getBeamioUserCardTokenMintStatsByMonthOffset" | "getBeamioUserCardTokenMintStatsByQuarterOffset" | "getBeamioUserCardTokenMintStatsByWeekOffset" | "getBeamioUserCardTokenMintStatsByYearOffset" | "getBeamioUserCardTokenTopHoldersByCurrentPeriodOffset" | "getBeamioUserCardTokenTopHoldersByDayOffset" | "getBeamioUserCardTokenTopHoldersByHourOffset" | "getBeamioUserCardTokenTopHoldersByMonthOffset" | "getBeamioUserCardTokenTopHoldersByQuarterOffset" | "getBeamioUserCardTokenTopHoldersByWeekOffset" | "getBeamioUserCardTokenTopHoldersByYearOffset" | "getBeamioUserCardTokenTransactionsByWeekOffsetAndAccountModePaged" | "getBeamioUserCardTransactionStatsByCurrentPeriodOffset" | "getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset" | "getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset" | "getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged" | "getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged" | "getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged"): FunctionFragment;
 
     
 
@@ -55,6 +55,10 @@ encodeFunctionData(functionFragment: 'getAssetTokenTransactionsByCurrentPeriodOf
 encodeFunctionData(functionFragment: 'getAssetTokenTransactionsPaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAssetTransactionsByCurrentPeriodOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePagedFull', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePagedFull', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAssetTransactionsPaged', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardAccountTxCountByCurrentPeriodOffset', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardAccountTxCountByDayOffset', values: [AddressLike, AddressLike, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
@@ -89,6 +93,10 @@ encodeFunctionData(functionFragment: 'getBeamioUserCardTokenTopHoldersByWeekOffs
 encodeFunctionData(functionFragment: 'getBeamioUserCardTokenTopHoldersByYearOffset', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardTokenTransactionsByWeekOffsetAndAccountModePaged', values: [AddressLike, BigNumberish, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionStatsByCurrentPeriodOffset', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'getAssetAccountTxCountByCurrentPeriodOffset', data: BytesLike): Result;
@@ -101,6 +109,10 @@ decodeFunctionResult(functionFragment: 'getAssetTokenTransactionsByCurrentPeriod
 decodeFunctionResult(functionFragment: 'getAssetTokenTransactionsPaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAssetTransactionsByCurrentPeriodOffsetAndAccountModePaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePagedFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePagedFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAssetTransactionsPaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardAccountTxCountByCurrentPeriodOffset', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardAccountTxCountByDayOffset', data: BytesLike): Result;
@@ -135,6 +147,10 @@ decodeFunctionResult(functionFragment: 'getBeamioUserCardTokenTopHoldersByWeekOf
 decodeFunctionResult(functionFragment: 'getBeamioUserCardTokenTopHoldersByYearOffset', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardTokenTransactionsByWeekOffsetAndAccountModePaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionStatsByCurrentPeriodOffset', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged', data: BytesLike): Result;
   }
 
@@ -248,6 +264,38 @@ decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionsByWeekOffse
     
     getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull: TypedContractMethod<
       [asset: AddressLike, account: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged: TypedContractMethod<
+      [asset: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePagedFull: TypedContractMethod<
+      [asset: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged: TypedContractMethod<
+      [asset: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePagedFull: TypedContractMethod<
+      [asset: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
       [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
       'view'
     >
@@ -526,6 +574,38 @@ decodeFunctionResult(functionFragment: 'getBeamioUserCardTransactionsByWeekOffse
     
 
     
+    getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset: TypedContractMethod<
+      [beamioUserCard: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint] & {total: bigint, periodStart: bigint, periodEnd: bigint }],
+      'view'
+    >
+    
+
+    
+    getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset: TypedContractMethod<
+      [beamioUserCard: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint] & {total: bigint, periodStart: bigint, periodEnd: bigint }],
+      'view'
+    >
+    
+
+    
+    getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged: TypedContractMethod<
+      [beamioUserCard: AddressLike, subordinate: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged: TypedContractMethod<
+      [beamioUserCard: AddressLike, topAdmin: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
     getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged: TypedContractMethod<
       [beamioUserCard: AddressLike, account: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
       [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
@@ -583,6 +663,26 @@ getFunction(nameOrSignature: 'getAssetTransactionsByCurrentPeriodOffsetAndAccoun
     >;
 getFunction(nameOrSignature: 'getAssetTransactionsByCurrentPeriodOffsetAndAccountModePagedFull'): TypedContractMethod<
       [asset: AddressLike, account: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePaged'): TypedContractMethod<
+      [asset: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAssetTransactionsBySubordinateAndCurrentPeriodOffsetAndAccountModePagedFull'): TypedContractMethod<
+      [asset: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePaged'): TypedContractMethod<
+      [asset: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAssetTransactionsByTopAdminAndCurrentPeriodOffsetAndAccountModePagedFull'): TypedContractMethod<
+      [asset: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
       [[bigint, bigint, bigint, BeamioUserCardStatsFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: BeamioUserCardStatsFacet.TransactionFullStructOutput[] }],
       'view'
     >;
@@ -754,6 +854,26 @@ getFunction(nameOrSignature: 'getBeamioUserCardTokenTransactionsByWeekOffsetAndA
 getFunction(nameOrSignature: 'getBeamioUserCardTransactionStatsByCurrentPeriodOffset'): TypedContractMethod<
       [beamioUserCard: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
       [[bigint, bigint, bigint] & {total: bigint, periodStart: bigint, periodEnd: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBeamioUserCardTransactionStatsBySubordinateAndCurrentPeriodOffset'): TypedContractMethod<
+      [beamioUserCard: AddressLike, subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint] & {total: bigint, periodStart: bigint, periodEnd: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBeamioUserCardTransactionStatsByTopAdminAndCurrentPeriodOffset'): TypedContractMethod<
+      [beamioUserCard: AddressLike, topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint] & {total: bigint, periodStart: bigint, periodEnd: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBeamioUserCardTransactionsBySubordinateAndWeekOffsetAndAccountModePaged'): TypedContractMethod<
+      [beamioUserCard: AddressLike, subordinate: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBeamioUserCardTransactionsByTopAdminAndWeekOffsetAndAccountModePaged'): TypedContractMethod<
+      [beamioUserCard: AddressLike, topAdmin: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, chainIdFilter: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'getBeamioUserCardTransactionsByWeekOffsetAndAccountModePaged'): TypedContractMethod<

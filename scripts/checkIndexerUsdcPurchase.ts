@@ -19,7 +19,7 @@ async function main() {
   if (!user.startsWith("0x") || user.length !== 42) throw new Error("user 必须是有效地址");
 
   const addrs = JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8"));
-  const diamondAddr = addrs.BeamioIndexerDiamond || "0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5";
+  const diamondAddr = addrs.BeamioIndexerDiamond || "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 
   const { ethers } = await networkModule.connect();
   const txCategoryBuintUsdc = ethers.keccak256(ethers.toUtf8Bytes("buintUSDC"));

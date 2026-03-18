@@ -16,9 +16,9 @@ export declare namespace LibActionStorage {
     export type TransactionMetaStructOutput = [requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string] & {requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string }
   
 
-    export type TransactionRecordStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct, exists: boolean}
+    export type TransactionRecordStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct, exists: boolean, topAdmin: AddressLike, subordinate: AddressLike}
 
-    export type TransactionRecordStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean }
+    export type TransactionRecordStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean, topAdmin: string, subordinate: string] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput, exists: boolean, topAdmin: string, subordinate: string }
   
 
     export type RouteItemStruct = {asset: AddressLike, amountE6: BigNumberish, assetType: BigNumberish, source: BigNumberish, tokenId: BigNumberish, itemCurrencyType: BigNumberish, offsetInRequestCurrencyE6: BigNumberish}
@@ -29,9 +29,9 @@ export declare namespace LibActionStorage {
 
 export declare namespace ActionFacet {
       
-    export type TransactionFullStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, route: LibActionStorage.RouteItemStruct[], fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct}
+    export type TransactionFullStruct = {id: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, topAdmin: AddressLike, subordinate: AddressLike, route: LibActionStorage.RouteItemStruct[], fees: LibActionStorage.FeeInfoStruct, meta: LibActionStorage.TransactionMetaStruct}
 
-    export type TransactionFullStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput }
+    export type TransactionFullStructOutput = [id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, topAdmin: string, subordinate: string, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput] & {id: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, topAdmin: string, subordinate: string, route: LibActionStorage.RouteItemStructOutput[], fees: LibActionStorage.FeeInfoStructOutput, meta: LibActionStorage.TransactionMetaStructOutput }
   
 
     export type RouteItemInputStruct = {asset: AddressLike, amountE6: BigNumberish, assetType: BigNumberish, source: BigNumberish, tokenId: BigNumberish, itemCurrencyType: BigNumberish, offsetInRequestCurrencyE6: BigNumberish}
@@ -49,14 +49,14 @@ export declare namespace ActionFacet {
     export type TransactionMetaInputStructOutput = [requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string] & {requestAmountFiat6: bigint, requestAmountUSDC6: bigint, currencyFiat: bigint, discountAmountFiat6: bigint, discountRateBps: bigint, taxAmountFiat6: bigint, taxRateBps: bigint, afterNotePayer: string, afterNotePayee: string }
   
 
-    export type TransactionInputStruct = {txId: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, route: ActionFacet.RouteItemInputStruct[], fees: ActionFacet.FeeInfoInputStruct, meta: ActionFacet.TransactionMetaInputStruct, operator: AddressLike, operatorParentChain: AddressLike[]}
+    export type TransactionInputStruct = {txId: BytesLike, originalPaymentHash: BytesLike, chainId: BigNumberish, txCategory: BytesLike, displayJson: string, timestamp: BigNumberish, payer: AddressLike, payee: AddressLike, finalRequestAmountFiat6: BigNumberish, finalRequestAmountUSDC6: BigNumberish, isAAAccount: boolean, route: ActionFacet.RouteItemInputStruct[], fees: ActionFacet.FeeInfoInputStruct, meta: ActionFacet.TransactionMetaInputStruct, operator: AddressLike, operatorParentChain: AddressLike[], topAdmin: AddressLike, subordinate: AddressLike}
 
-    export type TransactionInputStructOutput = [txId: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: ActionFacet.RouteItemInputStructOutput[], fees: ActionFacet.FeeInfoInputStructOutput, meta: ActionFacet.TransactionMetaInputStructOutput, operator: string, operatorParentChain: string[]] & {txId: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: ActionFacet.RouteItemInputStructOutput[], fees: ActionFacet.FeeInfoInputStructOutput, meta: ActionFacet.TransactionMetaInputStructOutput, operator: string, operatorParentChain: string[] }
+    export type TransactionInputStructOutput = [txId: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: ActionFacet.RouteItemInputStructOutput[], fees: ActionFacet.FeeInfoInputStructOutput, meta: ActionFacet.TransactionMetaInputStructOutput, operator: string, operatorParentChain: string[], topAdmin: string, subordinate: string] & {txId: string, originalPaymentHash: string, chainId: bigint, txCategory: string, displayJson: string, timestamp: bigint, payer: string, payee: string, finalRequestAmountFiat6: bigint, finalRequestAmountUSDC6: bigint, isAAAccount: boolean, route: ActionFacet.RouteItemInputStructOutput[], fees: ActionFacet.FeeInfoInputStructOutput, meta: ActionFacet.TransactionMetaInputStructOutput, operator: string, operatorParentChain: string[], topAdmin: string, subordinate: string }
   
     }
 
   export interface ActionFacetInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNT_MODE_AA" | "ACCOUNT_MODE_ALL" | "ACCOUNT_MODE_EOA" | "ATOMIC_BUCKET_SECONDS" | "CHAIN_ID_FILTER_ALL" | "GAS_CHAIN_FILTER_ALL" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "getAccountActionCount" | "getAccountActionIdsByPeriodPaged" | "getAccountActionIdsPaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAccountTransactionsByCurrentPeriodOffsetPaged" | "getAccountTransactionsByDayOffsetPaged" | "getAccountTransactionsByHourOffsetPaged" | "getAccountTransactionsByMonthOffsetPaged" | "getAccountTransactionsByPeriodPaged" | "getAccountTransactionsByQuarterOffsetPaged" | "getAccountTransactionsByWeekOffsetAndAccountModePaged" | "getAccountTransactionsByWeekOffsetPaged" | "getAccountTransactionsByYearOffsetPaged" | "getAccountTransactionsPaged" | "getLatestTransactionsByCategoryPaged" | "getLatestTransactionsByCategoryPagedFull" | "getLatestTransactionsPaged" | "getLatestTransactionsPagedFull" | "getTransactionActionId" | "getTransactionCount" | "getTransactionFull" | "getTransactionFullByTxId" | "getTransactionRecord" | "getTransactionRecordByTxId" | "setAfterNotes" | "syncTokenAction"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNT_MODE_AA" | "ACCOUNT_MODE_ALL" | "ACCOUNT_MODE_EOA" | "ATOMIC_BUCKET_SECONDS" | "CHAIN_ID_FILTER_ALL" | "GAS_CHAIN_FILTER_ALL" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "getAccountActionCount" | "getAccountActionIdsByPeriodPaged" | "getAccountActionIdsPaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAccountTransactionsByCurrentPeriodOffsetPaged" | "getAccountTransactionsByDayOffsetPaged" | "getAccountTransactionsByHourOffsetPaged" | "getAccountTransactionsByMonthOffsetPaged" | "getAccountTransactionsByPeriodPaged" | "getAccountTransactionsByQuarterOffsetPaged" | "getAccountTransactionsByWeekOffsetAndAccountModePaged" | "getAccountTransactionsByWeekOffsetPaged" | "getAccountTransactionsByYearOffsetPaged" | "getAccountTransactionsPaged" | "getLatestTransactionsByCategoryPaged" | "getLatestTransactionsByCategoryPagedFull" | "getLatestTransactionsPaged" | "getLatestTransactionsPagedFull" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getSubordinateTransactionsByWeekOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getTopAdminTransactionsByWeekOffsetAndAccountModePaged" | "getTransactionActionId" | "getTransactionCount" | "getTransactionFull" | "getTransactionFullByTxId" | "getTransactionRecord" | "getTransactionRecordByTxId" | "setAfterNotes" | "syncTokenAction"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AfterNotesUpdated" | "StatsUpdated" | "TransactionRecordSynced"): EventFragment;
 
@@ -91,6 +91,12 @@ encodeFunctionData(functionFragment: 'getLatestTransactionsByCategoryPaged', val
 encodeFunctionData(functionFragment: 'getLatestTransactionsByCategoryPagedFull', values: [BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getLatestTransactionsPaged', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getLatestTransactionsPagedFull', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getSubordinateTransactionsByWeekOffsetAndAccountModePaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getTopAdminTransactionsByWeekOffsetAndAccountModePaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getTransactionActionId', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getTransactionCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getTransactionFull', values: [BigNumberish]): string;
@@ -131,6 +137,12 @@ decodeFunctionResult(functionFragment: 'getLatestTransactionsByCategoryPaged', d
 decodeFunctionResult(functionFragment: 'getLatestTransactionsByCategoryPagedFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getLatestTransactionsPaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getLatestTransactionsPagedFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getSubordinateTransactionsByWeekOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getTopAdminTransactionsByWeekOffsetAndAccountModePaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransactionActionId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransactionCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransactionFull', data: BytesLike): Result;
@@ -460,6 +472,54 @@ decodeFunctionResult(functionFragment: 'syncTokenAction', data: BytesLike): Resu
     
 
     
+    getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged: TypedContractMethod<
+      [subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull: TypedContractMethod<
+      [subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, ActionFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: ActionFacet.TransactionFullStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getSubordinateTransactionsByWeekOffsetAndAccountModePaged: TypedContractMethod<
+      [subordinate: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged: TypedContractMethod<
+      [topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull: TypedContractMethod<
+      [topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, ActionFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: ActionFacet.TransactionFullStructOutput[] }],
+      'view'
+    >
+    
+
+    
+    getTopAdminTransactionsByWeekOffsetAndAccountModePaged: TypedContractMethod<
+      [topAdmin: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >
+    
+
+    
     getTransactionActionId: TypedContractMethod<
       [txId: BytesLike, ],
       [[bigint, boolean] & {actionId: bigint, exists: boolean }],
@@ -679,6 +739,36 @@ getFunction(nameOrSignature: 'getLatestTransactionsPaged'): TypedContractMethod<
 getFunction(nameOrSignature: 'getLatestTransactionsPagedFull'): TypedContractMethod<
       [offset: BigNumberish, limit: BigNumberish, ],
       [[bigint, ActionFacet.TransactionFullStructOutput[]] & {total: bigint, page: ActionFacet.TransactionFullStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged'): TypedContractMethod<
+      [subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull'): TypedContractMethod<
+      [subordinate: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, ActionFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: ActionFacet.TransactionFullStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getSubordinateTransactionsByWeekOffsetAndAccountModePaged'): TypedContractMethod<
+      [subordinate: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged'): TypedContractMethod<
+      [topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull'): TypedContractMethod<
+      [topAdmin: AddressLike, periodType: BigNumberish, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, ActionFacet.TransactionFullStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: ActionFacet.TransactionFullStructOutput[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getTopAdminTransactionsByWeekOffsetAndAccountModePaged'): TypedContractMethod<
+      [topAdmin: AddressLike, periodOffset: BigNumberish, pageOffset: BigNumberish, pageLimit: BigNumberish, txCategoryFilter: BytesLike, accountMode: BigNumberish, ],
+      [[bigint, bigint, bigint, LibActionStorage.TransactionRecordStructOutput[]] & {total: bigint, periodStart: bigint, periodEnd: bigint, page: LibActionStorage.TransactionRecordStructOutput[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'getTransactionActionId'): TypedContractMethod<
