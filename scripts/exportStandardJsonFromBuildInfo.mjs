@@ -1,0 +1,104 @@
+#!/usr/bin/env node
+/**
+ * 从 build-info 导出 BaseScan 验证用 Standard JSON
+ *
+ * via-IR 下，精简版（仅直接依赖）会导致 BaseScan 编译出与链上不同的 bytecode。
+ * 必须使用 --full 导出完整 build-info 输入，与 Hardhat 编译输入完全一致。
+ *
+ * 用法:
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule --full
+ *
+ * 输出: deployments/base-{Contract}-standard-input-FULL.json
+ */
+
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const CONFIG = {
+  BeamioUserCard: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
+    contractName: "BeamioUserCard",
+  },
+  AdminStatsQueryModule: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV1",
+  },
+  GovernanceModule: {
+    sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
+    contractName: "BeamioUserCardGovernanceModuleV1",
+  },
+};
+
+const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
+const buildInfoFiles = fs.readdirSync(buildInfoDir).filter((f) => f.endsWith(".json") && !f.includes(".output."));
+if (buildInfoFiles.length === 0) {
+  console.error("未找到 build-info，请先运行: npm run clean && npm run compile");
+  process.exit(1);
+}
+const BUILD_INFO = path.join(buildInfoDir, buildInfoFiles[0]);
+
+const contractArg = process.argv[2];
+const useFull = process.argv.includes("--full");
+
+if (!contractArg || !CONFIG[contractArg]) {
+  console.error("用法: node scripts/exportStandardJsonFromBuildInfo.mjs <Contract> [--full]");
+  console.error("支持的 Contract:", Object.keys(CONFIG).join(", "));
+  console.error("建议始终使用 --full，以确保 via-IR 下 bytecode 与链上一致");
+  process.exit(1);
+}
+
+const cfg = CONFIG[contractArg];
+const outPath = path.join(
+  __dirname,
+  "../deployments",
+  `base-${contractArg}-standard-input-${useFull ? "FULL" : "min"}.json`
+);
+
+const buildInfo = JSON.parse(fs.readFileSync(BUILD_INFO, "utf-8"));
+const fullInput = buildInfo.input;
+
+if (!fullInput.sources[cfg.sourceKey]) {
+  console.error(`build-info 中未找到 ${cfg.sourceKey}`);
+  process.exit(1);
+}
+
+let input;
+if (useFull) {
+  input = fullInput;
+  console.log(`使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）`);
+} else {
+  // 精简版：仅直接依赖（可能因 via-IR 导致 bytecode 不匹配）
+  const deps = {
+    [cfg.sourceKey]: fullInput.sources[cfg.sourceKey],
+  };
+  const content = fullInput.sources[cfg.sourceKey].content;
+  const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
+  for (const m of content.matchAll(importRegex)) {
+    const imp = m[1];
+    let key;
+    if (imp.startsWith("./") || imp.startsWith("../")) {
+      const dir = path.dirname(cfg.sourceKey.replace("project/", ""));
+      key = "project/" + path.join(dir, imp).replace(/\\/g, "/");
+    } else {
+      key = "project/" + imp;
+    }
+    if (fullInput.sources[key]) deps[key] = fullInput.sources[key];
+  }
+  input = {
+    language: fullInput.language,
+    sources: deps,
+    settings: fullInput.settings,
+  };
+  console.log("使用精简源（若验证失败请加 --full）");
+}
+
+const json = JSON.stringify(input, null, 2);
+fs.writeFileSync(outPath, json, "utf-8");
+console.log("已导出到:", outPath);
+console.log("文件大小:", (json.length / 1024).toFixed(1), "KB");
+console.log("Contract Name:", `${cfg.sourceKey}:${cfg.contractName}`);

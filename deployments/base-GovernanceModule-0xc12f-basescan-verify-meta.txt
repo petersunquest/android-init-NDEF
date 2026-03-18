@@ -1,0 +1,64 @@
+# BaseScan 验证 - GovernanceModule 0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41
+
+## 根因与修复
+
+BaseScan 编译出的 bytecode 与链上不一致（err_code_2）：
+- **链上/本地 artifact**：第一个 selector `0a106e9c`
+- **exportMinimalStandardJson 导出的 JSON**：BaseScan 编译后第一个 selector 为 `0d61b519`，bytecode 不同
+
+**解决**：必须使用 **build-info 导出的 Standard JSON**（与 Hardhat 编译输入完全一致），而非 exportMinimalStandardJson。
+
+## 合约信息
+
+| 项目 | 值 |
+|------|-----|
+| **地址** | 0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41 |
+| **Contract Name** | project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1 |
+| **Compiler** | v0.8.33+commit.64118f21 |
+| **Constructor args** | 无 |
+| **Standard JSON** | deployments/base-GovernanceModule-standard-input-FULL.json（优先）或 base-GovernanceModule-standard-input.min.json |
+
+## 验证步骤（Standard JSON 手动验证）
+
+1. 打开 https://basescan.org/address/0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41#code
+2. 点击 "Verify and Publish"
+3. 选择 **"Solidity (Standard-Json-Input)"**
+4. Compiler Version: **v0.8.33+commit.64118f21**（必须精确）
+5. 上传 `deployments/base-GovernanceModule-standard-input-FULL.json`（优先，与 Hardhat 完全一致）
+6. **Contract Name**：手动输入（不要从下拉选错）：
+   ```
+   project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1
+   ```
+7. Constructor Arguments: **留空**
+8. **关键**：若页面有 "Optimization" / "Runs" 输入框，必须设为 **Optimization: Yes, Runs: 0**（与 JSON 内 settings.optimizer.runs 一致）。若 BaseScan 从 JSON 读取则无需改。
+
+## Compiler 设置（Standard JSON 内已包含，需一致）
+
+- metadata.bytecodeHash: **none**
+- debug.revertStrings: **strip**
+- optimizer.enabled: **true**, runs: **0**
+- viaIR: **true**
+- evmVersion: **cancun**
+
+## 使用 Hardhat 验证（推荐先试）
+
+```bash
+npx hardhat verify --network base 0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41
+```
+
+若 hardhat verify 因 payload 过大失败，再使用 Standard JSON 手动验证。
+
+## 重新导出 Standard JSON（必须用 build-info）
+
+```bash
+# 先编译，再从 build-info 导出
+npm run clean && npm run compile
+
+# 优先：完整输入（via-IR 下与 Hardhat 完全一致，~1MB）
+node scripts/exportGovernanceModuleFromBuildInfo.mjs --full
+
+# 若 --full 因文件过大被拒，再用精简版
+node scripts/exportGovernanceModuleFromBuildInfo.mjs
+```
+
+**验证时**：上传 `base-GovernanceModule-standard-input-FULL.json`，Contract Name 仍为 `project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1`。
