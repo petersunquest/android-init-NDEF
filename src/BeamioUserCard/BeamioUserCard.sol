@@ -1035,8 +1035,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     }
 
     /// @dev 统计以 EOA 为键：from 侧取 owner(from)，to 侧 beneficiaryAdmin/upperAdmin 均为 EOA
+    /// @dev 当 operator 与 beneficiaryAdmin/upperAdmin 重叠时，仅按接收方统计一次，避免 double count
     function _recordPointTransferStats(address from, address beneficiaryAdmin, address upperAdmin, uint256 count, uint256 amount) internal {
-        _recordAdminTransferForOperatorAndParents(_resolveTransferStatsOperator(from), count, amount);
+        address operator = _resolveTransferStatsOperator(from);
+        if (beneficiaryAdmin != address(0) && upperAdmin != address(0)) {
+            if (operator == beneficiaryAdmin || operator == upperAdmin) {
+                operator = address(0);
+            }
+        }
+        _recordAdminTransferForOperatorAndParents(operator, count, amount);
         if (beneficiaryAdmin != address(0) && upperAdmin != address(0)) {
             AdminStatsStorage.recordTransfer(beneficiaryAdmin, count, amount);
             AdminStatsStorage.recordTransfer(upperAdmin, count, amount);
