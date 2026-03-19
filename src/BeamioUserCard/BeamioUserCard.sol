@@ -1034,47 +1034,30 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         effectiveTo = _toAccount(parent);
     }
 
-    /// @dev 统计以 EOA 为键：from 侧取 owner(from)，to 侧 beneficiaryAdmin/upperAdmin 均为 EOA
-    /// @dev 当 operator 与 beneficiaryAdmin/upperAdmin 重叠时，仅按接收方统计一次，避免 double count
+    /// @dev 统计以 EOA 为键：每笔 transfer 仅记入一个 admin，避免 aggregate 时 double count
+    /// @dev 有 beneficiaryAdmin 时记入接收方；否则记入 operator（发送方）
     function _recordPointTransferStats(address from, address beneficiaryAdmin, address upperAdmin, uint256 count, uint256 amount) internal {
-        address operator = _resolveTransferStatsOperator(from);
-        if (beneficiaryAdmin != address(0) && upperAdmin != address(0)) {
-            if (operator == beneficiaryAdmin || operator == upperAdmin) {
-                operator = address(0);
-            }
-        }
-        _recordAdminTransferForOperatorAndParents(operator, count, amount);
-        if (beneficiaryAdmin != address(0) && upperAdmin != address(0)) {
+        upperAdmin; // unused
+        if (beneficiaryAdmin != address(0)) {
             AdminStatsStorage.recordTransfer(beneficiaryAdmin, count, amount);
-            AdminStatsStorage.recordTransfer(upperAdmin, count, amount);
+            return;
+        }
+        address operator = _resolveTransferStatsOperator(from);
+        if (operator != address(0) && (count > 0 || amount > 0)) {
+            AdminStatsStorage.recordTransfer(operator, count, amount);
         }
     }
 
-    function _recordAdminTransferForOperatorAndParents(address operator, uint256 transferCount, uint256 transferAmount) internal {
-        if (operator == address(0) || (transferCount == 0 && transferAmount == 0)) return;
-        address current = operator;
-        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
-            AdminStatsStorage.recordTransfer(current, transferCount, transferAmount);
-            current = GovernanceStorage.layout().adminParent[current];
-        }
-    }
-
+    /// @dev 每笔 redeem_mint 仅记入 operator，避免 aggregate 时 double count
     function _recordAdminRedeemMintForOperatorAndParents(address operator, uint256 amount) internal {
         if (operator == address(0) || amount == 0) return;
-        address current = operator;
-        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
-            AdminStatsStorage.recordRedeemMint(current, amount);
-            current = GovernanceStorage.layout().adminParent[current];
-        }
+        AdminStatsStorage.recordRedeemMint(operator, amount);
     }
 
+    /// @dev 每笔 usdc_mint 仅记入 operator，避免 aggregate 时 double count
     function _recordAdminUSDCMintForOperatorAndParents(address operator, uint256 amount) internal {
         if (operator == address(0) || amount == 0) return;
-        address current = operator;
-        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
-            AdminStatsStorage.recordUSDCMint(current, amount);
-            current = GovernanceStorage.layout().adminParent[current];
-        }
+        AdminStatsStorage.recordUSDCMint(operator, amount);
     }
 
     // ==========================================================
@@ -1322,6 +1305,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return (totalMembershipIssued, totalMembershipUpgraded);
     }
 
+    /// @dev 每笔 issued/upgraded 仅记入 operator，避免 aggregate 时 double count
     function _recordAdminMembershipFlowForOperatorAndParents(
         address operator,
         uint256 issuedBefore,
@@ -1330,12 +1314,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         uint256 issuedDelta = totalMembershipIssued - issuedBefore;
         uint256 upgradedDelta = totalMembershipUpgraded - upgradedBefore;
         if (operator == address(0) || (issuedDelta == 0 && upgradedDelta == 0)) return;
-
-        address current = operator;
-        for (uint256 depth = 0; current != address(0) && depth < 64; depth++) {
-            AdminStatsStorage.recordMembershipFlow(current, issuedDelta, upgradedDelta);
-            current = GovernanceStorage.layout().adminParent[current];
-        }
+        AdminStatsStorage.recordMembershipFlow(operator, issuedDelta, upgradedDelta);
     }
 
     // ==========================================================

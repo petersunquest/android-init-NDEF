@@ -18,3 +18,22 @@ alwaysApply: true
 
 - `✅` USDC 主圆标 + Base 角标（右下叠加）
 - `❌` 仅蓝底 `$` 圆点
+
+## Reference Implementation
+
+**SilentPassUI** `src/SilentPassUI/src/components/input/AmountCurrency.tsx` L591-622：
+
+```tsx
+{/* USDC on Base icon（尺寸锁死） */}
+<div className="relative flex-shrink-0 w-4 h-4 min-w-[16px] min-h-[16px]">
+  <img src={usdcIcon} alt="USDC" className="block w-4 h-4 rounded-full object-contain" />
+  <img src={baseIcon} alt="Base" className="block w-2.5 h-2.5 absolute -bottom-0.5 -right-0.5 rounded-full border border-white dark:border-slate-900 bg-white" />
+</div>
+```
+
+- 主图标：USDC 官方圆标，`rounded-full object-contain`
+- 角标：Base logo，`absolute -bottom-0.5 -right-0.5`，右下叠加
+- 角标尺寸约为主图标的 0.6x（如 16px 主标 + 10px 角标）
+- 深色模式：角标 `border-white dark:border-slate-900` 保持可读
+
+**bizSite** `src/bizSite/src/pages/Vouchers/example/biz.tsx`：`UsdcBaseCompositeIcon` 组件，支持 `size` / `badgeSize` 参数。
