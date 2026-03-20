@@ -6,7 +6,7 @@ import fs from "fs";
 import { ethers } from "ethers";
 
 const MODULE_ADDR = process.env.MODULE_ADDR || "0x2ab3534062dD731DBD6eB0cE78597DAFf17a46Bb";
-const RPC = process.env.BASE_RPC_URL || "https://1rpc.io/base";
+const RPC = process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
 
 async function main() {
   const provider = new ethers.JsonRpcProvider(RPC);

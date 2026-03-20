@@ -5,7 +5,7 @@
 import { ethers } from "ethers";
 
 const CARD = process.argv[2] || "0xcdAb59228695bbF2137d56382395f854267194E1";
-const RPC = process.env.BASE_RPC_URL || "https://1rpc.io/base";
+const RPC = process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
 
 const ABI = [
   "function owner() view returns (address)",

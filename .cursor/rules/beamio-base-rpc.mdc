@@ -5,11 +5,11 @@ alwaysApply: true
 
 # Beamio Base RPC 标准
 
-**项目内 Base 链 RPC 统一使用 Beamio Base RPC。**
+**项目内 Base 链 RPC 统一使用 CoNET 官方 Base RPC（`base-rpc.conet.network`）。**
 
 ## 端点
 
-- **HTTP**: `https://1rpc.io/base`
+- **HTTP**: `https://base-rpc.conet.network`
 - **WebSocket**: `wss://base-rpc.conet.network/ws`
 
 ## 适用范围
@@ -21,10 +21,10 @@ alwaysApply: true
 
 ## 配置
 
-- `.env`：`BASE_RPC_URL=https://1rpc.io/base`
-- `~/.master.json`：`base_endpoint: "https://1rpc.io/base"`
-- CoNET-SI：优先 `BASE_RPC=wss://base-rpc.conet.network/ws`，否则 `BASE_RPC_HTTP=https://1rpc.io/base`
+- `.env`：`BASE_RPC_URL=https://base-rpc.conet.network`
+- `~/.master.json`：`base_endpoint: "https://base-rpc.conet.network"`
+- CoNET-SI：优先 `BASE_RPC=wss://base-rpc.conet.network/ws`，否则 `BASE_RPC_HTTP=https://base-rpc.conet.network`
 
 ## 新增代码
 
-新增 Base 链 RPC 调用时，默认使用 `https://1rpc.io/base`。
+新增 Base 链 RPC 调用时，默认使用 `https://base-rpc.conet.network`。

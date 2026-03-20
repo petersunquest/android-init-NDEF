@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADDR = "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41";
-const RPC = "https://1rpc.io/base";
+const RPC = "https://base-rpc.conet.network";
 
 const chainHex = execSync(`cast code ${ADDR} --rpc-url ${RPC}`, { encoding: "utf-8" }).trim();
 const artifact = JSON.parse(

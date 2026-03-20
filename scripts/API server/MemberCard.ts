@@ -52,7 +52,7 @@ const BeamioUserCardGatewayAddress = BeamioAAAccountFactoryPaymaster
 const BeamioTaskIndexerAddress = '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
 const DIAMOND = BeamioTaskIndexerAddress
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
-const providerBaseBackup = new ethers.JsonRpcProvider('https://1rpc.io/base')
+const providerBaseBackup = new ethers.JsonRpcProvider('https://base-rpc.conet.network')
 const providerBaseBackup1 = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
 const conetEndpoint = 'https://mainnet-rpc.conet.network'
 const providerConet = new ethers.JsonRpcProvider(conetEndpoint)
@@ -309,7 +309,7 @@ const DeployingSmartAccount = async (wallet: string, SC: ethers.Contract): Promi
 		// 尚无账户，由 Paymaster 创建（工厂会分配 index 0）
 		const tx = await SC.createAccountFor(wallet)
 		console.log(`交易成功！哈希: ${tx.hash}`)
-		// confirmations: 0 = 仅等待 tx 被打包，避免 1rpc/Lava 的 "block too new" 一致性检查
+		// confirmations: 0 = 仅等待 tx 被打包，避免部分公共 RPC 的 "block too new" 一致性检查
 		await tx.wait(0)
 
 		logger(`DeployingSmartAccount 已为 ${wallet} 创建 AA (index=0)`, tx.hash)

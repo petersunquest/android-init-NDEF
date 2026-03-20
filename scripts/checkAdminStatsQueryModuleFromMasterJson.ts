@@ -26,7 +26,7 @@ function loadMasterSetup(): { base_endpoint?: string } {
 
 async function main() {
   const master = loadMasterSetup()
-  const baseRpc = master?.base_endpoint || 'https://1rpc.io/base'
+  const baseRpc = master?.base_endpoint || 'https://base-rpc.conet.network'
   console.log('Using RPC (from ~/.master.json base_endpoint or default):', baseRpc)
 
   const provider = new ethers.JsonRpcProvider(baseRpc)
@@ -56,7 +56,7 @@ async function main() {
 
   if (kind === ROUTE_INVALID) {
     console.log('\n❌ Server RPC sees AdminStatsQueryModule that does NOT recognize createRedeemAdmin.')
-    console.log('   Fix: Set base_endpoint in ~/.master.json to https://1rpc.io/base and restart conet-si')
+    console.log('   Fix: Set base_endpoint in ~/.master.json to https://base-rpc.conet.network and restart conet-si')
     process.exit(1)
   }
   console.log('\n✅ Server RPC sees correct AdminStatsQueryModule.')

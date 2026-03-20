@@ -2,14 +2,14 @@
 # Base RPC 同步进度检测：对比当前与上次，估算剩余同步时间
 # 用法：
 #   本地节点: ./check-base-rpc-sync-progress.sh
-#   远程节点: ./check-base-rpc-sync-progress.sh https://1rpc.io/base
+#   远程节点: ./check-base-rpc-sync-progress.sh https://base-rpc.conet.network
 #   SSH 到服务器后: ./check-base-rpc-sync-progress.sh http://127.0.0.1:8547
 
 set -e
 
 RPC="${1:-http://127.0.0.1:8547}"
 STATE_FILE="${2:-$(dirname "$0")/.base-sync-state}"
-PUBLIC_RPC="${PUBLIC_BASE_RPC:-https://1rpc.io/base}"
+PUBLIC_RPC="${PUBLIC_BASE_RPC:-https://base-rpc.conet.network}"
 BASE_BLOCK_TIME=2  # Base 主网约 2 秒/块
 
 jq_cmd() {

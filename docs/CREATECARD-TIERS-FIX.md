@@ -61,13 +61,13 @@ cast send 0xC0F1c74fb95100a97b532be53B266a54f41DB615 \
   "appendTier(uint256,uint256,uint256,bool)" \
   50000000 0 0 false \
   --private-key $OWNER_PRIVATE_KEY \
-  --rpc-url https://1rpc.io/base
+  --rpc-url https://base-rpc.conet.network
 
 cast send 0xC0F1c74fb95100a97b532be53B266a54f41DB615 \
   "appendTier(uint256,uint256,uint256,bool)" \
   100000000 1 0 false \
   --private-key $OWNER_PRIVATE_KEY \
-  --rpc-url https://1rpc.io/base
+  --rpc-url https://base-rpc.conet.network
 ```
 
 ## 验证
@@ -75,12 +75,12 @@ cast send 0xC0F1c74fb95100a97b532be53B266a54f41DB615 \
 修复后执行：
 
 ```bash
-cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTiersCount()(uint256)" --rpc-url https://1rpc.io/base
+cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTiersCount()(uint256)" --rpc-url https://base-rpc.conet.network
 # 应返回 2
 
-cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTierAt(uint256)(uint256,uint256,uint256,bool)" 0 --rpc-url https://1rpc.io/base
+cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTierAt(uint256)(uint256,uint256,uint256,bool)" 0 --rpc-url https://base-rpc.conet.network
 # 应返回 (50000000, 0, 0, false)
 
-cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTierAt(uint256)(uint256,uint256,uint256,bool)" 1 --rpc-url https://1rpc.io/base
+cast call 0xC0F1c74fb95100a97b532be53B266a54f41DB615 "getTierAt(uint256)(uint256,uint256,uint256,bool)" 1 --rpc-url https://base-rpc.conet.network
 # 应返回 (100000000, 1, 0, false)
 ```

@@ -6,7 +6,7 @@ import fs from "fs";
 import { ethers } from "ethers";
 
 const CARD = process.env.CARD || "0xB87058b44C881020fD529E7E34A158f05bc4C28a";
-const RPC = process.env.BASE_RPC_URL || "https://1rpc.io/base";
+const RPC = process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
 
 async function main() {
   const provider = new ethers.JsonRpcProvider(RPC);

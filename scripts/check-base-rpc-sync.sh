@@ -1,5 +1,5 @@
 #!/bin/bash
-# 1rpc.io/base 同步压力检测脚本
+# Base 主网 RPC 同步压力检测脚本（默认对比 base-rpc.conet.network）
 # 在 base RPC 节点所在机器执行（或 SSH 进去后执行）
 
 set -e

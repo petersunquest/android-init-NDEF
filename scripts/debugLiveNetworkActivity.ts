@@ -24,7 +24,7 @@ const INDEXER_ABI = [
 ] as const
 
 const AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
-const BASE_RPC = 'https://1rpc.io/base'
+const BASE_RPC = 'https://base-rpc.conet.network'
 const CONET_RPC = 'https://mainnet-rpc.conet.network'
 
 function serializeTx(tx: unknown): Record<string, unknown> {

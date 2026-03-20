@@ -37,7 +37,7 @@
     "check:createcard-deployer:base": "hardhat run scripts/checkCreateCardDeployerConfig.ts --network base",
     "check:redeem:0xeA7B": "hardhat run scripts/checkRedeem0xeA7B.ts --network base",
     "debug:nfc-topup-tx": "hardhat run scripts/debugNfcTopupTx.ts --network base",
-    "debug:nfc-topup-tx:1rpc": "npx tsx scripts/debugNfcTopupTx.ts",
+    "debug:nfc-topup-tx:tsx": "npx tsx scripts/debugNfcTopupTx.ts",
     "debug:nfc-topup": "node scripts/debugNfcTopupTxSimple.js",
     "debug:signer": "node scripts/debugSigner.js",
     "sync:card-artifact": "node scripts/syncBeamioUserCardToX402sdk.mjs",

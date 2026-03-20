@@ -1,12 +1,12 @@
 /**
- * 使用 1rpc.io/base 模拟 cardCreateRedeemAdmin 的 executeForOwner 调用。
+ * 使用 CoNET Base RPC（base-rpc.conet.network）模拟 cardCreateRedeemAdmin 的 executeForOwner 调用。
  * 用于验证链上状态与 RPC 是否正常。
  *
  * 运行：npx tsx scripts/simulateCardCreateRedeemAdmin.ts
  */
 import { ethers } from 'ethers'
 
-const RPC = process.env.BASE_RPC_URL?.trim() || 'https://1rpc.io/base'
+const RPC = process.env.BASE_RPC_URL?.trim() || 'https://base-rpc.conet.network'
 const FACTORY = '0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a'
 const CARD = '0x48952F9EA1231b59e5c5FA1a99BC657B122CFDfD'
 

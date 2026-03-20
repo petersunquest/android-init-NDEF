@@ -6,15 +6,15 @@ import { ethers } from 'ethers'
 
 const BASE_CARD_FACTORY = '0xbDC8a165820bB8FA23f5d953632409F73E804eE5'
 const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
-const RPC = process.env.BASE_RPC || 'https://1rpc.io/base'
-const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://1rpc.io/base'
+const RPC = process.env.BASE_RPC || 'https://base-rpc.conet.network'
+const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://base-rpc.conet.network'
 
 async function providerCallWithFallback(provider, fallback, params) {
 	try {
 		return await provider.call(params)
 	} catch (e) {
 		if (/missing revert data|CALL_EXCEPTION/i.test(String(e?.message ?? e))) {
-			console.log('  (1rpc 返回 missing revert data，改用 fallback RPC)')
+			console.log('  (primary RPC 返回 missing revert data，改用 fallback RPC)')
 			return fallback.call(params)
 		}
 		throw e

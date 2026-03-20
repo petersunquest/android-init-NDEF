@@ -6,14 +6,14 @@ import { ethers } from 'ethers'
 
 const BASE_CARD_FACTORY = '0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b'
 const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
-/** 与 UI baseRpc 一致：优先 Beamio Base RPC；部分 call 可能返回 missing revert data，可设 BASE_RPC_FALLBACK 备用 */
-const RPC = process.env.BASE_RPC || 'https://1rpc.io/base'
-const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://1rpc.io/base'
+/** 与 UI baseRpc 一致：默认 CoNET Base RPC；部分 call 可能返回 missing revert data，可设 BASE_RPC_FALLBACK 备用 */
+const RPC = process.env.BASE_RPC || 'https://base-rpc.conet.network'
+const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://base-rpc.conet.network'
 
 const DEFAULT_DATA =
 	'0xe83492d100000000000000000000000057052780925448ce1db7ac409ccccf13bcc4eb7100000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000699e1ec7a1f39f2dad9905bfb9d34840ea5c6795e07736f46fe6aae95880841035e44ccd00000000000000000000000000000000000000000000000000000000000001200000000000000000000000000000000000000000000000000000000000000044564da7570000000000000000000000003fd6964e322ab2fe9cb4f5d0b9e5166eea9e4fe40000000000000000000000000000000000000000000000000000000000b71afa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041a0496595b273a4d62b7e0b310f61cb7b809680ae44ce3ed159f80f1480a2683a53b163c436458174db03083c26d42e5515758ad3858796ebeafc56029c4a1ff01c00000000000000000000000000000000000000000000000000000000000000'
 
-/** 带 fallback 的 provider.call：1rpc 部分 call 可能返回 missing revert data，自动切 fallback */
+/** 带 fallback 的 provider.call：部分 RPC 对 call 可能返回 missing revert data，自动切 fallback */
 async function providerCallWithFallback(
 	provider: ethers.JsonRpcProvider,
 	fallback: ethers.JsonRpcProvider,
@@ -23,7 +23,7 @@ async function providerCallWithFallback(
 		return (await provider.call(params)) as string
 	} catch (e: unknown) {
 		if (/missing revert data|CALL_EXCEPTION/i.test(String((e as Error)?.message ?? e))) {
-			console.log('  (1rpc 返回 missing revert data，改用 fallback RPC)')
+			console.log('  (primary RPC 返回 missing revert data，改用 fallback RPC)')
 			return fallback.call(params) as Promise<string>
 		}
 		throw e
