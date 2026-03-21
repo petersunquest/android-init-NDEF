@@ -103,8 +103,8 @@ struct TransactionMeta {
   uint256 requestAmountFiat6;          // 原始请求金额（法币 E6，税前、折扣前）
   uint256 requestAmountUSDC6;          // 原始请求金额 USDC 6 位精度
   uint8 currencyFiat;                  // BeamioCurrency.CurrencyType
-  uint256 discountAmountFiat6;         // 折扣金额（法币 E6）；**NFC Container Charge 且有小费时**：复用本字段记**小费金额 E6**（与 `nfcTipCurrencyAmount` 一致）
-  uint16 discountRateBps;              // 折扣率 bps，例如 1500=15%；**NFC 有小费时**：复用本字段记**小费率 bps**（如 1800=18%，来自 Android `nfcTipRateBps`）
+  uint256 discountAmountFiat6;         // 折扣金额（法币 E6）；NFC Container Charge 时表示**会员 tier 折扣** E6（与终端 metadata `tierRoutingDiscounts` 一致）
+  uint16 discountRateBps;              // 折扣率 bps；NFC Container 时为 **tier 折扣率** bps。**小费**不写入本字段：小费单独 `TX_TIP` 交易，`finalRequestAmount*` 仅记小费金额
   uint256 taxAmountFiat6;              // 税金金额（法币 E6）
   uint16 taxRateBps;                   // 税率 bps，例如 500=5%
   string afterNotePayer;               // 交易完成后支付方附加备注（JSON string）
@@ -112,8 +112,8 @@ struct TransactionMeta {
 }
 
 struct Transaction {
-	bytes32 id;                       // 以整单 txHash 为依据
-	bytes32 originalPaymentHash;      // 父支付 hash；主支付为 0x0，小费原子交易指向被追加的主支付
+	bytes32 id;                       // 主支付（商户 NFC Container 等）：= Base 上本笔 `relayContainerMainRelayed`（或等价）的 **tx hash**，与 `finishedHash` 一致。**TX_TIP 小费行**：须为 **新生成的随机 bytes32**（与主支付 id 不同），供 UI 按 `id` 去重时不与小费、主单混淆
+	bytes32 originalPaymentHash;      // 主支付：`0x0`。**TX_TIP 小费行**：填 **主支付行的 `id`**（即同一笔 Base relay 的 tx hash），建立父子关联；勿与小费行自身的随机 `id` 混用
 	uint256 chainId;                  // 单笔请求支付所属链 ID
 	bytes32 txCategory;               // 可扩展分类键（可组合原 txType + settlement 语义）
 	string displayJson;               // 账单附加字符 JSON（DisplayJsonData：title, source, finishedHash, handle, forText, card；金额由本 struct 其他字段表达）
@@ -122,8 +122,8 @@ struct Transaction {
 	address payee;                    // 整单收款方（根层字段）
 
 	// --- 金额显示层（根层仅保留最终值） ---
-	uint256 finalRequestAmountFiat6;
-	uint256 finalRequestAmountUSDC6;
+	uint256 finalRequestAmountFiat6;   // 主支付：不含小费（= 请求小计 ± 税/会员折扣等，见 meta）；TX_TIP 行：仅小费 fiat E6
+	uint256 finalRequestAmountUSDC6; // 主支付：链上本 relay 总 USDC6 − 小费 USDC6；TX_TIP 行：仅小费 USDC6
 
 	bool isAAAccount;                 // false=EOA, true=AA
 
