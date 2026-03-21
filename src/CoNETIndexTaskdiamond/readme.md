@@ -103,8 +103,8 @@ struct TransactionMeta {
   uint256 requestAmountFiat6;          // 原始请求金额（法币 E6，税前、折扣前）
   uint256 requestAmountUSDC6;          // 原始请求金额 USDC 6 位精度
   uint8 currencyFiat;                  // BeamioCurrency.CurrencyType
-  uint256 discountAmountFiat6;         // 折扣金额（法币 E6）
-  uint16 discountRateBps;              // 折扣率 bps，例如 1500=15%
+  uint256 discountAmountFiat6;         // 折扣金额（法币 E6）；**NFC Container Charge 且有小费时**：复用本字段记**小费金额 E6**（与 `nfcTipCurrencyAmount` 一致）
+  uint16 discountRateBps;              // 折扣率 bps，例如 1500=15%；**NFC 有小费时**：复用本字段记**小费率 bps**（如 1800=18%，来自 Android `nfcTipRateBps`）
   uint256 taxAmountFiat6;              // 税金金额（法币 E6）
   uint16 taxRateBps;                   // 税率 bps，例如 500=5%
   string afterNotePayer;               // 交易完成后支付方附加备注（JSON string）
@@ -179,6 +179,7 @@ struct Transaction {
 **NFC Container Charge（`payByNfcUidSignContainer`）记账扩展**（可选 body，与 Android `MainActivity` 对齐）：
 - `nfcSubtotalCurrencyAmount`：商户输入小计（法币十进制字符串，如 `"10.50"`），对应 `TransactionMeta.requestAmountFiat6`；**主单** `finalRequestAmountFiat6` / `finalRequestAmountUSDC6` 为「小计 ± 折扣/税」对应的法币 E6 与排价 USDC6，**不含小费**（链上 Container 仍一次扣 `amountUsdc6` 总额；B-Unit 仍按总额计费）。
 - `nfcTipCurrencyAmount`：小费（同上）；若 `>0`，除主单外再推一条 `syncTokenAction`，`txCategory`=`keccak256("TX_TIP")`，`originalPaymentHash` 为该笔 Base relay tx hash；该条 `finalRequestAmount*` 为小费法币 E6 与排价 USDC6。**读库/UI**：小费行 `id` 为随机 bytes32，与 relay tx hash 不同；需按 `originalPaymentHash = relayTxHash` 或 `txCategory = TX_TIP` 关联主单与小费。
+- `nfcTipRateBps`：小费率（整数 bps，`18%`→`1800`）。**主单** `TransactionMeta.discountAmountFiat6` / `discountRateBps` 在有小费时分别写入**小费法币 E6**与**小费 bps**（与 OpenContainer 路径里「真·折扣」字段名共用；NFC 有小费时以 tip 语义为准）。无小费时这两槽位仍可用于可选的 `nfcDiscountAmountFiat6` / `nfcDiscountRateBps`（商户折扣）。
 - `nfcRequestCurrency`：法币代码（如 `CAD`），与卡 `currency()` 及 `TransactionMeta.currencyFiat` 对齐。
 - 可选：`nfcDiscountAmountFiat6`、`nfcDiscountRateBps`、`nfcTaxAmountFiat6`、`nfcTaxRateBps`（字符串或数值，E6/bps 与 OpenContainer 路径一致）写入 `TransactionMeta`。
 
