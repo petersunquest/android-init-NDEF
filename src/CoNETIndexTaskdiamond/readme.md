@@ -144,6 +144,7 @@ struct Transaction {
 |--------|------------|------|
 | TX_MERCHANT_PAY_CONFIRMED | `merchant_pay:confirmed` | 商户支付主单确认 |
 | TX_MERCHANT_PAY_TIP_UPDATED | `merchant_pay:tip_updated` | 商户支付小费追加 |
+| TX_TIP | `TX_TIP` | NFC Container Charge 小费单独一条 `syncTokenAction`：`id`=随机 bytes32，`originalPaymentHash`=同一笔 Base `relayContainerMainRelayed` 的 tx hash，`finalRequestAmount*` 为小费法币 E6 与当时排价 USDC6 |
 | TX_TRANSFER_IN_CONFIRMED | `transfer_in:confirmed` | 转入确认 |
 | TX_TRANSFER_OUT_CONFIRMED | `transfer_out:confirmed` | 转出确认 |
 | TX_TOPUP_CONFIRMED | `topup:confirmed` | 充值确认 |
@@ -174,6 +175,12 @@ struct Transaction {
 - **EOA→AA（Add to Express Pay）**：`payer`=EOA 地址，`payee`=AA 地址。来源：BeamioTransfer（EIP-3009），客户端 note 需含 `isInternalTransfer: true`。
 - UI 按 `payee` 区分：payee=EOA → Withdraw；payee=AA → Add to Express Pay。
 - **强制约束**：`payer` 与 `payee` 必须不同；API 收到 from=to 时返回 400 拒绝记账。
+
+**NFC Container Charge（`payByNfcUidSignContainer`）记账扩展**（可选 body，与 Android `MainActivity` 对齐）：
+- `nfcSubtotalCurrencyAmount`：商户输入小计（法币十进制字符串，如 `"10.50"`），对应 `TransactionMeta.requestAmountFiat6`；**主单** `finalRequestAmountFiat6` / `finalRequestAmountUSDC6` 为「小计 ± 折扣/税」对应的法币 E6 与排价 USDC6，**不含小费**（链上 Container 仍一次扣 `amountUsdc6` 总额；B-Unit 仍按总额计费）。
+- `nfcTipCurrencyAmount`：小费（同上）；若 `>0`，除主单外再推一条 `syncTokenAction`，`txCategory`=`keccak256("TX_TIP")`，`originalPaymentHash` 为该笔 Base relay tx hash；该条 `finalRequestAmount*` 为小费法币 E6 与排价 USDC6。**读库/UI**：小费行 `id` 为随机 bytes32，与 relay tx hash 不同；需按 `originalPaymentHash = relayTxHash` 或 `txCategory = TX_TIP` 关联主单与小费。
+- `nfcRequestCurrency`：法币代码（如 `CAD`），与卡 `currency()` 及 `TransactionMeta.currencyFiat` 对齐。
+- 可选：`nfcDiscountAmountFiat6`、`nfcDiscountRateBps`、`nfcTaxAmountFiat6`、`nfcTaxRateBps`（字符串或数值，E6/bps 与 OpenContainer 路径一致）写入 `TransactionMeta`。
 
 #### ABI 返回为 tuple/array 时的 positional 索引（供 TypeScript/API 组装用）
 
