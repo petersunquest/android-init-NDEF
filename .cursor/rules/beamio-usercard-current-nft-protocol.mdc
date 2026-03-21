@@ -1,28 +1,61 @@
-# BeamioUserCard Current NFT Selection Protocol
+---
+description: BeamioUserCard 主会员档 / 主卡选择 — 以链上 tiers[i].minUsdc6 为准，禁止用 max tokenId 冒充最高档
+alwaysApply: true
+---
 
-Beamio 会员卡（`BeamioUserCard`）在涉及“当前卡层级/当前卡样式”判断时，必须遵循统一协议，避免 UI 与链上状态不一致。
+# BeamioUserCard 主会员档与主卡选择守则
 
-## Constants
+涉及「用户当前会员层级、主卡、Pass 展示用 NFT、多卡排序、会员号 M-」时，**必须以链上 `Tier.minUsdc6` 与合约 `_findBestValidMembership` 语义为准**，不得用 **`tokenId` 大小** 代替档位高低。
+
+## 链上语义（唯一真相）
+
+`BeamioUserCard` 中 `struct Tier` 的 `minUsdc6` 表示档位门槛（语义上多为 points 门槛，**非**用户钱包直接 USDC 余额）。
+
+- **档位高低**：在同一卡合约的 `tiers[]` 中，**`minUsdc6` 越大 = 档越高**（主档 / VIP）。
+- **`_findBestValidMembership(user)`**（见 `BeamioUserCardBase.sol`）：在用户持有、未过期、`tokenId > 0` 的 NFT 中，仅对 **可跟踪 tier 下标** 参与比较：`tierIndex != type(uint256).max` 且 `tierIndex < tiers.length`；在这些 NFT 中取 **`tiers[tierIndex].minUsdc6` 严格最大** 的那一枚为「最佳」；若仅有不可跟踪档，则退化为 fallback NFT（合约内首个 fallback）。
+
+## 服务端（x402sdk）
+
+- **`getUIDAssets` / `getWalletAssets`**：对每张卡用 **`pickBestMembershipNftByMinUsdc6`**（`src/x402sdk/src/endpoint/membershipTierPick.ts`）选出展示与业务一致的 NFT，与上述链上逻辑一致。
+- 每张卡的 JSON 须包含 **`primaryMemberTokenId`**（该最佳会员 NFT 的 `tokenId`）。
+- **`cards` 数组顺序**：按各卡「本卡最佳 NFT」对应的 **`minUsdc6` 降序** 排列，使 **`cards[0]`** 表示全资产中主卡（在有多张有会员的卡时）。
+- **`pickInfrastructureCashTreeTierTokenId`** 等：优先使用 **`primaryMemberTokenId`**，勿再以 max `tokenId` 为默认。
+
+## Web（bizSite 等）
+
+- 解析付款方基础设施卡胶囊时：**优先 `activeMembershipId(payer)`**（与链上 active 一致）；若无，再按 **`tiers(i).minUsdc6` 最大** 选 NFT（见 `biz.tsx` 中 `pickInfraTierTokenIdByMaxMinUsdc6`），**禁止**用「`tierIndexOrMax` 数值大 = 档高」这类错误启发式。
+
+## Android / 客户端
+
+- 解析 API 返回的 **`primaryMemberTokenId`**；会员号 **M-**、Pass 等与「主会员」相关的展示：**优先该字段**，旧接口无该字段时才可回退 **max tokenId**（仅兼容）。
+- **`cards.firstOrNull()`** 作为账单币种 / Pass 主图来源时，依赖服务端已按 **`minUsdc6` 主卡优先** 排序后的顺序。
+
+## 常量参考（membership tokenId 区间）
+
+以下仍可用于**过滤「是否属于会员区间」**等场景，但**不能**单独决定「哪一张是最高档」：
 
 - `NFT_START_ID = 100`
 - `ISSUED_NFT_START_ID = 100_000_000_000`
 
-## Current Card Selection Rule (Mandatory)
+**最高档判定**一律回到 **`tiers[tierIdx].minUsdc6`**（及 `activeMembershipId` 场景），而非 tokenId 区间或 max tokenId。
 
-- 当用户持有多个 NFT 时，**只在 membership 区间内选择当前卡**：
-  - `tokenId >= NFT_START_ID`
-  - `tokenId < ISSUED_NFT_START_ID`
-- 在上述候选集合中，**选择最大的 `tokenId`** 作为“当前卡（current card）”。
+## 严禁
 
-## Rendering Rule
+- ❌ 在**多张会员 NFT** 并存时，用 **max `tokenId`** 表示「当前最高档 / 主会员 / 主卡」（会与链上 active 及 `_findBestValidMembership` 不一致）。
+- ❌ 用 **`tierIndexOrMax` 数值大** 冒充更高档（链上常见 **更低 index 对应更高 `minUsdc6`**）。
+- ❌ 用「历史金额 / 本地推算 tier」替代链上 `tiers` + 所有权 NFT 集合。
+- ❌ 仅改前端展示而不在 **getUIDAssets / getWalletAssets** 层提供 **`primaryMemberTokenId`** 与 **cards 排序**，导致多客户端行为分裂。
 
-- 需要渲染当前卡样式（例如 `pts` 圆形图标背景色）时：
-  1. 先按本协议选出当前卡 `tokenId`
-  2. 再读取该 `tokenId` 对应 tier metadata（如 `background_color`）
-  3. 文本颜色按背景亮度自动选择（浅色背景用黑字，否则白字）
+## 实现参考（Source of Truth）
 
-## Do Not
+- 合约：`src/BeamioUserCard/BeamioUserCardBase.sol` — `_findBestValidMembership`、`Tier` struct
+- 共享挑选逻辑：`src/x402sdk/src/endpoint/membershipTierPick.ts` — `pickBestMembershipNftByMinUsdc6`、`readTiersLength`
+- 资产 API：`src/x402sdk/src/endpoint/getUIDAssetsLogic.ts`、`src/x402sdk/src/endpoint/beamioServer.ts`（`getWalletAssets`）
+- 商户 Transactions 付款方胶囊：`src/bizSite/src/pages/Vouchers/example/biz.tsx` — `activeMembershipId`、`pickInfraTierTokenIdByMaxMinUsdc6`
+- POS：`src/android-NDEF/.../MainActivity.kt` — `primaryMemberTokenId`、`memberNoFromCardItem`、`memberNoPrimaryFromSortedCardsItem`
 
-- 不要用“历史金额推算 tier”替代链上当前 NFT 选择
-- 不要在 membership 候选中混入 `tokenId >= ISSUED_NFT_START_ID` 的 issued NFT
-- 不要在有多个 membership NFT 时选最小值或首个值
+## AI 检查清单
+
+- [ ] 多 NFT / 多卡时，是否按 **`minUsdc6` 最大**（或 **`activeMembershipId`**）选主档，而非 max tokenId？
+- [ ] API / 类型定义是否暴露或消费 **`primaryMemberTokenId`**？
+- [ ] 是否避免「tier index 大 = 档高」的假设？
