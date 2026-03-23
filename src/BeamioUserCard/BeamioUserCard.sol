@@ -1089,7 +1089,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < ids.length; i++) {
             uint256 id = ids[i];
             if (id >= NFT_START_ID && id < ISSUED_NFT_START_ID) {
-                if (!(from == address(0) || to == address(0))) revert UC_SBTNonTransferable();
                 if (to == address(0) && from != address(0)) {
                     r.burnedFrom[r.burnedCount] = from;
                     r.burnedIds[r.burnedCount] = id;
@@ -1115,6 +1114,18 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         super._update(from, r.effectiveTo, ids, values);
 
         bool isRealTransfer = (from != address(0) && to != address(0));
+        if (isRealTransfer) {
+            bool syncReceiverMembership;
+            for (uint256 i = 0; i < ids.length; i++) {
+                uint256 mid = ids[i];
+                if (mid < NFT_START_ID || mid >= ISSUED_NFT_START_ID) continue;
+                if (values[i] == 0) continue;
+                _removeNft(from, mid);
+                _appendMembershipNftIfMissing(r.effectiveTo, mid);
+                syncReceiverMembership = true;
+            }
+            if (syncReceiverMembership) _syncActiveToBestValid(r.effectiveTo);
+        }
         if (isRealTransfer && (r.pointTransferCount > 0 || r.pointTransferAmount > 0)) {
             _recordPointTransferStats(from, r.beneficiaryAdmin, r.upperAdmin, r.pointTransferCount, r.pointTransferAmount);
         }
@@ -1148,6 +1159,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function _removeNft(address user, uint256 id) internal {
         _callModule(MODULE_MEMBERSHIP_STATS, abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.removeNft.selector, user, id));
+    }
+
+    /// @dev 会员档 NFT 转移后写入接收方 `_userOwnedNfts`，否则 `_findBestValidMembership` 无法发现该 id
+    function _appendMembershipNftIfMissing(address acct, uint256 id) internal {
+        uint256[] storage list = _userOwnedNfts[acct];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == id) return;
+        }
+        list.push(id);
     }
 
     // ==========================================================
