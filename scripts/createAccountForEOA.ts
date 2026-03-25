@@ -2,12 +2,26 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { ethers as ethersLib, NonceManager, type Signer } from "ethers";
+import { ethers as ethersLib, type Signer } from "ethers";
 import { verifyContract } from "./utils/verifyContract.js";
 import { loadSignerPk } from "./utils/loadSignerPk.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function txFeeOverrides(provider: ethersLib.Provider) {
+  const fd = await provider.getFeeData();
+  const bump = (n: bigint | null | undefined) => {
+    if (n == null) return undefined;
+    return (n * 125n) / 100n;
+  };
+  const maxP = bump(fd.maxPriorityFeePerGas ?? undefined);
+  const maxF = bump(fd.maxFeePerGas ?? undefined);
+  if (maxP && maxF) return { maxPriorityFeePerGas: maxP, maxFeePerGas: maxF };
+  const gp = bump(fd.gasPrice ?? undefined);
+  if (gp) return { gasPrice: gp };
+  return {};
+}
 
 /**
  * 为指定的 EOA 地址创建 BeamioAccount
@@ -24,7 +38,8 @@ async function main() {
   } else {
     try {
       const pk = loadSignerPk();
-      signer = new NonceManager(new ethersLib.Wallet(pk, ethers.provider));
+      // 单发交易脚本用 Wallet 即可；NonceManager 易与 mempool 中待替换交易冲突（replacement underpriced）
+      signer = new ethersLib.Wallet(pk, ethers.provider);
     } catch {
       console.error(
         "❌ 未配置部署账户：请在 .env 设置 PRIVATE_KEY，或与部署 AA 相同在 ~/.master.json 配置 settle_contractAdmin[0]。\n" +
@@ -209,10 +224,12 @@ async function main() {
   let accountAddress: string;
   let receipt: ethers.TransactionReceipt | null = null;
 
+  const feeOpts = await txFeeOverrides(ethers.provider);
+
   if (TARGET_EOA.toLowerCase() === signerAddress.toLowerCase()) {
     // 如果目标 EOA 就是部署账户，使用 createAccount()
     console.log("目标 EOA 是部署账户，使用 createAccount()...");
-    const tx = await factory.createAccount();
+    const tx = await factory.createAccount(feeOpts);
     receipt = await tx.wait();
     accountAddress = await factory.beamioAccountOf(signerAddress);
     console.log("✅ 账户创建成功!");
@@ -230,7 +247,7 @@ async function main() {
     
     try {
       console.log("调用 factory.createAccountFor()...");
-      const tx = await factory.createAccountFor(TARGET_EOA);
+      const tx = await factory.createAccountFor(TARGET_EOA, feeOpts);
       receipt = await tx.wait();
     
       // 从事件中获取账户地址

@@ -1,0 +1,15 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "contracts": {
+    "beamioUserCardFormattingLib": {
+      "address": "0x4F2D7Afaa0b1cfd1833C0fA637C80F9B54fF8fca",
+      "txHash": "0xe60ffb4fa0c122799016cea299adbecc44e82fb92596b51647583bf87b9615b3"
+    },
+    "beamioUserCardTransferLib": {
+      "address": "0x75b35013063651Dd3859d97b1C17de1dD2268b6f",
+      "txHash": "0x06cca1a131d96265970f437598467d01ec326fed2af6622c3e2faad272c331ce"
+    }
+  }
+}

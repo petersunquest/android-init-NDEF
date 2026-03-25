@@ -12,6 +12,7 @@
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLibV07 --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLib2V07 --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full
  *
  * 输出: deployments/base-{Contract}-standard-input-FULL.json
  */
@@ -23,6 +24,14 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG = {
+  BeamioUserCardFormattingLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol",
+    contractName: "BeamioUserCardFormattingLib",
+  },
+  BeamioUserCardTransferLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardTransferLib.sol",
+    contractName: "BeamioUserCardTransferLib",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",

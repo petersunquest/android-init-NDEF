@@ -3,7 +3,7 @@
 /* eslint-disable */
 
   import { Contract, Interface, type ContractRunner } from "ethers";
-  import type { IBeamioAccountViewForOpenRelay, IBeamioAccountViewForOpenRelayInterface } from "../../../BeamioUserCard/BeamioUserCard.sol/IBeamioAccountViewForOpenRelay.js";
+  import type { IBeamioAccountViewForOpenRelay, IBeamioAccountViewForOpenRelayInterface } from "../../../BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioAccountViewForOpenRelay.js";
 
   const _abi = [
   {

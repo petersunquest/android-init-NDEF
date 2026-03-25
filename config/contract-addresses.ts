@@ -21,6 +21,9 @@ type BaseAddrs = {
   BEAMIO_USER_CARD_ASSET_ADDRESS?: string
   PURCHASING_CARD_METADATA_ADDRESS?: string
   USDC_BASE?: string
+  /** BeamioUserCard 链接库；空则发卡依赖环境变量或 x402sdk chainAddresses 手工配置 */
+  BEAMIO_USER_CARD_FORMATTING_LIB?: string
+  BEAMIO_USER_CARD_TRANSFER_LIB?: string
 }
 
 type ConetAddrs = {
@@ -46,6 +49,9 @@ export const BASE_TREASURY = base.BASE_TREASURY ?? '0x5c64a8b0935DA72d60933bBD8c
 export const BEAMIO_USER_CARD_ASSET_ADDRESS = base.BEAMIO_USER_CARD_ASSET_ADDRESS ?? '0xB7644DDb12656F4854dC746464af47D33C206F0E'
 export const PURCHASING_CARD_METADATA_ADDRESS = base.PURCHASING_CARD_METADATA_ADDRESS ?? '0xf99018dffdb0c5657c93ca14db2900cebe1168a7'
 export const USDC_BASE = base.USDC_BASE ?? '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+/** 空串表示未配置；运行 `npm run deploy:usercard-libraries:base` 后写入 base-addresses.json */
+export const BASE_BEAMIO_USER_CARD_FORMATTING_LIB = (base.BEAMIO_USER_CARD_FORMATTING_LIB ?? '').trim()
+export const BASE_BEAMIO_USER_CARD_TRANSFER_LIB = (base.BEAMIO_USER_CARD_TRANSFER_LIB ?? '').trim()
 
 // --- CoNET Mainnet ---
 export const CONET_BUINT = conet.BUint ?? '0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879'
@@ -63,6 +69,12 @@ export const BASE_MAINNET_FACTORIES = {
   BEAMIO_ACCOUNT_DEPLOYER: BASE_BEAMIO_ACCOUNT_DEPLOYER,
   CARD_FACTORY: BASE_CARD_FACTORY,
   BeamioCardCCSA_ADDRESS: BASE_CCSA_CARD_ADDRESS,
+  ...(BASE_BEAMIO_USER_CARD_FORMATTING_LIB && BASE_BEAMIO_USER_CARD_TRANSFER_LIB
+    ? {
+        BEAMIO_USER_CARD_FORMATTING_LIB: BASE_BEAMIO_USER_CARD_FORMATTING_LIB,
+        BEAMIO_USER_CARD_TRANSFER_LIB: BASE_BEAMIO_USER_CARD_TRANSFER_LIB,
+      }
+    : {}),
 } as const
 
 /** 按链聚合 */
@@ -75,6 +87,12 @@ export const CONTRACT_ADDRESSES = {
     ccsaCard: BASE_CCSA_CARD_ADDRESS,
     baseTreasury: BASE_TREASURY,
     usdc: USDC_BASE,
+    ...(BASE_BEAMIO_USER_CARD_FORMATTING_LIB && BASE_BEAMIO_USER_CARD_TRANSFER_LIB
+      ? {
+          beamioUserCardFormattingLib: BASE_BEAMIO_USER_CARD_FORMATTING_LIB,
+          beamioUserCardTransferLib: BASE_BEAMIO_USER_CARD_TRANSFER_LIB,
+        }
+      : {}),
   },
   conet: {
     chainId: 224400,

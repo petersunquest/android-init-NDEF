@@ -12,6 +12,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -95,13 +96,18 @@ async function main() {
 
   // gateway 必须为 Card Factory，否则工厂校验 c.factoryGateway() != address(this) 会 revert
   const gateway = cardFactoryAddress;
-  const BeamioUserCard = await ethers.getContractFactory("BeamioUserCard");
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, signer);
+  console.log("BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
+  console.log("BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
+  const BeamioUserCard = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
   const deployTx = await BeamioUserCard.getDeployTransaction(
     DEFAULT_URI,
     CAD_CURRENCY,
     ONE_CAD_E6,
     cardOwner,
-    gateway
+    gateway,
+    0,
+    false
   );
   const initCode = deployTx?.data;
   if (!initCode) throw new Error("Failed to build BeamioUserCard initCode");

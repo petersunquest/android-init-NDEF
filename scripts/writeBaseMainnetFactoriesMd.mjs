@@ -60,6 +60,21 @@ const mdContent = `# Base Mainnet 基础设施地址
 
 ---
 
+## 3. BeamioUserCard 链接库（发卡 initCode）
+
+\`BeamioUserCard\` 部署字节码依赖两个 **external library**（须先部署并在验证器 / initCode 中链接）。
+
+| 项目 | JSON 键 | 当前值 |
+|------|---------|--------|
+| **BeamioUserCardFormattingLib** | \`BEAMIO_USER_CARD_FORMATTING_LIB\` | ${baseJson.BEAMIO_USER_CARD_FORMATTING_LIB || "（未配置）"} |
+| **BeamioUserCardTransferLib** | \`BEAMIO_USER_CARD_TRANSFER_LIB\` | ${baseJson.BEAMIO_USER_CARD_TRANSFER_LIB || "（未配置）"} |
+
+**部署：** \`npm run deploy:usercard-libraries:base\`（需 Base 主网 \`PRIVATE_KEY\`）。成功后脚本会写入 \`config/base-addresses.json\` 并同步 \`src/x402sdk/src/chainAddresses.ts\`。
+
+**验证：** \`deployments/base-BeamioUserCardFormattingLib-standard-input-FULL.json\`、\`base-BeamioUserCardTransferLib-standard-input-FULL.json\`（见同目录 \`*-basescan-verify-meta.txt\`）。
+
+---
+
 ## 区块浏览器
 
 - AA Factory: https://basescan.org/address/${aaFactoryInConfig}

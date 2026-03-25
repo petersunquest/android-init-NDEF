@@ -1,7 +1,8 @@
 /**
  * 将 config/base-addresses.json 中的 Base 主网地址写入 src/x402sdk/src/chainAddresses.ts。
  * 同步字段（若 JSON 中存在且合法）：AA_FACTORY、BEAMIO_ACCOUNT_DEPLOYER、CARD_FACTORY、CCSA_CARD_ADDRESS、
- * BASE_TREASURY、BEAMIO_USER_CARD_ASSET_ADDRESS、PURCHASING_CARD_METADATA_ADDRESS、USDC_BASE。
+ * BASE_TREASURY、BEAMIO_USER_CARD_ASSET_ADDRESS、PURCHASING_CARD_METADATA_ADDRESS、USDC_BASE、
+ * BEAMIO_USER_CARD_FORMATTING_LIB、BEAMIO_USER_CARD_TRANSFER_LIB（BeamioUserCard 链接库）。
  *
  * 用法（BeamioContract 根目录）：
  *   node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs
@@ -63,6 +64,16 @@ const OPTIONAL = [
     /export const PURCHASING_CARD_METADATA_ADDRESS = '0x[a-fA-F0-9]{40}'/,
   ],
   ["USDC_BASE", "USDC_BASE", /export const USDC_BASE = '0x[a-fA-F0-9]{40}'/],
+  [
+    "BASE_BEAMIO_USER_CARD_FORMATTING_LIB",
+    "BEAMIO_USER_CARD_FORMATTING_LIB",
+    /export const BASE_BEAMIO_USER_CARD_FORMATTING_LIB = '[^']*'/,
+  ],
+  [
+    "BASE_BEAMIO_USER_CARD_TRANSFER_LIB",
+    "BEAMIO_USER_CARD_TRANSFER_LIB",
+    /export const BASE_BEAMIO_USER_CARD_TRANSFER_LIB = '[^']*'/,
+  ],
 ];
 
 let ts = fs.readFileSync(CHAIN_TS, "utf-8");

@@ -3,7 +3,7 @@
 /* eslint-disable */
 
   import { Contract, Interface, type ContractRunner } from "ethers";
-  import type { IBeamioUserCardFactoryPaymasterV07, IBeamioUserCardFactoryPaymasterV07Interface } from "../../../BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryPaymasterV07.js";
+  import type { IBeamioUserCardFactoryPaymasterV07, IBeamioUserCardFactoryPaymasterV07Interface } from "../../../BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioUserCardFactoryPaymasterV07.js";
 
   const _abi = [
   {

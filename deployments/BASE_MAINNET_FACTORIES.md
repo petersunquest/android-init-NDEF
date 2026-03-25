@@ -33,6 +33,21 @@
 
 ---
 
+## 3. BeamioUserCard 链接库（发卡 initCode）
+
+`BeamioUserCard` 部署字节码依赖两个 **external library**（须先部署并在验证器 / initCode 中链接）。
+
+| 项目 | JSON 键 | 当前值 |
+|------|---------|--------|
+| **BeamioUserCardFormattingLib** | `BEAMIO_USER_CARD_FORMATTING_LIB` | 0x4F2D7Afaa0b1cfd1833C0fA637C80F9B54fF8fca |
+| **BeamioUserCardTransferLib** | `BEAMIO_USER_CARD_TRANSFER_LIB` | 0x75b35013063651Dd3859d97b1C17de1dD2268b6f |
+
+**部署：** `npm run deploy:usercard-libraries:base`（需 Base 主网 `PRIVATE_KEY`）。成功后脚本会写入 `config/base-addresses.json` 并同步 `src/x402sdk/src/chainAddresses.ts`。
+
+**验证：** `deployments/base-BeamioUserCardFormattingLib-standard-input-FULL.json`、`base-BeamioUserCardTransferLib-standard-input-FULL.json`（见同目录 `*-basescan-verify-meta.txt`）。
+
+---
+
 ## 区块浏览器
 
 - AA Factory: https://basescan.org/address/0x4b31D6a05Cdc817CAc1B06369555b37a5b182122

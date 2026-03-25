@@ -41,6 +41,7 @@ error DEP_InvalidFactory();
 error UC_AlreadyHasValidCard();
 error UC_TierLenMismatch();
 error UC_TierMinZero();
+error UC_InvalidUpgradeType();
 error UC_TiersNotIncreasing();
 error UC_MustGrow();
 error UC_PriceZero();

@@ -596,13 +596,14 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	// ===== build initCode for DeployerV07.deploy(initCode) =====
 	const cardFactory = new ethers.ContractFactory(abi, bytecode, signer);
   
-	// ✅ 5 params: uri, currencyId, priceE18, initialOwner(user), gateway(factoryAddress)
+	// ✅ 6 params: uri, currencyId, priceE18, initialOwner(user), gateway(factoryAddress), initialTransferWhitelistEnabled
 	const deployTx = await cardFactory.getDeployTransaction(
 	  uri,
 	  currencyId,
 	  priceE18,
 	  user,
-	  factoryAddress
+	  factoryAddress,
+	  false
 	);
   
 	const initCodeHex = deployTx.data as string;

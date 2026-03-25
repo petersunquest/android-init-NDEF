@@ -38,6 +38,14 @@ library AdminStatsStorage {
         mapping(address => uint256) adminUSDCMintCounter;
         /// @dev admin 维度：token #0 (points) 的 mint/burn/transfer 统计，hourIndex = timestamp / 3600
         mapping(address => mapping(uint256 => HourlyStats)) adminHourlyData;
+        /// @dev 全局：卡上登记的 admin ↔ admin（双方 EOA 均为 admin 且均非 card owner）之间 points 转账次数；不因 subordinate clear 清零
+        uint256 globalAdminToAdminTransferCount;
+        /// @dev 全局：上述转账的 points 金额累计
+        uint256 globalAdminToAdminTransferAmount;
+        /// @dev 按小时的全局 admin↔admin 转账次数（hourIndex = timestamp / 3600）
+        mapping(uint256 => uint256) globalAdminToAdminTransferCountByHour;
+        /// @dev 按小时的全局 admin↔admin 转账金额
+        mapping(uint256 => uint256) globalAdminToAdminTransferAmountByHour;
     }
 
     function layout() internal pure returns (Layout storage l) {
@@ -95,6 +103,17 @@ library AdminStatsStorage {
         l.adminTransferAmountCounter[admin] += amount;
         uint256 hourIndex = block.timestamp / 3600;
         _upd(l.adminHourlyData[admin][hourIndex], 0, 0, 0, count, amount, 0, 0, 0, 0);
+    }
+
+    /// @dev 记录全局 admin↔admin（不含 owner）points 转账；与 per-admin recordTransfer 独立，避免 aggregate 双计语义混淆
+    function recordGlobalAdminToAdminTransfer(uint256 count, uint256 amount) internal {
+        if (count == 0 && amount == 0) return;
+        Layout storage l = layout();
+        l.globalAdminToAdminTransferCount += count;
+        l.globalAdminToAdminTransferAmount += amount;
+        uint256 hourIndex = block.timestamp / 3600;
+        l.globalAdminToAdminTransferCountByHour[hourIndex] += count;
+        l.globalAdminToAdminTransferAmountByHour[hourIndex] += amount;
     }
 
     /// @dev 记录 admin 发行新卡/upgrade 卡统计，仅更新 hourly

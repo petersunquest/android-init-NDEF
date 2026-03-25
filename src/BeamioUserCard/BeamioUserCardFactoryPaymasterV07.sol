@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./BeamioUserCard.sol";
+import "./BeamioUserCardTypes.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
 import "./Errors.sol";
@@ -351,20 +352,20 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     }
 
     /// @notice 创建卡并一次性配置 tiers（与 createCardCollectionWithInitCode 相同，部署后追加 tiers）
-    /// @param tiers BeamioUserCard.Tier 数组，可为空
+    /// @param tiers Tier 数组（见 BeamioUserCardTypes.sol），可为空
     function createCardCollectionWithInitCodeAndTiers(
         address cardOwner,
         uint8 currency,
         uint256 priceInCurrencyE6,
         bytes calldata initCode,
-        BeamioUserCard.Tier[] calldata tiers
+        Tier[] calldata tiers
     ) external onlyPaymaster returns (address card) {
         card = _deployAndRegisterCard(cardOwner, currency, priceInCurrencyE6, initCode);
         BeamioUserCard c = BeamioUserCard(card);
         for (uint256 i = 0; i < tiers.length; i++) {
-            BeamioUserCard.Tier memory t = tiers[i];
+            Tier memory t = tiers[i];
             if (t.minUsdc6 == 0) revert UC_TierMinZero();
-            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds, t.upgradeByBalance);
+            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds);
         }
     }
 
@@ -453,12 +454,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         address cardAddr,
         uint256 minUsdc6,
         uint256 attr,
-        uint256 tierExpirySeconds,
-        bool upgradeByBalance
+        uint256 tierExpirySeconds
     ) external onlyPaymaster {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
-        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds, upgradeByBalance);
+        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds);
     }
 
     /// @notice Owner 离线签名授权 appendTier，由 paymaster 代付 gas 执行。复用 executeForOwner 的 EIP-712 验签。
@@ -469,7 +469,6 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 minUsdc6,
         uint256 attr,
         uint256 tierExpirySeconds,
-        bool upgradeByBalance,
         uint256 deadline,
         bytes32 nonce,
         bytes calldata ownerSignature
@@ -478,8 +477,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
             BeamioUserCard.appendTier.selector,
             minUsdc6,
             attr,
-            tierExpirySeconds,
-            upgradeByBalance
+            tierExpirySeconds
         );
         _executeForOwner(cardAddr, data, deadline, nonce, ownerSignature);
     }

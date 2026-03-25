@@ -4,13 +4,10 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
   
-export declare namespace BeamioUserCard {
-      
-    export type TierStruct = {minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean}
+    export type TierStruct = {minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish}
 
-    export type TierStructOutput = [minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }
+    export type TierStructOutput = [minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }
   
-    }
 
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
     getFunction(nameOrSignature: "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
@@ -25,15 +22,15 @@ encodeFunctionData(functionFragment: 'USDC', values?: undefined): string;
 encodeFunctionData(functionFragment: 'USDC_TOKEN', values?: undefined): string;
 encodeFunctionData(functionFragment: '_aaFactory', values?: undefined): string;
 encodeFunctionData(functionFragment: 'aaFactory', values?: undefined): string;
-encodeFunctionData(functionFragment: 'appendTierForCard', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, boolean]): string;
-encodeFunctionData(functionFragment: 'appendTierForCardWithOwnerSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, boolean, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'appendTierForCard', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'appendTierForCardWithOwnerSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'beamioUserCardOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardsOfOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'changePaymasterStatus', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCode', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, BeamioUserCard.TierStruct[]]): string;
+encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, TierStruct[]]): string;
 encodeFunctionData(functionFragment: 'defaultAdminStatsQueryModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
@@ -484,7 +481,7 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     
     appendTierForCard: TypedContractMethod<
-      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, ],
+      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -492,7 +489,7 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     
     appendTierForCardWithOwnerSignature: TypedContractMethod<
-      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, deadline: BigNumberish, nonce: BytesLike, ownerSignature: BytesLike, ],
+      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, deadline: BigNumberish, nonce: BytesLike, ownerSignature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -548,7 +545,7 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     
     createCardCollectionWithInitCodeAndTiers: TypedContractMethod<
-      [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: BeamioUserCard.TierStruct[], ],
+      [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: TierStruct[], ],
       [string],
       'nonpayable'
     >
@@ -958,12 +955,12 @@ getFunction(nameOrSignature: 'aaFactory'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'appendTierForCard'): TypedContractMethod<
-      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, ],
+      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'appendTierForCardWithOwnerSignature'): TypedContractMethod<
-      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, deadline: BigNumberish, nonce: BytesLike, ownerSignature: BytesLike, ],
+      [cardAddr: AddressLike, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, deadline: BigNumberish, nonce: BytesLike, ownerSignature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -998,7 +995,7 @@ getFunction(nameOrSignature: 'createCardCollectionWithInitCode'): TypedContractM
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createCardCollectionWithInitCodeAndTiers'): TypedContractMethod<
-      [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: BeamioUserCard.TierStruct[], ],
+      [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, tiers: TierStruct[], ],
       [string],
       'nonpayable'
     >;

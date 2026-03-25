@@ -3,7 +3,7 @@
 /* eslint-disable */
 
   import { Contract, Interface, type ContractRunner } from "ethers";
-  import type { IBeamioIssuedNftModuleV1, IBeamioIssuedNftModuleV1Interface } from "../../../BeamioUserCard/BeamioUserCard.sol/IBeamioIssuedNftModuleV1.js";
+  import type { IBeamioIssuedNftModuleV1, IBeamioIssuedNftModuleV1Interface } from "../../../BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioIssuedNftModuleV1.js";
 
   const _abi = [
   {

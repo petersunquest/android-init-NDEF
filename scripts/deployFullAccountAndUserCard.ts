@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
 import { execSync } from "child_process";
 import { getAddress } from "ethers";
 
@@ -255,8 +256,19 @@ async function main() {
   const USER_CARD_URI = process.env.USER_CARD_URI || "https://beamio.app/api/metadata/0x";
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard");
-  const userCard = await BeamioUserCardFactory.deploy(USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress);
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
+  console.log("  BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
+  console.log("  BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
+  const userCard = await BeamioUserCardFactory.deploy(
+    USER_CARD_URI,
+    USER_CARD_CURRENCY,
+    USER_CARD_PRICE,
+    deployer.address,
+    aaFactoryAddress,
+    0,
+    false
+  );
   await userCard.waitForDeployment();
   const userCardAddress = await userCard.getAddress();
   (out.contracts as Record<string, unknown>).beamioUserCard = {
@@ -268,7 +280,7 @@ async function main() {
     tx: userCard.deploymentTransaction()?.hash,
   };
   console.log("✅ BeamioUserCard:", userCardAddress);
-  await verify(userCardAddress, [USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress], "BeamioUserCard");
+  await verify(userCardAddress, [USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress, 0, false], "BeamioUserCard");
   await new Promise((r) => setTimeout(r, 3000));
 
   // ==================== 9. 更新 AA Factory 的 UserCard ====================

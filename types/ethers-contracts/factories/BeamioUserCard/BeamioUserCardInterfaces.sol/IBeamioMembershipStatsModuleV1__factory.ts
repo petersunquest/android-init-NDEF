@@ -3,9 +3,37 @@
 /* eslint-disable */
 
   import { Contract, Interface, type ContractRunner } from "ethers";
-  import type { IBeamioMembershipStatsModuleV1, IBeamioMembershipStatsModuleV1Interface } from "../../../BeamioUserCard/BeamioUserCard.sol/IBeamioMembershipStatsModuleV1.js";
+  import type { IBeamioMembershipStatsModuleV1, IBeamioMembershipStatsModuleV1Interface } from "../../../BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioMembershipStatsModuleV1.js";
 
   const _abi = [
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "effectiveTo",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "values",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "handlePointsTransferForUpgradeType2",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
   {
     "inputs": [
       {

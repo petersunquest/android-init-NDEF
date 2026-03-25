@@ -6,6 +6,7 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,13 +47,16 @@ async function main() {
   console.log("✅ UserCardDeployer.setFactory 已调用");
 
   // 8. BeamioUserCard
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard");
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
   const userCard = await BeamioUserCardFactory.deploy(
     USER_CARD_URI,
     USER_CARD_CURRENCY,
     USER_CARD_PRICE,
     deployer.address,
-    DEPLOYED.aaFactory
+    DEPLOYED.aaFactory,
+    0,
+    false
   );
   await userCard.waitForDeployment();
   const userCardAddress = await userCard.getAddress();

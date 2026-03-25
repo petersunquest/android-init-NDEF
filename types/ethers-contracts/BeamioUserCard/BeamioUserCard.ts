@@ -2,8 +2,13 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../common.js"
   
+    export type TierStruct = {minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish}
+
+    export type TierStructOutput = [minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }
+  
+
 export declare namespace FaucetStorage {
       
     export type FaucetConfigStruct = {validUntil: BigNumberish, perClaimMax: BigNumberish, maxPerUser: BigNumberish, maxGlobal: BigNumberish, enabled: boolean, currency: BigNumberish, decimals: BigNumberish, priceInCurrency6: BigNumberish}
@@ -18,15 +23,10 @@ export declare namespace BeamioUserCard {
 
     export type NFTDetailStructOutput = [tokenId: bigint, attribute: bigint, tierIndexOrMax: bigint, expiry: bigint, isExpired: boolean] & {tokenId: bigint, attribute: bigint, tierIndexOrMax: bigint, expiry: bigint, isExpired: boolean }
   
-
-    export type TierStruct = {minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean}
-
-    export type TierStructOutput = [minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }
-  
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftPriceInCurrency6" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "isPointsTransferRecipientAllowed" | "issuedNftPriceInCurrency6" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -41,7 +41,7 @@ encodeFunctionData(functionFragment: 'activeMembershipCountByTokenId', values: [
 encodeFunctionData(functionFragment: 'activeMembershipId', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'activeTierIndexOrMax', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'adminParent', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'appendTier', values: [BigNumberish, BigNumberish, BigNumberish, boolean]): string;
+encodeFunctionData(functionFragment: 'appendTier', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposal', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposalByGateway', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): string;
@@ -71,6 +71,7 @@ encodeFunctionData(functionFragment: 'getOwnershipByEOA', values: [AddressLike])
 encodeFunctionData(functionFragment: 'isAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isIssuedNftValid', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'isPointsTransferRecipientAllowed', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftPriceInCurrency6', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'membershipFlowBucketAtHour', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'membershipScopedFlowBucketAtHour', values: [BigNumberish, BigNumberish, BigNumberish]): string;
@@ -101,7 +102,7 @@ encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, 
 encodeFunctionData(functionFragment: 'setDefaultAttr', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setExpirySeconds', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setPointsUnitPrice', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'setTiers', values: [BeamioUserCard.TierStruct[]]): string;
+encodeFunctionData(functionFragment: 'setTiers', values: [TierStruct[]]): string;
 encodeFunctionData(functionFragment: 'setTransferWhitelist', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setTransferWhitelistEnabled', values: [boolean]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
@@ -116,6 +117,7 @@ encodeFunctionData(functionFragment: 'totalSupply(uint256)', values: [BigNumberi
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelist', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelistEnabled', values?: undefined): string;
+encodeFunctionData(functionFragment: 'upgradeType', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'ISSUED_NFT_START_ID', data: BytesLike): Result;
@@ -159,6 +161,7 @@ decodeFunctionResult(functionFragment: 'getOwnershipByEOA', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'isAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isIssuedNftValid', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isPointsTransferRecipientAllowed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftPriceInCurrency6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'membershipFlowBucketAtHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'membershipScopedFlowBucketAtHour', data: BytesLike): Result;
@@ -204,6 +207,7 @@ decodeFunctionResult(functionFragment: 'totalSupply(uint256)', data: BytesLike):
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelist', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelistEnabled', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeType', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -461,9 +465,9 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   
 
     export namespace TierAppendedEvent {
-      export type InputTuple = [index: BigNumberish, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean];
-      export type OutputTuple = [index: bigint, minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean];
-      export interface OutputObject {index: bigint, minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean };
+      export type InputTuple = [index: BigNumberish, minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish];
+      export type OutputTuple = [index: bigint, minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint];
+      export interface OutputObject {index: bigint, minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -655,7 +659,7 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
     
     appendTier: TypedContractMethod<
-      [minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, ],
+      [minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -888,6 +892,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     isIssuedNftValid: TypedContractMethod<
       [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    isPointsTransferRecipientAllowed: TypedContractMethod<
+      [effectiveTo: AddressLike, ],
       [boolean],
       'view'
     >
@@ -1135,7 +1147,7 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
     
     setTiers: TypedContractMethod<
-      [newTiers: BeamioUserCard.TierStruct[], ],
+      [newTiers: TierStruct[], ],
       [void],
       'nonpayable'
     >
@@ -1168,7 +1180,7 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     tiers: TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >
     
@@ -1254,6 +1266,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    upgradeType: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     uri: TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -1320,7 +1340,7 @@ getFunction(nameOrSignature: 'adminParent'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'appendTier'): TypedContractMethod<
-      [minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, upgradeByBalance: boolean, ],
+      [minUsdc6: BigNumberish, attr: BigNumberish, tierExpirySeconds: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -1466,6 +1486,11 @@ getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'isIssuedNftValid'): TypedContractMethod<
       [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'isPointsTransferRecipientAllowed'): TypedContractMethod<
+      [effectiveTo: AddressLike, ],
       [boolean],
       'view'
     >;
@@ -1620,7 +1645,7 @@ getFunction(nameOrSignature: 'setPointsUnitPrice'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'setTiers'): TypedContractMethod<
-      [newTiers: BeamioUserCard.TierStruct[], ],
+      [newTiers: TierStruct[], ],
       [void],
       'nonpayable'
     >;
@@ -1641,7 +1666,7 @@ getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'tokenTierIndexOrMax'): TypedContractMethod<
@@ -1692,6 +1717,11 @@ getFunction(nameOrSignature: 'transferWhitelist'): TypedContractMethod<
 getFunction(nameOrSignature: 'transferWhitelistEnabled'): TypedContractMethod<
       [],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'upgradeType'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<
@@ -1814,7 +1844,7 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
       RedeemCreated: TypedContractEvent<RedeemCreatedEvent.InputTuple, RedeemCreatedEvent.OutputTuple, RedeemCreatedEvent.OutputObject>;
     
 
-      'TierAppended(uint256,uint256,uint256,uint256,bool)': TypedContractEvent<TierAppendedEvent.InputTuple, TierAppendedEvent.OutputTuple, TierAppendedEvent.OutputObject>;
+      'TierAppended(uint256,uint256,uint256,uint256)': TypedContractEvent<TierAppendedEvent.InputTuple, TierAppendedEvent.OutputTuple, TierAppendedEvent.OutputObject>;
       TierAppended: TypedContractEvent<TierAppendedEvent.InputTuple, TierAppendedEvent.OutputTuple, TierAppendedEvent.OutputObject>;
     
 
