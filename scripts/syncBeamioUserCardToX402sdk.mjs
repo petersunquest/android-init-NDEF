@@ -84,6 +84,19 @@ fs.writeFileSync(OUT.scriptsApiFactoryArtifact, JSON.stringify(factoryArtifact, 
 // 仅 ABI 数组写入 BeamioUserCard.json（MemberCard 等直接 import 用作 ABI）
 fs.writeFileSync(OUT.x402Abi, JSON.stringify(userCardArtifact.abi, null, 2), "utf-8");
 
+// Base 上已部署的工厂 bytecode 可能与当前 Hardhat 本地 artifact 的 jump table 不一致（例如旧 artifact 含已移除的 selector）。
+// scripts/API server/ABI 中的副本已与链上 0xfB5E… 对齐；同步后用其覆盖 Factory 完整 JSON，避免独立仓库/x402sdk 仍带过时 bytecode 误导调试。
+const API_SERVER_FACTORY = path.join(
+  BEAMIO_CONTRACT_ROOT,
+  "scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json"
+);
+if (fs.existsSync(API_SERVER_FACTORY)) {
+  const canonical = fs.readFileSync(API_SERVER_FACTORY, "utf-8");
+  fs.writeFileSync(OUT.x402FactoryArtifact, canonical, "utf-8");
+  fs.writeFileSync(OUT.scriptsApiFactoryArtifact, canonical, "utf-8");
+  console.log("Factory Paymaster: overwrote with chain-canonical JSON from scripts/API server/ABI/");
+}
+
 console.log("Synced BeamioUserCard + BeamioUserCardFactoryPaymasterV07 from Hardhat build to:");
 console.log("  -", OUT.x402Artifact);
 console.log("  -", OUT.x402Abi);

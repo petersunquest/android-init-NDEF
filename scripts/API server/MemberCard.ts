@@ -1,6 +1,18 @@
 import { ethers } from 'ethers'
 import BeamioFactoryPaymasterArtifact from './ABI/BeamioUserCardFactoryPaymaster.json'
-const BeamioFactoryPaymasterABI = (Array.isArray(BeamioFactoryPaymasterArtifact) ? BeamioFactoryPaymasterArtifact : (BeamioFactoryPaymasterArtifact?.abi ?? BeamioFactoryPaymasterArtifact)) 
+const BeamioFactoryPaymasterABI = (Array.isArray(BeamioFactoryPaymasterArtifact) ? BeamioFactoryPaymasterArtifact : (BeamioFactoryPaymasterArtifact?.abi ?? BeamioFactoryPaymasterArtifact))
+
+/** Base 工厂 createCardCollectionWithInitCode(address,uint8,uint256,bytes)；勿使用已废弃的 0x9a7eb0f0 */
+const EXPECTED_FACTORY_CREATE_CARD_SELECTOR = '0xef759095'
+{
+	const iface = new ethers.Interface(BeamioFactoryPaymasterABI)
+	const sel = iface.getFunction('createCardCollectionWithInitCode')?.selector
+	if (!sel || sel.toLowerCase() !== EXPECTED_FACTORY_CREATE_CARD_SELECTOR) {
+		throw new Error(
+			`[MemberCard] BeamioUserCardFactoryPaymaster.json: createCardCollectionWithInitCode selector is ${sel ?? 'missing'}; expected ${EXPECTED_FACTORY_CREATE_CARD_SELECTOR}. Update scripts/API server/ABI from chain-aligned factory JSON.`
+		)
+	}
+}
 import { masterSetup, checkSign } from './util'
 import { Request, Response} from 'express'
 import { logger } from './logger'
