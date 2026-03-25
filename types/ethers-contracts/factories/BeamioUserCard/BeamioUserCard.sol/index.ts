@@ -2,6 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BeamioUserCard__factory } from './BeamioUserCard__factory.js';
+export { IBeamioAccountViewForOpenRelay__factory } from './IBeamioAccountViewForOpenRelay__factory.js';
+export { IBeamioFactoryOpenRelayViews__factory } from './IBeamioFactoryOpenRelayViews__factory.js';
 export { IBeamioFaucetModuleV1__factory } from './IBeamioFaucetModuleV1__factory.js';
 export { IBeamioGatewayAAFactoryGetter__factory } from './IBeamioGatewayAAFactoryGetter__factory.js';
 export { IBeamioGovernanceModuleV1__factory } from './IBeamioGovernanceModuleV1__factory.js';

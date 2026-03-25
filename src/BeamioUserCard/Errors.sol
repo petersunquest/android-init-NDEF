@@ -28,6 +28,7 @@ error UC_AdminDepthExceeded(address admin);
 error UC_AdminAirdropLimitExceeded(address admin, uint256 used, uint256 requested, uint256 limit);
 error UC_AdminAirdropLimitTooHigh(address admin, uint256 limit, uint256 maxAllowed);
 error UC_UnauthorizedGateway();
+error UC_OpenMintExecutorUnauthorized();
 error UC_AmountZero();
 error UC_InvalidProposal();
 error UC_NonceUsed();

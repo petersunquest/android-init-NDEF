@@ -25,6 +25,16 @@ interface IBeamioGatewayAAFactoryGetter {
     function _aaFactory() external view returns (address);
 }
 
+interface IBeamioAccountViewForOpenRelay {
+    function factory() external view returns (address);
+    function owner() external view returns (address);
+}
+
+interface IBeamioFactoryOpenRelayViews {
+    function openContainerMintExecutor() external view returns (address);
+    function isBeamioAccount(address account) external view returns (bool);
+}
+
 interface IBeamioUserCardFactoryPaymasterV07 {
     function defaultRedeemModule() external view returns (address);
     function defaultFaucetModule() external view returns (address);
@@ -735,6 +745,29 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         nonReentrant
     {
         _mintPointsByGatewayWithOperator(userEOA, points6, operator);
+    }
+
+    /// @notice Open-container USDC→topup path: only factory-configured executor; same mint/stats as gateway mint.
+    /// @param payerAA BeamioAccount that pays USDC and receives minted points (token #0).
+    /// @param operatorForStats infrastructure card `owner()` passed from module for admin USDC mint counters.
+    function mintPointsOpenContainerRelay(address payerAA, uint256 points6, address operatorForStats)
+        external
+        nonReentrant
+    {
+        if (points6 == 0) return;
+        if (payerAA == address(0)) revert BM_ZeroAddress();
+        if (operatorForStats == address(0)) revert BM_ZeroAddress();
+
+        address f = IBeamioAccountViewForOpenRelay(payerAA).factory();
+        if (f == address(0)) revert BM_ZeroAddress();
+
+        address exec = IBeamioFactoryOpenRelayViews(f).openContainerMintExecutor();
+        if (exec == address(0)) revert UC_GlobalMisconfigured();
+        if (msg.sender != exec) revert UC_OpenMintExecutorUnauthorized();
+        if (!IBeamioFactoryOpenRelayViews(f).isBeamioAccount(payerAA)) revert UC_NoBeamioAccount();
+
+        address userEOA = IBeamioAccountViewForOpenRelay(payerAA).owner();
+        _mintPointsByGatewayWithOperator(userEOA, points6, operatorForStats);
     }
 
     function _mintPointsByGatewayWithOperator(address userEOA, uint256 points6, address operator) internal {

@@ -6,9 +6,12 @@
  * 必须使用 --full 导出完整 build-info 输入，与 Hardhat 编译输入完全一致。
  *
  * 用法:
- *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule
- *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule
- *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccount --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLibV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLib2V07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
  *
  * 输出: deployments/base-{Contract}-standard-input-FULL.json
  */
@@ -32,6 +35,30 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
   },
+  BeamioAccount: {
+    sourceKey: "project/src/BeamioAccount/BeamioAccount.sol",
+    contractName: "BeamioAccount",
+  },
+  BeamioFactoryPaymasterV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol",
+    contractName: "BeamioFactoryPaymasterV07",
+  },
+  BeamioContainerModuleV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleV07.sol",
+    contractName: "BeamioContainerModuleV07",
+  },
+  BeamioContainerModuleExternalLibV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleExternalLibV07.sol",
+    contractName: "BeamioContainerModuleExternalLibV07",
+  },
+  BeamioContainerModuleExternalLib2V07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleExternalLib2V07.sol",
+    contractName: "BeamioContainerModuleExternalLib2V07",
+  },
+  BeamioAccountDeployer: {
+    sourceKey: "project/src/BeamioAccount/BeamioAccountDeployer.sol",
+    contractName: "BeamioAccountDeployer",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
@@ -40,7 +67,20 @@ if (buildInfoFiles.length === 0) {
   console.error("未找到 build-info，请先运行: npm run clean && npm run compile");
   process.exit(1);
 }
-const BUILD_INFO = path.join(buildInfoDir, buildInfoFiles[0]);
+
+/** 多份 build-info 时，选用包含目标源文件的那份 */
+function resolveBuildInfoPath(sourceKey) {
+  for (const f of buildInfoFiles) {
+    const p = path.join(buildInfoDir, f);
+    try {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+      if (j.input?.sources?.[sourceKey]) return p;
+    } catch {
+      /* skip */
+    }
+  }
+  return null;
+}
 
 const contractArg = process.argv[2];
 const useFull = process.argv.includes("--full");
@@ -59,7 +99,15 @@ const outPath = path.join(
   `base-${contractArg}-standard-input-${useFull ? "FULL" : "min"}.json`
 );
 
-const buildInfo = JSON.parse(fs.readFileSync(BUILD_INFO, "utf-8"));
+const buildInfoPath = resolveBuildInfoPath(cfg.sourceKey);
+if (!buildInfoPath) {
+  console.error(`未找到包含 ${cfg.sourceKey} 的 build-info，请先 npm run compile`);
+  process.exit(1);
+}
+
+console.log("使用 build-info:", path.basename(buildInfoPath));
+
+const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
 const fullInput = buildInfo.input;
 
 if (!fullInput.sources[cfg.sourceKey]) {

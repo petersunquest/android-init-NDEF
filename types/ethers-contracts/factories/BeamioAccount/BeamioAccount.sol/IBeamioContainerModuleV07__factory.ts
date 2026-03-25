@@ -36,13 +36,31 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelReserve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "to",
         "type": "address"
       },
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -67,7 +85,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       },
@@ -102,7 +120,7 @@
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -127,7 +145,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       },
@@ -165,24 +183,14 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "passwordHash",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint32",
-        "name": "totalCount",
-        "type": "uint32"
-      },
-      {
-        "internalType": "uint64",
-        "name": "expiry",
-        "type": "uint64"
+        "internalType": "address",
+        "name": "pointsTo",
+        "type": "address"
       },
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -207,7 +215,87 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
+        "name": "items",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8",
+        "name": "currencyType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "nonce_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "sig",
+        "type": "bytes"
+      }
+    ],
+    "name": "containerMainRelayedOpenUsdcTopupThenPoints",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "passwordHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "totalCount",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "expiry",
+        "type": "uint64"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum AssetKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "asset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       }
@@ -232,7 +320,7 @@
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -257,7 +345,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       },
@@ -268,6 +356,74 @@
       }
     ],
     "name": "createRedeem",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum AssetKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "asset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct ContainerItem[]",
+        "name": "items",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint32",
+        "name": "cancelWindowSeconds",
+        "type": "uint32"
+      }
+    ],
+    "name": "createReserve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "execReserve",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -292,7 +448,7 @@
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -317,7 +473,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       }
@@ -398,13 +554,47 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      }
+    ],
+    "name": "searchReserve",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "index",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "itemBundles",
+        "type": "bytes[]"
+      },
+      {
+        "internalType": "uint8[]",
+        "name": "execStatus",
+        "type": "uint8[]"
+      },
+      {
+        "internalType": "string[]",
+        "name": "statusLabel",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "to",
         "type": "address"
       },
       {
         "components": [
           {
-            "internalType": "enum IBeamioContainerModuleV07.AssetKind",
+            "internalType": "enum AssetKind",
             "name": "kind",
             "type": "uint8"
           },
@@ -429,7 +619,7 @@
             "type": "bytes"
           }
         ],
-        "internalType": "struct IBeamioContainerModuleV07.ContainerItem[]",
+        "internalType": "struct ContainerItem[]",
         "name": "items",
         "type": "tuple[]"
       },
@@ -473,6 +663,105 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pointsTo",
+        "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum AssetKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "asset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct ContainerItem[]",
+        "name": "items",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "uint8",
+        "name": "currencyType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxAmount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "nonce_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "deadline_",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes",
+        "name": "sig",
+        "type": "bytes"
+      }
+    ],
+    "name": "simulateOpenContainerUsdcTopupThenPoints",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "ok",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "reason",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferReserve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ] as const;

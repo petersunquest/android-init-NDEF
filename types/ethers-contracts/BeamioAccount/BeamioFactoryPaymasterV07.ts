@@ -4,23 +4,20 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../common.js"
   
+    export type ContainerItemStruct = {kind: BigNumberish, asset: AddressLike, amount: BigNumberish, tokenId: BigNumberish, data: BytesLike}
+
+    export type ContainerItemStructOutput = [kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string] & {kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string }
+  
+
     export type PackedUserOperationStruct = {sender: AddressLike, nonce: BigNumberish, initCode: BytesLike, callData: BytesLike, accountGasLimits: BytesLike, preVerificationGas: BigNumberish, gasFees: BytesLike, paymasterAndData: BytesLike, signature: BytesLike}
 
     export type PackedUserOperationStructOutput = [sender: string, nonce: bigint, initCode: string, callData: string, accountGasLimits: string, preVerificationGas: bigint, gasFees: string, paymasterAndData: string, signature: string] & {sender: string, nonce: bigint, initCode: string, callData: string, accountGasLimits: string, preVerificationGas: bigint, gasFees: string, paymasterAndData: string, signature: string }
   
 
-export declare namespace IBeamioContainerModuleV07 {
-      
-    export type ContainerItemStruct = {kind: BigNumberish, asset: AddressLike, amount: BigNumberish, tokenId: BigNumberish, data: BytesLike}
-
-    export type ContainerItemStructOutput = [kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string] & {kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string }
-  
-    }
-
   export interface BeamioFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "deployer" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "transferAdmin" | "updateDeployer" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "deployer" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "openContainerMintExecutor" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayContainerMainRelayedOpenUsdcTopupThenPoints" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setOpenContainerMintExecutor" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "simulateRelayOpenUsdcTopupThenPoints" | "transferAdmin" | "updateDeployer" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AccountCreated" | "DeployerUpdated" | "ModuleUpdated" | "QuoteHelperUpdated" | "USDCUpdated" | "UserCardUpdated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AccountCreated" | "DeployerUpdated" | "ModuleUpdated" | "OpenContainerMintExecutorUpdated" | "QuoteHelperUpdated" | "USDCUpdated" | "UserCardUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ENTRY_POINT', values?: undefined): string;
@@ -46,25 +43,29 @@ encodeFunctionData(functionFragment: 'isBeamioAccount', values: [AddressLike]): 
 encodeFunctionData(functionFragment: 'isPayMaster', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'myBeamioAccounts', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nextIndexOfCreator', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'openContainerMintExecutor', values?: undefined): string;
 encodeFunctionData(functionFragment: 'payMasters', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'postOp', values: [BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'primaryAccountOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'quoteHelper', values?: undefined): string;
 encodeFunctionData(functionFragment: 'relayCancelFaucetPool', values: [AddressLike, string]): string;
 encodeFunctionData(functionFragment: 'relayCancelRedeem', values: [AddressLike, string]): string;
-encodeFunctionData(functionFragment: 'relayContainerMainRelayed', values: [AddressLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'relayContainerMainRelayedOpen', values: [AddressLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'relayCreateFaucetPool', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, IBeamioContainerModuleV07.ContainerItemStruct[]]): string;
-encodeFunctionData(functionFragment: 'relayCreateRedeem', values: [AddressLike, BytesLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish]): string;
-encodeFunctionData(functionFragment: 'relayFaucetRedeemPool', values: [AddressLike, string, AddressLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'relayContainerMainRelayed', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'relayContainerMainRelayedOpen', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'relayContainerMainRelayedOpenUsdcTopupThenPoints', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'relayCreateFaucetPool', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'relayCreateRedeem', values: [AddressLike, BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
+encodeFunctionData(functionFragment: 'relayFaucetRedeemPool', values: [AddressLike, string, AddressLike, AddressLike, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'relayRedeem', values: [AddressLike, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'removePayMaster', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAccountLimit', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setModule', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setOpenContainerMintExecutor', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setQuoteHelper', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setUSDC', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setUserCard', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'simulateRelayOpen', values: [AddressLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'simulateRelayOpen', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'simulateRelayOpenUsdcTopupThenPoints', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'transferAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'updateDeployer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'usedOwnerExecuteNonces', values: [BytesLike]): string;
@@ -96,6 +97,7 @@ decodeFunctionResult(functionFragment: 'isBeamioAccount', data: BytesLike): Resu
 decodeFunctionResult(functionFragment: 'isPayMaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'myBeamioAccounts', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextIndexOfCreator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'openContainerMintExecutor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'payMasters', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'postOp', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'primaryAccountOf', data: BytesLike): Result;
@@ -104,6 +106,7 @@ decodeFunctionResult(functionFragment: 'relayCancelFaucetPool', data: BytesLike)
 decodeFunctionResult(functionFragment: 'relayCancelRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayContainerMainRelayed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayContainerMainRelayedOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'relayContainerMainRelayedOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayCreateFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayCreateRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayFaucetRedeemPool', data: BytesLike): Result;
@@ -111,10 +114,12 @@ decodeFunctionResult(functionFragment: 'relayRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removePayMaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAccountLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setOpenContainerMintExecutor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setQuoteHelper', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setUSDC', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setUserCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'simulateRelayOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'simulateRelayOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'updateDeployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike): Result;
@@ -152,6 +157,18 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
       export type InputTuple = [oldModule: AddressLike, newModule: AddressLike];
       export type OutputTuple = [oldModule: string, newModule: string];
       export interface OutputObject {oldModule: string, newModule: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace OpenContainerMintExecutorUpdatedEvent {
+      export type InputTuple = [oldExecutor: AddressLike, newExecutor: AddressLike];
+      export type OutputTuple = [oldExecutor: string, newExecutor: string];
+      export interface OutputObject {oldExecutor: string, newExecutor: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -422,6 +439,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
+    openContainerMintExecutor: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     payMasters: TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -471,7 +496,7 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     relayContainerMainRelayed: TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -479,7 +504,15 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     relayContainerMainRelayedOpen: TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    relayContainerMainRelayedOpenUsdcTopupThenPoints: TypedContractMethod<
+      [account: AddressLike, pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -487,7 +520,7 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     relayCreateFaucetPool: TypedContractMethod<
-      [account: AddressLike, passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [account: AddressLike, passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >
@@ -495,7 +528,7 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     relayCreateRedeem: TypedContractMethod<
-      [account: AddressLike, passwordHash: BytesLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], expiry: BigNumberish, ],
+      [account: AddressLike, passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -503,7 +536,7 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     relayFaucetRedeemPool: TypedContractMethod<
-      [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >
@@ -542,6 +575,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
+    setOpenContainerMintExecutor: TypedContractMethod<
+      [exec: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setQuoteHelper: TypedContractMethod<
       [newHelper: AddressLike, ],
       [void],
@@ -567,7 +608,15 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
     
     simulateRelayOpen: TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >
+    
+
+    
+    simulateRelayOpenUsdcTopupThenPoints: TypedContractMethod<
+      [account: AddressLike, pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
     >
@@ -744,6 +793,11 @@ getFunction(nameOrSignature: 'nextIndexOfCreator'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'openContainerMintExecutor'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'payMasters'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -775,27 +829,32 @@ getFunction(nameOrSignature: 'relayCancelRedeem'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'relayContainerMainRelayed'): TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'relayContainerMainRelayedOpen'): TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'relayContainerMainRelayedOpenUsdcTopupThenPoints'): TypedContractMethod<
+      [account: AddressLike, pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'relayCreateFaucetPool'): TypedContractMethod<
-      [account: AddressLike, passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [account: AddressLike, passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'relayCreateRedeem'): TypedContractMethod<
-      [account: AddressLike, passwordHash: BytesLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], expiry: BigNumberish, ],
+      [account: AddressLike, passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'relayFaucetRedeemPool'): TypedContractMethod<
-      [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >;
@@ -819,6 +878,11 @@ getFunction(nameOrSignature: 'setModule'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setOpenContainerMintExecutor'): TypedContractMethod<
+      [exec: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setQuoteHelper'): TypedContractMethod<
       [newHelper: AddressLike, ],
       [void],
@@ -835,7 +899,12 @@ getFunction(nameOrSignature: 'setUserCard'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'simulateRelayOpen'): TypedContractMethod<
-      [account: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [account: AddressLike, to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'simulateRelayOpenUsdcTopupThenPoints'): TypedContractMethod<
+      [account: AddressLike, pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
     >;
@@ -873,6 +942,7 @@ getFunction(nameOrSignature: 'withdrawTo'): TypedContractMethod<
     getEvent(key: 'AccountCreated'): TypedContractEvent<AccountCreatedEvent.InputTuple, AccountCreatedEvent.OutputTuple, AccountCreatedEvent.OutputObject>;
 getEvent(key: 'DeployerUpdated'): TypedContractEvent<DeployerUpdatedEvent.InputTuple, DeployerUpdatedEvent.OutputTuple, DeployerUpdatedEvent.OutputObject>;
 getEvent(key: 'ModuleUpdated'): TypedContractEvent<ModuleUpdatedEvent.InputTuple, ModuleUpdatedEvent.OutputTuple, ModuleUpdatedEvent.OutputObject>;
+getEvent(key: 'OpenContainerMintExecutorUpdated'): TypedContractEvent<OpenContainerMintExecutorUpdatedEvent.InputTuple, OpenContainerMintExecutorUpdatedEvent.OutputTuple, OpenContainerMintExecutorUpdatedEvent.OutputObject>;
 getEvent(key: 'QuoteHelperUpdated'): TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;
 getEvent(key: 'USDCUpdated'): TypedContractEvent<USDCUpdatedEvent.InputTuple, USDCUpdatedEvent.OutputTuple, USDCUpdatedEvent.OutputObject>;
 getEvent(key: 'UserCardUpdated'): TypedContractEvent<UserCardUpdatedEvent.InputTuple, UserCardUpdatedEvent.OutputTuple, UserCardUpdatedEvent.OutputObject>;
@@ -889,6 +959,10 @@ getEvent(key: 'UserCardUpdated'): TypedContractEvent<UserCardUpdatedEvent.InputT
 
       'ModuleUpdated(address,address)': TypedContractEvent<ModuleUpdatedEvent.InputTuple, ModuleUpdatedEvent.OutputTuple, ModuleUpdatedEvent.OutputObject>;
       ModuleUpdated: TypedContractEvent<ModuleUpdatedEvent.InputTuple, ModuleUpdatedEvent.OutputTuple, ModuleUpdatedEvent.OutputObject>;
+    
+
+      'OpenContainerMintExecutorUpdated(address,address)': TypedContractEvent<OpenContainerMintExecutorUpdatedEvent.InputTuple, OpenContainerMintExecutorUpdatedEvent.OutputTuple, OpenContainerMintExecutorUpdatedEvent.OutputObject>;
+      OpenContainerMintExecutorUpdated: TypedContractEvent<OpenContainerMintExecutorUpdatedEvent.InputTuple, OpenContainerMintExecutorUpdatedEvent.OutputTuple, OpenContainerMintExecutorUpdatedEvent.OutputObject>;
     
 
       'QuoteHelperUpdated(address,address)': TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;

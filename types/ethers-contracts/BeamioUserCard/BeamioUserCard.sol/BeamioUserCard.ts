@@ -26,7 +26,7 @@ export declare namespace BeamioUserCard {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftPriceInCurrency6" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftPriceInCurrency6" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -83,6 +83,7 @@ encodeFunctionData(functionFragment: 'mintPointsByAdmin', values: [AddressLike, 
 encodeFunctionData(functionFragment: 'mintPointsByAdminWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintPointsByGateway', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPointsByGatewayWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'mintPointsOpenContainerRelay', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 encodeFunctionData(functionFragment: 'pointsUnitPriceInCurrencyE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'recordAdminBurnForStats', values: [AddressLike, BigNumberish]): string;
@@ -170,6 +171,7 @@ decodeFunctionResult(functionFragment: 'mintPointsByAdmin', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'mintPointsByAdminWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByGatewayWithOperator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintPointsOpenContainerRelay', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsUnitPriceInCurrencyE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordAdminBurnForStats', data: BytesLike): Result;
@@ -988,6 +990,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    mintPointsOpenContainerRelay: TypedContractMethod<
+      [payerAA: AddressLike, points6: BigNumberish, operatorForStats: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     owner: TypedContractMethod<
       [],
       [string],
@@ -1516,6 +1526,11 @@ getFunction(nameOrSignature: 'mintPointsByGateway'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'mintPointsByGatewayWithOperator'): TypedContractMethod<
       [userEOA: AddressLike, points6: BigNumberish, operator: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'mintPointsOpenContainerRelay'): TypedContractMethod<
+      [payerAA: AddressLike, points6: BigNumberish, operatorForStats: AddressLike, ],
       [void],
       'nonpayable'
     >;

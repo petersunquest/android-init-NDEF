@@ -2,6 +2,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BeamioUserCard } from './BeamioUserCard.js';
+export type { IBeamioAccountViewForOpenRelay } from './IBeamioAccountViewForOpenRelay.js';
+export type { IBeamioFactoryOpenRelayViews } from './IBeamioFactoryOpenRelayViews.js';
 export type { IBeamioFaucetModuleV1 } from './IBeamioFaucetModuleV1.js';
 export type { IBeamioGatewayAAFactoryGetter } from './IBeamioGatewayAAFactoryGetter.js';
 export type { IBeamioGovernanceModuleV1 } from './IBeamioGovernanceModuleV1.js';

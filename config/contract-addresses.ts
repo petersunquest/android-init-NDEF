@@ -14,6 +14,7 @@ import conetAddrs from '../deployments/conet-addresses.json'
 type BaseAddrs = {
   BASE_MAINNET_CHAIN_ID?: number
   AA_FACTORY?: string
+  BEAMIO_ACCOUNT_DEPLOYER?: string
   CARD_FACTORY?: string
   CCSA_CARD_ADDRESS?: string
   BASE_TREASURY?: string
@@ -35,7 +36,10 @@ const conet = conetAddrs as ConetAddrs
 
 // --- Base Mainnet ---
 export const BASE_MAINNET_CHAIN_ID = base.BASE_MAINNET_CHAIN_ID ?? 8453
-export const BASE_AA_FACTORY = base.AA_FACTORY ?? '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
+export const BASE_AA_FACTORY = base.AA_FACTORY ?? '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
+/** BeamioAccountDeployer（CREATE2）；与 deployments/base-FactoryAndModule.json beamioFactoryPaymaster.deployer 一致 */
+export const BASE_BEAMIO_ACCOUNT_DEPLOYER =
+  base.BEAMIO_ACCOUNT_DEPLOYER ?? '0x139D55591A03550259AF32097A9848ECE9869C90'
 export const BASE_CARD_FACTORY = base.CARD_FACTORY ?? '0x2F45f38f2B6EF97b606ec2557E237529e8db9281'
 export const BASE_CCSA_CARD_ADDRESS = base.CCSA_CARD_ADDRESS ?? '0x2032A363BB2cf331142391fC0DAd21D6504922C7'
 export const BASE_TREASURY = base.BASE_TREASURY ?? '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
@@ -56,6 +60,7 @@ export const MERCHANT_POS_MANAGEMENT_CONET = '0x3Eb57035d3237Fce4b1cB273662E875E
 /** 兼容旧版 BASE_MAINNET_FACTORIES 结构 */
 export const BASE_MAINNET_FACTORIES = {
   AA_FACTORY: BASE_AA_FACTORY,
+  BEAMIO_ACCOUNT_DEPLOYER: BASE_BEAMIO_ACCOUNT_DEPLOYER,
   CARD_FACTORY: BASE_CARD_FACTORY,
   BeamioCardCCSA_ADDRESS: BASE_CCSA_CARD_ADDRESS,
 } as const
@@ -65,6 +70,7 @@ export const CONTRACT_ADDRESSES = {
   base: {
     chainId: BASE_MAINNET_CHAIN_ID,
     aaFactory: BASE_AA_FACTORY,
+    beamioAccountDeployer: BASE_BEAMIO_ACCOUNT_DEPLOYER,
     cardFactory: BASE_CARD_FACTORY,
     ccsaCard: BASE_CCSA_CARD_ADDRESS,
     baseTreasury: BASE_TREASURY,
