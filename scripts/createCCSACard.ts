@@ -5,6 +5,8 @@
  * 用法：
  *   CARD_OWNER=0xEaBF0A98aC208647247eAA25fDD4eB0e67793d61 npm run create:ccsa:base
  *   npm run create:ccsa:base
+ * 工厂地址：优先环境变量 CARD_FACTORY / BEAMIO_CARD_FACTORY，否则 config/base-addresses.json 的 CARD_FACTORY，
+ * 勿依赖 deployments/base-FullAccountAndUserCard.json（可能为旧工厂）。
  * 若未设置 PRIVATE_KEY，会尝试使用 ~/.master.json 的 settle_contractAdmin[0] 作为 signer。
  */
 import { network as networkModule } from "hardhat";
@@ -62,11 +64,31 @@ async function main() {
     ? ethers.getAddress(process.env.CARD_OWNER)
     : ethers.getAddress(DEFAULT_CARD_OWNER);
 
-  // 优先从 config 读取新 Card Factory；fallback 到 base-FullAccountAndUserCard.json
-  const configPath = path.join(__dirname, "..", "config", "base-addresses.ts");
+  // 工厂地址：env > base-addresses.json > base-UserCardFactory.json > contract-addresses 文本 > 旧 Full 部署文件
   let cardFactoryAddress: string | undefined;
-  if (fs.existsSync(configPath)) {
-    const config = fs.readFileSync(configPath, "utf-8");
+  const envFactory = (process.env.CARD_FACTORY || process.env.BEAMIO_CARD_FACTORY || "").trim();
+  if (envFactory) {
+    cardFactoryAddress = ethers.getAddress(envFactory);
+  }
+  const addressesJson = path.join(__dirname, "..", "config", "base-addresses.json");
+  if (!cardFactoryAddress && fs.existsSync(addressesJson)) {
+    try {
+      const j = JSON.parse(fs.readFileSync(addressesJson, "utf-8"));
+      const a = j?.CARD_FACTORY;
+      if (typeof a === "string" && a.startsWith("0x") && a.length === 42) cardFactoryAddress = ethers.getAddress(a);
+    } catch {
+      /* skip */
+    }
+  }
+  const userCardFactoryDeploy = path.join(__dirname, "..", "deployments", "base-UserCardFactory.json");
+  if (!cardFactoryAddress && fs.existsSync(userCardFactoryDeploy)) {
+    const data = JSON.parse(fs.readFileSync(userCardFactoryDeploy, "utf-8"));
+    const a = data.contracts?.beamioUserCardFactoryPaymaster?.address;
+    if (typeof a === "string") cardFactoryAddress = ethers.getAddress(a);
+  }
+  const configTs = path.join(__dirname, "..", "config", "base-addresses.ts");
+  if (!cardFactoryAddress && fs.existsSync(configTs)) {
+    const config = fs.readFileSync(configTs, "utf-8");
     const m = config.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
     if (m) cardFactoryAddress = m[1];
   }
@@ -78,7 +100,9 @@ async function main() {
     }
   }
   if (!cardFactoryAddress) {
-    throw new Error("未找到 Card Factory 地址（请检查 config/base-addresses.ts 或 deployments/base-FullAccountAndUserCard.json）");
+    throw new Error(
+      "未找到 Card Factory：设置 CARD_FACTORY，或维护 config/base-addresses.json / deployments/base-UserCardFactory.json"
+    );
   }
 
   const cardFactory = await ethers.getContractAt(
@@ -99,7 +123,15 @@ async function main() {
   const cardLibs = await deployBeamioUserCardLibraries(ethers, signer);
   console.log("BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
   console.log("BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
-  const BeamioUserCard = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
+  if (cardLibs.formattingDeployTxHash) console.log("  formattingDeployTxHash:", cardLibs.formattingDeployTxHash);
+  if (cardLibs.transferDeployTxHash) console.log("  transferDeployTxHash:", cardLibs.transferDeployTxHash);
+  const BeamioUserCard = await ethers.getContractFactory(
+    "BeamioUserCard",
+    beamioUserCardFactoryLibraries({
+      BeamioUserCardFormattingLib: cardLibs.BeamioUserCardFormattingLib,
+      BeamioUserCardTransferLib: cardLibs.BeamioUserCardTransferLib,
+    })
+  );
   const deployTx = await BeamioUserCard.getDeployTransaction(
     DEFAULT_URI,
     CAD_CURRENCY,
