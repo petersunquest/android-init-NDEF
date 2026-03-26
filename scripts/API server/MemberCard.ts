@@ -588,10 +588,10 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	// ✅ MUST be BeamioUserCardFactoryPaymasterV07 address (the trusted gateway)
 	const factoryAddress = BeamioUserCardFactoryPaymasterV2;
   
-	// ===== BeamioUserCard ctor:
-	// constructor(string uri, uint8 currency, uint256 priceE18, address initialOwner, address gateway)
-	// gateway == factoryAddress (BeamioUserCardFactoryPaymasterV07)
-	const priceE18 = ethers.parseUnits(currencyToPointValue, 18);
+	// ===== BeamioUserCard ctor (7 args): uri, currency, pointsUnitPriceInCurrencyE6, initialOwner, gateway, upgradeType, transferWhitelist
+	// pointsUnitPriceInCurrencyE6 为 E6（与链上 / Master 日志 priceE6 一致），勿用 18 位
+	// gateway 必须为当前工厂地址（与 factoryGateway() 校验一致）
+	const priceE6 = ethers.parseUnits(currencyToPointValue, 6);
 	const currencyId = CurrencyMap[currencyType]; // uint8/number
   
 	const abi = BeamioUserCardABI;
@@ -608,13 +608,13 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	// ===== build initCode for DeployerV07.deploy(initCode) =====
 	const cardFactory = new ethers.ContractFactory(abi, bytecode, signer);
   
-	// ✅ 6 params: uri, currencyId, priceE18, initialOwner(user), gateway(factoryAddress), initialTransferWhitelistEnabled
 	const deployTx = await cardFactory.getDeployTransaction(
 	  uri,
 	  currencyId,
-	  priceE18,
+	  priceE6,
 	  user,
 	  factoryAddress,
+	  0,
 	  false
 	);
   
@@ -622,6 +622,29 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	if (!initCodeHex || initCodeHex.length <= 2) throw new Error("initCode empty");
   
 	const net = await baseProvider.getNetwork();
+	const initCodeByteLength = (initCodeHex.length - 2) / 2;
+	const initCodeKeccak256 = ethers.keccak256(initCodeHex);
+	const createCardDebugPayload = {
+		phase: 'develop1_preflight',
+		chainId: net.chainId.toString(),
+		factoryAddress,
+		gatewayInCtor: factoryAddress,
+		gatewayMatchesFactory: true,
+		signerAddress: signerAddr,
+		cardOwner: user,
+		currencyEnum: currencyId,
+		priceE6: priceE6.toString(),
+		callKind: 'createCardCollectionWithInitCode',
+		initCodeSource: 'MemberCard_artifact_prelinked',
+		initCodeByteLength,
+		initCodeKeccak256,
+		initCodePrefixHex: initCodeHex.slice(0, 26),
+		gasLimit: '8500000',
+		noteReceiptLogs: 'On full tx revert, receipt logs are usually empty; use debug_traceTransaction.',
+		noteCompareMaster:
+			'Compare initCodeKeccak256 with Master/x402sdk logs (same owner, currency, priceE6, gateway=factory).',
+	};
+	console.warn(`[BeamioCreateCard:preflight] ${JSON.stringify(createCardDebugPayload)}`);
 	console.log("chainId:", net.chainId.toString());
 	console.log("deployer signer:", signerAddr);
 	console.log("factoryAddress:", factoryAddress);
@@ -640,9 +663,9 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	  await factory.createCardCollectionWithInitCode.staticCall(
 		user,
 		currencyId,
-		priceE18,
+		priceE6,
 		initCodeHex,
-		{ gasLimit: 6_500_000n }
+		{ gasLimit: 8_500_000n }
 	  );
 	  console.log("✅ factory staticCall ok");
 	} catch (e: any) {
@@ -651,6 +674,14 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	  console.error("❌ factory staticCall FAILED");
 	  console.error("message:", msg);
 	  console.error("revert data:", data);
+	  console.warn(
+		`[BeamioCreateCard:failure] ${JSON.stringify({
+		  ...createCardDebugPayload,
+		  failurePhase: 'staticCall',
+		  failureShortMessage: msg,
+		  revertDataPrefix: typeof data === 'string' ? data.slice(0, 74) : data,
+		})}`,
+	  );
 	  throw e;
 	}
   
@@ -658,9 +689,9 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	const tx = await factory.createCardCollectionWithInitCode(
 	  user,
 	  currencyId,
-	  priceE18,
+	  priceE6,
 	  initCodeHex,
-	  { gasLimit: 6_500_000n }
+	  { gasLimit: 8_500_000n }
 	);
   
 	const rc = await tx.wait();

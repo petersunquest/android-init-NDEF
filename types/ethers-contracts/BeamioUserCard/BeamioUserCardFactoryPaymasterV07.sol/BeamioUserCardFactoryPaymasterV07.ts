@@ -12,7 +12,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
     getFunction(nameOrSignature: "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedCreateDebug" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
@@ -254,6 +254,18 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
       export type InputTuple = [oldM: AddressLike, newM: AddressLike];
       export type OutputTuple = [oldM: string, newM: string];
       export interface OutputObject {oldM: string, newM: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace DeployFailedCreateDebugEvent {
+      export type InputTuple = [initCodeLength: BigNumberish, initCodeHash: BytesLike];
+      export type OutputTuple = [initCodeLength: bigint, initCodeHash: string];
+      export interface OutputObject {initCodeLength: bigint, initCodeHash: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -1235,6 +1247,7 @@ getEvent(key: 'DefaultGovernanceModuleUpdated'): TypedContractEvent<DefaultGover
 getEvent(key: 'DefaultIssuedNftModuleUpdated'): TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultMembershipStatsModuleUpdated'): TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DefaultRedeemModuleUpdated'): TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
+getEvent(key: 'DeployFailedCreateDebug'): TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;
 getEvent(key: 'DeployFailedStep'): TypedContractEvent<DeployFailedStepEvent.InputTuple, DeployFailedStepEvent.OutputTuple, DeployFailedStepEvent.OutputObject>;
 getEvent(key: 'DeployerChanged'): TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
 getEvent(key: 'IssuedNftPurchasedForUser'): TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;
@@ -1286,6 +1299,10 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
 
       'DefaultRedeemModuleUpdated(address,address)': TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
       DefaultRedeemModuleUpdated: TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
+    
+
+      'DeployFailedCreateDebug(uint256,bytes32)': TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;
+      DeployFailedCreateDebug: TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;
     
 
       'DeployFailedStep(uint8)': TypedContractEvent<DeployFailedStepEvent.InputTuple, DeployFailedStepEvent.OutputTuple, DeployFailedStepEvent.OutputObject>;

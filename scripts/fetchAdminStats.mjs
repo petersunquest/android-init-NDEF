@@ -7,7 +7,7 @@
  */
 import { ethers } from 'ethers';
 
-const CARD = process.argv[2] || '0x9cda8477c9f03b8759ac64e21941e578908fd750';
+const CARD = process.argv[2] || '0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14';
 const ACCOUNT = process.argv[3] || '0x8Eb31413EC7Ce13367a39eae203e6659e8F6f32D';
 const GLOBAL = process.argv[3] === '--global';
 const RPC = process.env.BASE_RPC_URL || 'https://base-rpc.conet.network';

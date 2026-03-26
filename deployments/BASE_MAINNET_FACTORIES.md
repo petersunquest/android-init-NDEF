@@ -39,7 +39,7 @@
 
 | 项目 | JSON 键 | 当前值 |
 |------|---------|--------|
-| **BeamioUserCardFormattingLib** | `BEAMIO_USER_CARD_FORMATTING_LIB` | 0xe56dca3aF78a12164dC6546e6CD0E9Fe9D9Cc4b3 |
+| **BeamioUserCardFormattingLib** | `BEAMIO_USER_CARD_FORMATTING_LIB` | 0xe56dca3aF78a12164dC6546e6CD0E9Fe9d9Cc4b3 |
 | **BeamioUserCardTransferLib** | `BEAMIO_USER_CARD_TRANSFER_LIB` | 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F |
 
 **部署：** `npm run deploy:usercard-libraries:base`（需 Base 主网 `PRIVATE_KEY`）。成功后脚本会写入 `config/base-addresses.json` 并同步 `src/x402sdk/src/chainAddresses.ts`。

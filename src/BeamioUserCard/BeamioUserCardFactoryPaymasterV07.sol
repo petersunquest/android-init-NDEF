@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+//请部署新工厂，请生成 standard JSON以便 验证 合约，请更新引用工厂地址的所有 合约，UI，及 backend 
 pragma solidity ^0.8.20;
 
 import "./BeamioUserCard.sol";
@@ -112,6 +113,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     event CardRegistered(address indexed cardOwner, address indexed card);
     /// @notice createCard 失败时标记步骤：0=CREATE 失败，1=gateway，2=owner，3=currency，4=price
     event DeployFailedStep(uint8 step);
+    /// @notice 仅 step=0 时额外发出，便于链下用相同 initCode 在分叉上复现（CREATE 失败不冒泡 constructor revert data）
+    event DeployFailedCreateDebug(uint256 initCodeLength, bytes32 initCodeHash);
     event RedeemExecuted(address indexed card, address indexed user, bytes32 redeemHash);
     event TokenIdIssued(address indexed card, uint256 indexed id, bool isNft);
     event PointsPurchasedForUser(
@@ -314,6 +317,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card = IBeamioDeployerV07(deployer).deploy(initCode);
         if (card == address(0) || card.code.length == 0) {
             emit DeployFailedStep(0); // CREATE 失败（OOG / EIP-170 / EIP-3860 / constructor revert）
+            emit DeployFailedCreateDebug(initCode.length, keccak256(bytes.concat(initCode)));
             revert BM_DeployFailedAtStep(0);
         }
 

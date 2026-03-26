@@ -1,0 +1,19 @@
+BeamioUserCardFactoryPaymasterV07 BaseScan 合约验证
+==================================================
+
+Compiler Version: 0.8.33+commit.64118f21
+Optimization: Enabled, Runs: 0（以 hardhat.config.ts 为准）
+viaIR: true, evmVersion: cancun
+
+Contract Name: project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+
+Standard JSON 文件:
+  - base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json（via-IR 全量 build-info，推荐）
+
+链接库: 本合约 artifact 无 linkReferences，验证时一般无需填 Library。
+
+生成 FULL:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
+
+Constructor: 按部署交易 input 填写 ABI-encoded 构造参数（与链上创建交易一致）。
