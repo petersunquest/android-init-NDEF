@@ -4,7 +4,7 @@
  * 导致 BeamioUserCard fallback 返回 ROUTE_INVALID 并 revert BM_CallFailed。
  *
  * 运行：
- *   FACTORY=0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a \
+ *   FACTORY=0x2EB245646de404b2Dce87E01C6282C131778bb05 \
  *   npx hardhat run scripts/deployAdminStatsQueryModuleForMintLimit.ts --network base
  */
 import { network as networkModule } from "hardhat";
@@ -27,7 +27,7 @@ function loadMasterSetup(): { settle_contractAdmin: string[] } {
 }
 
 async function main() {
-  const factoryAddress = process.env.FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+  const factoryAddress = process.env.FACTORY || "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 
   const master = loadMasterSetup();
   const deployerPk = master.settle_contractAdmin[0];

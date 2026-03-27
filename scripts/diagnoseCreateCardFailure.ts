@@ -35,7 +35,7 @@ function getBaseCardFactory(): string {
       if (addr) return addr;
     }
   } catch {}
-  return process.env.CARD_FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+  return process.env.CARD_FACTORY || "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 }
 const BASE_CARD_FACTORY = getBaseCardFactory();
 

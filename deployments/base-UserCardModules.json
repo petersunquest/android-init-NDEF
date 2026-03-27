@@ -3,7 +3,7 @@
   "chainId": "8453",
   "timestamp": "2026-03-17T00:00:00.000Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
+  "factory": "0x2EB245646de404b2Dce87E01C6282C131778bb05",
   "modules": {
     "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
     "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",

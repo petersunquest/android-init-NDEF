@@ -53,7 +53,7 @@ Current on-chain `BeamioUserCardFactoryPaymasterV07` configuration:
 - `USDC_TOKEN`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `quoteHelper`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `deployer`: `0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`
-- `aaFactory`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `aaFactory`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 - `metadataBaseURI`: `https://beamio.app/api/metadata/0x`
 
 ### Base Card Constructor Record
@@ -64,7 +64,7 @@ From `deployments/base-UserCard.json` (`2026-02-14T20:02:50.581Z`):
 - `currency_`: `4`
 - `pointsUnitPriceInCurrencyE6_`: `1000000`
 - `initialOwner`: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
-- `gateway_`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `gateway_`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 
 ## CoNET Mainnet Deployment
 

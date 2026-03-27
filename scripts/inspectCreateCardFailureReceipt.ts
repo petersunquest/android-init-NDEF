@@ -2,7 +2,7 @@
  * Read-only: fetch a failed createCard tx receipt on Base and print DeployFailedStep /
  * DeployFailedCreateDebug if the factory emitted them (needs factory bytecode with these events).
  *
- *   CREATE_CARD_FAIL_TX=0x14f52... FACTORY=0xfB5E... npx hardhat run scripts/inspectCreateCardFailureReceipt.ts --network base
+ *   CREATE_CARD_FAIL_TX=0x14f52... FACTORY=0x2EB2... npx hardhat run scripts/inspectCreateCardFailureReceipt.ts --network base
  *
  * FACTORY defaults to deployments/base-UserCardFactory.json nested address.
  */

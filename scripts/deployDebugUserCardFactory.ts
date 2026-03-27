@@ -1,17 +1,16 @@
 /**
- * 部署「调试专用」BeamioUserCardFactoryPaymasterV07（含 DeployFailedCreateDebug 等最新源码），
- * 不覆盖 deployments/base-UserCardFactory.json。
+ * 部署新的 BeamioUserCardFactoryPaymasterV07（含调试事件等最新源码），
+ * 输出写入 deployments/base-*-UserCardFactory-DEBUG.json（不自动覆盖 base-UserCardFactory.json）。
  *
- * 必须部署新的 BeamioUserCardDeployerV07：链上旧 deployer 的 factory 固定为生产工厂，
- * 新工厂若复用旧 deployer 会 DEP_NotFactory。
+ * 必须部署新的 BeamioUserCardDeployerV07：已绑定其它工厂的 deployer 会 DEP_NotFactory。
  *
- * 依赖地址默认从 deployments/base-UserCardFactory.json + base-UserCardModules.json 读取（与生产一致）。
+ * 依赖地址默认从 deployments/base-UserCardFactory.json + base-UserCardModules.json 读取。
  *
  * 用法：
  *   npm run deploy:debug-usercard-factory:base
  *
  * 可选环境变量：
- *   DEBUG_AA_FACTORY=0x...   覆盖 aaFactory（默认与生产 json 一致；可设为 config 中 0x4b31… 做对齐试验）
+ *   DEBUG_AA_FACTORY=0x...   覆盖 aaFactory（默认与 config/base-addresses.json AA_FACTORY 一致）
  *   VERIFY=1                 部署后尝试 Basescan verify（需 BASESCAN_API_KEY）
  *   SKIP_BEAMIO_ACCOUNT_DEPLOYER_CHECK=1  跳过与 *-BeamioAccount.json deployer 的校验（默认会校验）
  *   ALLOW_MASTER_JSON_SIGNER=1            无 PRIVATE_KEY 时回退 ~/.master.json（与 deploy:base 不同，慎用）
@@ -47,7 +46,7 @@ async function main() {
   const modulesFile = path.join(deploymentsDir, `${name}-UserCardModules.json`);
 
   if (!fs.existsSync(prodFactoryFile)) {
-    throw new Error(`Missing ${prodFactoryFile} (need production factory record for USDC/modules deps)`);
+    throw new Error(`Missing ${prodFactoryFile} (need factory record for USDC/modules deps)`);
   }
   if (!fs.existsSync(modulesFile)) {
     throw new Error(`Missing ${modulesFile}`);
@@ -55,7 +54,7 @@ async function main() {
 
   const prod = JSON.parse(fs.readFileSync(prodFactoryFile, "utf-8"));
   const c = prod.contracts?.beamioUserCardFactoryPaymaster;
-  if (!c?.address) throw new Error("prod beamioUserCardFactoryPaymaster.address missing");
+  if (!c?.address) throw new Error("base-UserCardFactory.json beamioUserCardFactoryPaymaster.address missing");
 
   const USDC = c.usdc;
   const REDEEM = c.redeemModule;
@@ -75,7 +74,7 @@ async function main() {
   console.log("USDC:", USDC);
   console.log("Redeem (ctor):", REDEEM);
   console.log("Quote:", QUOTE);
-  console.log("AA Factory:", AA_FACTORY, process.env.DEBUG_AA_FACTORY ? "(DEBUG_AA_FACTORY)" : "(from prod json)");
+  console.log("AA Factory:", AA_FACTORY, process.env.DEBUG_AA_FACTORY ? "(DEBUG_AA_FACTORY)" : "(from base-UserCardFactory.json)");
 
   const feeData = await ethers.provider.getFeeData();
   const txO: { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint } = {};
@@ -128,10 +127,9 @@ async function main() {
   const out = {
     network: name,
     chainId: networkInfo.chainId.toString(),
-    purpose: "DEBUG_ONLY — do not replace production CARD_FACTORY without ops review",
+    purpose: "UserCard factory deployment snapshot (update base-UserCardFactory.json manually if promoting to canonical).",
     deployerSigner: signerAddr,
     timestamp: new Date().toISOString(),
-    productionFactoryReference: c.address,
     contracts: {
       beamioUserCardDeployer: {
         address: deployerAddr,

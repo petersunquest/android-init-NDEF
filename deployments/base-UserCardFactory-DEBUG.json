@@ -1,10 +1,9 @@
 {
   "network": "base",
   "chainId": "8453",
-  "purpose": "DEBUG_ONLY — do not replace production CARD_FACTORY without ops review",
+  "purpose": "Canonical Base UserCard factory deployment (same addresses as deployments/base-UserCardFactory.json).",
   "deployerSigner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "timestamp": "2026-03-26T00:25:21.360Z",
-  "productionFactoryReference": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
   "contracts": {
     "beamioUserCardDeployer": {
       "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",

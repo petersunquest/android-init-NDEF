@@ -85,7 +85,7 @@ fs.writeFileSync(OUT.scriptsApiFactoryArtifact, JSON.stringify(factoryArtifact, 
 fs.writeFileSync(OUT.x402Abi, JSON.stringify(userCardArtifact.abi, null, 2), "utf-8");
 
 // Base 上已部署的工厂 bytecode 可能与当前 Hardhat 本地 artifact 的 jump table 不一致（例如旧 artifact 含已移除的 selector）。
-// scripts/API server/ABI 中的副本已与链上 0xfB5E… 对齐；同步后用其覆盖 Factory 完整 JSON，避免独立仓库/x402sdk 仍带过时 bytecode 误导调试。
+// scripts/API server/ABI 中的副本应与当前 Base 发卡工厂（chainAddresses BASE_CARD_FACTORY）一致；同步后用其覆盖 Factory 完整 JSON，避免独立仓库/x402sdk 仍带过时 bytecode 误导调试。
 const API_SERVER_FACTORY = path.join(
   BEAMIO_CONTRACT_ROOT,
   "scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json"

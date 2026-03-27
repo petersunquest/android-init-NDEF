@@ -21,7 +21,7 @@
       }
     },
     "beamioFactoryPaymaster": {
-      "address": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
+      "address": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
       "initialAccountLimit": 100,
       "deployer": "0x139D55591A03550259AF32097A9848ECE9869C90",
       "previousDeployer": "0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87",

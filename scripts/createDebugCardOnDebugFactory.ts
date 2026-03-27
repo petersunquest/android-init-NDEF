@@ -16,7 +16,7 @@
  *   核对：npm run print:beamio-account-deployer:base
  *   SKIP_BEAMIO_ACCOUNT_DEPLOYER_CHECK=1  跳过与 *-BeamioAccount.json deployer 的校验
  *   ALLOW_MASTER_JSON_SIGNER=1            无 PRIVATE_KEY 时回退 ~/.master.json settle_contractAdmin[0]（须即该 deployer）
- *   INITCODE_GATEWAY=0x...                 BeamioUserCard 构造参数 gateway（默认 = CARD_FACTORY）；对齐链上失败笔需设为生产工厂 0xfB5E…
+ *   INITCODE_GATEWAY=0x...                 BeamioUserCard 构造参数 gateway（默认 = CARD_FACTORY）；须与 createCard 目标工厂一致
  */
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";

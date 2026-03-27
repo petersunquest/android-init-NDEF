@@ -39,7 +39,7 @@ const conet = conetAddrs as ConetAddrs
 
 // --- Base Mainnet ---
 export const BASE_MAINNET_CHAIN_ID = base.BASE_MAINNET_CHAIN_ID ?? 8453
-export const BASE_AA_FACTORY = base.AA_FACTORY ?? '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
+export const BASE_AA_FACTORY = base.AA_FACTORY ?? '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
 /** BeamioAccountDeployer（CREATE2）；与 deployments/base-FactoryAndModule.json beamioFactoryPaymaster.deployer 一致 */
 export const BASE_BEAMIO_ACCOUNT_DEPLOYER =
   base.BEAMIO_ACCOUNT_DEPLOYER ?? '0x139D55591A03550259AF32097A9848ECE9869C90'
