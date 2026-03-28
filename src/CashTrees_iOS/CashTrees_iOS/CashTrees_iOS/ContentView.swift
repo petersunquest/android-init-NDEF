@@ -32,13 +32,64 @@ private struct SunParams {
 
 // MARK: - NFC + Web 负载
 
+private func queryDict(from components: URLComponents) -> [String: String] {
+    var out: [String: String] = [:]
+    for item in components.queryItems ?? [] {
+        if let v = item.value { out[item.name] = v }
+    }
+    return out
+}
+
+/// 与 Kotlin Uri.parse + getQueryParameter 对齐；优先 `URLComponents(string:)`，避免 `URL(string:)` 对部分非法字符过严。
 private func parseSunParamsFromNdefUrl(_ urlString: String) -> SunParams? {
-    guard let url = URL(string: urlString),
-          let comp = URLComponents(url: url, resolvingAgainstBaseURL: false)
-    else { return nil }
-    let q: [String: String] = comp.queryItems?.reduce(into: [:]) { dict, item in
-        if let v = item.value { dict[item.name] = v }
-    } ?? [:]
+    let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+
+    var comp = URLComponents(string: trimmed.replacingOccurrences(of: " ", with: "%20"))
+    if comp?.queryItems == nil, let u = URL(string: trimmed) {
+        comp = URLComponents(url: u, resolvingAgainstBaseURL: false)
+    }
+    guard let comp = comp else { return parseSunParamsFromQueryStringFallback(trimmed) }
+
+    var q = queryDict(from: comp)
+    if let fragment = comp.fragment, fragment.contains("=") {
+        var fragComp = URLComponents()
+        fragComp.query = fragment
+        for (k, v) in queryDict(from: fragComp) where q[k] == nil {
+            q[k] = v
+        }
+    }
+
+    guard let uid = q["uid"]?.trimmingCharacters(in: .whitespacesAndNewlines), !uid.isEmpty,
+          let e = q["e"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+          let c = q["c"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+          let m = q["m"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+    else { return parseSunParamsFromQueryStringFallback(trimmed) }
+
+    if e.count != 64 || c.count != 6 || m.count != 16 { return nil }
+    let hex = CharacterSet(charactersIn: "0123456789abcdefABCDEF")
+    if e.unicodeScalars.contains(where: { !hex.contains($0) }) { return nil }
+    if c.unicodeScalars.contains(where: { !hex.contains($0) }) { return nil }
+    if m.unicodeScalars.contains(where: { !hex.contains($0) }) { return nil }
+    let el = e.lowercased(), cl = c.lowercased(), ml = m.lowercased()
+    if el.allSatisfy({ $0 == "0" }) && cl.allSatisfy({ $0 == "0" }) && ml.allSatisfy({ $0 == "0" }) {
+        return nil
+    }
+    return SunParams(uid: uid, e: e, c: c, m: m)
+}
+
+/// `?` 后手动拆 query，容错未规范编码的 URL。
+private func parseSunParamsFromQueryStringFallback(_ raw: String) -> SunParams? {
+    guard let idx = raw.firstIndex(of: "?") else { return nil }
+    let query = String(raw[raw.index(after: idx)...])
+    var q: [String: String] = [:]
+    for pair in query.split(separator: "&") {
+        let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2 else { continue }
+        let key = String(parts[0]).removingPercentEncoding ?? String(parts[0])
+        let val = String(parts[1]).removingPercentEncoding ?? String(parts[1])
+        q[key] = val
+    }
     guard let uid = q["uid"]?.trimmingCharacters(in: .whitespacesAndNewlines), !uid.isEmpty,
           let e = q["e"]?.trimmingCharacters(in: .whitespacesAndNewlines),
           let c = q["c"]?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -76,11 +127,17 @@ private func urlString(fromUriNdefPayload payload: Data) -> String? {
 private func firstNdefUriString(from message: NFCNDEFMessage?) -> String? {
     guard let records = message?.records else { return nil }
     for record in records {
-        guard record.typeNameFormat == .nfcWellKnown,
-              record.type.count == 1,
-              record.type.first == UInt8(ascii: "U")
-        else { continue }
-        return urlString(fromUriNdefPayload: record.payload)
+        if record.typeNameFormat == .nfcWellKnown {
+            if record.type == Data([0x55]) || record.type == "U".data(using: .utf8) {
+                if let u = urlString(fromUriNdefPayload: record.payload) { return u }
+            }
+            if record.type == Data([0x53, 0x70]) || record.type == "Sp".data(using: .utf8) {
+                if let nested = NFCNDEFMessage(data: record.payload),
+                   let inner = firstNdefUriString(from: nested) {
+                    return inner
+                }
+            }
+        }
     }
     return nil
 }
@@ -138,6 +195,7 @@ final class CashTreesWebCoordinator: NSObject, WKScriptMessageHandler, NFCTagRea
         }
     }
 
+    /// Core NFC：系统会强制展示扫描界面（含 `alertMessage`），无公开 API 可隐藏；仅可改提示文案。
     private func armNfcPhysicalCardRead() {
         guard NFCNDEFReaderSession.readingAvailable else {
             dispatchNfcJsonToWeb(["ok": false, "error": "no_hardware"])
