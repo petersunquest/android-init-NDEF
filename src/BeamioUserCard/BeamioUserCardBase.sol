@@ -26,6 +26,7 @@ interface IBeamioUserCardFactoryPaymasterV07 {
 interface IBeamioMembershipStatsModuleV1 {
     function mintMemberCardInternal(address user, uint256 tierIndex) external;
     function removeNft(address user, uint256 id) external;
+    function alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) external;
     function maybeUpgradeByPointsBalance(address acct) external;
     function maybeUpgrade(address acct, uint256 pointsDelta6) external;
     function syncActiveToBestValid(address user) external;

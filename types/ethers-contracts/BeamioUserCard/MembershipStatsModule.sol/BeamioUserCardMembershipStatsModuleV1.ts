@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardMembershipStatsModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "handlePointsTransferForUpgradeType2" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "alignMembershipTierToPointsBalance" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "handlePointsTransferForUpgradeType2" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "ApprovalForAll" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -19,6 +19,7 @@ encodeFunctionData(functionFragment: 'activeMembershipCountByTierIndex', values:
 encodeFunctionData(functionFragment: 'activeMembershipCountByTokenId', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'activeMembershipId', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'activeTierIndexOrMax', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'alignMembershipTierToPointsBalance', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
@@ -66,6 +67,7 @@ decodeFunctionResult(functionFragment: 'activeMembershipCountByTierIndex', data:
 decodeFunctionResult(functionFragment: 'activeMembershipCountByTokenId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeMembershipId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeTierIndexOrMax', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'alignMembershipTierToPointsBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'attributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
@@ -304,6 +306,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [arg0: AddressLike, ],
       [bigint],
       'view'
+    >
+    
+
+    
+    alignMembershipTierToPointsBalance: TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -650,6 +660,11 @@ getFunction(nameOrSignature: 'activeTierIndexOrMax'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'alignMembershipTierToPointsBalance'): TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'attributes'): TypedContractMethod<
       [arg0: BigNumberish, ],

@@ -66,6 +66,7 @@ function assertSelectorPresent(code: string, signature: string) {
 }
 
 async function main() {
+  // 未设置 *_MODULE_ADDRESS 时会重新部署缺失模块；仅升级某一模块时，请对其余模块传入链上已有地址，避免误替换工厂绑定。
   const { ethers: hhEthers } = await networkModule.connect();
   const provider = hhEthers.provider;
   const network = await provider.getNetwork();
@@ -201,11 +202,11 @@ async function main() {
   const deployedFactoryCode = await provider.getCode(factoryAddress);
   assertSelectorPresent(
     deployedFactoryCode,
-    "appendTierForCardWithOwnerSignature(address,uint256,uint256,uint256,bool,uint256,bytes32,bytes)"
+    "appendTierForCardWithOwnerSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)"
   );
   assertSelectorPresent(
     deployedFactoryCode,
-    "createCardCollectionWithInitCodeAndTiers(address,uint8,uint256,bytes,(uint256,uint256,uint256,bool)[])"
+    "createCardCollectionWithInitCodeAndTiers(address,uint8,uint256,bytes,(uint256,uint256,uint256)[])"
   );
 
   const moduleDeployment = {

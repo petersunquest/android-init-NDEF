@@ -130,6 +130,8 @@ interface IBeamioGovernanceModuleV1 {
 interface IBeamioMembershipStatsModuleV1 {
     function mintMemberCardInternal(address user, uint256 tierIndex) external;
     function removeNft(address user, uint256 id) external;
+    /// @param allowUpgrade true：余额达到更高档时上调；false：仅当余额不足以支撑当前档时下调到可达档（转出/销毁 points 后）
+    function alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) external;
     function maybeUpgradeByPointsBalance(address acct) external;
     function maybeUpgrade(address acct, uint256 pointsDelta6) external;
     function syncActiveToBestValid(address user) external;

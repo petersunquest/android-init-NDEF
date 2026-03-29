@@ -14,6 +14,7 @@
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full
  *
  * 输出: deployments/base-{Contract}-standard-input-FULL.json
  */
@@ -48,6 +49,10 @@ const CONFIG = {
   GovernanceModule: {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
+  },
+  MembershipStatsModule: {
+    sourceKey: "project/src/BeamioUserCard/MembershipStatsModule.sol",
+    contractName: "BeamioUserCardMembershipStatsModuleV1",
   },
   BeamioAccount: {
     sourceKey: "project/src/BeamioAccount/BeamioAccount.sol",

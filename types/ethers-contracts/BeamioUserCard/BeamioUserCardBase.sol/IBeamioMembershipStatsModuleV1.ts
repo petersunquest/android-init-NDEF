@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioMembershipStatsModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "handlePointsTransferForUpgradeType2" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "removeNft" | "syncActiveToBestValid"): FunctionFragment;
+    getFunction(nameOrSignature: "alignMembershipTierToPointsBalance" | "handlePointsTransferForUpgradeType2" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "removeNft" | "syncActiveToBestValid"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'handlePointsTransferForUpgradeType2', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[]]): string;
+    encodeFunctionData(functionFragment: 'alignMembershipTierToPointsBalance', values: [AddressLike, boolean]): string;
+encodeFunctionData(functionFragment: 'handlePointsTransferForUpgradeType2', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeUpgrade', values: [AddressLike, BigNumberish]): string;
@@ -19,7 +20,8 @@ encodeFunctionData(functionFragment: 'mintMemberCardInternal', values: [AddressL
 encodeFunctionData(functionFragment: 'removeNft', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'syncActiveToBestValid', values: [AddressLike]): string;
 
-    decodeFunctionResult(functionFragment: 'handlePointsTransferForUpgradeType2', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'alignMembershipTierToPointsBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'handlePointsTransferForUpgradeType2', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeUpgrade', data: BytesLike): Result;
@@ -64,6 +66,14 @@ decodeFunctionResult(functionFragment: 'syncActiveToBestValid', data: BytesLike)
 
 
     
+    
+    alignMembershipTierToPointsBalance: TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
     
     handlePointsTransferForUpgradeType2: TypedContractMethod<
       [from: AddressLike, effectiveTo: AddressLike, ids: BigNumberish[], values: BigNumberish[], ],
@@ -131,7 +141,12 @@ decodeFunctionResult(functionFragment: 'syncActiveToBestValid', data: BytesLike)
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'handlePointsTransferForUpgradeType2'): TypedContractMethod<
+    getFunction(nameOrSignature: 'alignMembershipTierToPointsBalance'): TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'handlePointsTransferForUpgradeType2'): TypedContractMethod<
       [from: AddressLike, effectiveTo: AddressLike, ids: BigNumberish[], values: BigNumberish[], ],
       [void],
       'nonpayable'

@@ -40,8 +40,13 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         }
     }
 
+    function alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) external {
+        _alignMembershipTierToPointsBalanceInternal(acct, allowUpgrade);
+    }
+
     function maybeUpgradeByPointsBalance(address acct) external {
-        _maybeUpgradeByPointsBalanceInternal(acct);
+        if (upgradeType != 1) return;
+        _alignMembershipTierToPointsBalanceInternal(acct, true);
     }
 
     function maybeUpgrade(address acct, uint256 pointsDelta6) external {
@@ -192,13 +197,9 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         _activateIssuedMembership(acct, newId2, lowIdx, false);
     }
 
-    function _maybeUpgradeByPointsBalanceInternal(address acct) internal {
-        if (upgradeType != 1) return;
-        _applyBalanceBasedMembershipTierBump(acct);
-    }
-
-    /// @dev upgradeType==1：按当前 points 余额一次性对齐到可达最高档（同一 tokenId 原地改 tier）。
-    function _applyBalanceBasedMembershipTierBump(address acct) internal {
+    /// @dev 按当前 points 余额对齐档位（同一 tokenId 原地改 tier）。allowUpgrade=false 时仅下调（避免与 upgradeType 0/2 的升档规则冲突）。
+    /// @dev 若余额低于任何 tier 门槛，目标档退化为 `minUsdc6` 最小的那一档（地板档）；已处于该档则不再变化。
+    function _alignMembershipTierToPointsBalanceInternal(address acct, bool allowUpgrade) internal {
         if (tiers.length == 0) return;
         _syncActiveToBestValidInternal(acct);
         uint256 currentActiveId = activeMembershipId[acct];
@@ -208,15 +209,30 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
 
         uint256 bal = balanceOf(acct, POINTS_ID);
         (bool okTier, uint256 targetIdx, uint256 attr) = _tierFromPointsBalance(bal);
-        if (!okTier) return;
-        if (tiers[targetIdx].minUsdc6 <= tiers[currentTierIdx].minUsdc6) return;
+        if (!okTier) {
+            targetIdx = _tierIndexWithMinThreshold();
+            attr = tiers[targetIdx].attr;
+        }
 
-        uint256 effExpiry = _effectiveExpirySeconds(targetIdx);
-        uint256 expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
-        _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, targetIdx, attr, expiry);
-        _recordMembershipUpgradedTotal();
-        emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, targetIdx, expiry);
-        _recordUpgradeFlow(currentActiveId, targetIdx);
+        uint256 currentMin = tiers[currentTierIdx].minUsdc6;
+        uint256 targetMin = tiers[targetIdx].minUsdc6;
+        if (targetMin == currentMin) return;
+
+        if (targetMin > currentMin) {
+            if (!allowUpgrade) return;
+            uint256 effExpiry = _effectiveExpirySeconds(targetIdx);
+            uint256 expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
+            _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, targetIdx, attr, expiry);
+            _recordMembershipUpgradedTotal();
+            emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, targetIdx, expiry);
+            _recordUpgradeFlow(currentActiveId, targetIdx);
+            return;
+        }
+
+        uint256 effExpiryD = _effectiveExpirySeconds(targetIdx);
+        uint256 expiryD = effExpiryD == 0 ? 0 : block.timestamp + effExpiryD;
+        _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, targetIdx, attr, expiryD);
+        emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, targetIdx, expiryD);
     }
 
     function _maybeUpgradeInternal(address acct, uint256 pointsDelta6) internal {
@@ -228,7 +244,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         if (currentTierIdx >= tiers.length) return;
 
         if (upgradeType == 1) {
-            _applyBalanceBasedMembershipTierBump(acct);
+            _alignMembershipTierToPointsBalanceInternal(acct, true);
             return;
         }
 

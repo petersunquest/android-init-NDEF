@@ -10,6 +10,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "acct",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "allowUpgrade",
+        "type": "bool"
+      }
+    ],
+    "name": "alignMembershipTierToPointsBalance",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "from",
         "type": "address"
       },

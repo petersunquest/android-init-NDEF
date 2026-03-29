@@ -31,7 +31,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 19;
+    uint256 public constant VERSION = 20;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -963,6 +963,19 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         for (uint256 i = 0; i < r.burnedCount; i++) {
             _removeNft(r.burnedFrom[i], r.burnedIds[i]);
         }
+
+        if (from != address(0)) {
+            bool pointsLeaveFrom;
+            for (uint256 i = 0; i < ids.length; i++) {
+                if (ids[i] == POINTS_ID && values[i] > 0) {
+                    pointsLeaveFrom = true;
+                    break;
+                }
+            }
+            if (pointsLeaveFrom) {
+                _alignMembershipTierToPointsBalance(from, false);
+            }
+        }
     }
 
     function _removeNft(address user, uint256 id) internal {
@@ -1080,6 +1093,17 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         _callModule(
             MODULE_MEMBERSHIP_STATS,
             abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.maybeUpgradeByPointsBalance.selector, acct)
+        );
+    }
+
+    function _alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) internal {
+        _callModule(
+            MODULE_MEMBERSHIP_STATS,
+            abi.encodeWithSelector(
+                IBeamioMembershipStatsModuleV1.alignMembershipTierToPointsBalance.selector,
+                acct,
+                allowUpgrade
+            )
         );
     }
 
