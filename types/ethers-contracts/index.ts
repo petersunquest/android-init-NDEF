@@ -176,6 +176,10 @@ export type { IBeamioIndexerDiamond } from './b-unit/BUnitAirdrop.sol/IBeamioInd
 export { IBeamioIndexerDiamond__factory } from './factories/b-unit/BUnitAirdrop.sol/IBeamioIndexerDiamond__factory.js';
 export type { IConetTreasury } from './b-unit/BUnitAirdrop.sol/IConetTreasury.js';
 export { IConetTreasury__factory } from './factories/b-unit/BUnitAirdrop.sol/IConetTreasury__factory.js';
+export type { BuintRedeemAirdrop } from './b-unit/BuintRedeemAirdrop.sol/BuintRedeemAirdrop.js';
+export { BuintRedeemAirdrop__factory } from './factories/b-unit/BuintRedeemAirdrop.sol/BuintRedeemAirdrop__factory.js';
+export type { IBeamioBUnitsMint } from './b-unit/BuintRedeemAirdrop.sol/IBeamioBUnitsMint.js';
+export { IBeamioBUnitsMint__factory } from './factories/b-unit/BuintRedeemAirdrop.sol/IBeamioBUnitsMint__factory.js';
 export type { GuardianNodesInfoV6 } from './b-unit/GuardianNodesInfoV6.js';
 export { GuardianNodesInfoV6__factory } from './factories/b-unit/GuardianNodesInfoV6__factory.js';
 export type { BaseTreasury } from './b-unit/baseTreasury.sol/BaseTreasury.js';

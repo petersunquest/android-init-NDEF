@@ -1,0 +1,39 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "settle_contractAdmin": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+  ],
+  "timestamp": "2026-03-30T18:43:02.138Z",
+  "contracts": {
+    "BUint": {
+      "address": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
+      "mintRewardAdminsDoc": [
+        "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F",
+        "0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A"
+      ]
+    },
+    "BuintRedeemAirdrop": {
+      "address": "0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A",
+      "buint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
+      "redeemAdmins": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+        "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+        "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+        "0x0981275553A41E00ec1006fe074971285E00c2A3",
+        "0x8B48D8249DfC6469357aB25d2488B122dc84D6e7"
+      ],
+      "eip712": {
+        "name": "BuintRedeemAirdrop",
+        "version": "1",
+        "redeemWithCode": "RedeemWithCode(address recipient,bytes32 codeHash,uint256 deadline)"
+      }
+    }
+  }
+}

@@ -29,6 +29,7 @@ type BaseAddrs = {
 type ConetAddrs = {
   BUint?: string
   BUnitAirdrop?: string
+  BuintRedeemAirdrop?: string
   BeamioIndexerDiamond?: string
   ConetTreasury?: string
   conetUsdc?: string
@@ -56,6 +57,8 @@ export const BASE_BEAMIO_USER_CARD_TRANSFER_LIB = (base.BEAMIO_USER_CARD_TRANSFE
 // --- CoNET Mainnet ---
 export const CONET_BUINT = conet.BUint ?? '0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879'
 export const CONET_BUNIT_AIRDROP_ADDRESS = conet.BUnitAirdrop ?? '0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F'
+/** B-Unit 兑换码空投（EIP-712 admin 提交）；见 deployments/conet-BuintRedeemAirdrop.json */
+export const CONET_BUINT_REDEEM_AIRDROP = conet.BuintRedeemAirdrop ?? '0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A'
 export const BEAMIO_INDEXER_DIAMOND = conet.BeamioIndexerDiamond ?? '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
 export const CONET_TREASURY = conet.ConetTreasury ?? '0xA7fb50fE8e09E17E74081014d49f4E80729cCA48'
 export const CONET_USDC = conet.conetUsdc ?? '0x28fBBb6C5C06A4736B00A540b66378091c224456'
@@ -98,6 +101,7 @@ export const CONTRACT_ADDRESSES = {
     chainId: 224400,
     buint: CONET_BUINT,
     bUnitAirdrop: CONET_BUNIT_AIRDROP_ADDRESS,
+    buintRedeemAirdrop: CONET_BUINT_REDEEM_AIRDROP,
     beamioIndexerDiamond: BEAMIO_INDEXER_DIAMOND,
     conetTreasury: CONET_TREASURY,
     conetUsdc: CONET_USDC,

@@ -1,0 +1,16 @@
+BuintRedeemAirdrop — CoNET Blockscout 验证元数据
+
+compiler_version: v0.8.33+commit.64118f21
+contract_name: project/src/b-unit/BuintRedeemAirdrop.sol:BuintRedeemAirdrop
+constructor_args_hex (no 0x): 0000000000000000000000004a3e59519ee72b9dcf376f0617ff0a0a5a1ef87900000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+deployed_address: 0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A
+standard_json_full: deployments/conet-BuintRedeemAirdrop-standard-input-FULL.json
+standard_json_conet_api (推荐，避免 413): deployments/conet-BuintRedeemAirdrop-standard-input-SUBSET.json
+subset_sources_count: 49
+build_info_used: solc-0_8_33-eadc67b635af7854b062df38198015afe4e4fd0c.json
+viaIR (settings): true
+
+CoNET Blockscout: https://mainnet.conet.network/
+API 示例:
+  POST .../api/v2/smart-contracts/<address>/verification/via/standard-input
+  form: compiler_version, contract_name, files[0]=standard-input.json, constructor_args, autodetect_constructor_args=false, license_type=mit

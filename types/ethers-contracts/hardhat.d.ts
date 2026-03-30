@@ -101,6 +101,8 @@ getContractFactory(name: 'IBeamioBUnits', signerOrOptions?: ethers.Signer | Fact
 getContractFactory(name: 'IBeamioIndexerDiamond', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioIndexerDiamond__factory>
 getContractFactory(name: 'IBeamioQuoteHelper', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioQuoteHelper__factory>
 getContractFactory(name: 'IConetTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasury__factory>
+getContractFactory(name: 'BuintRedeemAirdrop', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BuintRedeemAirdrop__factory>
+getContractFactory(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioBUnitsMint__factory>
 getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
 getContractFactory(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BaseTreasury__factory>
 getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
@@ -241,6 +243,8 @@ getContractAt(name: 'IBeamioBUnits', address: string | ethers.Addressable, signe
 getContractAt(name: 'IBeamioIndexerDiamond', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioIndexerDiamond>
 getContractAt(name: 'IBeamioQuoteHelper', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioQuoteHelper>
 getContractAt(name: 'IConetTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasury>
+getContractAt(name: 'BuintRedeemAirdrop', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BuintRedeemAirdrop>
+getContractAt(name: 'IBeamioBUnitsMint', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioBUnitsMint>
 getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
 getContractAt(name: 'BaseTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BaseTreasury>
 getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
@@ -381,6 +385,8 @@ deployContract(name: 'IBeamioBUnits', signerOrOptions?: ethers.Signer | DeployCo
 deployContract(name: 'IBeamioIndexerDiamond', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioIndexerDiamond>
 deployContract(name: 'IBeamioQuoteHelper', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioQuoteHelper>
 deployContract(name: 'IConetTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasury>
+deployContract(name: 'BuintRedeemAirdrop', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BuintRedeemAirdrop>
+deployContract(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMint>
 deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
 deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
@@ -521,6 +527,8 @@ deployContract(name: 'IBeamioBUnits', args: any[], signerOrOptions?: ethers.Sign
 deployContract(name: 'IBeamioIndexerDiamond', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioIndexerDiamond>
 deployContract(name: 'IBeamioQuoteHelper', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioQuoteHelper>
 deployContract(name: 'IConetTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasury>
+deployContract(name: 'BuintRedeemAirdrop', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BuintRedeemAirdrop>
+deployContract(name: 'IBeamioBUnitsMint', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMint>
 deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'BaseTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
 deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
