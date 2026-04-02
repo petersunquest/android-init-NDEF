@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+
+<html class="scroll-smooth" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Verra | The Merchant Value Network</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-headline { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-effect {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .mesh-gradient {
+            background: linear-gradient(135deg, #0051d1 0%, #7a9dff 100%);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-surface-variant": "#595c5e",
+              "tertiary-dim": "#7f2d7e",
+              "primary-fixed": "#7a9dff",
+              "tertiary-container": "#f797ef",
+              "on-primary": "#f1f2ff",
+              "inverse-surface": "#0b0f10",
+              "surface-dim": "#d0d5d8",
+              "outline-variant": "#abadaf",
+              "on-tertiary": "#ffeef8",
+              "primary-dim": "#0047b8",
+              "on-secondary-fixed-variant": "#515c70",
+              "surface-bright": "#f5f7f9",
+              "secondary-container": "#d8e3fb",
+              "on-tertiary-container": "#610e62",
+              "on-surface": "#2c2f31",
+              "background": "#f5f7f9",
+              "primary": "#0051d1",
+              "tertiary-fixed-dim": "#e88ae1",
+              "surface-container-highest": "#d9dde0",
+              "tertiary": "#8d3a8b",
+              "surface-variant": "#d9dde0",
+              "on-primary-fixed": "#000000",
+              "on-primary-fixed-variant": "#00276d",
+              "inverse-on-surface": "#9a9d9f",
+              "on-secondary": "#eff2ff",
+              "tertiary-fixed": "#f797ef",
+              "surface-container": "#e5e9eb",
+              "on-background": "#2c2f31",
+              "inverse-primary": "#5f8bff",
+              "surface-container-lowest": "#ffffff",
+              "surface": "#f5f7f9",
+              "surface-tint": "#0051d1",
+              "on-secondary-container": "#475266",
+              "error-container": "#fb5151",
+              "surface-container-high": "#dfe3e6",
+              "on-secondary-fixed": "#354053",
+              "secondary": "#515c70",
+              "secondary-fixed-dim": "#cad5ed",
+              "on-primary-container": "#001e59",
+              "error": "#b31b25",
+              "on-tertiary-fixed": "#400041",
+              "error-dim": "#9f0519",
+              "secondary-fixed": "#d8e3fb",
+              "primary-fixed-dim": "#648eff",
+              "on-tertiary-fixed-variant": "#6c1a6c",
+              "surface-container-low": "#eef1f3",
+              "secondary-dim": "#455064",
+              "outline": "#747779",
+              "primary-container": "#7a9dff",
+              "on-error-container": "#570008",
+              "on-error": "#ffefee"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-xl shadow-[0_20px_40px_rgba(21,98,240,0.06)] h-20">
+<nav class="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-600 text-3xl">hub</span>
+<span class="text-2xl font-black tracking-tighter text-blue-600">VERRA</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-blue-600 font-bold border-b-2 border-blue-600 py-1" href="#">Home</a>
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors duration-300" href="#">Merchant Cards</a>
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors duration-300" href="#">Gifting</a>
+<a class="text-slate-600 font-medium hover:text-blue-500 transition-colors duration-300" href="#">Travel</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden lg:block text-slate-600 font-semibold hover:text-blue-600 transition-colors">Talk to Sales</button>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-full font-bold shadow-lg hover:opacity-90 active:scale-95 transition-all">
+                    Download App
+                </button>
+</div>
+</nav>
+</header>
+<main class="pt-32">
+<!-- Hero Section -->
+<section class="max-w-7xl mx-auto px-6 mb-24 lg:mb-40">
+<div class="grid lg:grid-cols-2 gap-16 items-center">
+<div>
+<div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 font-bold text-xs tracking-widest uppercase mb-6">
+<span class="material-symbols-outlined text-sm">auto_awesome</span>
+                        Merchant Value Network
+                    </div>
+<h1 class="text-5xl lg:text-7xl font-extrabold tracking-tight text-on-surface mb-8 leading-[1.1]">
+                        Issue value. <br/> <span class="text-blue-600">Get paid upfront.</span>
+</h1>
+<p class="text-xl text-on-surface-variant mb-10 max-w-xl leading-relaxed font-medium">
+                        Let customers top up, gift, and spend across one network. Consumers spend by showing a dynamic QR in the app or tapping a bound NFC card. Merchants accept with Verra SoftPOS.
+                    </p>
+<div class="flex flex-wrap gap-4">
+<button class="px-8 py-4 bg-primary text-on-primary rounded-full font-bold text-lg shadow-xl shadow-blue-200 hover:scale-[1.02] active:scale-95 transition-all">
+                            Download App
+                        </button>
+<button class="px-8 py-4 bg-surface-container-high text-on-surface rounded-full font-bold text-lg hover:bg-surface-container-highest transition-all">
+                            Talk to Sales
+                        </button>
+</div>
+</div>
+<!-- Visual Anchor: Unified Network Diagram -->
+<div class="relative">
+<div class="aspect-square rounded-xl overflow-hidden relative mesh-gradient p-1">
+<div class="w-full h-full bg-white rounded-[2.8rem] flex items-center justify-center relative overflow-hidden">
+<img class="w-full h-full object-cover opacity-90" data-alt="Abstract 3D interconnected nodes and flowing digital particles in soft blue and white hues, representing a unified financial network" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqBuYgHXVT6StQbymURr0bMDfOzmZZFmaqT2svtzfAQE5bRqDX7Fhhw0mDv0H7fnGxmJkQZLD9_L0SZHO-nTEsEH1YxQTg4uDOa0-sBudmu7oYLVZScK9hLm2DbSpftHg03i5acBH8psJndomxIwEo6Gy3ud-ebKeGEp8K9CLJgXqY1heC9Y58bAstFX-j4jj6M5ND7U9aGaQwC5ClagYMVr3xns0tPJZk_UvOxw1ridabkuVhkOcmkoiqDmaE6RWuBzHgpgGAZkc"/>
+<!-- Floating Floating UI Elements -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="grid grid-cols-2 gap-6 p-8 w-full max-w-md">
+<div class="bg-white/80 backdrop-blur-lg p-6 rounded-lg shadow-xl border border-white/20 -rotate-3">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-blue-600">local_cafe</span>
+<span class="font-bold">Artisan Coffee</span>
+</div>
+<div class="text-2xl font-black text-on-surface">$240.00</div>
+<div class="text-xs text-on-surface-variant">Merchant Value</div>
+</div>
+<div class="bg-white/80 backdrop-blur-lg p-6 rounded-lg shadow-xl border border-white/20 rotate-3 translate-y-12">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-purple-600">fitness_center</span>
+<span class="font-bold">Elite Gym</span>
+</div>
+<div class="text-2xl font-black text-on-surface">$1,200</div>
+<div class="text-xs text-on-surface-variant">Merchant Value</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 1: Merchant Value vs Money -->
+<section class="bg-surface-container-low py-32 rounded-t-[4rem]">
+<div class="max-w-7xl mx-auto px-6">
+<div class="max-w-3xl mb-20">
+<h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-6">Not platform money. <br/><span class="text-blue-600">Merchant value.</span></h2>
+<p class="text-lg text-on-surface-variant leading-relaxed">Verra isn't a digital wallet for generic cash. We empower brands to issue their own private-label currency. Your customers aren't just holding "money"—they are holding a commitment to your brand.</p>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<div class="bg-white p-10 rounded-lg shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-4xl text-blue-600 mb-6" style="font-variation-settings: 'FILL' 1;">payments</span>
+<h3 class="text-xl font-bold mb-4">Upfront Cashflow</h3>
+<p class="text-on-surface-variant">Receive payment the moment a customer tops up their merchant card, not just when they spend.</p>
+</div>
+<div class="bg-white p-10 rounded-lg shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-4xl text-blue-600 mb-6" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<h3 class="text-xl font-bold mb-4">Pure Loyalty</h3>
+<p class="text-on-surface-variant">Locked-in value means 100% customer retention. They already paid; now they just need to visit.</p>
+</div>
+<div class="bg-white p-10 rounded-lg shadow-sm border border-outline-variant/10">
+<span class="material-symbols-outlined text-4xl text-blue-600 mb-6" style="font-variation-settings: 'FILL' 1;">share</span>
+<h3 class="text-xl font-bold mb-4">Network Distribution</h3>
+<p class="text-on-surface-variant">Your value can be gifted, shared, or traded within the Verra consumer ecosystem instantly.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: One Identity (The Cards) -->
+<section class="py-32 bg-white">
+<div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-20 items-center">
+<div class="order-2 lg:order-1 relative h-[600px] flex items-center justify-center">
+<!-- Glassmorphic Card Stack Visual -->
+<div class="relative w-72 h-[450px]">
+<!-- Card 3 -->
+<div class="absolute inset-0 bg-slate-900 rounded-lg shadow-2xl rotate-6 translate-x-8 translate-y-8 flex flex-col p-8 text-white border border-white/10">
+<span class="material-symbols-outlined text-3xl mb-auto">restaurant</span>
+<div class="mt-auto">
+<div class="text-sm opacity-60 uppercase tracking-widest mb-1">Gourmet Bistro</div>
+<div class="text-3xl font-bold">$185.00</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="absolute inset-0 bg-blue-700 rounded-lg shadow-2xl -rotate-3 -translate-x-4 translate-y-4 flex flex-col p-8 text-white border border-white/10">
+<span class="material-symbols-outlined text-3xl mb-auto">flight</span>
+<div class="mt-auto">
+<div class="text-sm opacity-60 uppercase tracking-widest mb-1">Skyline Travel</div>
+<div class="text-3xl font-bold">$1,420</div>
+</div>
+</div>
+<!-- Card 1 (Active) -->
+<div class="absolute inset-0 mesh-gradient rounded-lg shadow-2xl flex flex-col p-8 text-white glass-effect">
+<div class="flex justify-between items-start mb-auto">
+<span class="material-symbols-outlined text-4xl">contactless</span>
+<span class="font-black text-xl">VERRA</span>
+</div>
+<div class="mt-auto">
+<div class="text-sm opacity-80 uppercase tracking-widest mb-1">Urban Lifestyle</div>
+<div class="text-4xl font-black">$450.00</div>
+<div class="mt-6 flex justify-between items-center">
+<div class="text-xs font-mono opacity-60">ID: 8842 1092</div>
+<span class="material-symbols-outlined">qr_code_2</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="order-1 lg:order-2">
+<h2 class="text-4xl lg:text-5xl font-extrabold tracking-tight mb-8">One identity. <br/>Many merchant cards.</h2>
+<p class="text-lg text-on-surface-variant mb-10 leading-relaxed">
+                        Say goodbye to a wallet full of plastic or separate apps for every store. Verra consolidates all your merchant assets into a single, beautiful digital experience.
+                    </p>
+<ul class="space-y-6">
+<li class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-600">check</span>
+</div>
+<div>
+<h4 class="font-bold text-lg">Single Sign-On</h4>
+<p class="text-on-surface-variant">One Verra ID gives you access to thousands of merchant networks.</p>
+</div>
+</li>
+<li class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-600">check</span>
+</div>
+<div>
+<h4 class="font-bold text-lg">Dynamic Balance Management</h4>
+<p class="text-on-surface-variant">View all your store credits, loyalty points, and prepaid balances in real-time.</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- Section 3: Why Merchants & Consumers (Bento) -->
+<section class="py-32 bg-surface-container-low">
+<div class="max-w-7xl mx-auto px-6">
+<div class="text-center max-w-2xl mx-auto mb-20">
+<h2 class="text-4xl font-extrabold mb-4">Built for the Ecosystem</h2>
+<p class="text-on-surface-variant">A symbiotic relationship where merchants get liquidity and consumers get exclusivity.</p>
+</div>
+<div class="grid md:grid-cols-12 grid-rows-2 gap-6 h-auto lg:h-[700px]">
+<!-- Merchant Card -->
+<div class="md:col-span-8 bg-white rounded-lg p-12 flex flex-col justify-between overflow-hidden relative shadow-sm">
+<div class="relative z-10">
+<h3 class="text-3xl font-bold mb-4">Why merchants choose Verra</h3>
+<p class="text-on-surface-variant max-w-md">Transform your cost centers into profit centers. Issue value, reduce payment processing fees, and own your customer data directly.</p>
+<div class="mt-8 flex gap-4">
+<span class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-bold">No High Merchant Fees</span>
+<span class="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-bold">Immediate Settlement</span>
+</div>
+</div>
+<img class="absolute right-0 bottom-0 w-1/2 h-full object-cover opacity-10 grayscale hover:grayscale-0 transition-all duration-700" data-alt="Close up of a modern stylish boutique shop owner smiling warmly, inviting environment with soft natural lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_PRSjgXjtF_cqFDvUNolkahfoQ3hdeD0oiJfi-ylzbM73rkn-40QByjWgkkcaDgfkXqTcEE7d6bhzv6vj3z5Zuc-wKmdK2qZMkOe2xQG2CtlTtA_IpAuj8qpf0UipWQh5ZnI3uaNmz8udB7BnqJ9365vYbKScfqZi1iXQ7Q-VQ-jqNXmqPtmp9zFTeSEpWhKLOtlynTFNUdUP6jsk5kUkNRAFGg0M0VwdnuSzhFMBFE8m0_5b0fipNCjhGEHaAcQpHUoeuFudXpA"/>
+</div>
+<!-- consumer Image -->
+<div class="md:col-span-4 bg-primary rounded-lg overflow-hidden relative group">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-700" data-alt="A group of diverse young adults laughing and sharing a meal at a bright outdoor cafe table, warm sunset lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCI0P8m2gF2xXxKFynteDnp7Cf8Hr6n6_wovDYblGJJnoDhjmXIgwdJd8fqCPUnk4yYN_7YQpVZKRMsrxKAQ0v83IkDG-RyLAEFLIFVM8M1pqXPkUeqssvcbw4Y0y68mLfmufyXaB7coYaDFaQ0rTnRWm4lkY4IaY0TjGSU6hckW7bjbAgka8CEFioJ64JOTnCwMjb6NOjJSD10XXFmjJA_mY3z44_TsFwOjLm-wT1I0qptXSq1mBV-FZvGRFFqFHt401gs3vu02ro"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-8">
+<div class="text-white">
+<h3 class="text-2xl font-bold mb-2">Join the Community</h3>
+<p class="text-sm opacity-80">Be part of the exclusive circles of the brands you love.</p>
+</div>
+</div>
+</div>
+<!-- consumer Card -->
+<div class="md:col-span-5 bg-white rounded-lg p-10 flex flex-col justify-center shadow-sm">
+<h3 class="text-2xl font-bold mb-4">Why consumers use Verra</h3>
+<p class="text-on-surface-variant mb-6">Enjoy deeper discounts, instant gifting to friends, and a faster way to pay without carrying a heavy wallet.</p>
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-blue-600">card_giftcard</span>
+<span class="font-medium">Instant Gifting</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-blue-600">shield_with_heart</span>
+<span class="font-medium">Enhanced Privacy</span>
+</div>
+</div>
+</div>
+<!-- Flow Card -->
+<div class="md:col-span-7 mesh-gradient rounded-lg p-12 text-white flex items-center shadow-xl">
+<div class="grid grid-cols-3 gap-8 w-full text-center">
+<div>
+<div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+</div>
+<h4 class="font-bold">Scan</h4>
+<p class="text-xs opacity-70 mt-2">Merchant shows SoftPOS</p>
+</div>
+<div>
+<div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
+<span class="material-symbols-outlined">touch_app</span>
+</div>
+<h4 class="font-bold">Tap</h4>
+<p class="text-xs opacity-70 mt-2">Pay with NFC card</p>
+</div>
+<div>
+<div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
+<span class="material-symbols-outlined">verified</span>
+</div>
+<h4 class="font-bold">Done</h4>
+<p class="text-xs opacity-70 mt-2">Instant value transfer</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 4: How it works flow -->
+<section class="py-32 bg-white">
+<div class="max-w-7xl mx-auto px-6">
+<div class="flex flex-col lg:flex-row gap-20 items-center">
+<div class="lg:w-1/2">
+<h2 class="text-4xl font-extrabold mb-12">The Verra Journey</h2>
+<div class="space-y-12 relative">
+<!-- Vertical Line -->
+<div class="absolute left-6 top-4 bottom-4 w-px bg-slate-200"></div>
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold z-10">1</div>
+<h4 class="text-xl font-bold mb-2">Merchant Setup</h4>
+<p class="text-on-surface-variant">Download Verra Merchant app and issue your custom value cards in minutes. No hardware needed.</p>
+</div>
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold z-10">2</div>
+<h4 class="text-xl font-bold mb-2">Customer Top-Up</h4>
+<p class="text-on-surface-variant">Customers find your brand in the Verra network and pre-purchase value using their preferred method.</p>
+</div>
+<div class="relative pl-16">
+<div class="absolute left-0 top-0 w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold z-10">3</div>
+<h4 class="text-xl font-bold mb-2">Seamless Spend</h4>
+<p class="text-on-surface-variant">Transactions happen instantly via SoftPOS. No intermediaries, no 3-day wait for your funds.</p>
+</div>
+</div>
+</div>
+<div class="lg:w-1/2">
+<div class="bg-surface-container-low rounded-xl p-1 relative overflow-hidden">
+<img class="w-full h-auto rounded-lg shadow-2xl" data-alt="A high-end minimal dashboard showing financial growth charts and merchant card performance analytics in a clean blue and white UI" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEqBzOSwqyMDbBfXDuDjDYgsbFXx7j7JQVcERzcSxpmWpdcfPIRW72YuSdPnfUgSZDoqLSe2TiE84PeYmaqVk4a113oRjwT8cHH3gJvgDHRGJDCBY4WwEmX5YTPB5qEGVj92KwlWFpFqmPjyy3v4zUQCjKxqv5wjO99iJhI66018jDEP-aamSUXpjBQ4fPw2yJvxvRwcMzetzEHERDc2PMJW5qzQmF0duJGwXpOk8VCnH6u5xHDyDoXz-jN2Ne6xTsuNO2qXbn5cs"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="max-w-7xl mx-auto px-6 mb-32">
+<div class="mesh-gradient rounded-[3rem] p-12 lg:p-24 text-center text-white relative overflow-hidden shadow-2xl">
+<div class="relative z-10 max-w-3xl mx-auto">
+<h2 class="text-4xl lg:text-6xl font-extrabold mb-8">Ready to reclaim <br/>your value?</h2>
+<p class="text-xl opacity-90 mb-12 font-medium">Join the network that prioritizes merchant-customer relationships over platform fees.</p>
+<div class="flex flex-wrap justify-center gap-6">
+<button class="px-10 py-5 bg-white text-blue-600 rounded-full font-black text-xl hover:scale-105 transition-transform">Download App</button>
+<button class="px-10 py-5 bg-white/20 backdrop-blur-md text-white border border-white/30 rounded-full font-bold text-xl hover:bg-white/30 transition-all">Talk to Sales</button>
+</div>
+</div>
+<!-- Decorative element -->
+<div class="absolute -bottom-20 -right-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+<div class="absolute -top-20 -left-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full bg-slate-50 rounded-t-[3rem] py-20 px-8">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-16">
+<div class="max-w-sm">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-blue-600 text-3xl">hub</span>
+<span class="text-2xl font-black tracking-tighter text-slate-900">VERRA</span>
+</div>
+<p class="text-slate-500 leading-relaxed mb-8">The merchant value network for everyday commerce. Empowering brands to own their financial future.</p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors shadow-sm" href="#">
+<span class="material-symbols-outlined">public</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-white flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors shadow-sm" href="#">
+<span class="material-symbols-outlined">mail</span>
+</a>
+</div>
+</div>
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-12">
+<div>
+<h5 class="font-bold text-slate-900 mb-6 uppercase tracking-widest text-xs">Network</h5>
+<ul class="space-y-4">
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">Merchant Cards</a></li>
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">How it Works</a></li>
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">Network Status</a></li>
+</ul>
+</div>
+<div>
+<h5 class="font-bold text-slate-900 mb-6 uppercase tracking-widest text-xs">Resources</h5>
+<ul class="space-y-4">
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">Terms of Service</a></li>
+<li><a class="text-slate-500 hover:text-blue-600 transition-colors" href="#">Contact Sales</a></li>
+</ul>
+</div>
+<div class="col-span-2 lg:col-span-1">
+<h5 class="font-bold text-slate-900 mb-6 uppercase tracking-widest text-xs">Office</h5>
+<p class="text-slate-500 leading-relaxed">
+                        Silicon Valley, CA<br/>
+                        Innovation Way 400
+                    </p>
+</div>
+</div>
+</div>
+<div class="max-w-7xl mx-auto mt-20 pt-8 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
+<span class="text-slate-400 text-sm">© 2024 Verra. Powered by Beamio.</span>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-slate-400 text-sm">Systems Operational</span>
+</div>
+</div>
+</footer>
+</body></html>

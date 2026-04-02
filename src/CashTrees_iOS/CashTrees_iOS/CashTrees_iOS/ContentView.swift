@@ -325,7 +325,10 @@ struct CashTreesWebView: UIViewRepresentable {
             m.name = 'viewport';
             (document.head || document.documentElement).appendChild(m);
           }
-          m.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
+          m.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no');
+          var s = document.createElement('style');
+          s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:pan-y;}';
+          (document.head || document.documentElement).appendChild(s);
         })();
         """
         config.userContentController.addUserScript(
@@ -343,10 +346,15 @@ struct CashTreesWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         coord.webView = webView
-        webView.scrollView.minimumZoomScale = 1.0
-        webView.scrollView.maximumZoomScale = 1.0
-        webView.scrollView.bouncesZoom = false
-        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
+        let sv = webView.scrollView
+        sv.minimumZoomScale = 1.0
+        sv.maximumZoomScale = 1.0
+        sv.zoomScale = 1.0
+        sv.bouncesZoom = false
+        sv.pinchGestureRecognizer?.isEnabled = false
+        sv.alwaysBounceHorizontal = false
+        sv.showsHorizontalScrollIndicator = false
+        sv.bounces = false
 
         var request = URLRequest(url: cashTreesAppURL)
         request.cachePolicy = .reloadIgnoringLocalCacheData

@@ -115,6 +115,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     mapping(address => uint256) public activeTierIndexOrMax;
     mapping(uint256 => uint256) public activeMembershipCountByTokenId;
     mapping(uint256 => uint256) public activeMembershipCountByTierIndex;
+    /// @dev 已累计发行的会员 NFT 总数（业务上「已发行会员卡」数量以本计数为准；链上增量 tokenId 见 `_currentIndex` 分配语义）。
     uint256 public totalMembershipIssued;
     uint256 public totalMembershipUpgraded;
     uint256 public totalActiveMemberships;
@@ -161,6 +162,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     event PointsMintedByGateway(address indexed userEOA, address indexed acct, uint256 points6);
 
     // ===== current index (membership NFT; issued NFT index in IssuedNftStorage) =====
+    /// @dev 下一枚会员档 NFT 将使用的 tokenId，自 `NFT_START_ID`（100）起单调递增；区间为 [NFT_START_ID, ISSUED_NFT_START_ID)，之后为 issued 系列 ID 空间。
     uint256 private _currentIndex = NFT_START_ID;
 
     /// @dev 与 BeamioUserCardBase 同序，供 MembershipStatsModule delegatecall 一致
