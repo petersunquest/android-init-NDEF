@@ -16,6 +16,8 @@ error BM_DeployFailed();
 error BM_DeployFailedAtStep(uint8 step);
 /// @notice 若用 try new Contract() catch (bytes reason) 时可冒泡 constructor 的 revert 原因
 error BM_DeployFailedWithReason(bytes reason);
+/// @notice `subject` 已登记为另一张 BeamioUserCard 的 admin；须先在该卡上以 adminManager(..., false) 移除后，方可登记为其他卡的 admin
+error BM_ExclusiveAdminBoundToOtherCard(address subject, address boundCard);
 error UC_TiersNotDecreasing();
 
 // -------- ERC1155 / UserCard (UC_) --------

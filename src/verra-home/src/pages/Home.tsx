@@ -1,271 +1,281 @@
-const AVATAR_IMAGE =
-	'https://lh3.googleusercontent.com/aida-public/AB6AXuDgrKqgkovyf9vMk-CmZ_kTzqI5HEMjqn_XHND9aeRvk56wzYhmOywBMBY12z7UajvV0_pSq5z11uaXxyN4EWF70SEueaG4AZKSlXwQT18NZHCb5OQVpeeem6rId3sqG-TXJ3l1esb3uYftCK1Ot2Y2s04ggDlyWSU5I2XD9RXXItPOzq56Vu3p6iaJpDUZgdngA0Kqvdpx6uKBLRNJKQqcW2-xTuf1F2k5fxb0riVfor6K2kh_8VsiqpEmqsiyLS3kyAm55yKmUVwDv'
+import { Link } from 'react-router-dom'
+import { SiteFooter } from '../components/SiteFooter'
+import { SiteHeader } from '../components/SiteHeader'
 
-const BRAND_STARBUCKS =
-	'https://lh3.googleusercontent.com/aida-public/AB6AXuDm-gTDYWdORP6GeFHbNzrLEwdKW8Nt8OwSgLUS2tiaY40wgmngHOWy2SlH358bOgaXZtxXW2nIhAJJ5ZaU5g0E9DJjN16rkAFhZJ_mQUg2CEsG-g7iDtG72FnMbXHwhbs-QNRCPVAFo0kDc1adWAUfI0XVI7HvTO3CDiMxhM6CkP1eAdx7rU-2gMt9ZPWIkdNtPB1K5bbspc3wEJlWbHztiI6cDbvvkdzN4kk8It0WOnzEQpdxI7IUROFmFt5_oQTHAj5JIjBb2ALe'
+const HERO_IMAGE =
+	'https://lh3.googleusercontent.com/aida-public/AB6AXuDjtUecXEZL8bYsb_HwRNDDqOJmW0XisFMhMrVZJGqqdrnmVQyCZAKcFcoMO7NFv35zaehrtynKkrbLAlmyivO1bIcgvq-yJJ2DiWNVOiKsEQa_LzHY2ttAy2Bm57lTlNxlLBte2PNGjN4euGAGzcGqMWKJ4nDsodQw5UW2kEz43kOZhAh_eJIPXpGWl9LfHQURXh99gB-CMEsCgJQU55WTBelprv66qPoZQ2mBG9Sg7Ou7RnsB8FRCOVMTp7QpfDyrq65SxA0mm8zE'
 
-const BRAND_WHOLE_FOODS =
-	'https://lh3.googleusercontent.com/aida-public/AB6AXuATIGoXydBEGP2q20mc3EjoqWQEYJkTLMh2xR_P3w2nGUiU6jokQ0-ljQuIFy1dg4cwLlSIFF2lBCl3447r4iHsR2orQqHyHvENmrsORo1w92o14DoMEMsqxA4oGwNixaF189e0XGrfZ_htpugnvdXyGt2TBH_1OTdxvvvMWuhgIzH7CBGdHz9Mgr2h58vVR4D5g10CvwiGoeuDxzNTrpaNJjmNpNerCIgDzkF9W53kNfjUjOhsTkLbL1_h8Ybtjj_FYu5b1gG2fQXj'
-
-const BRAND_LULU =
-	'https://lh3.googleusercontent.com/aida-public/AB6AXuDcvZ5F4HraCf2BkGDxYaLb5lCrVGvTLQNgOR2CIF0zcPhkxrRmWoVk_A1P17GBKcjpKIHusmxga2uIMN-pmArvfyJAieNGu5mLXJtEJgvzBdYgUUGda4JpBLz0dKHEvceRC2WM-sio3gfAoDOMFvMSP9Znvqn5HZXY6WahS2ARp_34bWcX7wNLy8eSL2XB9w27z8nBbAd04ZQFHJ3XUxjwVfrOYGH2i5M-ss3id3eIZzn4Wh0bLmMCIdLcEJSyVefXgELYAxwtavYO'
-
-const iconFill = { fontVariationSettings: "'FILL' 1" as const }
+const iconFilled = {
+	fontVariationSettings: "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" as const,
+}
 
 export function Home() {
 	return (
-		<div className="min-h-dvh bg-[#f8f9fa] dark:bg-slate-900">
-			{/* Top App Bar — aligned with temp1.html */}
-			<header className="fixed top-0 z-50 w-full bg-slate-50/80 backdrop-blur-xl transition-colors duration-300 dark:bg-slate-900/80">
-				<div className="flex w-full items-center justify-between px-6 py-4">
-					<div className="flex items-center gap-3">
+		<div className="min-h-dvh bg-background text-on-surface antialiased">
+			<SiteHeader />
+
+			<main className="pt-20">
+				<section className="relative flex h-[751px] items-center justify-center overflow-hidden">
+					<div className="absolute inset-0 z-0">
 						<img
-							src={AVATAR_IMAGE}
-							alt="Profile"
-							className="h-10 w-10 rounded-full object-cover shadow-sm transition-transform active:scale-95"
+							className="h-full w-full object-cover brightness-[0.4] contrast-125"
+							alt="Atmospheric city streetscape at dusk with golden bokeh lights"
+							src={HERO_IMAGE}
 						/>
+						<div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/20 to-slate-950/60" />
 					</div>
-					<h1 className="font-['Inter'] text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">
-						Good morning, Sarah
-					</h1>
-					<div className="flex items-center">
-						<button
-							type="button"
-							className="rounded-full p-2 text-blue-600 transition-transform hover:bg-slate-100/50 active:scale-95 dark:text-blue-400"
-							aria-label="Scan QR"
-						>
-							<span className="material-symbols-outlined" data-icon="qr_code_scanner">
-								qr_code_scanner
-							</span>
-						</button>
-					</div>
-				</div>
-			</header>
-
-			{/* Content — temp1.html main */}
-			<main className="mx-auto max-w-md px-5 pb-32 pt-24 font-body text-on-surface antialiased">
-				{/* NFC Status — temp1.html 122–128 */}
-				<section className="mb-8">
-					<div className="flex flex-col items-center gap-2">
-						<div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
-							<span
-								className="material-symbols-outlined text-3xl text-emerald-500"
-								style={iconFill}
-							>
-								auto_awesome
-							</span>
-						</div>
-						<p className="text-xs font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-							NFC Active &amp; Ready
-						</p>
-					</div>
-				</section>
-
-				{/* Pay hub (no top card wrapper) */}
-				<section className="mb-8 space-y-8 text-center">
-					<div className="space-y-4">
-						<h1 className="text-2xl font-bold leading-tight text-[#1C1C1E] dark:text-slate-100">
-							Tap at any Verra SoftPOS to pay seamlessly.
+					<div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
+						<h1 className="mb-6 text-5xl font-extrabold tracking-tight text-white md:text-7xl">
+							One network.
+							<br />
+							Three ways to win.
 						</h1>
-						<div className="relative mx-auto flex h-48 w-48 items-center justify-center">
-							<div className="absolute inset-0 animate-ping rounded-full border-2 border-primary/10 opacity-20" />
-							<div className="absolute inset-4 rounded-full border-2 border-primary/20" />
-							<div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary-fixed-dim/30">
-								<span className="material-symbols-outlined text-5xl text-primary">contactless</span>
-							</div>
-						</div>
-					</div>
-					<div className="w-full space-y-6">
-						<button
-							type="button"
-							className="signature-gradient flex w-full items-center justify-center gap-3 rounded-full py-5 px-8 text-lg font-bold text-white shadow-lg shadow-primary/20 transition-all duration-300 hover:opacity-90 active:scale-95"
-						>
-							<span className="material-symbols-outlined text-2xl">qr_code_2</span>
-							<span>Show Pay Code</span>
-						</button>
-						<div className="text-center">
-							<p className="mb-1 text-xs font-medium tracking-wide text-slate-400">Total Power</p>
-							<h3 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-								CA$ 152.00
-							</h3>
-						</div>
-					</div>
-				</section>
-
-				{/* Quick Actions */}
-				<section className="mb-10 flex gap-3">
-					<button
-						type="button"
-						className="flex flex-1 flex-col items-start gap-3 rounded-lg bg-surface-container-low p-4 text-left transition-transform active:scale-95"
-					>
-						<div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-fixed-dim/30 text-primary">
-							<span className="material-symbols-outlined" data-icon="account_balance_wallet">
-								account_balance_wallet
-							</span>
-						</div>
-						<div>
-							<p className="text-sm font-bold">Top Up</p>
-							<p className="mt-1 text-[10px] leading-tight text-on-surface-variant">
-								Let the cashier scan this to add funds.
-							</p>
-						</div>
-					</button>
-					<button
-						type="button"
-						className="flex flex-1 flex-col items-start gap-3 rounded-lg bg-surface-container-low p-4 text-left transition-transform active:scale-95"
-					>
-						<div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary-fixed-dim/30 text-primary">
-							<span className="material-symbols-outlined" data-icon="featured_seasonal_and_gifts">
-								featured_seasonal_and_gifts
-							</span>
-						</div>
-						<div>
-							<p className="text-sm font-bold">Transfer</p>
-							<p className="mt-1 text-[10px] leading-tight text-on-surface-variant">
-								Send Money or Gift Pack.
-							</p>
-						</div>
-					</button>
-				</section>
-
-				{/* My Brands */}
-				<section className="mb-10">
-					<div className="mb-4 flex items-end justify-between px-1">
-						<h2 className="text-xl font-extrabold tracking-tight">My Brands</h2>
-						<button type="button" className="text-xs font-semibold text-primary">
-							See all
-						</button>
-					</div>
-					<div className="flex flex-col rounded-lg bg-surface-container-low p-2">
-						<div className="group flex cursor-pointer items-center gap-4 rounded-lg p-3 transition-colors hover:bg-surface-container">
-							<div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-outline-variant/10 bg-white shadow-sm">
-								<img src={BRAND_STARBUCKS} alt="Starbucks" className="h-full w-full object-cover" />
-							</div>
-							<div className="flex-1">
-								<p className="text-sm font-bold">Starbucks</p>
-								<p className="text-[11px] text-on-surface-variant">Coffee &amp; Refreshments</p>
-							</div>
-							<div className="text-right">
-								<p className="text-sm font-bold text-on-surface">CA$ 12.50</p>
-								<p className="text-[10px] font-medium text-emerald-600">+15 pts</p>
-							</div>
-						</div>
-						<div className="group flex cursor-pointer items-center gap-4 rounded-lg p-3 transition-colors hover:bg-surface-container">
-							<div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-outline-variant/10 bg-white shadow-sm">
-								<img src={BRAND_WHOLE_FOODS} alt="Whole Foods" className="h-full w-full object-cover" />
-							</div>
-							<div className="flex-1">
-								<p className="text-sm font-bold">Whole Foods</p>
-								<p className="text-[11px] text-on-surface-variant">Organic Groceries</p>
-							</div>
-							<div className="text-right">
-								<p className="text-sm font-bold text-on-surface">CA$ 84.20</p>
-								<p className="text-[10px] font-medium text-emerald-600">+120 pts</p>
-							</div>
-						</div>
-						<div className="group flex cursor-pointer items-center gap-4 rounded-lg p-3 transition-colors hover:bg-surface-container">
-							<div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-md border border-outline-variant/10 bg-white shadow-sm">
-								<img src={BRAND_LULU} alt="Lululemon" className="h-full w-full object-cover" />
-							</div>
-							<div className="flex-1">
-								<p className="text-sm font-bold">Lululemon</p>
-								<p className="text-[11px] text-on-surface-variant">Activewear</p>
-							</div>
-							<div className="text-right">
-								<p className="text-sm font-bold text-on-surface">CA$ 55.30</p>
-								<p className="text-[10px] font-medium text-on-surface-variant">Expires in 12d</p>
-							</div>
+						<p className="mx-auto mb-10 max-w-2xl text-lg font-light leading-relaxed text-slate-300 md:text-xl">
+							A decentralized, closed-loop economic engine built for the people and places you trust.
+						</p>
+						<div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+							<button
+								type="button"
+								className="primary-gradient rounded-full px-10 py-4 text-lg font-bold text-white shadow-xl transition-transform hover:scale-105 active:scale-95"
+								onClick={() =>
+									document
+										.getElementById('feature-panels')
+										?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+								}
+							>
+								Explore Here
+							</button>
+							<button
+								type="button"
+								className="rounded-full border border-white/20 bg-white/10 px-10 py-4 text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white hover:text-blue-900 active:scale-95"
+								onClick={() =>
+									document
+										.getElementById('built-for-main-street')
+										?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+								}
+							>
+								How it works
+							</button>
 						</div>
 					</div>
 				</section>
 
-				{/* Recent Activity */}
-				<section>
-					<div className="mb-4 flex items-end justify-between px-1">
-						<h2 className="text-lg font-bold tracking-tight">Recent</h2>
-						<button type="button" aria-label="Filter" className="cursor-pointer">
-							<span className="material-symbols-outlined text-on-surface-variant text-xl" data-icon="filter_list">
-								filter_list
-							</span>
-						</button>
-					</div>
-					<div className="space-y-4">
-						<div className="group flex items-center gap-4">
-							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-								<span className="material-symbols-outlined" data-icon="currency_bitcoin">
-									currency_bitcoin
+				<section
+					id="feature-panels"
+					className="relative z-20 -mt-32 scroll-mt-24 mx-auto max-w-7xl px-8 pb-20 md:scroll-mt-28"
+				>
+					<div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+						<div className="group rounded-lg border border-outline-variant/10 bg-surface-container-lowest p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all duration-500 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+							<div className="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-container/10 transition-transform group-hover:scale-110">
+								<span
+									className="material-symbols-outlined text-4xl text-blue-600"
+									style={iconFilled}
+								>
+									wallet
 								</span>
 							</div>
-							<div className="flex-1">
-								<p className="text-sm font-semibold">USDC Deposit</p>
-								<p className="text-[11px] text-on-surface-variant">Completed • Today, 09:41</p>
-							</div>
-							<p className="text-sm font-bold text-emerald-600">+ CA$ 50.00</p>
+							<h3 className="mb-4 text-2xl font-bold text-on-surface">Your digital vault.</h3>
+							<p className="mb-8 h-20 leading-relaxed text-on-surface-variant">
+								Ditch the plastic. Manage your digital stored-value and tap-to-pay seamlessly.
+							</p>
+							<Link
+								className="flex items-center gap-2 font-bold text-blue-600 transition-all group-hover:gap-4"
+								to="/local"
+							>
+								Learn more <span className="material-symbols-outlined">arrow_forward</span>
+							</Link>
 						</div>
-						<div className="group flex items-center gap-4">
-							<div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-								<span className="material-symbols-outlined" data-icon="shopping_bag">
-									shopping_bag
+
+						<div className="group rounded-lg border border-outline-variant/10 bg-surface-container-lowest p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all duration-500 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+							<div className="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-container/10 transition-transform group-hover:scale-110">
+								<span
+									className="material-symbols-outlined text-4xl text-blue-600"
+									style={iconFilled}
+								>
+									storefront
 								</span>
 							</div>
-							<div className="flex-1">
-								<p className="text-sm font-semibold">Starbucks Purchase</p>
-								<p className="text-[11px] text-on-surface-variant">Toronto Union • Yesterday</p>
+							<h3 className="mb-4 text-2xl font-bold text-on-surface">Zero monthly rent.</h3>
+							<p className="mb-8 h-20 leading-relaxed text-on-surface-variant">
+								Scalable non-custodial commerce. 2% Inbound Routing Fee + flat Technical Interaction
+								Fee.
+							</p>
+							<Link
+								className="flex items-center gap-2 font-bold text-blue-600 transition-all group-hover:gap-4"
+								to="/business"
+							>
+								Learn more <span className="material-symbols-outlined">arrow_forward</span>
+							</Link>
+						</div>
+
+						<div className="group rounded-lg border border-outline-variant/10 bg-surface-container-lowest p-10 shadow-[0_4px_24px_rgba(0,0,0,0.04)] transition-all duration-500 hover:shadow-[0_8px_32px_rgba(0,0,0,0.08)]">
+							<div className="mb-8 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-container/10 transition-transform group-hover:scale-110">
+								<span
+									className="material-symbols-outlined text-4xl text-blue-600"
+									style={iconFilled}
+								>
+									favorite
+								</span>
 							</div>
-							<p className="text-sm font-bold text-on-surface">- CA$ 6.75</p>
+							<h3 className="mb-4 text-2xl font-bold text-on-surface">Zero-fee philanthropy.</h3>
+							<p className="mb-8 h-20 leading-relaxed text-on-surface-variant">
+								Direct-to-cause giving. Every cent reaches the intended hands.
+							</p>
+							<Link
+								className="flex items-center gap-2 font-bold text-blue-600 transition-all group-hover:gap-4"
+								to="/impact"
+							>
+								Learn more <span className="material-symbols-outlined">arrow_forward</span>
+							</Link>
+						</div>
+					</div>
+				</section>
+
+				<section
+					id="built-for-main-street"
+					className="scroll-mt-24 overflow-hidden bg-surface-container-low px-8 py-32 md:scroll-mt-28"
+				>
+					<div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-20 lg:grid-cols-2">
+						<div className="space-y-6">
+							<span className="block text-sm font-bold uppercase tracking-[0.2em] text-blue-600">
+								THE VERRA PROMISE
+							</span>
+							<h2 className="text-4xl font-extrabold leading-tight tracking-tight text-on-surface md:text-5xl">
+								Built for Main Street,
+								<br />
+								not Wall Street.
+							</h2>
+							<p className="max-w-lg text-xl font-light text-on-surface-variant">
+								No hidden fees, no hardware rentals, pure community connection.
+							</p>
+						</div>
+						<div className="flex flex-col gap-6">
+							<div className="group flex items-center gap-6 rounded-lg bg-surface-container-lowest p-8 transition-colors duration-300 hover:bg-white">
+								<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+									<span className="material-symbols-outlined text-3xl">bolt</span>
+								</div>
+								<div>
+									<h4 className="text-xl font-bold text-on-surface">Instant Settlement</h4>
+									<p className="text-on-surface-variant">Value moves at the speed of thought.</p>
+								</div>
+							</div>
+							<div className="group flex items-center gap-6 rounded-lg bg-surface-container-lowest p-8 transition-colors duration-300 hover:bg-white">
+								<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+									<span className="material-symbols-outlined text-3xl">devices_off</span>
+								</div>
+								<div>
+									<h4 className="text-xl font-bold text-on-surface">Zero Hardware</h4>
+									<p className="text-on-surface-variant">No readers, no rentals, just your smartphone.</p>
+								</div>
+							</div>
+							<div className="group flex items-center gap-6 rounded-lg bg-surface-container-lowest p-8 transition-colors duration-300 hover:bg-white">
+								<div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+									<span className="material-symbols-outlined text-3xl">verified_user</span>
+								</div>
+								<div>
+									<h4 className="text-xl font-bold text-on-surface">100% Transparent</h4>
+									<p className="text-on-surface-variant">Built on trust and verifiable openness.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section id="open-beta" className="scroll-mt-24 bg-white px-8 py-32 md:scroll-mt-28">
+					<div className="mx-auto max-w-7xl">
+						<h2 className="mb-20 text-center text-4xl font-extrabold tracking-tight text-on-surface md:text-5xl">
+							Access the Open Beta
+						</h2>
+						<div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+							<div className="flex flex-col items-start rounded-3xl border border-slate-100 bg-white p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 md:p-12">
+								<span className="mb-6 text-sm font-bold uppercase tracking-[0.2em] text-[#1562F0]">
+									THE LOCAL
+								</span>
+								<h3 className="mb-4 text-3xl font-extrabold text-on-surface">Consumer Digital Vault</h3>
+								<p className="mb-10 text-lg leading-relaxed text-on-surface-variant">
+									Your personal AA smart wallet for local commerce. Download the app or access instantly via browser.
+								</p>
+								<div className="mt-auto flex flex-wrap gap-3">
+									<button
+										type="button"
+										className="rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										iOS TestFlight
+									</button>
+									<a
+										href="https://play.google.com/store/apps/details?id=com.beamio.caehtrees"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="inline-flex rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										Android .APK
+									</a>
+									<button
+										type="button"
+										className="rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										Launch Web App
+									</button>
+								</div>
+							</div>
+							<div className="flex flex-col items-start rounded-3xl border border-slate-100 bg-white p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 md:p-12">
+								<span className="mb-6 text-sm font-bold uppercase tracking-[0.2em] text-[#1562F0]">
+									THE BUSINESS
+								</span>
+								<h3 className="mb-4 text-3xl font-extrabold text-on-surface">SoftPOS & Business OS</h3>
+								<p className="mb-10 text-lg leading-relaxed text-on-surface-variant">
+									Turn your smartphone into a non-custodial terminal, or manage your closed-loop empire directly from
+									your desktop browser.
+								</p>
+								<div className="mt-auto flex flex-wrap gap-3">
+									<button
+										type="button"
+										className="rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										iOS TestFlight
+									</button>
+									<a
+										href="https://play.google.com/store/apps/details?id=com.beamio.caehtrees"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="inline-flex rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										Android .APK
+									</a>
+									<button
+										type="button"
+										className="rounded-full bg-[#f3f4f6] px-6 py-3 text-sm font-bold text-on-surface transition-colors hover:bg-slate-200 active:scale-95"
+									>
+										Launch Web OS
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section className="mx-auto max-w-7xl px-8 py-24">
+					<div className="primary-gradient group relative overflow-hidden rounded-xl p-12 text-center md:p-24">
+						<div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent opacity-10" />
+						<div className="relative z-10">
+							<h2 className="mb-6 text-4xl font-extrabold tracking-tight text-white md:text-6xl">
+								Ready to reclaim your value?
+							</h2>
+							<p className="mx-auto mb-12 max-w-2xl text-xl text-white/80">
+								Join thousands of others building a more equitable economic future today.
+							</p>
+							<Link
+								to="/contact"
+								className="inline-block rounded-full bg-white px-12 py-5 text-xl font-bold text-blue-700 shadow-2xl transition-colors hover:bg-blue-50 active:scale-95"
+							>
+								Get Started Now
+							</Link>
 						</div>
 					</div>
 				</section>
 			</main>
 
-			{/* Bottom Navigation */}
-			<nav className="fixed bottom-0 left-0 z-50 flex w-full items-center justify-around rounded-t-[32px] border-t border-slate-100/10 bg-white/80 px-4 pb-8 pt-3 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] backdrop-blur-2xl dark:border-slate-800/20 dark:bg-slate-950/80">
-				<a
-					className="flex flex-col items-center justify-center rounded-full bg-blue-50/50 px-4 py-1 text-blue-600 transition-all duration-300 ease-out active:scale-90 dark:bg-blue-900/20 dark:text-blue-400"
-					href="#"
-				>
-					<span className="material-symbols-outlined" data-icon="home" style={iconFill}>
-						home
-					</span>
-					<span className="font-['Inter'] text-[11px] font-medium tracking-wide">Home</span>
-				</a>
-				<a
-					className="flex flex-col items-center justify-center text-slate-400 transition-all duration-300 ease-out hover:text-blue-500 active:scale-90 dark:text-slate-500 dark:hover:text-blue-300"
-					href="#"
-				>
-					<span className="material-symbols-outlined" data-icon="account_balance_wallet">
-						account_balance_wallet
-					</span>
-					<span className="font-['Inter'] text-[11px] font-medium tracking-wide">Wallet</span>
-				</a>
-				<a
-					className="flex flex-col items-center justify-center text-slate-400 transition-all duration-300 ease-out hover:text-blue-500 active:scale-90 dark:text-slate-500 dark:hover:text-blue-300"
-					href="#"
-				>
-					<span className="material-symbols-outlined" data-icon="explore">
-						explore
-					</span>
-					<span className="font-['Inter'] text-[11px] font-medium tracking-wide">Discovery</span>
-				</a>
-				<a
-					className="flex flex-col items-center justify-center text-slate-400 transition-all duration-300 ease-out hover:text-blue-500 active:scale-90 dark:text-slate-500 dark:hover:text-blue-300"
-					href="#"
-				>
-					<span className="material-symbols-outlined" data-icon="chat_bubble">
-						chat_bubble
-					</span>
-					<span className="font-['Inter'] text-[11px] font-medium tracking-wide">Chat</span>
-				</a>
-				<a
-					className="flex flex-col items-center justify-center text-slate-400 transition-all duration-300 ease-out hover:text-blue-500 active:scale-90 dark:text-slate-500 dark:hover:text-blue-300"
-					href="#"
-				>
-					<span className="material-symbols-outlined" data-icon="receipt_long">
-						receipt_long
-					</span>
-					<span className="font-['Inter'] text-[11px] font-medium tracking-wide">Activity</span>
-				</a>
-			</nav>
+			<SiteFooter />
 		</div>
 	)
 }

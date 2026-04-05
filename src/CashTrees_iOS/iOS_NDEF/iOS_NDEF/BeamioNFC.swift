@@ -4,18 +4,46 @@ import Foundation
 /// NTAG / ISO14443 URI NDEF via `NFCTagReaderSession` (entitlement **TAG**; **NDEF** is disallowed for current SDK / store checks).
 final class BeamioNFCSession: NSObject, NFCTagReaderSessionDelegate {
     var onMessage: ((Result<(url: URL, raw: String), Error>) -> Void)?
+    /// System NFC sheet dismissed by user (Cancel / swipe) — not tag errors or successful read invalidation.
+    var onUserCanceled: (() -> Void)?
+    /// Device cannot use tag reading (`readingAvailable` is false) — prefer QR fallback instead of generic failure.
+    var onReadingUnavailable: (() -> Void)?
     private var session: NFCTagReaderSession?
+
+    /// Set immediately before `onMessage(.success)` + `session.invalidate()`. Core NFC often reports
+    /// `.readerSessionInvalidationErrorFirstNDEFTagRead` after a **successful** read; we must not treat
+    /// that as failure. For `invalidate(errorMessage:)` failures, this stays `false` so the error still
+    /// reaches the app (see `didInvalidateWithError`).
+    private var didDeliverSuccessForActiveSession = false
+
+    /// Last `errorMessage` passed to `invalidate(errorMessage:)` for this session. iOS sometimes reports
+    /// `.readerSessionInvalidationErrorUserCanceled` when the sheet closes after an in-session tag error;
+    /// we must deliver `onMessage(.failure)` (retry NFC) instead of `onUserCanceled` (opens QR).
+    private var pendingInvalidateErrorMessage: String?
 
     func begin() {
         guard NFCTagReaderSession.readingAvailable else {
-            onMessage?(.failure(NSError(domain: "NFC", code: 1, userInfo: [NSLocalizedDescriptionKey: "NFC not available"])))
+            let cb = onReadingUnavailable
+            if let cb {
+                if Thread.isMainThread {
+                    cb()
+                } else {
+                    DispatchQueue.main.async { cb() }
+                }
+            }
             return
         }
-        guard let s = NFCTagReaderSession(pollingOption: [.iso14443], delegate: self, queue: nil) else {
-            onMessage?(.failure(NSError(domain: "NFC", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not start NFC session"])))
-            return
-        }
+        session?.invalidate()
+        session = nil
+        let configuration = NFCTagReaderSession.Configuration(
+            pollingOption: .iso14443,
+            iso7816SelectIdentifiers: [],
+            feliCaSystemCodes: []
+        )
+        let s = NFCTagReaderSession(configuration: configuration, delegate: self, queue: nil)
         s.alertMessage = "Hold the NTAG card near the top of the iPhone."
+        didDeliverSuccessForActiveSession = false
+        pendingInvalidateErrorMessage = nil
         session = s
         s.begin()
     }
@@ -25,38 +53,87 @@ final class BeamioNFCSession: NSObject, NFCTagReaderSessionDelegate {
         session = nil
     }
 
-    func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {}
+    /// Ignore delegate callbacks from a session we already replaced or tore down (stops stale Core NFC events propagating into app logic).
+    private func isActiveSession(_ s: NFCTagReaderSession) -> Bool {
+        session === s
+    }
+
+    func tagReaderSessionDidBecomeActive(_ session: NFCTagReaderSession) {
+        guard isActiveSession(session) else { return }
+    }
 
     func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
+        guard isActiveSession(session) else { return }
         self.session = nil
         if let nfcErr = error as? NFCReaderError {
             switch nfcErr.code {
-            case .readerSessionInvalidationErrorFirstNDEFTagRead,
-                 .readerSessionInvalidationErrorUserCanceled:
+            case .readerSessionInvalidationErrorFirstNDEFTagRead:
+                // Success path calls `invalidate()` after delivering payload; this code is expected then.
+                // Do not swallow real failures from `invalidate(errorMessage:)` (flag stays false).
+                if didDeliverSuccessForActiveSession {
+                    didDeliverSuccessForActiveSession = false
+                    pendingInvalidateErrorMessage = nil
+                    return
+                }
+            case .readerSessionInvalidationErrorUserCanceled:
+                // After a successful URI read we call `invalidate()` with no message; some iOS versions report
+                // `userCanceled` instead of `firstNDEFTagRead`. Must not fire `onUserCanceled` (opens QR) while
+                // charge/topup workflow is already running from `onMessage(.success)`.
+                if didDeliverSuccessForActiveSession {
+                    didDeliverSuccessForActiveSession = false
+                    pendingInvalidateErrorMessage = nil
+                    return
+                }
+                if let msg = pendingInvalidateErrorMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !msg.isEmpty {
+                    pendingInvalidateErrorMessage = nil
+                    let err = NSError(
+                        domain: "BeamioNFCTagRead",
+                        code: 0,
+                        userInfo: [NSLocalizedDescriptionKey: msg]
+                    )
+                    syncMessageFailureIfNeeded(err)
+                    return
+                }
+                pendingInvalidateErrorMessage = nil
+                let cb = onUserCanceled
+                if let cb {
+                    if Thread.isMainThread {
+                        cb()
+                    } else {
+                        DispatchQueue.main.async { cb() }
+                    }
+                }
                 return
             default:
                 break
             }
         }
+        didDeliverSuccessForActiveSession = false
+        pendingInvalidateErrorMessage = nil
         syncMessageFailureIfNeeded(error)
     }
 
+    private func invalidateTagSession(_ session: NFCTagReaderSession, errorMessage: String) {
+        let trimmed = errorMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        pendingInvalidateErrorMessage = trimmed.isEmpty ? "Tap to read the card again." : trimmed
+        session.invalidate(errorMessage: errorMessage)
+    }
+
     func tagReaderSession(_ session: NFCTagReaderSession, didDetect tags: [NFCTag]) {
+        guard isActiveSession(session) else { return }
         if tags.count > 1 {
-            session.invalidate(errorMessage: "Hold only one tag at a time.")
-            self.session = nil
+            invalidateTagSession(session, errorMessage: "Hold only one tag at a time.")
             return
         }
         guard let tag = tags.first else {
-            session.invalidate(errorMessage: "No tag found.")
-            self.session = nil
+            invalidateTagSession(session, errorMessage: "No tag found.")
             return
         }
         session.connect(to: tag) { [weak self] error in
             guard let self else { return }
+            guard self.isActiveSession(session) else { return }
             if let error {
-                session.invalidate(errorMessage: error.localizedDescription)
-                self.session = nil
+                self.invalidateTagSession(session, errorMessage: error.localizedDescription)
                 return
             }
             self.readNDEF(from: tag, session: session)
@@ -74,43 +151,56 @@ final class BeamioNFCSession: NSObject, NFCTagReaderSessionDelegate {
             ndefTag = nil
         }
         guard let ndefTag else {
-            session.invalidate(errorMessage: "Unsupported tag type.")
-            self.session = nil
+            invalidateTagSession(session, errorMessage: "Unsupported tag type.")
             return
         }
         ndefTag.queryNDEFStatus { [weak self] status, _, error in
             guard let self else { return }
+            guard self.isActiveSession(session) else { return }
             if let error {
-                session.invalidate(errorMessage: error.localizedDescription)
-                self.session = nil
+                self.invalidateTagSession(session, errorMessage: error.localizedDescription)
                 return
             }
             guard status != .notSupported else {
-                session.invalidate(errorMessage: "Tag does not support NDEF.")
-                self.session = nil
+                self.invalidateTagSession(session, errorMessage: "Tag does not support NDEF.")
                 return
             }
-            ndefTag.readNDEF { message, error in
+            ndefTag.readNDEF { [weak self] message, error in
+                guard let self else { return }
+                guard self.isActiveSession(session) else { return }
                 if let error {
-                    session.invalidate(errorMessage: error.localizedDescription)
-                    self.session = nil
+                    self.invalidateTagSession(session, errorMessage: error.localizedDescription)
                     return
                 }
                 guard let message else {
-                    session.invalidate(errorMessage: "No NDEF message.")
-                    self.session = nil
+                    self.invalidateTagSession(session, errorMessage: "No NDEF message.")
                     return
                 }
                 for rec in message.records {
                     if let u = self.parseWellKnownUri(record: rec) {
-                        self.onMessage?(.success((u, u.absoluteString)))
-                        session.invalidate()
-                        self.session = nil
+                        self.deliverPayloadOnMain(url: u, session: session)
                         return
                     }
                 }
-                session.invalidate(errorMessage: "No URI NDEF record found.")
-                self.session = nil
+                self.invalidateTagSession(session, errorMessage: "No URI NDEF record found.")
+            }
+        }
+    }
+
+    private func deliverPayloadOnMain(url: URL, session: NFCTagReaderSession) {
+        let raw = url.absoluteString
+        if Thread.isMainThread {
+            guard isActiveSession(session) else { return }
+            didDeliverSuccessForActiveSession = true
+            onMessage?(.success((url, raw)))
+            session.invalidate()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard self.isActiveSession(session) else { return }
+                self.didDeliverSuccessForActiveSession = true
+                self.onMessage?(.success((url, raw)))
+                session.invalidate()
             }
         }
     }

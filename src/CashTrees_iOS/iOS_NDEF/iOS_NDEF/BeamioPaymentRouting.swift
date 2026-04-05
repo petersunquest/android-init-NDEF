@@ -1,6 +1,6 @@
 import Foundation
 
-/// 对齐 Android `MainActivity` 中 Charge 金额与 container 拆分逻辑（oracle / CCSA / 基础设施点 / USDC）
+/// 对齐 Android `MainActivity` 中 Charge 金额与 container 拆分逻辑（oracle / prepare `unitPriceUSDC6` 点桶 / 纯基础设施点桶 / USDC）
 enum BeamioPaymentRouting {
     struct OracleRates {
         var usdcad: Double = 1.35
@@ -41,10 +41,31 @@ enum BeamioPaymentRouting {
         return String(Int64((usdc * 1_000_000.0).rounded(.towardZero)))
     }
 
+    /// Inverse of `currencyToUsdc6` (pay-currency amount from USDC6 micro units).
+    static func usdc6ToCurrencyAmount(usdc6: Int64, currency: String, oracle: OracleRates) -> Double {
+        if usdc6 <= 0 { return 0 }
+        let rate = getRateForCurrency(currency, oracle: oracle)
+        if rate <= 0 { return 0 }
+        return (Double(usdc6) / 1_000_000.0) * rate
+    }
+
+    /// Clamp tier discount to 0–100 and two fractional digits (metadata / charge parity).
+    static func normalizeTierDiscountPercent(_ v: Double) -> Double {
+        let c = min(100, max(0, v))
+        return (c * 100).rounded() / 100
+    }
+
+    /// Basis points for `nfcDiscountRateBps` / open-container bill (100% = 10_000 bps).
+    static func tierDiscountBasisPoints(_ percent: Double) -> Int {
+        let p = normalizeTierDiscountPercent(percent)
+        return min(10_000, max(0, Int((p * 100.0).rounded())))
+    }
+
     /// total = request + tax%*request - tier%*request + tip（tip 基于税前 request）
-    static func chargeTotalInCurrency(requestAmount: Double, taxPercent: Double, tierDiscountPercent: Int?, tipAmount: Double) -> Double {
+    static func chargeTotalInCurrency(requestAmount: Double, taxPercent: Double, tierDiscountPercent: Double, tipAmount: Double) -> Double {
         let tax = requestAmount * (taxPercent / 100.0)
-        let disc = requestAmount * (Double(tierDiscountPercent ?? 0) / 100.0)
+        let p = normalizeTierDiscountPercent(tierDiscountPercent)
+        let disc = requestAmount * (p / 100.0)
         return requestAmount + tax - disc + tipAmount
     }
 
@@ -59,14 +80,52 @@ enum BeamioPaymentRouting {
         var usdcWei: Int64
     }
 
+    /// 参与 Charge 的全部卡行：以服务端 `cards[]` 为准（含独立部署的 BeamioUserCard），不再按 `ccsa` 或终端 infra 地址硬筛。
     static func chargeableCards(from assets: UIDAssets, infraCard: String) -> [CardItem] {
-        let cards = assets.cards ?? []
-        return cards.filter {
-            $0.cardType == "ccsa" ||
-                $0.cardAddress.caseInsensitiveCompare(infraCard) == .orderedSame ||
-                $0.cardType == "infrastructure" ||
-                $0.cardAddress.caseInsensitiveCompare(infraCard) == .orderedSame
+        if let cards = assets.cards, !cards.isEmpty {
+            return cards
         }
+        let addr = assets.cardAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if addr.isEmpty { return [] }
+        return [
+            CardItem(
+                cardAddress: addr,
+                cardName: "Asset Card",
+                cardType: "",
+                points: assets.points ?? "0",
+                points6: assets.points6 ?? "0",
+                cardCurrency: assets.cardCurrency ?? "CAD",
+                nfts: assets.nfts ?? [],
+                cardBackground: nil,
+                cardImage: nil,
+                tierName: nil,
+                tierDescription: nil,
+                primaryMemberTokenId: {
+                    let s = assets.primaryMemberTokenId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    return s.isEmpty ? nil : s
+                }(),
+                tierDiscountPercent: nil
+            ),
+        ]
+    }
+
+    /// 拆分点余额：`unitPrice` 桶走 prepare 返回的 `unitPriceUSDC6`（BeamioUserCard / 程序卡行）；`oracleInfra` 桶为 **他址** 的纯 infrastructure 行（oracle 折 USDC）。
+    static func partitionPointsForMerchantCharge(cards: [CardItem], merchantInfraCard: String) -> (unitPricePoints6: Int64, oracleInfraCards: [CardItem]) {
+        var unitSum: Int64 = 0
+        var oracle: [CardItem] = []
+        let infraKey = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        for c in cards {
+            let p = Int64(c.points6) ?? 0
+            if p <= 0 { continue }
+            let t = c.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let sameTerminalInfra = !infraKey.isEmpty && c.cardAddress.caseInsensitiveCompare(merchantInfraCard) == .orderedSame
+            if t == "infrastructure", !sameTerminalInfra {
+                oracle.append(c)
+            } else {
+                unitSum += p
+            }
+        }
+        return (unitSum, oracle)
     }
 
     static func computeChargeContainerSplit(
@@ -85,7 +144,7 @@ enum BeamioPaymentRouting {
         var ccsaPointsWei: Int64 = 0
 
         if ccsaPoints6 > 0, unitPriceUSDC6 > 0 {
-            var maxPointsFromAmount = (remaining * 1_000_000) / unitPriceUSDC6
+            let maxPointsFromAmount = (remaining * 1_000_000) / unitPriceUSDC6
             ccsaPointsWei = min(maxPointsFromAmount, ccsaPoints6)
             let ccsaValue = (ccsaPointsWei * unitPriceUSDC6) / 1_000_000
             remaining -= ccsaValue
@@ -157,7 +216,6 @@ enum BeamioPaymentRouting {
         split: ChargeableSplit,
         infraCard: String
     ) -> [[String: Any]] {
-        let amountBig = Int64(amountUsdc6) ?? 0
         var items: [[String: Any]] = []
         if split.usdcWei > 0 {
             items.append([
@@ -268,6 +326,224 @@ enum BeamioPaymentRouting {
             return (Double(pts6) / 1_000_000.0) * rCad / rCard
         }
         return totalBalanceCad(from: assets, oracle: oracle)
+    }
+
+    // MARK: - Tier discount (Android `pickChargeTierDiscountPercentForPaymentCard` / metadata.tiers)
+
+    struct MetadataTierRow: Equatable {
+        var minUsdc6: Int64
+        var chainTierIndex: Int?
+        var discountPercent: Double?
+        var name: String?
+        var description: String?
+        /// Card-level `metadata.tiers[].backgroundColor`（与 getUIDAssets 卡行 `cardBackground` 同源补全）
+        var backgroundColor: String?
+        var image: String?
+    }
+
+    static func parseMetadataTierRows(metadataTiersArray: [Any]) -> [MetadataTierRow] {
+        var out: [MetadataTierRow] = []
+        for any in metadataTiersArray {
+            guard let t = any as? [String: Any] else { continue }
+            let minU: Int64 = {
+                if let n = t["minUsdc6"] as? NSNumber { return n.int64Value }
+                if let s = t["minUsdc6"] as? String, let v = Int64(s) { return v }
+                return 0
+            }()
+            let chainIdx: Int? = {
+                if let n = t["index"] as? NSNumber { return n.intValue }
+                if let s = t["index"] as? String { return Int(s) }
+                return nil
+            }()
+            let disc: Double? = {
+                if t["discountPercent"] == nil || t["discountPercent"] is NSNull { return nil }
+                if let n = t["discountPercent"] as? NSNumber { return normalizeTierDiscountPercent(n.doubleValue) }
+                if let s = t["discountPercent"] as? String, let v = Double(s.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                    return normalizeTierDiscountPercent(v)
+                }
+                return nil
+            }()
+            let name = (t["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            let desc = (t["description"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            let bgRaw = (t["backgroundColor"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            let imgRaw = (t["image"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            out.append(MetadataTierRow(
+                minUsdc6: max(0, minU),
+                chainTierIndex: chainIdx,
+                discountPercent: disc,
+                name: name,
+                description: desc,
+                backgroundColor: bgRaw,
+                image: imgRaw
+            ))
+        }
+        return out.sorted { $0.minUsdc6 < $1.minUsdc6 }
+    }
+
+    private static func chainTierIndexCandidates(from nft: NftItem) -> [Int] {
+        var ordered: [Int] = []
+        let tierRaw = nft.tier.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let v = Int(tierRaw) { ordered.append(v) }
+        if let r = try? NSRegularExpression(pattern: "(?i)chain-tier-(\\d+)"),
+           let m = r.firstMatch(in: tierRaw, range: NSRange(tierRaw.startIndex ..< tierRaw.endIndex, in: tierRaw)),
+           m.numberOfRanges > 1,
+           let rg = Range(m.range(at: 1), in: tierRaw),
+           let idx = Int(tierRaw[rg])
+        {
+            ordered.append(idx)
+        }
+        let attr = nft.attribute.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let v = Int(attr) { ordered.append(v) }
+        var seen = Set<Int>()
+        var uniq: [Int] = []
+        for i in ordered where !seen.contains(i) {
+            seen.insert(i)
+            uniq.append(i)
+        }
+        return uniq
+    }
+
+    /// Android `selectMetadataTierForPrimaryMembership`
+    static func selectMetadataTierForPrimaryMembership(card: CardItem, tiers: [MetadataTierRow]) -> MetadataTierRow? {
+        if tiers.isEmpty { return nil }
+        let primaryTid: String? = {
+            let p = card.primaryMemberTokenId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !p.isEmpty, (Int64(p) ?? 0) > 0 { return p }
+            let best = card.nfts
+                .filter { (Int64($0.tokenId) ?? 0) > 0 }
+                .max(by: { (Int64($0.tokenId) ?? 0) < (Int64($1.tokenId) ?? 0) })?
+                .tokenId
+            if let best, (Int64(best) ?? 0) > 0 { return best }
+            return nil
+        }()
+        guard let tid = primaryTid,
+              let primaryNft = card.nfts.first(where: { $0.tokenId == tid || $0.tokenId.caseInsensitiveCompare(tid) == .orderedSame })
+        else { return nil }
+        for idx in chainTierIndexCandidates(from: primaryNft) {
+            if let row = tiers.first(where: { $0.chainTierIndex == idx }) { return row }
+        }
+        let tierLabel = primaryNft.tier.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !tierLabel.isEmpty, Int(tierLabel) == nil,
+           tierLabel.range(of: "(?i)chain-tier-\\d+", options: .regularExpression) == nil,
+           let row = tiers.first(where: { ($0.name ?? "").caseInsensitiveCompare(tierLabel) == .orderedSame })
+        {
+            return row
+        }
+        return nil
+    }
+
+    private static func discountPercentFromMetadataRow(_ row: MetadataTierRow) -> Double {
+        if let d = row.discountPercent { return normalizeTierDiscountPercent(d) }
+        return firstPercentInDescription(row.description) ?? 0
+    }
+
+    private static func firstPercentInDescription(_ text: String?) -> Double? {
+        let t = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if t.isEmpty { return nil }
+        guard let r = try? NSRegularExpression(pattern: "(\\d+(?:\\.\\d+)?)\\s*%"),
+              let m = r.firstMatch(in: t, range: NSRange(t.startIndex ..< t.endIndex, in: t)),
+              m.numberOfRanges > 1,
+              let rg = Range(m.range(at: 1), in: t)
+        else { return nil }
+        let num = Double(t[rg]) ?? 0
+        return normalizeTierDiscountPercent(num)
+    }
+
+    /// Android `pickTierDiscountPercentFromAssets`
+    static func pickTierDiscountPercentFromAssets(assets: UIDAssets, tierKeyToDiscount: [String: Double]) -> Double {
+        if tierKeyToDiscount.isEmpty { return 0 }
+        var keys = Set<String>()
+        for c in assets.cards ?? [] {
+            for n in c.nfts {
+                let t = n.tier.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty {
+                    keys.insert(t)
+                    keys.insert(t.lowercased())
+                }
+            }
+        }
+        for n in assets.nfts ?? [] {
+            let t = n.tier.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty {
+                keys.insert(t)
+                keys.insert(t.lowercased())
+            }
+        }
+        var best = 0.0
+        for k in keys {
+            if let v = tierKeyToDiscount[k] { best = max(best, v) }
+            if let v = tierKeyToDiscount[k.lowercased()] { best = max(best, v) }
+        }
+        for k in keys {
+            if let idx = Int(k) {
+                if let v = tierKeyToDiscount["chain-tier-\(idx)".lowercased()] { best = max(best, v) }
+            }
+        }
+        return normalizeTierDiscountPercent(best)
+    }
+
+    private static func normalizeMetadataBackgroundHex(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty else { return nil }
+        if !s.hasPrefix("#") { s = "#\(s.replacingOccurrences(of: "#", with: ""))" }
+        return s
+    }
+
+    /// 主会员档在 `metadata.tiers` 中命中行的视觉字段（Top-up 后 API 可能仍带旧 NFT 底色，需与档名对齐覆盖）。
+    static func primaryTierMetadataVisuals(card: CardItem, tiers: [MetadataTierRow]) -> (backgroundHex: String?, imageUrl: String?) {
+        guard !tiers.isEmpty, let row = selectMetadataTierForPrimaryMembership(card: card, tiers: tiers) else {
+            return (nil, nil)
+        }
+        let bg = normalizeMetadataBackgroundHex(row.backgroundColor)
+        let img = row.image?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        return (bg, img)
+    }
+
+    static func mergePrimaryTierStyleFromCardMetadata(card: CardItem, tiers: [MetadataTierRow]) -> CardItem {
+        let v = primaryTierMetadataVisuals(card: card, tiers: tiers)
+        var bgOut = card.cardBackground
+        var imgOut = card.cardImage
+        if let bg = v.backgroundHex { bgOut = bg }
+        if let img = v.imageUrl { imgOut = img }
+        if bgOut == card.cardBackground && imgOut == card.cardImage { return card }
+        return CardItem(
+            cardAddress: card.cardAddress,
+            cardName: card.cardName,
+            cardType: card.cardType,
+            points: card.points,
+            points6: card.points6,
+            cardCurrency: card.cardCurrency,
+            nfts: card.nfts,
+            cardBackground: bgOut,
+            cardImage: imgOut,
+            tierName: card.tierName,
+            tierDescription: card.tierDescription,
+            primaryMemberTokenId: card.primaryMemberTokenId,
+            tierDiscountPercent: card.tierDiscountPercent
+        )
+    }
+
+    /// Android `pickChargeTierDiscountPercentForPaymentCard`
+    static func pickChargeTierDiscountPercent(
+        paymentCard: CardItem?,
+        assets: UIDAssets,
+        discountByTierKey: [String: Double],
+        metadataTiers: [MetadataTierRow],
+        metadataTiersFromApi: Bool
+    ) -> Double {
+        let addr = paymentCard?.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !addr.isEmpty, let paymentCard, metadataTiersFromApi {
+            if let row = selectMetadataTierForPrimaryMembership(card: paymentCard, tiers: metadataTiers) {
+                return discountPercentFromMetadataRow(row)
+            }
+        }
+        return pickTierDiscountPercentFromAssets(assets: assets, tierKeyToDiscount: discountByTierKey)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 }
 

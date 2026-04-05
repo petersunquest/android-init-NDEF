@@ -19,12 +19,11 @@ enum BeamioBIP32 {
     }
 
     private static func ser32BE(_ i: UInt32) -> Data {
-        var v = i
         var b = [UInt8](repeating: 0, count: 4)
-        b[0] = UInt8((v >> 24) & 0xff)
-        b[1] = UInt8((v >> 16) & 0xff)
-        b[2] = UInt8((v >> 8) & 0xff)
-        b[3] = UInt8(v & 0xff)
+        b[0] = UInt8((i >> 24) & 0xff)
+        b[1] = UInt8((i >> 16) & 0xff)
+        b[2] = UInt8((i >> 8) & 0xff)
+        b[3] = UInt8(i & 0xff)
         return Data(b)
     }
 

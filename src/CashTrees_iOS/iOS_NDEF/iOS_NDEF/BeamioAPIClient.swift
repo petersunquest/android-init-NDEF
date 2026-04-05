@@ -1,5 +1,12 @@
 import Foundation
 
+/// Android `TierRoutingDetails`：终端 admin metadata `tierRoutingDiscounts` → Charge 税与档位折扣表
+struct ChargeTierRoutingDetails: Sendable {
+    var taxPercent: Double
+    /// Keys lowercased: `chain-tier-{i}`, `tierId` — percent 0–100 with two decimal places (e.g. 12.50).
+    var discountByTierKey: [String: Double]
+}
+
 enum BeamioAPIError: Error {
     case badResponse(Int)
     case decode
@@ -453,7 +460,7 @@ final class BeamioAPIClient: @unchecked Sendable {
 
     /// `isAccountNameAvailable(string)` — selector `0xc2f74d22`（CoNET AccountRegistry）
     private static func encodeIsAccountNameAvailableCalldata(accountName: String) -> String {
-        var sel = Data([0xc2, 0xf7, 0x4d, 0x22])
+        let sel = Data([0xc2, 0xf7, 0x4d, 0x22])
         let utf = Data(accountName.utf8)
         var body = Data()
         body.append(Self.abiWordUInt256(32))
@@ -657,6 +664,143 @@ final class BeamioAPIClient: @unchecked Sendable {
         return (0, hadMeta ? "No tier routing block" : "No routing metadata")
     }
 
+    /// Android `fetchTierRoutingDetailsForTerminalWalletSync`：税 + `discountByTierKey`（用于客户档位匹配）
+    func fetchChargeTierRoutingDetails(wallet: String, infraCard: String) async -> ChargeTierRoutingDetails? {
+        let wNorm = wallet.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let infraNorm = infraCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let root = await fetchCardAdminInfoRoot(cardAddress: infraCard, wallet: wallet) else {
+            return await fetchChargeTierRoutingFallbackFromCardMetadata(infraCard: infraCard)
+        }
+        let admins = root["admins"] as? [Any] ?? []
+        let metadatas = root["metadatas"] as? [Any] ?? []
+        let parents = root["parents"] as? [Any]
+        var idx = -1
+        for i in 0 ..< admins.count {
+            let s = String(describing: admins[i]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if s == wNorm { idx = i; break }
+        }
+        guard idx >= 0 else {
+            return await fetchChargeTierRoutingFallbackFromCardMetadata(infraCard: infraCard)
+        }
+
+        func adminIndex(for addr: String) -> Int {
+            let x = addr.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if x.isEmpty || x == "0x0000000000000000000000000000000000000000" { return -1 }
+            for i in 0 ..< admins.count {
+                let s = String(describing: admins[i]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if s == x { return i }
+            }
+            return -1
+        }
+
+        func rowHasTierRouting(_ rowIdx: Int) -> Bool {
+            guard rowIdx >= 0, rowIdx < metadatas.count else { return false }
+            let metaStr = String(describing: metadatas[rowIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if metaStr.isEmpty { return false }
+            return Self.parseTierRoutingDetailsFromMetadataJson(metaStr, expectedInfrastructureCard: infraNorm) != nil
+        }
+
+        func parseAtRow(_ rowIdx: Int) -> ChargeTierRoutingDetails? {
+            guard rowIdx >= 0, rowIdx < metadatas.count else { return nil }
+            let metaStr = String(describing: metadatas[rowIdx]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if metaStr.isEmpty { return nil }
+            return Self.parseTierRoutingDetailsFromMetadataJson(metaStr, expectedInfrastructureCard: infraNorm)
+        }
+
+        if let d = parseAtRow(idx) { return d }
+        var walk = idx
+        for _ in 0 ..< 8 {
+            guard let parents, walk >= 0, walk < parents.count else { break }
+            let pRaw = String(describing: parents[walk]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let pIdx = adminIndex(for: pRaw)
+            if pIdx < 0 { break }
+            if rowHasTierRouting(pIdx), let d = parseAtRow(pIdx) { return d }
+            walk = pIdx
+        }
+
+        return await fetchChargeTierRoutingFallbackFromCardMetadata(infraCard: infraCard)
+    }
+
+    /// `/api/cardMetadata` 的 `metadata.tiers`（非空则视为 API tiers，与 Android `cardMetadataTierFromApiCache` 一致）
+    func fetchCardMetadataTiersBundle(cardAddress: String?) async -> (rows: [BeamioPaymentRouting.MetadataTierRow], fromApi: Bool) {
+        let addr = cardAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !addr.isEmpty else { return ([], false) }
+        guard let resp = await fetchCardMetadataRoot(cardAddress: addr),
+              let meta = resp["metadata"] as? [String: Any],
+              let tiersArr = meta["tiers"] as? [Any],
+              !tiersArr.isEmpty
+        else { return ([], false) }
+        let rows = BeamioPaymentRouting.parseMetadataTierRows(metadataTiersArray: tiersArr)
+        return (rows, !rows.isEmpty)
+    }
+
+    private func fetchChargeTierRoutingFallbackFromCardMetadata(infraCard: String) async -> ChargeTierRoutingDetails? {
+        guard let resp = await fetchCardMetadataRoot(cardAddress: infraCard),
+              let meta = resp["metadata"] as? [String: Any],
+              let data = try? JSONSerialization.data(withJSONObject: meta, options: []),
+              let json = String(data: data, encoding: .utf8)
+        else { return nil }
+        let fullInfra = infraCard.hasPrefix("0x") ? infraCard.lowercased() : "0x\(infraCard.lowercased())"
+        return Self.parseTierRoutingDetailsFromMetadataJson(json, expectedInfrastructureCard: fullInfra)
+            ?? Self.parseTierRoutingDetailsFromMetadataJson(json, expectedInfrastructureCard: infraCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    /// Android `parseTierRoutingDetailsFromTerminalMetadata`
+    private static func parseTierRoutingDetailsFromMetadataJson(_ metaJson: String, expectedInfrastructureCard: String) -> ChargeTierRoutingDetails? {
+        guard let data = metaJson.data(using: .utf8),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let tr = root["tierRoutingDiscounts"] as? [String: Any]
+        else { return nil }
+        if let sv = tr["schemaVersion"], !(sv is NSNull) {
+            let v: Int? = {
+                if let n = sv as? NSNumber { return n.intValue }
+                if let s = sv as? String { return Int(s) }
+                return nil
+            }()
+            if let v, v != 1 { return nil }
+        }
+        let infra = (tr["infrastructureCard"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if infra.isEmpty { return nil }
+        let exp = expectedInfrastructureCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if infra.lowercased() != exp { return nil }
+        var tax = 0.0
+        if let n = tr["taxRatePercent"] as? NSNumber { tax = n.doubleValue } else if let s = tr["taxRatePercent"] as? String { tax = Double(s) ?? 0 }
+        tax = min(100, max(0, tax))
+        tax = (tax * 100).rounded() / 100
+        var map: [String: Double] = [:]
+        if let tiers = tr["tiers"] as? [Any] {
+            for rowAny in tiers {
+                guard let row = rowAny as? [String: Any] else { continue }
+                let d: Double? = {
+                    if row["discountPercent"] == nil || row["discountPercent"] is NSNull { return nil }
+                    if let n = row["discountPercent"] as? NSNumber {
+                        return BeamioPaymentRouting.normalizeTierDiscountPercent(n.doubleValue)
+                    }
+                    if let s = row["discountPercent"] as? String,
+                       let v = Double(s.trimmingCharacters(in: .whitespacesAndNewlines))
+                    {
+                        return BeamioPaymentRouting.normalizeTierDiscountPercent(v)
+                    }
+                    return nil
+                }()
+                guard let disc = d else { continue }
+                let idx: Int? = {
+                    if let n = row["chainTierIndex"] as? NSNumber { return n.intValue }
+                    if let s = row["chainTierIndex"] as? String { return Int(s) }
+                    return nil
+                }()
+                let tid = (row["tierId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if let idx {
+                    map["chain-tier-\(idx)".lowercased()] = disc
+                }
+                if !tid.isEmpty {
+                    map[tid.lowercased()] = disc
+                }
+            }
+        }
+        return ChargeTierRoutingDetails(taxPercent: tax, discountByTierKey: map)
+    }
+
     func fetchCardMetadataRoot(cardAddress: String) async -> [String: Any]? {
         let enc = cardAddress.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cardAddress
         guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/cardMetadata?cardAddress=\(enc)") else { return nil }
@@ -771,25 +915,32 @@ final class BeamioAPIClient: @unchecked Sendable {
         if let n = tr["taxRatePercent"] as? NSNumber { tax = n.doubleValue } else if let s = tr["taxRatePercent"] as? String { tax = Double(s) ?? 0 }
         tax = min(100, max(0, tax))
         tax = (tax * 100).rounded() / 100
-        var discParts: [Int] = []
+        var discParts: [Double] = []
         if let tiers = tr["tiers"] as? [Any] {
             for row in tiers {
                 guard let row = row as? [String: Any] else { continue }
-                let d: Int? = {
-                    if let n = row["discountPercent"] as? NSNumber { return n.intValue.clamped(to: 0 ... 100) }
-                    if let s = row["discountPercent"] as? String, let v = Int(s) { return v.clamped(to: 0 ... 100) }
+                let d: Double? = {
+                    if row["discountPercent"] == nil || row["discountPercent"] is NSNull { return nil }
+                    if let n = row["discountPercent"] as? NSNumber {
+                        return BeamioPaymentRouting.normalizeTierDiscountPercent(n.doubleValue)
+                    }
+                    if let s = row["discountPercent"] as? String,
+                       let v = Double(s.trimmingCharacters(in: .whitespacesAndNewlines))
+                    {
+                        return BeamioPaymentRouting.normalizeTierDiscountPercent(v)
+                    }
                     return nil
                 }()
                 if let d { discParts.append(d) }
             }
         }
-        let discLabel = discParts.isEmpty ? "—" : discParts.map { "\($0)%" }.joined(separator: " · ")
+        let discLabel = discParts.isEmpty ? "—" : discParts.map { String(format: "%.2f", $0) + "%" }.joined(separator: " · ")
         return (tax, discLabel)
     }
 
     private static func parseMembershipTierDiscountSummaryFromMetadata(meta: [String: Any]) -> (tax: Double, discountSummary: String)? {
         guard let tiersArr = meta["tiers"] as? [Any], !tiersArr.isEmpty else { return nil }
-        struct Row { let chainIndex: Int; let pct: Int }
+        struct Row { let chainIndex: Int; let pct: Double }
         var rows: [Row] = []
         for i in 0 ..< tiersArr.count {
             guard let row = tiersArr[i] as? [String: Any] else { continue }
@@ -803,11 +954,11 @@ final class BeamioAPIClient: @unchecked Sendable {
             rows.append(Row(chainIndex: chainIndex, pct: pct))
         }
         guard !rows.isEmpty else { return nil }
-        let summary = rows.sorted { $0.chainIndex < $1.chainIndex }.map { "\($0.pct)%" }.joined(separator: " · ")
+        let summary = rows.sorted { $0.chainIndex < $1.chainIndex }.map { String(format: "%.2f", $0.pct) + "%" }.joined(separator: " · ")
         return (0, summary)
     }
 
-    private static func firstPercentInText(_ text: String) -> Int? {
+    private static func firstPercentInText(_ text: String) -> Double? {
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if t.isEmpty { return nil }
         guard let r = try? NSRegularExpression(pattern: "(\\d+(?:\\.\\d+)?)\\s*%"),
@@ -816,7 +967,7 @@ final class BeamioAPIClient: @unchecked Sendable {
               let rg = Range(m.range(at: 1), in: t)
         else { return nil }
         let num = Double(t[rg]) ?? 0
-        return Int(num.rounded()).clamped(to: 0 ... 100)
+        return BeamioPaymentRouting.normalizeTierDiscountPercent(num)
     }
 }
 

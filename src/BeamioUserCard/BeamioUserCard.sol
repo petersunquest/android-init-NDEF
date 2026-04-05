@@ -974,8 +974,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                     break;
                 }
             }
-            // upgradeType==2：升档由累计转给 admin 的 points 驱动；若此处再按扣款后余额对齐（allowUpgrade=false），会在同一 _update 内撤销刚执行的累计升档。
-            if (pointsLeaveFrom && upgradeType != 2) {
+            // upgradeType==2：升档由累计转给 admin 的 points 驱动；若此处再按扣款后余额对齐，会在同一 _update 内撤销刚执行的累计升档。
+            // upgradeType==0：按单笔增量升档；不要求按余额维持档位，转出 points 时不得因余额下降而下调（与产品「升上去不降回」一致）。
+            // upgradeType==1：按余额对齐档位，转出后允许依新余额下调（allowUpgrade=false 跳过升、仍可走对齐里的降档分支）。
+            if (pointsLeaveFrom && upgradeType == 1) {
                 _alignMembershipTierToPointsBalance(from, false);
             }
         }

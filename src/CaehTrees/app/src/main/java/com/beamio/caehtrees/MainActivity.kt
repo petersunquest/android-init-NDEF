@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.widget.FrameLayout
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -23,20 +24,13 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
-import com.beamio.caehtrees.ui.theme.CaehTreesTheme
 import org.json.JSONObject
 
 private const val HOME_URL = "https://cashtrees.beamio.app/app/"
@@ -386,18 +380,68 @@ class MainActivity : ComponentActivity() {
             },
         )
 
-        setContent {
-            CaehTreesTheme {
-                val jsBridge = remember(this@MainActivity) { CashTreesJsBridge() }
-                CashTreesWebView(
-                    modifier = Modifier.fillMaxSize(),
-                    webChromeClient = webChromeClient,
-                    jsBridge = jsBridge,
-                    onWebViewReady = { w -> webView = w },
-                )
-            }
-        }
+        val jsBridge = CashTreesJsBridge()
+        val wv = createMainWebView(jsBridge)
+        webView = wv
+        val root = FrameLayout(this)
+        root.addView(wv)
+        setContentView(root)
         hideBottomSystemBar()
+    }
+
+    /**
+     * 主框架导航：拦截会被 NDEF 写入的 beamio SUN URL，防止 WebView 或外链拾取后跳出到系统浏览器。
+     * [cashtrees.beamio.app] 为 PWA 宿主，必须放行。
+     */
+    private fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {
+        if (!isMainFrame) return false
+        val host = u.host?.lowercase().orEmpty()
+        if (!host.contains("beamio.app")) return false
+        if (host.contains("cashtrees.beamio.app")) return false
+        val path = u.path?.lowercase().orEmpty()
+        if (path.contains("/api/sun") || path.contains("/sun")) return true
+        val hasSunQueries =
+            u.getQueryParameter("uid") != null &&
+                u.getQueryParameter("e") != null &&
+                u.getQueryParameter("c") != null &&
+                u.getQueryParameter("m") != null
+        return hasSunQueries
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createMainWebView(jsBridge: CashTreesJsBridge): WebView {
+        return WebView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            webViewClient = object : WebViewClient() {
+                /** 避免标签 NDEF URI（SUN）进入 WebView / 系统浏览器；余额仅走 cashtreesnfc + API。 */
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val u = request.url ?: return false
+                    return shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    if (url.isNullOrEmpty()) return false
+                    return shouldBlockBeamioNdefTopLevelNavigation(Uri.parse(url), true)
+                }
+            }
+            this.webChromeClient = webChromeClient
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            settings.cacheMode = WebSettings.LOAD_DEFAULT
+            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = true
+            settings.setSupportZoom(false)
+            settings.builtInZoomControls = false
+            isVerticalScrollBarEnabled = true
+            isHorizontalScrollBarEnabled = false
+            addJavascriptInterface(jsBridge, "CashTreesAndroid")
+            loadUrl(HOME_URL, HOME_DOCUMENT_REQUEST_HEADERS)
+        }
     }
 
     override fun onResume() {
@@ -449,71 +493,4 @@ class MainActivity : ComponentActivity() {
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
     }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun CashTreesWebView(
-    modifier: Modifier = Modifier,
-    webChromeClient: WebChromeClient,
-    jsBridge: Any,
-    onWebViewReady: (WebView) -> Unit,
-) {
-    /**
-     * 主框架导航：拦截会被 NDEF 写入的 beamio SUN URL，防止 WebView 或外链拾取后跳出到系统浏览器。
-     * [cashtrees.beamio.app] 为 PWA 宿主，必须放行。
-     */
-    fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {
-        if (!isMainFrame) return false
-        val host = u.host?.lowercase().orEmpty()
-        if (!host.contains("beamio.app")) return false
-        if (host.contains("cashtrees.beamio.app")) return false
-        val path = u.path?.lowercase().orEmpty()
-        if (path.contains("/api/sun") || path.contains("/sun")) return true
-        val hasSunQueries =
-            u.getQueryParameter("uid") != null &&
-                u.getQueryParameter("e") != null &&
-                u.getQueryParameter("c") != null &&
-                u.getQueryParameter("m") != null
-        return hasSunQueries
-    }
-
-    AndroidView(
-        factory = { context ->
-            WebView(context).apply {
-                layoutParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-                webViewClient = object : WebViewClient() {
-                    /** 避免标签 NDEF URI（SUN）进入 WebView / 系统浏览器；余额仅走 cashtreesnfc + API。 */
-                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        val u = request.url ?: return false
-                        return shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)
-                    }
-
-                    @Deprecated("Deprecated in Java")
-                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                        if (url.isNullOrEmpty()) return false
-                        return shouldBlockBeamioNdefTopLevelNavigation(Uri.parse(url), true)
-                    }
-                }
-                this.webChromeClient = webChromeClient
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.cacheMode = WebSettings.LOAD_DEFAULT
-                settings.loadWithOverviewMode = true
-                settings.useWideViewPort = true
-                settings.setSupportZoom(false)
-                settings.builtInZoomControls = false
-                isVerticalScrollBarEnabled = true
-                isHorizontalScrollBarEnabled = false
-                addJavascriptInterface(jsBridge, "CashTreesAndroid")
-                onWebViewReady(this)
-                loadUrl(HOME_URL, HOME_DOCUMENT_REQUEST_HEADERS)
-            }
-        },
-        modifier = modifier,
-    )
 }

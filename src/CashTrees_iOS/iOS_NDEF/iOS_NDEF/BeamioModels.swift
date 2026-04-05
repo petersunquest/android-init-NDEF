@@ -23,6 +23,8 @@ struct CardItem: Identifiable, Equatable {
     var tierName: String?
     var tierDescription: String?
     var primaryMemberTokenId: String?
+    /// Program tier discount % (metadata/API); falls back to parsing [tierDescription] in UI when nil.
+    var tierDiscountPercent: Double? = nil
 
     /// Android `memberNoFromCardItem` / iOS `readBalanceMemberNo`.
     func formattedMemberNumber() -> String {
@@ -57,6 +59,8 @@ struct TopupSuccessState: Identifiable, Equatable {
     let tierDescription: String?
     let passCard: CardItem?
     let settlementViaQr: Bool
+    /// Android `TopupSuccessContent`: `customerBeamioTag` for hero title (Balance Loaded parity).
+    let customerBeamioTag: String?
 
     init(
         id: UUID = UUID(),
@@ -72,7 +76,8 @@ struct TopupSuccessState: Identifiable, Equatable {
         tierName: String?,
         tierDescription: String?,
         passCard: CardItem?,
-        settlementViaQr: Bool
+        settlementViaQr: Bool,
+        customerBeamioTag: String? = nil
     ) {
         self.id = id
         self.amount = amount
@@ -88,6 +93,7 @@ struct TopupSuccessState: Identifiable, Equatable {
         self.tierDescription = tierDescription
         self.passCard = passCard
         self.settlementViaQr = settlementViaQr
+        self.customerBeamioTag = customerBeamioTag
     }
 }
 
@@ -110,8 +116,15 @@ struct ChargeSuccessState: Identifiable, Equatable {
     let passCard: CardItem?
     let settlementViaQr: Bool
     let chargeTaxPercent: Double?
-    let chargeTierDiscountPercent: Int?
+    let chargeTierDiscountPercent: Double?
     let tableNumber: String?
+    /// `verra-home` `ndef1.html` — partial charge: wallet paid all available funds but order not fully settled.
+    let isPartialApproval: Bool
+    let originalOrderTotal: String?
+    let remainingShortfall: String?
+    /// Android `PaymentSuccessContent` hero / share receipt.
+    let customerBeamioTag: String?
+    let customerWalletAddress: String?
 
     init(
         id: UUID = UUID(),
@@ -131,8 +144,13 @@ struct ChargeSuccessState: Identifiable, Equatable {
         passCard: CardItem?,
         settlementViaQr: Bool,
         chargeTaxPercent: Double?,
-        chargeTierDiscountPercent: Int?,
-        tableNumber: String?
+        chargeTierDiscountPercent: Double?,
+        tableNumber: String?,
+        isPartialApproval: Bool = false,
+        originalOrderTotal: String? = nil,
+        remainingShortfall: String? = nil,
+        customerBeamioTag: String? = nil,
+        customerWalletAddress: String? = nil
     ) {
         self.id = id
         self.amount = amount
@@ -153,7 +171,85 @@ struct ChargeSuccessState: Identifiable, Equatable {
         self.chargeTaxPercent = chargeTaxPercent
         self.chargeTierDiscountPercent = chargeTierDiscountPercent
         self.tableNumber = tableNumber
+        self.isPartialApproval = isPartialApproval
+        self.originalOrderTotal = originalOrderTotal
+        self.remainingShortfall = remainingShortfall
+        self.customerBeamioTag = customerBeamioTag
+        self.customerWalletAddress = customerWalletAddress
     }
+}
+
+struct SunParams: Equatable {
+    let uid: String
+    let e: String
+    let c: String
+    let m: String
+}
+
+/// Full-screen charge declined: customer assets cannot cover the payment (before `postAAtoEOA` / NFC sign).
+struct ChargeInsufficientFundsState: Identifiable, Equatable {
+    let id: UUID
+    let chargeTotalInPayCurrency: Double
+    let payCurrency: String
+    let requiredUsdc6: Int64
+    let availableUsdc6: Int64
+    let subtotal: Double
+    let tip: Double
+    let taxPercent: Double
+    let tierDiscountPercent: Double
+    let beamioTag: String?
+    let walletShort: String?
+    let memberNo: String?
+    let passCard: CardItem?
+    let settlementViaQr: Bool
+    /// Immediate partial charge retry (aligned with Android `InsufficientPartialRetryContext`); single source of truth for the insufficient screen.
+    let retryNfcUid: String?
+    let retryNfcSun: SunParams?
+    let retryQrAccount: String?
+    /// JSON string of the Dynamic QR open-container payload.
+    let retryQrPayloadJson: String?
+
+    init(
+        id: UUID = UUID(),
+        chargeTotalInPayCurrency: Double,
+        payCurrency: String,
+        requiredUsdc6: Int64,
+        availableUsdc6: Int64,
+        subtotal: Double,
+        tip: Double,
+        taxPercent: Double,
+        tierDiscountPercent: Double,
+        beamioTag: String?,
+        walletShort: String?,
+        memberNo: String?,
+        passCard: CardItem?,
+        settlementViaQr: Bool,
+        retryNfcUid: String? = nil,
+        retryNfcSun: SunParams? = nil,
+        retryQrAccount: String? = nil,
+        retryQrPayloadJson: String? = nil
+    ) {
+        self.id = id
+        self.chargeTotalInPayCurrency = chargeTotalInPayCurrency
+        self.payCurrency = payCurrency
+        self.requiredUsdc6 = requiredUsdc6
+        self.availableUsdc6 = availableUsdc6
+        self.subtotal = subtotal
+        self.tip = tip
+        self.taxPercent = taxPercent
+        self.tierDiscountPercent = tierDiscountPercent
+        self.beamioTag = beamioTag
+        self.walletShort = walletShort
+        self.memberNo = memberNo
+        self.passCard = passCard
+        self.settlementViaQr = settlementViaQr
+        self.retryNfcUid = retryNfcUid
+        self.retryNfcSun = retryNfcSun
+        self.retryQrAccount = retryQrAccount
+        self.retryQrPayloadJson = retryQrPayloadJson
+    }
+
+    var shortfallUsdc6: Int64 { max(0, requiredUsdc6 - availableUsdc6) }
 }
 
 private extension String {
@@ -167,6 +263,8 @@ struct UIDAssets: Equatable {
     var ok: Bool
     var address: String?
     var aaAddress: String?
+    /// Root-level `primaryMemberTokenId` when API has no `cards[]` (synthetic `CardItem` in Balance Loaded).
+    var primaryMemberTokenId: String?
     var beamioTag: String?
     var uid: String?
     var tagIdHex: String?
@@ -182,6 +280,10 @@ struct UIDAssets: Equatable {
     var unitPriceUSDC6: String?
     var beamioUserCard: String?
     var error: String?
+    /// Cluster：商户基础设施卡上该会员 DB 最近 top-up（与 `getMemberLastTopupOnCard` / POS 查询同窗返回）
+    var posLastTopupAt: String?
+    var posLastTopupUsdcE6: String?
+    var posLastTopupPointsE6: String?
 
     /// Android `memberNoPrimaryFromSortedCardsItem`
     func memberNoPrimaryFromSortedCards() -> String {
@@ -202,6 +304,7 @@ struct UIDAssets: Equatable {
         ok: Bool,
         address: String? = nil,
         aaAddress: String? = nil,
+        primaryMemberTokenId: String? = nil,
         beamioTag: String? = nil,
         uid: String? = nil,
         tagIdHex: String? = nil,
@@ -216,11 +319,15 @@ struct UIDAssets: Equatable {
         cards: [CardItem]? = nil,
         unitPriceUSDC6: String? = nil,
         beamioUserCard: String? = nil,
-        error: String? = nil
+        error: String? = nil,
+        posLastTopupAt: String? = nil,
+        posLastTopupUsdcE6: String? = nil,
+        posLastTopupPointsE6: String? = nil
     ) {
         self.ok = ok
         self.address = address
         self.aaAddress = aaAddress
+        self.primaryMemberTokenId = primaryMemberTokenId
         self.beamioTag = beamioTag
         self.uid = uid
         self.tagIdHex = tagIdHex
@@ -236,22 +343,26 @@ struct UIDAssets: Equatable {
         self.unitPriceUSDC6 = unitPriceUSDC6
         self.beamioUserCard = beamioUserCard
         self.error = error
+        self.posLastTopupAt = posLastTopupAt
+        self.posLastTopupUsdcE6 = posLastTopupUsdcE6
+        self.posLastTopupPointsE6 = posLastTopupPointsE6
     }
 }
 
-struct TerminalProfile: Equatable {
+struct TerminalProfile: Equatable, Codable {
     let accountName: String?
     let firstName: String?
     let lastName: String?
     let image: String?
     let address: String?
-}
 
-struct SunParams: Equatable {
-    let uid: String
-    let e: String
-    let c: String
-    let m: String
+    enum CodingKeys: String, CodingKey {
+        case accountName
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case image
+        case address
+    }
 }
 
 enum ScanPendingAction: String {
@@ -264,4 +375,32 @@ enum ScanPendingAction: String {
 enum ScanMethod: String {
     case nfc
     case qr
+}
+
+// MARK: - Charge QR Smart Routing (align Android `RoutingStep` / `PaymentRoutingMonitorDisplayCard`)
+
+enum PaymentRoutingStepStatus: String, Equatable {
+    case pending
+    case loading
+    case success
+    case error
+}
+
+struct PaymentRoutingStepRow: Identifiable, Equatable {
+    let id: String
+    var label: String
+    var detail: String
+    var status: PaymentRoutingStepStatus
+}
+
+extension Array where Element == PaymentRoutingStepRow {
+    /// Same filters as Android `filterPaymentRoutingStepsForDisplay`, then last N rows.
+    func beamioPaymentRoutingStepsForDisplay(maxVisible: Int = 6) -> [PaymentRoutingStepRow] {
+        let early: Set<String> = ["detectingUser", "membership", "analyzingAssets", "optimizingRoute"]
+        let filtered = filter { step in
+            early.contains(step.id) || step.status != .pending
+        }
+        if filtered.count <= maxVisible { return filtered }
+        return Array(filtered.suffix(maxVisible))
+    }
 }

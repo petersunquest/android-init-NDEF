@@ -5,11 +5,12 @@
 //  Created by peter on 2026-03-27.
 //
 
+import Combine
 import CoreNFC
 import SwiftUI
 import WebKit
 
-private let cashTreesAppURL = URL(string: "https://cashtrees.beamio.app/app/")!
+private let cashTreesAppURL = URL(string: "https://verra.network/app/")!
 
 /// 与注入脚本 `window.webkit.messageHandlers.CashTreesIOS` 一致
 private let cashTreesIOSWKHandlerName = "CashTreesIOS"
@@ -149,13 +150,47 @@ private func queryIosNfcStatusString() -> String {
     return NfcStatusString.ready
 }
 
+// MARK: - Web load state（首屏 PWA 加载）
+
+final class CashTreesWebLoadState: ObservableObject {
+    @Published var isLoading = true
+}
+
 // MARK: - WK Coordinator
 
-final class CashTreesWebCoordinator: NSObject, WKScriptMessageHandler, NFCTagReaderSessionDelegate {
+final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate {
     weak var webView: WKWebView?
+    weak var loadState: CashTreesWebLoadState?
 
     private var nfcSession: NFCTagReaderSession?
     private var bindSessionActive = false
+    private var initialWebNavigationSettled = false
+
+    private func settleInitialWebLoadIfNeeded() {
+        guard !initialWebNavigationSettled else { return }
+        initialWebNavigationSettled = true
+        DispatchQueue.main.async { [weak self] in
+            self?.loadState?.isLoading = false
+        }
+    }
+
+    // MARK: WKNavigationDelegate
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        settleInitialWebLoadIfNeeded()
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        settleInitialWebLoadIfNeeded()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        settleInitialWebLoadIfNeeded()
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        settleInitialWebLoadIfNeeded()
+    }
 
     /// document start 注入用：与 Android `CashTreesAndroid.getNfcStatus()` 字符串一致
     static func bridgeInjectionScript(nfcStatus: String) -> String {
@@ -309,6 +344,8 @@ final class CashTreesWebCoordinator: NSObject, WKScriptMessageHandler, NFCTagRea
 // MARK: - SwiftUI WebView
 
 struct CashTreesWebView: UIViewRepresentable {
+    @ObservedObject var loadState: CashTreesWebLoadState
+
     func makeCoordinator() -> CashTreesWebCoordinator {
         CashTreesWebCoordinator()
     }
@@ -342,10 +379,12 @@ struct CashTreesWebView: UIViewRepresentable {
         )
 
         let coord = context.coordinator
+        coord.loadState = loadState
         config.userContentController.add(coord, name: cashTreesIOSWKHandlerName)
 
         let webView = WKWebView(frame: .zero, configuration: config)
         coord.webView = webView
+        webView.navigationDelegate = coord
         let sv = webView.scrollView
         sv.minimumZoomScale = 1.0
         sv.maximumZoomScale = 1.0
@@ -363,17 +402,61 @@ struct CashTreesWebView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ uiView: WKWebView, coordinator: CashTreesWebCoordinator) {
+        uiView.navigationDelegate = nil
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: cashTreesIOSWKHandlerName)
         coordinator.webView = nil
+        coordinator.loadState = nil
     }
 
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        context.coordinator.loadState = loadState
+    }
+}
+
+// MARK: - Splash（WebView 首屏加载前；PWA 首包可能较慢，居中 logo + 明确加载态）
+
+private struct CashTreesSplashOverlay: View {
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                Spacer(minLength: 0)
+                VStack(spacing: 28) {
+                    Image("SplashAppLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 132, height: 132)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 6)
+                    VStack(spacing: 14) {
+                        ProgressView()
+                            .scaleEffect(1.15)
+                        Text("Loading...")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .transition(.opacity)
+    }
 }
 
 struct ContentView: View {
+    @StateObject private var webLoadState = CashTreesWebLoadState()
+
     var body: some View {
-        CashTreesWebView()
-            .ignoresSafeArea()
+        ZStack {
+            CashTreesWebView(loadState: webLoadState)
+                .ignoresSafeArea()
+            if webLoadState.isLoading {
+                CashTreesSplashOverlay()
+            }
+        }
+        .animation(.easeOut(duration: 0.28), value: webLoadState.isLoading)
     }
 }
 

@@ -150,7 +150,6 @@ enum BeamioEthWallet {
         let sk = try normalizePrivateKeyHex(privateKeyHex)
         let dataBytes = try decodeHexData(dataHex)
         let dataHash = keccak256(dataBytes)
-        let dataHashHex = "0x" + dataHash.map { String(format: "%02x", $0) }.joined()
 
         var nh = nonceHex.trimmingCharacters(in: .whitespacesAndNewlines)
         if !nh.hasPrefix("0x") { nh = "0x" + nh }

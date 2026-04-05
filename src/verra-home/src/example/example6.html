@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline": "#737687",
+                        "on-primary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "error": "#ba1a1a",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed-dim": "#b3c5ff",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-variant": "#e2e2e7",
+                        "surface-container-highest": "#e2e2e7",
+                        "on-surface": "#1a1c1f",
+                        "on-secondary-fixed": "#00184a",
+                        "on-primary-fixed-variant": "#003fa5",
+                        "tertiary-fixed": "#ffdbce",
+                        "on-secondary": "#ffffff",
+                        "primary-container": "#1562f0",
+                        "inverse-surface": "#2e3034",
+                        "inverse-primary": "#b3c5ff",
+                        "error-container": "#ffdad6",
+                        "on-primary-container": "#edefff",
+                        "on-tertiary-container": "#ffece6",
+                        "surface-container": "#ededf2",
+                        "surface-bright": "#f9f9fe",
+                        "surface-dim": "#d9dade",
+                        "surface-tint": "#0054d8",
+                        "background": "#f9f9fe",
+                        "on-secondary-fixed-variant": "#2e447f",
+                        "on-tertiary-fixed-variant": "#802a00",
+                        "secondary-container": "#a7bcff",
+                        "tertiary-fixed-dim": "#ffb59a",
+                        "on-primary-fixed": "#00184a",
+                        "tertiary-container": "#c04300",
+                        "outline-variant": "#c3c6d8",
+                        "inverse-on-surface": "#f0f0f5",
+                        "on-error": "#ffffff",
+                        "on-tertiary-fixed": "#370d00",
+                        "surface-container-high": "#e8e8ed",
+                        "secondary": "#465c99",
+                        "tertiary": "#973300",
+                        "secondary-fixed": "#dbe1ff",
+                        "primary": "#004bc3",
+                        "on-surface-variant": "#424655",
+                        "on-background": "#1a1c1f",
+                        "surface": "#f9f9fe",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "on-secondary-container": "#344a86",
+                        "surface-container-low": "#f3f3f8"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f9f9fe; }
+        ::-webkit-scrollbar-thumb { background: #e2e2e7; border-radius: 10px; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background font-body text-on-surface selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar -->
+<nav class="fixed top-0 w-full z-50 bg-[#f9f9fe]/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+<div class="flex items-center justify-between px-6 h-16 w-full max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="text-xl font-bold text-[#1a1c1f] dark:text-white tracking-tight">VERRA</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-sm font-semibold text-[#1562f0] hover:opacity-80 transition-opacity flex items-center gap-2" href="#">
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+                    Back to Home
+                </a>
+</div>
+</div>
+</nav>
+<main class="pt-16 min-h-screen">
+<!-- Header Section -->
+<section class="bg-surface-container-low py-24 md:py-32 px-6">
+<div class="max-w-7xl mx-auto">
+<span class="text-primary font-bold tracking-widest text-xs uppercase mb-4 block">Security Standards</span>
+<h1 class="text-5xl md:text-8xl font-black text-on-surface tracking-tighter mb-8 max-w-4xl">
+                    Privacy Policy
+                </h1>
+<p class="text-xl md:text-2xl text-on-surface-variant max-w-2xl leading-relaxed mb-8">
+                    Zero-Trace Privacy by design. We build network infrastructure, not data silos.
+                </p>
+<div class="inline-flex items-center px-4 py-2 bg-surface-container-highest rounded-full text-xs font-medium text-on-surface-variant">
+                    Last Updated: April 2026
+                </div>
+</div>
+</section>
+<!-- Content Area -->
+<section class="bg-surface-container-lowest py-20 px-6">
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 md:gap-24">
+<!-- Left Sidebar Navigation (Desktop) -->
+<aside class="lg:col-span-4 hidden lg:block">
+<div class="sticky top-32 space-y-2">
+<a class="group flex items-center justify-between p-4 rounded-xl hover:bg-surface-container-low transition-all duration-200" href="#architecture">
+<span class="text-on-surface font-semibold group-hover:text-primary transition-colors">1. Zero-Trace Architecture</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</a>
+<a class="group flex items-center justify-between p-4 rounded-xl hover:bg-surface-container-low transition-all duration-200" href="#key-control">
+<span class="text-on-surface font-semibold group-hover:text-primary transition-colors">2. Local Key Control</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</a>
+<a class="group flex items-center justify-between p-4 rounded-xl hover:bg-surface-container-low transition-all duration-200" href="#erasure">
+<span class="text-on-surface font-semibold group-hover:text-primary transition-colors">3. Cryptographic Erasure</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</a>
+<a class="group flex items-center justify-between p-4 rounded-xl hover:bg-surface-container-low transition-all duration-200" href="#no-pii">
+<span class="text-on-surface font-semibold group-hover:text-primary transition-colors">4. No PII Collection</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">chevron_right</span>
+</a>
+</div>
+</aside>
+<!-- Mobile Scrollable Jump Links -->
+<div class="lg:hidden flex overflow-x-auto pb-4 gap-4 no-scrollbar -mx-6 px-6">
+<a class="whitespace-nowrap px-6 py-3 bg-surface-container-low rounded-full font-bold text-sm" href="#architecture">1. Architecture</a>
+<a class="whitespace-nowrap px-6 py-3 bg-surface-container-low rounded-full font-bold text-sm" href="#key-control">2. Key Control</a>
+<a class="whitespace-nowrap px-6 py-3 bg-surface-container-low rounded-full font-bold text-sm" href="#erasure">3. Erasure</a>
+<a class="whitespace-nowrap px-6 py-3 bg-surface-container-low rounded-full font-bold text-sm" href="#no-pii">4. PII Policy</a>
+</div>
+<!-- Right Content Area -->
+<article class="lg:col-span-8 space-y-32">
+<div class="scroll-mt-32" id="architecture">
+<h2 class="text-3xl font-black text-on-surface mb-8 flex items-center gap-4">
+<span class="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center text-lg">01</span>
+                            Zero-Trace Architecture
+                        </h2>
+<div class="space-y-6">
+<p class="text-xl leading-relaxed text-on-surface">
+                                VERRA does not collect or centrally store Personally Identifiable Information (PII). Our infrastructure strictly records pseudonymous routing tags.
+                            </p>
+<p class="text-on-surface-variant leading-relaxed">
+                                Our commitment to privacy is rooted in the physical architecture of our network. Unlike legacy financial systems that create honeypots of sensitive user data, our nodes function as stateless relays. Traffic passing through the Verra network is encrypted end-to-end, ensuring that even at the hardware layer, visibility is restricted to necessary routing metadata only.
+                            </p>
+</div>
+</div>
+<div class="scroll-mt-32" id="key-control">
+<h2 class="text-3xl font-black text-on-surface mb-8 flex items-center gap-4">
+<span class="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center text-lg">02</span>
+                            Local Key Control
+                        </h2>
+<div class="space-y-6">
+<p class="text-xl leading-relaxed text-on-surface">
+                                Your private keys are exclusively controlled by your local device. VERRA cannot access, view, or recover your keys.
+                            </p>
+<p class="text-on-surface-variant leading-relaxed">
+                                Self-custody is the cornerstone of the Verra experience. Your cryptographic credentials never leave the Secure Enclave of your hardware. This means that even under legal compulsion or technical compromise, Verra has zero technical capability to impersonate a user or access their digital assets. You are the sole administrator of your identity.
+                            </p>
+</div>
+</div>
+<div class="scroll-mt-32" id="erasure">
+<h2 class="text-3xl font-black text-on-surface mb-8 flex items-center gap-4">
+<span class="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center text-lg">03</span>
+                            Cryptographic Erasure
+                        </h2>
+<div class="space-y-6">
+<p class="text-xl leading-relaxed text-on-surface">
+                                We empower your absolute Right to be Forgotten. By destroying your local private key, any associated on-chain data instantly degrades into an irreversible orphan hash through Cryptographic Erasure.
+                            </p>
+<p class="text-on-surface-variant leading-relaxed">
+                                Traditional data deletion is often incomplete, leaving forensic trails in backups. Verra utilizes the principle of "Crypto-Shredding." By deleting the unique decryption keys held only by the user, the historical data associated with that identity becomes mathematically indistinguishable from random noise, effectively purging it from existence.
+                            </p>
+</div>
+</div>
+<div class="scroll-mt-32 pb-20" id="no-pii">
+<h2 class="text-3xl font-black text-on-surface mb-8 flex items-center gap-4">
+<span class="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center text-lg">04</span>
+                            No PII Collection
+                        </h2>
+<div class="space-y-6">
+<p class="text-xl leading-relaxed text-on-surface">
+                                Our network protocols are engineered to operate without the collection of names, emails, or government IDs, prioritizing anonymity at every interaction layer.
+                            </p>
+<p class="text-on-surface-variant leading-relaxed">
+                                We believe that the best way to protect data is to never collect it. Verra does not require account registration in the traditional sense. There are no cookies, no third-party trackers, and no shadow profiles. Your interaction with the protocol is validated through zero-knowledge proofs, proving eligibility without revealing identity.
+                            </p>
+</div>
+</div>
+</article>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full rounded-t-[24px] bg-[#0A1128] text-white">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center px-8 py-16 w-full max-w-7xl mx-auto">
+<div class="mb-10 md:mb-0 space-y-4">
+<div class="flex items-center gap-3">
+<span class="text-2xl font-black tracking-tighter">VERRA</span>
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<p class="text-slate-400 text-sm font-['Inter'] leading-relaxed max-w-xs">
+                    Building the future of anonymous network infrastructure.
+                </p>
+<p class="text-slate-500 text-xs pt-4">
+                    © 2026 Verra. All rights reserved.
+                </p>
+</div>
+<div class="flex flex-col items-start md:items-end gap-8">
+<div class="flex gap-8 text-sm font-medium tracking-wide">
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Privacy</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Terms</a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#">Contact</a>
+</div>
+<div class="flex gap-6">
+<div class="w-10 h-10 rounded-full border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-lg text-slate-400 group-hover:text-white">public</span>
+</div>
+<div class="w-10 h-10 rounded-full border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-lg text-slate-400 group-hover:text-white">share</span>
+</div>
+<div class="w-10 h-10 rounded-full border border-slate-800 flex items-center justify-center hover:bg-slate-800 transition-colors cursor-pointer group">
+<span class="material-symbols-outlined text-lg text-slate-400 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+</div>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

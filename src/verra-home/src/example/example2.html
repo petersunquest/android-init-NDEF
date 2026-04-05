@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VERRA | Your Local Life, Unlocked</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .glass-sheet {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9fe;
+            color: #1a1c1f;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-secondary-container": "#344a86",
+              "surface-bright": "#f9f9fe",
+              "primary-fixed": "#dbe1ff",
+              "surface-container-highest": "#e2e2e7",
+              "surface-variant": "#e2e2e7",
+              "primary": "#004bc3",
+              "on-secondary-fixed-variant": "#2e447f",
+              "background": "#f9f9fe",
+              "on-tertiary-container": "#ffece6",
+              "on-secondary-fixed": "#00184a",
+              "tertiary-fixed-dim": "#ffb59a",
+              "inverse-on-surface": "#f0f0f5",
+              "inverse-primary": "#b3c5ff",
+              "on-background": "#1a1c1f",
+              "on-surface-variant": "#424655",
+              "secondary": "#465c99",
+              "error-container": "#ffdad6",
+              "secondary-container": "#a7bcff",
+              "surface-dim": "#d9dade",
+              "outline": "#737687",
+              "on-error-container": "#93000a",
+              "on-tertiary-fixed-variant": "#802a00",
+              "on-primary-fixed": "#00184a",
+              "tertiary-fixed": "#ffdbce",
+              "inverse-surface": "#2e3034",
+              "on-error": "#ffffff",
+              "error": "#ba1a1a",
+              "on-surface": "#1a1c1f",
+              "tertiary": "#973300",
+              "secondary-fixed-dim": "#b3c5ff",
+              "secondary-fixed": "#dbe1ff",
+              "surface-container-low": "#f3f3f8",
+              "on-primary-container": "#edefff",
+              "on-primary-fixed-variant": "#003fa5",
+              "primary-container": "#1562f0",
+              "on-secondary": "#ffffff",
+              "tertiary-container": "#c04300",
+              "surface-container": "#ededf2",
+              "primary-fixed-dim": "#b3c5ff",
+              "surface-container-lowest": "#ffffff",
+              "outline-variant": "#c3c6d8",
+              "surface-tint": "#0054d8",
+              "surface-container-high": "#e8e8ed",
+              "on-tertiary-fixed": "#370d00",
+              "on-tertiary": "#ffffff",
+              "on-primary": "#ffffff",
+              "surface": "#f9f9fe"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+<div class="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-600 text-2xl">token</span>
+<span class="text-2xl font-bold tracking-tighter text-blue-600">VERRA</span>
+</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="text-blue-600 font-semibold hover:text-blue-500 transition-colors duration-300" href="#">Vault</a>
+<a class="text-slate-500 font-medium hover:text-blue-500 transition-colors duration-300" href="#">Merchants</a>
+<a class="text-slate-500 font-medium hover:text-blue-500 transition-colors duration-300" href="#">Technology</a>
+</nav>
+<div class="scale-95 active:opacity-80 transition-all px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 font-bold text-xs tracking-widest border border-blue-100">
+                BETA
+            </div>
+</div>
+</header>
+<main class="pt-24">
+<!-- Hero Section -->
+<section class="relative overflow-hidden bg-gradient-to-b from-white to-surface-container-low pt-20 pb-32">
+<div class="max-w-7xl mx-auto px-8 text-center relative z-10">
+<h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-on-surface mb-6">
+                    Your local life, unlocked.
+                </h1>
+<p class="text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto mb-12 leading-relaxed">
+                    Your secure AA (Account Abstraction) digital vault for local independent brands. Currently in open Beta.
+                </p>
+<div class="flex flex-col md:flex-row gap-4 justify-center items-center">
+<button class="pill-shaped bg-gradient-to-br from-primary to-primary-container text-white px-8 py-4 rounded-full flex items-center gap-3 shadow-lg hover:opacity-90 transition-all scale-95 active:scale-90">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">ios</span>
+<span class="font-semibold">Join via TestFlight</span>
+</button>
+<button class="pill-shaped bg-white border border-outline-variant/30 text-on-surface px-8 py-4 rounded-full flex items-center gap-3 hover:bg-surface-container-low transition-all scale-95 active:scale-90">
+<span class="material-symbols-outlined">android</span>
+<span class="font-semibold">Download .APK</span>
+</button>
+<button class="pill-shaped bg-white border border-outline-variant/30 text-on-surface px-8 py-4 rounded-full flex items-center gap-3 hover:bg-surface-container-low transition-all scale-95 active:scale-90">
+<span class="material-symbols-outlined">open_in_browser</span>
+<span class="font-semibold">Launch Web App</span>
+</button>
+</div>
+</div>
+<!-- Decorative Background Element -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle_at_50%_50%,rgba(21,98,240,0.05)_0%,transparent_70%)] pointer-events-none"></div>
+</section>
+<!-- Feature 1: The Smart AA Vault -->
+<section class="py-32 bg-white">
+<div class="max-w-7xl mx-auto px-8 grid md:grid-cols-2 items-center gap-20">
+<div class="order-2 md:order-1">
+<div class="relative mx-auto w-72 h-[600px] bg-slate-900 rounded-[3rem] p-3 shadow-2xl overflow-hidden ring-8 ring-slate-100">
+<!-- Internal App UI -->
+<div class="w-full h-full bg-white rounded-[2.2rem] overflow-hidden flex flex-col pt-12">
+<div class="px-6 space-y-6">
+<div class="flex justify-between items-center">
+<div class="w-10 h-10 rounded-full bg-surface-container-high"></div>
+<span class="material-symbols-outlined text-on-surface-variant">notifications</span>
+</div>
+<div class="space-y-1">
+<p class="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Total Balance</p>
+<p class="text-3xl font-bold tracking-tighter" style="font-family: 'SF Pro Monospaced', monospace;">$1,452.80</p>
+</div>
+<!-- Dynamic QR Code -->
+<div class="relative group">
+<div class="absolute -inset-4 bg-primary/10 blur-xl rounded-3xl opacity-50"></div>
+<div class="relative bg-white p-6 rounded-3xl border-2 border-primary/20 aspect-square flex items-center justify-center">
+<div class="w-full h-full bg-slate-50 flex items-center justify-center overflow-hidden rounded-lg">
+<img alt="QR Code" class="w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="a minimalist and high-precision QR code design with rounded modules and a small blue token icon in the center" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeRKuDtww1tP0FYfAKDyBFRsHM14cdJWhxPwzamDtx9ZCtyMwqxIvJiFUHuR7Pn1jmAlMrcQF5fOrj73SYHgz2luEa2dSycjGlb6jkTjMyc5ad9BVDAT99IE_oDQiIT2U9fUeb1V4J5qHn0_c1yyNKYoDzeHVetTJoIV4b0DciYUZtjOwu-WmKpXMIYLbtu_NkjpaxunSmN5EKirViFOxGPcBhQVvoPZXA7sXXBXJjypywIdzEj0QPL2OM5IISgBuB9_IQd18G4vAo"/>
+</div>
+</div>
+<div class="mt-4 flex justify-center">
+<div class="px-4 py-1 bg-surface-container-high rounded-full">
+<p class="text-[10px] font-bold text-on-surface-variant tracking-widest uppercase">Expires in 0:45</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="order-1 md:order-2 space-y-8">
+<h2 class="text-4xl md:text-5xl font-bold tracking-tight text-on-surface">Next-generation smart wallet.</h2>
+<p class="text-xl text-on-surface-variant leading-relaxed">
+                        Powered by Account Abstraction. Hold balances, track vouchers, and route payments instantly without traditional bank fees.
+                    </p>
+<div class="space-y-6 pt-4">
+<div class="flex gap-4 items-start">
+<div class="bg-primary-container/10 p-3 rounded-2xl">
+<span class="material-symbols-outlined text-primary">security</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface">Biometric Recovery</h4>
+<p class="text-on-surface-variant">Never lose access. Your face is your private key.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<div class="bg-primary-container/10 p-3 rounded-2xl">
+<span class="material-symbols-outlined text-primary">bolt</span>
+</div>
+<div>
+<h4 class="font-bold text-on-surface">Zero Gas Fees</h4>
+<p class="text-on-surface-variant">Smooth transactions sponsored by our network.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Feature 2: Two Ways to Pay -->
+<section class="py-32 bg-surface-container-low">
+<div class="max-w-7xl mx-auto px-8">
+<div class="text-center mb-20">
+<h2 class="text-4xl md:text-5xl font-bold tracking-tight text-on-surface mb-6">Show or Tap. Purely seamless.</h2>
+<p class="text-xl text-on-surface-variant max-w-2xl mx-auto">
+                        Open the app to show your dynamic QR code for the merchant to scan, or simply tap your secure physical NFC card on the back of the merchant's phone.
+                    </p>
+</div>
+<div class="grid md:grid-cols-2 gap-8">
+<!-- QR Visual -->
+<div class="bg-white rounded-[2rem] p-12 flex flex-col items-center justify-center space-y-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+<div class="w-64 aspect-square bg-surface-container-low rounded-3xl overflow-hidden relative">
+<img alt="QR Scan" class="w-full h-full object-cover" data-alt="close-up of a modern smartphone screen showing a minimalist dynamic QR code with soft interface lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6lNlb-RXbRpPlbYapoQ5XY1axHK4qIrm7XAb4l93_Nf6bGU46x2WQT2JRYL5vHyKTsLUb0q1MqxrrshW5S51gIJMgVmyCMuWcNe50Ap6g4OCW99Co4EvytB5dBrFTQh9tHYBbZQGSKf-lkVUbnnKkJOMnf8usVSIHxQnW0IGaMUBg8lqCpoSA9eIUG6EX2D-Tny4hXx9zxuhRGtTCkkkMrxxwJER1lYe0A_52TRgSJEOHu1mTA8wQDtAG1-02fW3VI6j5C58q1Ebg"/>
+</div>
+<div class="text-center">
+<h3 class="text-2xl font-bold mb-2">Dynamic QR Scan</h3>
+<p class="text-on-surface-variant">Generate a secure one-time code.</p>
+</div>
+</div>
+<!-- NFC Card Visual -->
+<div class="bg-white rounded-[2rem] p-12 flex flex-col items-center justify-center space-y-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)] overflow-hidden relative">
+<div class="w-full max-w-xs h-48 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl relative shadow-2xl p-8 flex flex-col justify-between group overflow-hidden">
+<!-- Wave Pattern Overlay -->
+<div class="absolute inset-0 opacity-20 pointer-events-none">
+<img class="w-full h-full object-cover" data-alt="subtle abstract silver wave pattern flowing diagonally across a dark matte background for a premium card texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIuigV8CKp85tdjctbPHhuAqFLUZz9muSc48wQmU3ozMDtHUTGUXFaz429cGli87jpWC1UYN4OVa7TDwPp-Yd8kunltXlzYmFbxx1rzs21pJx-0PQfKduAgNaHE3xQm4qespQ7Dftq0yIwm8Iqu0u53WjxnjzvLTs79tQE-qC6DPDT0RChvfwqoAELRYaR97bqywXL9qYWXZDMYdC0v68likgemq9E8EVwAx2CPi63uXtSubrwyL4nxt1tUJ4AThze8GQzhoI4waIs"/>
+</div>
+<div class="flex justify-between items-start relative z-10">
+<span class="material-symbols-outlined text-white/40 text-4xl">contactless</span>
+<span class="text-white font-bold tracking-tighter text-xl">VERRA</span>
+</div>
+<div class="relative z-10">
+<p class="text-white/40 text-[10px] uppercase tracking-widest font-bold">TAG424 DNA SECURE</p>
+</div>
+</div>
+<div class="text-center">
+<h3 class="text-2xl font-bold mb-2">TAG424 NFC Card</h3>
+<p class="text-on-surface-variant">Physical security with modern elegance.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Feature 3: The Genesis Network -->
+<section class="py-32 bg-white">
+<div class="max-w-7xl mx-auto px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-8">
+<div class="max-w-2xl">
+<h2 class="text-4xl md:text-5xl font-bold tracking-tight text-on-surface mb-6">Coming to your neighborhood.</h2>
+<p class="text-xl text-on-surface-variant leading-relaxed">
+                            We are currently onboarding our first wave of visionary independent merchants. Be the first to use your vault locally.
+                        </p>
+</div>
+<div class="flex gap-4">
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+<div class="grid md:grid-cols-3 gap-6">
+<!-- Local Coffee House -->
+<div class="bg-surface-container-low/50 p-10 rounded-[2rem] space-y-12 border border-outline-variant/10 hover:bg-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)] transition-all group">
+<div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">local_cafe</span>
+</div>
+<div class="space-y-2">
+<h3 class="text-2xl font-bold">Local Coffee House</h3>
+<p class="text-on-surface-variant">Craft roasts and morning rituals.</p>
+</div>
+<div class="pt-4 flex items-center gap-2 text-primary font-semibold text-sm">
+<span>View Partners</span>
+<span class="material-symbols-outlined text-sm">east</span>
+</div>
+</div>
+<!-- Neighborhood Bakery -->
+<div class="bg-surface-container-low/50 p-10 rounded-[2rem] space-y-12 border border-outline-variant/10 hover:bg-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)] transition-all group">
+<div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">bakery_dining</span>
+</div>
+<div class="space-y-2">
+<h3 class="text-2xl font-bold">Neighborhood Bakery</h3>
+<p class="text-on-surface-variant">Artisan dough and daily bakes.</p>
+</div>
+<div class="pt-4 flex items-center gap-2 text-primary font-semibold text-sm">
+<span>View Partners</span>
+<span class="material-symbols-outlined text-sm">east</span>
+</div>
+</div>
+<!-- Artisan Dining -->
+<div class="bg-surface-container-low/50 p-10 rounded-[2rem] space-y-12 border border-outline-variant/10 hover:bg-white hover:shadow-[0_20px_40px_rgba(0,0,0,0.04)] transition-all group">
+<div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">restaurant</span>
+</div>
+<div class="space-y-2">
+<h3 class="text-2xl font-bold">Artisan Dining</h3>
+<p class="text-on-surface-variant">Elevated cuisine from independent chefs.</p>
+</div>
+<div class="pt-4 flex items-center gap-2 text-primary font-semibold text-sm">
+<span>View Partners</span>
+<span class="material-symbols-outlined text-sm">east</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-24 max-w-7xl mx-auto px-8">
+<div class="bg-primary rounded-[3rem] p-16 text-center text-white relative overflow-hidden">
+<div class="relative z-10 space-y-8">
+<h2 class="text-4xl font-bold">Ready to reclaim your local economy?</h2>
+<p class="text-blue-100 text-lg max-w-xl mx-auto">Join thousands of early adopters currently testing the VERRA vault in the wild.</p>
+<button class="bg-white text-primary px-10 py-4 rounded-full font-bold text-lg hover:bg-blue-50 transition-colors scale-95 active:scale-90">
+                        Get Early Access
+                    </button>
+</div>
+<!-- Decorative element -->
+<div class="absolute -right-20 -bottom-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
+<div class="absolute -left-20 -top-20 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl"></div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-blue-950 dark:bg-black w-full py-12">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 max-w-7xl mx-auto gap-8">
+<div class="flex flex-col items-center md:items-start gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white">token</span>
+<span class="text-xl font-bold tracking-tighter text-white">VERRA</span>
+</div>
+<p class="text-blue-200/60 font-['Inter'] text-sm tracking-wide">© 2026 VERRA</p>
+</div>
+<div class="flex gap-8">
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">
+<span class="material-symbols-outlined">language</span>
+</a>
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">
+<span class="material-symbols-outlined">share</span>
+</a>
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">
+<span class="material-symbols-outlined">shield</span>
+</a>
+</div>
+<div class="flex gap-6 text-sm font-medium">
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">Privacy</a>
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">Terms</a>
+<a class="text-blue-200/60 hover:text-white transition-opacity" href="#">Support</a>
+</div>
+</div>
+</footer>
+</body></html>
