@@ -863,6 +863,15 @@ private struct HomeRootView: View {
                 topUpsColumn
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            if let trimmed = vm.homeMerchantProgramCardName?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
+                Text(trimmed)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.88))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 10)
+            }
             taxAndTierRow
                 .padding(.top, 10)
             HStack {

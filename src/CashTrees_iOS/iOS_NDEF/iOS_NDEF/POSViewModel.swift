@@ -33,6 +33,8 @@ final class POSViewModel: ObservableObject {
     private var homeRefreshInFlight = false
     @Published var infraRoutingTaxPercent: Double?
     @Published var infraRoutingDiscountSummary: String?
+    /// Infrastructure / program `BeamioUserCard` metadata `name` (`cards[].cardName`) for the POS `merchantInfraCard` row.
+    @Published var homeMerchantProgramCardName: String?
 
     @Published var homeToast: String?
     /// 注册成功后展示一次（与 web Recovery QR 秘密等价，勿记入日志）
@@ -337,6 +339,7 @@ final class POSViewModel: ObservableObject {
         let ast = await api.getWalletAssets(wallet: w, merchantInfraCard: infra, merchantInfraOnly: false, forPostPayment: false)
         if ast.ok {
             hasAAAccount = ast.aaAddress?.nilIfEmpty != nil
+            homeMerchantProgramCardName = Self.merchantProgramMetadataDisplayName(from: ast, merchantInfraCard: infra)
         } else {
             hasAAAccount = true
         }
@@ -384,6 +387,7 @@ final class POSViewModel: ObservableObject {
         let changed = addr.lowercased() != previous.lowercased()
         merchantInfraCard = addr
         if changed {
+            homeMerchantProgramCardName = nil
             applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: addr, replaceDisplayValues: true)
         }
     }
@@ -2449,6 +2453,30 @@ final class POSViewModel: ObservableObject {
 }
 
 private extension POSViewModel {
+    /// Match `readBalanceBalanceDetailsCardNameLine` (ContentView) — strip generic ` CARD` suffixes.
+    static func cleanedProgramCardNameLine(_ raw: String) -> String {
+        let rawTrim = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if rawTrim.isEmpty { return "" }
+        let n = rawTrim.replacingOccurrences(of: " CARD", with: "").replacingOccurrences(of: " Card", with: "")
+        return n.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Row for `merchantInfraCard` in `getWalletAssets` — `cardName` comes from BeamioUserCard JSON metadata `name`.
+    static func merchantProgramMetadataDisplayName(from assets: UIDAssets, merchantInfraCard infra: String) -> String? {
+        let key = infra.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return nil }
+        let card = assets.cards?.first {
+            $0.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines).caseInsensitiveCompare(key) == .orderedSame
+        }
+        guard let card else { return nil }
+        let line = cleanedProgramCardNameLine(card.cardName)
+        guard !line.isEmpty else { return nil }
+        if line.caseInsensitiveCompare("Infrastructure card") == .orderedSame { return nil }
+        if line.caseInsensitiveCompare("Asset Card") == .orderedSame { return nil }
+        if line.caseInsensitiveCompare("Card") == .orderedSame { return nil }
+        return line
+    }
+
     func looksLikeAddress(_ s: String) -> Bool {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.hasPrefix("0x"), t.count == 42 else { return false }
