@@ -1,6 +1,7 @@
 package app.beamio.nfc
 
 import android.nfc.Tag
+import android.nfc.TagLostException
 import android.nfc.tech.IsoDep
 import java.io.IOException
 import java.security.SecureRandom
@@ -440,6 +441,82 @@ class BeamioNtagProvisioner(
         updateBinary(isoDep, 0, nlen)
     }
 
+    private fun isLikelyTagLostError(t: Throwable): Boolean {
+        if (t is TagLostException) return true
+        val msg = t.message.orEmpty()
+        if (msg.contains("Tag was lost", ignoreCase = true)) return true
+        if (msg.contains("TagLost", ignoreCase = true)) return true
+        if (msg.contains("Connection lost", ignoreCase = true)) return true
+        val c = t.cause
+        return c != null && isLikelyTagLostError(c)
+    }
+
+    /**
+     * ISO UPDATE BINARY after a long EV2 session can hit transient "Tag was lost" on some phones.
+     * Retry a few times with backoff before failing.
+     */
+    private fun rewriteIsoNdefFileWithRetries(
+        isoDep: IsoDep,
+        ndefFileId: Int,
+        fileBytes: ByteArray,
+        maxAttempts: Int = 3
+    ) {
+        var last: Throwable? = null
+        repeat(maxAttempts) { attempt ->
+            val result = runCatching {
+                if (!isoDep.isConnected) {
+                    isoDep.connect()
+                }
+                rewriteIsoNdefFile(isoDep, ndefFileId, fileBytes)
+            }
+            if (result.isSuccess) return
+            val err = result.exceptionOrNull()
+            last = err
+            if (err != null && !isLikelyTagLostError(err)) {
+                throw err
+            }
+            if (attempt < maxAttempts - 1) {
+                try {
+                    Thread.sleep(120L * (attempt + 1))
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            }
+        }
+        throw last ?: IllegalStateException("ISO NDEF rewrite failed after retries")
+    }
+
+    /**
+     * Try native secure NDEF replace before switching the tag to ISO UPDATE BINARY (avoids app-context
+     * churn and often survives when ISO path loses the RF field).
+     */
+    private fun tryRewrittenNativeNdefReplace(
+        ev2: AndroidNtag424Ev2,
+        ndefFileNo: Int,
+        preparedNdefBytes: ByteArray,
+        labelPrefix: String,
+        authKey0: (String) -> Unit,
+        authKey2: (String) -> Unit,
+    ): Throwable? {
+        return runCatching {
+            runCatching { ev2.selectNdefApplicationStrict() }
+            authKey2("${labelPrefix}_k2_c32")
+            ev2.writeNdefFileBytesChunked(fileNo = ndefFileNo, ndef = preparedNdefBytes, chunkSize = 32)
+        }.recoverCatching {
+            runCatching { ev2.selectApplicationIfSupported() }
+            authKey0("${labelPrefix}_k0_c32")
+            ev2.writeNdefFileBytesChunked(fileNo = ndefFileNo, ndef = preparedNdefBytes, chunkSize = 32)
+        }.recoverCatching {
+            runCatching { ev2.selectNdefApplicationStrict() }
+            authKey2("${labelPrefix}_k2_full")
+            ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
+        }.recoverCatching {
+            runCatching { ev2.selectApplicationIfSupported() }
+            authKey0("${labelPrefix}_k0_full")
+            ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
+        }.exceptionOrNull()
+    }
+
     @Throws(Exception::class)
     fun verifyReadback(tag: Tag): ReadbackResult {
         val uidHex = tag.id?.let(::toHex) ?: ""
@@ -486,8 +563,15 @@ class BeamioNtagProvisioner(
         }
     }
 
+    /**
+     * Map ISO 7816-4 NDEF file id (from CC) to native DESFire FileNo.
+     * NFC Forum T4T NDEF file id 0xE104 is the standard NDEF EF on NTAG 424 DNA and maps to
+     * native Standard Data File 0x02 — not to low-byte 0x04 (E104 & 0xFF).
+     */
     private fun inferNativeFileNoFromIsoFileId(isoFileId: Int?): Int? {
         if (isoFileId == null) return null
+        val fid = isoFileId and 0xFFFF
+        if (fid == 0xE104) return 0x02
         val low = isoFileId and 0xFF
         return if (low in 0x00..0x1F) low else null
     }
@@ -509,7 +593,7 @@ class BeamioNtagProvisioner(
     fun provision(tag: Tag, defaultKey0: ByteArray): ProvisionResult {
         val isoDep = IsoDep.get(tag) ?: error("IsoDep not supported")
         isoDep.connect()
-        isoDep.timeout = 5000
+        isoDep.timeout = 12000
 
         var route: CardRoute? = null
         var authKeyLabel = "uninitialized"
@@ -531,10 +615,7 @@ class BeamioNtagProvisioner(
             val tagId = random8()
             val tagIdHex = toHex(tagId)
 
-            val ev2 = AndroidNtag424Ev2(isoDep)
-
-            // 0) verify card is NTAG 424 DNA (abort with clear error if not)
-            ev2.requireNtag424Dna()
+            lateinit var ev2: AndroidNtag424Ev2
 
             fun authWithCandidate(label: String, key: ByteArray) {
                 try {
@@ -566,15 +647,40 @@ class BeamioNtagProvisioner(
                 }
             }
 
-            try {
-                authWithCandidate("globalKey0", globalKey0)
-                route = CardRoute.REWRITTEN
-            } catch (e: IllegalArgumentException) {
-                val shouldFallback = e.message?.contains("91ae", ignoreCase = true) == true &&
-                    !globalKey0.contentEquals(defaultKey0)
-                if (!shouldFallback) throw e
-                authWithCandidate("defaultKey0", defaultKey0)
-                route = CardRoute.FRESH
+            // Blank cards / first tap: RF can drop before route is chosen; TagLostException is not
+            // IllegalArgumentException. Reconnect + fresh AndroidNtag424Ev2 session and retry.
+            repeat(5) { attempt ->
+                val step = runCatching {
+                    if (!isoDep.isConnected) isoDep.connect()
+                    ev2 = AndroidNtag424Ev2(isoDep)
+                    ev2.requireNtag424Dna()
+                    try {
+                        authWithCandidate("globalKey0", globalKey0)
+                        route = CardRoute.REWRITTEN
+                    } catch (e: IllegalArgumentException) {
+                        val shouldFallback = e.message?.contains("91ae", ignoreCase = true) == true &&
+                            !globalKey0.contentEquals(defaultKey0)
+                        if (!shouldFallback) throw e
+                        authWithCandidate("defaultKey0", defaultKey0)
+                        route = CardRoute.FRESH
+                    }
+                }
+                if (step.isSuccess) return@repeat
+                val err = step.exceptionOrNull()!!
+                if (!isLikelyTagLostError(err) || attempt == 4) throw err
+                try {
+                    Thread.sleep(120L * (attempt + 1))
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+                try {
+                    isoDep.close()
+                } catch (_: IOException) {
+                }
+                try {
+                    isoDep.connect()
+                } catch (_: IOException) {
+                }
             }
 
             val resolvedRoute = route ?: error("Card route not determined")
@@ -816,7 +922,7 @@ class BeamioNtagProvisioner(
                             ndefDecision += " -> rewritten_payload_patch_from_settings_failed(${payloadPatchFailure.message ?: payloadPatchFailure.javaClass.simpleName})"
                             val isoRewriteFailure = if (isoProbe?.ndefFileId != null) {
                                 runCatching {
-                                    rewriteIsoNdefFile(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
+                                    rewriteIsoNdefFileWithRetries(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
                                 }.exceptionOrNull()
                             } else {
                                 null
@@ -829,8 +935,64 @@ class BeamioNtagProvisioner(
                             }
                         }
                     } else if (isoProbe?.ndefFileId != null) {
+                        val nativePreIsoErr = tryRewrittenNativeNdefReplace(
+                            ev2 = ev2,
+                            ndefFileNo = ndefFileNo,
+                            preparedNdefBytes = preparedNdefBytes,
+                            labelPrefix = "rewritten_enc_tight",
+                            authKey0 = { authWithCandidate(it, globalKey0) },
+                            authKey2 = { authWithKey(it, keyNo = 0x02, key = globalKey2) }
+                        )
+                        if (nativePreIsoErr == null) {
+                            ndefDecision += " -> rewritten_native_pre_iso_enc_tight_ok"
+                            sdmStatus = "rewritten_native_pre_iso_enc_tight_ok"
+                        } else {
+                            val isoRewriteFailure = runCatching {
+                                rewriteIsoNdefFileWithRetries(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
+                            }.exceptionOrNull()
+                            if (isoRewriteFailure == null) {
+                                ndefDecision += " -> iso_update_binary_preferred(fileId=0x${"%04X".format(isoProbe.ndefFileId)})"
+                                sdmStatus = "rewritten_iso_update_binary_preferred"
+                            } else {
+                                ndefDecision += " -> iso_update_binary_failed(${isoRewriteFailure.message ?: isoRewriteFailure.javaClass.simpleName})"
+                                runCatching {
+                                    runCatching { ev2.selectNdefApplicationStrict() }
+                                    authWithKey("globalKey2_before_native_write_fallback", keyNo = 0x02, key = globalKey2)
+                                    ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
+                                }.recoverCatching {
+                                    runCatching { ev2.selectApplicationIfSupported() }
+                                    authWithCandidate("globalKey0_before_native_write_fallback", globalKey0)
+                                    ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
+                                }.onSuccess {
+                                    ndefDecision += " -> native_write_fallback_ok"
+                                }.onFailure { nativeFailure ->
+                                    throw IllegalArgumentException(
+                                        "Rewritten NDEF rewrite failed" +
+                                            "\nexistingSettingsWrite=${sameSessionRewriteFailure.message ?: sameSessionRewriteFailure}" +
+                                            "\nisoRewrite=${isoRewriteFailure.message ?: isoRewriteFailure}" +
+                                            "\nnativeRewrite=${nativeFailure.message ?: nativeFailure}"
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        ndefDecision += " -> rewritten_existing_settings_write_failed(${sameSessionRewriteFailure.message ?: sameSessionRewriteFailure.javaClass.simpleName})"
+                    }
+                } else if (isoProbe?.ndefFileId != null) {
+                    val nativePreIsoErr = tryRewrittenNativeNdefReplace(
+                        ev2 = ev2,
+                        ndefFileNo = ndefFileNo,
+                        preparedNdefBytes = preparedNdefBytes,
+                        labelPrefix = "rewritten_no_sdm",
+                        authKey0 = { authWithCandidate(it, globalKey0) },
+                        authKey2 = { authWithKey(it, keyNo = 0x02, key = globalKey2) }
+                    )
+                    if (nativePreIsoErr == null) {
+                        ndefDecision += " -> rewritten_native_no_sdm_layout_ok"
+                        sdmStatus = "rewritten_native_no_sdm_layout_write_ok"
+                    } else {
                         val isoRewriteFailure = runCatching {
-                            rewriteIsoNdefFile(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
+                            rewriteIsoNdefFileWithRetries(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
                         }.exceptionOrNull()
                         if (isoRewriteFailure == null) {
                             ndefDecision += " -> iso_update_binary_preferred(fileId=0x${"%04X".format(isoProbe.ndefFileId)})"
@@ -850,40 +1012,10 @@ class BeamioNtagProvisioner(
                             }.onFailure { nativeFailure ->
                                 throw IllegalArgumentException(
                                     "Rewritten NDEF rewrite failed" +
-                                        "\nexistingSettingsWrite=${sameSessionRewriteFailure.message ?: sameSessionRewriteFailure}" +
                                         "\nisoRewrite=${isoRewriteFailure.message ?: isoRewriteFailure}" +
                                         "\nnativeRewrite=${nativeFailure.message ?: nativeFailure}"
                                 )
                             }
-                        }
-                    } else {
-                        ndefDecision += " -> rewritten_existing_settings_write_failed(${sameSessionRewriteFailure.message ?: sameSessionRewriteFailure.javaClass.simpleName})"
-                    }
-                } else if (isoProbe?.ndefFileId != null) {
-                    val isoRewriteFailure = runCatching {
-                        rewriteIsoNdefFile(isoDep, isoProbe.ndefFileId, preparedNdefBytes)
-                    }.exceptionOrNull()
-                    if (isoRewriteFailure == null) {
-                        ndefDecision += " -> iso_update_binary_preferred(fileId=0x${"%04X".format(isoProbe.ndefFileId)})"
-                        sdmStatus = "rewritten_iso_update_binary_preferred"
-                    } else {
-                        ndefDecision += " -> iso_update_binary_failed(${isoRewriteFailure.message ?: isoRewriteFailure.javaClass.simpleName})"
-                        runCatching {
-                            runCatching { ev2.selectNdefApplicationStrict() }
-                            authWithKey("globalKey2_before_native_write_fallback", keyNo = 0x02, key = globalKey2)
-                            ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
-                        }.recoverCatching {
-                            runCatching { ev2.selectApplicationIfSupported() }
-                            authWithCandidate("globalKey0_before_native_write_fallback", globalKey0)
-                            ev2.writeNdefFileBytes(fileNo = ndefFileNo, ndef = preparedNdefBytes)
-                        }.onSuccess {
-                            ndefDecision += " -> native_write_fallback_ok"
-                        }.onFailure { nativeFailure ->
-                            throw IllegalArgumentException(
-                                "Rewritten NDEF rewrite failed" +
-                                    "\nisoRewrite=${isoRewriteFailure.message ?: isoRewriteFailure}" +
-                                    "\nnativeRewrite=${nativeFailure.message ?: nativeFailure}"
-                            )
                         }
                     }
                 } else {
@@ -926,15 +1058,69 @@ class BeamioNtagProvisioner(
             }
 
             if (resolvedRoute == CardRoute.FRESH) {
-                runCatching { ev2.selectApplicationIfSupported() }
+                // After ISO UPDATE BINARY (fresh_iso_write_ok), the tag may still be in ISO NFC Forum
+                // context. Previously select was wrapped in runCatching and failures were ignored,
+                // so ChangeFileSettings (0x5F) could return 0x919E on the first init; a second init
+                // then took the REWRITTEN path and succeeded. Force native NDEF app selection.
+                try {
+                    ev2.selectNdefApplicationStrict()
+                } catch (_: Exception) {
+                    ev2.selectApplicationIfSupported()
+                }
                 authWithCandidate("globalKey0_before_fresh_settings", globalKey0)
-                // Fresh cards do not need a live native readback to compute offsets.
-                // Deriving SDM settings directly from the template URL avoids cards that
-                // accept ISO UPDATE BINARY but reject later strict native selection.
-                val patchedSettings = ev2.buildBeamioCompactSdmSettings(templateUrl)
+                // 1) Offsets from live NDEF on card (ISO write can differ slightly from preparedNdefBytes).
+                // 2) preserveAccessRights=false so Change is allowed with key0 after provisioning.
+                // 3) If compact SDM (0x51) still returns 0x91AE, fall back to extended layout (0xD1 + uid offset).
+                fun buildFreshSdmPayloadPrimary(): ByteArray {
+                    return runCatching {
+                        ev2.patchSdmFileSettingsFromLiveNdef(
+                            fileNo = ndefFileNo,
+                            expectedEncHexLen = 64,
+                            preserveAccessRights = false
+                        )
+                    }.getOrElse {
+                        runCatching {
+                            val raw = ev2.getFileSettingsPlain(ndefFileNo)
+                            ev2.buildBeamioSdmFileSettingsFromRawSettings(
+                                raw,
+                                preparedNdefBytes,
+                                64,
+                                preserveAccessRights = false
+                            )
+                        }.getOrElse {
+                            ev2.buildBeamioCompactSdmSettings(templateUrl)
+                        }
+                    }
+                }
 
-                // 9) apply SDM settings
-                ev2.changeFileSettings(fileNo = ndefFileNo, fileSettings = patchedSettings)
+                var patchedSettings = buildFreshSdmPayloadPrimary()
+
+                fun isFreshCfsRetryable(e: Throwable): Boolean {
+                    val msg = e.message.orEmpty()
+                    return msg.contains("91AE", ignoreCase = true) || msg.contains("919E", ignoreCase = true)
+                }
+
+                runCatching {
+                    ev2.changeFileSettings(fileNo = ndefFileNo, fileSettings = patchedSettings)
+                }.recoverCatching { e ->
+                    if (!isFreshCfsRetryable(e)) throw e
+                    authWithKey("globalKey2_before_fresh_settings_retry", keyNo = 0x02, key = globalKey2)
+                    ev2.changeFileSettings(fileNo = ndefFileNo, fileSettings = patchedSettings)
+                }.recoverCatching { e ->
+                    if (!isFreshCfsRetryable(e)) throw e
+                    try {
+                        ev2.selectNdefApplicationStrict()
+                    } catch (_: Exception) {
+                        ev2.selectApplicationIfSupported()
+                    }
+                    patchedSettings = ev2.buildBeamioExtendedSdmSettings(templateUrl)
+                    authWithCandidate("globalKey0_before_fresh_extended_sdm", globalKey0)
+                    ev2.changeFileSettings(fileNo = ndefFileNo, fileSettings = patchedSettings)
+                }.recoverCatching { e ->
+                    if (!isFreshCfsRetryable(e)) throw e
+                    authWithKey("globalKey2_before_fresh_extended_sdm", keyNo = 0x02, key = globalKey2)
+                    ev2.changeFileSettings(fileNo = ndefFileNo, fileSettings = patchedSettings)
+                }.getOrThrow()
                 sdmStatus = "fresh_offsets_applied"
             } else {
                 if (rewrittenDynamicAlreadyActive) {
@@ -1165,6 +1351,11 @@ class BeamioNtagProvisioner(
                     append(sdmStatus)
                     append("\n")
                     append(e.message ?: e.toString())
+                    val lost = e is TagLostException || e.cause is TagLostException ||
+                        isLikelyTagLostError(e)
+                    if (lost) {
+                        append("\nKeep the card flat on the NFC sensor until the operation finishes.")
+                    }
                 },
                 e
             )

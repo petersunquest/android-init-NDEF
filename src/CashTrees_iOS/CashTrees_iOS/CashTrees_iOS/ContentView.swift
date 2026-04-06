@@ -354,15 +354,23 @@ struct CashTreesWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
 
+        /// 必须含 `viewport-fit=cover`，WKWebView 才会把刘海区安全区暴露给 CSS `env(safe-area-inset-*)`（与 Safari/PWA 一致）。
+        /// 若整段覆盖远程 viewport，会抹掉 `viewport-fit` 导致 Web 侧 safe-area 恒为 0、首屏贴顶。
         let viewportJS = """
         (function() {
           var m = document.querySelector('meta[name="viewport"]');
+          var fit = 'viewport-fit=cover';
           if (!m) {
             m = document.createElement('meta');
             m.name = 'viewport';
             (document.head || document.documentElement).appendChild(m);
+            m.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, ' + fit);
+          } else {
+            var c = (m.getAttribute('content') || '').trim();
+            if (c.indexOf('viewport-fit') === -1) {
+              m.setAttribute('content', c ? (c + ', ' + fit) : fit);
+            }
           }
-          m.setAttribute('content', 'width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no');
           var s = document.createElement('style');
           s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:pan-y;}';
           (document.head || document.documentElement).appendChild(s);
@@ -386,6 +394,8 @@ struct CashTreesWebView: UIViewRepresentable {
         coord.webView = webView
         webView.navigationDelegate = coord
         let sv = webView.scrollView
+        // 与 `viewport-fit=cover` + 页内 `env(safe-area-inset-*)` 配合：避免 UIScrollView 再自动加一套 safe area inset（叠双层或挤顶）。
+        sv.contentInsetAdjustmentBehavior = .never
         sv.minimumZoomScale = 1.0
         sv.maximumZoomScale = 1.0
         sv.zoomScale = 1.0
