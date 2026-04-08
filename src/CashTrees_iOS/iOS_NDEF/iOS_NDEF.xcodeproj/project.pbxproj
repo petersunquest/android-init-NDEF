@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C3D32F7B5500008A5DFA /* ObjectivePGP in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D22F7B5500008A5DFA /* ObjectivePGP */; };
 		D0D56BF72F7B59B7008A5DFA /* CryptoSwift in Frameworks */ = {isa = PBXBuildFile; productRef = D0D56C022F7B5500008A5DFA /* CryptoSwift */; };
 		D0D56BF82F7B59B7008A5DFA /* secp256k1 in Frameworks */ = {isa = PBXBuildFile; productRef = D0D56C032F7B5500008A5DFA /* secp256k1 */; };
 		E0E57BF92F7B59B7008A5DFA /* argon2 in Frameworks */ = {isa = PBXBuildFile; productRef = E0E57C052F7B5500008A5DFA /* argon2 */; };
@@ -58,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D32F7B5500008A5DFA /* ObjectivePGP in Frameworks */,
 				E0E57BF92F7B59B7008A5DFA /* argon2 in Frameworks */,
 				D0D56BF82F7B59B7008A5DFA /* secp256k1 in Frameworks */,
 				D0D56BF72F7B59B7008A5DFA /* CryptoSwift in Frameworks */,
@@ -111,6 +113,7 @@
 				D0D56BC92F7B54EF008A5DFA /* Sources */,
 				D0D56BCA2F7B54EF008A5DFA /* Frameworks */,
 				D0D56BCB2F7B54EF008A5DFA /* Resources */,
+				F1D2E3C42F900001008A5DFA /* ObjectivePGP dSYM (SPM binary) */,
 			);
 			buildRules = (
 			);
@@ -121,6 +124,7 @@
 			);
 			name = iOS_NDEF;
 			packageProductDependencies = (
+				A1B2C3D22F7B5500008A5DFA /* ObjectivePGP */,
 				E0E57C052F7B5500008A5DFA /* argon2 */,
 				D0D56C022F7B5500008A5DFA /* CryptoSwift */,
 				D0D56C032F7B5500008A5DFA /* secp256k1 */,
@@ -208,6 +212,7 @@
 			mainGroup = D0D56BC42F7B54EF008A5DFA;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				A1B2C3D12F7B5500008A5DFA /* XCRemoteSwiftPackageReference "ObjectivePGP" */,
 				E0E57C042F7B5500008A5DFA /* XCRemoteSwiftPackageReference "phc-winner-argon2" */,
 				D0D56C002F7B5500008A5DFA /* XCRemoteSwiftPackageReference "CryptoSwift" */,
 				D0D56C012F7B5500008A5DFA /* XCRemoteSwiftPackageReference "secp256k1.swift" */,
@@ -247,6 +252,26 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		F1D2E3C42F900001008A5DFA /* ObjectivePGP dSYM (SPM binary) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(CODESIGNING_FOLDER_PATH)/Frameworks/ObjectivePGP.framework/ObjectivePGP",
+			);
+			name = "ObjectivePGP dSYM (SPM binary)";
+			outputPaths = (
+				"$(DWARF_DSYM_FOLDER_PATH)/ObjectivePGP.framework.dSYM/Contents/Info.plist",
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/sh;
+			shellScript = "# ObjectivePGP is an SPM binary xcframework; upstream does not ship dSYMs in the xcframework slice.\n# App Store Connect expects a dSYM UUID matching the embedded framework — generate it with dsymutil when DWARF is present.\nif [ \"${CONFIGURATION}\" != \"Release\" ]; then exit 0; fi\nFW_BIN=\"${CODESIGNING_FOLDER_PATH}/Frameworks/ObjectivePGP.framework/ObjectivePGP\"\nif [ ! -f \"${FW_BIN}\" ]; then echo \"note: ObjectivePGP.framework not in app yet; skip dSYM\"; exit 0; fi\nOUT=\"${DWARF_DSYM_FOLDER_PATH}/ObjectivePGP.framework.dSYM\"\nif [ -d \"${OUT}\" ]; then exit 0; fi\nmkdir -p \"${DWARF_DSYM_FOLDER_PATH}\"\nif xcrun dsymutil \"${FW_BIN}\" -o \"${OUT}\"; then echo \"ObjectivePGP dSYM: ${OUT}\"; else echo \"warning: dsymutil failed for ObjectivePGP (binary may be stripped)\"; exit 0; fi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D0D56BC92F7B54EF008A5DFA /* Sources */ = {
@@ -414,6 +439,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 23YYTMA7YQ;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "iOS POS";
@@ -450,6 +476,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 23YYTMA7YQ;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "iOS POS";
@@ -599,6 +626,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		A1B2C3D12F7B5500008A5DFA /* XCRemoteSwiftPackageReference "ObjectivePGP" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/krzyzanowskim/ObjectivePGP.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.99.4;
+			};
+		};
 		D0D56C002F7B5500008A5DFA /* XCRemoteSwiftPackageReference "CryptoSwift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/krzyzanowskim/CryptoSwift.git";
@@ -626,6 +661,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		A1B2C3D22F7B5500008A5DFA /* ObjectivePGP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D12F7B5500008A5DFA /* XCRemoteSwiftPackageReference "ObjectivePGP" */;
+			productName = ObjectivePGP;
+		};
 		D0D56C022F7B5500008A5DFA /* CryptoSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D0D56C002F7B5500008A5DFA /* XCRemoteSwiftPackageReference "CryptoSwift" */;

@@ -8,6 +8,8 @@
 import SwiftUI
 import UIKit
 import CoreImage
+import PhotosUI
+import Vision
 
 // MARK: - Haptics (UIImpactFeedbackGenerator)
 
@@ -28,11 +30,27 @@ private enum BeamioLinkAppQr {
     }
 }
 
+/// Reuses one `UIImpactFeedbackGenerator` per style (Apple recommends this for reliable feedback).
+/// iPhone SE uses a smaller Taptic subsystem than Pro models — still weaker even with full intensity.
 private enum BeamioHaptic {
+    private static let lightGenerator = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private static let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let g = UIImpactFeedbackGenerator(style: style)
-        g.prepare()
-        g.impactOccurred()
+        let generator: UIImpactFeedbackGenerator = {
+            switch style {
+            case .light: return lightGenerator
+            case .medium: return mediumGenerator
+            case .heavy: return heavyGenerator
+            case .soft, .rigid:
+                return UIImpactFeedbackGenerator(style: style)
+            @unknown default:
+                return mediumGenerator
+            }
+        }()
+        generator.prepare()
+        generator.impactOccurred(intensity: 1.0)
     }
 
     static func light() { impact(.light) }
@@ -61,14 +79,37 @@ struct ContentView: View {
         ZStack {
             Group {
                 if vm.showWelcome {
-                    WelcomeView(onCreateWallet: { vm.goCreateWallet() })
-                } else if vm.showOnboarding {
-                    OnboardingView(
+                    VerraEntrySplashView(
                         vm: vm,
-                        onBack: { vm.showWelcome = true; vm.showOnboarding = false }
+                        onGetStarted: { prefill in
+                            vm.goCreateWallet(prefillNormalizedHandle: prefill.isEmpty ? nil : prefill)
+                        }
                     )
-                } else {
+                } else if vm.showOnboarding {
+                    ZStack {
+                        OnboardingView(
+                            vm: vm,
+                            onBack: {
+                                vm.showVerraWorkspaceGateway = false
+                                vm.clearSplashParentForTerminalSetup()
+                                vm.showWelcome = true
+                                vm.showOnboarding = false
+                            }
+                        )
+                        if vm.showVerraWorkspaceGateway {
+                            VerraBizWorkspaceGatewayView(vm: vm) {
+                                vm.showVerraWorkspaceGateway = false
+                            }
+                            .transition(.opacity)
+                            .zIndex(1)
+                        }
+                    }
+                } else if !vm.showAwaitingParentPermissionGate {
                     HomeRootView(vm: vm, amountFlow: $amountFlow)
+                } else {
+                    Color(uiColor: .systemBackground)
+                        .ignoresSafeArea()
+                        .accessibilityHidden(true)
                 }
             }
 
@@ -78,14 +119,48 @@ struct ContentView: View {
                     .zIndex(0.9)
             }
 
+            if vm.showAwaitingParentPermissionGate {
+                AwaitingParentWorkspacePermissionOverlay(vm: vm)
+                    .transition(.opacity)
+                    .zIndex(0.95)
+            }
+
             if let s = vm.sheet {
                 SheetHost(vm: vm, sheet: s, amountFlow: $amountFlow)
                     .transition(.move(edge: .trailing))
                     .zIndex(1)
             }
+
+            if case .some(.topup) = amountFlow {
+                TopupAmountPadFullPage(
+                    onCancel: { amountFlow = nil },
+                    onContinue: { value, method in
+                        amountFlow = nil
+                        vm.amountString = value
+                        vm.topupPaymentMethodTitle = method.title
+                        vm.beginTopUp()
+                    }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
+
+            if case .some(.charge) = amountFlow {
+                ChargeAmountTipNavigationSheet(
+                    onCancel: { amountFlow = nil },
+                    onChargeComplete: { amount, tipBps in
+                        amountFlow = nil
+                        vm.beginCharge(amount: amount, tipBps: tipBps)
+                    }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
         }
         .animation(.easeOut(duration: 0.22), value: vm.showLaunchSplash)
+        .animation(.easeOut(duration: 0.22), value: vm.showAwaitingParentPermissionGate)
         .animation(.easeInOut(duration: 0.32), value: vm.sheet?.id)
+        .animation(.easeInOut(duration: 0.32), value: amountFlow?.id)
         .fullScreenCover(item: Binding(
             get: { vm.topupSuccess },
             set: { vm.topupSuccess = $0 }
@@ -128,31 +203,6 @@ struct ContentView: View {
                 onChargeAvailable: { vm.chargeAvailableBalanceAfterInsufficientFunds() }
             )
         }
-        .sheet(item: $amountFlow) { flow in
-            Group {
-                switch flow {
-                case .charge:
-                    ChargeAmountTipNavigationSheet(
-                        onCancel: { amountFlow = nil },
-                        onChargeComplete: { amount, tipBps in
-                            amountFlow = nil
-                            vm.beginCharge(amount: amount, tipBps: tipBps)
-                        }
-                    )
-                case .topup:
-                    AmountPadSheet(
-                        title: "Top-Up Amount",
-                        continueTint: Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255),
-                        onCancel: { amountFlow = nil },
-                        onContinue: { value in
-                            amountFlow = nil
-                            vm.amountString = value
-                            vm.beginTopUp()
-                        }
-                    )
-                }
-            }
-        }
         .onChange(of: vm.homeToast) { _, new in
             toastPresented = new != nil
         }
@@ -169,6 +219,12 @@ struct ContentView: View {
             set: { if !$0 { vm.pendingRecoveryCode = nil } }
         )) {
             RecoveryKeySheet(code: vm.pendingRecoveryCode ?? "")
+        }
+        .sheet(isPresented: $vm.changeParentWorkspaceAdminSheetPresented) {
+            NavigationStack {
+                ChangeParentWorkspaceAdminSheet(vm: vm)
+            }
+            .presentationDetents([.large])
         }
     }
 }
@@ -192,6 +248,419 @@ private struct LaunchBrandSplashOverlay: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Loading")
+        }
+    }
+}
+
+/// After onboarding: full-screen until infra owner/upperAdmin; optional resend with 120s cooldown.
+private struct AwaitingParentWorkspacePermissionOverlay: View {
+    @ObservedObject var vm: POSViewModel
+    private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemBackground)
+                .ignoresSafeArea()
+            VStack(spacing: 28) {
+                Spacer(minLength: 48)
+                Image("LaunchBrandLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 96, height: 96)
+                    .padding(.bottom, 8)
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(brandBlue)
+                VStack(spacing: 10) {
+                    Text("Waiting for workspace authorization")
+                        .font(.system(size: 20, weight: .bold))
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 32)
+                    if !vm.permissionGateParentTagLine.isEmpty {
+                        Text("Requesting approval from parent @\(vm.permissionGateParentTagLine)")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 36)
+                    }
+                    Text(
+                        vm.permissionGateParentTagLine.isEmpty
+                            ? "This wallet is not yet on this terminal’s Beamio card admin list. The app checks for access automatically."
+                            : "Sending a secure CoNET message to your workspace parent. You can use this terminal when they approve."
+                    )
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                        .padding(.top, 4)
+                }
+                if !vm.permissionGateParentTagLine.isEmpty {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        let remaining = resendCooldownRemainingSeconds(at: context.date)
+                        Button {
+                            Task { @MainActor in
+                                await vm.resendTerminalParentPermissionRequest()
+                            }
+                        } label: {
+                            if remaining > 0 {
+                                Text("Resend approval request (\(formatResendCooldown(remaining)))")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                Text("Resend approval request")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(brandBlue)
+                        .disabled(remaining > 0)
+                        .padding(.horizontal, 40)
+                        .padding(.top, 8)
+                    }
+                }
+                Button {
+                    BeamioHaptic.light()
+                    vm.openChangeParentWorkspaceAdminPicker()
+                } label: {
+                    Text("Change workspace parent")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(brandBlue)
+                .padding(.horizontal, 40)
+                .padding(.top, 6)
+                Spacer(minLength: 56)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Waiting for parent workspace authorization")
+        }
+    }
+
+    private func resendCooldownRemainingSeconds(at date: Date) -> Int {
+        guard let until = vm.terminalPermissionResendCooldownUntil else { return 0 }
+        let s = Int(ceil(until.timeIntervalSince(date)))
+        return max(0, s)
+    }
+
+    private func formatResendCooldown(_ seconds: Int) -> String {
+        let m = seconds / 60
+        let s = seconds % 60
+        return String(format: "%d:%02d", m, s)
+    }
+}
+
+/// Search dropdown row: capsule layout with **@BeamioTag** as primary line and **short address** as secondary (align `homeHeaderWalletShortLine`).
+private struct ParentWorkspaceSearchResultCapsuleRow: View {
+    let profile: TerminalProfile
+
+    private var beamioTagTitle: String {
+        let raw = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if raw.isEmpty || raw.lowercased() == "null" { return "—" }
+        var s = raw
+        while s.hasPrefix("@") { s.removeFirst() }
+        s = s.replacingOccurrences(of: "@", with: "")
+        return s.isEmpty ? "—" : "@\(s)"
+    }
+
+    private var shortAddressSubtitle: String {
+        guard let a = profile.address?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty else { return "—" }
+        let t = a
+        guard t.count >= 10 else { return t }
+        return "\(t.prefix(6))…\(t.suffix(4))"
+    }
+
+    var body: some View {
+        let tagRaw = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let tagSeed = tagRaw.isEmpty ? "Beamio" : tagRaw
+        let enc = tagSeed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? tagSeed
+        let avatarUrl = URL(string: "https://api.dicebear.com/8.x/fun-emoji/png?seed=\(enc)")
+
+        HStack(alignment: .center, spacing: 8) {
+            searchRowAvatar(image: profile.image, fallbackUrl: avatarUrl)
+                .frame(width: 28, height: 28)
+                .clipShape(Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(beamioTagTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                Text(shortAddressSubtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.black.opacity(0.06)))
+    }
+
+    @ViewBuilder
+    private func searchRowAvatar(image: String?, fallbackUrl: URL?) -> some View {
+        let trimmed = image?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmed.isEmpty {
+            BeamioCardRasterOrSvgImage(urlString: trimmed, rasterContentMode: .fill) {
+                searchRowDiceFallback(fallbackUrl)
+            }
+        } else {
+            searchRowDiceFallback(fallbackUrl)
+        }
+    }
+
+    private func searchRowDiceFallback(_ url: URL?) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let img): img.resizable().scaledToFill()
+            case .failure: Color.gray.opacity(0.3)
+            case .empty: Color.gray.opacity(0.2)
+            @unknown default: Color.gray.opacity(0.3)
+            }
+        }
+    }
+}
+
+/// Retarget CoNET approval: `GET /api/search-users-by-card-owner-or-admin` (POS server-side owner/admin filter).
+private struct ChangeParentWorkspaceAdminSheet: View {
+    @ObservedObject var vm: POSViewModel
+    @State private var tagQuery = ""
+    @State private var searchResults: [TerminalProfile] = []
+    @State private var searchLoading = false
+    @State private var showSearchDropdown = false
+    @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var searchRequestId = 0
+    @State private var selectedProfile: TerminalProfile?
+    @State private var continueBusy = false
+    @FocusState private var tagFieldFocused: Bool
+
+    private var normalizedTagQuery: String {
+        var s = tagQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.hasPrefix("@") { s.removeFirst() }
+        return s
+    }
+
+    private var keywordForSearch: String { normalizedTagQuery.lowercased() }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Search the @BeamioTag of the workspace admin who should receive the approval request. Results are limited to card issuers and admins linked to this terminal.")
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
+
+            if let picked = selectedProfile {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Selected parent")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 20)
+                    HStack(spacing: 12) {
+                        HomeBeamioCapsuleCompact(profile: picked, fallbackAddress: picked.address)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 20)
+                    Button {
+                        BeamioHaptic.light()
+                        selectedProfile = nil
+                        showSearchDropdown = false
+                        searchResults = []
+                    } label: {
+                        Text("Clear selection")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .padding(.horizontal, 20)
+                }
+            } else {
+                parentSearchFieldBlock
+            }
+
+            Spacer(minLength: 16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .navigationTitle("Change workspace parent")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button {
+                    BeamioHaptic.light()
+                    vm.cancelChangeParentWorkspaceAdminPicker()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .disabled(continueBusy)
+                .accessibilityLabel("Cancel")
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button {
+                    guard let tag = normalizedBeamioTagFromProfile(selectedProfile) else {
+                        vm.homeToast = "Select a profile that has a @BeamioTag."
+                        return
+                    }
+                    BeamioHaptic.medium()
+                    continueBusy = true
+                    Task { @MainActor in
+                        await vm.confirmChangeParentWorkspaceAdmin(normalizedParentTag: tag)
+                        continueBusy = false
+                    }
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .disabled(continueBusy || normalizedBeamioTagFromProfile(selectedProfile) == nil)
+                .accessibilityLabel("Continue")
+            }
+        }
+        .onChange(of: tagQuery) { _, new in
+            let stripped = new.replacingOccurrences(of: "@", with: "")
+            if stripped != new {
+                tagQuery = stripped
+                return
+            }
+            let norm = stripped.lowercased()
+            if let sel = selectedProfile,
+               let u = sel.accountName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+               !u.isEmpty,
+               norm == u {
+                return
+            }
+            selectedProfile = nil
+            scheduleSearchDebounced()
+        }
+    }
+
+    private var parentSearchFieldBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("@BeamioTag")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    TextField("e.g. coffee_house_ny", text: $tagQuery)
+                        .focused($tagFieldFocused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textContentType(.username)
+                        .submitLabel(.search)
+                        .font(.system(size: 17, weight: .medium))
+                        .padding(.leading, 16)
+                        .onSubmit {
+                            searchDebounceTask?.cancel()
+                            startSearch(keyword: keywordForSearch)
+                        }
+                    Button {
+                        BeamioHaptic.light()
+                        searchDebounceTask?.cancel()
+                        startSearch(keyword: keywordForSearch)
+                    } label: {
+                        Group {
+                            if searchLoading {
+                                ProgressView()
+                                    .scaleEffect(0.9)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 18, weight: .medium))
+                            }
+                        }
+                        .frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(keywordForSearch.count < 2 || searchLoading)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 8)
+                }
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(uiColor: .secondarySystemGroupedBackground)))
+
+                if showSearchDropdown, keywordForSearch.count >= 2 {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(searchResults.enumerated()), id: \.offset) { _, row in
+                                Button {
+                                    selectProfile(row)
+                                } label: {
+                                    ParentWorkspaceSearchResultCapsuleRow(profile: row)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 12)
+                                }
+                                .buttonStyle(.plain)
+                                Divider()
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 280)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(uiColor: .systemBackground)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Color(uiColor: .separator), lineWidth: 0.5)
+                    )
+                    .padding(.top, 8)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func normalizedBeamioTagFromProfile(_ p: TerminalProfile?) -> String? {
+        guard let p else { return nil }
+        guard let t = p.accountName?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        var s = t
+        while s.hasPrefix("@") { s.removeFirst() }
+        s = s.replacingOccurrences(of: "@", with: "")
+        guard s.range(of: "^[a-zA-Z0-9_.]{3,20}$", options: .regularExpression) != nil else { return nil }
+        return s
+    }
+
+    private func selectProfile(_ profile: TerminalProfile) {
+        BeamioHaptic.medium()
+        if let t = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+            var display = t
+            while display.hasPrefix("@") { display.removeFirst() }
+            tagQuery = display
+        }
+        selectedProfile = profile
+        showSearchDropdown = false
+        searchResults = []
+        tagFieldFocused = false
+    }
+
+    private func scheduleSearchDebounced() {
+        searchDebounceTask?.cancel()
+        let key = keywordForSearch
+        if key.count < 2 {
+            searchResults = []
+            showSearchDropdown = false
+            searchLoading = false
+            return
+        }
+        searchDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            startSearch(keyword: key)
+        }
+    }
+
+    private func startSearch(keyword: String) {
+        guard keyword.count >= 2 else {
+            searchResults = []
+            showSearchDropdown = false
+            searchLoading = false
+            return
+        }
+        searchRequestId += 1
+        let id = searchRequestId
+        searchLoading = true
+        Task { @MainActor in
+            let list = await vm.searchUsersListForPOSTerminal(keyward: keyword)
+            guard id == searchRequestId else { return }
+            searchLoading = false
+            searchResults = list
+            showSearchDropdown = true
         }
     }
 }
@@ -225,35 +694,1323 @@ enum AmountFlow: String, Identifiable {
     var id: String { rawValue }
 }
 
-// MARK: - Welcome / Onboarding
+// MARK: - Welcome / Onboarding (align bizSite `marketExample.html` Terminal Setup)
 
-private struct WelcomeView: View {
-    var onCreateWallet: () -> Void
+/// Tailwind theme tokens from `marketExample.html` (M3-style extend colors).
+private enum MarketExampleTerminalTheme {
+    static let background = Color(red: 0xf5 / 255, green: 0xf7 / 255, blue: 0xf9 / 255)
+    static let primary = Color(red: 0, green: 0x51 / 255, blue: 0xd1 / 255)
+    static let primaryDim = Color(red: 0, green: 0x47 / 255, blue: 0xb8 / 255)
+    static let onSurface = Color(red: 0x2c / 255, green: 0x2f / 255, blue: 0x31 / 255)
+    static let onSurfaceVariant = Color(red: 0x59 / 255, green: 0x5c / 255, blue: 0x5e / 255)
+    static let surfaceContainerLow = Color(red: 0xee / 255, green: 0xf1 / 255, blue: 0xf3 / 255)
+    static let surfaceContainerLowest = Color.white
+    static let outlineVariant = Color(red: 0xab / 255, green: 0xad / 255, blue: 0xaf / 255)
+    static let primaryFixed = Color(red: 0x7a / 255, green: 0x9d / 255, blue: 0xff / 255)
+}
+
+/// Same hero image as `marketExample.html` (POS terminal illustration).
+private let marketExampleTerminalHeroImageURL = URL(string: "https://lh3.googleusercontent.com/aida-public/AB6AXuC81jazJ6aagCDIf-YFpCeIgCrQ6ESZEbBv5Wlhpz-yY0JbCRJOXX5EILx6F4d2awTUwfnt3HKK36PRL2-GizaBHdbdkdBmcA0J_5PahS-Wrn3tsths3Vew2IgALnwxo2V2EalIIlIAD1IEyJnKUzntUt7dL2FNyxnUOaa4r2ANMFEWFWf0Mc3lg8C16tIZQMn7naGD0XpVDdT_IXlsL_svhLL1VnmWPAnO7Y2c54AnYUCUvDpbujAbOYd_lgCgp5g0Q1Ea9nLjb8I")!
+
+// MARK: - Verra Gateway (bizHome.tsx parity)
+
+/// First QR payload in an image — `RestoreAccessPage` / jsQR parity (PNG, JPG).
+private func verraDecodeFirstQrPayload(from image: UIImage) -> String? {
+    let cg: CGImage?
+    if let c = image.cgImage {
+        cg = c
+    } else if let ci = image.ciImage {
+        cg = CIContext().createCGImage(ci, from: ci.extent)
+    } else {
+        cg = nil
+    }
+    guard let cgImage = cg else { return nil }
+    let request = VNDetectBarcodesRequest()
+    request.symbologies = [.qr]
+    let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+    do {
+        try handler.perform([request])
+        let payloads = (request.results ?? []).compactMap(\.payloadStringValue)
+        return payloads.first { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    } catch {
+        return nil
+    }
+}
+
+/// `bizSite` `RestoreAccessPage.tsx`: Recovery QR → `restoreWithRedeem` (no password).
+private struct VerraRecoveryQrRestoreView: View {
+    @ObservedObject var vm: POSViewModel
+    var onBack: () -> Void
+
+    @Environment(\.openURL) private var openURL
+
+    @State private var recoveryCode = ""
+    @State private var selectedImageName = ""
+    @State private var isParsingImage = false
+    @State private var isRestoring = false
+    @State private var pageError = ""
+    @State private var photoPickerItem: PhotosPickerItem?
+    @State private var showQrScanner = false
+
+    private let bgPage = Color(red: 245 / 255, green: 247 / 255, blue: 249 / 255)
+    private let textPrimary = Color(red: 44 / 255, green: 47 / 255, blue: 49 / 255)
+    private let textSecondary = Color(red: 89 / 255, green: 92 / 255, blue: 94 / 255)
+    private let brandBlue = Color(red: 0, green: 81 / 255, blue: 209 / 255)
+    private let inputBg = Color(red: 238 / 255, green: 241 / 255, blue: 243 / 255)
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Text("VERRA POS")
-                .font(.title.bold())
-            Text("Hold customer NTAG cards or scan QR for payments.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Spacer()
-            Button(action: onCreateWallet) {
-                Text("Continue")
-                    .font(.headline)
+        VStack(spacing: 0) {
+            recoveryHeader
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    VStack(spacing: 16) {
+                        Text("Restore Access")
+                            .font(.system(size: 34, weight: .heavy))
+                            .foregroundStyle(textPrimary)
+                            .multilineTextAlignment(.center)
+                        Text("Use your Recovery QR code to regain access to your workspace without a password.")
+                            .font(.system(size: 17))
+                            .foregroundStyle(textSecondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(red: 0.08, green: 0.38, blue: 0.94))
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .padding(.top, 28)
+                    .padding(.bottom, 32)
+
+                    VStack(spacing: 16) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.white)
+                                .shadow(color: Color.black.opacity(0.08), radius: 20, x: 0, y: 10)
+                            VStack(spacing: 16) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(red: 122 / 255, green: 157 / 255, blue: 1).opacity(0.2))
+                                        .frame(width: 80, height: 80)
+                                    Image(systemName: "qrcode")
+                                        .font(.system(size: 36))
+                                        .foregroundStyle(brandBlue)
+                                }
+                                .padding(.top, 8)
+                                Text("Upload or scan your Recovery QR code image")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(textPrimary)
+                                    .multilineTextAlignment(.center)
+                                Text("Supports PNG or JPG")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .tracking(1.2)
+                                    .foregroundStyle(textSecondary)
+                                if !selectedImageName.isEmpty {
+                                    Text(selectedImageName)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(brandBlue)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                                PhotosPicker(selection: $photoPickerItem, matching: .images, photoLibrary: .shared()) {
+                                    Text(isParsingImage ? "Reading File…" : "Select File")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(textPrimary)
+                                        .padding(.horizontal, 22)
+                                        .padding(.vertical, 10)
+                                        .background(Capsule().fill(Color(red: 223 / 255, green: 227 / 255, blue: 230 / 255)))
+                                }
+                                .disabled(isParsingImage || isRestoring)
+                                .padding(.top, 8)
+
+                                Button {
+                                    showQrScanner = true
+                                } label: {
+                                    Text("Scan with Camera")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(brandBlue)
+                                }
+                                .disabled(isRestoring)
+                                .padding(.bottom, 8)
+                            }
+                            .padding(24)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Or paste recovery secret")
+                                .font(.system(size: 11, weight: .bold))
+                                .tracking(1.5)
+                                .foregroundStyle(brandBlue)
+                            TextField("Decoded QR payload", text: $recoveryCode, axis: .vertical)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .lineLimit(4, reservesSpace: true)
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundStyle(textPrimary)
+                                .padding(14)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(inputBg))
+                        }
+                    }
+                    .padding(.horizontal, 4)
+
+                    Button {
+                        pageError = ""
+                        Task {
+                            isRestoring = true
+                            let err = await vm.restoreWorkspaceFromRecoveryCode(recoveryCode)
+                            isRestoring = false
+                            if let err {
+                                pageError = err
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isRestoring {
+                                ProgressView()
+                                    .tint(.white)
+                                Text("Restoring…")
+                            } else {
+                                Text("Validate & Restore")
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                        }
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Capsule().fill(brandBlue))
+                        .shadow(color: brandBlue.opacity(0.22), radius: 12, x: 0, y: 6)
+                    }
+                    .buttonStyle(BeamioHapticPlainButtonStyle())
+                    .disabled(recoveryCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isRestoring || isParsingImage)
+                    .opacity(recoveryCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isRestoring || isParsingImage ? 0.55 : 1)
+                    .padding(.top, 28)
+
+                    if !pageError.isEmpty {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(Color(red: 0.85, green: 0.55, blue: 0.1))
+                            Text(pageError)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Color(red: 0.55, green: 0.35, blue: 0.05))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(red: 1, green: 0.97, blue: 0.9))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(Color(red: 1, green: 0.9, blue: 0.7), lineWidth: 1)
+                        )
+                        .padding(.top, 16)
+                    }
+
+                    Button {
+                        if let u = URL(string: "https://verra.network/contact") {
+                            openURL(u)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "questionmark.circle")
+                            Text("Where can I find my Recovery QR code?")
+                        }
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(brandBlue)
+                    }
+                    .padding(.top, 20)
+
+                    HStack(alignment: .top, spacing: 12) {
+                        recoveryInfoTile(
+                            icon: "lock.fill",
+                            title: "Encrypted Recovery",
+                            body: "Your recovery data is decrypted on this device using the same cryptography as Verra Business on the web."
+                        )
+                        recoveryInfoTile(
+                            icon: "checkmark.shield.fill",
+                            title: "Workspace Safety",
+                            body: "Use a recovery code only from a trusted backup you created during onboarding."
+                        )
+                    }
+                    .padding(.top, 28)
+
+                    Text("Powered by Verra Cryptographic Infrastructure")
+                        .font(.system(size: 10, weight: .medium))
+                        .tracking(2)
+                        .foregroundStyle(textSecondary.opacity(0.65))
+                        .padding(.top, 32)
+                        .padding(.bottom, 28)
+                }
+                .padding(.horizontal, 24)
+            }
+        }
+        .background(bgPage.ignoresSafeArea())
+        .onChange(of: photoPickerItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                isParsingImage = true
+                pageError = ""
+                defer { isParsingImage = false }
+                do {
+                    guard let data = try await newItem.loadTransferable(type: Data.self),
+                          let ui = UIImage(data: data)
+                    else {
+                        pageError = "Unable to read the selected image."
+                        return
+                    }
+                    selectedImageName = "Selected image"
+                    if let payload = verraDecodeFirstQrPayload(from: ui) {
+                        recoveryCode = payload
+                        pageError = ""
+                    } else {
+                        recoveryCode = ""
+                        pageError = "No recovery QR code was found in that image."
+                    }
+                } catch {
+                    pageError = "Unable to read the selected image."
+                }
+                photoPickerItem = nil
+            }
+        }
+        .fullScreenCover(isPresented: $showQrScanner) {
+            ZStack(alignment: .topTrailing) {
+                BeamioQRScannerView { code in
+                    recoveryCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+                    showQrScanner = false
+                }
+                .ignoresSafeArea()
+                Button {
+                    showQrScanner = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, Color.black.opacity(0.45))
+                        .padding(16)
+                }
+                .accessibilityLabel("Close scanner")
+            }
+            .background(Color.black)
+        }
+    }
+
+    private var recoveryHeader: some View {
+        HStack {
+            Button {
+                onBack()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(brandBlue)
+            }
+            .accessibilityLabel("Back")
+            Text("Recovery")
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(textPrimary)
+            Spacer()
+            Text("Verra")
+                .font(.system(size: 20, weight: .black))
+                .tracking(-0.5)
+                .foregroundStyle(brandBlue)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .padding(.top, 4)
+        .background {
+            ZStack {
+                Color.white.opacity(0.72)
+                Rectangle().fill(.ultraThinMaterial)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.black.opacity(0.06))
+                .frame(height: 1)
+        }
+    }
+
+    private func recoveryInfoTile(icon: String, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 18))
+                .foregroundStyle(Color(red: 0.4, green: 0.55, blue: 1))
+            Text(title)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(textPrimary)
+            Text(body)
+                .font(.system(size: 11))
+                .foregroundStyle(textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(inputBg.opacity(0.65))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.45), lineWidth: 1)
+        )
+    }
+}
+
+/// `bizSite` `bizHome.tsx` gateway: Access your business workspace — BeamioTag + access password → `restoreWithUserPin`.
+private struct VerraBizWorkspaceGatewayView: View {
+    @ObservedObject var vm: POSViewModel
+    var onBack: () -> Void
+
+    @Environment(\.openURL) private var openURL
+
+    @State private var showRecoveryQr = false
+    @State private var merchantTag = ""
+    @State private var password = ""
+    @State private var showPassword = false
+    @State private var isLoading = false
+    @State private var loginError = ""
+
+    private let bgPage = Color(red: 245 / 255, green: 247 / 255, blue: 249 / 255)
+    private let textPrimary = Color(red: 44 / 255, green: 47 / 255, blue: 49 / 255)
+    private let textSecondary = Color(red: 89 / 255, green: 92 / 255, blue: 94 / 255)
+    private let brandBlue = Color(red: 0, green: 81 / 255, blue: 209 / 255)
+    private let inputBg = Color(red: 238 / 255, green: 241 / 255, blue: 243 / 255)
+    private let placeholderMuted = Color(red: 171 / 255, green: 173 / 255, blue: 175 / 255).opacity(0.7)
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
+    private func normalizeBizGatewayTagInput(_ raw: String) -> String {
+        raw.replacingOccurrences(of: "@", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        Group {
+            if showRecoveryQr {
+                VerraRecoveryQrRestoreView(vm: vm) {
+                    showRecoveryQr = false
+                }
+            } else {
+                gatewayMainScroll
+            }
+        }
+    }
+
+    private var gatewayMainScroll: some View {
+        VStack(spacing: 0) {
+            gatewayHeader
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Access your business workspace")
+                            .font(.system(size: 28, weight: .heavy))
+                            .foregroundStyle(textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Use your BeamioTag and password to continue to Verra Business OS.")
+                            .font(.system(size: 16))
+                            .foregroundStyle(textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 24)
+                    .padding(.bottom, 32)
+
+                    RoundedRectangle(cornerRadius: 999, style: .continuous)
+                        .fill(brandBlue.opacity(0.2))
+                        .frame(width: 96, height: 4)
+                        .padding(.bottom, 32)
+
+                    VStack(alignment: .leading, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Continue with your business identity")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(textPrimary)
+                            Text("Enter the business identity you created to access your Verra workspace.")
+                                .font(.system(size: 14))
+                                .foregroundStyle(textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("@BEAMIOTAG")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(2.4)
+                                .foregroundStyle(brandBlue)
+                                .padding(.leading, 4)
+                            TextField("e.g. global_ventures", text: $merchantTag)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .textContentType(.username)
+                                .submitLabel(.next)
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(textPrimary)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(inputBg))
+                                .onChange(of: merchantTag) { _, new in
+                                    let n = normalizeBizGatewayTagInput(new)
+                                    if n != new { merchantTag = n }
+                                }
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(brandBlue)
+                                    .padding(.top, 2)
+                                Text("Your BeamioTag is your business identity on Verra.")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 4)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("ACCESS PASSWORD")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(2.4)
+                                .foregroundStyle(brandBlue)
+                                .padding(.leading, 4)
+                            ZStack(alignment: .trailing) {
+                                Group {
+                                    if showPassword {
+                                        TextField("Password", text: $password)
+                                    } else {
+                                        SecureField("••••••••", text: $password)
+                                    }
+                                }
+                                .textContentType(.password)
+                                .submitLabel(.done)
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundStyle(textPrimary)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .padding(.trailing, 44)
+                                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(inputBg))
+
+                                Button {
+                                    showPassword.toggle()
+                                } label: {
+                                    Image(systemName: showPassword ? "eye.slash" : "eye")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(textSecondary)
+                                }
+                                .padding(.trailing, 16)
+                                .accessibilityLabel(showPassword ? "Hide password" : "Show password")
+                            }
+                        }
+
+                        if !loginError.isEmpty {
+                            Text(loginError)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Color(red: 225 / 255, green: 29 / 255, blue: 72 / 255))
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color(red: 1, green: 0.95, blue: 0.96))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .strokeBorder(Color(red: 1, green: 0.88, blue: 0.9), lineWidth: 1)
+                                )
+                        }
+
+                        Button {
+                            loginError = ""
+                            Task {
+                                isLoading = true
+                                let err = await vm.restoreWorkspaceFromPin(
+                                    beamioTag: normalizeBizGatewayTagInput(merchantTag),
+                                    accessPassword: password
+                                )
+                                isLoading = false
+                                if let err {
+                                    loginError = err
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                if isLoading {
+                                    ProgressView()
+                                        .tint(.white)
+                                    Text("Signing in…")
+                                } else {
+                                    Text("Continue to Verra Business OS")
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 17, weight: .semibold))
+                                }
+                            }
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Capsule().fill(brandBlue))
+                            .shadow(color: brandBlue.opacity(0.25), radius: 10, x: 0, y: 6)
+                        }
+                        .buttonStyle(BeamioHapticPlainButtonStyle())
+                        .disabled(isLoading || normalizeBizGatewayTagInput(merchantTag).isEmpty || password.isEmpty)
+                        .opacity(isLoading || normalizeBizGatewayTagInput(merchantTag).isEmpty || password.isEmpty ? 0.55 : 1)
+                    }
+                    .padding(28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.06), radius: 20, x: 0, y: 12)
+                    )
+
+                    Button {
+                        showRecoveryQr = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "briefcase.fill")
+                                .font(.system(size: 15))
+                                .foregroundStyle(brandBlue)
+                            HStack(spacing: 0) {
+                                Text("Already have a workspace? ")
+                                    .foregroundStyle(textSecondary)
+                                Text("Restore Account")
+                                    .underline()
+                                    .foregroundStyle(brandBlue)
+                            }
+                            .font(.system(size: 14, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
+                    .padding(.top, 20)
+
+                    VStack(spacing: 16) {
+                        Button {
+                            if let u = URL(string: "https://verra.network/contact") {
+                                openURL(u)
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "questionmark.circle")
+                                    .font(.system(size: 18))
+                                Text("Need help accessing your workspace?")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundStyle(brandBlue)
+                        }
+                        .padding(.top, 28)
+
+                        VStack(spacing: 8) {
+                            Text("Securely hosted by Beamio Infrastructure © 2026")
+                                .font(.system(size: 10, weight: .bold))
+                                .tracking(2.4)
+                                .foregroundStyle(Color(red: 116 / 255, green: 119 / 255, blue: 121 / 255))
+                            Text("v\(appVersion)")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(placeholderMuted)
+                        }
+                        .padding(.top, 12)
+                        .padding(.bottom, 32)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+        }
+        .background(bgPage.ignoresSafeArea())
+    }
+
+    private var gatewayHeader: some View {
+        ZStack {
+            HStack {
+                Button {
+                    onBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(brandBlue)
+                        .frame(width: 44, height: 44, alignment: .leading)
+                }
+                .accessibilityLabel("Back")
+                Spacer()
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "touchid")
+                    .font(.system(size: 18, weight: .medium))
+                Text("VERRA GATEWAY")
+                    .font(.system(size: 17, weight: .black))
+                    .tracking(-0.3)
+            }
+            .foregroundStyle(brandBlue)
+            HStack {
+                Spacer()
+                ZStack {
+                    Circle()
+                        .fill(Color(red: 223 / 255, green: 227 / 255, blue: 230 / 255))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: "briefcase.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(textSecondary)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background {
+            ZStack {
+                Color.white.opacity(0.72)
+                Rectangle().fill(.ultraThinMaterial)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.black.opacity(0.08))
+                .frame(height: 1)
+        }
+    }
+}
+
+/// New user / no local wallet: Terminal Setup cover (`marketExample.html`).
+/// `@BeamioTag` search: `GET /api/search-users-by-card-owner-or-admin` (program card + registered issuers; no device wallet yet).
+private struct VerraEntrySplashView: View {
+    @ObservedObject var vm: POSViewModel
+    /// Pass normalized handle (no `@`, trimmed) for onboarding prefill; may be empty.
+    var onGetStarted: (_ prefillNormalizedHandle: String) -> Void
+
+    @State private var tagQuery = ""
+    @State private var searchResults: [TerminalProfile] = []
+    @State private var searchLoading = false
+    @State private var showSearchDropdown = false
+    @State private var searchDebounceTask: Task<Void, Never>?
+    @State private var searchRequestId = 0
+    @State private var selectedLookup: TerminalProfile?
+    @FocusState private var tagFieldFocused: Bool
+
+    private var appVersion: String? {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    }
+
+    private var buildVersionLine: String {
+        let v = appVersion ?? "1.0"
+        return "v\(v) Build Stable"
+    }
+
+    /// Normalized handle for onboarding prefill (preserve casing as typed; strip leading `@`).
+    private var normalizedTagQuery: String {
+        var s = tagQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.hasPrefix("@") { s.removeFirst() }
+        return s
+    }
+
+    /// Lowercased keyword for Beamio user search.
+    private var keywordForSearch: String {
+        normalizedTagQuery.lowercased()
+    }
+
+    /// Single `Text(AttributedString)` avoids `Text`+`Text` deprecated on iOS 26+.
+    private func linkTerminalWorkspaceTitleText(compactH: Bool) -> Text {
+        let fSize = CGFloat(compactH ? 28 : 34)
+        let heavy = UIFont.systemFont(ofSize: fSize, weight: .heavy)
+        var p1 = AttributedString("Link Terminal to ")
+        p1.uiKit.font = heavy
+        p1.uiKit.foregroundColor = UIColor(MarketExampleTerminalTheme.onSurface)
+        var p2 = AttributedString("Workspace")
+        p2.uiKit.font = heavy
+        p2.uiKit.foregroundColor = UIColor(MarketExampleTerminalTheme.primary)
+        return Text(p1 + p2)
+    }
+
+    private func enterBeamioTagExplainerText(compactH: Bool) -> Text {
+        let fSize = CGFloat(compactH ? 15 : 16)
+        let regular = UIFont.systemFont(ofSize: fSize, weight: .regular)
+        let semibold = UIFont.systemFont(ofSize: fSize, weight: .semibold)
+        var p1 = AttributedString("Enter your business ")
+        p1.uiKit.font = regular
+        p1.uiKit.foregroundColor = UIColor(MarketExampleTerminalTheme.onSurfaceVariant)
+        var p2 = AttributedString("@BeamioTag")
+        p2.uiKit.font = semibold
+        p2.uiKit.foregroundColor = UIColor(MarketExampleTerminalTheme.onSurface)
+        var p3 = AttributedString(" to authorize this device. This secures your transactions and syncs your inventory.")
+        p3.uiKit.font = regular
+        p3.uiKit.foregroundColor = UIColor(MarketExampleTerminalTheme.onSurfaceVariant)
+        return Text(p1 + p2 + p3)
+    }
+
+    var body: some View {
+        terminalSetupSplashBody
+    }
+
+    private var terminalSetupSplashBody: some View {
+        GeometryReader { geo in
+            let compactH = geo.size.height < 700
+            let heroH: CGFloat = compactH ? 200 : 256
+            let maxContent = min(geo.size.width, 576)
+
+            ZStack(alignment: .bottom) {
+                MarketExampleTerminalTheme.background
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            marketExampleHeroBlock(height: heroH)
+                                .padding(.top, max(16, geo.safeAreaInsets.top + 8))
+                                .padding(.bottom, compactH ? 28 : 36)
+
+                            VStack(alignment: .leading, spacing: compactH ? 18 : 22) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    linkTerminalWorkspaceTitleText(compactH: compactH)
+                                        .fixedSize(horizontal: false, vertical: true)
+
+                                    enterBeamioTagExplainerText(compactH: compactH)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+
+                                Text("Search an existing @BeamioTag below (workspace-linked results). After you pick a profile, continue with Next Phase or remove the selection to search again.")
+                                    .font(.system(size: compactH ? 14 : 15))
+                                    .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                if selectedLookup == nil {
+                                    marketExampleBeamioTagSearchField
+                                } else if let picked = selectedLookup {
+                                    marketExampleSelectedProfileBlock(profile: picked)
+                                }
+
+                                marketExampleInfoStatusCard(selected: selectedLookup)
+                            }
+                            .frame(maxWidth: maxContent, alignment: .leading)
+                            .padding(.horizontal, 24)
+
+                            .padding(.bottom, max(28, geo.safeAreaInsets.bottom + 16))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .onChange(of: tagQuery) { _, new in
+                let stripped = new.replacingOccurrences(of: "@", with: "")
+                if stripped != new {
+                    tagQuery = stripped
+                    return
+                }
+                let norm = stripped.lowercased()
+                if let sel = selectedLookup,
+                   let u = sel.accountName?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+                   !u.isEmpty,
+                   norm == u {
+                    return
+                }
+                selectedLookup = nil
+                scheduleTerminalTagSearchDebounced()
+            }
+        }
+    }
+
+    private func marketExampleHeroBlock(height: CGFloat) -> some View {
+        let corner: CGFloat = 14
+        return ZStack(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(MarketExampleTerminalTheme.background)
+                .shadow(color: Color.black.opacity(0.18), radius: 18, x: 0, y: 10)
+                .frame(height: height)
+
+            ZStack {
+                marketExampleMeshGradient.opacity(0.2)
+                AsyncImage(url: marketExampleTerminalHeroImageURL, transaction: Transaction(animation: .default)) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img
+                            .resizable()
+                            .scaledToFill()
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                            .clipped()
+                            .blendMode(.overlay)
+                    case .failure, .empty:
+                        LinearGradient(
+                            colors: [
+                                MarketExampleTerminalTheme.surfaceContainerLow,
+                                MarketExampleTerminalTheme.primary.opacity(0.15),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    @unknown default:
+                        Color.clear
+                    }
+                }
+                LinearGradient(
+                    colors: [
+                        MarketExampleTerminalTheme.background,
+                        Color.clear,
+                        Color.clear,
+                    ],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            }
+            .frame(height: height)
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+
+            HStack(alignment: .center, spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(MarketExampleTerminalTheme.primary)
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "terminal.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("SoftPOS Native")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(MarketExampleTerminalTheme.onSurface)
+                    Text(buildVersionLine)
+                        .font(.system(size: 12))
+                        .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .background {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(MarketExampleTerminalTheme.surfaceContainerLowest.opacity(0.4))
+                    .background(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 22)
+        }
+        .frame(height: height)
+        .padding(.horizontal, 24)
+    }
+
+    private var marketExampleMeshGradient: some View {
+        ZStack {
+            RadialGradient(
+                colors: [MarketExampleTerminalTheme.primary, Color.clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 280
+            )
+            RadialGradient(
+                colors: [MarketExampleTerminalTheme.primaryFixed, Color.clear],
+                center: .topTrailing,
+                startRadius: 0,
+                endRadius: 260
+            )
+            RadialGradient(
+                colors: [MarketExampleTerminalTheme.surfaceContainerLow, Color.clear],
+                center: .bottom,
+                startRadius: 0,
+                endRadius: 240
+            )
+        }
+    }
+
+    private func scheduleTerminalTagSearchDebounced() {
+        searchDebounceTask?.cancel()
+        let key = keywordForSearch
+        if key.count < 2 {
+            searchResults = []
+            showSearchDropdown = false
+            searchLoading = false
+            return
+        }
+        searchDebounceTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            startTerminalTagSearch(keyword: key)
+        }
+    }
+
+    private func startTerminalTagSearch(keyword: String) {
+        guard keyword.count >= 2 else {
+            searchResults = []
+            showSearchDropdown = false
+            searchLoading = false
+            return
+        }
+        searchRequestId += 1
+        let id = searchRequestId
+        searchLoading = true
+        Task { @MainActor in
+            let list = await vm.searchUsersListForPOSTerminal(keyward: keyword)
+            guard id == searchRequestId else { return }
+            searchLoading = false
+            searchResults = list
+            showSearchDropdown = true
+        }
+    }
+
+    /// `TextField` + search button; results list like global search dropdown (`SearchBarWithResults`).
+    private var marketExampleBeamioTagSearchField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("@BeamioTag")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                .padding(.leading, 4)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    TextField("e.g. coffee_house_ny", text: $tagQuery)
+                        .focused($tagFieldFocused)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .textContentType(.username)
+                        .submitLabel(.search)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(MarketExampleTerminalTheme.onSurface)
+                        .padding(.leading, 18)
+                        .onSubmit {
+                            searchDebounceTask?.cancel()
+                            startTerminalTagSearch(keyword: keywordForSearch)
+                        }
+                    Button {
+                        BeamioHaptic.light()
+                        searchDebounceTask?.cancel()
+                        startTerminalTagSearch(keyword: keywordForSearch)
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(MarketExampleTerminalTheme.primary)
+                                .frame(width: 48, height: 48)
+                                .shadow(color: MarketExampleTerminalTheme.primary.opacity(0.35), radius: 8, x: 0, y: 4)
+                            if searchLoading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.9)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(keywordForSearch.count < 2 || searchLoading)
+                    .opacity(keywordForSearch.count < 2 ? 0.45 : 1)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 8)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 62)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(MarketExampleTerminalTheme.surfaceContainerLow))
+
+                if showSearchDropdown, keywordForSearch.count >= 2 {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if searchLoading, searchResults.isEmpty {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .padding(.vertical, 20)
+                                Spacer()
+                            }
+                        } else if searchResults.isEmpty {
+                            Text("No matches")
+                                .font(.system(size: 14))
+                                .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                        } else {
+                            ScrollView {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(searchResults.enumerated()), id: \.offset) { _, profile in
+                                        Button {
+                                            selectTerminalSearchProfile(profile)
+                                        } label: {
+                                            marketExampleSearchResultRow(profile: profile)
+                                        }
+                                        .buttonStyle(.plain)
+                                        Divider()
+                                            .background(MarketExampleTerminalTheme.outlineVariant.opacity(0.2))
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 220)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(MarketExampleTerminalTheme.surfaceContainerLowest)
+                            .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(MarketExampleTerminalTheme.outlineVariant.opacity(0.15), lineWidth: 1)
+                    )
+                    .padding(.top, 6)
+                }
+            }
+        }
+    }
+
+    private func selectTerminalSearchProfile(_ profile: TerminalProfile) {
+        BeamioHaptic.medium()
+        if let t = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+            tagQuery = t
+        } else if let a = profile.address?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty {
+            tagQuery = marketExampleShortAddr(a)
+        }
+        selectedLookup = profile
+        showSearchDropdown = false
+        searchResults = []
+        tagFieldFocused = false
+    }
+
+    /// SilentPassUI `Home.tsx` wallet capsule: pill + 40pt avatar + `homeBeamioTagLabel` (`@` + normalized tag); remove control on the right.
+    private func marketExampleSelectedProfileBlock(profile: TerminalProfile) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 10) {
+                    marketExampleSearchRowAvatar(profile: profile, size: 40)
+                    Text(marketExampleHomeStyleBeamioTagLabel(profile))
+                        .font(.system(size: 15, weight: .bold))
+                        .tracking(-0.2)
+                        .foregroundStyle(MarketExampleTerminalTheme.onSurface)
+                        .lineLimit(1)
+                }
+                .padding(.leading, 8)
+                .padding(.trailing, 16)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(MarketExampleTerminalTheme.surfaceContainerLowest)
+                        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .strokeBorder(MarketExampleTerminalTheme.outlineVariant.opacity(0.18), lineWidth: 1)
+                )
+
+                Button {
+                    clearTerminalSearchSelection()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 28))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(
+                            MarketExampleTerminalTheme.onSurfaceVariant.opacity(0.5),
+                            MarketExampleTerminalTheme.surfaceContainerLow
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove selection")
+            }
+
+            Button {
+                onGetStarted(normalizedTagQuery)
+            } label: {
+                HStack {
+                    Text("Next Phase")
+                        .font(.system(size: 18, weight: .bold))
+                    Spacer(minLength: 12)
+                    HStack(spacing: 6) {
+                        Text("Authorize")
+                            .font(.system(size: 14, weight: .regular))
+                            .opacity(0.7)
+                        Image(systemName: "arrow.forward")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 28)
+                .frame(maxWidth: .infinity)
+                .frame(height: 62)
+                .background(
+                    Capsule()
+                        .fill(MarketExampleTerminalTheme.primary)
+                        .shadow(color: MarketExampleTerminalTheme.primary.opacity(0.35), radius: 16, x: 0, y: 6)
+                )
             }
             .buttonStyle(BeamioHapticPlainButtonStyle())
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
         }
+    }
+
+    /// Same semantics as `Home.tsx` `useMemo` for `homeBeamioTagLabel`: strip leading `@`, then `@{normalized}`.
+    private func marketExampleHomeStyleBeamioTagLabel(_ profile: TerminalProfile) -> String {
+        if let raw = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+            var normalized = raw
+            while normalized.hasPrefix("@") { normalized.removeFirst() }
+            if normalized.isEmpty { normalized = "Beamio" }
+            return "@\(normalized)"
+        }
+        if let a = profile.address?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty {
+            return marketExampleShortAddr(a)
+        }
+        return "@—"
+    }
+
+    private func clearTerminalSearchSelection() {
+        BeamioHaptic.light()
+        selectedLookup = nil
+        tagQuery = ""
+        searchResults = []
+        showSearchDropdown = false
+        searchDebounceTask?.cancel()
+        tagFieldFocused = false
+    }
+
+    private func marketExampleSearchResultRow(profile: TerminalProfile) -> some View {
+        let title = marketExampleSearchRowTitleBeamioTag(profile)
+        let subtitle = marketExampleSearchRowSubtitleShortAddress(profile)
+        return HStack(alignment: .center, spacing: 12) {
+            marketExampleSearchRowAvatar(profile: profile, size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(MarketExampleTerminalTheme.onSurface)
+                    .lineLimit(1)
+                if let sub = subtitle {
+                    Text(sub)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MarketExampleTerminalTheme.outlineVariant)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+        .contentShape(Rectangle())
+    }
+
+    /// List row title: `@` + normalized BeamioTag; if no tag, fall back to short address.
+    private func marketExampleSearchRowTitleBeamioTag(_ profile: TerminalProfile) -> String {
+        if let raw = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty {
+            var n = raw
+            while n.hasPrefix("@") { n.removeFirst() }
+            if n.isEmpty { return "—" }
+            return "@\(n)"
+        }
+        if let a = profile.address?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty {
+            return marketExampleShortAddr(a)
+        }
+        return "—"
+    }
+
+    /// List row subtitle: shortened on-chain address (omit when same as title to avoid duplicate lines).
+    private func marketExampleSearchRowSubtitleShortAddress(_ profile: TerminalProfile) -> String? {
+        guard let a = profile.address?.trimmingCharacters(in: .whitespacesAndNewlines), !a.isEmpty else { return nil }
+        let short = marketExampleShortAddr(a)
+        let title = marketExampleSearchRowTitleBeamioTag(profile)
+        if title == short { return nil }
+        return short
+    }
+
+    @ViewBuilder
+    private func marketExampleSearchRowAvatar(profile: TerminalProfile, size: CGFloat) -> some View {
+        let trimmed = profile.image?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let seed = profile.accountName ?? profile.address ?? "beamio"
+        let enc = seed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? seed
+        let fallbackUrl = URL(string: "https://api.dicebear.com/8.x/fun-emoji/png?seed=\(enc)")
+        if !trimmed.isEmpty {
+            BeamioCardRasterOrSvgImage(urlString: trimmed, rasterContentMode: .fill) {
+                marketExampleDicebearFallback(url: fallbackUrl, size: size)
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
+        } else {
+            marketExampleDicebearFallback(url: fallbackUrl, size: size)
+        }
+    }
+
+    private func marketExampleDicebearFallback(url: URL?, size: CGFloat) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let img):
+                img.resizable().scaledToFill()
+            case .failure, .empty:
+                Circle().fill(MarketExampleTerminalTheme.surfaceContainerLow)
+            @unknown default:
+                Circle().fill(MarketExampleTerminalTheme.surfaceContainerLow)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+
+    private func marketExampleProfileDisplayName(_ profile: TerminalProfile) -> String {
+        let f = profile.firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let lastRaw = profile.lastName?.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\r\n").first.map(String.init) ?? ""
+        let l0 = lastRaw.hasPrefix("{") ? "" : lastRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let both = "\(f) \(l0)".trimmingCharacters(in: .whitespacesAndNewlines)
+        if !both.isEmpty { return both }
+        let tag = profile.accountName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !tag.isEmpty { return tag }
+        if let a = profile.address { return marketExampleShortAddr(a) }
+        return "—"
+    }
+
+    private func marketExampleShortAddr(_ s: String) -> String {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count >= 10 else { return t }
+        return "\(t.prefix(6))…\(t.suffix(4))"
+    }
+
+    /// Status row: reflects optional selection from search (existing workspace lookup).
+    private func marketExampleInfoStatusCard(selected: TerminalProfile?) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(MarketExampleTerminalTheme.primary.opacity(0.1))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(MarketExampleTerminalTheme.primary)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(selected == nil ? "Ready to bind" : "Profile selected")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(MarketExampleTerminalTheme.onSurface)
+                Text(
+                    selected == nil
+                        ? "Type at least 2 characters, then search. Tap a result to confirm your workspace tag, then use Next Phase below the profile capsule."
+                        : "Tap Next Phase to open wallet setup with this handle prefilled. Use the remove control to search again."
+                )
+                    .font(.system(size: 12))
+                    .foregroundStyle(MarketExampleTerminalTheme.onSurfaceVariant)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            ZStack {
+                Circle()
+                    .fill(MarketExampleTerminalTheme.primaryFixed)
+                    .frame(width: 24, height: 24)
+                Circle()
+                    .fill(MarketExampleTerminalTheme.primary)
+                    .frame(width: 8, height: 8)
+                    .opacity(0.85)
+                    .modifier(MarketExamplePulseDot())
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(MarketExampleTerminalTheme.surfaceContainerLow.opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(MarketExampleTerminalTheme.outlineVariant.opacity(0.1), lineWidth: 1)
+                )
+        )
+    }
+
+}
+
+private struct MarketExamplePulseDot: ViewModifier {
+    @State private var on = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(on ? 1.15 : 1.0)
+            .opacity(on ? 0.55 : 1.0)
+            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: on)
+            .onAppear { on = true }
     }
 }
 
@@ -423,6 +2180,26 @@ private struct OnboardingView: View {
                 if old == .handle, new != .handle {
                     let s = normalizedTag
                     if s.count >= 3 { Task { await validateAndCheckTag() } }
+                }
+            }
+            .onAppear {
+                let parent = vm.onboardingParentBeamioTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                vm.onboardingParentBeamioTag = ""
+                guard !parent.isEmpty else { return }
+                lastCheckedTag = ""
+                tagError = ""
+                tagStatus = .checking
+                Task { @MainActor in
+                    let suggested = await vm.resolveFirstAvailablePosTerminalTag(parent: parent)
+                    guard !suggested.isEmpty else {
+                        tagStatus = .invalid
+                        tagError = "Could not verify an available terminal handle. Check your connection and try again, or enter a handle manually."
+                        return
+                    }
+                    beamioTag = suggested
+                    lastCheckedTag = suggested
+                    tagStatus = .valid
+                    tagError = ""
                 }
             }
             .onDisappear { tagDebounceTask?.cancel() }
@@ -616,6 +2393,25 @@ private struct OnboardingView: View {
                 }
             }
             .padding(.top, 4)
+
+            Button {
+                BeamioHaptic.light()
+                vm.showVerraWorkspaceGateway = true
+            } label: {
+                HStack(spacing: 0) {
+                    Text("Already have a wallet? ")
+                        .foregroundStyle(.secondary)
+                    Text("Restore")
+                        .underline()
+                        .foregroundStyle(brandBlue)
+                }
+                .font(.system(size: 14, weight: .medium))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
+            .frame(maxWidth: .infinity)
+            .disabled(isSubmitting)
+            .opacity(isSubmitting ? 0.45 : 1)
+            .padding(.top, 12)
 
             Button {
                 Task { await handleContinue() }
@@ -838,10 +2634,21 @@ private struct HomeRootView: View {
                     .foregroundStyle(.primary)
             }
             Spacer(minLength: 8)
-            if let admin = vm.adminProfile {
-                HomeBeamioCapsuleCompact(profile: admin, fallbackAddress: admin.address)
+            if let admin = vm.adminProfile, homeAdminCapsuleHasPresentableIdentity(admin) {
+                HomeBeamioCapsuleCompact(profile: admin, fallbackAddress: nil)
             }
         }
+    }
+
+    /// Upper admin capsule: show only when profile has @handle or display name (no wallet-address fallback).
+    private func homeAdminCapsuleHasPresentableIdentity(_ profile: TerminalProfile) -> Bool {
+        let tag = sanitizeProfilePart(profile.accountName)
+        if !tag.isEmpty { return true }
+        let f = sanitizeProfilePart(profile.firstName)
+        let lastRaw = profile.lastName?.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\r\n").first.map(String.init) ?? ""
+        let l0 = lastRaw.hasPrefix("{") ? "" : sanitizeProfilePart(lastRaw)
+        let both = "\(f) \(l0)".trimmingCharacters(in: .whitespacesAndNewlines)
+        return !both.isEmpty
     }
 
     /// Android `NdefScreen` title line: `@accountName` else `"\(first6)…\(last4)"` else `"Terminal"`.
@@ -1149,8 +2956,8 @@ private struct HomeBeamioCapsuleCompact: View {
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(.primary.opacity(0.7))
                         .lineLimit(1)
-                } else if !hasName {
-                    Text(shortFallback ?? "—")
+                } else if !hasName, let fb = shortFallback {
+                    Text(fb)
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -1205,7 +3012,7 @@ private struct HomeBeamioCapsuleCompact: View {
 
 // MARK: - Amount pad
 
-/// Charge: single sheet, amount root → push tip (`NavigationStack` slide-from-trailing). Avoids closing one `.sheet` and opening another (race left `tipSubtotal` as `"0"`).
+/// Charge: full-screen slide-in from trailing (same host as `TopupAmountPadFullPage`); amount root → push tip. Avoids `.sheet` + nested sheet races (`tipSubtotal` as `"0"`).
 private struct ChargeAmountTipNavigationSheet: View {
     var onCancel: () -> Void
     var onChargeComplete: (String, Int) -> Void
@@ -1214,94 +3021,85 @@ private struct ChargeAmountTipNavigationSheet: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            AmountPadSheet(
-                title: "Charge Amount",
-                continueTint: .black,
-                embedNavigation: false,
+            ChargeAmountPadRoot(
                 onCancel: onCancel,
-                onContinue: { value in
-                    path.append(value)
-                }
+                onContinue: { path.append($0) }
             )
-            .navigationTitle("Charge Amount")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        BeamioHaptic.light()
-                        onCancel()
-                    }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { subtotal in
                 TipFlowPage(subtotal: subtotal) { tipBps in
                     onChargeComplete(subtotal, tipBps)
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        .compositingGroup()
         .onAppear { path = NavigationPath() }
     }
 }
 
-private struct AmountPadSheet: View {
-    var title: String
-    var continueTint: Color
-    /// When `false`, omit inner `NavigationStack` — parent supplies bar (Charge → Tip stack).
-    var embedNavigation: Bool = true
+/// Charge amount entry: same chrome as `TopupAmountPadFullPage` (surface, circular back, expandable keypad); no payment method row.
+private struct ChargeAmountPadRoot: View {
     var onCancel: () -> Void
     var onContinue: (String) -> Void
 
     @State private var amount = "0"
 
-    private var core: some View {
-        VStack(spacing: 24) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("$")
-                    .font(.title)
-                    .foregroundStyle(.secondary)
-                Text(amount)
-                    .font(.system(size: 56, weight: .light, design: .rounded))
-            }
-            .padding(.top, 8)
-            keypad
-            Button {
-                onContinue(amount)
-            } label: {
-                Text("Continue")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(continueTint))
-                    .foregroundStyle(.white)
-            }
-            .buttonStyle(BeamioHapticPlainButtonStyle())
-            .disabled(!canContinue)
-            .opacity(canContinue ? 1 : 0.45)
-            .padding(.bottom)
-        }
-        .padding(.horizontal)
-    }
+    private let primaryBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
 
     var body: some View {
-        Group {
-            if embedNavigation {
-                NavigationStack {
-                    core
-                        .navigationTitle(title)
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel") {
-                                    BeamioHaptic.light()
-                                    onCancel()
-                                }
-                            }
-                        }
+        ZStack(alignment: .topLeading) {
+            GeometryReader { geo in
+                let compact = geo.size.height < 640
+                let sidePad: CGFloat = compact ? 16 : 20
+                let amtDollar: CGFloat = compact ? 28 : 34
+                let amtMain: CGFloat = compact ? 52 : 64
+
+                VStack(spacing: 0) {
+                    chargeAmountWell(compact: compact, amtDollar: amtDollar, amtMain: amtMain)
+                        .padding(.horizontal, sidePad)
+                        .padding(.top, geo.safeAreaInsets.top + 8)
+                    BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, sidePad)
+                        .padding(.top, compact ? 10 : 12)
+                    continueButton(compact: compact)
+                        .padding(.horizontal, sidePad)
+                        .padding(.top, compact ? 10 : 12)
+                        .padding(.bottom, compact ? 12 : 16)
                 }
-            } else {
-                core
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            SheetCircularBackButton(action: onCancel)
+                .padding(.leading, 8)
+                .safeAreaPadding(.top, 6)
         }
+        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        .compositingGroup()
+    }
+
+    private func chargeAmountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("$")
+                    .font(.system(size: amtDollar, weight: .bold, design: .rounded))
+                    .foregroundStyle(primaryBlue)
+                Text(beamioAmountPadFormattedDisplay(amount))
+                    .font(.system(size: amtMain, weight: .heavy, design: .rounded))
+                    .foregroundStyle(primaryBlue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.35)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.vertical, compact ? 18 : 22)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(readBalanceDetailsSurfaceContainerLow)
+        )
     }
 
     private var canContinue: Bool {
@@ -1309,47 +3107,20 @@ private struct AmountPadSheet: View {
         return v > 0
     }
 
-    private var keypad: some View {
-        VStack(spacing: 16) {
-            ForEach(rows, id: \.self) { row in
-                HStack(spacing: 16) {
-                    ForEach(row, id: \.self) { key in
-                        Button {
-                            tap(key)
-                        } label: {
-                            Group {
-                                if key == "⌫" {
-                                    Image(systemName: "delete.left")
-                                } else {
-                                    Text(key).font(.title2)
-                                }
-                            }
-                            .frame(width: 72, height: 72)
-                            .background(Circle().fill(Color(uiColor: .secondarySystemGroupedBackground)))
-                        }
-                        .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
-                    }
-                }
-            }
+    private func continueButton(compact: Bool) -> some View {
+        Button {
+            onContinue(amount)
+        } label: {
+            Text("Continue")
+                .font(.system(size: compact ? 17 : 18, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, compact ? 17 : 19)
+                .foregroundStyle(.white)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(primaryBlue))
         }
-    }
-
-    private let rows = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], [".", "0", "⌫"]]
-
-    private func tap(_ key: String) {
-        if key == "⌫" {
-            if amount.count > 1 { amount.removeLast() } else { amount = "0" }
-            return
-        }
-        if key == "." {
-            if amount.contains(".") { return }
-            amount += amount == "0" ? "0." : "."
-            return
-        }
-        if amount == "0" { amount = key } else {
-            if let d = amount.split(separator: ".", omittingEmptySubsequences: false).last, d.contains(".") == false, amount.contains("."), d.count >= 2 { return }
-            amount += key
-        }
+        .buttonStyle(BeamioHapticPlainButtonStyle())
+        .disabled(!canContinue)
+        .opacity(canContinue ? 1 : 0.45)
     }
 }
 
@@ -1359,7 +3130,6 @@ private struct TipFlowPage: View {
     var subtotal: String
     var onConfirm: (Int) -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var selected: Double = 0
 
     /// Same as Read Balance `Top-Up Card Now` / AmountPad top-up primary.
@@ -1368,42 +3138,38 @@ private struct TipFlowPage: View {
     private var num: Double { Double(subtotal) ?? 0 }
 
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Subtotal")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text("$\(String(format: "%.2f", num))")
-                .font(.system(size: 44, weight: .light, design: .rounded))
-            tipGrid
-            Button {
-                let bps = Int((selected * 10_000).rounded())
-                onConfirm(bps)
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Confirm & Pay")
-                        .font(.system(size: 14, weight: .semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
+        GeometryReader { geo in
+            let compact = geo.size.height < 640
+            VStack(spacing: 20) {
+                Text("Subtotal")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("$\(String(format: "%.2f", num))")
+                    .font(.system(size: 44, weight: .light, design: .rounded))
+                tipGrid
+                Button {
+                    let bps = Int((selected * 10_000).rounded())
+                    onConfirm(bps)
+                } label: {
+                    HStack(spacing: 8) {
+                        Text("Confirm & Pay")
+                            .font(.system(size: compact ? 17 : 18, weight: .semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: compact ? 17 : 18, weight: .semibold))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, compact ? 17 : 19)
+                    .foregroundStyle(.white)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(primaryBlue))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(RoundedRectangle(cornerRadius: 12).fill(primaryBlue))
-                .foregroundStyle(.white)
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                Spacer(minLength: 0)
             }
-            .buttonStyle(BeamioHapticPlainButtonStyle())
-            Spacer()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding()
         }
-        .padding()
-        .navigationTitle("Add Tip")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Back") {
-                    BeamioHaptic.light()
-                    dismiss()
-                }
-            }
-        }
     }
 
     private var tipGrid: some View {
@@ -1454,6 +3220,310 @@ private let readBalanceDetailsOutline = Color(red: 0x73 / 255, green: 0x76 / 255
 private let readBalanceDetailsOnSurface = Color(red: 0x1A / 255, green: 0x1C / 255, blue: 0x1F / 255)
 private let readBalanceDetailsSurfaceContainerLow = Color(red: 0xF3 / 255, green: 0xF3 / 255, blue: 0xF8 / 255)
 private let readBalanceDetailsSurfaceContainerLowest = Color.white
+
+// MARK: - Shared amount pad (Top-up / Charge)
+
+private func formatIntegerPartWithCommas(_ intPart: String) -> String {
+    let digits = intPart.filter(\.isNumber)
+    if digits.isEmpty { return "0" }
+    let stripped = String(digits.drop(while: { $0 == "0" }))
+    let core = stripped.isEmpty ? "0" : stripped
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.maximumFractionDigits = 0
+    f.minimumFractionDigits = 0
+    f.usesGroupingSeparator = true
+    f.groupingSeparator = ","
+    let n = NSDecimalNumber(string: core)
+    guard n != NSDecimalNumber.notANumber else { return core }
+    return f.string(from: n) ?? core
+}
+
+private func beamioAmountPadFormattedDisplay(_ amount: String) -> String {
+    let s = amount.trimmingCharacters(in: .whitespacesAndNewlines)
+    if s.isEmpty || s == "0" { return "0.00" }
+
+    let intRaw: String
+    let frac: String?
+    if let r = s.range(of: ".") {
+        intRaw = String(s[s.startIndex..<r.lowerBound])
+        frac = String(s[r.upperBound...])
+    } else {
+        intRaw = s
+        frac = nil
+    }
+
+    let intGrouped = formatIntegerPartWithCommas(intRaw.isEmpty ? "0" : intRaw)
+
+    if let frac {
+        return frac.isEmpty ? "\(intGrouped)." : "\(intGrouped).\(frac)"
+    }
+    if let d = Double(s), d == floor(d) {
+        return "\(intGrouped).00"
+    }
+    return s
+}
+
+/// NFC/QR scan bottom overlay: 2 decimals + US grouping (align Android `formatUsdAmountWithGrouping`).
+private func formatUsdAmountScanOverlay(_ amount: Double) -> String {
+    let f = NumberFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.numberStyle = .decimal
+    f.minimumFractionDigits = 2
+    f.maximumFractionDigits = 2
+    f.usesGroupingSeparator = true
+    f.groupingSeparator = ","
+    return f.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
+}
+
+private struct BeamioNumericAmountPadKeypad: View {
+    @Binding var amount: String
+    var compact: Bool
+
+    private let rows = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], [".", "0", "⌫"]]
+
+    var body: some View {
+        GeometryReader { g in
+            let colGap: CGFloat = compact ? 7 : 9
+            let rowGap: CGFloat = compact ? 7 : 9
+            let w = max(0, g.size.width)
+            let h = max(0, g.size.height)
+            let rowCount = CGFloat(rows.count)
+            let cellH = rowCount > 0 ? max(1, (h - (rowCount - 1) * rowGap) / rowCount) : 1
+            let approxKeyW = max(0, (w - 2 * colGap) / 3)
+            let fontSize = max(16, min(approxKeyW, cellH) * (compact ? 0.4 : 0.42))
+
+            VStack(spacing: rowGap) {
+                ForEach(rows, id: \.self) { row in
+                    HStack(spacing: colGap) {
+                        ForEach(row, id: \.self) { key in
+                            Button {
+                                BeamioHaptic.medium()
+                                tap(key)
+                            } label: {
+                                Group {
+                                    if key == "⌫" {
+                                        Image(systemName: "delete.left")
+                                            .font(.system(size: fontSize, weight: .medium))
+                                    } else {
+                                        Text(key)
+                                            .font(.system(size: fontSize, weight: .medium, design: .rounded))
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .background(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .fill(readBalanceDetailsSurfaceContainerLowest)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(readBalanceDetailsOnSurface)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: cellH)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(width: w, height: h, alignment: .top)
+        }
+    }
+
+    private func tap(_ key: String) {
+        if key == "⌫" {
+            if amount.count > 1 { amount.removeLast() } else { amount = "0" }
+            return
+        }
+        if key == "." {
+            if amount.contains(".") { return }
+            amount += amount == "0" ? "0." : "."
+            return
+        }
+        if amount == "0" { amount = key } else {
+            if let d = amount.split(separator: ".", omittingEmptySubsequences: false).last, d.contains(".") == false, amount.contains("."), d.count >= 2 { return }
+            amount += key
+        }
+    }
+}
+
+// MARK: - Top-up full page (align Check Balance details: surface + circular back, no scroll)
+
+private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
+    case creditCard
+    case cash
+    case airdrop
+    case usdc
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .creditCard: return "Credit Card"
+        case .cash: return "Cash"
+        case .airdrop: return "Airdrop"
+        case .usdc: return "USDC"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .creditCard: return "creditcard.fill"
+        case .cash: return "banknote.fill"
+        case .airdrop: return "dot.radiowaves.left.and.right"
+        case .usdc: return "wallet.pass.fill"
+        }
+    }
+}
+
+/// Full-screen Add Funds: same chrome as `ReadBalanceView` (top-leading back, `readBalanceDetailsSurface`), no `ScrollView`.
+private struct TopupAmountPadFullPage: View {
+    var onCancel: () -> Void
+    var onContinue: (String, TopupPaymentMethodOption) -> Void
+
+    @State private var selectedMethod: TopupPaymentMethodOption = .creditCard
+    @State private var amount = "0"
+
+    /// Same primary as Read Balance “Top-Up Card Now”.
+    private let topUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+
+    private var secondaryMethods: [TopupPaymentMethodOption] {
+        TopupPaymentMethodOption.allCases.filter { $0 != selectedMethod }
+    }
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            GeometryReader { geo in
+                let compact = geo.size.height < 640
+                let sidePad: CGFloat = compact ? 16 : 20
+                let gap: CGFloat = compact ? 8 : 10
+                let methodIconSize: CGFloat = compact ? 36 : 42
+                let amtDollar: CGFloat = compact ? 28 : 34
+                let amtMain: CGFloat = compact ? 52 : 64
+                let gridY: CGFloat = compact ? 6 : 9
+
+                VStack(spacing: 0) {
+                    VStack(spacing: gap) {
+                        amountWell(
+                            compact: compact,
+                            amtDollar: amtDollar,
+                            amtMain: amtMain,
+                            methodIconSize: methodIconSize
+                        )
+                        secondaryMethodGrid(compact: compact, gridY: gridY)
+                    }
+                    .padding(.horizontal, sidePad)
+                    .padding(.top, geo.safeAreaInsets.top + 8)
+                    BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, sidePad)
+                        .padding(.top, compact ? 10 : 12)
+                    confirmButton(compact: compact)
+                        .padding(.horizontal, sidePad)
+                        .padding(.top, compact ? 10 : 12)
+                        .padding(.bottom, compact ? 12 : 16)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            SheetCircularBackButton(action: onCancel)
+                .padding(.leading, 8)
+                .safeAreaPadding(.top, 6)
+        }
+        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        /// Eager compositing so the whole screen (incl. payment tiles) participates in the trailing push transition; `LazyVGrid` can leave cells on the old layer during `move`.
+        .compositingGroup()
+    }
+
+    /// Non-lazy row so all three tiles stay in the same layer tree as the sheet transition (avoids `LazyVGrid` cells sticking to the window during `move(edge: .trailing)`).
+    private func secondaryMethodGrid(compact: Bool, gridY: CGFloat) -> some View {
+        HStack(spacing: compact ? 8 : 10) {
+            ForEach(secondaryMethods) { m in
+                Button {
+                    BeamioHaptic.light()
+                    selectedMethod = m
+                } label: {
+                    VStack(spacing: compact ? 2 : 4) {
+                        Image(systemName: m.systemImage)
+                            .font(.system(size: compact ? 18 : 21))
+                            .foregroundStyle(readBalanceDetailsOutline)
+                        Text(m.title)
+                            .font(.system(size: compact ? 10 : 11, weight: .semibold))
+                            .foregroundStyle(readBalanceDetailsOnSurface)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, gridY)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(readBalanceDetailsSurfaceContainerLow)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func amountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat, methodIconSize: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("$")
+                    .font(.system(size: amtDollar, weight: .bold, design: .rounded))
+                    .foregroundStyle(topUpBlue)
+                Text(beamioAmountPadFormattedDisplay(amount))
+                    .font(.system(size: amtMain, weight: .heavy, design: .rounded))
+                    .foregroundStyle(topUpBlue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.35)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            ZStack {
+                Circle()
+                    .fill(topUpBlue.opacity(0.12))
+                    .frame(width: methodIconSize, height: methodIconSize)
+                Image(systemName: selectedMethod.systemImage)
+                    .font(.system(size: methodIconSize * 0.46))
+                    .foregroundStyle(topUpBlue)
+            }
+            .accessibilityLabel(Text(selectedMethod.title))
+        }
+        .padding(.vertical, compact ? 18 : 22)
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(readBalanceDetailsSurfaceContainerLow)
+        )
+    }
+
+    private var canContinue: Bool {
+        guard let v = Double(amount) else { return false }
+        return v > 0
+    }
+
+    private func confirmButton(compact: Bool) -> some View {
+        Button {
+            onContinue(amount, selectedMethod)
+        } label: {
+            Text("Confirm Top-Up")
+                .font(.system(size: compact ? 17 : 18, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, compact ? 17 : 19)
+                .foregroundStyle(.white)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(topUpBlue))
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle())
+        .disabled(!canContinue)
+        .opacity(canContinue ? 1 : 0.45)
+    }
+}
 
 private func readBalanceColorRelativeLuminance(_ color: Color) -> Double {
     let ui = UIColor(color)
@@ -4276,6 +6346,34 @@ private struct ScanSheet: View {
         chargeChromeHidden || topupQrChromeHidden || readQrChromeHidden
     }
 
+    private static let scanOverlayTopUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xF0 / 255)
+    private static let scanOverlayLabelGray = Color(red: 0x86 / 255, green: 0x86 / 255, blue: 0x8b / 255)
+
+    /// Android scan bottom overlay: subtotal + tax + tip (tier discount unknown before tap → 0).
+    private var scanBottomMoneyValue: Double {
+        let subtot = Double(vm.amountString) ?? 0
+        switch action {
+        case .payment:
+            guard subtot > 0 else { return 0 }
+            let taxP = vm.infraRoutingTaxPercent ?? 0
+            let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtot, tipRateBps: vm.chargeTipRateBps)
+            return BeamioPaymentRouting.chargeTotalInCurrency(
+                requestAmount: subtot,
+                taxPercent: taxP,
+                tierDiscountPercent: 0,
+                tipAmount: tip
+            )
+        case .topup:
+            return subtot
+        default:
+            return 0
+        }
+    }
+
+    private var scanBottomShowsAmountChrome: Bool {
+        !scanBottomCaptionHidden && (action == .payment || action == .topup)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if !showChargeQrApproved {
@@ -4309,10 +6407,17 @@ private struct ScanSheet: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                if !scanBottomCaptionHidden {
-                    Text(bottomCaption)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if scanBottomShowsAmountChrome {
+                    VStack(spacing: 4) {
+                        Text(action == .payment ? "Total Amount" : "Top-Up Amount")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : Self.scanOverlayLabelGray)
+                        Text("$\(formatUsdAmountScanOverlay(scanBottomMoneyValue))")
+                            .font(.system(size: 52, weight: .semibold))
+                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : Color.black)
+                    }
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
                 }
 
                 Spacer(minLength: 0)
@@ -4941,14 +7046,6 @@ private struct ScanSheet: View {
         case .topup: return "Hold the customer's card near the top of your iPhone."
         case .payment: return "Hold the customer's card near the top of your iPhone."
         case .linkApp: return "Hold the customer's card to create a link."
-        }
-    }
-
-    private var bottomCaption: String {
-        switch action {
-        case .payment: return "Total with tip: $\(vm.amountString)"
-        case .topup: return "Amount: $\(vm.amountString)"
-        default: return ""
         }
     }
 }

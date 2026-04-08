@@ -6,7 +6,7 @@ final class BeamioNFCSession: NSObject, NFCTagReaderSessionDelegate {
     var onMessage: ((Result<(url: URL, raw: String), Error>) -> Void)?
     /// System NFC sheet dismissed by user (Cancel / swipe) — not tag errors or successful read invalidation.
     var onUserCanceled: (() -> Void)?
-    /// Device cannot use tag reading (`readingAvailable` is false) — prefer QR fallback instead of generic failure.
+    /// Device cannot use tag reading (`readingAvailable` is false). VM may fall back to QR (read/topup/charge) or dismiss (Link App).
     var onReadingUnavailable: (() -> Void)?
     private var session: NFCTagReaderSession?
 

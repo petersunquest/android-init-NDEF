@@ -49,9 +49,6 @@ export function SiteFooter({ className = '' }: SiteFooterProps) {
 					</div>
 				</div>
 			</div>
-			<div className="border-t border-white/10 pt-12 text-center text-[10px] uppercase tracking-[0.2em] text-slate-600">
-				Empowering Independent Local Commerce Since 2024
-			</div>
 		</footer>
 	)
 }

@@ -19,6 +19,10 @@ node_modules/
 *.swo
 *~
 
+# Xcode / iOS (local user state & build output)
+**/xcuserdata/
+**/DerivedDataCI/
+
 # Script state
 scripts/.base-sync-state
 

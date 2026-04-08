@@ -33,7 +33,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import org.json.JSONObject
 
-private const val HOME_URL = "https://cashtrees.beamio.app/app/"
+private const val HOME_URL = "https://verra.network/app/"
 
 /**
  * Main document only: forces revalidation so WebView does not reuse a stale index.html from disk

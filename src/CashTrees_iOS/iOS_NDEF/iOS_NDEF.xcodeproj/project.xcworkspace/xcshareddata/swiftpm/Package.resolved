@@ -1,5 +1,5 @@
 {
-  "originHash" : "77ba00f9e89d0c1cfe437ab4ad6ebae4908bfa77f0dd15aaa2090715b42c0f2b",
+  "originHash" : "a736bd3863f4c1a516c4eb2d2c2c1490929b5c48e57cd5fcb37bde1d04d10fff",
   "pins" : [
     {
       "identity" : "cryptoswift",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "e45a26384239e028ec87fbcc788f513b67e10d8f",
         "version" : "1.9.0"
+      }
+    },
+    {
+      "identity" : "objectivepgp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/krzyzanowskim/ObjectivePGP.git",
+      "state" : {
+        "revision" : "5629d849ec6c8f8ec733dffa9949c507468ec0b4",
+        "version" : "0.99.4"
       }
     },
     {

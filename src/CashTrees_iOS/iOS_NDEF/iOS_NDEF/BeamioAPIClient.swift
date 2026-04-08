@@ -83,6 +83,34 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// `GET /api/myCards?owner=0x...` → `items[].cardAddress`（与 bizSite `fetchMyCardsFromApi` 一致）
+    func fetchMyCardAddresses(ownerEoa: String) async -> [String] {
+        let enc = ownerEoa.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ownerEoa
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/myCards?owner=\(enc)") else { return [] }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.timeoutInterval = 16
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return [] }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let items = root["items"] as? [[String: Any]]
+            else { return [] }
+            var out: [String] = []
+            for it in items {
+                guard let raw = (it["cardAddress"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      raw.hasPrefix("0x"), raw.count == 42
+                else { continue }
+                let hex = String(raw.dropFirst(2))
+                guard hex.count == 40, hex.allSatisfy(\.isASCIIHexDigit) else { continue }
+                out.append(raw.lowercased())
+            }
+            return out
+        } catch {
+            return []
+        }
+    }
+
     // MARK: - Assets
 
     func getUIDAssets(uid: String, sun: SunParams?, merchantInfraCard: String, merchantInfraOnly: Bool) async -> UIDAssets {
@@ -203,11 +231,14 @@ final class BeamioAPIClient: @unchecked Sendable {
         beamioTag: String?,
         amount: String,
         sun: SunParams?,
-        infraCard: String
+        infraCard: String,
+        currency: String = "CAD"
     ) async -> NfcTopupPrepareResult {
+        let curNorm = currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let curSend = curNorm.isEmpty ? "CAD" : curNorm
         var body: [String: Any] = [
             "amount": amount,
-            "currency": "CAD",
+            "currency": curSend,
             "cardAddress": infraCard,
             "workflow": "adminTopup",
             "topupMode": "admin",
@@ -402,29 +433,89 @@ final class BeamioAPIClient: @unchecked Sendable {
 
     // MARK: - Profiles / admin stats
 
-    func searchUsers(keyward: String) async -> TerminalProfile? {
-        let enc = keyward.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? keyward
-        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/search-users?keyward=\(enc)") else { return nil }
+    /// Full `results[]` from `GET /api/search-users` (SilentPassUI `searchUsername` / `SearchBarWithResults`).
+    func searchUsersList(keyward: String) async -> [TerminalProfile] {
+        let trimmed = keyward.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let lower = trimmed.lowercased()
+        let enc = lower.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? lower
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/search-users?keyward=\(enc)") else { return [] }
         var req = URLRequest(url: url)
         req.httpMethod = "GET"
         req.timeoutInterval = 8
         do {
             let (data, resp) = try await session.data(for: req)
-            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return [] }
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let results = root["results"] as? [[String: Any]],
-                  let first = results.first
-            else { return nil }
-            return TerminalProfile(
-                accountName: (first["username"] as? String)?.nilIfEmpty ?? (first["accountName"] as? String)?.nilIfEmpty,
-                firstName: (first["first_name"] as? String)?.nilIfEmpty,
-                lastName: (first["last_name"] as? String)?.nilIfEmpty,
-                image: (first["image"] as? String)?.nilIfEmpty,
-                address: (first["address"] as? String)?.nilIfEmpty
-            )
+                  let results = root["results"] as? [[String: Any]]
+            else { return [] }
+            return results.compactMap { Self.terminalProfileFromSearchUserDict($0) }
         } catch {
-            return nil
+            return []
         }
+    }
+
+    private static func looksLikeEthereumAddress(_ s: String) -> Bool {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.hasPrefix("0x"), t.count == 42 else { return false }
+        let hex = t.dropFirst(2)
+        return hex.allSatisfy { ch in
+            ch.isASCII && ((ch >= "0" && ch <= "9") || (ch >= "a" && ch <= "f") || (ch >= "A" && ch <= "F"))
+        }
+    }
+
+    /// POS / workspace picker: `GET /api/search-users-by-card-owner-or-admin` — server filters by `beamio_cards` issuers and by owner/admin on `wallet`’s linked cards plus `merchantInfraCard` (as `extraCardAddresses`).
+    /// When `wallet` is nil (pre-wallet splash), only `extraCardAddresses` is sent if `merchantInfraCard` looks like an address (program card tree + issuers).
+    func searchUsersListForPOS(keyward: String, wallet: String?, merchantInfraCard: String) async -> [TerminalProfile] {
+        let trimmed = keyward.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        let base = BeamioConstants.beamioApi.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var components = URLComponents(string: "\(base)/api/search-users-by-card-owner-or-admin") else { return [] }
+        var items: [URLQueryItem] = [URLQueryItem(name: "keyward", value: trimmed.lowercased())]
+        let wTrim = wallet?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if Self.looksLikeEthereumAddress(wTrim) {
+            items.append(URLQueryItem(name: "wallet", value: wTrim))
+        }
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        if Self.looksLikeEthereumAddress(infra) {
+            items.append(URLQueryItem(name: "extraCardAddresses", value: infra))
+        }
+        components.queryItems = items
+        guard let url = components.url else { return [] }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.timeoutInterval = 12
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return [] }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let results = root["results"] as? [[String: Any]]
+            else { return [] }
+            return results.compactMap { Self.terminalProfileFromSearchUserDict($0) }
+        } catch {
+            return []
+        }
+    }
+
+    func searchUsers(keyward: String) async -> TerminalProfile? {
+        let list = await searchUsersList(keyward: keyward)
+        return list.first
+    }
+
+    private static func terminalProfileFromSearchUserDict(_ row: [String: Any]) -> TerminalProfile? {
+        let acc = (row["username"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            ?? (row["accountName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let addr = (row["address"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let hasAcc = acc.map { !$0.isEmpty } ?? false
+        let hasAddr = addr.map { !$0.isEmpty } ?? false
+        guard hasAcc || hasAddr else { return nil }
+        return TerminalProfile(
+            accountName: acc,
+            firstName: (row["first_name"] as? String)?.nilIfEmpty,
+            lastName: (row["last_name"] as? String)?.nilIfEmpty,
+            image: (row["image"] as? String)?.nilIfEmpty,
+            address: addr
+        )
     }
 
     /// Open relay Charge（扫码动态 QR）— 对齐 Android `postAAtoEOAOpenContainer` 子集（无 chargeOwnerChildBurn）
@@ -518,6 +609,129 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// `getBase64ByAccountName(string)` selector `0x1556d139` — same layout as `isAccountNameAvailable(string)`.
+    private static func encodeGetBase64ByAccountNameCalldata(accountName: String) -> String {
+        let sel = Data([0x15, 0x56, 0xd1, 0x39])
+        let utf = Data(accountName.utf8)
+        var body = Data()
+        body.append(Self.abiWordUInt256(32))
+        body.append(Self.abiWordUInt256(UInt64(utf.count)))
+        body.append(utf)
+        let pad = (32 - (utf.count % 32)) % 32
+        body.append(Data(repeating: 0, count: pad))
+        return "0x" + (sel + body).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func rpcHexToData(_ hex: String) -> Data? {
+        var s = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("0x") || s.hasPrefix("0X") { s.removeFirst(2) }
+        guard s.count % 2 == 0, !s.isEmpty else { return nil }
+        var out = Data(capacity: s.count / 2)
+        var i = s.startIndex
+        while i < s.endIndex {
+            let j = s.index(i, offsetBy: 2, limitedBy: s.endIndex) ?? s.endIndex
+            guard j > i, let b = UInt8(s[i..<j], radix: 16) else { return nil }
+            out.append(b)
+            i = j
+        }
+        return out
+    }
+
+    private static func abiReadUint256BE(_ data: Data, offset: Int) -> UInt? {
+        guard offset >= 0, offset + 32 <= data.count else { return nil }
+        var v: UInt = 0
+        for i in 0 ..< 32 {
+            v = (v << 8) | UInt(data[offset + i])
+        }
+        return v
+    }
+
+    /// ABI-decode a top-level dynamic `string` from `eth_call` `result` hex.
+    private static func decodeAbiEncodedStringReturn(hex: String) -> String? {
+        guard let data = rpcHexToData(hex), data.count >= 64 else { return nil }
+        guard let strRel = abiReadUint256BE(data, offset: 0) else { return nil }
+        let strOffset = Int(strRel)
+        guard strOffset + 32 <= data.count else { return nil }
+        guard let lenU = abiReadUint256BE(data, offset: strOffset) else { return nil }
+        let n = Int(lenU)
+        guard n >= 0, strOffset + 32 + n <= data.count else { return nil }
+        return String(data: data[(strOffset + 32) ..< (strOffset + 32 + n)], encoding: .utf8)
+    }
+
+    /// `getBase64ByNameHash(bytes32)` selector `0x88a06434` — `hashHex` is 32-byte value as 64 hex chars (optional `0x`).
+    private static func encodeGetBase64ByNameHashCalldata(hashHex: String) -> String? {
+        var h = hashHex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if h.hasPrefix("0x") { h.removeFirst(2) }
+        guard h.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil else { return nil }
+        guard let hashData = rpcHexToData("0x" + h), hashData.count == 32 else { return nil }
+        let sel = Data([0x88, 0xa0, 0x64, 0x34])
+        return "0x" + (sel + hashData).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// `beamio.ts` `getRecoverPayloadByHash` / `beamioAccountSC.getBase64ByNameHash(hash)`.
+    func getRecoverBase64ByNameHash(hashHex: String) async -> String? {
+        guard let dataHex = Self.encodeGetBase64ByNameHashCalldata(hashHex: hashHex) else { return nil }
+        guard let url = URL(string: BeamioConstants.conetMainnetRpcUrl) else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 25
+        let payload: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_call",
+            "params": [[
+                "to": BeamioConstants.beamioAccountRegistryAddress,
+                "data": dataHex,
+            ], "latest"],
+        ]
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (raw, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return nil }
+            if root["error"] != nil { return nil }
+            guard let hex = root["result"] as? String else { return nil }
+            let decoded = Self.decodeAbiEncodedStringReturn(hex: hex)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return decoded.isEmpty ? nil : decoded
+        } catch {
+            return nil
+        }
+    }
+
+    /// `beamio.ts` `beamioAccountSC.getBase64ByAccountName(username)` — base64 of `{ stored, img }`.
+    func getRecoverBase64ByAccountName(_ accountName: String) async -> String? {
+        let trimmed = Self.normalizeBeamioAccountName(accountName)
+        guard Self.isValidBeamioAccountNameFormat(trimmed) else { return nil }
+        let dataHex = Self.encodeGetBase64ByAccountNameCalldata(accountName: trimmed)
+        guard let url = URL(string: BeamioConstants.conetMainnetRpcUrl) else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 25
+        let payload: [String: Any] = [
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_call",
+            "params": [[
+                "to": BeamioConstants.beamioAccountRegistryAddress,
+                "data": dataHex,
+            ], "latest"],
+        ]
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (raw, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return nil }
+            if root["error"] != nil { return nil }
+            guard let hex = root["result"] as? String else { return nil }
+            let decoded = Self.decodeAbiEncodedStringReturn(hex: hex)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return decoded.isEmpty ? nil : decoded
+        } catch {
+            return nil
+        }
+    }
+
     struct RegisterBeamioAccountResult {
         var ok: Bool
         var error: String?
@@ -598,6 +812,48 @@ final class BeamioAPIClient: @unchecked Sendable {
         } catch {
             return nil
         }
+    }
+
+    private static let ethCallOwnerSelector = "0x8da5cb5b"
+    private static let ethCallIsAdminAddressSelector = "0x24d7806c"
+
+    private static func decodeAbiAddressWordHex(_ hex: String) -> String? {
+        var raw = hex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if raw.hasPrefix("0x") { raw.removeFirst(2) }
+        guard raw.count >= 64 else { return nil }
+        let addr = String(raw.suffix(40))
+        guard addr.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil else { return nil }
+        if addr == String(repeating: "0", count: 40) { return nil }
+        return addr
+    }
+
+    private static func decodeAbiBoolWordHex(_ hex: String) -> Bool? {
+        var raw = hex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if raw.hasPrefix("0x") { raw.removeFirst(2) }
+        guard raw.count >= 64 else { return nil }
+        let suffix = String(raw.suffix(2))
+        guard let b = UInt8(suffix, radix: 16) else { return nil }
+        return b != 0
+    }
+
+    /// Base: program card `owner()==wallet` or `isAdmin(wallet)` via `eth_call` (authoritative vs HTTP JSON). `nil` = RPC/parse failure.
+    func fetchPosProgramCardHomeAccessAllowed(cardAddress: String, wallet: String) async -> Bool? {
+        let cardRaw = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let walRaw = wallet.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cardRaw.hasPrefix("0x"), cardRaw.count == 42,
+              walRaw.hasPrefix("0x"), walRaw.count == 42 else { return nil }
+        let cardHex = cardRaw.lowercased()
+        let walBody = String(walRaw.dropFirst(2)).lowercased()
+        guard walBody.count == 40, walBody.allSatisfy(\.isASCIIHexDigit) else { return nil }
+
+        guard let ownerRes = await jsonRpcEthCallBase(to: cardHex, dataHex: Self.ethCallOwnerSelector),
+              let owner40 = Self.decodeAbiAddressWordHex(ownerRes) else { return nil }
+        if owner40 == walBody { return true }
+
+        let isAdminData = Self.ethCallIsAdminAddressSelector + String(repeating: "0", count: 24) + walBody
+        guard let iaRes = await jsonRpcEthCallBase(to: cardHex, dataHex: isAdminData),
+              let isAdm = Self.decodeAbiBoolWordHex(iaRes) else { return nil }
+        return isAdm
     }
 
     // MARK: - Home dashboard (Android MainActivity: getCardStats + infra routing)
@@ -831,6 +1087,102 @@ final class BeamioAPIClient: @unchecked Sendable {
     }
 
     // MARK: - Base JSON-RPC
+
+    /// Aligns with on-chain `_hasValidCard` when getWallet/getUID assets omit membership NFT rows.
+    func chainHasValidMembershipForTopup(programCard: String, userAa: String) async -> Bool {
+        let card = Self.jsonRpcNormalizeHexAddress(programCard)
+        let aa = Self.jsonRpcNormalizeHexAddress(userAa)
+        guard card.count == 42, aa.count == 42 else { return false }
+        let aaBody = String(aa.dropFirst(2))
+        let addrPadded = String(repeating: "0", count: 24) + aaBody
+        let dataAm = "0x671395c8" + addrPadded
+        guard let resAm = await jsonRpcEthCallBase(to: card, dataHex: dataAm),
+              let tidWord = Self.jsonRpcLastUint256WordHex(from: resAm),
+              !Self.jsonRpcIsAllZeroHex64(tidWord)
+        else { return false }
+        let dataBal = "0x00fdd58e" + addrPadded + tidWord
+        guard let resBal = await jsonRpcEthCallBase(to: card, dataHex: dataBal),
+              let balWord = Self.jsonRpcLastUint256WordHex(from: resBal),
+              !Self.jsonRpcIsAllZeroHex64(balWord)
+        else { return false }
+        let dataExp = "0x17c95709" + tidWord
+        guard let resExp = await jsonRpcEthCallBase(to: card, dataHex: dataExp),
+              let expWord = Self.jsonRpcLastUint256WordHex(from: resExp)
+        else { return true }
+        if Self.jsonRpcIsAllZeroHex64(expWord) { return true }
+        guard let expSec = Self.jsonRpcUInt64FromHexWord(expWord), expSec > 0 else { return true }
+        let now = UInt64(Date().timeIntervalSince1970)
+        return now <= expSec
+    }
+
+    /// `BeamioUserCard.currency()` + `pointsUnitPriceInCurrencyE6()` — same as `MemberCard.nfcTopupPreparePayload` direct points path.
+    func fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: String) async -> (code: String, priceE6: UInt64)? {
+        let card = Self.jsonRpcNormalizeHexAddress(cardAddress)
+        guard card.count == 42 else { return nil }
+        guard let curHex = await jsonRpcEthCallBase(to: card, dataHex: Self.ethCallCurrencySelector),
+              let curWord = Self.jsonRpcLastUint256WordHex(from: curHex),
+              let curNum = Self.jsonRpcUInt64FromHexWord(curWord)
+        else { return nil }
+        guard curNum <= 8 else { return nil }
+        let code = Self.beamioCurrencyTypeCode(UInt8(truncatingIfNeeded: curNum))
+        guard let priceHex = await jsonRpcEthCallBase(to: card, dataHex: Self.ethCallPointsUnitPriceInCurrencyE6Selector),
+              let priceWord = Self.jsonRpcLastUint256WordHex(from: priceHex),
+              let priceE6 = Self.jsonRpcUInt256WordToUInt64(priceWord), priceE6 > 0
+        else { return nil }
+        return (code, priceE6)
+    }
+
+    private static let ethCallCurrencySelector = "0xe5a6b10f"
+    private static let ethCallPointsUnitPriceInCurrencyE6Selector = "0x4dda2215"
+
+    private static func beamioCurrencyTypeCode(_ id: UInt8) -> String {
+        switch id {
+        case 0: return "CAD"
+        case 1: return "USD"
+        case 2: return "JPY"
+        case 3: return "CNY"
+        case 4: return "USDC"
+        case 5: return "HKD"
+        case 6: return "EUR"
+        case 7: return "SGD"
+        case 8: return "TWD"
+        default: return "CAD"
+        }
+    }
+
+    /// Last 32-byte ABI word as `UInt64` when it fits; otherwise `nil` (caller should fall back).
+    private static func jsonRpcUInt256WordToUInt64(_ word64: String) -> UInt64? {
+        if let v = jsonRpcUInt64FromHexWord(word64) { return v }
+        let d = abiUInt256HexToDouble(word64)
+        if !d.isFinite || d <= 0 || d > Double(UInt64.max) { return nil }
+        return UInt64(d)
+    }
+
+    private static func jsonRpcNormalizeHexAddress(_ a: String) -> String {
+        let t = a.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t.hasPrefix("0x") { return t.lowercased() }
+        return "0x\(t.lowercased())"
+    }
+
+    private static func jsonRpcLastUint256WordHex(from hex: String) -> String? {
+        var raw = hex
+        if raw.hasPrefix("0x") { raw = String(raw.dropFirst(2)) }
+        guard raw.count >= 64 else { return nil }
+        let i = raw.index(raw.endIndex, offsetBy: -64)
+        return String(raw[i...])
+    }
+
+    private static func jsonRpcIsAllZeroHex64(_ w: String) -> Bool {
+        w.allSatisfy { $0 == "0" }
+    }
+
+    private static func jsonRpcUInt64FromHexWord(_ w64: String) -> UInt64? {
+        var t = w64.lowercased()
+        while t.first == "0" { t.removeFirst() }
+        if t.isEmpty { return 0 }
+        guard t.count <= 16 else { return nil }
+        return UInt64(t, radix: 16)
+    }
 
     private func jsonRpcEthCallBase(to: String, dataHex: String) async -> String? {
         let toLower = to.hasPrefix("0x") ? to.lowercased() : "0x\(to.lowercased())"

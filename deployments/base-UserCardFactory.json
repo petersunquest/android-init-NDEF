@@ -20,7 +20,7 @@
       "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
       "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
-      "adminStatsQueryModule": "0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70",
+      "adminStatsQueryModule": "0x80D6A0ed075285306430F0C024bC6488583D2d6b",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
       "transactionHash": "0x5053316b494c6063d9b7e867592fc64039068f876418702ad62efcddd80f8c0d",

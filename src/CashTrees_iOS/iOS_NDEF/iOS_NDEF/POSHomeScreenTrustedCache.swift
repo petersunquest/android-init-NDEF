@@ -2,6 +2,8 @@ import Foundation
 
 /// Local-first home screen cache (align Android `PREFS_PROFILE_CACHE` + trusted on-chain stats).
 /// Only persist after a successful API / RPC parse; never write on failure.
+/// Never remove admin/profile entries because a later fetch failed — failure is untrusted; only clear admin after a **successful**
+/// `getCardAdminInfo` that indicates no `upperAdmin`.
 enum POSHomeScreenTrustedCache {
     private static let ud = UserDefaults.standard
 

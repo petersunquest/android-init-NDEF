@@ -113,6 +113,23 @@ enum BeamioRecoverCrypto {
         return combined.base64EncodedString()
     }
 
+    /// `beamio.ts` `aesGcmDecryptWithStored` — IV 12 bytes + ciphertext + 16-byte tag (Web Crypto `subtle.decrypt` layout).
+    static func aes_gcm_decrypt_stored(cipherB64: String, password: String, stored: Argon2Stored) throws -> String {
+        let key = try derive_aes_key(password: password, stored: stored)
+        guard let combined = Data(base64Encoded: cipherB64) else { throw BeamioRecoverCryptoError.aes }
+        guard combined.count >= 12 + 17 else { throw BeamioRecoverCryptoError.aes }
+        let iv = combined.prefix(12)
+        let ctAndTag = combined.dropFirst(12)
+        guard ctAndTag.count > 16 else { throw BeamioRecoverCryptoError.aes }
+        let ciphertext = ctAndTag.dropLast(16)
+        let tag = ctAndTag.suffix(16)
+        let nonce = try AES.GCM.Nonce(data: Data(iv))
+        let sealed = try AES.GCM.SealedBox(nonce: nonce, ciphertext: Data(ciphertext), tag: Data(tag))
+        let decrypted = try AES.GCM.open(sealed, using: key)
+        guard let s = String(data: decrypted, encoding: .utf8) else { throw BeamioRecoverCryptoError.aes }
+        return s
+    }
+
     static func stored_to_json_object(_ stored: Argon2Stored) -> [String: Any] {
         [
             "algo": stored.algo,
@@ -129,5 +146,19 @@ enum BeamioRecoverCrypto {
         let inner: [String: Any] = ["stored": stored, "img": img]
         let d = try JSONSerialization.data(withJSONObject: inner)
         return d.base64EncodedString()
+    }
+}
+
+extension BeamioRecoverCrypto.Argon2Stored {
+    /// JSON `stored` object from on-chain recover payload (`beamio.ts` `Argon2idHash`).
+    init?(json: [String: Any]) {
+        guard let algo = json["algo"] as? String,
+              let v = json["v"] as? Int,
+              let m = json["m"] as? Int,
+              let t = json["t"] as? Int,
+              let p = json["p"] as? Int,
+              let salt = json["salt"] as? String,
+              let hash = json["hash"] as? String else { return nil }
+        self.init(algo: algo, v: v, m: m, t: t, p: p, salt: salt, hash: hash)
     }
 }

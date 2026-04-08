@@ -31,6 +31,13 @@ final class POSViewModel: ObservableObject {
     @Published private(set) var homePullRefreshing = false
     /// Home full refresh in progress — ignore overlapping triggers (elastic pull, duplicate Tasks).
     private var homeRefreshInFlight = false
+    /// While the parent-permission full-screen gate is up: wake every 6s and call `refreshHomeProfiles` if idle (no overlap).
+    private var parentPermissionGatePollTask: Task<Void, Never>?
+    private static let parentPermissionGatePollIntervalNs: UInt64 = 6_000_000_000
+    /// After a **trusted** `getCardAdminInfo` (`ok: true`): whether this wallet may use POS (owner, `upperAdmin`, or any `admins[]` entry). `nil` = never persisted / reset.
+    private var lastTrustedInfraPosHomeAccess: Bool?
+    /// Filled in `reconcileParentPermissionGateWithServer` when access is **trusted allowed** for `merchantInfraCard`; consumed once by `refreshHomeProfiles` for upper-admin capsule (avoids a second `getCardAdminInfo` on the same tick).
+    private var pendingGetCardAdminInfoRootForHome: (cardLower: String, root: [String: Any])?
     @Published var infraRoutingTaxPercent: Double?
     @Published var infraRoutingDiscountSummary: String?
     /// Infrastructure / program `BeamioUserCard` metadata `name` (`cards[].cardName`) for the POS `merchantInfraCard` row.
@@ -39,6 +46,20 @@ final class POSViewModel: ObservableObject {
     @Published var homeToast: String?
     /// 注册成功后展示一次（与 web Recovery QR 秘密等价，勿记入日志）
     @Published var pendingRecoveryCode: String?
+    /// Consumed once by `OnboardingView.onAppear` — parent `@BeamioTag` from Terminal Setup selection; default handle = `{parent}_POS_{nnnn}`.
+    @Published var onboardingParentBeamioTag: String = ""
+    /// Parent tag from Terminal Setup — copied to UserDefaults pending key when the permission flow starts; cleared when approved.
+    var splashParentBeamioTagForPermission: String = ""
+    /// Full-screen gate until a trusted `getCardAdminInfo` shows this wallet on the program card admin tree (`admins[]`, or owner / upperAdmin) (blocks mounting Home).
+    @Published var showAwaitingParentPermissionGate = false
+    /// Shown on the permission gate (normalized parent handle, no `@`).
+    @Published var permissionGateParentTagLine: String = ""
+    /// After tapping **Resend approval request**, no further resends until this time (persisted per wallet).
+    @Published private(set) var terminalPermissionResendCooldownUntil: Date?
+    /// Verra workspace gateway overlay (BeamioTag + password + Recovery QR) — opened from onboarding Restore link.
+    @Published var showVerraWorkspaceGateway = false
+    /// Full-screen waiting gate: pick another parent @BeamioTag for the CoNET approval request (POS filtered user search).
+    @Published var changeParentWorkspaceAdminSheetPresented = false
 
     // Navigation
     enum Sheet: Identifiable {
@@ -55,6 +76,8 @@ final class POSViewModel: ObservableObject {
     @Published var sheet: Sheet?
     @Published var amountInputMode: ScanPendingAction = .read
     @Published var amountString: String = "0"
+    /// Set from Top-up amount sheet (`TopupAmountPadSheet`); shown on scan chrome caption.
+    @Published var topupPaymentMethodTitle: String = "Credit Card"
     @Published var chargeTipRateBps: Int = 0
 
     @Published var scanMethod: ScanMethod = .nfc
@@ -128,6 +151,55 @@ final class POSViewModel: ObservableObject {
     /// entries for the same bundle ID often survive reinstall on device; clear orphans so init flow runs.
     private static let installContainerMarkerKey = "iosndef.install.container.marker"
 
+    private static let terminalPermissionResendCooldownSeconds: TimeInterval = 120
+
+    private static func pendingParentWorkspaceTagKey(wallet: String) -> String {
+        "pos.pendingParentWorkspaceTag.\(wallet.lowercased())"
+    }
+
+    private static func terminalPermissionAutoSentKey(wallet: String) -> String {
+        "pos.terminalPermissionAutoSent.\(wallet.lowercased())"
+    }
+
+    private static func permissionResendCooldownUntilKey(wallet: String) -> String {
+        "pos.terminalPermissionResendCooldownUntil.\(wallet.lowercased())"
+    }
+
+    private static func lastTrustedInfraPosHomeAccessKey(wallet: String) -> String {
+        "pos.lastTrustedInfraPosHomeAccess.\(wallet.lowercased())"
+    }
+
+    /// Legacy key before sub-admin (`admins[]`) was included in the POS gate rule.
+    private static func legacyLastTrustedInfraOwnerOrUpperKey(wallet: String) -> String {
+        "pos.lastTrustedInfraIsOwnerOrUpperAdmin.\(wallet.lowercased())"
+    }
+
+    private func loadPersistedTrustedInfraPosHomeAccess(walletLower: String) {
+        let newK = Self.lastTrustedInfraPosHomeAccessKey(wallet: walletLower)
+        let oldK = Self.legacyLastTrustedInfraOwnerOrUpperKey(wallet: walletLower)
+        if let v = UserDefaults.standard.object(forKey: newK) as? Bool {
+            lastTrustedInfraPosHomeAccess = v
+        } else if let v = UserDefaults.standard.object(forKey: oldK) as? Bool {
+            lastTrustedInfraPosHomeAccess = v
+            UserDefaults.standard.set(v, forKey: newK)
+        } else {
+            lastTrustedInfraPosHomeAccess = nil
+        }
+    }
+
+    private func persistTrustedInfraPosHomeAccess(walletLower: String, allowed: Bool) {
+        lastTrustedInfraPosHomeAccess = allowed
+        UserDefaults.standard.set(allowed, forKey: Self.lastTrustedInfraPosHomeAccessKey(wallet: walletLower))
+        UserDefaults.standard.removeObject(forKey: Self.legacyLastTrustedInfraOwnerOrUpperKey(wallet: walletLower))
+    }
+
+    private func resetTrustedInfraPosHomeAccessForWalletChange(walletLower: String) {
+        lastTrustedInfraPosHomeAccess = nil
+        pendingGetCardAdminInfoRootForHome = nil
+        UserDefaults.standard.removeObject(forKey: Self.lastTrustedInfraPosHomeAccessKey(wallet: walletLower))
+        UserDefaults.standard.removeObject(forKey: Self.legacyLastTrustedInfraOwnerOrUpperKey(wallet: walletLower))
+    }
+
     init() {
         reconcileKeychainWithAppContainer()
 
@@ -139,6 +211,10 @@ final class POSViewModel: ObservableObject {
             showLaunchSplash = true
             applyTrustedProfileCachesFromDisk()
             if let w = walletAddress {
+                let wl = w.lowercased()
+                loadPersistedTrustedInfraPosHomeAccess(walletLower: wl)
+                // Block Home until `getCardAdminInfo` lists this wallet on the program card unless we already have a trusted persisted allow.
+                showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
                 applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: merchantInfraCard, replaceDisplayValues: false)
             }
             if shouldDismissLaunchSplashFromTrustedHomeCache {
@@ -174,7 +250,7 @@ final class POSViewModel: ObservableObject {
         }
     }
 
-    /// Beamio trusted-cache / local-first: load profile JSON written only after successful `search-users`.
+    /// Beamio trusted-cache / local-first: load profile JSON written only after successful profile search.
     private func applyTrustedProfileCachesFromDisk() {
         guard let w = walletAddress else { return }
         let loaded = POSHomeScreenTrustedCache.loadProfiles(wallet: w)
@@ -275,6 +351,9 @@ final class POSViewModel: ObservableObject {
             try BeamioKeychain.savePrivateKeyHex(hex)
             walletPrivateKeyHex = hex
             walletAddress = lower
+            resetTrustedInfraPosHomeAccessForWalletChange(walletLower: lower.lowercased())
+            showAwaitingParentPermissionGate = true
+            stopParentPermissionGatePolling()
             pendingRecoveryCode = payload.recoveryCode
             showOnboarding = false
             showWelcome = false
@@ -285,9 +364,475 @@ final class POSViewModel: ObservableObject {
             Task { @MainActor in
                 await refreshInfraCardFromDbIfPossible()
                 await refreshHomeProfiles()
+                await maybeRunTerminalParentCoNetPermissionFlowAfterOnboarding()
             }
         } catch {
             homeToast = error.localizedDescription
+        }
+    }
+
+    /// After first wallet creation from Terminal Setup: persist parent tag, keep full-screen gate until this wallet is on the program card admin tree; auto-send once if not yet sent.
+    func maybeRunTerminalParentCoNetPermissionFlowAfterOnboarding() async {
+        defer {
+            if showAwaitingParentPermissionGate {
+                startParentPermissionGatePollingIfNeeded()
+            }
+        }
+        var parent = splashParentBeamioTagForPermission.trimmingCharacters(in: .whitespacesAndNewlines)
+        while parent.hasPrefix("@") { parent.removeFirst() }
+        parent = parent.replacingOccurrences(of: "@", with: "")
+        if parent.isEmpty, let w0 = walletAddress {
+            let wl0 = w0.lowercased()
+            var stored = UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl0))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            while stored.hasPrefix("@") { stored.removeFirst() }
+            stored = stored.replacingOccurrences(of: "@", with: "")
+            parent = stored
+        }
+        guard !parent.isEmpty else { return }
+        guard let w = walletAddress, walletPrivateKeyHex != nil else { return }
+        let wl = w.lowercased()
+
+        UserDefaults.standard.set(parent, forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))
+        splashParentBeamioTagForPermission = ""
+        permissionGateParentTagLine = parent
+        showAwaitingParentPermissionGate = true
+        syncTerminalPermissionResendCooldownFromDefaults(walletLower: wl)
+
+        let infra = merchantInfraCard
+        if let allowed = await posTerminalTrustedProgramCardAccess(wallet: w, infra: infra), allowed {
+            clearTerminalParentPermissionPendingState(walletLower: wl)
+            return
+        }
+
+        let autoKey = Self.terminalPermissionAutoSentKey(wallet: wl)
+        if UserDefaults.standard.bool(forKey: autoKey) { return }
+
+        let result = await sendTerminalPermissionCoNetMessage(parentNormalized: parent)
+        if result.ok {
+            UserDefaults.standard.set(true, forKey: autoKey)
+            homeToast = "A permission request was sent to your workspace parent via CoNET. You can continue when they approve."
+        } else if let err = result.userVisibleError {
+            homeToast = err
+        }
+    }
+
+    /// Manual resend from the awaiting-authorization overlay. Starts a **120s** cooldown immediately on tap (even if send fails).
+    func resendTerminalParentPermissionRequest() async {
+        guard let w = walletAddress, walletPrivateKeyHex != nil else { return }
+        let wl = w.lowercased()
+        syncTerminalPermissionResendCooldownFromDefaults(walletLower: wl)
+        if let until = terminalPermissionResendCooldownUntil, until > Date() {
+            homeToast = "Please wait before resending the approval request."
+            return
+        }
+
+        var parent = UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        while parent.hasPrefix("@") { parent.removeFirst() }
+        parent = parent.replacingOccurrences(of: "@", with: "")
+        if parent.isEmpty {
+            var p = permissionGateParentTagLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            while p.hasPrefix("@") { p.removeFirst() }
+            p = p.replacingOccurrences(of: "@", with: "")
+            parent = p
+        }
+        guard !parent.isEmpty else {
+            homeToast = "No workspace parent is set. Use Change workspace parent to pick one."
+            return
+        }
+        UserDefaults.standard.set(parent, forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))
+
+        beginTerminalPermissionResendCooldown(walletLower: wl)
+
+        let infra = merchantInfraCard
+        if let allowed = await posTerminalTrustedProgramCardAccess(wallet: w, infra: infra), allowed {
+            clearTerminalParentPermissionPendingState(walletLower: wl)
+            return
+        }
+
+        let result = await sendTerminalPermissionCoNetMessage(parentNormalized: parent)
+        if result.ok {
+            homeToast = "Approval request sent again."
+        } else if let err = result.userVisibleError {
+            homeToast = err
+        }
+    }
+
+    private func normalizeParentBeamioTag(_ raw: String) -> String {
+        var p = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while p.hasPrefix("@") { p.removeFirst() }
+        p = p.replacingOccurrences(of: "@", with: "")
+        return p
+    }
+
+    /// True when `getCardAdminInfo` lists this wallet on the program card: contract `owner`, response `upperAdmin`, or **any** address in `admins` (subordinate admin).
+    private static func walletHasTrustedInfraPosHomeAccess(root: [String: Any], walletLower wl: String) -> Bool {
+        let ow = (root["owner"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        if !ow.isEmpty, wl == ow { return true }
+        let ua = (root["upperAdmin"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        if !ua.isEmpty, wl == ua { return true }
+        guard let admins = root["admins"] as? [Any] else { return false }
+        for a in admins {
+            let s = String(describing: a).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if s == wl { return true }
+        }
+        return false
+    }
+
+    private struct PosTrustedProgramCardAccessDetail {
+        let allowed: Bool
+        /// Set when the allow/deny decision came from HTTP `getCardAdminInfo` (same JSON can seed Home `upperAdmin` without refetching).
+        let httpAdminRootFromAccessCheck: [String: Any]?
+    }
+
+    /// Prefer Base `owner()` / `isAdmin(wallet)`; if RPC fails, fall back to HTTP `getCardAdminInfo` JSON. `nil` = both paths untrusted.
+    private func posTerminalTrustedProgramCardAccessDetail(wallet w: String, infra: String) async -> PosTrustedProgramCardAccessDetail? {
+        if let chain = await api.fetchPosProgramCardHomeAccessAllowed(cardAddress: infra, wallet: w) {
+            return PosTrustedProgramCardAccessDetail(allowed: chain, httpAdminRootFromAccessCheck: nil)
+        }
+        guard let root = await api.fetchCardAdminInfoRoot(cardAddress: infra, wallet: w) else { return nil }
+        let allowed = Self.walletHasTrustedInfraPosHomeAccess(root: root, walletLower: w.lowercased())
+        return PosTrustedProgramCardAccessDetail(allowed: allowed, httpAdminRootFromAccessCheck: root)
+    }
+
+    private func posTerminalTrustedProgramCardAccess(wallet w: String, infra: String) async -> Bool? {
+        guard let d = await posTerminalTrustedProgramCardAccessDetail(wallet: w, infra: infra) else { return nil }
+        return d.allowed
+    }
+
+    /// After trusted **allowed** gate: ensure Home init has one `getCardAdminInfo` root for this program card (reuse HTTP root from access check when present; else fetch once for `upperAdmin` / routing).
+    private func hydratePendingGetCardAdminInfoForHomeAfterTrustedAllow(wallet w: String, infra: String, httpRootFromAccess: [String: Any]?) async {
+        let c = infra.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard looksLikeAddress(c) else {
+            pendingGetCardAdminInfoRootForHome = nil
+            return
+        }
+        let cl = c.lowercased()
+        if let r = httpRootFromAccess {
+            pendingGetCardAdminInfoRootForHome = (cl, r)
+            return
+        }
+        if let r = await api.fetchCardAdminInfoRoot(cardAddress: c, wallet: w) {
+            pendingGetCardAdminInfoRootForHome = (cl, r)
+        } else {
+            pendingGetCardAdminInfoRootForHome = nil
+        }
+    }
+
+    /// Workspace / parent `@BeamioTag` search: server-side filter via `GET /api/search-users-by-card-owner-or-admin` (replaces local `search-users` + `getCardAdminInfo` filter).
+    func searchUsersListForPOSTerminal(keyward: String) async -> [TerminalProfile] {
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        return await api.searchUsersListForPOS(keyward: keyward, wallet: walletAddress, merchantInfraCard: infra)
+    }
+
+    private func posSearchUsersFirst(keyward: String) async -> TerminalProfile? {
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let w = walletAddress else { return nil }
+        return await api.searchUsersListForPOS(keyward: keyward, wallet: w, merchantInfraCard: infra).first
+    }
+
+    private func clearTerminalParentPermissionPendingState(walletLower: String) {
+        stopParentPermissionGatePolling()
+        let d = UserDefaults.standard
+        d.removeObject(forKey: Self.pendingParentWorkspaceTagKey(wallet: walletLower))
+        d.removeObject(forKey: Self.terminalPermissionAutoSentKey(wallet: walletLower))
+        d.removeObject(forKey: Self.permissionResendCooldownUntilKey(wallet: walletLower))
+        splashParentBeamioTagForPermission = ""
+        permissionGateParentTagLine = ""
+        showAwaitingParentPermissionGate = false
+        terminalPermissionResendCooldownUntil = nil
+    }
+
+    private func syncTerminalPermissionResendCooldownFromDefaults(walletLower: String) {
+        let key = Self.permissionResendCooldownUntilKey(wallet: walletLower)
+        let t = UserDefaults.standard.double(forKey: key)
+        guard t > 0 else {
+            terminalPermissionResendCooldownUntil = nil
+            return
+        }
+        let until = Date(timeIntervalSince1970: t)
+        if until <= Date() {
+            UserDefaults.standard.removeObject(forKey: key)
+            terminalPermissionResendCooldownUntil = nil
+        } else {
+            terminalPermissionResendCooldownUntil = until
+        }
+    }
+
+    private func beginTerminalPermissionResendCooldown(walletLower: String) {
+        let until = Date().addingTimeInterval(Self.terminalPermissionResendCooldownSeconds)
+        UserDefaults.standard.set(until.timeIntervalSince1970, forKey: Self.permissionResendCooldownUntilKey(wallet: walletLower))
+        terminalPermissionResendCooldownUntil = until
+    }
+
+    /// - Returns: `userVisibleError` only when the flow should surface a toast (nil on success).
+    /// Resolves parent @BeamioTag → EOA with **global** `GET /api/search-users` (SilentPassUI parity). Do **not** use `search-users-by-card-owner-or-admin` here: after POS binds the real program card, the parent may fall outside that filter while still being the valid CoNET recipient.
+    private func sendTerminalPermissionCoNetMessage(parentNormalized parent: String) async -> (ok: Bool, userVisibleError: String?) {
+        guard let w = walletAddress, let hex = walletPrivateKeyHex else { return (false, nil) }
+        guard let parentProf = await api.searchUsers(keyward: parent),
+              let pAddrRaw = parentProf.address?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !pAddrRaw.isEmpty
+        else {
+            return (false, "Could not find the parent workspace on Beamio.")
+        }
+        let childTag = terminalProfile?.accountName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let chatReady = await BeamioConetChatRouteRegister.ensureRegisteredForSenderGossip(walletPrivateKeyHex: hex)
+        guard chatReady else {
+            return (false, "Could not register CoNET chat keys for this device. Check the network and try again.")
+        }
+        let ok = await BeamioConetGossipSend.sendTerminalPermissionRequest(
+            recipientEoa: pAddrRaw,
+            childEoa: w,
+            childBeamioTag: childTag,
+            parentBeamioTag: parent,
+            walletPrivateKeyHex: hex
+        )
+        if ok { return (true, nil) }
+        return (false, "Could not send the CoNET permission request. Check the network and try again.")
+    }
+
+    /// POS Home is blocked until **trusted** on-chain `owner`/`isAdmin` (or HTTP fallback) confirms this wallet on the program card.
+    private func reconcileParentPermissionGateWithServer() async {
+        guard let w = walletAddress else { return }
+        let wl = w.lowercased()
+        let rawPending = UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let pending = normalizeParentBeamioTag(rawPending)
+        let infra = merchantInfraCard
+
+        if let detail = await posTerminalTrustedProgramCardAccessDetail(wallet: w, infra: infra) {
+            persistTrustedInfraPosHomeAccess(walletLower: wl, allowed: detail.allowed)
+            if detail.allowed {
+                await hydratePendingGetCardAdminInfoForHomeAfterTrustedAllow(wallet: w, infra: infra, httpRootFromAccess: detail.httpAdminRootFromAccessCheck)
+                clearTerminalParentPermissionPendingState(walletLower: wl)
+                return
+            }
+            pendingGetCardAdminInfoRootForHome = nil
+            permissionGateParentTagLine = pending
+            showAwaitingParentPermissionGate = true
+            syncTerminalPermissionResendCooldownFromDefaults(walletLower: wl)
+            startParentPermissionGatePollingIfNeeded()
+            return
+        }
+
+        // Untrusted: Base RPC + HTTP both failed — must not widen access.
+        pendingGetCardAdminInfoRootForHome = nil
+        permissionGateParentTagLine = pending
+        showAwaitingParentPermissionGate = true
+        if !pending.isEmpty {
+            syncTerminalPermissionResendCooldownFromDefaults(walletLower: wl)
+        }
+        startParentPermissionGatePollingIfNeeded()
+    }
+
+    private func startParentPermissionGatePollingIfNeeded() {
+        guard showAwaitingParentPermissionGate else { return }
+        guard parentPermissionGatePollTask == nil else { return }
+        parentPermissionGatePollTask = Task { [weak self] in
+            guard let self else { return }
+            await self.runParentPermissionGatePollLoop()
+        }
+    }
+
+    private func stopParentPermissionGatePolling() {
+        parentPermissionGatePollTask?.cancel()
+        parentPermissionGatePollTask = nil
+    }
+
+    /// Single flight: each tick waits 6s, then skips if `homeRefreshInFlight` or gate closed; otherwise `await refreshHomeProfiles()`.
+    private func runParentPermissionGatePollLoop() async {
+        defer { parentPermissionGatePollTask = nil }
+        while showAwaitingParentPermissionGate, !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: Self.parentPermissionGatePollIntervalNs)
+            } catch {
+                break
+            }
+            guard showAwaitingParentPermissionGate, !Task.isCancelled else { break }
+            if homeRefreshInFlight {
+                continue
+            }
+            await refreshHomeProfiles()
+        }
+    }
+
+    func clearSplashParentForTerminalSetup() {
+        splashParentBeamioTagForPermission = ""
+    }
+
+    func openChangeParentWorkspaceAdminPicker() {
+        changeParentWorkspaceAdminSheetPresented = true
+    }
+
+    func cancelChangeParentWorkspaceAdminPicker() {
+        changeParentWorkspaceAdminSheetPresented = false
+    }
+
+    /// Replace pending parent tag, clear auto-send + resend cooldown, send a new permission request to the chosen @BeamioTag (if still not on the program card admin tree).
+    func confirmChangeParentWorkspaceAdmin(normalizedParentTag raw: String) async {
+        var tag = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while tag.hasPrefix("@") { tag.removeFirst() }
+        tag = tag.replacingOccurrences(of: "@", with: "")
+        guard tag.range(of: "^[a-zA-Z0-9_.]{3,20}$", options: .regularExpression) != nil else {
+            homeToast = "Enter a valid @BeamioTag (3–20 letters, numbers, dots, or underscores)."
+            return
+        }
+        guard let w = walletAddress, walletPrivateKeyHex != nil else { return }
+        let wl = w.lowercased()
+
+        UserDefaults.standard.set(tag, forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))
+        permissionGateParentTagLine = tag
+        UserDefaults.standard.removeObject(forKey: Self.terminalPermissionAutoSentKey(wallet: wl))
+        UserDefaults.standard.removeObject(forKey: Self.permissionResendCooldownUntilKey(wallet: wl))
+        terminalPermissionResendCooldownUntil = nil
+        changeParentWorkspaceAdminSheetPresented = false
+
+        let infra = merchantInfraCard
+        if let allowed = await posTerminalTrustedProgramCardAccess(wallet: w, infra: infra), allowed {
+            clearTerminalParentPermissionPendingState(walletLower: wl)
+            return
+        }
+
+        let result = await sendTerminalPermissionCoNetMessage(parentNormalized: tag)
+        if result.ok {
+            UserDefaults.standard.set(true, forKey: Self.terminalPermissionAutoSentKey(wallet: wl))
+            homeToast = "Approval request sent to @\(tag)."
+        } else if let err = result.userVisibleError {
+            homeToast = err
+        }
+    }
+
+    /// `bizSite` `restoreWithUserPin` parity: chain recover blob → decrypt mnemonic → Keychain → Home.
+    /// - Returns: `nil` on success; otherwise an English error line for inline UI (e.g. Verra gateway form).
+    @discardableResult
+    func restoreWorkspaceFromPin(beamioTag raw: String, accessPassword pin: String) async -> String? {
+        splashParentBeamioTagForPermission = ""
+        var tag = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while tag.hasPrefix("@") { tag.removeFirst() }
+        tag = tag.replacingOccurrences(of: "@", with: "")
+        guard tag.range(of: "^[a-zA-Z0-9_.]{3,20}$", options: .regularExpression) != nil else {
+            return "Use 3–20 letters, numbers, dots, or underscores"
+        }
+        guard let outer = await api.getRecoverBase64ByAccountName(tag)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !outer.isEmpty
+        else {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        guard let decoded = BeamioRecoverRestore.decodeStoragePayload(outerBase64: outer) else {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        let decryptedB64: String
+        do {
+            decryptedB64 = try BeamioRecoverCrypto.aes_gcm_decrypt_stored(
+                cipherB64: decoded.img,
+                password: pin,
+                stored: decoded.stored
+            )
+        } catch {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        let phraseTrim = decryptedB64.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let mnemonicBytes = Data(base64Encoded: phraseTrim),
+              let phrase = String(data: mnemonicBytes, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !phrase.isEmpty
+        else {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        let hex: String
+        do {
+            hex = try BeamioBIP32.ethereumPrivateKeyHexFromMnemonic(phrase)
+        } catch {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        do {
+            let lower = try BeamioEthWallet.address(fromPrivateKeyHex: hex)
+            try BeamioKeychain.savePrivateKeyHex(hex)
+            walletPrivateKeyHex = hex
+            walletAddress = lower
+            loadPersistedTrustedInfraPosHomeAccess(walletLower: lower.lowercased())
+            showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
+            showWelcome = false
+            showOnboarding = false
+            showLaunchSplash = true
+            applyTrustedProfileCachesFromDisk()
+            let seeded = TerminalProfile(accountName: tag, firstName: nil, lastName: nil, image: nil, address: lower)
+            terminalProfile = seeded
+            POSHomeScreenTrustedCache.saveTerminal(seeded, wallet: lower)
+            if let w = walletAddress {
+                applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: merchantInfraCard, replaceDisplayValues: false)
+            }
+            Task { @MainActor in
+                await refreshInfraCardFromDbIfPossible()
+                await refreshHomeProfiles()
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// `bizSite` `restoreWithRedeem(recoveryCode, '')`: `keccak256(abi.encodePacked(code))` → chain blob → AES-GCM password `pin + code` with empty pin.
+    @discardableResult
+    func restoreWorkspaceFromRecoveryCode(_ rawCode: String) async -> String? {
+        splashParentBeamioTagForPermission = ""
+        let code = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !code.isEmpty else {
+            return "Recovery code is required."
+        }
+        let hashHex = BeamioEthWallet.solidityPackedKeccak256(utf8Parts: [code])
+        guard let outer = await api.getRecoverBase64ByNameHash(hashHex: hashHex)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !outer.isEmpty
+        else {
+            return "Invalid recovery QR code"
+        }
+        guard let decoded = BeamioRecoverRestore.decodeStoragePayload(outerBase64: outer) else {
+            return "Invalid recovery QR code"
+        }
+        let decryptedB64: String
+        do {
+            decryptedB64 = try BeamioRecoverCrypto.aes_gcm_decrypt_stored(
+                cipherB64: decoded.img,
+                password: code,
+                stored: decoded.stored
+            )
+        } catch {
+            return "Invalid recovery QR code"
+        }
+        let phraseTrim = decryptedB64.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let mnemonicBytes = Data(base64Encoded: phraseTrim),
+              let phrase = String(data: mnemonicBytes, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !phrase.isEmpty
+        else {
+            return "Invalid recovery QR code"
+        }
+        let hex: String
+        do {
+            hex = try BeamioBIP32.ethereumPrivateKeyHexFromMnemonic(phrase)
+        } catch {
+            return "Invalid recovery QR code"
+        }
+        do {
+            let lower = try BeamioEthWallet.address(fromPrivateKeyHex: hex)
+            try BeamioKeychain.savePrivateKeyHex(hex)
+            walletPrivateKeyHex = hex
+            walletAddress = lower
+            loadPersistedTrustedInfraPosHomeAccess(walletLower: lower.lowercased())
+            showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
+            showWelcome = false
+            showOnboarding = false
+            showLaunchSplash = true
+            applyTrustedProfileCachesFromDisk()
+            let seeded = TerminalProfile(accountName: nil, firstName: nil, lastName: nil, image: nil, address: lower)
+            terminalProfile = seeded
+            POSHomeScreenTrustedCache.saveTerminal(seeded, wallet: lower)
+            if let w = walletAddress {
+                applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: merchantInfraCard, replaceDisplayValues: false)
+            }
+            Task { @MainActor in
+                await refreshInfraCardFromDbIfPossible()
+                await refreshHomeProfiles()
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
         }
     }
 
@@ -299,9 +844,71 @@ final class POSViewModel: ObservableObject {
         return (len8, mixed, numbers)
     }
 
-    func goCreateWallet() {
+    func goCreateWallet(prefillNormalizedHandle: String? = nil) {
+        showVerraWorkspaceGateway = false
+        onboardingParentBeamioTag = ""
+        splashParentBeamioTagForPermission = ""
+        if var p = prefillNormalizedHandle?.trimmingCharacters(in: .whitespacesAndNewlines), !p.isEmpty {
+            while p.hasPrefix("@") { p.removeFirst() }
+            p = p.replacingOccurrences(of: "@", with: "")
+            if !p.isEmpty {
+                onboardingParentBeamioTag = p
+                splashParentBeamioTagForPermission = p
+            }
+        }
         showWelcome = false
         showOnboarding = true
+    }
+
+    /// `{parent}_POS_{nnnn}` within 20 chars (Cluster / `isBeamioAccountNameAvailable` rule).
+    static func assemblePosTerminalBeamioTag(parent rawParent: String, sequence: Int) -> String {
+        let tail = "_POS_" + String(format: "%04d", min(max(sequence, 0), 9999))
+        var base = rawParent.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasPrefix("@") { base.removeFirst() }
+        base = base.replacingOccurrences(of: "@", with: "")
+        // Parent may be a short address label with `…`; only [a-zA-Z0-9_.] is valid for Beamio tags.
+        base = base.replacingOccurrences(of: "[^a-zA-Z0-9_.]", with: "", options: .regularExpression)
+        if base.isEmpty { base = "pos" }
+        let maxPrefix = max(0, 20 - tail.count)
+        if base.count > maxPrefix {
+            base = String(base.prefix(maxPrefix))
+        }
+        let combined = base + tail
+        guard combined.count >= 3 else {
+            return "pos" + tail
+        }
+        return combined
+    }
+
+    private static let onboardTagAvailabilityRetries = 3
+    private static let onboardTagAvailabilityRetryNanos: UInt64 = 400_000_000
+
+    /// Registry says name is free (`true`) or taken (`false`); `nil` after retries = could not verify (do not prefill).
+    private func isBeamioTagNameVerifiedAvailable(_ candidate: String) async -> Bool? {
+        for attempt in 0 ..< Self.onboardTagAvailabilityRetries {
+            let avail = await api.isBeamioAccountNameAvailable(candidate)
+            if avail == true { return true }
+            if avail == false { return false }
+            if attempt < Self.onboardTagAvailabilityRetries - 1 {
+                try? await Task.sleep(nanoseconds: Self.onboardTagAvailabilityRetryNanos)
+            }
+        }
+        return nil
+    }
+
+    /// First assembled candidate for which on-chain availability is **confirmed** (`true`). Empty if none verified or RPC cannot confirm.
+    func resolveFirstAvailablePosTerminalTag(parent rawParent: String) async -> String {
+        let parent = rawParent.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "@", with: "")
+        guard !parent.isEmpty else { return "" }
+        for n in 1 ... 9999 {
+            let candidate = Self.assemblePosTerminalBeamioTag(parent: parent, sequence: n)
+            guard candidate.range(of: "^[a-zA-Z0-9_.]{3,20}$", options: .regularExpression) != nil else { continue }
+            let verified = await isBeamioTagNameVerifiedAvailable(candidate)
+            if verified == true { return candidate }
+            if verified == false { continue }
+            return ""
+        }
+        return ""
     }
 
     func refreshHomeProfiles() async {
@@ -315,12 +922,22 @@ final class POSViewModel: ObservableObject {
         }
         guard let w = walletAddress else { return }
         await refreshInfraCardFromDbIfPossible()
+        await ensureMerchantInfraCardForPosDashboard(wallet: w)
         let infra = merchantInfraCard
+        // Admin gate first (chain `isAdmin` / `owner`) so revoke is applied before slower `getWalletAssets` / stats.
+        await reconcileParentPermissionGateWithServer()
 
-        // `getCardAdminInfo` success vs failure: only trust updates after a successful JSON response.
-        if let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w) {
-            let adminAddr = adminTuple.upperAdmin?.nilIfEmpty ?? adminTuple.owner?.nilIfEmpty
-            if let adminAddr, !adminAddr.isEmpty {
+        // Home refresh: **trusted** = successful parse of remote data; **untrusted** = network/HTTP/body errors (`nil` / `ok: false`).
+        // Untrusted results must not be interpreted as “no data” and must not clear in-memory state or UserDefaults cache.
+
+        // Upper-admin capsule: prefer `getCardAdminInfo` root cached during trusted gate (same program card as `isAdmin` check); else one HTTP fetch.
+        // Resolve admin EOA → profile with **global** `search-users` (not POS-filtered API), same as CoNET parent lookup.
+        // Use `upperAdmin` only (no `owner` fallback).
+        let infraLower = infra.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let pend = pendingGetCardAdminInfoRootForHome, pend.cardLower == infraLower {
+            pendingGetCardAdminInfoRootForHome = nil
+            let root = pend.root
+            if let adminAddr = (root["upperAdmin"] as? String)?.nilIfEmpty, !adminAddr.isEmpty {
                 if let adminProf = await api.searchUsers(keyward: adminAddr) {
                     adminProfile = adminProf
                     POSHomeScreenTrustedCache.saveAdmin(adminProf, wallet: w)
@@ -328,6 +945,19 @@ final class POSViewModel: ObservableObject {
             } else {
                 adminProfile = nil
                 POSHomeScreenTrustedCache.removeAdmin(wallet: w)
+            }
+        } else {
+            pendingGetCardAdminInfoRootForHome = nil
+            if let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w) {
+                if let adminAddr = adminTuple.upperAdmin?.nilIfEmpty, !adminAddr.isEmpty {
+                    if let adminProf = await api.searchUsers(keyward: adminAddr) {
+                        adminProfile = adminProf
+                        POSHomeScreenTrustedCache.saveAdmin(adminProf, wallet: w)
+                    }
+                } else {
+                    adminProfile = nil
+                    POSHomeScreenTrustedCache.removeAdmin(wallet: w)
+                }
             }
         }
 
@@ -340,8 +970,6 @@ final class POSViewModel: ObservableObject {
         if ast.ok {
             hasAAAccount = ast.aaAddress?.nilIfEmpty != nil
             homeMerchantProgramCardName = Self.merchantProgramMetadataDisplayName(from: ast, merchantInfraCard: infra)
-        } else {
-            hasAAAccount = true
         }
 
         let st = await api.fetchAdminStatsDayChargeAndTopUp(wallet: w, infraCard: infra)
@@ -387,8 +1015,30 @@ final class POSViewModel: ObservableObject {
         let changed = addr.lowercased() != previous.lowercased()
         merchantInfraCard = addr
         if changed {
+            pendingGetCardAdminInfoRootForHome = nil
             homeMerchantProgramCardName = nil
+            resetTrustedInfraPosHomeAccessForWalletChange(walletLower: w.lowercased())
+            showAwaitingParentPermissionGate = true
             applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: addr, replaceDisplayValues: true)
+        }
+    }
+
+    /// When Cluster has not bound this POS yet (`myPosAddress` empty), pick the first factory `cardsOfOwner` card where this wallet is `owner` or `isAdmin` so Home stats / `getWalletAssets` target the real program card (default constant is often wrong).
+    private func ensureMerchantInfraCardForPosDashboard(wallet w: String) async {
+        if let db = await api.fetchMyPosAddress(wallet: w), looksLikeAddress(db) {
+            merchantInfraCard = db
+            return
+        }
+        let cards = await api.fetchMyCardAddresses(ownerEoa: w)
+        for raw in cards {
+            guard looksLikeAddress(raw) else { continue }
+            if let allowed = await api.fetchPosProgramCardHomeAccessAllowed(cardAddress: raw, wallet: w), allowed {
+                if raw.lowercased() != merchantInfraCard.lowercased() {
+                    homeMerchantProgramCardName = nil
+                }
+                merchantInfraCard = raw
+                return
+            }
         }
     }
 
@@ -454,7 +1104,7 @@ final class POSViewModel: ObservableObject {
         case .topup:
             await handleReadOrTopupQr(text, mode: .topup)
         case .linkApp:
-            scanBanner = "Use NFC to scan the customer card."
+            scanBanner = "Link App works with NFC only."
         }
     }
 
@@ -953,11 +1603,15 @@ final class POSViewModel: ObservableObject {
         return "Could not read payment code."
     }
 
-    /// User closed the iOS NFC sheet → fall back to QR (same for Check Balance, Top-up, Charge, Link App).
+    /// User closed the iOS NFC sheet → fall back to QR (Check Balance, Top-up, Charge). **Link App** is NFC-only: return Home.
     private func handleScanSheetNfcDismissedByUser() async {
         guard case .scan = sheet else { return }
         isNfcBusy = false
         scanAwaitingNfcTap = false
+        if pendingScanAction == .linkApp {
+            closeLinkAppScanReturnHome()
+            return
+        }
         // Defensive: tag read may have just set these; do not arm QR (would clear errors via `setScanMethod(.qr)`).
         switch pendingScanAction {
         case .payment:
@@ -967,17 +1621,35 @@ final class POSViewModel: ObservableObject {
         case .read:
             if let e = readQrExecuteError, !e.isEmpty { return }
         case .linkApp:
-            break
+            return
         }
         await armScanQrCameraAfterUserDismissedNfc()
     }
 
-    /// Tag reading not available (`readingAvailable` false) → QR fallback (all scan sheets).
+    /// Tag reading not available (`readingAvailable` false) → QR fallback (Check Balance, Top-up, Charge). **Link App** returns Home.
     private func handleScanNfcReadingUnavailable() async {
         guard case .scan = sheet else { return }
         isNfcBusy = false
         scanAwaitingNfcTap = false
+        if pendingScanAction == .linkApp {
+            closeLinkAppScanReturnHome(
+                message: "NFC is turned off or unavailable. Link App requires NFC."
+            )
+            return
+        }
         await armScanQrCameraFromNfcFallback()
+    }
+
+    /// Link App has no QR workflow — dismiss scan sheet and reset link state (return to Home).
+    private func closeLinkAppScanReturnHome(message: String? = nil) {
+        guard pendingScanAction == .linkApp else { return }
+        linkDeepLink = ""
+        linkLockedSun = nil
+        showLinkCancel = false
+        closeScanSheet()
+        if let message, !message.isEmpty {
+            homeToast = message
+        }
     }
 
     /// After user dismisses NFC we may restart NFC if camera is denied (`readingAvailable` is typically still true).
@@ -996,6 +1668,12 @@ final class POSViewModel: ObservableObject {
 
     /// NFC cannot run — open QR; do not loop `nfc.begin()` when both NFC and camera are unusable.
     private func armScanQrCameraFromNfcFallback() async {
+        if pendingScanAction == .linkApp {
+            closeLinkAppScanReturnHome(
+                message: "NFC is turned off or unavailable. Link App requires NFC."
+            )
+            return
+        }
         let ok = await requestCameraIfNeeded()
         if ok {
             setScanMethod(.qr)
@@ -1144,6 +1822,92 @@ final class POSViewModel: ObservableObject {
         }
     }
 
+    /// Matches membership NFT convention (`NFT_START_ID`); unexpired row on the program card ⇒ treated as member for top-up threshold checks.
+    private static let beamioMembershipNftMinTokenId: Int64 = 100
+
+    /// Mirrors `_hasValidCard` semantics close enough for preflight: any **non-expired** program-card membership NFT ⇒ not “non-member” for `UC_BelowMinThreshold`.
+    private static func cardHasValidMembershipForTopup(_ card: CardItem?) -> Bool {
+        guard let card else { return false }
+        let primary = card.primaryMemberTokenId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let p = Int64(primary), p > 0 {
+            if let nft = card.nfts.first(where: {
+                $0.tokenId == primary || $0.tokenId.caseInsensitiveCompare(primary) == .orderedSame
+            }) {
+                return !nft.isExpired
+            }
+            return true
+        }
+        for nft in card.nfts {
+            let tid = Int64(nft.tokenId) ?? 0
+            if tid >= beamioMembershipNftMinTokenId, !nft.isExpired {
+                return true
+            }
+        }
+        return false
+    }
+
+    /// Before sign/submit: **only without valid membership** — minted `points6` must be ≥ lowest tier `minUsdc6` (`_requirePointsMintAllowsFirstMembership`). When input currency matches on-chain card currency, uses `ceil(amountCurrency6 * 1e6 / pointsUnitPriceInCurrencyE6)` like `MemberCard.nfcTopupPreparePayload` — **not** oracle `currencyToUsdc6` vs tier (wrong units). If chain read fails or currencies differ, skip local check (server/chain still enforce).
+    private func validateTopupMeetsMinimumTierForNonMember(
+        amountStr: String,
+        cardAddr: String,
+        preCard: CardItem?,
+        currency: String,
+        customerAa: String? = nil
+    ) async -> String? {
+        guard let amt = Double(amountStr), amt > 0 else { return nil }
+        guard !Self.cardHasValidMembershipForTopup(preCard) else { return nil }
+        if let aa = customerAa?.trimmingCharacters(in: .whitespacesAndNewlines), !aa.isEmpty,
+           await api.chainHasValidMembershipForTopup(programCard: cardAddr, userAa: aa) {
+            return nil
+        }
+        let bundle = await api.fetchCardMetadataTiersBundle(cardAddress: cardAddr)
+        let rows = bundle.rows
+        guard !rows.isEmpty else { return nil }
+        let minU = rows.map(\.minUsdc6).min() ?? 0
+        guard minU > 0 else { return nil }
+
+        let ccy = currency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let amtMicro = (amt * 1_000_000.0).rounded(.towardZero)
+        guard amtMicro.isFinite, amtMicro > 0, amtMicro <= Double(Int64.max) else { return nil }
+        let amountCurrency6 = Int64(amtMicro)
+        guard amountCurrency6 > 0 else { return nil }
+
+        guard let chain = await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: cardAddr),
+              chain.code.uppercased() == ccy
+        else { return nil }
+
+        let priceE6 = chain.priceE6
+        guard priceE6 > 0 else { return nil }
+
+        let ac6 = UInt64(amountCurrency6)
+        let prodMul = ac6.multipliedReportingOverflow(by: 1_000_000)
+        guard !prodMul.overflow else { return nil }
+        let topPoints6 = Self.topupCeilDivUInt64(prodMul.partialValue, priceE6)
+        guard topPoints6 < UInt64(minU) else { return nil }
+
+        let minPayCur6 = Self.decimalCeilDiv(Decimal(minU) * Decimal(priceE6), Decimal(1_000_000))
+        let minPayDec = minPayCur6 / Decimal(1_000_000)
+        let minPay = Double(truncating: NSDecimalNumber(decimal: minPayDec))
+        let nf = NumberFormatter()
+        nf.numberStyle = .decimal
+        nf.minimumFractionDigits = 2
+        nf.maximumFractionDigits = 2
+        nf.locale = Locale(identifier: "en_US")
+        let minFormatted = nf.string(from: NSNumber(value: minPay)) ?? String(format: "%.2f", minPay)
+        return "No active membership for this customer. Top-up must be at least \(minFormatted) \(ccy) (first tier minimum for this card)."
+    }
+
+    private static func topupCeilDivUInt64(_ a: UInt64, _ b: UInt64) -> UInt64 {
+        guard b > 0 else { return 0 }
+        return (a + b - 1) / b
+    }
+
+    private static func decimalCeilDiv(_ numerator: Decimal, _ denominator: Decimal) -> Decimal {
+        guard numerator >= 0, denominator > 0 else { return 0 }
+        let one = Decimal(1)
+        return (numerator + denominator - one) / denominator
+    }
+
     /// Android `executeWalletTopupInternal`: first `getWalletAssets`; on failure `ensureAaForEoaSync` then retry once.
     private func getWalletAssetsForTopupWithEnsureAA(wallet: String, infra: String) async -> UIDAssets {
         var assets = await api.getWalletAssets(
@@ -1176,6 +1940,7 @@ final class POSViewModel: ObservableObject {
         }
         await refreshInfraCardFromDbIfPossible()
         let infra = merchantInfraCard
+        let topupPrepareCurrency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
 
         if let beamioTag {
             let tagPrep = await api.nfcTopupPrepare(
@@ -1184,7 +1949,8 @@ final class POSViewModel: ObservableObject {
                 beamioTag: beamioTag,
                 amount: amt,
                 sun: nil,
-                infraCard: infra
+                infraCard: infra,
+                currency: topupPrepareCurrency
             )
             if let err = tagPrep.error {
                 reportTopupFailure(err, topupFromQr: topupFromQr)
@@ -1210,6 +1976,11 @@ final class POSViewModel: ObservableObject {
             let preBal = preCard?.points ?? preAssets.points ?? "0"
             let cur = preCard?.cardCurrency ?? preAssets.cardCurrency ?? "CAD"
             let custAddr = preAssets.address
+
+            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCard, currency: cur, customerAa: preAssets.aaAddress) {
+                reportTopupFailure(err, topupFromQr: topupFromQr)
+                return
+            }
 
             let sigBeamio: String
             do {
@@ -1270,7 +2041,8 @@ final class POSViewModel: ObservableObject {
                 beamioTag: nil,
                 amount: amt,
                 sun: nil,
-                infraCard: infra
+                infraCard: infra,
+                currency: topupPrepareCurrency
             )
             if prep.error != nil {
                 _ = await api.ensureAAForEOA(eoa: wallet)
@@ -1280,7 +2052,8 @@ final class POSViewModel: ObservableObject {
                     beamioTag: nil,
                     amount: amt,
                     sun: nil,
-                    infraCard: infra
+                    infraCard: infra,
+                    currency: topupPrepareCurrency
                 )
             }
             guard prep.error == nil, let cardAddr = prep.cardAddr, let data = prep.data,
@@ -1299,6 +2072,11 @@ final class POSViewModel: ObservableObject {
             let preBalW = preCardW?.points ?? preWalletAssets.points ?? "0"
             let curW = preCardW?.cardCurrency ?? preWalletAssets.cardCurrency ?? "CAD"
             let custAddrW = preWalletAssets.address
+
+            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCardW, currency: curW, customerAa: preWalletAssets.aaAddress) {
+                reportTopupFailure(err, topupFromQr: topupFromQr)
+                return
+            }
 
             let sigW: String
             do {
@@ -1360,7 +2138,8 @@ final class POSViewModel: ObservableObject {
             beamioTag: nil,
             amount: amt,
             sun: sunN,
-            infraCard: infra
+            infraCard: infra,
+            currency: topupPrepareCurrency
         )
 
         guard prep.error == nil, let cardAddr = prep.cardAddr, let data = prep.data,
@@ -1384,6 +2163,11 @@ final class POSViewModel: ObservableObject {
         let preBalN = preCardN?.points ?? preUidAssets.points ?? "0"
         let curN = preCardN?.cardCurrency ?? preUidAssets.cardCurrency ?? "CAD"
         let custAddrN = preUidAssets.address
+
+        if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCardN, currency: curN, customerAa: preUidAssets.aaAddress) {
+            reportTopupFailure(err, topupFromQr: topupFromQr)
+            return
+        }
 
         let sigN: String
         do {
@@ -1850,6 +2634,12 @@ final class POSViewModel: ObservableObject {
         resetPaymentQrChrome()
         resetTopupQrChrome()
         resetReadQrChrome()
+        // Re-run admin gate + home refresh after Check Balance / dismissed scan flows (same idea as payment success dismiss).
+        if walletAddress != nil, !showWelcome, !showOnboarding {
+            Task {
+                await refreshHomeProfiles()
+            }
+        }
     }
 
     func dismissTopupSuccess() {
@@ -1866,6 +2656,7 @@ final class POSViewModel: ObservableObject {
 
     func topUpAfterInsufficientFunds() {
         chargeInsufficientFunds = nil
+        topupPaymentMethodTitle = "USDC"
         beginTopUp()
     }
 
@@ -2009,6 +2800,7 @@ final class POSViewModel: ObservableObject {
 
     /// Switch between Tap Card and Scan QR while sheet is open.
     func setScanMethod(_ m: ScanMethod) {
+        if pendingScanAction == .linkApp, m == .qr { return }
         if pendingScanAction == .payment, m != scanMethod {
             paymentQrParseError = nil
             paymentQrInterpreting = false

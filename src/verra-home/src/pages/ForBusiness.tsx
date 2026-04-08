@@ -236,6 +236,14 @@ export function ForBusiness() {
 							A desktop-class dashboard designed for clarity. Monitor settlements, manage loyalty nodes, and watch
 							your local ecosystem grow in real-time.
 						</p>
+						<a
+							href="https://biz.beamio.app/biz/"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="mt-8 inline-flex items-center justify-center rounded-full bg-primary px-10 py-5 text-lg font-bold text-white shadow-xl transition-transform hover:scale-105"
+						>
+							Open Business Dashboard
+						</a>
 					</div>
 					<div className="overflow-hidden rounded-xl bg-surface-container-high p-1 shadow-2xl">
 						<div className="flex h-10 items-center gap-2 bg-surface-container-highest px-6">
