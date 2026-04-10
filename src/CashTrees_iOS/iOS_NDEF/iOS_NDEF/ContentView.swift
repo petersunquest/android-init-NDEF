@@ -2591,7 +2591,7 @@ private struct HomeRootView: View {
                     ) { amountFlow = .charge }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     homeActionRow(
-                        title: "Top-Up / Mint",
+                        title: "Top-Up",
                         subtitle: "Load balance or new card",
                         systemImage: "plus",
                         iconBackground: mintGreen.opacity(0.2),
@@ -3357,17 +3357,15 @@ private struct BeamioNumericAmountPadKeypad: View {
 private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
     case creditCard
     case cash
-    case airdrop
-    case usdc
+    case bonus
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .creditCard: return "Credit Card"
+        case .creditCard: return "Card"
         case .cash: return "Cash"
-        case .airdrop: return "Airdrop"
-        case .usdc: return "USDC"
+        case .bonus: return "Bonus"
         }
     }
 
@@ -3375,8 +3373,18 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
         switch self {
         case .creditCard: return "creditcard.fill"
         case .cash: return "banknote.fill"
-        case .airdrop: return "dot.radiowaves.left.and.right"
-        case .usdc: return "wallet.pass.fill"
+        case .bonus: return "sparkles"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .creditCard:
+            return Color(red: 0xD4 / 255, green: 0x9B / 255, blue: 0x1F / 255)
+        case .cash:
+            return Color(red: 0x6B / 255, green: 0x72 / 255, blue: 0x80 / 255)
+        case .bonus:
+            return Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
         }
     }
 }
@@ -3386,14 +3394,43 @@ private struct TopupAmountPadFullPage: View {
     var onCancel: () -> Void
     var onContinue: (String, TopupPaymentMethodOption) -> Void
 
-    @State private var selectedMethod: TopupPaymentMethodOption = .creditCard
+    @AppStorage("pos.topup.lastPaymentMethod")
+    private var persistedSelectedMethodRaw: String = TopupPaymentMethodOption.creditCard.rawValue
     @State private var amount = "0"
+    @State private var bonusExpanded = false
+    @State private var selectedBonusRate: Int = 20
 
     /// Same primary as Read Balance “Top-Up Card Now”.
     private let topUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let bonusPink = Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
 
-    private var secondaryMethods: [TopupPaymentMethodOption] {
-        TopupPaymentMethodOption.allCases.filter { $0 != selectedMethod }
+    private var selectedMethod: TopupPaymentMethodOption {
+        TopupPaymentMethodOption(rawValue: persistedSelectedMethodRaw) ?? .creditCard
+    }
+
+    private func setSelectedMethod(_ method: TopupPaymentMethodOption) {
+        persistedSelectedMethodRaw = method.rawValue
+        if method == .bonus {
+            bonusExpanded = false
+        }
+    }
+
+    private var bonusWorkflowEnabled: Bool {
+        selectedMethod != .bonus
+    }
+
+    private var nextSelectedMethod: TopupPaymentMethodOption {
+        if bonusExpanded {
+            switch selectedMethod {
+            case .creditCard: return .cash
+            case .cash, .bonus: return .creditCard
+            }
+        }
+        switch selectedMethod {
+        case .creditCard: return .cash
+        case .cash: return .bonus
+        case .bonus: return .creditCard
+        }
     }
 
     var body: some View {
@@ -3402,27 +3439,29 @@ private struct TopupAmountPadFullPage: View {
                 let compact = geo.size.height < 640
                 let sidePad: CGFloat = compact ? 16 : 20
                 let gap: CGFloat = compact ? 8 : 10
+                let bonusOuterGap: CGFloat = gap
                 let methodIconSize: CGFloat = compact ? 36 : 42
                 let amtDollar: CGFloat = compact ? 28 : 34
                 let amtMain: CGFloat = compact ? 52 : 64
-                let gridY: CGFloat = compact ? 6 : 9
 
                 VStack(spacing: 0) {
-                    VStack(spacing: gap) {
-                        amountWell(
-                            compact: compact,
-                            amtDollar: amtDollar,
-                            amtMain: amtMain,
-                            methodIconSize: methodIconSize
-                        )
-                        secondaryMethodGrid(compact: compact, gridY: gridY)
-                    }
+                    amountWell(
+                        compact: compact,
+                        amtDollar: amtDollar,
+                        amtMain: amtMain,
+                        methodIconSize: methodIconSize
+                    )
                     .padding(.horizontal, sidePad)
                     .padding(.top, geo.safeAreaInsets.top + 8)
+                    if bonusWorkflowEnabled {
+                        bonusSection(compact: compact)
+                            .padding(.horizontal, sidePad)
+                            .padding(.top, bonusOuterGap)
+                    }
                     BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, sidePad)
-                        .padding(.top, compact ? 10 : 12)
+                        .padding(.top, bonusOuterGap)
                     confirmButton(compact: compact)
                         .padding(.horizontal, sidePad)
                         .padding(.top, compact ? 10 : 12)
@@ -3439,64 +3478,242 @@ private struct TopupAmountPadFullPage: View {
         .compositingGroup()
     }
 
-    /// Non-lazy row so all three tiles stay in the same layer tree as the sheet transition (avoids `LazyVGrid` cells sticking to the window during `move(edge: .trailing)`).
-    private func secondaryMethodGrid(compact: Bool, gridY: CGFloat) -> some View {
-        HStack(spacing: compact ? 8 : 10) {
-            ForEach(secondaryMethods) { m in
+    private var parsedAmountValue: Double {
+        Double(amount) ?? 0
+    }
+
+    private var selectedBonusFraction: Double {
+        Double(selectedBonusRate) / 100.0
+    }
+
+    private var totalBonusValue: Double {
+        parsedAmountValue * selectedBonusFraction
+    }
+
+    private var totalWithBonusValue: Double {
+        parsedAmountValue + totalBonusValue
+    }
+
+    private var amountDisplayAccentColor: Color {
+        selectedMethod == .bonus ? bonusPink : topUpBlue
+    }
+
+    private func bonusSection(compact: Bool) -> some View {
+        ZStack(alignment: .topLeading) {
+            if !bonusExpanded {
+                collapsedBonusPanel(compact: compact)
+                    .transition(bonusPanelSlideTransition)
+                    .zIndex(0)
+            }
+            if bonusExpanded {
+                expandedBonusPanels(compact: compact)
+                    .transition(bonusPanelSlideTransition)
+                    .zIndex(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .clipped()
+        .animation(.easeInOut(duration: 0.28), value: bonusExpanded)
+    }
+
+    private var bonusPanelSlideTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        )
+    }
+
+    private func expandedBonusPanels(compact: Bool) -> some View {
+        VStack(spacing: compact ? 8 : 10) {
+            bonusRatePickerPanel(compact: compact)
+            bonusBreakdownPanel(compact: compact)
+        }
+    }
+
+    private func toggleBonusExpanded(_ expanded: Bool) {
+        withAnimation(.easeInOut(duration: 0.28)) {
+            bonusExpanded = expanded
+        }
+    }
+
+    private func collapsedBonusPanel(compact: Bool) -> some View {
+        Button {
+            BeamioHaptic.light()
+            toggleBonusExpanded(true)
+        } label: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Activate Bonus")
+                        .font(.system(size: compact ? 15 : 16, weight: .semibold))
+                        .foregroundStyle(readBalanceDetailsOnSurface)
+                    Text("Get extra credits on your deposit")
+                        .font(.system(size: compact ? 12 : 13, weight: .medium))
+                        .foregroundStyle(readBalanceDetailsOutline)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                ZStack(alignment: .leading) {
+                    Capsule(style: .continuous)
+                        .fill(readBalanceDetailsOutline.opacity(0.28))
+                        .frame(width: compact ? 48 : 54, height: compact ? 28 : 32)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: compact ? 22 : 26, height: compact ? 22 : 26)
+                        .padding(.leading, 3)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, compact ? 14 : 16)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(readBalanceDetailsSurfaceContainerLowest)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Activate bonus")
+    }
+
+    private func bonusRatePickerPanel(compact: Bool) -> some View {
+        let buttonHeight: CGFloat = compact ? 34 : 36
+        return HStack(spacing: compact ? 6 : 8) {
+            ForEach([10, 20, 30], id: \.self) { rate in
+                let selected = selectedBonusRate == rate
                 Button {
                     BeamioHaptic.light()
-                    selectedMethod = m
+                    selectedBonusRate = rate
                 } label: {
-                    VStack(spacing: compact ? 2 : 4) {
-                        Image(systemName: m.systemImage)
-                            .font(.system(size: compact ? 18 : 21))
-                            .foregroundStyle(readBalanceDetailsOutline)
-                        Text(m.title)
-                            .font(.system(size: compact ? 10 : 11, weight: .semibold))
-                            .foregroundStyle(readBalanceDetailsOnSurface)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.85)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, gridY)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(readBalanceDetailsSurfaceContainerLow)
-                    )
+                    Text("\(rate)%")
+                        .font(.system(size: compact ? 14 : 15, weight: .semibold))
+                        .foregroundStyle(selected ? Color.white : readBalanceDetailsOnSurface)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: buttonHeight)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(selected ? bonusPink : readBalanceDetailsSurfaceContainerLow)
+                        )
                 }
                 .buttonStyle(.plain)
             }
+
+            Button {
+                BeamioHaptic.light()
+                toggleBonusExpanded(false)
+            } label: {
+                ZStack(alignment: .trailing) {
+                    Capsule(style: .continuous)
+                        .fill(topUpBlue)
+                        .frame(width: compact ? 38 : 42, height: compact ? 22 : 24)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: compact ? 16 : 18, height: compact ? 16 : 18)
+                        .padding(.trailing, 3)
+                }
+                .frame(maxWidth: .infinity, minHeight: buttonHeight, maxHeight: buttonHeight)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Turn off bonus")
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 0)
+    }
+
+    private func bonusBreakdownPanel(compact: Bool) -> some View {
+        VStack(spacing: compact ? 6 : 8) {
+            bonusBreakdownRow(
+                label: "Total Bonus",
+                value: topupSummaryAmountString(totalBonusValue),
+                highlight: true,
+                compact: compact
+            )
+        }
+        .padding(.horizontal, compact ? 14 : 16)
+        .padding(.vertical, compact ? 8 : 10)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(readBalanceDetailsSurfaceContainerLowest)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.black.opacity(0.04), lineWidth: 1)
+        )
+    }
+
+    private func bonusBreakdownRow(label: String, value: String, highlight: Bool, compact: Bool) -> some View {
+        HStack(alignment: .lastTextBaseline) {
+            Text(label)
+                .font(.system(size: compact ? 12 : 13, weight: .medium))
+                .foregroundStyle(readBalanceDetailsOnSurface.opacity(0.8))
+            Spacer(minLength: 0)
+            Text(value)
+                .font(.system(size: compact ? 15 : 16, weight: .semibold, design: .monospaced))
+                .foregroundStyle(highlight ? bonusPink : readBalanceDetailsOnSurface)
+        }
+    }
+
+    private func topupSummaryAmountString(_ value: Double) -> String {
+        "$\(formatUsdAmountScanOverlay(value))"
     }
 
     private func amountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat, methodIconSize: CGFloat) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text("$")
-                    .font(.system(size: amtDollar, weight: .bold, design: .rounded))
-                    .foregroundStyle(topUpBlue)
-                Text(beamioAmountPadFormattedDisplay(amount))
-                    .font(.system(size: amtMain, weight: .heavy, design: .rounded))
-                    .foregroundStyle(topUpBlue)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.35)
+        let wellHeight: CGFloat = compact ? 132 : 146
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: compact ? 8 : 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("$")
+                        .font(.system(size: amtDollar, weight: .bold, design: .rounded))
+                        .foregroundStyle(amountDisplayAccentColor)
+                    Text(beamioAmountPadFormattedDisplay(amount))
+                        .font(.system(size: amtMain, weight: .heavy, design: .rounded))
+                        .foregroundStyle(amountDisplayAccentColor)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.35)
+                }
+                if bonusExpanded {
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text("New Balance")
+                            .font(.system(size: compact ? 12 : 13, weight: .semibold))
+                            .foregroundStyle(readBalanceDetailsOnSurface.opacity(0.82))
+                        Text(topupSummaryAmountString(totalWithBonusValue))
+                            .font(.system(size: compact ? 14 : 15, weight: .bold, design: .monospaced))
+                            .foregroundStyle(topUpBlue)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            ZStack {
-                Circle()
-                    .fill(topUpBlue.opacity(0.12))
-                    .frame(width: methodIconSize, height: methodIconSize)
-                Image(systemName: selectedMethod.systemImage)
-                    .font(.system(size: methodIconSize * 0.46))
-                    .foregroundStyle(topUpBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                BeamioHaptic.light()
+                setSelectedMethod(nextSelectedMethod)
+            } label: {
+                VStack(spacing: compact ? 6 : 8) {
+                    Text(selectedMethod.title)
+                        .font(.system(size: compact ? 11 : 12, weight: .semibold))
+                        .foregroundStyle(selectedMethod.accentColor)
+                        .lineLimit(1)
+                    ZStack {
+                        Circle()
+                            .fill(selectedMethod.accentColor.opacity(0.14))
+                            .frame(width: methodIconSize, height: methodIconSize)
+                        Image(systemName: selectedMethod.systemImage)
+                            .font(.system(size: methodIconSize * 0.46))
+                            .foregroundStyle(selectedMethod.accentColor)
+                    }
+                }
+                .frame(minWidth: compact ? 64 : 72)
             }
-            .accessibilityLabel(Text(selectedMethod.title))
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("Payment method \(selectedMethod.title). Tap to switch"))
         }
         .padding(.vertical, compact ? 18 : 22)
         .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: wellHeight, maxHeight: wellHeight, alignment: .center)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(readBalanceDetailsSurfaceContainerLow)

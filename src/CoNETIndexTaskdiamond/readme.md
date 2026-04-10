@@ -743,6 +743,27 @@ function setAfterNotes(uint256 actionId, string calldata afterNotePayer, string 
 - 分类筛选以 `txCategory` 为准，不再使用 `actionType`。
 - `actionId` 仅作为链上顺序索引；业务唯一性依赖 `Transaction.id(txHash)`。
 
+### 7.5.0 分页 `offset` 语义：账户 vs 卡资产（严禁混用）
+
+**背景（2026-04 踩坑复盘）**：链上 CoNET Indexer 已写入最新 Top-Up / Charge（如 `getAccountActionCount` 已增长、`finalRequestAmountFiat6` 正确），但 Merchant OS / Web 客户端账本**长时间不出现最新行**。根因多为：**把 `getAccountTransactionsPaged` 当成与 `getAssetTransactionsPaged` 同一套 offset 方向**，导致首轮 RPC **跳过账户索引中「最新」若干条**。
+
+两类接口在合约中的实现**不一致**（必须以源码为准，不可凭直觉统一成「都从 `total - limit` 起算」）：
+
+| 接口 | Facet | 实现要点 | **`offset = 0` 时** | 从新到旧拉满一页再翻页 |
+|------|--------|----------|---------------------|-------------------------|
+| `getAccountTransactionsPaged(account, offset, limit)` | `ActionFacet` | `revIndex = total - 1 - (offset + i)`，再取 `txRecordByActionId[ids[revIndex]]` | **当前账户下最新一条** | `offset` **从 0 递增**，`limit` 为页大小，直到 `offset >= total` |
+| `getAssetTransactionsPaged(asset, offset, limit)` | `BeamioUserCardStatsFacet` | `ids` 为**追加序**（下标小 = 更旧），`page[i] = txRecordByActionId[ids[offset + i]]` | **该资产下最旧一条** | 取「最新一页」应 **`offset = total - limit`**（且 `limit <= total`），再向更小 `offset` 翻页 |
+
+**错误模式**：对 **账户** 接口使用 **`offset = total - limit`** 作为首页 → 首轮即**丢弃** `ids` 尾部（最新）的 `total - limit` 条之前的所有**更新**都可能进不了首屏合并；若再配合「本地重复 id 提前停止翻页」，表现即为**链上有、客户端无**。
+
+**推荐自检**：
+
+- **账户**：探针 / 单元对照应调用 `getAccountTransactionsPaged(account, 0, N)`，首条时间戳与金额应与产品侧「最后一笔」一致。仓库脚本：`scripts/ledgerProbeIndexerAccount.mjs`（账户维度固定 `offset=0` 展示最新窗口，避免排查误判）。
+- **卡资产**：最新窗口使用 `getAssetTransactionsPaged(asset, max(0, total - N), N)`（或与合约一致的尾向分页循环）。
+- **多端实现**：同一产品内若同时拉账户与资产，须在注释与常量区**显式标注**两种 offset 方向，禁止复制粘贴同一套 `for` 循环变量名而不改语义。
+
+**源码锚点**：`src/CoNETIndexTaskdiamond/facets/ActionFacet.sol` — `getAccountTransactionsPaged`；`src/CoNETIndexTaskdiamond/facets/BeamioUserCardStatsFacet.sol` — `getAssetTransactionsPaged`。
+
 ### 7.5.1 FeeStatsFacet TopN 接口约束（bServiceUnits6）
 
 用于回答两类问题：

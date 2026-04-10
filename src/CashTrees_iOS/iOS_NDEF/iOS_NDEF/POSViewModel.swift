@@ -38,6 +38,8 @@ final class POSViewModel: ObservableObject {
     private var lastTrustedInfraPosHomeAccess: Bool?
     /// Filled in `reconcileParentPermissionGateWithServer` when access is **trusted allowed** for `merchantInfraCard`; consumed once by `refreshHomeProfiles` for upper-admin capsule (avoids a second `getCardAdminInfo` on the same tick).
     private var pendingGetCardAdminInfoRootForHome: (cardLower: String, root: [String: Any])?
+    /// One-shot bootstrap refresh after the waiting gate first unlocks; covers delayed DB/API propagation without requiring app relaunch.
+    private var pendingHomeBootstrapRefreshAfterGateAllow = false
     @Published var infraRoutingTaxPercent: Double?
     @Published var infraRoutingDiscountSummary: String?
     /// Infrastructure / program `BeamioUserCard` metadata `name` (`cards[].cardName`) for the POS `merchantInfraCard` row.
@@ -51,9 +53,17 @@ final class POSViewModel: ObservableObject {
     /// Parent tag from Terminal Setup — copied to UserDefaults pending key when the permission flow starts; cleared when approved.
     var splashParentBeamioTagForPermission: String = ""
     /// Full-screen gate until a trusted `getCardAdminInfo` shows this wallet on the program card admin tree (`admins[]`, or owner / upperAdmin) (blocks mounting Home).
-    @Published var showAwaitingParentPermissionGate = false
+    @Published var showAwaitingParentPermissionGate = false {
+        didSet {
+            persistLastKnownParentPermissionGateUiStateIfPossible()
+        }
+    }
     /// Shown on the permission gate (normalized parent handle, no `@`).
-    @Published var permissionGateParentTagLine: String = ""
+    @Published var permissionGateParentTagLine: String = "" {
+        didSet {
+            persistLastKnownParentPermissionGateUiStateIfPossible()
+        }
+    }
     /// After tapping **Resend approval request**, no further resends until this time (persisted per wallet).
     @Published private(set) var terminalPermissionResendCooldownUntil: Date?
     /// Verra workspace gateway overlay (BeamioTag + password + Recovery QR) — opened from onboarding Restore link.
@@ -169,6 +179,15 @@ final class POSViewModel: ObservableObject {
         "pos.lastTrustedInfraPosHomeAccess.\(wallet.lowercased())"
     }
 
+    /// Last visible waiting-workspace cover state. Restored before async refresh to avoid a launch flicker.
+    private static func lastKnownParentPermissionGateVisibleKey(wallet: String) -> String {
+        "pos.lastKnownParentPermissionGateVisible.\(wallet.lowercased())"
+    }
+
+    private static func lastKnownParentPermissionGateTagKey(wallet: String) -> String {
+        "pos.lastKnownParentPermissionGateTag.\(wallet.lowercased())"
+    }
+
     /// Legacy key before sub-admin (`admins[]`) was included in the POS gate rule.
     private static func legacyLastTrustedInfraOwnerOrUpperKey(wallet: String) -> String {
         "pos.lastTrustedInfraIsOwnerOrUpperAdmin.\(wallet.lowercased())"
@@ -200,6 +219,63 @@ final class POSViewModel: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.legacyLastTrustedInfraOwnerOrUpperKey(wallet: walletLower))
     }
 
+    private func normalizeParentBeamioTag(_ raw: String?) -> String {
+        var tag = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        while tag.hasPrefix("@") { tag.removeFirst() }
+        return tag.replacingOccurrences(of: "@", with: "")
+    }
+
+    private func persistLastKnownParentPermissionGateUiStateIfPossible() {
+        guard let walletLower = walletAddress?.lowercased() else { return }
+        let defaults = UserDefaults.standard
+        defaults.set(showAwaitingParentPermissionGate, forKey: Self.lastKnownParentPermissionGateVisibleKey(wallet: walletLower))
+        let tag = normalizeParentBeamioTag(permissionGateParentTagLine)
+        if tag.isEmpty {
+            defaults.removeObject(forKey: Self.lastKnownParentPermissionGateTagKey(wallet: walletLower))
+        } else {
+            defaults.set(tag, forKey: Self.lastKnownParentPermissionGateTagKey(wallet: walletLower))
+        }
+    }
+
+    /// Restore the last on-screen gate state before we refresh from server.
+    private func restoreLastKnownParentPermissionGateUiState(walletLower: String) -> Bool {
+        let defaults = UserDefaults.standard
+        let visibleKey = Self.lastKnownParentPermissionGateVisibleKey(wallet: walletLower)
+        guard defaults.object(forKey: visibleKey) != nil else { return false }
+        showAwaitingParentPermissionGate = defaults.bool(forKey: visibleKey)
+        let pendingTag = normalizeParentBeamioTag(defaults.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: walletLower)))
+        let savedTag = normalizeParentBeamioTag(defaults.string(forKey: Self.lastKnownParentPermissionGateTagKey(wallet: walletLower)))
+        permissionGateParentTagLine = savedTag.isEmpty ? pendingTag : savedTag
+        return true
+    }
+
+    private func applyInitialParentPermissionGateUiState(walletLower: String) {
+        if restoreLastKnownParentPermissionGateUiState(walletLower: walletLower) {
+            return
+        }
+        // Fallback for first launch before any UI snapshot exists.
+        showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
+        permissionGateParentTagLine = normalizeParentBeamioTag(
+            UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: walletLower))
+        )
+    }
+
+    /// Home data is keyed by infra card. When the resolved POS card changes in-session, immediately swap to that context
+    /// so the first post-approval Home render does not stay bound to the old/default card until next launch.
+    private func adoptMerchantInfraCardForHome(wallet w: String, addr raw: String, replaceDisplayValues: Bool) {
+        let next = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard looksLikeAddress(next) else { return }
+        let prevLower = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let nextLower = next.lowercased()
+        merchantInfraCard = next
+        guard nextLower != prevLower else { return }
+        pendingGetCardAdminInfoRootForHome = nil
+        homeMerchantProgramCardName = nil
+        resetTrustedInfraPosHomeAccessForWalletChange(walletLower: w.lowercased())
+        // Keep the last rendered screen until the next trusted admin check decides whether Home is still allowed.
+        applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: next, replaceDisplayValues: replaceDisplayValues)
+    }
+
     init() {
         reconcileKeychainWithAppContainer()
 
@@ -213,8 +289,8 @@ final class POSViewModel: ObservableObject {
             if let w = walletAddress {
                 let wl = w.lowercased()
                 loadPersistedTrustedInfraPosHomeAccess(walletLower: wl)
-                // Block Home until `getCardAdminInfo` lists this wallet on the program card unless we already have a trusted persisted allow.
-                showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
+                // First paint should reuse the last rendered gate state, then async refresh reconciles with trusted server data.
+                applyInitialParentPermissionGateUiState(walletLower: wl)
                 applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: merchantInfraCard, replaceDisplayValues: false)
             }
             if shouldDismissLaunchSplashFromTrustedHomeCache {
@@ -378,15 +454,12 @@ final class POSViewModel: ObservableObject {
                 startParentPermissionGatePollingIfNeeded()
             }
         }
-        var parent = splashParentBeamioTagForPermission.trimmingCharacters(in: .whitespacesAndNewlines)
-        while parent.hasPrefix("@") { parent.removeFirst() }
-        parent = parent.replacingOccurrences(of: "@", with: "")
+        var parent = normalizeParentBeamioTag(splashParentBeamioTagForPermission)
         if parent.isEmpty, let w0 = walletAddress {
             let wl0 = w0.lowercased()
-            var stored = UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl0))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            while stored.hasPrefix("@") { stored.removeFirst() }
-            stored = stored.replacingOccurrences(of: "@", with: "")
-            parent = stored
+            parent = normalizeParentBeamioTag(
+                UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl0))
+            )
         }
         guard !parent.isEmpty else { return }
         guard let w = walletAddress, walletPrivateKeyHex != nil else { return }
@@ -455,13 +528,6 @@ final class POSViewModel: ObservableObject {
         } else if let err = result.userVisibleError {
             homeToast = err
         }
-    }
-
-    private func normalizeParentBeamioTag(_ raw: String) -> String {
-        var p = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        while p.hasPrefix("@") { p.removeFirst() }
-        p = p.replacingOccurrences(of: "@", with: "")
-        return p
     }
 
     /// True when `getCardAdminInfo` lists this wallet on the program card: contract `owner`, response `upperAdmin`, or **any** address in `admins` (subordinate admin).
@@ -597,11 +663,15 @@ final class POSViewModel: ObservableObject {
         let rawPending = UserDefaults.standard.string(forKey: Self.pendingParentWorkspaceTagKey(wallet: wl))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let pending = normalizeParentBeamioTag(rawPending)
         let infra = merchantInfraCard
+        let wasAwaitingGate = showAwaitingParentPermissionGate
 
         if let detail = await posTerminalTrustedProgramCardAccessDetail(wallet: w, infra: infra) {
             persistTrustedInfraPosHomeAccess(walletLower: wl, allowed: detail.allowed)
             if detail.allowed {
                 await hydratePendingGetCardAdminInfoForHomeAfterTrustedAllow(wallet: w, infra: infra, httpRootFromAccess: detail.httpAdminRootFromAccessCheck)
+                if wasAwaitingGate {
+                    pendingHomeBootstrapRefreshAfterGateAllow = true
+                }
                 clearTerminalParentPermissionPendingState(walletLower: wl)
                 return
             }
@@ -919,6 +989,13 @@ final class POSViewModel: ObservableObject {
             if !showWelcome && !showOnboarding {
                 showLaunchSplash = false
             }
+            if pendingHomeBootstrapRefreshAfterGateAllow, !showAwaitingParentPermissionGate {
+                pendingHomeBootstrapRefreshAfterGateAllow = false
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    await refreshHomeProfiles()
+                }
+            }
         }
         guard let w = walletAddress else { return }
         await refreshInfraCardFromDbIfPossible()
@@ -1010,33 +1087,21 @@ final class POSViewModel: ObservableObject {
 
     func refreshInfraCardFromDbIfPossible() async {
         guard let w = walletAddress else { return }
-        let previous = merchantInfraCard
         guard let addr = await api.fetchMyPosAddress(wallet: w), looksLikeAddress(addr) else { return }
-        let changed = addr.lowercased() != previous.lowercased()
-        merchantInfraCard = addr
-        if changed {
-            pendingGetCardAdminInfoRootForHome = nil
-            homeMerchantProgramCardName = nil
-            resetTrustedInfraPosHomeAccessForWalletChange(walletLower: w.lowercased())
-            showAwaitingParentPermissionGate = true
-            applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: addr, replaceDisplayValues: true)
-        }
+        adoptMerchantInfraCardForHome(wallet: w, addr: addr, replaceDisplayValues: true)
     }
 
     /// When Cluster has not bound this POS yet (`myPosAddress` empty), pick the first factory `cardsOfOwner` card where this wallet is `owner` or `isAdmin` so Home stats / `getWalletAssets` target the real program card (default constant is often wrong).
     private func ensureMerchantInfraCardForPosDashboard(wallet w: String) async {
         if let db = await api.fetchMyPosAddress(wallet: w), looksLikeAddress(db) {
-            merchantInfraCard = db
+            adoptMerchantInfraCardForHome(wallet: w, addr: db, replaceDisplayValues: true)
             return
         }
         let cards = await api.fetchMyCardAddresses(ownerEoa: w)
         for raw in cards {
             guard looksLikeAddress(raw) else { continue }
             if let allowed = await api.fetchPosProgramCardHomeAccessAllowed(cardAddress: raw, wallet: w), allowed {
-                if raw.lowercased() != merchantInfraCard.lowercased() {
-                    homeMerchantProgramCardName = nil
-                }
-                merchantInfraCard = raw
+                adoptMerchantInfraCardForHome(wallet: w, addr: raw, replaceDisplayValues: true)
                 return
             }
         }
