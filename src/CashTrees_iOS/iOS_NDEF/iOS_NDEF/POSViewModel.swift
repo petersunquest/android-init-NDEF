@@ -18,6 +18,8 @@ final class POSViewModel: ObservableObject {
     @Published private(set) var walletAddress: String?
 
     @Published var merchantInfraCard: String = BeamioConstants.defaultBeamioUserCard
+    /// `/api/myPosAddress` `terminalMetadata.allowedTopupMethods`; on fetch failure keep last value.
+    @Published var posTerminalPolicy: PosTerminalPolicy = .allAllowed
     @Published var terminalProfile: TerminalProfile?
     @Published var adminProfile: TerminalProfile?
 
@@ -88,6 +90,12 @@ final class POSViewModel: ObservableObject {
     @Published var amountString: String = "0"
     /// Set from Top-up amount sheet (`TopupAmountPadSheet`); shown on scan chrome caption.
     @Published var topupPaymentMethodTitle: String = "Credit Card"
+    /// Pad confirm: `TopupPaymentMethodOption.rawValue` (`creditCard` / `cash` / `bonus`). Used to rebuild `currencySplit` after scan dismiss / QR (do not rely on a one-shot split object).
+    @Published var pendingTopupMethodRaw: String = ""
+    @Published var pendingTopupBonusExpanded: Bool = false
+    @Published var pendingTopupBonusRatePercent: Int = 20
+    /// Digits entered on the amount pad (principal). When Activate Bonus is on, this is the principal; `amountString` is total (principal + bonus).
+    @Published var pendingTopupKeypadAmount: String = ""
     @Published var chargeTipRateBps: Int = 0
 
     @Published var scanMethod: ScanMethod = .nfc
@@ -1087,14 +1095,21 @@ final class POSViewModel: ObservableObject {
 
     func refreshInfraCardFromDbIfPossible() async {
         guard let w = walletAddress else { return }
-        guard let addr = await api.fetchMyPosAddress(wallet: w), looksLikeAddress(addr) else { return }
-        adoptMerchantInfraCardForHome(wallet: w, addr: addr, replaceDisplayValues: true)
+        guard let b = await api.fetchMyPosBinding(wallet: w), looksLikeAddress(b.cardAddress) else { return }
+        posTerminalPolicy = b.policy
+        adoptMerchantInfraCardForHome(wallet: w, addr: b.cardAddress, replaceDisplayValues: true)
+    }
+
+    private func payerUsdcBalance6ForChargePolicy(assets: UIDAssets) -> Int64 {
+        let raw = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        return posTerminalPolicy.allowPayerUsdcInCharge ? raw : 0
     }
 
     /// When Cluster has not bound this POS yet (`myPosAddress` empty), pick the first factory `cardsOfOwner` card where this wallet is `owner` or `isAdmin` so Home stats / `getWalletAssets` target the real program card (default constant is often wrong).
     private func ensureMerchantInfraCardForPosDashboard(wallet w: String) async {
-        if let db = await api.fetchMyPosAddress(wallet: w), looksLikeAddress(db) {
-            adoptMerchantInfraCardForHome(wallet: w, addr: db, replaceDisplayValues: true)
+        if let b = await api.fetchMyPosBinding(wallet: w), looksLikeAddress(b.cardAddress) {
+            posTerminalPolicy = b.policy
+            adoptMerchantInfraCardForHome(wallet: w, addr: b.cardAddress, replaceDisplayValues: true)
             return
         }
         let cards = await api.fetchMyCardAddresses(ownerEoa: w)
@@ -1226,6 +1241,7 @@ final class POSViewModel: ObservableObject {
                 lastReadViaQr = true
                 lastReadError = nil
                 sheet = .readResult
+                await refreshInfraCardFromDbIfPossible()
             } else {
                 lastReadError = assets.error ?? "Query failed"
                 readQrExecuteError = lastReadError
@@ -1345,7 +1361,7 @@ final class POSViewModel: ObservableObject {
         let unitPoints6 = partQr.unitPricePoints6
         let oracleInfraCardsQr = partQr.oracleInfraCards
         let infraPoints6 = oracleInfraCardsQr.reduce(0) { $0 + (Int64($1.points6) ?? 0) }
-        let usdcBal = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let unitBucketUsdc6 = (unitPoints6 > 0 && unitPrice > 0) ? (unitPoints6 * unitPrice) / 1_000_000 : 0
         let infraValue = oracleInfraCardsQr.reduce(0) { partial, c in
             partial + BeamioPaymentRouting.points6ToUsdc6(points6: Int64(c.points6) ?? 0, cardCurrency: c.cardCurrency, oracle: oracle)
@@ -1842,6 +1858,7 @@ final class POSViewModel: ObservableObject {
             lastReadError = nil
             readQrExecuteError = nil
             sheet = .readResult
+            await refreshInfraCardFromDbIfPossible()
         } else {
             lastReadError = assets.error ?? "Query failed"
             let detail = lastReadError ?? "Query failed"
@@ -1993,12 +2010,48 @@ final class POSViewModel: ObservableObject {
         return assets
     }
 
+    /// Cleared only when top-up completes successfully (not when closing the scan sheet — QR retry must keep pad semantics).
+    private func clearPendingTopupPadAccountingParams() {
+        pendingTopupMethodRaw = ""
+        pendingTopupBonusExpanded = false
+        pendingTopupBonusRatePercent = 20
+        pendingTopupKeypadAmount = ""
+    }
+
+    private func resolveTopupMethodRawForSplit() -> String {
+        let raw = pendingTopupMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !raw.isEmpty { return raw }
+        let title = topupPaymentMethodTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if title.caseInsensitiveCompare("Cash") == .orderedSame { return "cash" }
+        if title.caseInsensitiveCompare("Bonus") == .orderedSame { return "bonus" }
+        if title.caseInsensitiveCompare("USDC") == .orderedSame { return "usdc" }
+        return "creditCard"
+    }
+
+    /// Rebuild split for every `/api/nfcTopup` (NFC or QR) so closing the scan sheet does not drop indexer legs.
+    private func resolvedNfcTopupCurrencySplit(forApiTotalAmount amt: String) -> NfcTopupCurrencySplit? {
+        let normalizedAmt = amt.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        let keypadStored = pendingTopupKeypadAmount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        let keypadBase = keypadStored.isEmpty ? normalizedAmt : keypadStored
+        let methodRaw = resolveTopupMethodRawForSplit()
+        if let s = BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
+            keypadAmount: keypadBase,
+            methodRaw: methodRaw,
+            bonusExpanded: pendingTopupBonusExpanded,
+            selectedBonusRate: pendingTopupBonusRatePercent
+        ) {
+            return s
+        }
+        return BeamioAPIClient.nfcTopupCurrencySplitAllCard(amount: normalizedAmt)
+    }
+
     private func runTopup(beamioTag: String?, wallet: String?, uid: String? = nil, sun: SunParams? = nil, privateKeyHex: String, topupFromQr: Bool = false) async {
         let amt = amountString
         guard Double(amt) ?? 0 > 0 else {
             reportTopupFailure("Invalid amount", topupFromQr: topupFromQr)
             return
         }
+        let currencySplit = resolvedNfcTopupCurrencySplit(forApiTotalAmount: amt)
         isNfcBusy = true
         if !topupFromQr {
             scanBanner = "Sign & execute…"
@@ -2068,7 +2121,8 @@ final class POSViewModel: ObservableObject {
                 deadline: deadline,
                 nonce: nonce,
                 adminSignature: sigBeamio,
-                sun: nil
+                sun: nil,
+                currencySplit: currencySplit
             )
             guard payBeamio.success else {
                 let msg = payBeamio.error ?? "Top-up failed"
@@ -2164,7 +2218,8 @@ final class POSViewModel: ObservableObject {
                 deadline: deadline,
                 nonce: nonce,
                 adminSignature: sigW,
-                sun: nil
+                sun: nil,
+                currencySplit: currencySplit
             )
             guard payW.success else {
                 let msg = payW.error ?? "Top-up failed"
@@ -2255,7 +2310,8 @@ final class POSViewModel: ObservableObject {
             deadline: deadline,
             nonce: nonce,
             adminSignature: sigN,
-            sun: sunN
+            sun: sunN,
+            currencySplit: currencySplit
         )
         guard payN.success else {
             let msg = payN.error ?? "Top-up failed"
@@ -2334,8 +2390,10 @@ final class POSViewModel: ObservableObject {
         topupNfcReadError = nil
         nfc.invalidate()
         sheet = nil
+        clearPendingTopupPadAccountingParams()
         topupSuccess = state
         scheduleHomeProfilesRefreshAfterTxSuccess()
+        await refreshInfraCardFromDbIfPossible()
     }
 
     private func handleNfcPayment(url: URL) async {
@@ -2422,7 +2480,7 @@ final class POSViewModel: ObservableObject {
             return
         }
         paymentPatchStep(id: "optimizingRoute", status: .loading)
-        let usdcBal = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
         let partNfc = BeamioPaymentRouting.partitionPointsForMerchantCharge(cards: cards, merchantInfraCard: merchantInfraCard)
         let unitPointsStr = partNfc.unitPricePoints6
@@ -2654,6 +2712,7 @@ final class POSViewModel: ObservableObject {
             linkLockedSun = nil
             showLinkCancel = false
             scanBanner = "Link ready"
+            await refreshInfraCardFromDbIfPossible()
         } else {
             scanBanner = r.error ?? "Link App failed"
             if r.errorCode == "NFC_LINK_APP_CARD_LOCKED" {
@@ -2722,6 +2781,10 @@ final class POSViewModel: ObservableObject {
     func topUpAfterInsufficientFunds() {
         chargeInsufficientFunds = nil
         topupPaymentMethodTitle = "USDC"
+        pendingTopupMethodRaw = "creditCard"
+        pendingTopupBonusExpanded = false
+        pendingTopupBonusRatePercent = 0
+        pendingTopupKeypadAmount = amountString
         beginTopUp()
     }
 
@@ -2909,7 +2972,7 @@ final class POSViewModel: ObservableObject {
         unitPriceUSDC6: Int64,
         merchantInfraCard: String
     ) -> Int64 {
-        let usdcBal = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
         let part = BeamioPaymentRouting.partitionPointsForMerchantCharge(cards: cards, merchantInfraCard: merchantInfraCard)
         let unitP = part.unitPricePoints6
@@ -3000,7 +3063,7 @@ final class POSViewModel: ObservableObject {
         let payCard = assets.cards?.first
         let payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? ins.payCurrency
 
-        let usdcBal = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
         let part = BeamioPaymentRouting.partitionPointsForMerchantCharge(cards: cards, merchantInfraCard: merchantInfraCard)
         let unitPointsStr = part.unitPricePoints6
@@ -3207,7 +3270,7 @@ final class POSViewModel: ObservableObject {
         }
         paymentPatchStep(id: "analyzingAssets", status: .success, detail: "Card + USDC balance")
         paymentPatchStep(id: "optimizingRoute", status: .loading)
-        let usdcBal = Int64(((Double(assets.usdcBalance ?? "0") ?? 0) * 1_000_000.0).rounded())
+        let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
         let partQrPartial = BeamioPaymentRouting.partitionPointsForMerchantCharge(cards: cards, merchantInfraCard: merchantInfraCard)
         let unitPoints6Partial = partQrPartial.unitPricePoints6

@@ -252,6 +252,14 @@ bytes32 constant TX_USDC_TOPUP_CARD = keccak256("usdcTopupCard");
 bytes32 constant TX_NEW_CARD = keccak256("newCard");
 bytes32 constant TX_UPGRADE_NEW_CARD = keccak256("upgradeNewCard");
 bytes32 constant TX_TOPUP_CARD = keccak256("topupCard");
+// NFC/OTC topup 拆分入账（mint 总额拆为卡/现/赠；与 x402sdk `executeForAdminPostBaseProcess` 多笔 `syncTokenAction` 一致；历史仅 `newCard`/`upgradeNewCard`/`topupCard` 单笔在 bizSite 展示口径归为 Cash）
+bytes32 constant TX_CREDIT_TOPUP_CARD = keccak256("creditTopupCard");
+bytes32 constant TX_CASH_TOPUP_CARD = keccak256("cashTopupCard");
+bytes32 constant TX_CREDIT_UPGRADE_NEW_CARD = keccak256("creditUpgradeNewCard");
+bytes32 constant TX_CASH_UPGRADE_NEW_CARD = keccak256("cashUpgradeNewCard");
+bytes32 constant TX_CREDIT_NEW_CARD = keccak256("creditNewCard");
+bytes32 constant TX_CASH_NEW_CARD = keccak256("cashNewCard");
+bytes32 constant TX_BONUS_CARD = keccak256("bonusCard");
 // Redeem 码（cardRedeemIndexerAccountingProcess）
 bytes32 constant TX_REDEEM_NEW_CARD = keccak256("redeemNewCard");
 bytes32 constant TX_REDEEM_UPGRADE_NEW_CARD = keccak256("redeemUpgradeNewCard");
@@ -337,7 +345,7 @@ Top Up 业务按入口使用以下 `txCategory`：
 | `amountE6` | Top Up 时 currency 的 amount（E6 精度） | 即本次增加的 points |
 | `offsetInRequestCurrencyE6` | `0` | 固定 |
 
-说明：以上 RouteItem 使 BeamioIndexerDiamond 能按 BeamioUserCard 维度索引 Top Up 交易，支持 OTC（NFT 卡）topup、redeem 码兑换与 USDC 购点统一记账口径。Top Up 细分由 txCategory 表达（usdcNewCard/usdcUpgradeNewCard/usdcTopupCard、newCard/upgradeNewCard/topupCard、redeemNewCard/redeemUpgradeNewCard/redeemTopupCard）。
+说明：以上 RouteItem 使 BeamioIndexerDiamond 能按 BeamioUserCard 维度索引 Top Up 交易，支持 OTC（NFT 卡）topup、redeem 码兑换与 USDC 购点统一记账口径。Top Up 细分由 txCategory 表达（usdcNewCard/usdcUpgradeNewCard/usdcTopupCard、newCard/upgradeNewCard/topupCard、redeemNewCard/redeemUpgradeNewCard/redeemTopupCard，以及 POS 拆分：`creditTopupCard`/`cashTopupCard`、`creditUpgradeNewCard`/`cashUpgradeNewCard`、`creditNewCard`/`cashNewCard`、`bonusCard`）。
 
 ethers.js 调用示例（mintTxCategoryFilter + chainIdFilter）：
 

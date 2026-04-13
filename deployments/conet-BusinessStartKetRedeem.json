@@ -1,0 +1,25 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "settle_contractAdmin": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+  ],
+  "constructorArgs": {
+    "ket": "0x2FF032d57eCF466624911692AF44D0B4A32a8E1f",
+    "buint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
+    "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "timestamp": "2026-04-10T04:03:56.156Z",
+  "contracts": {
+    "BusinessStartKetRedeem": {
+      "address": "0x44A68B182BaB5d5Ed45C9F027b42a8Bbb6564b2E",
+      "ket": "0x2FF032d57eCF466624911692AF44D0B4A32a8E1f",
+      "buint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
+      "transactionHash": "0x50f86980240cb9841bbfe978bb7ff6ba0c0e1f38ca0fab6f7dbda7deae583a5d"
+    }
+  }
+}

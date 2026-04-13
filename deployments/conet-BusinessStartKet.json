@@ -1,0 +1,26 @@
+{
+  "network": "conet",
+  "chainId": "224400",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "settle_contractAdmin": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+  ],
+  "constructorArgs": {
+    "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
+    "name": "Business Start Ket",
+    "symbol": "BSK"
+  },
+  "timestamp": "2026-04-10T03:32:25.735Z",
+  "contracts": {
+    "BusinessStartKet": {
+      "address": "0x2FF032d57eCF466624911692AF44D0B4A32a8E1f",
+      "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
+      "name": "Business Start Ket",
+      "symbol": "BSK",
+      "transactionHash": "0xe06016b93649a4d0663531e0ea8804c86487a158cc02008b58c1989b7ab746e7"
+    }
+  }
+}

@@ -133,11 +133,22 @@ struct ContentView: View {
 
             if case .some(.topup) = amountFlow {
                 TopupAmountPadFullPage(
+                    topupPolicy: vm.posTerminalPolicy,
                     onCancel: { amountFlow = nil },
-                    onContinue: { value, method in
+                    onContinue: { method, bonusExpanded, bonusRate, keypadAmount in
                         amountFlow = nil
-                        vm.amountString = value
+                        guard let split = BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
+                            keypadAmount: keypadAmount,
+                            methodRaw: method.rawValue,
+                            bonusExpanded: bonusExpanded,
+                            selectedBonusRate: bonusRate
+                        ) else { return }
+                        vm.amountString = split.currencyAmount
                         vm.topupPaymentMethodTitle = method.title
+                        vm.pendingTopupMethodRaw = method.rawValue
+                        vm.pendingTopupBonusExpanded = bonusExpanded
+                        vm.pendingTopupBonusRatePercent = bonusRate
+                        vm.pendingTopupKeypadAmount = keypadAmount
                         vm.beginTopUp()
                     }
                 )
@@ -3356,14 +3367,19 @@ private struct BeamioNumericAmountPadKeypad: View {
 
 private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
     case creditCard
+    case usdc
     case cash
     case bonus
 
     var id: String { rawValue }
 
+    /// Cycle order for method chip (must match Android `TOPUP_METHOD_CYCLE_ORDER`).
+    static let cycleOrder: [TopupPaymentMethodOption] = [.creditCard, .usdc, .cash, .bonus]
+
     var title: String {
         switch self {
         case .creditCard: return "Card"
+        case .usdc: return "USDC"
         case .cash: return "Cash"
         case .bonus: return "Bonus"
         }
@@ -3372,6 +3388,7 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .creditCard: return "creditcard.fill"
+        case .usdc: return "dollarsign.circle.fill"
         case .cash: return "banknote.fill"
         case .bonus: return "sparkles"
         }
@@ -3381,18 +3398,31 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
         switch self {
         case .creditCard:
             return Color(red: 0xD4 / 255, green: 0x9B / 255, blue: 0x1F / 255)
+        case .usdc:
+            return Color(red: 0x27 / 255, green: 0x75 / 255, blue: 0xCA / 255)
         case .cash:
             return Color(red: 0x6B / 255, green: 0x72 / 255, blue: 0x80 / 255)
         case .bonus:
             return Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
         }
     }
+
+    func allowed(by policy: PosTerminalPolicy) -> Bool {
+        switch self {
+        case .creditCard: return policy.allowTopupBankCard
+        case .usdc: return policy.allowTopupUsdc
+        case .cash: return policy.allowTopupCash
+        case .bonus: return policy.allowTopupAirdrop
+        }
+    }
 }
 
 /// Full-screen Add Funds: same chrome as `ReadBalanceView` (top-leading back, `readBalanceDetailsSurface`), no `ScrollView`.
 private struct TopupAmountPadFullPage: View {
+    var topupPolicy: PosTerminalPolicy
     var onCancel: () -> Void
-    var onContinue: (String, TopupPaymentMethodOption) -> Void
+    /// Method, Activate Bonus expanded, selected bonus %, keypad principal string (same as pad `amount` at confirm).
+    var onContinue: (TopupPaymentMethodOption, Bool, Int, String) -> Void
 
     @AppStorage("pos.topup.lastPaymentMethod")
     private var persistedSelectedMethodRaw: String = TopupPaymentMethodOption.creditCard.rawValue
@@ -3403,6 +3433,10 @@ private struct TopupAmountPadFullPage: View {
     /// Same primary as Read Balance “Top-Up Card Now”.
     private let topUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
     private let bonusPink = Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
+
+    private var allowedMethods: [TopupPaymentMethodOption] {
+        TopupPaymentMethodOption.cycleOrder.filter { $0.allowed(by: topupPolicy) }
+    }
 
     private var selectedMethod: TopupPaymentMethodOption {
         TopupPaymentMethodOption(rawValue: persistedSelectedMethodRaw) ?? .creditCard
@@ -3416,21 +3450,15 @@ private struct TopupAmountPadFullPage: View {
     }
 
     private var bonusWorkflowEnabled: Bool {
-        selectedMethod != .bonus
+        selectedMethod != .bonus && topupPolicy.allowTopupAirdrop
     }
 
     private var nextSelectedMethod: TopupPaymentMethodOption {
-        if bonusExpanded {
-            switch selectedMethod {
-            case .creditCard: return .cash
-            case .cash, .bonus: return .creditCard
-            }
-        }
-        switch selectedMethod {
-        case .creditCard: return .cash
-        case .cash: return .bonus
-        case .bonus: return .creditCard
-        }
+        let pool: [TopupPaymentMethodOption] =
+            bonusExpanded ? allowedMethods.filter { $0 != .bonus } : allowedMethods
+        guard !pool.isEmpty else { return selectedMethod }
+        let idx = pool.firstIndex(of: selectedMethod) ?? 0
+        return pool[(idx + 1) % pool.count]
     }
 
     var body: some View {
@@ -3453,6 +3481,14 @@ private struct TopupAmountPadFullPage: View {
                     )
                     .padding(.horizontal, sidePad)
                     .padding(.top, geo.safeAreaInsets.top + 8)
+                    if allowedMethods.isEmpty {
+                        Text("No top-up methods are enabled for this terminal. Ask the merchant to update device settings.")
+                            .font(.system(size: compact ? 13 : 14, weight: .medium))
+                            .foregroundStyle(readBalanceDetailsOutline)
+                            .multilineTextAlignment(.leading)
+                            .padding(.horizontal, sidePad + 4)
+                            .padding(.top, 6)
+                    }
                     if bonusWorkflowEnabled {
                         bonusSection(compact: compact)
                             .padding(.horizontal, sidePad)
@@ -3476,6 +3512,12 @@ private struct TopupAmountPadFullPage: View {
         .background(readBalanceDetailsSurface.ignoresSafeArea())
         /// Eager compositing so the whole screen (incl. payment tiles) participates in the trailing push transition; `LazyVGrid` can leave cells on the old layer during `move`.
         .compositingGroup()
+        .onChange(of: topupPolicy) { _, _ in
+            if !allowedMethods.isEmpty, !selectedMethod.allowed(by: topupPolicy) {
+                setSelectedMethod(allowedMethods[0])
+                bonusExpanded = false
+            }
+        }
     }
 
     private var parsedAmountValue: Double {
@@ -3689,6 +3731,7 @@ private struct TopupAmountPadFullPage: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Button {
+                guard allowedMethods.count > 1 else { return }
                 BeamioHaptic.light()
                 setSelectedMethod(nextSelectedMethod)
             } label: {
@@ -3721,13 +3764,19 @@ private struct TopupAmountPadFullPage: View {
     }
 
     private var canContinue: Bool {
-        guard let v = Double(amount) else { return false }
+        guard !allowedMethods.isEmpty, let v = Double(amount) else { return false }
         return v > 0
     }
 
     private func confirmButton(compact: Bool) -> some View {
         Button {
-            onContinue(amount, selectedMethod)
+            guard BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
+                keypadAmount: amount,
+                methodRaw: selectedMethod.rawValue,
+                bonusExpanded: bonusExpanded,
+                selectedBonusRate: selectedBonusRate
+            ) != nil else { return }
+            onContinue(selectedMethod, bonusExpanded, selectedBonusRate, amount)
         } label: {
             Text("Confirm Top-Up")
                 .font(.system(size: compact ? 17 : 18, weight: .semibold))

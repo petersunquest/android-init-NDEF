@@ -12,6 +12,131 @@ enum BeamioAPIError: Error {
     case decode
 }
 
+/// `/api/myPosAddress` → `terminalMetadata.allowedTopupMethods` (keys: cash, bankCard, usdc, airdrop).
+struct PosTerminalPolicy: Equatable {
+    var allowTopupCash: Bool
+    var allowTopupBankCard: Bool
+    var allowTopupUsdc: Bool
+    var allowTopupAirdrop: Bool
+
+    static let allAllowed = PosTerminalPolicy(allowTopupCash: true, allowTopupBankCard: true, allowTopupUsdc: true, allowTopupAirdrop: true)
+
+    /// When false, Charge treats payer wallet USDC as unavailable (same flag as merchant "USDC" top-up method).
+    var allowPayerUsdcInCharge: Bool { allowTopupUsdc }
+
+    static func parse(terminalMetadata: Any?) -> PosTerminalPolicy {
+        guard let meta = terminalMetadata as? [String: Any] else { return .allAllowed }
+        guard let raw = meta["allowedTopupMethods"] else { return .allAllowed }
+        guard let arr = raw as? [Any] else { return .allAllowed }
+        var set = Set<String>()
+        for x in arr {
+            if let s = x as? String, !s.isEmpty { set.insert(s) }
+        }
+        if set.isEmpty {
+            return PosTerminalPolicy(allowTopupCash: false, allowTopupBankCard: false, allowTopupUsdc: false, allowTopupAirdrop: false)
+        }
+        return PosTerminalPolicy(
+            allowTopupCash: set.contains("cash"),
+            allowTopupBankCard: set.contains("bankCard"),
+            allowTopupUsdc: set.contains("usdc"),
+            allowTopupAirdrop: set.contains("airdrop")
+        )
+    }
+}
+
+/// `/api/nfcTopup` optional split: `card + cash + bonus == currencyAmount` (6 decimal places, server `parseUnits`).
+struct NfcTopupCurrencySplit: Equatable {
+    let currencyAmount: String
+    let cardCurrencyAmount: String
+    let cashCurrencyAmount: String
+    let bonusCurrencyAmount: String
+}
+
+extension BeamioAPIClient {
+    private static func formatDecimalTopupApi6(_ value: Decimal) -> String {
+        let rounded = decimalRound6(value)
+        let nf = NumberFormatter()
+        nf.locale = Locale(identifier: "en_US_POSIX")
+        nf.usesGroupingSeparator = false
+        nf.minimumFractionDigits = 0
+        nf.maximumFractionDigits = 6
+        nf.numberStyle = .decimal
+        return nf.string(from: NSDecimalNumber(decimal: rounded)) ?? "0"
+    }
+
+    private static func decimalRound6(_ value: Decimal) -> Decimal {
+        var rounded = Decimal()
+        var v = value
+        NSDecimalRound(&rounded, &v, 6, .plain)
+        return rounded
+    }
+
+    /// POS keypad string (no `,` grouping). `methodRaw`: `creditCard` | `usdc` | `cash` | `bonus` (same raw values as `TopupPaymentMethodOption`).
+    ///
+    /// Product rules (must match `/api/nfcTopup` sum check: `card + cash + bonus == currencyAmount`):
+    /// - **Bonus** switch: entire top-up is promotional → `currencyAmount == bonusCurrencyAmount`, card/cash `0`.
+    /// - **Card** or **Cash** with **Activate Bonus** on: `currencyAmount` = principal (card or cash) + `bonusCurrencyAmount`.
+    static func nfcTopupCurrencySplitFromPosKeypad(
+        keypadAmount: String,
+        methodRaw: String,
+        bonusExpanded: Bool,
+        selectedBonusRate: Int
+    ) -> NfcTopupCurrencySplit? {
+        let raw = keypadAmount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        guard let base = Decimal(string: raw), base > 0 else { return nil }
+        let z = formatDecimalTopupApi6(0)
+        switch methodRaw {
+        case "creditCard", "usdc":
+            if bonusExpanded {
+                let rate = Decimal(selectedBonusRate) / Decimal(100)
+                let bonusPart = decimalRound6(base * rate)
+                let total = decimalRound6(base + bonusPart)
+                let baseR = decimalRound6(base)
+                let bonusR = decimalRound6(total - baseR)
+                return NfcTopupCurrencySplit(
+                    currencyAmount: formatDecimalTopupApi6(total),
+                    cardCurrencyAmount: formatDecimalTopupApi6(baseR),
+                    cashCurrencyAmount: z,
+                    bonusCurrencyAmount: formatDecimalTopupApi6(bonusR)
+                )
+            }
+            let c = formatDecimalTopupApi6(base)
+            return NfcTopupCurrencySplit(currencyAmount: c, cardCurrencyAmount: c, cashCurrencyAmount: z, bonusCurrencyAmount: z)
+        case "cash":
+            if bonusExpanded {
+                let rate = Decimal(selectedBonusRate) / Decimal(100)
+                let bonusPart = decimalRound6(base * rate)
+                let total = decimalRound6(base + bonusPart)
+                let baseR = decimalRound6(base)
+                let bonusR = decimalRound6(total - baseR)
+                return NfcTopupCurrencySplit(
+                    currencyAmount: formatDecimalTopupApi6(total),
+                    cardCurrencyAmount: z,
+                    cashCurrencyAmount: formatDecimalTopupApi6(baseR),
+                    bonusCurrencyAmount: formatDecimalTopupApi6(bonusR)
+                )
+            }
+            let c = formatDecimalTopupApi6(base)
+            return NfcTopupCurrencySplit(currencyAmount: c, cardCurrencyAmount: z, cashCurrencyAmount: c, bonusCurrencyAmount: z)
+        case "bonus":
+            let b = formatDecimalTopupApi6(base)
+            return NfcTopupCurrencySplit(currencyAmount: b, cardCurrencyAmount: z, cashCurrencyAmount: z, bonusCurrencyAmount: b)
+        default:
+            return nil
+        }
+    }
+
+    /// Retry path after insufficient funds (USDC / card rail): full amount on card leg.
+    static func nfcTopupCurrencySplitAllCard(amount: String) -> NfcTopupCurrencySplit? {
+        nfcTopupCurrencySplitFromPosKeypad(
+            keypadAmount: amount,
+            methodRaw: "creditCard",
+            bonusExpanded: false,
+            selectedBonusRate: 0
+        )
+    }
+}
+
 final class BeamioAPIClient: @unchecked Sendable {
     private let session: URLSession
 
@@ -64,7 +189,13 @@ final class BeamioAPIClient: @unchecked Sendable {
 
     // MARK: - POS infra
 
-    func fetchMyPosAddress(wallet: String) async -> String? {
+    struct MyPosBinding: Sendable {
+        var cardAddress: String
+        var policy: PosTerminalPolicy
+    }
+
+    /// Trusted cluster binding + terminal metadata. On network/parse failure returns `nil` (keep last policy).
+    func fetchMyPosBinding(wallet: String) async -> MyPosBinding? {
         let enc = wallet.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? wallet
         guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/myPosAddress?wallet=\(enc)") else { return nil }
         var req = URLRequest(url: url)
@@ -77,10 +208,16 @@ final class BeamioAPIClient: @unchecked Sendable {
                   (root["ok"] as? Bool) == true
             else { return nil }
             let addr = (root["cardAddress"] as? String)?.nilIfEmpty ?? (root["myPosAddress"] as? String)?.nilIfEmpty
-            return addr
+            guard let addr else { return nil }
+            let policy = PosTerminalPolicy.parse(terminalMetadata: root["terminalMetadata"])
+            return MyPosBinding(cardAddress: addr, policy: policy)
         } catch {
             return nil
         }
+    }
+
+    func fetchMyPosAddress(wallet: String) async -> String? {
+        await fetchMyPosBinding(wallet: wallet)?.cardAddress
     }
 
     /// `GET /api/myCards?owner=0x...` → `items[].cardAddress`（与 bizSite `fetchMyCardsFromApi` 一致）
@@ -288,7 +425,8 @@ final class BeamioAPIClient: @unchecked Sendable {
         deadline: UInt64,
         nonce: String,
         adminSignature: String,
-        sun: SunParams?
+        sun: SunParams?,
+        currencySplit: NfcTopupCurrencySplit? = nil
     ) async -> SimpleTxResult {
         var body: [String: Any] = [
             "cardAddr": cardAddr,
@@ -305,6 +443,12 @@ final class BeamioAPIClient: @unchecked Sendable {
             body["e"] = sun.e
             body["c"] = sun.c
             body["m"] = sun.m
+        }
+        if let s = currencySplit {
+            body["currencyAmount"] = s.currencyAmount
+            body["cardCurrencyAmount"] = s.cardCurrencyAmount
+            body["cashCurrencyAmount"] = s.cashCurrencyAmount
+            body["bonusCurrencyAmount"] = s.bonusCurrencyAmount
         }
         do {
             let (code, obj) = try await postJsonAllowErrorBody(path: "/api/nfcTopup", body: body, timeout: 120)
