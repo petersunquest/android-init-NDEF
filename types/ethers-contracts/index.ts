@@ -272,5 +272,7 @@ export type { AccountRegistry } from './mainnet/AccountRegistry.js';
 export { AccountRegistry__factory } from './factories/mainnet/AccountRegistry__factory.js';
 export type { AddressPGP } from './mainnet/AddressPGP.js';
 export { AddressPGP__factory } from './factories/mainnet/AddressPGP__factory.js';
+export type { LayerMinusNodeRestart_V2 } from './mainnet/LayerMinusNodeRestart_V2.js';
+export { LayerMinusNodeRestart_V2__factory } from './factories/mainnet/LayerMinusNodeRestart_V2__factory.js';
 export type { MerchantPOSManagement } from './mainnet/MerchantPOSManagement.js';
 export { MerchantPOSManagement__factory } from './factories/mainnet/MerchantPOSManagement__factory.js';

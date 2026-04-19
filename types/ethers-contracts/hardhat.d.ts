@@ -154,6 +154,7 @@ getContractFactory(name: 'IERC165', signerOrOptions?: ethers.Signer | FactoryOpt
 getContractFactory(name: 'SafeCast', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SafeCast__factory>
 getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AccountRegistry__factory>
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
+getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
 
   getContractAt(name: 'BeamioAccount', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccount>
@@ -300,6 +301,7 @@ getContractAt(name: 'IERC165', address: string | ethers.Addressable, signer?: et
 getContractAt(name: 'SafeCast', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SafeCast>
 getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AccountRegistry>
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
+getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
 
   deployContract(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
@@ -446,6 +448,7 @@ deployContract(name: 'IERC165', signerOrOptions?: ethers.Signer | DeployContract
 deployContract(name: 'SafeCast', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SafeCast>
 deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
+deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 
   deployContract(name: 'BeamioAccount', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
@@ -592,6 +595,7 @@ deployContract(name: 'IERC165', args: any[], signerOrOptions?: ethers.Signer | D
 deployContract(name: 'SafeCast', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SafeCast>
 deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
+deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 
     // default types
