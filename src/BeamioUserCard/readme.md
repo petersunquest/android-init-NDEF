@@ -76,7 +76,7 @@ From `deployments/base-UserCard.json` (`2026-02-14T20:02:50.581Z`):
 
 ## Reused Existing Dependencies
 
-- `BeamioOracle`: `0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+- `BeamioOracle`: `0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
 - `BeamioQuoteHelperV07`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
 - `conetUsdc`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
 
@@ -349,7 +349,7 @@ The following query APIs now return structs instead of long tuples, so the ABI i
 ## How To Redeploy Or Reverify
 
 - Reuse the current CoNET dependencies:
-  - `EXISTING_ORACLE_ADDRESS=0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+  - `EXISTING_ORACLE_ADDRESS=0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
   - `EXISTING_QUOTE_HELPER_ADDRESS=0x2c700841f61373FB4eDBD6710ab075c84051731d`
   - `USDC_ADDRESS=0x28fBBb6C5C06A4736B00A540b66378091c224456`
 - Redeploy the combined account + usercard stack with:

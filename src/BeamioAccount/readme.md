@@ -75,7 +75,7 @@ From the deployed account artifacts:
 
 ## Reused Existing Dependencies
 
-- `BeamioOracle`: `0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+- `BeamioOracle`: `0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
 - `BeamioQuoteHelperV07`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
 - `conetUsdc`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
 - `EntryPoint v0.7`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
@@ -132,7 +132,7 @@ The following values are already registered on-chain inside `BeamioFactoryPaymas
 ## How To Redeploy Or Reverify
 
 - Reuse the current CoNET dependencies:
-  - `EXISTING_ORACLE_ADDRESS=0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+  - `EXISTING_ORACLE_ADDRESS=0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
   - `EXISTING_QUOTE_HELPER_ADDRESS=0x2c700841f61373FB4eDBD6710ab075c84051731d`
   - `USDC_ADDRESS=0x28fBBb6C5C06A4736B00A540b66378091c224456`
 - Redeploy the combined account + usercard stack with:
