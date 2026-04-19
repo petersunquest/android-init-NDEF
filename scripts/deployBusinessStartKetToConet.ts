@@ -1,5 +1,5 @@
 /**
- * 部署 BusinessStartKet (ERC-1155) 到 CoNET mainnet，并为 settle_contractAdmin 全部地址 addAdmin。
+ * 部署 BusinessStartKet (ERC-1155) 到 CoNET mainnet，并为合并后的 admin 私钥对应地址 addAdmin。
  *
  * 运行: npx hardhat run scripts/deployBusinessStartKetToConet.ts --network conet
  *
@@ -8,29 +8,25 @@
  *   BUSINESS_START_KET_NAME  默认 Business Start Ket
  *   BUSINESS_START_KET_SYMBOL 默认 BSK
  *
- * 前置: ~/.master.json settle_contractAdmin[0] 与 hardhat conet 部署账号一致，且有足够 CNET gas。
+ * 前置: 合并私钥列表首项与 hardhat conet 部署账号一致，且有足够 gas。
  */
 
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
-import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { ethers } from "ethers";
+import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MASTER_PATH = path.join(homedir(), ".master.json");
 
 function loadMasterSetup(): { settle_contractAdmin: string[] } {
-  if (!fs.existsSync(MASTER_PATH)) throw new Error("未找到 ~/.master.json");
-  const data = JSON.parse(fs.readFileSync(MASTER_PATH, "utf-8"));
-  if (!data?.settle_contractAdmin?.length) throw new Error("~/.master.json 中 settle_contractAdmin 为空");
-  return {
-    settle_contractAdmin: data.settle_contractAdmin.map((pk: string) =>
-      pk.startsWith("0x") ? pk : `0x${pk}`
-    ),
-  };
+  const pks = mergeConetAdminPrivateKeysFromMasterFile();
+  if (!pks.length) {
+    throw new Error("~/.master.json 中无有效私钥（settle_contractAdmin / beamio_Admins / admin）");
+  }
+  return { settle_contractAdmin: pks };
 }
 
 async function main() {
@@ -116,7 +112,7 @@ async function main() {
   const addrData = fs.existsSync(addrPath) ? JSON.parse(fs.readFileSync(addrPath, "utf-8")) : {};
   addrData.BusinessStartKet = deployed;
   addrData.network = addrData.network ?? "conet";
-  addrData.chainId = addrData.chainId ?? "224400";
+  addrData.chainId = addrData.chainId ?? "224422";
   fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
   console.log("updated conet-addresses.json BusinessStartKet:", deployed);
   console.log("\n下一步: npx hardhat run scripts/verifyBusinessStartKetConet.ts --network conet");

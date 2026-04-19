@@ -18,7 +18,7 @@ import { homedir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import Colors from 'colors/safe'
 
-const CONET_RPC = 'https://mainnet-rpc.conet.network'
+const CONET_RPC = 'https://rpc1.conet.network'
 const ADDR_PATH = join(process.cwd(), 'deployments', 'conet-addresses.json')
 function loadBUnitAirdropAddress(): string {
   try {

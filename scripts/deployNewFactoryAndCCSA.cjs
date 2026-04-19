@@ -21,7 +21,7 @@ const c = data.contracts?.beamioUserCardFactoryPaymaster;
 const REDEEM_MODULE = c.redeemModule;
 const QUOTE_HELPER = c.quoteHelper;
 const DEPLOYER_ADDR = data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-const AA_FACTORY = c.aaFactory || '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE';
+const AA_FACTORY = c.aaFactory || '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122';
 
 async function main() {
   const master = JSON.parse(fs.readFileSync(process.env.HOME + '/.master.json', 'utf8'));

@@ -10,7 +10,7 @@ const ASSET = '0x74f35741ad8bc75d873a8d7d140ae5ffb529ac0f' // CashTrees Card
 const TOP_ADMIN = '0x8Eb31413EC7Ce13367a39eae203e6659e8F6f32D'
 const SUBORDINATE = '0x9817536864A74D2484e18213Cc7a8bAE30c04b66'
 const INDEXER = '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
-const RPC = 'https://mainnet-rpc.conet.network'
+const RPC = 'https://rpc1.conet.network'
 
 const TX_TUPLE = 'tuple(bytes32 id, bytes32 originalPaymentHash, uint256 chainId, bytes32 txCategory, string displayJson, uint64 timestamp, address payer, address payee, uint256 finalRequestAmountFiat6, uint256 finalRequestAmountUSDC6, bool isAAAccount, tuple(uint16 gasChainType, uint256 gasWei, uint256 gasUSDC6, uint256 serviceUSDC6, uint256 bServiceUSDC6, uint256 bServiceUnits6, address feePayer) fees, tuple(uint256 requestAmountFiat6, uint256 requestAmountUSDC6, uint8 currencyFiat, uint256 discountAmountFiat6, uint16 discountRateBps, uint256 taxAmountFiat6, uint16 taxRateBps, string afterNotePayer, string afterNotePayee) meta, bool exists)'
 const TX_TUPLE_ADMIN = TX_TUPLE.replace('bool exists)', 'bool exists, address topAdmin, address subordinate)')

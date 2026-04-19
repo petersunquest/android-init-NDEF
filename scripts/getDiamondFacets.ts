@@ -2,7 +2,7 @@
 import { ethers } from "ethers";
 
 const DIAMOND = "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
-const RPC = "https://mainnet-rpc.conet.network";
+const RPC = "https://rpc1.conet.network";
 
 const LOUPE_ABI = [
   "function facets() view returns (tuple(address facetAddress, bytes4[] functionSelectors)[])",

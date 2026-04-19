@@ -11,7 +11,7 @@
 ### Base Reused Existing Dependencies
 
 - `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by current `AA Factory`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `BeamioQuoteHelperV07` used by current `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `EntryPoint v0.7`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
 
@@ -42,7 +42,7 @@ For reference, an earlier base account-only deployment also exists in `deploymen
 Current on-chain values inside `BeamioFactoryPaymasterV07`:
 
 - `containerModule`: `0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8`
-- `quoteHelper`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `quoteHelper`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `beamioUserCard`: `0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`
 - `deployer`: `0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`
 - `USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
@@ -54,7 +54,7 @@ Using the current active factory address `0x4b31D6a05Cdc817CAc1B06369555b37a5b18
 - `initialAccountLimit`: `100`
 - `deployer_`: `0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`
 - `module_`: `0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8`
-- `quoteHelper_`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `quoteHelper_`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `userCard_`: `0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`
 - `usdc_`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
@@ -67,8 +67,8 @@ From the deployed account artifacts:
 ## CoNET Mainnet Deployment
 
 - Network: `conet`
-- Chain ID: `224400`
-- RPC: `https://mainnet-rpc.conet.network`
+- Chain ID: `224422`
+- RPC: `https://rpc1.conet.network`
 - Explorer: [https://mainnet.conet.network/](https://mainnet.conet.network/)
 - Deployment time: `2026-03-12`
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`

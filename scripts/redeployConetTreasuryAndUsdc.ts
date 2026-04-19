@@ -100,7 +100,7 @@ async function main() {
   const outPath = path.join(deploymentsDir, "conet-ConetTreasury.json");
   const out = {
     network: "conet",
-    chainId: "224400",
+    chainId: "224422",
     deployer: signer.address,
     timestamp: new Date().toISOString(),
     contracts: {

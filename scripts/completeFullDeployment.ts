@@ -17,7 +17,7 @@ const DEPLOYED = {
   beamioAccount: "0x7FA89BEf84D5047AD9883d6f4A53dE7A0D2815f2",
   containerModule: "0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8",
   placeholder: "0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D",
-  aaFactory: "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
+  aaFactory: "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
   redeemModule: "0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448",
   userCardDeployer: "0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9",
 };
@@ -76,7 +76,7 @@ async function main() {
     timestamp: new Date().toISOString(),
     existing: {
       beamioOracle: "0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B",
-      beamioQuoteHelper: "0x50953EB5190ee7dabb0eA86a96364A540a834059",
+      beamioQuoteHelper: "0xfa30c2086ff9a3D74576d55c2027586797A52F29",
     },
     contracts: {
       beamioAccountDeployer: { address: DEPLOYED.accountDeployer },

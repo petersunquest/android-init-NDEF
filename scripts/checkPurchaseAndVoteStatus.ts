@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function loadBUnitAirdrop(): string {
   if (!fs.existsSync(ADDR_PATH)) throw new Error("conet-addresses.json not found");
   const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-  return d.BUnitAirdrop || "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  return d.BUnitAirdrop || "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
 }
 const ADDR_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 

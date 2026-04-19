@@ -1,12 +1,15 @@
 {
-  "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件或 conet-BUint.json 读取，禁止硬编码旧地址。",
+  "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件或 conet-BUint.json 读取，禁止硬编码旧地址。新链迁移：更新 chainId 与本文件全部地址后运行 npx tsx scripts/updateConetReferences.ts",
   "network": "conet",
-  "chainId": "224400",
-  "BUint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
-  "BUnitAirdrop": "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F",
-  "BeamioIndexerDiamond": "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe",
-  "ConetTreasury": "0xA7fb50fE8e09E17E74081014d49f4E80729cCA48",
-  "conetUsdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
+  "chainId": "224422",
+  "BUint": "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad",
+  "BUnitAirdrop": "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264",
+  "BeamioIndexerDiamond": "0x0c29b4DB72F31457570D38eB215b3F855d5989E1",
+  "MerchantPOSManagement": "0x5156E93f44283CA584D09EA46E30ee14ca0abB37",
+  "beamioOracle": "0x32aa4fC3D3506850b27F767Bf582f4ec449de224",
+  "beamioQuoteHelperV07": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
+  "ConetTreasury": "0x5921f9281E18D226246277F4C5805d1160A59100",
+  "conetUsdc": "0x456Ecd35370bA9d4a9f615399a154548f07c2437",
   "DEPRECATED_BUINT": [
     "0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9",
     "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB"
@@ -14,7 +17,9 @@
   "DEPRECATED_CONET_USDC": [
     "0xF693B1664E20fe66345cF690842D03cA8D981dd5"
   ],
-  "BuintRedeemAirdrop": "0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A",
-  "BusinessStartKet": "0x2FF032d57eCF466624911692AF44D0B4A32a8E1f",
-  "BusinessStartKetRedeem": "0x44A68B182BaB5d5Ed45C9F027b42a8Bbb6564b2E"
+  "BuintRedeemAirdrop": "0x0DC615bAc14411CbDCd082fe59CBdDA8768615B0",
+  "BusinessStartKet": "0x65B4780efA2e2dB2FB4761dF82b16902d445Ab46",
+  "BusinessStartKetRedeem": "0x0c15545f833CF4DF6C7F51F8D148cf7684e663ab",
+  "GuardianNodesInfoV6": "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94",
+  "AddressPGP": "0x9C94238945295146F3F572D77ae492C13DF90bDd"
 }

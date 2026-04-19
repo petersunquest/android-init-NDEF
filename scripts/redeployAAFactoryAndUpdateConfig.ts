@@ -34,7 +34,7 @@ const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
 const DEPLOYMENT_FILE = path.join(DEPLOYMENTS_DIR, "base-FactoryAndModule.json");
 const FULL_ACCOUNT_FILE = path.join(DEPLOYMENTS_DIR, "base-FullAccountAndUserCard.json");
 
-/** 当前 Base 主网 Card Factory，写入 config 时保持不改；与 config/base-addresses.ts 一致 */
+/** 当前 Base 主网 Card Factory，写入 config 时保持不改；与 config/base-addresses.json 一致 */
 function getCardFactoryForConfig(): string {
   if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
   if (fs.existsSync(FULL_ACCOUNT_FILE)) {
@@ -46,7 +46,7 @@ function getCardFactoryForConfig(): string {
     const data = JSON.parse(fs.readFileSync(CONFIG_JSON_PATH, "utf-8"));
     if (data.CARD_FACTORY) return data.CARD_FACTORY;
   }
-  return "0x2F45f38f2B6EF97b606ec2557E237529e8db9281";
+  return "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 }
 
 function loadSignerPk(): string {

@@ -5,12 +5,12 @@
  *   node scripts/ledgerProbeIndexerAccount.mjs 0xYourEoaOrAa
  *
  * Env:
- *   CONET_RPC — default https://mainnet-rpc.conet.network
+ *   CONET_RPC — default https://rpc1.conet.network
  *   BEAMIO_INDEXER_DIAMOND — default matches bizSite chainAddresses
  */
 import { ethers } from 'ethers';
 
-const RPC = process.env.CONET_RPC || 'https://mainnet-rpc.conet.network';
+const RPC = process.env.CONET_RPC || 'https://rpc1.conet.network';
 const DIAMOND = process.env.BEAMIO_INDEXER_DIAMOND || '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe';
 
 const TX_PAGE_TUPLE = `tuple(bytes32 id, bytes32 originalPaymentHash, uint256 chainId, bytes32 txCategory, string displayJson, uint64 timestamp, address payer, address payee, uint256 finalRequestAmountFiat6, uint256 finalRequestAmountUSDC6, bool isAAAccount, tuple(uint16 gasChainType, uint256 gasWei, uint256 gasUSDC6, uint256 serviceUSDC6, uint256 bServiceUSDC6, uint256 bServiceUnits6, address feePayer) fees, tuple(uint256 requestAmountFiat6, uint256 requestAmountUSDC6, uint8 currencyFiat, uint256 discountAmountFiat6, uint16 discountRateBps, uint256 taxAmountFiat6, uint16 taxRateBps, string afterNotePayer, string afterNotePayee) meta, bool exists, address topAdmin, address subordinate)`;

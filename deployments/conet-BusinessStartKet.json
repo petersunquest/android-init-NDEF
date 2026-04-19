@@ -1,26 +1,36 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "settle_contractAdmin": [
     "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
     "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
     "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
-    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+    "0x6add8012d4DDb7dA736Ab713FdA13ef3827a05bf",
+    "0x068759bCfd929fb17258aF372c30eE6CD277B872",
+    "0xB272bC809dd8A96294f337aDED3f9602cac0E3B0",
+    "0x2d1D98a96a4C7E1680e43d20F43796264bfdF9E6",
+    "0x99BcBb0f4a0BF72c2d8A2E5FDD0ad3B7dAe40302",
+    "0x8AcB8D56f68F28c0Aa5Ab292513f5fAA7ec6126f",
+    "0x4a083ae4CdE5C1A621Ef711DF4cc18cad092561d",
+    "0x4a0B9B510f0E7395745fdbB8D96b2e2576960b95",
+    "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
+    "0xee73178EE888363C84713434D1570749eaeB880d"
   ],
   "constructorArgs": {
     "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
     "name": "Business Start Ket",
     "symbol": "BSK"
   },
-  "timestamp": "2026-04-10T03:32:25.735Z",
+  "timestamp": "2026-04-19T08:36:10.690Z",
   "contracts": {
     "BusinessStartKet": {
-      "address": "0x2FF032d57eCF466624911692AF44D0B4A32a8E1f",
+      "address": "0x65B4780efA2e2dB2FB4761dF82b16902d445Ab46",
       "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
       "name": "Business Start Ket",
       "symbol": "BSK",
-      "transactionHash": "0xe06016b93649a4d0663531e0ea8804c86487a158cc02008b58c1989b7ab746e7"
+      "transactionHash": "0xdd936d5793edad11096629310433afcaee1f02334d4610ab8a1c24507738eb72"
     }
   }
 }

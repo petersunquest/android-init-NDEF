@@ -15,8 +15,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { homedir } from "os";
 
-const CONET_RPC = "https://mainnet-rpc.conet.network";
-const ACCOUNT_REGISTRY = process.env.ACCOUNT_REGISTRY || "0x3E15607BCf98B01e6C7dF834a2CEc7B8B6aFb1BC";
+const CONET_RPC = "https://rpc1.conet.network";
+const ACCOUNT_REGISTRY = process.env.ACCOUNT_REGISTRY || "0x46cBFC3f77b320Db545D1DC21138fa1ED2Fa3df3";
 const MASTER_PATH = path.join(homedir(), ".master.json");
 
 const AccountRegistryABI = [

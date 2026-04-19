@@ -45,6 +45,7 @@ async function main() {
   
   // 从环境变量或部署记录读取依赖地址
   const deploymentsDir = path.join(__dirname, "..", "deployments");
+  const configJsonFile = path.join(__dirname, "..", "config", "base-addresses.json");
   
   // 读取 USDC 地址
   const chainId = Number(networkInfo.chainId);
@@ -59,6 +60,13 @@ async function main() {
   let QUOTE_HELPER_ADDRESS = process.env.QUOTE_HELPER_ADDRESS || "";
   let DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS || "";
   let AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS || "";
+
+  if (fs.existsSync(configJsonFile)) {
+    const baseConfig = JSON.parse(fs.readFileSync(configJsonFile, "utf-8"));
+    if (!AA_FACTORY_ADDRESS && baseConfig.AA_FACTORY) {
+      AA_FACTORY_ADDRESS = baseConfig.AA_FACTORY;
+    }
+  }
   
   if (fs.existsSync(fullSystemFile)) {
     const deploymentData = JSON.parse(fs.readFileSync(fullSystemFile, "utf-8"));

@@ -12,7 +12,7 @@
 | 项目 | 值 |
 |------|-----|
 | **合约** | BeamioFactoryPaymasterV07 |
-| **地址** | 见 config/base-addresses.json（当前为 `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`） |
+| **地址** | 见 config/base-addresses.json（当前为 `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`） |
 | **网络** | Base Mainnet (Chain ID: 8453) |
 
 **重部署 AA Factory：** `npm run redeploy:aa-factory:base` 或 `npm run deploy:factory:base`。完成后需由 Card Factory owner 执行 `npm run set:card-factory-aa:base`（或链上调用 `setAAFactory(新地址)`）。
@@ -50,7 +50,7 @@
 
 ## 区块浏览器
 
-- AA Factory: https://basescan.org/address/0xD86403DD1755F7add19540489Ea10cdE876Cc1CE
+- AA Factory: https://basescan.org/address/0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
 - Card Factory: https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05
 
 ---

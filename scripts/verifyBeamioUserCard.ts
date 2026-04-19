@@ -7,7 +7,7 @@
  *   CURRENCY=4 \
  *   PRICE=1000000 \
  *   OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e \
- *   GATEWAY=0x2F45f38f2B6EF97b606ec2557E237529e8db9281 \
+ *   GATEWAY=0x2EB245646de404b2Dce87E01C6282C131778bb05 \
  *   UPGRADE_TYPE=0 \
  *   npx hardhat run scripts/verifyBeamioUserCard.ts --network base
  *
@@ -20,7 +20,7 @@ const URI = process.env.URI || "https://beamio.app/api/metadata/0x";
 const CURRENCY = parseInt(process.env.CURRENCY || "4", 10);
 const PRICE = process.env.PRICE || "1000000";
 const OWNER = process.env.OWNER || "";
-const GATEWAY = process.env.GATEWAY || "0x2F45f38f2B6EF97b606ec2557E237529e8db9281";
+const GATEWAY = process.env.GATEWAY || "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 const WL = process.env.TRANSFER_WHITELIST_ENABLED === "1" || process.env.TRANSFER_WHITELIST_ENABLED === "true";
 const UPGRADE_TYPE = Math.min(2, Math.max(0, parseInt(process.env.UPGRADE_TYPE || "0", 10) || 0));
 

@@ -35,9 +35,17 @@ async function main() {
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   if (!fs.existsSync(deploymentsDir)) fs.mkdirSync(deploymentsDir, { recursive: true });
 
-  const defaultUSDC = chainId === 8453
-    ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  let defaultUSDC =
+    chainId === 8453
+      ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  if (chainId === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    if (fs.existsSync(conetAddrPath)) {
+      const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));
+      if (ca.conetUsdc && typeof ca.conetUsdc === "string") defaultUSDC = ca.conetUsdc;
+    }
+  }
   const USDC_ADDRESS = process.env.USDC_ADDRESS || defaultUSDC;
   const ENTRY_POINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
   const INITIAL_ACCOUNT_LIMIT = parseInt(process.env.INITIAL_ACCOUNT_LIMIT || "100");
@@ -50,6 +58,14 @@ async function main() {
     const data = JSON.parse(fs.readFileSync(fullSystemFile, "utf-8"));
     if (!oracleAddress && data.contracts?.beamioOracle?.address) oracleAddress = data.contracts.beamioOracle.address;
     if (!quoteHelperAddress && data.contracts?.beamioQuoteHelper?.address) quoteHelperAddress = data.contracts.beamioQuoteHelper.address;
+  }
+  const conetOQ = path.join(deploymentsDir, "conet-OracleQuoteHelper.json");
+  if ((!oracleAddress || !quoteHelperAddress) && fs.existsSync(conetOQ)) {
+    const data = JSON.parse(fs.readFileSync(conetOQ, "utf-8"));
+    if (!oracleAddress && data.contracts?.beamioOracle?.address) oracleAddress = data.contracts.beamioOracle.address;
+    if (!quoteHelperAddress && data.contracts?.beamioQuoteHelperV07?.address) {
+      quoteHelperAddress = data.contracts.beamioQuoteHelperV07.address;
+    }
   }
   if (!oracleAddress || !quoteHelperAddress) {
     console.log("❌ 必须提供原有 Oracle 和 QuoteHelper 地址");
@@ -257,9 +273,13 @@ async function main() {
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6
   const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
+  const userCardLibs = {
+    BeamioUserCardFormattingLib: cardLibs.BeamioUserCardFormattingLib,
+    BeamioUserCardTransferLib: cardLibs.BeamioUserCardTransferLib,
+  };
   console.log("  BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
   console.log("  BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(userCardLibs));
   const userCard = await BeamioUserCardFactory.deploy(
     USER_CARD_URI,
     USER_CARD_CURRENCY,

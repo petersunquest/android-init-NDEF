@@ -14,7 +14,15 @@
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
+ *   # Base 上 0x291B… QuoteHelper：须 runs=50，且勿用 bytecodeHash:none / revert strip（与部署期一致），否则链上 bytecode 尾部队列元数据不匹配、BaseScan 报错。
+ *   BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioQuoteHelperV07 --full
+ *   # 同上（runs=50、默认 metadata）：BeamioFactoryPaymasterV07（aaFactory_指向的 AA 工厂，如 0xD86403…）
+ *   BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full
+ *
+ * Base 主网 BeamioOracle 0xDa4…A9A2B 与当前 hardhat（0.8.33 + viaIR + runs=0等）不一致，
+ * 勿用本脚本从 build-info 导出该地址验证 JSON；请用:
+ *   node scripts/buildBeamioOracleBaseOnchainVerifyStandardJson.mjs
  *
  * 输出: deployments/base-{Contract}-standard-input-FULL.json
  */
@@ -41,6 +49,10 @@ const CONFIG = {
   BeamioUserCardFactoryPaymasterV07: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol",
     contractName: "BeamioUserCardFactoryPaymasterV07",
+  },
+  BeamioQuoteHelperV07: {
+    sourceKey: "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol",
+    contractName: "BeamioQuoteHelperV07",
   },
   AdminStatsQueryModule: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
@@ -105,18 +117,21 @@ const contractArg = process.argv[2];
 const useFull = process.argv.includes("--full");
 
 if (!contractArg || !CONFIG[contractArg]) {
-  console.error("用法: node scripts/exportStandardJsonFromBuildInfo.mjs <Contract> [--full]");
+  console.error("用法: node scripts/exportStandardJsonFromBuildInfo.mjs <Contract> --full");
   console.error("支持的 Contract:", Object.keys(CONFIG).join(", "));
-  console.error("建议始终使用 --full，以确保 via-IR 下 bytecode 与链上一致");
+  process.exit(1);
+}
+
+if (!useFull) {
+  console.error("错误: 必须传入 --full。");
+  console.error(
+    "精简版仅含直接 import，缺少传递依赖（例如 BeamioAccount → BeamioContainerLayoutConstantsV07.sol），BaseScan 会报 ParserError / File import callback not supported。"
+  );
   process.exit(1);
 }
 
 const cfg = CONFIG[contractArg];
-const outPath = path.join(
-  __dirname,
-  "../deployments",
-  `base-${contractArg}-standard-input-${useFull ? "FULL" : "min"}.json`
-);
+const outPath = path.join(__dirname, "../deployments", `base-${contractArg}-standard-input-FULL.json`);
 
 const buildInfoPath = resolveBuildInfoPath(cfg.sourceKey);
 if (!buildInfoPath) {
@@ -134,35 +149,8 @@ if (!fullInput.sources[cfg.sourceKey]) {
   process.exit(1);
 }
 
-let input;
-if (useFull) {
-  input = fullInput;
-  console.log(`使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）`);
-} else {
-  // 精简版：仅直接依赖（可能因 via-IR 导致 bytecode 不匹配）
-  const deps = {
-    [cfg.sourceKey]: fullInput.sources[cfg.sourceKey],
-  };
-  const content = fullInput.sources[cfg.sourceKey].content;
-  const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
-  for (const m of content.matchAll(importRegex)) {
-    const imp = m[1];
-    let key;
-    if (imp.startsWith("./") || imp.startsWith("../")) {
-      const dir = path.dirname(cfg.sourceKey.replace("project/", ""));
-      key = "project/" + path.join(dir, imp).replace(/\\/g, "/");
-    } else {
-      key = "project/" + imp;
-    }
-    if (fullInput.sources[key]) deps[key] = fullInput.sources[key];
-  }
-  input = {
-    language: fullInput.language,
-    sources: deps,
-    settings: fullInput.settings,
-  };
-  console.log("使用精简源（若验证失败请加 --full）");
-}
+const input = fullInput;
+console.log("使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）");
 
 const json = JSON.stringify(input, null, 2);
 fs.writeFileSync(outPath, json, "utf-8");

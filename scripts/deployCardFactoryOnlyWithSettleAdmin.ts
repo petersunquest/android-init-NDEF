@@ -72,7 +72,7 @@ async function main() {
   const REDEEM_MODULE_ADDRESS = process.env.REDEEM_MODULE_ADDRESS || c.redeemModule;
   const QUOTE_HELPER_ADDRESS = process.env.QUOTE_HELPER_ADDRESS || c.quoteHelper;
   const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS || data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-  const AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS || c.aaFactory || "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+  const AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS || c.aaFactory || "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
 
   if (!REDEEM_MODULE_ADDRESS || !QUOTE_HELPER_ADDRESS || !DEPLOYER_ADDRESS) {
     throw new Error("缺少 RedeemModule、QuoteHelper 或 Deployer 地址");
@@ -242,7 +242,7 @@ export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
     if (m) BASE_CCSA_CARD = m[1];
   }
 
-  let CONET_BUNIT_AIRDROP = "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  let CONET_BUNIT_AIRDROP = "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
   const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
   if (fs.existsSync(conetAddrPath)) {
     const conetData = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));

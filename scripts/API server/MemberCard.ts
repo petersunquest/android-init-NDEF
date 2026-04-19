@@ -52,10 +52,10 @@ try {
 	try {
 		BeamioAAAccountFactoryPaymaster = require('../../config/base-addresses').BASE_MAINNET_FACTORIES.AA_FACTORY
 	} catch {
-		BeamioAAAccountFactoryPaymaster = '0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767'
+		BeamioAAAccountFactoryPaymaster = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 	}
 }
-if (!BeamioAAAccountFactoryPaymaster) BeamioAAAccountFactoryPaymaster = '0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767'
+if (!BeamioAAAccountFactoryPaymaster) BeamioAAAccountFactoryPaymaster = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 const BeamioOracle = '0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B'
 const beamioConetAddress = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 /** UserCard gateway = AA Factory（与 config/base-addresses AA_FACTORY 一致） */
@@ -66,7 +66,7 @@ const DIAMOND = BeamioTaskIndexerAddress
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
 const providerBaseBackup = new ethers.JsonRpcProvider('https://base-rpc.conet.network')
 const providerBaseBackup1 = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
-const conetEndpoint = 'https://mainnet-rpc.conet.network'
+const conetEndpoint = 'https://rpc1.conet.network'
 const providerConet = new ethers.JsonRpcProvider(conetEndpoint)
 let Settle_ContractPool: {
 	baseFactoryPaymaster: ethers.Contract
@@ -94,7 +94,7 @@ const USDC_SmartContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, providerB
 //			RedeemModule 						0x1EC7540EbC03bcEBEc0C5f981C3D91100d206F5F
 //			BeamioQuoteHelperV07 						0x4DD4b418949911B8A8038295F6a8Af7a1eA8de50
 //			BeamioUserCardDeployerV07 					0x820bB3F54A403B298e2F785FFdA225009e9CA7Bf
-//			BeamioUserCardFactoryPaymasterV07			0xb6D5A5319a5555E087eea9e8FC9d5E6787E4dD66
+//			BeamioUserCardFactoryPaymasterV07			0x2EB245646de404b2Dce87E01C6282C131778bb05
 
 masterSetup.settle_contractAdmin.forEach(n => {
 	const walletBase = new ethers.Wallet(n, providerBaseBackup1)

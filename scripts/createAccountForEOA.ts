@@ -76,13 +76,22 @@ async function main() {
   
   // 从部署记录读取 Factory 地址
   const deploymentsDir = path.join(__dirname, "..", "deployments");
+  const configJsonFile = path.join(__dirname, "..", "config", "base-addresses.json");
   let factoryAddress = process.env.FACTORY_ADDRESS || "";
   
   if (!factoryAddress) {
     try {
+      if (fs.existsSync(configJsonFile)) {
+        const baseConfig = JSON.parse(fs.readFileSync(configJsonFile, "utf-8"));
+        if (baseConfig.AA_FACTORY) {
+          factoryAddress = baseConfig.AA_FACTORY;
+          console.log("✅ 从 config/base-addresses.json 读取 Factory 地址:", factoryAddress);
+        }
+      }
+
       // 优先当前 AA 栈（与 deployFactoryAndModule 一致）；FullAccountAndUserCard 可能为旧 Factory
       const factoryFile = path.join(deploymentsDir, `${networkInfo.name}-FactoryAndModule.json`);
-      if (fs.existsSync(factoryFile)) {
+      if (!factoryAddress && fs.existsSync(factoryFile)) {
         const factoryData = JSON.parse(fs.readFileSync(factoryFile, "utf-8"));
         if (factoryData.contracts?.beamioFactoryPaymaster?.address) {
           factoryAddress = factoryData.contracts.beamioFactoryPaymaster.address;

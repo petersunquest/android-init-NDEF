@@ -237,10 +237,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
             return
         }
         bindSessionActive = true
-        let session = NFCTagReaderSession(pollingOption: [.iso14443], delegate: self, queue: nil)
-        session?.alertMessage = "Hold your CashTrees card near the top of your iPhone."
+        let configuration = NFCTagReaderSession.Configuration(pollingOption: [.iso14443])
+        let session = NFCTagReaderSession(configuration: configuration, delegate: self, queue: nil)
+        session.alertMessage = "Hold your CashTrees card near the top of your iPhone."
         nfcSession = session
-        session?.begin()
+        session.begin()
     }
 
     private func disarmNfcReader(notifyWeb: Bool, error: String?) {

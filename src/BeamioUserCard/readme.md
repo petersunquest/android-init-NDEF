@@ -11,13 +11,13 @@
 ### Base Reused Existing Dependencies
 
 - `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by `AA Factory`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `BeamioQuoteHelperV07` used by `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `BeamioQuoteHelperV07` used by current `Card Factory`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -27,13 +27,12 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 - `BeamioUserCardPlaceholder`: [`0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`](https://basescan.org/address/0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D)
 - `BeamioUserCardRedeemModuleVNext`: [`0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448`](https://basescan.org/address/0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448)
 - `BeamioUserCardDeployerV07`: [`0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9`](https://basescan.org/address/0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9)
-- Historical `BeamioUserCardFactoryPaymasterV07`: [`0x19C000c00e6A2b254b39d16797930431E310BEdd`](https://basescan.org/address/0x19C000c00e6A2b254b39d16797930431E310BEdd)
 - `BeamioUserCard`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 - Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
 
 ### Base Registered Module Addresses
 
@@ -69,8 +68,8 @@ From `deployments/base-UserCard.json` (`2026-02-14T20:02:50.581Z`):
 ## CoNET Mainnet Deployment
 
 - Network: `conet`
-- Chain ID: `224400`
-- RPC: `https://mainnet-rpc.conet.network`
+- Chain ID: `224422`
+- RPC: `https://rpc1.conet.network`
 - Explorer: [https://mainnet.conet.network/](https://mainnet.conet.network/)
 - Deployment time: `2026-03-12`
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`

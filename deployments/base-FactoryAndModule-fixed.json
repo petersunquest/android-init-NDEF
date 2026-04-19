@@ -9,7 +9,7 @@
       "initialAccountLimit": 100,
       "deployer": "0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87",
       "containerModule": "0xB0F4824519995A2c501D13A624fDBcbBEa0DEC57",
-      "quoteHelper": "0x50953EB5190ee7dabb0eA86a96364A540a834059",
+      "quoteHelper": "0xfa30c2086ff9a3D74576d55c2027586797A52F29",
       "userCard": "0xD5e6F2d09ae64a48Eb4b0Fa4Bd3e584F61D8d66d",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "transactionHash": "0x93edde953da1a387f66c481966ac3336e7e96eced0f22476ae6c9de67f6cebb7",

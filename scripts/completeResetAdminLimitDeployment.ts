@@ -48,7 +48,7 @@ async function main() {
   if (!c) throw new Error("缺少 beamioUserCardFactoryPaymaster 配置");
 
   const DEPLOYER_ADDRESS = data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-  const AA_FACTORY_ADDRESS = c.aaFactory || "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+  const AA_FACTORY_ADDRESS = c.aaFactory || "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   const REDEEM_MODULE = c.redeemModule;
   const ISSUED_NFT_MODULE = c.issuedNftModule;
   const FAUCET_MODULE = c.faucetModule;

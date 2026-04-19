@@ -44,6 +44,25 @@ struct PosTerminalPolicy: Equatable {
     }
 }
 
+/// Terminal mint / reload budget for this POS wallet on the program card (`getAdminAirdropLimit` + `getAdminStatsFull`), same scaling as biz `amountE6ToDisplayNumber`.
+struct PosTerminalReloadQuota: Equatable {
+    var unlimited: Bool
+    /// Remaining mint allowance in display units (program points / ~CAD when card uses CAD).
+    var remainingDisplay: Double
+    /// Already minted since last counter clear, display units.
+    var mintedFromClearDisplay: Double
+}
+
+/// Card Issuance `shareTokenMetadata.bonusRules` (biz `Card Issuance` → Recharge Bonuses).
+/// Fixed tier: credit += `bonusValue` when principal ≥ `paymentAmount`.
+/// `bonusProportional` (biz “Percentage”): credit += `principal * (bonusValue / paymentAmount)` when principal ≥ `paymentAmount`.
+struct BeamioRechargeBonusRule: Equatable, Sendable {
+    var paymentAmount: Double
+    var bonusValue: Double
+    /// Same as `shareTokenMetadata.bonusProportional` / biz checkbox “Percentage”.
+    var bonusProportional: Bool
+}
+
 /// `/api/nfcTopup` optional split: `card + cash + bonus == currencyAmount` (6 decimal places, server `parseUnits`).
 struct NfcTopupCurrencySplit: Equatable {
     let currencyAmount: String
@@ -218,6 +237,34 @@ final class BeamioAPIClient: @unchecked Sendable {
 
     func fetchMyPosAddress(wallet: String) async -> String? {
         await fetchMyPosBinding(wallet: wallet)?.cardAddress
+    }
+
+    /// Reload / mint cap for the POS EOA on the program card (Terminal Onboarding mint limit). `nil` if RPC/layout parse fails — caller may still rely on server checks.
+    func fetchPosTerminalReloadQuota(posWallet: String, programCard: String) async -> PosTerminalReloadQuota? {
+        let w = posWallet.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive).lowercased()
+        guard w.count == 40, w.allSatisfy(\.isASCIIHexDigit) else { return nil }
+        let card = programCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard card.hasPrefix("0x"), card.count == 42 else { return nil }
+
+        let limitData = Self.buildGetAdminAirdropLimitCalldata(adminAddrLower: w)
+        guard let limitHex = await jsonRpcEthCallBase(to: card, dataHex: limitData),
+              let limitParsed = Self.decodeGetAdminAirdropLimitResult(hex: limitHex)
+        else { return nil }
+
+        let statsData = Self.buildGetAdminStatsFullAllTimeCalldata(adminAddrLower: w)
+        guard let statsHex = await jsonRpcEthCallBase(to: card, dataHex: statsData),
+              let mintRaw = Self.parseMintCounterFromClearFromGetAdminStatsFull(hex: statsHex)
+        else { return nil }
+
+        let mintedDisplay = mintRaw / 1_000_000.0
+        if limitParsed.unlimited {
+            return PosTerminalReloadQuota(unlimited: true, remainingDisplay: 0, mintedFromClearDisplay: mintedDisplay)
+        }
+        return PosTerminalReloadQuota(
+            unlimited: false,
+            remainingDisplay: limitParsed.remainingRaw / 1_000_000.0,
+            mintedFromClearDisplay: mintedDisplay
+        )
     }
 
     /// `GET /api/myCards?owner=0x...` → `items[].cardAddress`（与 bizSite `fetchMyCardsFromApi` 一致）
@@ -1217,6 +1264,93 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// `metadata.bonusRules` / `metadata.bonusRule`, or nested `metadata.shareTokenMetadata.*` (card issuance share token).
+    func fetchProgramRechargeBonusRules(cardAddress: String) async -> [BeamioRechargeBonusRule] {
+        guard let root = await fetchCardMetadataRoot(cardAddress: cardAddress),
+              let meta = root["metadata"] as? [String: Any]
+        else { return [] }
+        return Self.parseRechargeBonusRules(fromMetadata: meta)
+    }
+
+    /// Card issuance stores recharge tiers under `metadata.shareTokenMetadata` (biz `createBeamioCard`); some responses also duplicate at `metadata` root.
+    private static func parseRechargeBonusRules(fromMetadata meta: [String: Any]) -> [BeamioRechargeBonusRule] {
+        let direct = parseRechargeBonusRulesDirect(from: meta)
+        if !direct.isEmpty { return direct }
+        if let stm = meta["shareTokenMetadata"] as? [String: Any] {
+            return parseRechargeBonusRulesDirect(from: stm)
+        }
+        if let s = meta["shareTokenMetadata"] as? String,
+           let data = s.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        {
+            return parseRechargeBonusRulesDirect(from: obj)
+        }
+        return []
+    }
+
+    private static func parseRechargeBonusRulesDirect(from meta: [String: Any]) -> [BeamioRechargeBonusRule] {
+        var out: [BeamioRechargeBonusRule] = []
+        if let arr = meta["bonusRules"] as? [Any] {
+            for x in arr {
+                if let r = parseOneRechargeBonusRule(x) { out.append(r) }
+            }
+        }
+        if out.isEmpty, let one = meta["bonusRule"] {
+            if let r = parseOneRechargeBonusRule(one) { out.append(r) }
+        }
+        return out
+    }
+
+    private static func parseBonusProportionalFlag(_ d: [String: Any]) -> Bool {
+        let keys = ["bonusProportional", "bonusIsProportional", "percentBased", "proportionalBonus", "percentage"]
+        for k in keys {
+            guard let v = d[k] else { continue }
+            if let b = v as? Bool, b { return true }
+            if let n = v as? NSNumber, n.boolValue { return true }
+            if let s = v as? String {
+                let t = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if t == "true" || t == "1" { return true }
+            }
+        }
+        return false
+    }
+
+    private static func parseOneRechargeBonusRule(_ any: Any) -> BeamioRechargeBonusRule? {
+        guard let d = any as? [String: Any] else { return nil }
+        guard let pay = parsePositiveMoneyField(d["paymentAmount"]),
+              let bonus = parseNonNegativeMoneyField(d["bonusValue"]),
+              bonus > 0
+        else { return nil }
+        let prop = parseBonusProportionalFlag(d)
+        return BeamioRechargeBonusRule(paymentAmount: pay, bonusValue: bonus, bonusProportional: prop)
+    }
+
+    private static func parsePositiveMoneyField(_ v: Any?) -> Double? {
+        let x: Double? = {
+            if let n = v as? NSNumber { return n.doubleValue }
+            if let s = v as? String {
+                let t = s.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                return Double(t)
+            }
+            return nil
+        }()
+        guard let x, x.isFinite, x > 0 else { return nil }
+        return (x * 100).rounded() / 100
+    }
+
+    private static func parseNonNegativeMoneyField(_ v: Any?) -> Double? {
+        let x: Double? = {
+            if let n = v as? NSNumber { return n.doubleValue }
+            if let s = v as? String {
+                let t = s.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                return Double(t)
+            }
+            return nil
+        }()
+        guard let x, x.isFinite, x >= 0 else { return nil }
+        return (x * 100).rounded() / 100
+    }
+
     private func fetchTierRoutingFromCardMetadataApi(cardAddress: String) async -> (tax: Double, discountSummary: String)? {
         guard let resp = await fetchCardMetadataRoot(cardAddress: cardAddress),
               let meta = resp["metadata"] as? [String: Any]
@@ -1360,6 +1494,57 @@ final class BeamioAPIClient: @unchecked Sendable {
         let periodDay = String(repeating: "0", count: 63) + "1"
         let z = String(repeating: "0", count: 64)
         return "0x9abc4888" + addrPadded + periodDay + z + z
+    }
+
+    /// Cumulative stats: `periodType = 0`, `anchorTs = 0`, `cumulativeStartTs = 0` (biz `fetchBizTerminalChainStats`).
+    private static func buildGetAdminStatsFullAllTimeCalldata(adminAddrLower: String) -> String {
+        let addrPadded = String(repeating: "0", count: 24) + adminAddrLower.lowercased()
+        let z = String(repeating: "0", count: 64)
+        return "0x9abc4888" + addrPadded + z + z + z
+    }
+
+    private static let ethCallGetAdminAirdropLimitSelector = "0xd1d32620"
+
+    private static func buildGetAdminAirdropLimitCalldata(adminAddrLower: String) -> String {
+        let addrPadded = String(repeating: "0", count: 24) + adminAddrLower.lowercased()
+        return ethCallGetAdminAirdropLimitSelector + addrPadded
+    }
+
+    /// `AdminAirdropLimitView`: words 4–5 are `remainingAvailable`, `unlimited`.
+    private static func decodeGetAdminAirdropLimitResult(hex: String) -> (unlimited: Bool, remainingRaw: Double)? {
+        var raw = hex
+        if raw.hasPrefix("0x") { raw = String(raw.dropFirst(2)) }
+        guard raw.count >= 64 * 6 else { return nil }
+        let w4 = wordHex64(from: raw, index: 4)
+        let w5 = wordHex64(from: raw, index: 5)
+        let remainingRaw = abiUInt256HexToDouble(w4)
+        let unlimited = !isAllZeroHex64(w5)
+        return (unlimited, remainingRaw)
+    }
+
+    /// biz `parseGetAdminStatsFullReturnHex`: first word = byte offset to struct; `mintCounterFromClear` at `base + 16`.
+    private static func parseMintCounterFromClearFromGetAdminStatsFull(hex: String) -> Double? {
+        var raw = hex
+        if raw.hasPrefix("0x") { raw = String(raw.dropFirst(2)) }
+        guard raw.count >= 64 else { return nil }
+        let offWord = wordHex64(from: raw, index: 0)
+        let structOffset = abiUInt256HexToDouble(offWord)
+        guard structOffset >= 0, structOffset.truncatingRemainder(dividingBy: 32) == 0 else { return nil }
+        let base = Int(structOffset / 32)
+        let idx = base + 16
+        guard raw.count >= (idx + 1) * 64 else { return nil }
+        let mintW = wordHex64(from: raw, index: idx)
+        return abiUInt256HexToDouble(mintW)
+    }
+
+    private static func wordHex64(from rawNo0x: String, index: Int) -> String {
+        let start = rawNo0x.index(rawNo0x.startIndex, offsetBy: index * 64)
+        let end = rawNo0x.index(start, offsetBy: 64)
+        return String(rawNo0x[start ..< end])
+    }
+
+    private static func isAllZeroHex64(_ hex64: String) -> Bool {
+        hex64.allSatisfy { $0 == "0" }
     }
 
     /// periodTransferAmount word hex [768:832), periodMint [576:640)

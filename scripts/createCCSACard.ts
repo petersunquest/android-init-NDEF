@@ -86,11 +86,10 @@ async function main() {
     const a = data.contracts?.beamioUserCardFactoryPaymaster?.address;
     if (typeof a === "string") cardFactoryAddress = ethers.getAddress(a);
   }
-  const configTs = path.join(__dirname, "..", "config", "base-addresses.ts");
-  if (!cardFactoryAddress && fs.existsSync(configTs)) {
-    const config = fs.readFileSync(configTs, "utf-8");
-    const m = config.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-    if (m) cardFactoryAddress = m[1];
+  const configJson = path.join(__dirname, "..", "config", "base-addresses.json");
+  if (!cardFactoryAddress && fs.existsSync(configJson)) {
+    const config = JSON.parse(fs.readFileSync(configJson, "utf-8"));
+    if (typeof config.CARD_FACTORY === "string") cardFactoryAddress = config.CARD_FACTORY;
   }
   if (!cardFactoryAddress) {
     const fullFile = path.join(__dirname, "..", "deployments", "base-FullAccountAndUserCard.json");

@@ -11,8 +11,8 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONET_RPC = "https://mainnet-rpc.conet.network";
-const GUARDIAN_NODES = process.env.GUARDIAN_NODES || "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D";
+const CONET_RPC = "https://rpc1.conet.network";
+const GUARDIAN_NODES = process.env.GUARDIAN_NODES || "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94";
 const BATCH_SIZE = 50;
 
 const GuardianNodesABI = [

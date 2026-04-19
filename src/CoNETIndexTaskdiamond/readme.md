@@ -295,7 +295,7 @@ BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTo
 | 字段 | 值 |
 |------|-----|
 | txCategory | `keccak256("buintClaim")` |
-| chainId | 224400（CoNET 主网） |
+| chainId | 224422（CoNET 主网） |
 | payer | BUint 合约地址 |
 | payee | claimant（申领人） |
 | finalRequestAmountFiat6 | claimAmount（BUnitAirdrop.claimAmount，6 位精度） |
@@ -1190,7 +1190,7 @@ const admins = await card.getAdminList()
 
 | 项目 | 值 |
 |------|-----|
-| RPC | `https://mainnet-rpc.conet.network` |
+| RPC | `https://rpc1.conet.network` |
 | Indexer 地址 | 见 `deployments/conet-addresses.json`（当前 `0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe`） |
 | 交易总数 (txCount) | **262** |
 
@@ -1213,7 +1213,7 @@ const admins = await card.getAdminList()
 ### 9.2 链分布
 
 - **chainId 8453**：Base 主网（transfer、internal_transfer、request_create 等）
-- **chainId 224400**：CoNET 主网（buintClaim、buintUSDC、buintBurn 等）
+- **chainId 224422**：CoNET 主网（buintClaim、buintUSDC、buintBurn 等）
 
 ## 10. 交付物清单
 

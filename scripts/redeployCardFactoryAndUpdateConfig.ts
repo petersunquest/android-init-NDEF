@@ -69,7 +69,7 @@ async function main() {
     if (cfg.AA_FACTORY) AA_FACTORY_ADDRESS = cfg.AA_FACTORY;
   }
   if (!AA_FACTORY_ADDRESS) {
-    AA_FACTORY_ADDRESS = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+    AA_FACTORY_ADDRESS = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   }
   console.log("使用 AA_FACTORY:", AA_FACTORY_ADDRESS);
 
@@ -198,7 +198,7 @@ async function main() {
     baseJson = JSON.parse(fs.readFileSync(configJsonPath, "utf-8"));
   }
   baseJson.CARD_FACTORY = factoryAddress;
-  baseJson.AA_FACTORY = baseJson.AA_FACTORY ?? AA_FACTORY_ADDRESS;
+  baseJson.AA_FACTORY = AA_FACTORY_ADDRESS;
   baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
   fs.writeFileSync(configJsonPath, JSON.stringify(baseJson, null, 2));
   console.log("5. 已更新 config/base-addresses.json（全局配置，各模块自动生效）");

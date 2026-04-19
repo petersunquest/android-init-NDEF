@@ -2538,7 +2538,6 @@ private struct RecoveryKeySheet: View {
 private struct HomeRootView: View {
     @ObservedObject var vm: POSViewModel
     @Binding var amountFlow: AmountFlow?
-    @State private var walletCopied = false
 
     private let linkPurple = Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255)
     private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
@@ -2553,18 +2552,6 @@ private struct HomeRootView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
                     .padding(.vertical, 8)
-                if vm.homePullRefreshing {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                        Text("Loading latest data…")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 16)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground))
-                }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
                         dashboardBlackCard
@@ -2577,11 +2564,8 @@ private struct HomeRootView: View {
                     .padding(.top, 8)
                     .padding(.bottom, 8)
                 }
-                .scrollBounceBehavior(.always, axes: .vertical)
+                .scrollBounceBehavior(.basedOnSize, axes: .vertical)
                 .frame(maxWidth: .infinity, maxHeight: scrollMax, alignment: .top)
-                .refreshable {
-                    await vm.refreshHomeProfilesPullToRefresh()
-                }
                 VStack(spacing: 8) {
                     homeActionRow(
                         title: "Link App",
@@ -2690,40 +2674,7 @@ private struct HomeRootView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 10)
             }
-            taxAndTierRow
-                .padding(.top, 10)
-            HStack {
-                if let w = vm.walletAddress {
-                    let short = homeShortAddr(w)
-                    Button {
-                        vm.copyWalletToPasteboard()
-                        walletCopied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            walletCopied = false
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("ID: \(short)")
-                                .font(.system(size: 12, weight: .medium))
-                            Image(systemName: walletCopied ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 13))
-                                .foregroundStyle(walletCopied ? Color.green : .white.opacity(0.85))
-                        }
-                        .foregroundStyle(.white)
-                    }
-                    .buttonStyle(BeamioHapticPlainButtonStyle())
-                }
-                Spacer()
-                HStack(spacing: 6) {
-                    Image(systemName: "shield.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(brandBlue)
-                    Text("SECURED")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white)
-                }
-            }
-            .padding(.top, 10)
+            homeDashboardBonusDiscountSection
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -2836,25 +2787,148 @@ private struct HomeRootView: View {
         return String(s[dot...])
     }
 
-    private var taxAndTierRow: some View {
-        HStack(alignment: .center, spacing: 8) {
-            Spacer(minLength: 0)
-            HStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(brandBlue.opacity(0.22))
-                        .frame(width: 24, height: 24)
-                    Image(systemName: "square.3.layers.3d")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(brandBlue)
+    /// Tier discount（左）与充值奖励（右）同一行；多条奖励时首行带折扣，其余行仅右侧奖励。
+    @ViewBuilder
+    private var homeDashboardBonusDiscountSection: some View {
+        let rules = vm.programRechargeBonusRules
+        let formattedDiscount = homeDashboardFormatDiscountSummaryForDisplay(from: vm.infraRoutingDiscountSummary)
+        let showDiscount = homeDashboardShowsTierDiscountRow(summary: vm.infraRoutingDiscountSummary)
+            && formattedDiscount != nil
+        if showDiscount || !rules.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                if rules.isEmpty, showDiscount, let disc = formattedDiscount {
+                    HStack(alignment: .center, spacing: 8) {
+                        homeDashboardDiscountLeadingInline(displaySummary: disc)
+                        Spacer(minLength: 0)
+                    }
+                } else {
+                    ForEach(Array(rules.enumerated()), id: \.offset) { idx, r in
+                        HStack(alignment: .center, spacing: 8) {
+                            if idx == 0, showDiscount, let disc = formattedDiscount {
+                                homeDashboardDiscountLeadingInline(displaySummary: disc)
+                            }
+                            Spacer(minLength: 8)
+                            homeDashboardSingleBonusLine(rule: r)
+                        }
+                    }
                 }
-                Text(vm.infraRoutingDiscountSummary ?? "—")
+            }
+            .padding(.top, 10)
+        }
+    }
+
+    private func homeDashboardDiscountLeadingInline(displaySummary: String) -> some View {
+        HStack(spacing: 6) {
+            ZStack {
+                Circle()
+                    .fill(brandBlue.opacity(0.22))
+                    .frame(width: 24, height: 24)
+                Image(systemName: "square.3.layers.3d")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.95))
-                    .lineLimit(1)
-                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(brandBlue)
+            }
+            Text(displaySummary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.95))
+                .lineLimit(1)
+                .multilineTextAlignment(.leading)
+        }
+    }
+
+    /// 折扣百分比仅保留整数（四舍五入），去掉 `0%`；若删光则返回 `nil`。
+    private func homeDashboardFormatDiscountSummaryForDisplay(from summary: String?) -> String? {
+        guard var s = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        let pattern = "(\\d+(?:\\.\\d+)?)\\s*%"
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return s }
+        let ns = s as NSString
+        var matches = re.matches(in: s, range: NSRange(location: 0, length: ns.length))
+        matches.sort { $0.range.location > $1.range.location }
+        for m in matches {
+            guard m.numberOfRanges > 1,
+                  let fullR = Range(m.range(at: 0), in: s),
+                  let numR = Range(m.range(at: 1), in: s),
+                  let v = Double(s[numR]) else { continue }
+            let intPct = Int(v.rounded())
+            if intPct <= 0 {
+                s.removeSubrange(fullR)
+            } else {
+                s.replaceSubrange(fullR, with: "\(intPct)%")
             }
         }
+        var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimChars: Set<Character> = ["+", "/", ",", "·", "•"]
+        while let f = t.first, trimChars.contains(f) {
+            t = String(t.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        while let l = t.last, trimChars.contains(l) {
+            t = String(t.dropLast()).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        t = t.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        t = t.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
+    private func homeDashboardSingleBonusLine(rule r: BeamioRechargeBonusRule) -> some View {
+        HStack(spacing: 8) {
+            if r.bonusProportional {
+                Text("Start $\(formatHomeBonusAmount(r.paymentAmount))")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.45))
+                Text("Get \(homeRechargeBonusTierPercentLabel(r))%")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(brandBlue.opacity(0.98))
+            } else {
+                Text("Pay $\(formatHomeBonusAmount(r.paymentAmount))")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.92))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.45))
+                Text("Get $\(formatHomeBonusAmount(r.paymentAmount + r.bonusValue))")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(brandBlue.opacity(0.98))
+            }
+        }
+    }
+
+    private func formatHomeBonusAmount(_ v: Double) -> String {
+        let r = (v * 100).rounded() / 100
+        if abs(r - r.rounded()) < 0.001 {
+            return String(format: "%.0f", r)
+        }
+        return String(format: "%.2f", r)
+    }
+
+    /// Reference bonus rate for proportional tier: `bonusValue / paymentAmount` as percent (e.g. 15 → 15%).
+    private func homeRechargeBonusTierPercentLabel(_ rule: BeamioRechargeBonusRule) -> String {
+        guard rule.paymentAmount > 1e-9 else { return "0" }
+        let p = (rule.bonusValue / rule.paymentAmount) * 100.0
+        let r = (p * 100).rounded() / 100
+        if abs(r - r.rounded()) < 0.01 {
+            return String(format: "%.0f", r)
+        }
+        return String(format: "%.2f", r)
+    }
+
+    /// 至少有一处 `…%` 四舍五入为大于 0 的整数时才显示 tier 折扣行（隐藏 `—`、`0%`、四舍五入后为 0 的小数等）。
+    private func homeDashboardShowsTierDiscountRow(summary: String?) -> Bool {
+        guard let raw = summary?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else { return false }
+        if raw == "—" || raw == "–" || raw == "-" { return false }
+        let pattern = "(\\d+(?:\\.\\d+)?)\\s*%"
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return false }
+        let ns = raw as NSString
+        let matches = re.matches(in: raw, range: NSRange(location: 0, length: ns.length))
+        if matches.isEmpty { return false }
+        var maxIntPct = 0
+        for m in matches {
+            guard m.numberOfRanges > 1, let r = Range(m.range(at: 1), in: raw) else { continue }
+            let v = Double(raw[r]) ?? 0
+            maxIntPct = max(maxIntPct, Int(v.rounded()))
+        }
+        return maxIntPct > 0
     }
 
     private var homeWelcomeNoAA: some View {
@@ -2910,12 +2984,6 @@ private struct HomeRootView: View {
             .background(RoundedRectangle(cornerRadius: 16).fill(Color(uiColor: .systemBackground)))
         }
         .buttonStyle(BeamioHapticPlainButtonStyle())
-    }
-
-    private func homeShortAddr(_ s: String) -> String {
-        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard t.count >= 10 else { return t }
-        return "\(t.prefix(5))...\(t.suffix(5))"
     }
 
     /// Android header wallet display: `take(6) + "…" + takeLast(4)` when length ≥ 10.
@@ -5646,7 +5714,6 @@ private struct PaymentSuccessView: View {
     }
 
     private func partialFooterGrid(dateStr: String, displayMemberNo: String) -> some View {
-        let shortTx = state.txHash.isEmpty ? "—" : topupShortTx(state.txHash)
         let settlement = state.settlementViaQr ? "App Validator" : "NTAG 424 DNA"
         return LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
@@ -5665,10 +5732,30 @@ private struct PaymentSuccessView: View {
                     .foregroundStyle(outlineLabel)
                     .textCase(.uppercase)
                     .tracking(0.8)
-                Text(shortTx)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(onSurface)
-                    .lineLimit(1)
+                if state.txHash.isEmpty {
+                    Text("—")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(onSurface)
+                        .lineLimit(1)
+                } else if let url = beamioBaseScanTxUrl(state.txHash) {
+                    Button {
+                        UIApplication.shared.open(url)
+                    } label: {
+                        Text(topupShortTx(state.txHash))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(red: 0, green: 55 / 255, blue: 146 / 255))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(red: 0, green: 55 / 255, blue: 146 / 255).opacity(0.06))
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
+                } else {
+                    Text(topupShortTx(state.txHash))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(onSurface)
+                        .lineLimit(1)
+                }
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text("Settlement (\(settlement))")
@@ -6277,7 +6364,27 @@ private struct TopupSuccessView: View {
                                     .padding(.vertical, 6)
                                     if !state.txHash.isEmpty {
                                         topupThinDivider
-                                        topupReceiptRow(left: "TX Hash", right: topupShortTx(state.txHash), rightBlue: true)
+                                        HStack {
+                                            Text("TX Hash")
+                                                .font(.system(size: 13))
+                                                .foregroundStyle(Color(red: 0x86 / 255, green: 0x86 / 255, blue: 0x8b / 255))
+                                            Spacer()
+                                            if let url = beamioBaseScanTxUrl(state.txHash) {
+                                                Button {
+                                                    UIApplication.shared.open(url)
+                                                } label: {
+                                                    Text(topupShortTx(state.txHash))
+                                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                                        .foregroundStyle(Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255))
+                                                }
+                                                .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
+                                            } else {
+                                                Text(topupShortTx(state.txHash))
+                                                    .font(.system(size: 13, weight: .medium))
+                                                    .foregroundStyle(readBalanceDetailsOnSurface)
+                                            }
+                                        }
+                                        .padding(.vertical, 6)
                                     }
                                     topupThinDivider
                                     HStack {
@@ -6630,6 +6737,7 @@ private struct ScanSheet: View {
                 tipAmount: tip
             )
         case .topup:
+            if let t = vm.topupExecuteDisplayTotal, t > 0 { return t }
             return subtot
         default:
             return 0
@@ -6681,6 +6789,11 @@ private struct ScanSheet: View {
                         Text("$\(formatUsdAmountScanOverlay(scanBottomMoneyValue))")
                             .font(.system(size: 52, weight: .semibold))
                             .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : Color.black)
+                        if action == .topup, let b = vm.topupExecuteDisplayBonus, b > 1e-6 {
+                            Text("Bonus $\(formatUsdAmountScanOverlay(b))")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255))
+                        }
                     }
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -6740,9 +6853,11 @@ private struct ScanSheet: View {
             )
             .padding(.horizontal)
         } else if nfcLoading || vm.topupQrSigningInProgress {
+            let topupBonusPink = Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
+            let showTopupTotals = (vm.topupExecuteDisplayTotal ?? 0) > 0
             RoundedRectangle(cornerRadius: 32)
                 .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
-                .frame(height: 280)
+                .frame(height: showTopupTotals ? 330 : 280)
                 .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
                 .overlay {
                     VStack(spacing: 0) {
@@ -6750,7 +6865,26 @@ private struct ScanSheet: View {
                         ProgressView()
                             .scaleEffect(1.2)
                             .tint(Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255))
-                            .padding(.bottom, 20)
+                            .padding(.bottom, 16)
+                        if showTopupTotals, let tot = vm.topupExecuteDisplayTotal {
+                            VStack(spacing: 4) {
+                                Text("Total credit")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundStyle(Self.scanOverlayLabelGray)
+                                Text("$\(formatUsdAmountScanOverlay(tot))")
+                                    .font(.system(size: 30, weight: .semibold))
+                                    .foregroundStyle(Self.scanOverlayTopUpBlue)
+                                    .minimumScaleFactor(0.65)
+                                    .lineLimit(1)
+                                if let b = vm.topupExecuteDisplayBonus, b > 1e-6 {
+                                    Text("Bonus $\(formatUsdAmountScanOverlay(b))")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundStyle(topupBonusPink)
+                                }
+                            }
+                            .multilineTextAlignment(.center)
+                            .padding(.bottom, 12)
+                        }
                         VStack(spacing: 4) {
                             Text(vm.topupQrSigningInProgress ? "Sign & execute" : "Loading...")
                                 .font(.system(size: 18, weight: .semibold))

@@ -69,7 +69,7 @@ async function main() {
   const REDEEM_MODULE_ADDRESS = c.redeemModule;
   const QUOTE_HELPER_ADDRESS = c.quoteHelper;
   const DEPLOYER_ADDRESS = data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-  const AA_FACTORY_ADDRESS = c.aaFactory || "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+  const AA_FACTORY_ADDRESS = c.aaFactory || "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   const ISSUED_NFT_MODULE = c.issuedNftModule;
   const FAUCET_MODULE = c.faucetModule;
   const MEMBERSHIP_STATS_MODULE = c.membershipStatsModule;
@@ -190,7 +190,7 @@ async function main() {
     baseJson = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   }
   baseJson.CARD_FACTORY = factoryAddress;
-  baseJson.AA_FACTORY = baseJson.AA_FACTORY ?? AA_FACTORY_ADDRESS;
+  baseJson.AA_FACTORY = AA_FACTORY_ADDRESS;
   baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
   fs.writeFileSync(configPath, JSON.stringify(baseJson, null, 2));
   console.log("已更新 config/base-addresses.json");

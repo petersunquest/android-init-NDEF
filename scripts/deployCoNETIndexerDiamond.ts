@@ -1,8 +1,7 @@
 /**
  * 部署 BeamioIndexerDiamond (CoNETIndexTaskdiamond) 到 CoNET mainnet
- * RPC: mainnet-rpc.conet.network
- * 使用 masterSetup.settle_contractAdmin[0] 私钥
- * 部署完成后将 settle_contractAdmin 中所有钱包添加为 Diamond admin
+ * RPC: https://rpc1.conet.network（chainId 224422）
+ * 部署完成后将 settle_contractAdmin + beamio_Admins + admin 私钥对应地址添加为 Diamond admin
  *
  * 运行: npx hardhat run scripts/deployCoNETIndexerDiamond.ts --network conet
  */
@@ -11,8 +10,8 @@ import { network as hreNetwork } from "hardhat";
 import { ethers as ethersLib } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
-import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,18 +129,12 @@ async function main() {
   await tx.wait();
   console.log("  ✅ diamondCut 完成");
 
-  // 11. 将 settle_contractAdmin 中所有钱包添加为 Diamond admin
-  const masterPath = path.join(homedir(), ".master.json");
-  if (fs.existsSync(masterPath)) {
-    try {
-      const master = JSON.parse(fs.readFileSync(masterPath, "utf-8"));
-      const pks = master?.settle_contractAdmin;
-      if (Array.isArray(pks) && pks.length > 0) {
-        const addresses = pks.map((pk: string) => {
-          const k = pk.startsWith("0x") ? pk : `0x${pk}`;
-          return new ethersLib.Wallet(k).address;
-        });
-        console.log("\n[11] 添加 settle_contractAdmin 为 Diamond admin...");
+  // 11. 将 master 合并私钥对应地址添加为 Diamond admin
+  try {
+    const pks = mergeConetAdminPrivateKeysFromMasterFile();
+    if (pks.length > 0) {
+      const addresses = pks.map((pk: string) => new ethersLib.Wallet(pk).address);
+      console.log("\n[11] 添加合并 admin 为 Diamond admin...");
         const adminContract = new ethersLib.Contract(diamondAddr, AdminFacetABI, deployer);
         for (let i = 0; i < addresses.length; i++) {
           const addr = addresses[i];
@@ -154,11 +147,10 @@ async function main() {
             console.log(`  [${i + 1}/${addresses.length}] setAdmin(${addr}) ✅`);
           }
         }
-        console.log("  ✅ admin 登记完成");
-      }
-    } catch (e) {
-      console.warn("  跳过 admin 登记:", (e as Error).message);
+      console.log("  ✅ admin 登记完成");
     }
+  } catch (e) {
+    console.warn("  跳过 admin 登记:", (e as Error).message);
   }
 
   // 保存部署结果

@@ -3,7 +3,7 @@ import { network as networkModule } from "hardhat";
 async function main() {
   const { ethers } = await networkModule.connect();
   const deployerAddress = "0x794Fc963dC3F354847356EFdE4FbbF8D4b806959";
-  const factoryAddress = "0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767";
+  const factoryAddress = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   
   console.log("设置 Deployer 的 Factory 地址...");
   console.log("Deployer:", deployerAddress);

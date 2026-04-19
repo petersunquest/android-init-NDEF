@@ -20,6 +20,8 @@ final class POSViewModel: ObservableObject {
     @Published var merchantInfraCard: String = BeamioConstants.defaultBeamioUserCard
     /// `/api/myPosAddress` `terminalMetadata.allowedTopupMethods`; on fetch failure keep last value.
     @Published var posTerminalPolicy: PosTerminalPolicy = .allAllowed
+    /// On-chain reload/mint budget for this POS on the program card (Terminal Onboarding). `nil` if not fetched or RPC failed.
+    @Published var posTerminalReloadQuota: PosTerminalReloadQuota?
     @Published var terminalProfile: TerminalProfile?
     @Published var adminProfile: TerminalProfile?
 
@@ -29,9 +31,7 @@ final class POSViewModel: ObservableObject {
     @Published var cardChargeAmount: Double?
     @Published var cardTopUpAmount: Double?
     @Published private(set) var homeStatsLoaded = false
-    /// Pull-to-refresh on home: true while `refreshHomeProfiles` runs from user gesture.
-    @Published private(set) var homePullRefreshing = false
-    /// Home full refresh in progress — ignore overlapping triggers (elastic pull, duplicate Tasks).
+    /// Home full refresh in progress — ignore overlapping triggers (duplicate Tasks, concurrent refresh).
     private var homeRefreshInFlight = false
     /// While the parent-permission full-screen gate is up: wake every 6s and call `refreshHomeProfiles` if idle (no overlap).
     private var parentPermissionGatePollTask: Task<Void, Never>?
@@ -46,6 +46,8 @@ final class POSViewModel: ObservableObject {
     @Published var infraRoutingDiscountSummary: String?
     /// Infrastructure / program `BeamioUserCard` metadata `name` (`cards[].cardName`) for the POS `merchantInfraCard` row.
     @Published var homeMerchantProgramCardName: String?
+    /// Card Issuance recharge tiers (`metadata` or `metadata.shareTokenMetadata` bonus fields) for `merchantInfraCard`; home row + top-up bump.
+    @Published var programRechargeBonusRules: [BeamioRechargeBonusRule] = []
 
     @Published var homeToast: String?
     /// 注册成功后展示一次（与 web Recovery QR 秘密等价，勿记入日志）
@@ -128,6 +130,11 @@ final class POSViewModel: ObservableObject {
     @Published var topupQrResetId = 0
     /// Shown under "Sign & execute" (Android `topupExecuteUidDisplay`): `@beamioTag` or short wallet.
     @Published var topupQrCustomerHint: String = ""
+
+    /// After NFC/QR customer identified: total credited (program recharge tier + keypad “Activate Bonus” + bonus-only split), for loading UI.
+    @Published var topupExecuteDisplayTotal: Double?
+    /// Extra credits beyond principal (program `bonusValue` + split `bonusCurrencyAmount`). Shown below total on loading / bottom chrome.
+    @Published var topupExecuteDisplayBonus: Double?
 
     /// Check Balance + Scan QR: hide camera, central loading (`MainActivity` `nfcFetchingInfo` for read via QR).
     @Published var readQrFetchingInProgress = false
@@ -279,6 +286,8 @@ final class POSViewModel: ObservableObject {
         guard nextLower != prevLower else { return }
         pendingGetCardAdminInfoRootForHome = nil
         homeMerchantProgramCardName = nil
+        posTerminalReloadQuota = nil
+        programRechargeBonusRules = []
         resetTrustedInfraPosHomeAccessForWalletChange(walletLower: w.lowercased())
         // Keep the last rendered screen until the next trusted admin check decides whether Home is still allowed.
         applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: next, replaceDisplayValues: replaceDisplayValues)
@@ -1070,17 +1079,50 @@ final class POSViewModel: ObservableObject {
             infraRoutingDiscountSummary = r.discountSummary
             POSHomeScreenTrustedCache.saveRouting(wallet: w, infraCard: infra, tax: r.tax, summary: r.discountSummary)
         }
+
+        await refreshPosTerminalReloadQuotaFromChain(wallet: w, infraCard: infra)
+
+        if looksLikeAddress(infra) {
+            programRechargeBonusRules = await api.fetchProgramRechargeBonusRules(cardAddress: infra)
+        } else {
+            programRechargeBonusRules = []
+        }
     }
 
-    /// Home scroll pull-to-refresh: sets `homePullRefreshing` for UI until refresh completes.
-    func refreshHomeProfilesPullToRefresh() async {
-        if homeRefreshInFlight { return }
-        homePullRefreshing = true
-        defer { homePullRefreshing = false }
-        await refreshHomeProfiles()
+    /// `getAdminAirdropLimit` + cumulative `mintCounterFromClear` — aligns with biz Terminal Onboarding reload cap.
+    private func refreshPosTerminalReloadQuotaFromChain(wallet: String, infraCard: String) async {
+        let infra = infraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard looksLikeAddress(infra) else { return }
+        if let q = await api.fetchPosTerminalReloadQuota(posWallet: wallet, programCard: infra) {
+            posTerminalReloadQuota = q
+        }
     }
 
-    /// Charge / Top-up 成功展示后约 6s 自动再拉取首页数据（与下拉弹性拉取 `refreshHomeProfiles` 相同）。
+    private func posTopupMethodRawAllowed(_ methodRaw: String) -> Bool {
+        let r = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch r {
+        case "cash": return posTerminalPolicy.allowTopupCash
+        case "creditCard": return posTerminalPolicy.allowTopupBankCard
+        case "usdc": return posTerminalPolicy.allowTopupUsdc
+        case "bonus": return posTerminalPolicy.allowTopupAirdrop
+        default: return false
+        }
+    }
+
+    /// Block when total top-up display amount exceeds remaining mint budget (same ~CAD scaling as biz staff terminal stats).
+    private func validateTopupAgainstReloadQuota(totalAmountDisplay: Double) -> String? {
+        guard let q = posTerminalReloadQuota else { return nil }
+        if q.unlimited { return nil }
+        guard totalAmountDisplay > 0 else { return nil }
+        let rem = max(0, q.remainingDisplay)
+        if totalAmountDisplay > rem + 0.000_001 {
+            let remStr = String(format: "%.2f", rem)
+            return "This top-up exceeds the terminal reload limit (\(remStr) remaining)."
+        }
+        return nil
+    }
+
+    /// Charge / Top-up 成功展示后约 6s 自动再拉取首页数据（`refreshHomeProfiles`）。
     func scheduleHomeProfilesRefreshAfterTxSuccess() {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 6_000_000_000)
@@ -1631,6 +1673,8 @@ final class POSViewModel: ObservableObject {
         topupQrLastBeamioTag = nil
         topupQrLastWallet = nil
         topupQrCustomerHint = ""
+        topupExecuteDisplayTotal = nil
+        topupExecuteDisplayBonus = nil
     }
 
     private func resetReadQrChrome() {
@@ -1892,6 +1936,8 @@ final class POSViewModel: ObservableObject {
 
     private func reportTopupFailure(_ message: String, topupFromQr: Bool, homeToast: Bool = false) {
         isNfcBusy = false
+        topupExecuteDisplayTotal = nil
+        topupExecuteDisplayBonus = nil
         if topupFromQr {
             topupQrSigningInProgress = false
             topupQrExecuteError = message
@@ -2045,19 +2091,108 @@ final class POSViewModel: ObservableObject {
         return BeamioAPIClient.nfcTopupCurrencySplitAllCard(amount: normalizedAmt)
     }
 
+    /// Keypad / QR principal used to match `BeamioRechargeBonusRule.paymentAmount` (before promo bump).
+    private func topupKeypadPrincipalForBonusMatch(from amountStringVal: String) -> Double {
+        let normalizedAmt = amountStringVal.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        let keypadStored = pendingTopupKeypadAmount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        let base = keypadStored.isEmpty ? normalizedAmt : keypadStored
+        return Double(base) ?? 0
+    }
+
+    /// When `paymentPrincipal` is **≥** a rule’s `paymentAmount`, that tier qualifies; if several qualify, use the one with the **largest** `paymentAmount` (best tier). Same `bonusValue` is added to **actual** principal sent to the API.
+    private func selectProgramRechargeBonusRule(forPaymentPrincipal paymentPrincipal: Double) -> BeamioRechargeBonusRule? {
+        guard paymentPrincipal > 0, !programRechargeBonusRules.isEmpty else { return nil }
+        let pay = (paymentPrincipal * 100).rounded() / 100
+        let qualifying = programRechargeBonusRules.filter { r in
+            let threshold = (r.paymentAmount * 100).rounded() / 100
+            return pay + 1e-6 >= threshold
+        }
+        return qualifying.max(by: { $0.paymentAmount < $1.paymentAmount })
+    }
+
+    /// When keypad principal qualifies for a recharge tier (`>= paymentAmount`), API total = principal + fixed `bonusValue` or proportional `principal * (bonusValue / paymentAmount)` (biz `bonusProportional`). Skips if “Activate Bonus” or Bonus-only method.
+    private func resolveTopupApiAmountAndSplit(keypadAmountString amt: String, methodRaw: String) -> (apiAmount: String, split: NfcTopupCurrencySplit?, programRechargeBonus: Double) {
+        let defaultSplit = resolvedNfcTopupCurrencySplit(forApiTotalAmount: amt)
+        if methodRaw == "bonus" || pendingTopupBonusExpanded {
+            return (amt, defaultSplit, 0)
+        }
+        let principal = topupKeypadPrincipalForBonusMatch(from: amt)
+        guard let rule = selectProgramRechargeBonusRule(forPaymentPrincipal: principal) else {
+            return (amt, defaultSplit, 0)
+        }
+        let programBonus: Double = {
+            if rule.bonusProportional {
+                guard rule.paymentAmount > 1e-9 else { return 0 }
+                let raw = principal * rule.bonusValue / rule.paymentAmount
+                return (raw * 100).rounded() / 100
+            }
+            return rule.bonusValue
+        }()
+        if programBonus < 1e-9 {
+            return (amt, defaultSplit, 0)
+        }
+        let total = principal + programBonus
+        guard total > 0 else {
+            return (amt, defaultSplit, 0)
+        }
+        let api = String(format: "%.2f", (total * 100).rounded() / 100)
+        let split = BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
+            keypadAmount: api,
+            methodRaw: methodRaw,
+            bonusExpanded: false,
+            selectedBonusRate: 0
+        ) ?? BeamioAPIClient.nfcTopupCurrencySplitAllCard(amount: api)
+        return (api, split, programBonus)
+    }
+
+    private static func parseTopupSplitAmountField(_ raw: String?) -> Double {
+        let t = raw?.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "") ?? ""
+        guard let v = Double(t), v.isFinite else { return 0 }
+        return v
+    }
+
     private func runTopup(beamioTag: String?, wallet: String?, uid: String? = nil, sun: SunParams? = nil, privateKeyHex: String, topupFromQr: Bool = false) async {
+        topupExecuteDisplayTotal = nil
+        topupExecuteDisplayBonus = nil
         let amt = amountString
         guard Double(amt) ?? 0 > 0 else {
             reportTopupFailure("Invalid amount", topupFromQr: topupFromQr)
             return
         }
-        let currencySplit = resolvedNfcTopupCurrencySplit(forApiTotalAmount: amt)
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard
+        let methodRaw = resolveTopupMethodRawForSplit()
+        guard posTopupMethodRawAllowed(methodRaw) else {
+            reportTopupFailure("This payment method is not enabled for this terminal. Ask the merchant to update device settings in Terminal Onboarding.", topupFromQr: topupFromQr)
+            return
+        }
+        let (apiAmountString, currencySplit, programRechargeBonus) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: methodRaw)
+        let splitBonus = Self.parseTopupSplitAmountField(currencySplit?.bonusCurrencyAmount)
+        let totalFromSplit = Self.parseTopupSplitAmountField(currencySplit?.currencyAmount)
+        let apiParsed = Double(apiAmountString.replacingOccurrences(of: ",", with: "")) ?? 0
+        let totalDisplay = totalFromSplit > 0 ? totalFromSplit : apiParsed
+        let bonusDisplay = programRechargeBonus + splitBonus
+        if totalDisplay > 0 {
+            topupExecuteDisplayTotal = totalDisplay
+        }
+        if bonusDisplay > 1e-9 {
+            topupExecuteDisplayBonus = bonusDisplay
+        }
         isNfcBusy = true
         if !topupFromQr {
             scanBanner = "Sign & execute…"
         }
-        await refreshInfraCardFromDbIfPossible()
-        let infra = merchantInfraCard
+        if let w = walletAddress {
+            await refreshPosTerminalReloadQuotaFromChain(wallet: w, infraCard: infra)
+        }
+        let totalTopupDisplay: Double = {
+            guard let s = currencySplit else { return Double(apiAmountString.replacingOccurrences(of: ",", with: "")) ?? 0 }
+            return Double(s.currencyAmount.replacingOccurrences(of: ",", with: "")) ?? 0
+        }()
+        if let quotaErr = validateTopupAgainstReloadQuota(totalAmountDisplay: totalTopupDisplay) {
+            reportTopupFailure(quotaErr, topupFromQr: topupFromQr)
+            return
+        }
         let topupPrepareCurrency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
 
         if let beamioTag {
@@ -2065,7 +2200,7 @@ final class POSViewModel: ObservableObject {
                 uid: nil,
                 wallet: nil,
                 beamioTag: beamioTag,
-                amount: amt,
+                amount: apiAmountString,
                 sun: nil,
                 infraCard: infra,
                 currency: topupPrepareCurrency
@@ -2095,7 +2230,7 @@ final class POSViewModel: ObservableObject {
             let cur = preCard?.cardCurrency ?? preAssets.cardCurrency ?? "CAD"
             let custAddr = preAssets.address
 
-            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCard, currency: cur, customerAa: preAssets.aaAddress) {
+            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: apiAmountString, cardAddr: cardAddr, preCard: preCard, currency: cur, customerAa: preAssets.aaAddress) {
                 reportTopupFailure(err, topupFromQr: topupFromQr)
                 return
             }
@@ -2131,7 +2266,7 @@ final class POSViewModel: ObservableObject {
             }
 
             await completeTopupSuccessUi(
-                amount: amt,
+                amount: apiAmountString,
                 txHash: payBeamio.txHash,
                 cardAddr: cardAddr,
                 preBalance: preBal,
@@ -2158,7 +2293,7 @@ final class POSViewModel: ObservableObject {
                 uid: nil,
                 wallet: wallet,
                 beamioTag: nil,
-                amount: amt,
+                amount: apiAmountString,
                 sun: nil,
                 infraCard: infra,
                 currency: topupPrepareCurrency
@@ -2169,7 +2304,7 @@ final class POSViewModel: ObservableObject {
                     uid: nil,
                     wallet: wallet,
                     beamioTag: nil,
-                    amount: amt,
+                    amount: apiAmountString,
                     sun: nil,
                     infraCard: infra,
                     currency: topupPrepareCurrency
@@ -2192,7 +2327,7 @@ final class POSViewModel: ObservableObject {
             let curW = preCardW?.cardCurrency ?? preWalletAssets.cardCurrency ?? "CAD"
             let custAddrW = preWalletAssets.address
 
-            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCardW, currency: curW, customerAa: preWalletAssets.aaAddress) {
+            if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: apiAmountString, cardAddr: cardAddr, preCard: preCardW, currency: curW, customerAa: preWalletAssets.aaAddress) {
                 reportTopupFailure(err, topupFromQr: topupFromQr)
                 return
             }
@@ -2227,7 +2362,7 @@ final class POSViewModel: ObservableObject {
                 return
             }
             await completeTopupSuccessUi(
-                amount: amt,
+                amount: apiAmountString,
                 txHash: payW.txHash,
                 cardAddr: cardAddr,
                 preBalance: preBalW,
@@ -2256,7 +2391,7 @@ final class POSViewModel: ObservableObject {
             uid: uidN,
             wallet: nil,
             beamioTag: nil,
-            amount: amt,
+            amount: apiAmountString,
             sun: sunN,
             infraCard: infra,
             currency: topupPrepareCurrency
@@ -2284,7 +2419,7 @@ final class POSViewModel: ObservableObject {
         let curN = preCardN?.cardCurrency ?? preUidAssets.cardCurrency ?? "CAD"
         let custAddrN = preUidAssets.address
 
-        if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: amt, cardAddr: cardAddr, preCard: preCardN, currency: curN, customerAa: preUidAssets.aaAddress) {
+        if let err = await validateTopupMeetsMinimumTierForNonMember(amountStr: apiAmountString, cardAddr: cardAddr, preCard: preCardN, currency: curN, customerAa: preUidAssets.aaAddress) {
             reportTopupFailure(err, topupFromQr: topupFromQr)
             return
         }
@@ -2320,7 +2455,7 @@ final class POSViewModel: ObservableObject {
         }
 
         await completeTopupSuccessUi(
-            amount: amt,
+            amount: apiAmountString,
             txHash: payN.txHash,
             cardAddr: cardAddr,
             preBalance: preBalN,
@@ -2388,6 +2523,8 @@ final class POSViewModel: ObservableObject {
         topupQrSigningInProgress = false
         topupQrExecuteError = nil
         topupNfcReadError = nil
+        topupExecuteDisplayTotal = nil
+        topupExecuteDisplayBonus = nil
         nfc.invalidate()
         sheet = nil
         clearPendingTopupPadAccountingParams()

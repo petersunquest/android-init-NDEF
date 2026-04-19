@@ -1,0 +1,40 @@
+# BaseScan: AA BeamioQuoteHelperV07 @ 0xfa30c2086ff9a3D74576d55c2027586797A52F29
+
+## Standard JSON
+
+Upload:
+
+`deployments/base-BeamioQuoteHelperV07-standard-input-FULL.json`
+
+## Compiler Settings
+
+- Version: `0.8.33+commit.64118f21`
+- `settings.optimizer.runs = 0`
+- `settings.metadata.bytecodeHash = none`
+- `settings.debug.revertStrings = strip`
+- `settings.viaIR = true`
+- `settings.evmVersion = cancun`
+
+## Contract Name
+
+`project/src/BeamioUserCard/BeamioQuoteHelperV07.sol:BeamioQuoteHelperV07`
+
+## Constructor Arguments
+
+ABI-encoded:
+
+`0x000000000000000000000000da4ae8301262bdaaf1bb68ec91259e6c512a9a2b00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1`
+
+Decoded:
+
+- `oracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
+- `owner`: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
+
+## Deployment
+
+- Deploy tx: `0x86f75974a16dfeb8c1cfb0ab8f33a426d97be532cde7761c7835f31f488bd48b`
+- AA Factory.setQuoteHelper tx: `0x5f524667c38099d6c63260ac02c5b402ca8454060d78f1dc44504d4bc05d41ed`
+
+## Sanity Check
+
+Local compiled runtime bytecode exactly matches on-chain runtime bytecode for `0xfa30c2086ff9a3D74576d55c2027586797A52F29`.

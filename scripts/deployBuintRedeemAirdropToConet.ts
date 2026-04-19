@@ -17,15 +17,14 @@
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
-import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 const BUINT_JSON_PATH = path.join(__dirname, "..", "deployments", "conet-BUint.json");
-const MASTER_PATH = path.join(homedir(), ".master.json");
 const CANONICAL_BUINT = "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879";
 
 /** 除 constructor + settle 外，部署后自动加入的 redeem admin（checksum） */
@@ -61,10 +60,7 @@ function assertNotDeprecated(addr: string): void {
 }
 
 function loadSettleAdminPrivateKeys(): string[] {
-  if (!fs.existsSync(MASTER_PATH)) return [];
-  const data = JSON.parse(fs.readFileSync(MASTER_PATH, "utf-8"));
-  const arr = data?.settle_contractAdmin || [];
-  return arr.map((pk: string) => (pk.startsWith("0x") ? pk : `0x${pk}`));
+  return mergeConetAdminPrivateKeysFromMasterFile();
 }
 
 async function main() {
@@ -85,7 +81,7 @@ async function main() {
   console.log("deployer:", deployer.address);
   console.log("BUint:", BUINT_ADDRESS);
   console.log("initial redeem admin (constructor):", deployer.address);
-  console.log("settle_contractAdmin count:", settleAddresses.length);
+  console.log("合并 admin 私钥对应地址 count:", settleAddresses.length);
   console.log("chainId:", net.chainId.toString());
 
   const Factory = await ethers.getContractFactory("BuintRedeemAirdrop");
@@ -162,7 +158,7 @@ async function main() {
 
   const addrData = fs.existsSync(ADDRESSES_PATH)
     ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8"))
-    : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224400" };
+    : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224422" };
   addrData.BuintRedeemAirdrop = redeemAddress;
   if (!addrData.BUint) addrData.BUint = BUINT_ADDRESS;
   fs.writeFileSync(ADDRESSES_PATH, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
