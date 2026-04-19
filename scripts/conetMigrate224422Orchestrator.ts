@@ -30,6 +30,7 @@ const steps: { cmd: string; desc: string }[] = [
   { cmd: "npx hardhat run scripts/deployConetTreasuryToConet.ts --network conet", desc: "3. ConetTreasury + USDC" },
   { cmd: "npx hardhat run scripts/deployCoNETIndexerDiamond.ts --network conet", desc: "4. BeamioIndexerDiamond" },
   { cmd: "npx hardhat run scripts/deployConetOracleAndQuoteHelper.ts --network conet", desc: "5. Oracle + QuoteHelper" },
+  { cmd: "npx hardhat run scripts/deployAccountRegistryToConet.ts --network conet", desc: "5b. AccountRegistry (社交注册表)" },
   { cmd: "npx hardhat run scripts/deployFullAccountAndUserCard.ts --network conet", desc: "6. FullAccount + UserCard" },
   { cmd: "npx hardhat run scripts/deployBuintRedeemAirdropToConet.ts --network conet", desc: "7. BuintRedeemAirdrop" },
   { cmd: "npx hardhat run scripts/deployBusinessStartKetToConet.ts --network conet", desc: "8. BusinessStartKet" },

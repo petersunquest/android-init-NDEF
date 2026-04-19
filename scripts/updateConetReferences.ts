@@ -7,6 +7,7 @@
  * 3. ConetTreasury + conetUSDC：`deployConetTreasuryToConet.ts` / `createConetTreasuryUSDC.ts`
  * 4. BeamioIndexerDiamond：`deployCoNETIndexerDiamond.ts`，并完成 AdminFacet 与 BUnitAirdrop 登记
  * 5. BeamioOracle + QuoteHelper：`deployConetOracleAndQuoteHelper.ts`
+ * 5b. AccountRegistry（社交注册表）：`deployAccountRegistryToConet.ts --network conet`
  * 6. AA + UserCard 全栈：`deployFullAccountAndUserCard.ts --network conet`（需 EXISTING_ORACLE / QUOTE_HELPER 或 conet-FullSystem）
  * 7. BuintRedeemAirdrop、BusinessStartKet(+Redeem)、MerchantPOS、Guardian/AddressPGP 等专项脚本
  * 8. 验证：`verifyConetDeployments.ts`、`verifyCoNETIndexerDiamond.ts`、各合约 verify 脚本
@@ -53,6 +54,7 @@ function main() {
   const buintRedeem = data.BuintRedeemAirdrop as string | undefined;
   const bizKet = data.BusinessStartKet as string | undefined;
   const bizKetRedeem = data.BusinessStartKetRedeem as string | undefined;
+  const accountRegistry = data.AccountRegistry as string | undefined;
 
   if (!bunitAirdrop) {
     throw new Error("conet-addresses.json 缺少 BUnitAirdrop 地址");
@@ -69,6 +71,52 @@ function main() {
   console.log("beamioOracle:", beamioOracle ?? "(未配置)");
   console.log("ConetTreasury:", conetTreasury ?? "(未配置)");
   console.log("conetUsdc:", conetUsdc ?? "(未配置)");
+  console.log("AccountRegistry:", accountRegistry ?? "(未配置)");
+
+  // 0. CoNET AccountRegistry（见 deployments/conet-FullAccountAndUserCard.json 的 contracts.accountRegistry，非 beamioAccount）
+  if (accountRegistry) {
+    const ar = accountRegistry;
+    const patchAr = (filePath: string, label: string) => {
+      if (!fs.existsSync(filePath)) return;
+      let c = fs.readFileSync(filePath, "utf-8");
+      const prev = c;
+      c = c.replace(/const beamioConetAccountRegistry = '0x[a-fA-F0-9]{40}'/, `const beamioConetAccountRegistry = '${ar}'`);
+      c = c.replace(/const ACCOUNT_REGISTRY = "0x[a-fA-F0-9]{40}"/, `const ACCOUNT_REGISTRY = "${ar}"`);
+      c = c.replace(
+        /(const beamioAccountContract = \{\n\taddress: ')0x[a-fA-F0-9]{40}('/,
+        `$1${ar}$2`
+      );
+      c = c.replace(/static let beamioAccountRegistryAddress = "0x[a-fA-F0-9]{40}"/, `static let beamioAccountRegistryAddress = "${ar}"`);
+      c = c.replace(/private const val ACCOUNT_REGISTRY = "0x[a-fA-F0-9]{40}"/g, `private const val ACCOUNT_REGISTRY = "${ar}"`);
+      if (c !== prev) {
+        fs.writeFileSync(filePath, c);
+        console.log(`[0] 已更新 AccountRegistry → ${label}`);
+      }
+    };
+    const rootDir = path.join(__dirname, "..");
+    patchAr(path.join(rootDir, "src", "x402sdk", "src", "util.ts"), "x402sdk util.ts");
+    patchAr(path.join(rootDir, "src", "x402sdk", "src", "db.ts"), "x402sdk db.ts");
+    patchAr(path.join(rootDir, "scripts", "API server", "util.ts"), "API server util.ts");
+    patchAr(path.join(rootDir, "scripts", "addBeamioAdminsToAccountRegistry.ts"), "addBeamioAdminsToAccountRegistry.ts");
+    patchAr(path.join(rootDir, "scripts", "diagnoseRestoreWithUserPin.ts"), "diagnoseRestoreWithUserPin.ts");
+    patchAr(path.join(rootDir, "scripts", "fetchCardOwnerBeamioTag.ts"), "fetchCardOwnerBeamioTag.ts");
+    patchAr(path.join(rootDir, "src", "bizSite", "src", "services", "beamio.ts"), "bizSite beamio.ts");
+    patchAr(path.join(rootDir, "src", "SilentPassUI", "src", "services", "beamio.ts"), "SilentPassUI beamio.ts");
+    patchAr(path.join(rootDir, "src", "beamio.app", "src", "services", "beamio.ts"), "beamio.app beamio.ts");
+    patchAr(path.join(rootDir, "src", "Alliance", "src", "services", "beamio.ts"), "Alliance beamio.ts");
+    patchAr(
+      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "android_ntag", "BeamioOnboardingApi.kt"),
+      "BeamioOnboardingApi.kt"
+    );
+    patchAr(
+      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "android_ntag", "BeamioWalletService.kt"),
+      "BeamioWalletService.kt"
+    );
+    patchAr(
+      path.join(rootDir, "src", "CashTrees_iOS", "iOS_NDEF", "iOS_NDEF", "BeamioConstants.swift"),
+      "BeamioConstants.swift"
+    );
+  }
 
   // 1. x402sdk chainAddresses.ts
   const sdkChainPath = path.join(__dirname, "..", "src", "x402sdk", "src", "chainAddresses.ts");

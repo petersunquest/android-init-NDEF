@@ -93,6 +93,8 @@
     "deploy:business-start-ket-redeem:conet": "hardhat run scripts/deployBusinessStartKetRedeemToConet.ts --network conet",
     "add:business-start-ket-redeem-admin:conet": "hardhat run scripts/addBusinessStartKetRedeemAdminConet.ts --network conet",
     "verify:business-start-ket-redeem:conet": "hardhat run scripts/verifyBusinessStartKetRedeemConet.ts --network conet",
+    "export:account-registry:conet:standard-json": "node scripts/exportAccountRegistryConetStandardJson.mjs",
+    "verify:account-registry:conet:standard-json": "npx tsx scripts/verifyAccountRegistryConetStandardJson.ts",
     "verify:conet-deployments": "hardhat run scripts/verifyConetDeployments.ts --network conet",
     "verify:conet-treasury-usdc": "hardhat run scripts/verifyConetTreasuryAndUsdc.ts --network conet",
     "update:conet-references": "npx tsx scripts/updateConetReferences.ts",

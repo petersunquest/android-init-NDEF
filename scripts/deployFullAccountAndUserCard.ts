@@ -318,6 +318,26 @@ async function main() {
 
   // ==================== 保存 ====================
   const outFile = path.join(deploymentsDir, `${networkInfo.name}-FullAccountAndUserCard.json`);
+  if (chainId === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    if (fs.existsSync(conetAddrPath)) {
+      try {
+        const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+        const ar = ca.AccountRegistry;
+        if (typeof ar === "string" && ar.startsWith("0x")) {
+          (out.contracts as Record<string, unknown>).accountRegistry = {
+            address: ar,
+            source: "src/mainnet/AccountRegistry.sol",
+            tx: ca.accountRegistryTx ?? "",
+            deployedAt: ca.accountRegistryDeployedAt,
+            deployer: ca.accountRegistryDeployer,
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   fs.writeFileSync(outFile, JSON.stringify(out, null, 2));
   const configDir = path.join(__dirname, "..", "config");
   const baseJsonPath = path.join(configDir, "base-addresses.json");

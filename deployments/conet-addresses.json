@@ -21,5 +21,9 @@
   "BusinessStartKet": "0x65B4780efA2e2dB2FB4761dF82b16902d445Ab46",
   "BusinessStartKetRedeem": "0x0c15545f833CF4DF6C7F51F8D148cf7684e663ab",
   "GuardianNodesInfoV6": "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94",
-  "AddressPGP": "0x9C94238945295146F3F572D77ae492C13DF90bDd"
+  "AddressPGP": "0x9C94238945295146F3F572D77ae492C13DF90bDd",
+  "AccountRegistry": "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35",
+  "accountRegistryDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "accountRegistryDeployedAt": "2026-04-19T18:23:59.169Z",
+  "accountRegistryTx": "0xb076f71307d2116bd12fab1921902463e16f3df3152cda7dc1a004738dd1d363"
 }

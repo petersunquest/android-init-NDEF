@@ -1,4 +1,5 @@
 {
+  "_comment": "contracts.beamioAccount = BeamioAccount（AA 实现，EntryPoint 绑定）；contracts.accountRegistry = AccountRegistry（src/mainnet/AccountRegistry.sol，社交/用户名注册表）。二者不同，勿混用。权威 AccountRegistry 见 deployments/conet-addresses.json。",
   "network": "conet",
   "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
@@ -16,6 +17,13 @@
       "address": "0x46cBFC3f77b320Db545D1DC21138fa1ED2Fa3df3",
       "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
       "tx": "0x03ff90439b6fee2193669992ea3d990d37b6558b5159f408a4c46a248d3b9912"
+    },
+    "accountRegistry": {
+      "address": "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35",
+      "source": "src/mainnet/AccountRegistry.sol",
+      "tx": "0xb076f71307d2116bd12fab1921902463e16f3df3152cda7dc1a004738dd1d363",
+      "deployedAt": "2026-04-19T18:23:59.169Z",
+      "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
     },
     "beamioContainerModuleExternalLib": {
       "address": "0x1e82B21931E92BA19Ca7EaDe7EbCbD87463cbb08",

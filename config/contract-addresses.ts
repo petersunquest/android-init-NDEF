@@ -33,6 +33,8 @@ type ConetAddrs = {
   BeamioIndexerDiamond?: string
   ConetTreasury?: string
   conetUsdc?: string
+  /** src/mainnet/AccountRegistry.sol；与 beamioAccount（AA 实现）不同 */
+  AccountRegistry?: string
 }
 
 const base = baseAddrs as BaseAddrs
@@ -62,6 +64,8 @@ export const CONET_BUINT_REDEEM_AIRDROP = conet.BuintRedeemAirdrop ?? '0x9A02EfE
 export const BEAMIO_INDEXER_DIAMOND = conet.BeamioIndexerDiamond ?? '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
 export const CONET_TREASURY = conet.ConetTreasury ?? '0xA7fb50fE8e09E17E74081014d49f4E80729cCA48'
 export const CONET_USDC = conet.conetUsdc ?? '0x28fBBb6C5C06A4736B00A540b66378091c224456'
+export const CONET_ACCOUNT_REGISTRY =
+  conet.AccountRegistry ?? '0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35'
 
 // --- 其他（相对稳定，可后续迁入 JSON）---
 export const MERCHANT_POS_MANAGEMENT_CONET = '0x3Eb57035d3237Fce4b1cB273662E875EdfA0D54f'
@@ -105,6 +109,7 @@ export const CONTRACT_ADDRESSES = {
     beamioIndexerDiamond: BEAMIO_INDEXER_DIAMOND,
     conetTreasury: CONET_TREASURY,
     conetUsdc: CONET_USDC,
+    accountRegistry: CONET_ACCOUNT_REGISTRY,
   },
 } as const
 
