@@ -2,8 +2,8 @@ BuintRedeemAirdrop — CoNET Blockscout 验证元数据
 
 compiler_version: v0.8.33+commit.64118f21
 contract_name: project/src/b-unit/BuintRedeemAirdrop.sol:BuintRedeemAirdrop
-constructor_args_hex (no 0x): 0000000000000000000000004a3e59519ee72b9dcf376f0617ff0a0a5a1ef87900000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
-deployed_address: 0x9A02EfE5DFC45E9236552BfE8FAB6643Efefc84A
+constructor_args_hex (no 0x): 000000000000000000000000c97cebb4df827cb2d1453a9df7fef6dada1c16ad00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+deployed_address: 0x0DC615bAc14411CbDCd082fe59CBdDA8768615B0
 standard_json_full: deployments/conet-BuintRedeemAirdrop-standard-input-FULL.json
 standard_json_conet_api (推荐，避免 413): deployments/conet-BuintRedeemAirdrop-standard-input-SUBSET.json
 subset_sources_count: 49

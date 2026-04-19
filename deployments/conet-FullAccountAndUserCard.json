@@ -63,7 +63,7 @@
       "tx": "0xc5fec4a869c08b0524e03fed1d2251d584a5fd8810b548c509eaef08500a4402"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x04394E2Fc324aF3801B50748c93E362056903EA4",
+      "address": "0x2EB245646de404b2Dce87E01C6282C131778bb05",
       "usdc": "0x456Ecd35370bA9d4a9f615399a154548f07c2437",
       "redeemModule": "0x54996325E5Fbf9f01FFe7125e81b52314DC1eEC2",
       "quoteHelper": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
