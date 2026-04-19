@@ -31,7 +31,7 @@ function getAddressPGPAddress(): string {
     const d = JSON.parse(fs.readFileSync(deployPath, "utf-8"));
     return d.AddressPGP || "";
   }
-  return "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4";
+  return "0x9C94238945295146F3F572D77ae492C13DF90bDd";
 }
 
 function loadAdminPk(): string {

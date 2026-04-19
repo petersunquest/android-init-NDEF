@@ -8,7 +8,7 @@ enum BeamioConstants {
     /// CoNET mainnet RPC — `beamio-AccountRegistry` / `isAccountNameAvailable`（与 `bizSite` beamio.ts 一致）
     static let conetMainnetRpcUrl = "https://rpc1.conet.network"
     /// SilentPassUI `contracts.constPgpManager` — `searchKey(address)` for recipient CoNET PGP public key
-    static let conetAddressPgpManager = "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4"
+    static let conetAddressPgpManager = "0x9C94238945295146F3F572D77ae492C13DF90bDd"
     /// `beamioAccountContract.address` in `bizSite/src/services/beamio.ts`
     static let beamioAccountRegistryAddress = "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35"
     static let usdcBase = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
