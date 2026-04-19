@@ -235,7 +235,7 @@ export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
   }
 
   const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
-  let CONET_BUNIT_AIRDROP = "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  let CONET_BUNIT_AIRDROP = "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
   if (fs.existsSync(conetAddrPath)) {
     const conetData = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));
     if (conetData.BUnitAirdrop) CONET_BUNIT_AIRDROP = conetData.BUnitAirdrop;

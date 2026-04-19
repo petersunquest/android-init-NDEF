@@ -18,9 +18,9 @@ const ADDR_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.jso
 function loadBUnitAirdrop(): string {
   if (fs.existsSync(ADDR_PATH)) {
     const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-    return d.BUnitAirdrop || "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+    return d.BUnitAirdrop || "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
   }
-  return "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  return "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
 }
 
 function getPrivateKey(): string {
