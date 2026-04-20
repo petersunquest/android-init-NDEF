@@ -27,7 +27,7 @@ const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 const BUINT_JSON_PATH = path.join(__dirname, "..", "deployments", "conet-BUint.json");
-const CANONICAL_BUINT = "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879";
+const CANONICAL_BUINT = "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad";
 
 function loadBuintAddress(): string {
   if (process.env.BUINT_ADDRESS) return process.env.BUINT_ADDRESS;

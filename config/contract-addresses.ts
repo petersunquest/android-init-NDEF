@@ -57,7 +57,7 @@ export const BASE_BEAMIO_USER_CARD_FORMATTING_LIB = (base.BEAMIO_USER_CARD_FORMA
 export const BASE_BEAMIO_USER_CARD_TRANSFER_LIB = (base.BEAMIO_USER_CARD_TRANSFER_LIB ?? '').trim()
 
 // --- CoNET Mainnet ---
-export const CONET_BUINT = conet.BUint ?? '0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879'
+export const CONET_BUINT = conet.BUint ?? '0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad'
 export const CONET_BUNIT_AIRDROP_ADDRESS = conet.BUnitAirdrop ?? '0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264'
 /** B-Unit 兑换码空投（EIP-712 admin 提交）；见 deployments/conet-BuintRedeemAirdrop.json */
 export const CONET_BUINT_REDEEM_AIRDROP = conet.BuintRedeemAirdrop ?? '0x0DC615bAc14411CbDCd082fe59CBdDA8768615B0'
