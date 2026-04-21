@@ -11,7 +11,10 @@
 	"dependencies": {
 		"react": "^18.3.1",
 		"react-dom": "^18.3.1",
-		"react-router-dom": "^7.13.2"
+		"react-router-dom": "^7.13.2",
+		"viem": "^2.48.1",
+		"x402": "^1.2.0",
+		"x402-fetch": "^1.2.0"
 	},
 	"devDependencies": {
 		"@types/react": "^18.3.18",

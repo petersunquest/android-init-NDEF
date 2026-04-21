@@ -12,6 +12,8 @@ enum BeamioConstants {
     /// `beamioAccountContract.address` in `bizSite/src/services/beamio.ts`
     static let beamioAccountRegistryAddress = "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35"
     static let usdcBase = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    /// `BEAMIO_INDEXER_DIAMOND` (CoNET DePIN, biz `chainAddresses.ts`) — `getAccountTransactionsPaged` source for POS Transactions screen.
+    static let beamioIndexerDiamondAddress = "0x0c29b4DB72F31457570D38eB215b3F855d5989E1"
 
     /// 默认基础设施卡；运行时以 `/api/myPosAddress?wallet=` 为准
     static let defaultBeamioUserCard = "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14"

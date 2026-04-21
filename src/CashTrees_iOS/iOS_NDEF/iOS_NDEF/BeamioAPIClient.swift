@@ -56,7 +56,7 @@ struct PosTerminalReloadQuota: Equatable {
 /// Card Issuance `shareTokenMetadata.bonusRules` (biz `Card Issuance` → Recharge Bonuses).
 /// Fixed tier: credit += `bonusValue` when principal ≥ `paymentAmount`.
 /// `bonusProportional` (biz “Percentage”): credit += `principal * (bonusValue / paymentAmount)` when principal ≥ `paymentAmount`.
-struct BeamioRechargeBonusRule: Equatable, Sendable {
+struct BeamioRechargeBonusRule: Equatable, Sendable, Codable {
     var paymentAmount: Double
     var bonusValue: Double
     /// Same as `shareTokenMetadata.bonusProportional` / biz checkbox “Percentage”.
@@ -69,6 +69,54 @@ struct NfcTopupCurrencySplit: Equatable {
     let cardCurrencyAmount: String
     let cashCurrencyAmount: String
     let bonusCurrencyAmount: String
+}
+
+/// One row in the POS Transactions screen — sourced from cluster `/api/posLedger` (BeamioIndexerDiamond
+/// `getAccountTransactionsPaged` filtered + bounded by `*FromClear`). Reverse-chronological for display.
+struct PosLedgerItem: Equatable, Codable, Identifiable, Sendable {
+    enum Kind: String, Codable, Sendable {
+        case topUp
+        case charge
+    }
+
+    let id: String
+    let originalPaymentHash: String?
+    let type: Kind
+    let txCategory: String
+    /// Unix epoch seconds (chain `block.timestamp`).
+    let timestamp: Int64
+    let payer: String
+    let payee: String
+    /// USDC 6-dp atomic; `0` when the chain row didn't denominate in USDC (use `amountFiat6` then).
+    let amountUSDC6: String
+    /// Fiat 6-dp atomic (program-card currency).
+    let amountFiat6: String
+    /// `BeamioCurrencyType` enum int from `meta.currencyFiat` (0 = USD; biz convention).
+    let currencyFiat: Int
+    /// Indexer raw `displayJson` — keep as opaque string; future detail panes can parse it.
+    let displayJson: String
+    let topAdmin: String?
+    let subordinate: String?
+    let note: String?
+}
+
+/// Cluster `/api/posLedger` snapshot (items + the `*FromClear` totals shown in the panel header to prove parity).
+struct PosLedgerSnapshot: Equatable, Codable, Sendable {
+    /// Unsigned 6-decimal atomic; bigger than `Double` precision can hit, so keep as `String` in transit.
+    let topUpFromClear6: String
+    let chargeFromClear6: String
+    let items: [PosLedgerItem]
+
+    /// Display-units conversion (divide by 1e6) — sufficient up to ~9e9 with `Double`.
+    var topUpFromClearDisplay: Double { Self.atomic6ToDouble(topUpFromClear6) }
+    var chargeFromClearDisplay: Double { Self.atomic6ToDouble(chargeFromClear6) }
+
+    /// 用 fallback 兜底：USDC6 为 0 时退到 fiat6（cluster 端同样的 measure6 选择）。
+    static func atomic6ToDouble(_ s: String) -> Double {
+        let t = s.trimmingCharacters(in: .whitespaces)
+        guard let n = Double(t) else { return 0 }
+        return n / 1_000_000
+    }
 }
 
 extension BeamioAPIClient {
@@ -1027,6 +1075,19 @@ final class BeamioAPIClient: @unchecked Sendable {
         return b != 0
     }
 
+    /// Base: read `owner()` on a `BeamioUserCard` via `eth_call` (authoritative vs DB `cardMetadata.cardOwner`,
+    /// which can drift if ownership transferred on chain). Returns checksummed `0x...` (EIP-55-ish: lowercased
+    /// hex; backend only checks normalized equality with `ethers.getAddress`). `nil` = RPC/parse failure.
+    func fetchBeamioUserCardOwner(cardAddress: String) async -> String? {
+        let cardRaw = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cardRaw.hasPrefix("0x"), cardRaw.count == 42 else { return nil }
+        let cardHex = cardRaw.lowercased()
+        guard let ownerRes = await jsonRpcEthCallBase(to: cardHex, dataHex: Self.ethCallOwnerSelector),
+              let owner40 = Self.decodeAbiAddressWordHex(ownerRes)
+        else { return nil }
+        return "0x" + owner40
+    }
+
     /// Base: program card `owner()==wallet` or `isAdmin(wallet)` via `eth_call` (authoritative vs HTTP JSON). `nil` = RPC/parse failure.
     func fetchPosProgramCardHomeAccessAllowed(cardAddress: String, wallet: String) async -> Bool? {
         let cardRaw = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1045,6 +1106,92 @@ final class BeamioAPIClient: @unchecked Sendable {
         guard let iaRes = await jsonRpcEthCallBase(to: cardHex, dataHex: isAdminData),
               let isAdm = Self.decodeAbiBoolWordHex(iaRes) else { return nil }
         return isAdm
+    }
+
+    // MARK: - POS Transactions screen (cluster `/api/posLedger` proxy of BeamioIndexerDiamond)
+
+    /// Cluster proxy `/api/posLedger?eoa=&infraCard=`：每个 POS 终端只看到 *自己* EOA 的 Top-Up + Charge 流水，
+    /// items 总和按 chain 上 `mintCounterFromClear` / `transferAmountFromClear` 严格 bound（与 admin/owner 清零后
+    /// 显示值对账）。返回 `nil` ⇒ untrusted 失败：调用方**绝不**因此清空本地缓存（见
+    /// `beamio-trusted-vs-untrusted-fetch.mdc`）。
+    func fetchPosLedger(eoa: String, infraCard: String) async -> PosLedgerSnapshot? {
+        let eoaTrim = eoa.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cardTrim = infraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !eoaTrim.isEmpty, !cardTrim.isEmpty else { return nil }
+        let eoaEnc = eoaTrim.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? eoaTrim
+        let cardEnc = cardTrim.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cardTrim
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/posLedger?eoa=\(eoaEnc)&infraCard=\(cardEnc)") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 20
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  (root["ok"] as? Bool) == true
+            else { return nil }
+            let fromClear = root["fromClear"] as? [String: Any] ?? [:]
+            let topUp6 = (fromClear["topUp6"] as? String) ?? String(describing: fromClear["topUp6"] ?? "0")
+            let charge6 = (fromClear["charge6"] as? String) ?? String(describing: fromClear["charge6"] ?? "0")
+            let rawItems = (root["items"] as? [[String: Any]]) ?? []
+            var items: [PosLedgerItem] = []
+            items.reserveCapacity(rawItems.count)
+            for raw in rawItems {
+                guard
+                    let id = raw["id"] as? String, !id.isEmpty,
+                    let typeRaw = raw["type"] as? String,
+                    let kind = PosLedgerItem.Kind(rawValue: typeRaw)
+                else { continue }
+                let oph = (raw["originalPaymentHash"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                let cat = (raw["txCategory"] as? String) ?? ""
+                let ts = Self.coerceInt64(raw["timestamp"]) ?? 0
+                let payer = (raw["payer"] as? String) ?? ""
+                let payee = (raw["payee"] as? String) ?? ""
+                let usdc6 = Self.coerceAtomicString(raw["amountUSDC6"]) ?? "0"
+                let fiat6 = Self.coerceAtomicString(raw["amountFiat6"]) ?? "0"
+                let curFiat = Int(Self.coerceInt64(raw["currencyFiat"]) ?? 0)
+                let displayJson = (raw["displayJson"] as? String) ?? ""
+                let topAdmin = (raw["topAdmin"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                let subordinate = (raw["subordinate"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                let note = (raw["note"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                items.append(PosLedgerItem(
+                    id: id,
+                    originalPaymentHash: oph,
+                    type: kind,
+                    txCategory: cat,
+                    timestamp: ts,
+                    payer: payer,
+                    payee: payee,
+                    amountUSDC6: usdc6,
+                    amountFiat6: fiat6,
+                    currencyFiat: curFiat,
+                    displayJson: displayJson,
+                    topAdmin: topAdmin,
+                    subordinate: subordinate,
+                    note: note
+                ))
+            }
+            // Server already sorted newest-first; re-sort defensively (untrusted ordering is cheap to fix client-side).
+            items.sort { $0.timestamp > $1.timestamp }
+            return PosLedgerSnapshot(topUpFromClear6: topUp6, chargeFromClear6: charge6, items: items)
+        } catch {
+            return nil
+        }
+    }
+
+    private static func coerceInt64(_ v: Any?) -> Int64? {
+        if let n = v as? Int64 { return n }
+        if let n = v as? Int { return Int64(n) }
+        if let n = v as? NSNumber { return n.int64Value }
+        if let s = v as? String { return Int64(s.trimmingCharacters(in: .whitespaces)) }
+        return nil
+    }
+
+    private static func coerceAtomicString(_ v: Any?) -> String? {
+        if let s = v as? String { return s.trimmingCharacters(in: .whitespaces) }
+        if let n = v as? NSNumber { return n.stringValue }
+        return nil
     }
 
     // MARK: - Home dashboard (Android MainActivity: getCardStats + infra routing)
@@ -1265,10 +1412,13 @@ final class BeamioAPIClient: @unchecked Sendable {
     }
 
     /// `metadata.bonusRules` / `metadata.bonusRule`, or nested `metadata.shareTokenMetadata.*` (card issuance share token).
-    func fetchProgramRechargeBonusRules(cardAddress: String) async -> [BeamioRechargeBonusRule] {
+    /// Returns `nil` for **untrusted** outcomes (HTTP / JSON error, missing `metadata` field) so callers (e.g. POS Home) can keep the
+    /// previous trusted value instead of clearing the panel — see `beamio-trusted-vs-untrusted-fetch.mdc`.
+    /// Returns `[]` only for the **trusted-empty** case where the metadata is parseable but contains no `bonusRules` entries.
+    func fetchProgramRechargeBonusRules(cardAddress: String) async -> [BeamioRechargeBonusRule]? {
         guard let root = await fetchCardMetadataRoot(cardAddress: cardAddress),
               let meta = root["metadata"] as? [String: Any]
-        else { return [] }
+        else { return nil }
         return Self.parseRechargeBonusRules(fromMetadata: meta)
     }
 

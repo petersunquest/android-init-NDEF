@@ -158,11 +158,21 @@ struct ContentView: View {
 
             if case .some(.charge) = amountFlow {
                 ChargeAmountTipNavigationSheet(
+                    chargePolicy: vm.posTerminalPolicy,
                     onCancel: { amountFlow = nil },
-                    onChargeComplete: { amount, tipBps in
+                    onChargeComplete: { amount, tipBps, methodRaw in
                         amountFlow = nil
-                        vm.beginCharge(amount: amount, tipBps: tipBps)
+                        vm.beginCharge(amount: amount, tipBps: tipBps, methodRaw: methodRaw)
                     }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
+
+            if case .some(.transactions) = amountFlow {
+                POSTransactionsScreen(
+                    vm: vm,
+                    onClose: { amountFlow = nil }
                 )
                 .transition(.move(edge: .trailing))
                 .zIndex(2)
@@ -702,6 +712,7 @@ private struct SheetCircularBackButton: View {
 enum AmountFlow: String, Identifiable {
     case charge
     case topup
+    case transactions
     var id: String { rawValue }
 }
 
@@ -2545,36 +2556,29 @@ private struct HomeRootView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Cap top scroll so dashboard/welcome cannot consume the full screen; remainder goes to four action rows (Android `weight(1f)`).
-            let scrollMax = max(160, geo.size.height * 0.36)
-            VStack(alignment: .leading, spacing: 0) {
+            // Single fixed-height column — **no ScrollView**, never exceeds device height (per product spec).
+            // Vertical rhythm: every gap (header→card, card→buttons, button↔button) is exactly `gap` pts so
+            // the spacing reads as one consistent grid instead of "card stuck up top, buttons stranded below".
+            let gap: CGFloat = 8
+            VStack(alignment: .leading, spacing: gap) {
                 homeTopHeader
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
-                    .padding(.vertical, 8)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        dashboardBlackCard
-                            .padding(.horizontal, 16)
-                        if vm.hasAAAccount == false {
-                            homeWelcomeNoAA
-                                .padding(.horizontal, 16)
-                        }
-                    }
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
+                dashboardBlackCard
+                    .padding(.horizontal, 16)
+                if vm.hasAAAccount == false {
+                    homeWelcomeNoAA
+                        .padding(.horizontal, 16)
                 }
-                .scrollBounceBehavior(.basedOnSize, axes: .vertical)
-                .frame(maxWidth: .infinity, maxHeight: scrollMax, alignment: .top)
-                VStack(spacing: 8) {
+                VStack(spacing: gap) {
                     homeActionRow(
-                        title: "Link App",
-                        subtitle: "Scan customer card to link",
-                        systemImage: "link",
-                        iconBackground: linkPurple.opacity(0.1),
-                        iconTint: linkPurple,
-                        iconCorner: 10
-                    ) { vm.beginLinkApp() }
+                        title: "Top-Up",
+                        subtitle: "Load balance or new card",
+                        systemImage: "plus",
+                        iconBackground: mintGreen.opacity(0.2),
+                        iconTint: mintGreen,
+                        iconCorner: 20
+                    ) { amountFlow = .topup }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     homeActionRow(
                         title: "Charge",
@@ -2586,15 +2590,6 @@ private struct HomeRootView: View {
                     ) { amountFlow = .charge }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     homeActionRow(
-                        title: "Top-Up",
-                        subtitle: "Load balance or new card",
-                        systemImage: "plus",
-                        iconBackground: mintGreen.opacity(0.2),
-                        iconTint: mintGreen,
-                        iconCorner: 20
-                    ) { amountFlow = .topup }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    homeActionRow(
                         title: "Check Balance",
                         subtitle: "Read member profile",
                         systemImage: "magnifyingglass",
@@ -2603,10 +2598,30 @@ private struct HomeRootView: View {
                         iconCorner: 20
                     ) { vm.beginReadBalance() }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    homeActionRow(
+                        title: "Transactions",
+                        subtitle: "Top-Ups & charges since last clear",
+                        systemImage: "list.bullet.rectangle",
+                        iconBackground: brandBlue.opacity(0.08),
+                        iconTint: brandBlue,
+                        iconCorner: 10
+                    ) {
+                        amountFlow = .transactions
+                        Task { @MainActor in await vm.openPosTransactionsScreen() }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    homeActionRow(
+                        title: "Link App",
+                        subtitle: "Scan customer card to link",
+                        systemImage: "link",
+                        iconBackground: linkPurple.opacity(0.1),
+                        iconTint: linkPurple,
+                        iconCorner: 10
+                    ) { vm.beginLinkApp() }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 16)
-                .padding(.top, 4)
                 .padding(.bottom, 16)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -3000,6 +3015,215 @@ private struct HomeRootView: View {
     }
 }
 
+/// /home → Transactions slide-in. **No filter buttons** (per product spec). Items list is sourced from
+/// `POSViewModel.posLedger` — already bounded by chain `*FromClear` totals so the on-screen sum equals
+/// the post-clear amount on the program card. Reverse-chronological (newest at top).
+private struct POSTransactionsScreen: View {
+    @ObservedObject var vm: POSViewModel
+    let onClose: () -> Void
+
+    private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let mintGreen = Color(red: 0x34 / 255, green: 0xC7 / 255, blue: 0x59 / 255)
+
+    private var snapshot: PosLedgerSnapshot? { vm.posLedger }
+    private var items: [PosLedgerItem] { snapshot?.items ?? [] }
+
+    /// Discriminator drives the in-page content cross-fade so empty ↔ list transitions match the
+    /// parent page's `.move(edge: .trailing)` slide. **No `loading` branch** — first-open flicker
+    /// (empty → loading spinner → empty) was visually distracting; in-flight network state is
+    /// instead surfaced via the small ProgressView in `header`, while the empty panel renders
+    /// immediately as the page slides in.
+    private enum BodyState: Equatable { case empty, list }
+    private var bodyState: BodyState { items.isEmpty ? .empty : .list }
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                ZStack {
+                    switch bodyState {
+                    case .empty:
+                        emptyState
+                            .geometryGroup()
+                            .transition(.move(edge: .trailing))
+                    case .list:
+                        listBody
+                            .transition(.opacity)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .animation(.easeInOut(duration: 0.32), value: bodyState)
+            }
+        }
+        .ignoresSafeArea(.keyboard)
+        .refreshable { await vm.refreshPosLedgerTrustedOnly() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button {
+                BeamioHaptic.light()
+                onClose()
+            } label: {
+                ZStack {
+                    Circle().fill(Color(uiColor: .systemBackground))
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .frame(width: 36, height: 36)
+                .overlay(Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.5))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Transactions")
+                    .font(.system(size: 18, weight: .semibold))
+                Text("Top-Ups & charges since last clear")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            if vm.posLedgerRefreshing || vm.posLedgerLoading {
+                ProgressView().controlSize(.small)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 10)
+    }
+
+    /// Centred placeholder shown whenever the items list is empty (first open, post-clear, or
+    /// after a refresh that returns no rows). Centring is owned by the parent ZStack —
+    /// keeping no inner `.frame(maxHeight: .infinity)` avoids the parent/child frame fight that
+    /// produced jitter during the slide-in transition.
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "list.bullet.rectangle")
+                .font(.system(size: 36))
+                .foregroundStyle(.tertiary)
+            Text("No transactions since last clear")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+            if let err = vm.posLedgerLastError {
+                Text(err)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.orange)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    private var listBody: some View {
+        ScrollView {
+            LazyVStack(spacing: 8) {
+                ForEach(items) { tx in
+                    POSTransactionRowView(tx: tx, brandBlue: brandBlue, mintGreen: mintGreen)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 24)
+        }
+    }
+
+}
+
+/// One row in the POS Transactions list. Mirrors the biz Transactions table compact summary
+/// (type icon + amount + tag-line) without any filtering UI affordances.
+private struct POSTransactionRowView: View {
+    let tx: PosLedgerItem
+    let brandBlue: Color
+    let mintGreen: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(tint.opacity(0.12))
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(typeTitle)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(secondaryLine)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(amountLine)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(amountTint)
+                Text(timeLine)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .systemBackground)))
+    }
+
+    private var tint: Color { tx.type == .topUp ? mintGreen : brandBlue }
+    private var icon: String { tx.type == .topUp ? "arrow.up" : "arrow.down" }
+    private var typeTitle: String { tx.type == .topUp ? "Top-Up" : "Charge" }
+    private var amountTint: Color { tx.type == .topUp ? mintGreen : Color.primary }
+
+    private var amountLine: String {
+        let usd6 = Double(tx.amountUSDC6) ?? 0
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        let chosen = usd6 > 0 ? usd6 : fiat6
+        let v = chosen / 1_000_000
+        let n = NumberFormatter()
+        n.locale = Locale(identifier: "en_US_POSIX")
+        n.numberStyle = .decimal
+        n.usesGroupingSeparator = true
+        n.minimumFractionDigits = 2
+        n.maximumFractionDigits = 2
+        let body = n.string(from: NSNumber(value: v)) ?? String(format: "%.2f", v)
+        let sign = tx.type == .topUp ? "+" : "−"
+        return "\(sign)$\(body)"
+    }
+
+    private var secondaryLine: String {
+        if let note = tx.note, !note.isEmpty { return note }
+        let counterparty = tx.type == .topUp ? tx.payer : tx.payee
+        let trimmed = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.lowercased() != "0x0000000000000000000000000000000000000000" else {
+            return tx.type == .topUp ? "From wallet" : "To customer"
+        }
+        let short = trimmed.count >= 10 ? "\(trimmed.prefix(6))…\(trimmed.suffix(4))" : trimmed
+        return tx.type == .topUp ? "From \(short)" : "To \(short)"
+    }
+
+    private var timeLine: String {
+        guard tx.timestamp > 0 else { return "—" }
+        let date = Date(timeIntervalSince1970: TimeInterval(tx.timestamp))
+        let nowSec = Date().timeIntervalSince1970
+        let diff = nowSec - TimeInterval(tx.timestamp)
+        if diff < 60 * 60 { return "\(Int(diff / 60))m ago" }
+        if diff < 24 * 60 * 60 { return "\(Int(diff / 3600))h ago" }
+        if diff < 48 * 60 * 60 { return "Yesterday" }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "MMM d, HH:mm"
+        return f.string(from: date)
+    }
+}
+
 /// Android `BeamioCapsuleCompact`: avatar + displayName + @tag
 private struct HomeBeamioCapsuleCompact: View {
     let profile: TerminalProfile
@@ -3092,22 +3316,37 @@ private struct HomeBeamioCapsuleCompact: View {
 // MARK: - Amount pad
 
 /// Charge: full-screen slide-in from trailing (same host as `TopupAmountPadFullPage`); amount root → push tip. Avoids `.sheet` + nested sheet races (`tipSubtotal` as `"0"`).
+/// Charge 支付方式只有两种：USDC 启用 ⇒ raw `"usdc"`；USDC 关闭 ⇒ raw `"nfcCard"`（默认 NFC 卡持卡人付款）。
+/// 与 topup 端 `TopupPaymentMethodOption.usdc` 同源（`PosTerminalPolicy.allowPayerUsdcInCharge` ≡ `allowTopupUsdc`）。
+private enum ChargePaymentMethodRaw {
+    static let nfcCard = "nfcCard"
+    static let usdc = "usdc"
+}
+
 private struct ChargeAmountTipNavigationSheet: View {
+    var chargePolicy: PosTerminalPolicy
     var onCancel: () -> Void
-    var onChargeComplete: (String, Int) -> Void
+    /// (subtotal, tipBps, methodRaw)
+    var onChargeComplete: (String, Int, String) -> Void
 
     @State private var path = NavigationPath()
+    /// `ChargeAmountPadRoot` 选定的方法（NavigationPath 仅传字符串 subtotal，把 method 暂存这里以保持泛型简单）。
+    @State private var pendingMethodRaw: String = ChargePaymentMethodRaw.nfcCard
 
     var body: some View {
         NavigationStack(path: $path) {
             ChargeAmountPadRoot(
+                chargePolicy: chargePolicy,
                 onCancel: onCancel,
-                onContinue: { path.append($0) }
+                onContinue: { subtotal, methodRaw in
+                    pendingMethodRaw = methodRaw
+                    path.append(subtotal)
+                }
             )
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { subtotal in
                 TipFlowPage(subtotal: subtotal) { tipBps in
-                    onChargeComplete(subtotal, tipBps)
+                    onChargeComplete(subtotal, tipBps, pendingMethodRaw)
                 }
             }
         }
@@ -3118,14 +3357,32 @@ private struct ChargeAmountTipNavigationSheet: View {
     }
 }
 
-/// Charge amount entry: same chrome as `TopupAmountPadFullPage` (surface, circular back, expandable keypad); no payment method row.
+/// Charge amount entry: same chrome as `TopupAmountPadFullPage` (surface, circular back, expandable keypad).
+/// 当 `chargePolicy.allowPayerUsdcInCharge == true` 时，金额面板右侧出现「USDC enable/disable」二态切换：
+/// - enable → 蓝色（`usdcAccent`）+ 实心 `dollarsign.circle.fill`，methodRaw = `"usdc"`；
+/// - disable → 浅灰（`usdcDisabledGray`）+ 描边图标，methodRaw = `"nfcCard"`（默认）。
+/// 终端无 USDC 许可时按钮整体不显示。
 private struct ChargeAmountPadRoot: View {
+    var chargePolicy: PosTerminalPolicy
     var onCancel: () -> Void
-    var onContinue: (String) -> Void
+    /// (amount, methodRaw) — methodRaw ∈ {"usdc","nfcCard"}
+    var onContinue: (String, String) -> Void
 
+    /// `false` ⇒ NFC 卡付款（默认）；`true` ⇒ USDC 外部钱包付款。policy 关闭时强制回 false。
+    @AppStorage("pos.charge.usdcEnabled")
+    private var persistedUsdcEnabled: Bool = false
     @State private var amount = "0"
 
     private let primaryBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let usdcAccent = Color(red: 0x27 / 255, green: 0x75 / 255, blue: 0xCA / 255)
+    private let usdcDisabledGray = Color(red: 0xB0 / 255, green: 0xB4 / 255, blue: 0xBC / 255)
+
+    private var usdcAllowed: Bool { chargePolicy.allowPayerUsdcInCharge }
+    private var usdcEnabled: Bool { usdcAllowed && persistedUsdcEnabled }
+
+    private var selectedMethodRaw: String {
+        usdcEnabled ? ChargePaymentMethodRaw.usdc : ChargePaymentMethodRaw.nfcCard
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -3134,9 +3391,15 @@ private struct ChargeAmountPadRoot: View {
                 let sidePad: CGFloat = compact ? 16 : 20
                 let amtDollar: CGFloat = compact ? 28 : 34
                 let amtMain: CGFloat = compact ? 52 : 64
+                let methodIconSize: CGFloat = compact ? 36 : 42
 
                 VStack(spacing: 0) {
-                    chargeAmountWell(compact: compact, amtDollar: amtDollar, amtMain: amtMain)
+                    chargeAmountWell(
+                        compact: compact,
+                        amtDollar: amtDollar,
+                        amtMain: amtMain,
+                        methodIconSize: methodIconSize
+                    )
                         .padding(.horizontal, sidePad)
                         .padding(.top, geo.safeAreaInsets.top + 8)
                     BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
@@ -3158,19 +3421,47 @@ private struct ChargeAmountPadRoot: View {
         .compositingGroup()
     }
 
-    private func chargeAmountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+    private func chargeAmountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat, methodIconSize: CGFloat) -> some View {
+        let amountAccent = usdcEnabled ? usdcAccent : primaryBlue
+        let toggleColor = usdcEnabled ? usdcAccent : usdcDisabledGray
+        let toggleIcon = usdcEnabled ? "dollarsign.circle.fill" : "dollarsign.circle"
+        return HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("$")
                     .font(.system(size: amtDollar, weight: .bold, design: .rounded))
-                    .foregroundStyle(primaryBlue)
+                    .foregroundStyle(amountAccent)
                 Text(beamioAmountPadFormattedDisplay(amount))
                     .font(.system(size: amtMain, weight: .heavy, design: .rounded))
-                    .foregroundStyle(primaryBlue)
+                    .foregroundStyle(amountAccent)
                     .lineLimit(1)
                     .minimumScaleFactor(0.35)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: usdcAllowed ? .leading : .trailing)
+            if usdcAllowed {
+                Button {
+                    BeamioHaptic.light()
+                    persistedUsdcEnabled.toggle()
+                } label: {
+                    VStack(spacing: compact ? 6 : 8) {
+                        Text("USDC")
+                            .font(.system(size: compact ? 11 : 12, weight: .semibold))
+                            .foregroundStyle(toggleColor)
+                            .lineLimit(1)
+                        ZStack {
+                            Circle()
+                                .fill(toggleColor.opacity(usdcEnabled ? 0.16 : 0.12))
+                                .frame(width: methodIconSize, height: methodIconSize)
+                            Image(systemName: toggleIcon)
+                                .font(.system(size: methodIconSize * 0.5, weight: .semibold))
+                                .foregroundStyle(toggleColor)
+                        }
+                    }
+                    .frame(minWidth: compact ? 64 : 72)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(usdcEnabled ? "USDC payment enabled. Tap to disable." : "USDC payment disabled. Tap to enable."))
+            }
         }
         .padding(.vertical, compact ? 18 : 22)
         .padding(.horizontal, 14)
@@ -3188,7 +3479,7 @@ private struct ChargeAmountPadRoot: View {
 
     private func continueButton(compact: Bool) -> some View {
         Button {
-            onContinue(amount)
+            onContinue(amount, selectedMethodRaw)
         } label: {
             Text("Continue")
                 .font(.system(size: compact ? 17 : 18, weight: .semibold))
@@ -6684,6 +6975,7 @@ private struct ScanSheet: View {
     /// Charge: hide segmented control & bottom total while routing / QR parse / errors / success (align Android `ScanMethodSelectionScreen`).
     private var chargeChromeHidden: Bool {
         guard action == .payment else { return false }
+        if !vm.chargeUsdcDeepLink.isEmpty { return true }
         if vm.chargeApprovedInline != nil { return true }
         if vm.paymentQrInterpreting { return true }
         if let e = vm.chargeNfcReadError, !e.isEmpty { return true }
@@ -6821,6 +7113,12 @@ private struct ScanSheet: View {
         .onChange(of: vm.linkDeepLink) { _, _ in
             linkUrlCopied = false
         }
+        .onChange(of: vm.topupUsdcDeepLink) { _, _ in
+            linkUrlCopied = false
+        }
+        .onChange(of: vm.chargeUsdcDeepLink) { _, _ in
+            linkUrlCopied = false
+        }
         .onChange(of: linkUrlCopied) { _, copied in
             guard copied else { return }
             Task { @MainActor in
@@ -6847,7 +7145,10 @@ private struct ScanSheet: View {
     @ViewBuilder
     private var topupScanCenterContent: some View {
         let nfcLoading = vm.pendingScanAction == .topup && vm.isNfcBusy
-        if vm.scanAwaitingNfcTap && vm.scanMethod == .nfc && !vm.topupQrSigningInProgress && !nfcLoading {
+        if !vm.topupUsdcDeepLink.isEmpty {
+            usdcTopupCustomerQrBlock(url: vm.topupUsdcDeepLink)
+                .padding(.horizontal)
+        } else if vm.scanAwaitingNfcTap && vm.scanMethod == .nfc && !vm.topupQrSigningInProgress && !nfcLoading {
             ScanNfcWaitingPanel(
                 subtitle: "Hold the customer's card near the top of your iPhone."
             )
@@ -7131,7 +7432,10 @@ private struct ScanSheet: View {
     /// Charge (NFC + QR): NFC wait panel matches Check Balance (`ScanNfcWaitingPanel`); then QR / routing / errors.
     @ViewBuilder
     private var paymentScanCenterContent: some View {
-        if vm.paymentQrInterpreting {
+        if !vm.chargeUsdcDeepLink.isEmpty {
+            usdcChargeCustomerQrBlock(url: vm.chargeUsdcDeepLink)
+                .padding(.horizontal)
+        } else if vm.paymentQrInterpreting {
             RoundedRectangle(cornerRadius: 32)
                 .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
                 .frame(height: 280)
@@ -7428,6 +7732,199 @@ private struct ScanSheet: View {
                 .overlay(Capsule().stroke(Color.black.opacity(0.12), lineWidth: 1))
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    /// USDC top-up: after NFC tap, present a QR pointing at `verra-home/usdc-topup` so the customer signs the EIP-3009 USDC transfer in their own wallet (admin signs `ExecuteForAdmin` on the back-end after settlement).
+    private func usdcTopupCustomerQrBlock(url: String) -> some View {
+        let qrImage = BeamioLinkAppQr.image(from: url, pointSize: 198, scale: displayScale)
+        return VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 32)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(width: 280, height: 320)
+                .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+                .overlay {
+                    VStack(spacing: 0) {
+                        Text("Scan to pay USDC")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.black)
+                        Text("Open in your crypto wallet's browser to confirm")
+                            .font(.system(size: 11))
+                            .foregroundStyle(beamioSecondaryGray)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 4)
+                            .padding(.bottom, 6)
+                        if let qrImage {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 198, height: 198)
+                                .padding(.vertical, 2)
+                                .accessibilityLabel("USDC top-up payment QR")
+                        }
+                        if !vm.topupQrCustomerHint.isEmpty {
+                            Text(vm.topupQrCustomerHint)
+                                .font(.system(size: 11))
+                                .foregroundStyle(beamioSecondaryGray)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 6)
+                                .padding(.horizontal, 8)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                }
+            HStack(spacing: 8) {
+                Button {
+                    BeamioHaptic.medium()
+                    UIPasteboard.general.string = url
+                    linkUrlCopied = true
+                } label: {
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Payment URL")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(beamioSecondaryGray)
+                            Text(url)
+                                .font(.system(size: 12))
+                                .foregroundStyle(beamioLinkBlue)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        Spacer(minLength: 0)
+                        Group {
+                            if linkUrlCopied {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(beamioSuccessGreen)
+                                    .accessibilityLabel("Copied")
+                            } else {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(beamioLinkBlue)
+                                    .accessibilityLabel("Copy link")
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(width: 280)
+                    .background(Color.white)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.black.opacity(0.12), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            Button {
+                BeamioHaptic.medium()
+                vm.cancelTopupUsdcQr()
+            } label: {
+                Text("Cancel & rescan")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 280)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(beamioLinkBlue))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+        }
+    }
+
+    /// USDC charge: after NFC tap, present a QR pointing at `verra-home/usdc-charge` so the customer signs the EIP-3009 USDC transfer in their own wallet (cluster settles to cardOwner; master only logs the breakdown — no `ExecuteForAdmin`).
+    /// Mirrors `usdcTopupCustomerQrBlock`'s frame so layouts stay consistent.
+    private func usdcChargeCustomerQrBlock(url: String) -> some View {
+        let qrImage = BeamioLinkAppQr.image(from: url, pointSize: 198, scale: displayScale)
+        return VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 32)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(width: 280, height: 320)
+                .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+                .overlay {
+                    VStack(spacing: 0) {
+                        Text("Scan to pay USDC")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.black)
+                        Text("Open in your crypto wallet's browser to confirm")
+                            .font(.system(size: 11))
+                            .foregroundStyle(beamioSecondaryGray)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 4)
+                            .padding(.bottom, 6)
+                        if let qrImage {
+                            Image(uiImage: qrImage)
+                                .interpolation(.none)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 198, height: 198)
+                                .padding(.vertical, 2)
+                                .accessibilityLabel("USDC charge payment QR")
+                        }
+                        if !vm.chargeQrCustomerHint.isEmpty {
+                            Text(vm.chargeQrCustomerHint)
+                                .font(.system(size: 11))
+                                .foregroundStyle(beamioSecondaryGray)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 6)
+                                .padding(.horizontal, 8)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                }
+            HStack(spacing: 8) {
+                Button {
+                    BeamioHaptic.medium()
+                    UIPasteboard.general.string = url
+                    linkUrlCopied = true
+                } label: {
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Payment URL")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(beamioSecondaryGray)
+                            Text(url)
+                                .font(.system(size: 12))
+                                .foregroundStyle(beamioLinkBlue)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        Spacer(minLength: 0)
+                        Group {
+                            if linkUrlCopied {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(beamioSuccessGreen)
+                                    .accessibilityLabel("Copied")
+                            } else {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 22))
+                                    .foregroundStyle(beamioLinkBlue)
+                                    .accessibilityLabel("Copy link")
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(width: 280)
+                    .background(Color.white)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.black.opacity(0.12), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+            Button {
+                BeamioHaptic.medium()
+                vm.cancelChargeUsdcQr()
+            } label: {
+                Text("Cancel & rescan")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 280)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(beamioLinkBlue))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
         }
     }
 

@@ -24,6 +24,10 @@ final class POSViewModel: ObservableObject {
     @Published var posTerminalReloadQuota: PosTerminalReloadQuota?
     @Published var terminalProfile: TerminalProfile?
     @Published var adminProfile: TerminalProfile?
+    /// On-chain `BeamioUserCard.owner()` of `merchantInfraCard` (the issuer EOA — receives USDC on x402 topup).
+    /// Sourced from the same `/api/getCardAdminInfo` root that drives the /home admin capsule, so QR mints
+    /// cannot disagree with what the merchant sees on-screen. May be `nil` until first `refreshHomeProfiles`.
+    @Published var merchantInfraCardOwnerEoa: String?
 
     /// `nil` = unknown (align Android); `false` = no AA / welcome panel
     @Published var hasAAAccount: Bool?
@@ -48,6 +52,17 @@ final class POSViewModel: ObservableObject {
     @Published var homeMerchantProgramCardName: String?
     /// Card Issuance recharge tiers (`metadata` or `metadata.shareTokenMetadata` bonus fields) for `merchantInfraCard`; home row + top-up bump.
     @Published var programRechargeBonusRules: [BeamioRechargeBonusRule] = []
+
+    /// /home → Transactions screen state. `nil` ⇒ never loaded for this `(wallet, infra)`; renders "—" instead of "0".
+    @Published var posLedger: PosLedgerSnapshot?
+    /// True only while a network refresh is in flight **and** there is no local snapshot to display.
+    /// (When a cached snapshot exists we skip the spinner and update silently — local-first.)
+    @Published private(set) var posLedgerLoading: Bool = false
+    /// Trusted refresh in progress (banner only — does not clear `posLedger`).
+    @Published private(set) var posLedgerRefreshing: Bool = false
+    /// Last untrusted error message — surface as toast/banner; never overwrites `posLedger`.
+    @Published var posLedgerLastError: String?
+    private var posLedgerRefreshTask: Task<Void, Never>?
 
     @Published var homeToast: String?
     /// 注册成功后展示一次（与 web Recovery QR 秘密等价，勿记入日志）
@@ -130,6 +145,20 @@ final class POSViewModel: ObservableObject {
     @Published var topupQrResetId = 0
     /// Shown under "Sign & execute" (Android `topupExecuteUidDisplay`): `@beamioTag` or short wallet.
     @Published var topupQrCustomerHint: String = ""
+
+    /// USDC top-up: after NFC tap on POS, show a QR linking the customer to `verra-home/usdc-topup`.
+    /// Customer scans with their crypto wallet (in-wallet browser) to sign the EIP-3009 USDC transfer.
+    /// Empty string ⇒ no QR shown (default flow).
+    @Published var topupUsdcDeepLink: String = ""
+
+    /// USDC charge: after NFC tap on POS during Charge, show QR linking customer to `verra-home/usdc-charge`.
+    /// URL carries charge breakdown (subtotal/discount/tax/tip + currency) so verra-home can quote + collect via x402.
+    /// Empty string ⇒ no QR shown (default NFC charge flow).
+    @Published var chargeUsdcDeepLink: String = ""
+    /// Optional caption shown under the USDC charge QR (e.g. "Customer scans this QR to pay with USDC.").
+    @Published var chargeQrCustomerHint: String = ""
+    /// Charge payment method selected on `ChargeAmountPadRoot` ("nfcCard" / "usdc"). Empty ⇒ default `nfcCard`.
+    @Published var pendingChargeMethodRaw: String = ""
 
     /// After NFC/QR customer identified: total credited (program recharge tier + keypad “Activate Bonus” + bonus-only split), for loading UI.
     @Published var topupExecuteDisplayTotal: Double?
@@ -285,9 +314,11 @@ final class POSViewModel: ObservableObject {
         merchantInfraCard = next
         guard nextLower != prevLower else { return }
         pendingGetCardAdminInfoRootForHome = nil
-        homeMerchantProgramCardName = nil
         posTerminalReloadQuota = nil
-        programRechargeBonusRules = []
+        // 不在此处把 `homeMerchantProgramCardName` / `programRechargeBonusRules` 直接清成 nil/[]：
+        // 让 `applyTrustedStatsAndRoutingCachesForInfra(replaceDisplayValues: true)` 用新 infra 的本地可信缓存原子替换。
+        // 新 infra 无缓存时该函数自然把 program name 置 nil、rules 置 []，行为与旧逻辑一致；
+        // 新 infra 已有缓存时则可立刻渲染黑色卡片，不出现「先空白再网络回填」的闪烁。
         resetTrustedInfraPosHomeAccessForWalletChange(walletLower: w.lowercased())
         // Keep the last rendered screen until the next trusted admin check decides whether Home is still allowed.
         applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: next, replaceDisplayValues: replaceDisplayValues)
@@ -351,28 +382,36 @@ final class POSViewModel: ObservableObject {
         if let a = loaded.admin { adminProfile = a }
     }
 
-    /// Restore stats + routing from disk for `(wallet, infra)`; `replaceDisplayValues` true when POS infra address changed so we do not show another card’s numbers.
+    /// Restore the entire Home black-card panel inputs from disk for `(wallet, infra)`:
+    /// stats + routing + program-card name + recharge bonus rules. Local-first → render immediately; later trusted refresh
+    /// merges & re-renders. `replaceDisplayValues` true when POS infra address changed so we do not show another card’s numbers.
     private func applyTrustedStatsAndRoutingCachesForInfra(wallet: String, infra: String, replaceDisplayValues: Bool) {
         let (c, t) = POSHomeScreenTrustedCache.loadStats(wallet: wallet, infraCard: infra)
+        let rout = POSHomeScreenTrustedCache.loadRouting(wallet: wallet, infraCard: infra)
+        let prog = POSHomeScreenTrustedCache.loadProgram(wallet: wallet, infraCard: infra)
         if replaceDisplayValues {
             cardChargeAmount = c
             cardTopUpAmount = t
             homeStatsLoaded = c != nil || t != nil
-            if let rout = POSHomeScreenTrustedCache.loadRouting(wallet: wallet, infraCard: infra) {
+            if let rout {
                 infraRoutingTaxPercent = rout.tax
                 infraRoutingDiscountSummary = rout.summary
             } else {
                 infraRoutingTaxPercent = nil
                 infraRoutingDiscountSummary = nil
             }
+            homeMerchantProgramCardName = prog.programCardName
+            programRechargeBonusRules = prog.bonusRules ?? []
         } else {
             if let c { cardChargeAmount = c }
             if let t { cardTopUpAmount = t }
             if c != nil || t != nil { homeStatsLoaded = true }
-            if let rout = POSHomeScreenTrustedCache.loadRouting(wallet: wallet, infraCard: infra) {
+            if let rout {
                 infraRoutingTaxPercent = rout.tax
                 infraRoutingDiscountSummary = rout.summary
             }
+            if let name = prog.programCardName { homeMerchantProgramCardName = name }
+            if let rules = prog.bonusRules { programRechargeBonusRules = rules }
         }
     }
 
@@ -1031,6 +1070,10 @@ final class POSViewModel: ObservableObject {
         if let pend = pendingGetCardAdminInfoRootForHome, pend.cardLower == infraLower {
             pendingGetCardAdminInfoRootForHome = nil
             let root = pend.root
+            // `owner` field (issuer EOA = `card.owner()`) — used by USDC x402 QR as `payTo`.
+            if let ownerAddr = (root["owner"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !ownerAddr.isEmpty {
+                merchantInfraCardOwnerEoa = ownerAddr
+            }
             if let adminAddr = (root["upperAdmin"] as? String)?.nilIfEmpty, !adminAddr.isEmpty {
                 if let adminProf = await api.searchUsers(keyward: adminAddr) {
                     adminProfile = adminProf
@@ -1043,6 +1086,9 @@ final class POSViewModel: ObservableObject {
         } else {
             pendingGetCardAdminInfoRootForHome = nil
             if let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w) {
+                if let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
+                    merchantInfraCardOwnerEoa = ownerAddr
+                }
                 if let adminAddr = adminTuple.upperAdmin?.nilIfEmpty, !adminAddr.isEmpty {
                     if let adminProf = await api.searchUsers(keyward: adminAddr) {
                         adminProfile = adminProf
@@ -1063,7 +1109,15 @@ final class POSViewModel: ObservableObject {
         let ast = await api.getWalletAssets(wallet: w, merchantInfraCard: infra, merchantInfraOnly: false, forPostPayment: false)
         if ast.ok {
             hasAAAccount = ast.aaAddress?.nilIfEmpty != nil
-            homeMerchantProgramCardName = Self.merchantProgramMetadataDisplayName(from: ast, merchantInfraCard: infra)
+            // 只有 `ast.ok == true` 才信任 program 卡片名（即使取出来的是 nil，也是「可信空」可以入缓存覆盖）。
+            let trustedName = Self.merchantProgramMetadataDisplayName(from: ast, merchantInfraCard: infra)
+            homeMerchantProgramCardName = trustedName
+            POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                wallet: w,
+                infraCard: infra,
+                programCardName: trustedName ?? "",
+                bonusRules: nil
+            )
         }
 
         let st = await api.fetchAdminStatsDayChargeAndTopUp(wallet: w, infraCard: infra)
@@ -1082,10 +1136,28 @@ final class POSViewModel: ObservableObject {
 
         await refreshPosTerminalReloadQuotaFromChain(wallet: w, infraCard: infra)
 
+        // `fetchProgramRechargeBonusRules` 现在把 untrusted 失败统一返回 `nil`，可信空才返回 `[]`：
+        // - nil → 保留上轮可信值，不覆写黑色卡片，不写缓存（符合 beamio-trusted-vs-untrusted-fetch.mdc）。
+        // - [] / [...] → 渲染并合并入缓存。
         if looksLikeAddress(infra) {
-            programRechargeBonusRules = await api.fetchProgramRechargeBonusRules(cardAddress: infra)
+            if let rules = await api.fetchProgramRechargeBonusRules(cardAddress: infra) {
+                programRechargeBonusRules = rules
+                POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                    wallet: w,
+                    infraCard: infra,
+                    programCardName: nil,
+                    bonusRules: rules
+                )
+            }
         } else {
+            // infra 显然不是合法地址 → 此为「可信空」语义（没有 program 卡可查），按 [] 入缓存。
             programRechargeBonusRules = []
+            POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                wallet: w,
+                infraCard: infra,
+                programCardName: nil,
+                bonusRules: []
+            )
         }
     }
 
@@ -1098,6 +1170,56 @@ final class POSViewModel: ObservableObject {
         }
     }
 
+    // MARK: - POS Transactions screen
+
+    /// /home → Transactions 入口：local-first 渲染 + trusted-only 网络刷新。**绝不**因 untrusted 失败清空 `posLedger`。
+    func openPosTransactionsScreen() async {
+        let w = walletAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty, looksLikeAddress(infra) else { return }
+        // Local-first：从磁盘恢复上次可信快照；只有当 `posLedger` 为空时才 fallback。
+        if posLedger == nil, let cached = POSHomeScreenTrustedCache.loadPosLedger(wallet: w, infraCard: infra) {
+            posLedger = cached
+        }
+        await refreshPosLedgerTrustedOnly()
+    }
+
+    /// Trusted-only refresh — **唯一**会写 `posLedger` / 缓存的路径；untrusted 失败仅置 `posLedgerLastError`，UI 维持上一帧。
+    func refreshPosLedgerTrustedOnly() async {
+        let w = walletAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty, looksLikeAddress(infra) else { return }
+        // Single-flight：避免连按 Transactions 触发重复拉取。
+        posLedgerRefreshTask?.cancel()
+        let hadCached = posLedger != nil
+        if hadCached {
+            posLedgerRefreshing = true
+            posLedgerLoading = false
+        } else {
+            posLedgerLoading = true
+            posLedgerRefreshing = false
+        }
+        let task = Task { [weak self] in
+            guard let self else { return }
+            let snap = await self.api.fetchPosLedger(eoa: w, infraCard: infra)
+            await MainActor.run {
+                if Task.isCancelled { return }
+                if let snap {
+                    self.posLedger = snap
+                    self.posLedgerLastError = nil
+                    POSHomeScreenTrustedCache.savePosLedger(snap, wallet: w, infraCard: infra)
+                } else {
+                    // Untrusted failure → keep prior `posLedger`; only set error message for surfacing.
+                    self.posLedgerLastError = "Could not refresh transactions. Showing last known list."
+                }
+                self.posLedgerLoading = false
+                self.posLedgerRefreshing = false
+            }
+        }
+        posLedgerRefreshTask = task
+        await task.value
+    }
+
     private func posTopupMethodRawAllowed(_ methodRaw: String) -> Bool {
         let r = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
         switch r {
@@ -1105,6 +1227,17 @@ final class POSViewModel: ObservableObject {
         case "creditCard": return posTerminalPolicy.allowTopupBankCard
         case "usdc": return posTerminalPolicy.allowTopupUsdc
         case "bonus": return posTerminalPolicy.allowTopupAirdrop
+        default: return false
+        }
+    }
+
+    /// Charge 方法许可：与 topup `usdc` 同源 (`PosTerminalPolicy.allowPayerUsdcInCharge` ≡ `allowTopupUsdc`)。
+    /// `nfcCard`（默认）始终允许；其他未知值视为禁用。
+    private func posChargeMethodRawAllowed(_ methodRaw: String) -> Bool {
+        let r = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch r {
+        case "", "nfcCard": return true
+        case "usdc": return posTerminalPolicy.allowPayerUsdcInCharge
         default: return false
         }
     }
@@ -1186,9 +1319,12 @@ final class POSViewModel: ObservableObject {
         startNfcIfNeeded()
     }
 
-    func beginCharge(amount: String, tipBps: Int) {
+    func beginCharge(amount: String, tipBps: Int, methodRaw: String = "nfcCard") {
         amountString = amount
         chargeTipRateBps = tipBps
+        pendingChargeMethodRaw = methodRaw
+        chargeUsdcDeepLink = ""
+        chargeQrCustomerHint = ""
         pendingScanAction = .payment
         scanQrCameraArmed = false
         scanAwaitingNfcTap = true
@@ -1675,6 +1811,7 @@ final class POSViewModel: ObservableObject {
         topupQrCustomerHint = ""
         topupExecuteDisplayTotal = nil
         topupExecuteDisplayBonus = nil
+        topupUsdcDeepLink = ""
     }
 
     private func resetReadQrChrome() {
@@ -1931,7 +2068,250 @@ final class POSViewModel: ObservableObject {
             topupNfcReadError = nfcFlowErrorMessage(detail: "Cannot read UID from this card.")
             return
         }
+        // USDC: customer scans the QR to settle via `verra-home/usdc-topup` (EIP-3009 in their wallet).
+        let methodRaw = resolveTopupMethodRawForSplit()
+        if methodRaw == "usdc" {
+            await presentUsdcTopupQr(uid: uid, sun: sun)
+            return
+        }
         await runTopup(beamioTag: nil, wallet: nil, uid: uid, sun: sun, privateKeyHex: key, topupFromQr: false)
+    }
+
+    /// Builds the `verra-home/usdc-topup` URL with NFC + card + amount + currency, sets `topupUsdcDeepLink` ⇒ UI shows QR.
+    /// `cardOwner` MUST be the on-chain `BeamioUserCard.owner()` (the EOA that will receive USDC via x402 settle).
+    /// The POS terminal wallet (`walletAddress`) is the **admin** of the card, not necessarily the owner —
+    /// using it would trip the back-end check `card.owner() == owner` and surface as `cardOwner mismatch`.
+    private func presentUsdcTopupQr(uid: String, sun: SunParams) async {
+        guard posTopupMethodRawAllowed("usdc") else {
+            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: false)
+            return
+        }
+        let amt = amountString
+        guard Double(amt) ?? 0 > 0 else {
+            reportTopupFailure("Invalid amount", topupFromQr: false)
+            return
+        }
+        guard walletAddress != nil else {
+            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            return
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty else {
+            reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: false)
+            return
+        }
+        // cardOwner 取与 /home 右上角 admin 胶囊同一份数据：`getCardAdminInfo.owner`（后端已 `card.owner()` 链上读）。
+        // 优先用 refreshHomeProfiles 缓存的 `merchantInfraCardOwnerEoa`；缓存未就绪时再现拉一次（兜底，含 RPC eth_call）。
+        var resolvedOwner: String? = merchantInfraCardOwnerEoa?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if resolvedOwner?.isEmpty != false {
+            if let w = walletAddress,
+               let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w),
+               let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
+                resolvedOwner = ownerAddr
+                merchantInfraCardOwnerEoa = ownerAddr
+            }
+        }
+        if resolvedOwner?.isEmpty != false {
+            // 最后兜底：直接 eth_call BeamioUserCard.owner()（与后端 /api/nfcUsdcTopupQuote 同源）。
+            resolvedOwner = await api.fetchBeamioUserCardOwner(cardAddress: infra)
+            if let r = resolvedOwner, !r.isEmpty { merchantInfraCardOwnerEoa = r }
+        }
+        guard let cardOwner = resolvedOwner, !cardOwner.isEmpty else {
+            reportTopupFailure("Cannot resolve card owner. Please retry.", topupFromQr: false)
+            return
+        }
+        let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
+        let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let url = Self.buildUsdcTopupQrUrl(
+            cardAddress: infra,
+            cardOwner: cardOwner,
+            uid: uid,
+            sun: sun,
+            amount: apiAmountString,
+            currency: currency
+        )
+        // Stop NFC immediately — customer flow continues entirely in their phone.
+        nfc.invalidate()
+        scanAwaitingNfcTap = false
+        scanBanner = ""
+        isNfcBusy = false
+        topupQrSigningInProgress = false
+        topupQrExecuteError = nil
+        topupNfcReadError = nil
+        topupUsdcDeepLink = url
+        topupQrCustomerHint = "Customer scans this QR to pay with USDC."
+    }
+
+    /// `https://verra.network/usdc-topup?card=...&owner=...&uid=...&e=...&c=...&m=...&amount=...&currency=...`
+    /// Mirrors the param contract in `src/verra-home/src/pages/UsdcTopup.tsx → parseParams`.
+    private static func buildUsdcTopupQrUrl(
+        cardAddress: String,
+        cardOwner: String,
+        uid: String,
+        sun: SunParams,
+        amount: String,
+        currency: String
+    ) -> String {
+        var comps = URLComponents(string: "https://verra.network/usdc-topup")!
+        comps.queryItems = [
+            URLQueryItem(name: "card", value: cardAddress),
+            URLQueryItem(name: "owner", value: cardOwner),
+            URLQueryItem(name: "uid", value: uid),
+            URLQueryItem(name: "e", value: sun.e),
+            URLQueryItem(name: "c", value: sun.c),
+            URLQueryItem(name: "m", value: sun.m),
+            URLQueryItem(name: "amount", value: amount),
+            URLQueryItem(name: "currency", value: currency.uppercased())
+        ]
+        return comps.url?.absoluteString ?? ""
+    }
+
+    /// Customer cancelled / swap card; clear QR and re-arm NFC tap on the same scan sheet.
+    func cancelTopupUsdcQr() {
+        topupUsdcDeepLink = ""
+        topupQrCustomerHint = ""
+        guard pendingScanAction == .topup else { return }
+        scanQrCameraArmed = false
+        scanAwaitingNfcTap = true
+        nfc.begin()
+    }
+
+    /// Builds the `verra-home/usdc-charge` URL with NFC + card + breakdown + currency, sets `chargeUsdcDeepLink` ⇒ UI shows QR.
+    /// Mirrors `presentUsdcTopupQr` but with `subtotal/discount/tax/tip + bps` (consistent with NFC charge `nfcBill` 字段).
+    /// `cardOwner` MUST be the on-chain `BeamioUserCard.owner()` — the EOA that will receive USDC via x402 settle on the back-end.
+    private func presentUsdcChargeQr(
+        uid: String,
+        sun: SunParams,
+        subtotal: Double,
+        discount: Double,
+        taxPercent: Double,
+        tip: Double,
+        discountBps: Int,
+        tipBps: Int,
+        currency: String
+    ) async {
+        guard posChargeMethodRawAllowed("usdc") else {
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "USDC charge is not enabled for this terminal."
+            return
+        }
+        guard subtotal > 0 else {
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "Invalid amount"
+            return
+        }
+        guard walletAddress != nil else {
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "Wallet not initialized."
+            return
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty else {
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "Merchant infrastructure card not configured."
+            return
+        }
+        // cardOwner 解析顺序与 presentUsdcTopupQr 同：缓存 → /api/getCardAdminInfo → BeamioUserCard.owner() (eth_call 兜底)。
+        var resolvedOwner: String? = merchantInfraCardOwnerEoa?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if resolvedOwner?.isEmpty != false {
+            if let w = walletAddress,
+               let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w),
+               let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
+                resolvedOwner = ownerAddr
+                merchantInfraCardOwnerEoa = ownerAddr
+            }
+        }
+        if resolvedOwner?.isEmpty != false {
+            resolvedOwner = await api.fetchBeamioUserCardOwner(cardAddress: infra)
+            if let r = resolvedOwner, !r.isEmpty { merchantInfraCardOwnerEoa = r }
+        }
+        guard let cardOwner = resolvedOwner, !cardOwner.isEmpty else {
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "Cannot resolve card owner. Please retry."
+            return
+        }
+        // tax amount = subtotal * taxPercent% （与 chargeTotalInCurrency 同口径；后端 normalizeChargeBreakdown 也会重算 total = subtotal - discount + tax + tip）。
+        let taxAmount = max(0.0, subtotal * (taxPercent / 100.0))
+        let taxBps = max(0, Int((taxPercent * 100.0).rounded()))
+        let url = Self.buildUsdcChargeQrUrl(
+            cardAddress: infra,
+            cardOwner: cardOwner,
+            uid: uid,
+            sun: sun,
+            subtotal: subtotal,
+            discount: discount,
+            tax: taxAmount,
+            tip: tip,
+            discountBps: discountBps,
+            taxBps: taxBps,
+            tipBps: tipBps,
+            currency: currency
+        )
+        nfc.invalidate()
+        scanAwaitingNfcTap = false
+        scanBanner = ""
+        isNfcBusy = false
+        paymentTerminalError = nil
+        chargeNfcReadError = nil
+        // 成功步骤标记到 sendTx（与 NFC charge UI 节奏一致：showing QR == 等待外部钱包 settle）。
+        paymentPatchStep(id: "optimizingRoute", status: .success, detail: "Awaiting USDC payment")
+        chargeUsdcDeepLink = url
+        chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
+    }
+
+    /// Customer cancelled / swap card; clear QR and re-arm NFC tap on the same charge scan sheet.
+    func cancelChargeUsdcQr() {
+        chargeUsdcDeepLink = ""
+        chargeQrCustomerHint = ""
+        guard pendingScanAction == .payment else { return }
+        scanQrCameraArmed = false
+        scanAwaitingNfcTap = true
+        paymentRoutingSteps = []
+        nfc.begin()
+    }
+
+    /// `https://verra.network/usdc-charge?card=...&owner=...&uid=...&e=...&c=...&m=...&subtotal=...&discount=...&tax=...&tip=...&discountBps=...&taxBps=...&tipBps=...&currency=...`
+    /// Mirrors the param contract in `src/verra-home/src/pages/UsdcCharge.tsx → parseParams`.
+    private static func buildUsdcChargeQrUrl(
+        cardAddress: String,
+        cardOwner: String,
+        uid: String,
+        sun: SunParams,
+        subtotal: Double,
+        discount: Double,
+        tax: Double,
+        tip: Double,
+        discountBps: Int,
+        taxBps: Int,
+        tipBps: Int,
+        currency: String
+    ) -> String {
+        let fmt: (Double) -> String = { String(format: "%.2f", max(0.0, $0)) }
+        var comps = URLComponents(string: "https://verra.network/usdc-charge")!
+        comps.queryItems = [
+            URLQueryItem(name: "card", value: cardAddress),
+            URLQueryItem(name: "owner", value: cardOwner),
+            URLQueryItem(name: "uid", value: uid),
+            URLQueryItem(name: "e", value: sun.e),
+            URLQueryItem(name: "c", value: sun.c),
+            URLQueryItem(name: "m", value: sun.m),
+            URLQueryItem(name: "subtotal", value: fmt(subtotal)),
+            URLQueryItem(name: "discount", value: fmt(discount)),
+            URLQueryItem(name: "tax", value: fmt(tax)),
+            URLQueryItem(name: "tip", value: fmt(tip)),
+            URLQueryItem(name: "discountBps", value: String(max(0, discountBps))),
+            URLQueryItem(name: "taxBps", value: String(max(0, taxBps))),
+            URLQueryItem(name: "tipBps", value: String(max(0, tipBps))),
+            URLQueryItem(name: "currency", value: currency.uppercased())
+        ]
+        return comps.url?.absoluteString ?? ""
     }
 
     private func reportTopupFailure(_ message: String, topupFromQr: Bool, homeToast: Bool = false) {
@@ -2592,6 +2972,33 @@ final class POSViewModel: ObservableObject {
         )
         let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtotal, tipRateBps: chargeTipRateBps)
         let total = BeamioPaymentRouting.chargeTotalInCurrency(requestAmount: subtotal, taxPercent: taxP, tierDiscountPercent: disc, tipAmount: tip)
+        // USDC charge：顾客用外部钱包付 USDC → 不再走 NFC payByNfcUid 路径，改成生成 verra-home /usdc-charge QR。
+        // 必须放在 breakdown 计算之后，确保 discount/tip/tax 与 NFC charge 结算口径完全一致。
+        if pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines) == "usdc" {
+            // SUN 必须存在 → 才能让 cluster 后端 verifySunOnce 校验「物理卡确实拍过」(防止仅凭 cardAddress 伪造 USDC charge)。
+            guard let sunParams = sun else {
+                isNfcBusy = false
+                scanBanner = ""
+                paymentTerminalError = "Card does not support SUN. Cannot accept USDC charge."
+                paymentPatchStep(id: "analyzingAssets", status: .error, detail: "SUN missing")
+                return
+            }
+            // discount currency = subtotal × normalizedTierDiscountPercent / 100（与 nfcBill `nfcDiscountAmountFiat6` 同口径）。
+            let discNormPercent = BeamioPaymentRouting.normalizeTierDiscountPercent(disc)
+            let discAmount = max(0.0, subtotal * discNormPercent / 100.0)
+            await presentUsdcChargeQr(
+                uid: uid,
+                sun: sunParams,
+                subtotal: subtotal,
+                discount: discAmount,
+                taxPercent: taxP,
+                tip: tip,
+                discountBps: BeamioPaymentRouting.tierDiscountBasisPoints(disc),
+                tipBps: chargeTipRateBps,
+                currency: payCurrency
+            )
+            return
+        }
         let amountUsdc6 = BeamioPaymentRouting.currencyToUsdc6(amount: total, currency: payCurrency, oracle: oracle)
         guard let amountBig = Int64(amountUsdc6), amountBig > 0 else {
             paymentPatchStep(id: "analyzingAssets", status: .error, detail: "Amount conversion failed")

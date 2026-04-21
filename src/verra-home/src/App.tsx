@@ -6,6 +6,8 @@ import { Contact } from './pages/Contact'
 import { PrivacyPolicy } from './pages/PrivacyPolicy'
 import { TermsOfService } from './pages/TermsOfService'
 import { TheLocal } from './pages/TheLocal'
+import { UsdcCharge } from './pages/UsdcCharge'
+import { UsdcTopup } from './pages/UsdcTopup'
 
 function App() {
 	return (
@@ -18,6 +20,8 @@ function App() {
 				<Route path="/terms" element={<TermsOfService />} />
 				<Route path="/privacy" element={<PrivacyPolicy />} />
 				<Route path="/contact" element={<Contact />} />
+				<Route path="/usdc-topup" element={<UsdcTopup />} />
+				<Route path="/usdc-charge" element={<UsdcCharge />} />
 			</Routes>
 		</BrowserRouter>
 	)

@@ -31,6 +31,10 @@ enum POSHomeScreenTrustedCache {
         "iosndef.home.routing.\(normWallet(wallet)).\(normInfra(infraCard))"
     }
 
+    private static func programKey(_ wallet: String, infraCard: String) -> String {
+        "iosndef.home.program.\(normWallet(wallet)).\(normInfra(infraCard))"
+    }
+
     // MARK: - Profiles
 
     static func loadProfiles(wallet: String) -> (terminal: TerminalProfile?, admin: TerminalProfile?) {
@@ -109,5 +113,60 @@ enum POSHomeScreenTrustedCache {
         let p = RoutingPayload(tax: tax, summary: summary)
         guard let data = try? JSONEncoder().encode(p) else { return }
         ud.set(data, forKey: routingKey(wallet, infraCard: infraCard))
+    }
+
+    // MARK: - Program (card name + recharge bonus rules)
+
+    /// Persists the bits of the Home black-card panel that come from program-card sources:
+    /// `programCardName` (from `getWalletAssets` `cards[infra].cardName`) + `bonusRules` (from `cardMetadata`).
+    /// Optional fields → only the side that arrived trusted is written; the other side preserves prior value via merge.
+    private struct ProgramPayload: Codable {
+        var programCardName: String?
+        var bonusRules: [BeamioRechargeBonusRule]?
+    }
+
+    static func loadProgram(wallet: String, infraCard: String) -> (programCardName: String?, bonusRules: [BeamioRechargeBonusRule]?) {
+        let key = programKey(wallet, infraCard: infraCard)
+        guard let data = ud.data(forKey: key),
+              let p = try? JSONDecoder().decode(ProgramPayload.self, from: data)
+        else { return (nil, nil) }
+        return (p.programCardName, p.bonusRules)
+    }
+
+    /// Merge with on-disk record so a one-sided trusted update (e.g. only bonusRules came back this round) does not erase the other.
+    /// Pass `programCardName: nil` / `bonusRules: nil` to leave that side unchanged.
+    static func mergeAndSaveProgram(wallet: String, infraCard: String, programCardName: String?, bonusRules: [BeamioRechargeBonusRule]?) {
+        var p = ProgramPayload(programCardName: nil, bonusRules: nil)
+        if let data = ud.data(forKey: programKey(wallet, infraCard: infraCard)),
+           let decoded = try? JSONDecoder().decode(ProgramPayload.self, from: data)
+        {
+            p = decoded
+        }
+        if let programCardName { p.programCardName = programCardName }
+        if let bonusRules { p.bonusRules = bonusRules }
+        guard let data = try? JSONEncoder().encode(p) else { return }
+        ud.set(data, forKey: programKey(wallet, infraCard: infraCard))
+    }
+
+    // MARK: - POS Transactions ledger (cluster `/api/posLedger` snapshot)
+
+    private static func ledgerKey(_ wallet: String, infraCard: String) -> String {
+        "iosndef.home.posLedger.\(normWallet(wallet)).\(normInfra(infraCard))"
+    }
+
+    /// Last successfully loaded `PosLedgerSnapshot` for `(wallet, infra)`. `nil` when never persisted /
+    /// decode failed. **Never** cleared on a refresh failure (untrusted result is silently ignored —
+    /// see `beamio-trusted-vs-untrusted-fetch.mdc`).
+    static func loadPosLedger(wallet: String, infraCard: String) -> PosLedgerSnapshot? {
+        let key = ledgerKey(wallet, infraCard: infraCard)
+        guard let data = ud.data(forKey: key),
+              let snap = try? JSONDecoder().decode(PosLedgerSnapshot.self, from: data)
+        else { return nil }
+        return snap
+    }
+
+    static func savePosLedger(_ snapshot: PosLedgerSnapshot, wallet: String, infraCard: String) {
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        ud.set(data, forKey: ledgerKey(wallet, infraCard: infraCard))
     }
 }
