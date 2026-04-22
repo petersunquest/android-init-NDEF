@@ -2356,6 +2356,23 @@ final class POSViewModel: ObservableObject {
         let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtotal, tipRateBps: tipBps)
         let taxAmount = max(0.0, subtotal * (taxP / 100.0))
         let taxBps = max(0, Int((taxP * 100.0).rounded()))
+        // 出 QR 前 fast-fail 预检：cardOwner 是否有足够 B-Unit 覆盖未来双腿 orchestrator 的 topup 手续费。
+        // PR #2 范围 — `ok=false` ⇒ 不出 QR；`nil`（trusted 网络/解析失败）⇒ 视作 unknown，按 untrusted 协议放行（沿用 beamio-trusted-vs-untrusted-fetch.mdc）。
+        let subtotalStr = String(format: "%.2f", subtotal)
+        if let pre = await api.fetchUsdcChargePreCheck(
+            cardAddress: infra,
+            pos: payee,
+            subtotal: subtotalStr,
+            tipBps: tipBps,
+            taxBps: taxBps,
+            discountBps: 0,
+            currency: currency
+        ) {
+            if !pre.ok {
+                paymentTerminalError = pre.error?.nilIfEmpty ?? "Card owner has insufficient B-Units to settle a USDC charge. Please top up B-Units before charging."
+                return
+            }
+        }
         let url = Self.buildUsdcChargeQrUrlNoNfc(
             cardAddress: infra,
             cardOwner: cardOwner,

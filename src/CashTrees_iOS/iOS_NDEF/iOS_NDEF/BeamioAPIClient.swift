@@ -1094,6 +1094,74 @@ final class BeamioAPIClient: @unchecked Sendable {
         return b != 0
     }
 
+    /// Cluster `GET /api/nfcUsdcChargePreCheck`: iOS POS USDC charge QR 出图前的 fast-fail 预检 ——
+    /// cardOwner 是否有足够 B-Unit 覆盖 topup 腿手续费。失败 ⇒ POS 不出 QR，避免顾客付完 USDC 才被卡在中段。
+    /// `nil` = 网络/解析失败（trusted endpoint 失败按 untrusted 处理：调用方应将其当作 "unknown"，可选择继续或放弃）。
+    /// 非 nil 的 `ok=false` 是后端拒绝的明确信号，应直接展示 `error` 给商户。
+    struct UsdcChargePreCheckResult: Sendable {
+        let ok: Bool
+        let error: String?
+        let cardOwner: String?
+        let cardCurrency: String?
+        let totalCurrency: String?
+        let quotedUsdc6: String?
+        let estPoints6: String?
+        let requiredBUnits6: String?
+    }
+
+    func fetchUsdcChargePreCheck(
+        cardAddress: String,
+        pos: String?,
+        subtotal: String,
+        tipBps: Int,
+        taxBps: Int,
+        discountBps: Int,
+        currency: String?
+    ) async -> UsdcChargePreCheckResult? {
+        let cardTrim = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let subTrim = subtotal.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cardTrim.hasPrefix("0x"), cardTrim.count == 42 else { return nil }
+        guard !subTrim.isEmpty, (Double(subTrim) ?? 0.0) > 0.0 else { return nil }
+        let cardEnc = cardTrim.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cardTrim
+        var query = "card=\(cardEnc)&subtotal=\(subTrim)&tipBps=\(max(0, tipBps))&taxBps=\(max(0, taxBps))&discountBps=\(max(0, discountBps))"
+        if let p = pos?.trimmingCharacters(in: .whitespacesAndNewlines), p.hasPrefix("0x"), p.count == 42 {
+            let pEnc = p.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? p
+            query += "&pos=\(pEnc)"
+        }
+        if let cur = currency?.trimmingCharacters(in: .whitespacesAndNewlines), !cur.isEmpty {
+            let curEnc = cur.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cur
+            query += "&currency=\(curEnc)"
+        }
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/nfcUsdcChargePreCheck?\(query)") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 15
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            let okFlag = (root["ok"] as? Bool) ?? false
+            let err = root["error"] as? String
+            // 4xx with ok=false ⇒ 明确的业务拒绝；5xx 或 ok=true 都正常解析
+            if !(200 ... 299).contains(http.statusCode) && !okFlag && (err == nil || err!.isEmpty) {
+                return nil
+            }
+            return UsdcChargePreCheckResult(
+                ok: okFlag,
+                error: err,
+                cardOwner: root["cardOwner"] as? String,
+                cardCurrency: root["currency"] as? String,
+                totalCurrency: root["total"] as? String,
+                quotedUsdc6: root["quotedUsdc6"] as? String,
+                estPoints6: root["estPoints6"] as? String,
+                requiredBUnits6: root["requiredBUnits6"] as? String
+            )
+        } catch {
+            return nil
+        }
+    }
+
     /// Base: read `owner()` on a `BeamioUserCard` via `eth_call` (authoritative vs DB `cardMetadata.cardOwner`,
     /// which can drift if ownership transferred on chain). Returns checksummed `0x...` (EIP-55-ish: lowercased
     /// hex; backend only checks normalized equality with `ethers.getAddress`). `nil` = RPC/parse failure.
