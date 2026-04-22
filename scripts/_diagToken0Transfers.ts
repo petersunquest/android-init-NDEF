@@ -6,42 +6,30 @@ const POINTS_ID = 0n
 async function main() {
   const { ethers } = await networkModule.connect()
   const provider = ethers.provider
-
-  const head = await provider.getBlockNumber()
-  console.log("head block:", head)
+  const head = BigInt(await provider.getBlockNumber())
+  console.log("head:", head.toString())
 
   const erc1155 = new ethers.Interface([
     "event TransferSingle(address indexed operator, address indexed from, address indexed to, uint256 id, uint256 value)",
     "event TransferBatch(address indexed operator, address indexed from, address indexed to, uint256[] ids, uint256[] values)"
   ])
-
   const tsTopic = erc1155.getEvent("TransferSingle")!.topicHash
   const tbTopic = erc1155.getEvent("TransferBatch")!.topicHash
 
-  const PAGE = 9_500n
-  let from = 0n
-  // Card has bytecode → it was deployed at some block. Walk backward from head in pages until 0.
-  // Faster: try a small recent window first
-  const ranges: Array<[bigint, bigint]> = []
-  let cur = BigInt(head)
-  while (cur > 0n) {
-    const lo = cur > PAGE ? cur - PAGE + 1n : 0n
-    ranges.push([lo, cur])
-    cur = lo - 1n
-    if (ranges.length > 500) break // safety
-  }
-
-  console.log("scanning", ranges.length, "windows of", PAGE, "blocks...")
-
-  type Row = { block: number; tx: string; from: string; to: string; value: bigint; logIdx: number }
+  type Row = { block: number; tx: string; operator: string; from: string; to: string; value: bigint; logIdx: number }
   const rows: Row[] = []
 
-  let scanned = 0
-  for (const [lo, hi] of ranges) {
+  // Walk backward from head in pages of 10k until we've covered ~21 days (≈ 9_072_000 blks at 0.2s)
+  const PAGE = 9_000n
+  const MIN_BLOCK = head > 10_000_000n ? head - 10_000_000n : 0n // ~24 days
+  let hi = head
+  while (hi > MIN_BLOCK) {
+    const lo = hi > PAGE ? hi - PAGE + 1n : 0n
+    const start = lo < MIN_BLOCK ? MIN_BLOCK : lo
     try {
       const logs = await provider.getLogs({
         address: CARD,
-        fromBlock: Number(lo),
+        fromBlock: Number(start),
         toBlock: Number(hi),
         topics: [[tsTopic, tbTopic]],
       })
@@ -50,12 +38,11 @@ async function main() {
           const parsed = erc1155.parseLog({ topics: [...lg.topics], data: lg.data })!
           if (BigInt(parsed.args.id) !== POINTS_ID) continue
           rows.push({
-            block: lg.blockNumber,
-            tx: lg.transactionHash,
+            block: lg.blockNumber, tx: lg.transactionHash,
+            operator: ethers.getAddress(parsed.args.operator),
             from: ethers.getAddress(parsed.args.from),
             to: ethers.getAddress(parsed.args.to),
-            value: BigInt(parsed.args.value),
-            logIdx: lg.index,
+            value: BigInt(parsed.args.value), logIdx: lg.index,
           })
         } else {
           const parsed = erc1155.parseLog({ topics: [...lg.topics], data: lg.data })!
@@ -64,32 +51,30 @@ async function main() {
           for (let i = 0; i < ids.length; i++) {
             if (ids[i] !== POINTS_ID) continue
             rows.push({
-              block: lg.blockNumber,
-              tx: lg.transactionHash,
+              block: lg.blockNumber, tx: lg.transactionHash,
+              operator: ethers.getAddress(parsed.args.operator),
               from: ethers.getAddress(parsed.args.from),
               to: ethers.getAddress(parsed.args.to),
-              value: vals[i],
-              logIdx: lg.index,
+              value: vals[i], logIdx: lg.index,
             })
           }
         }
       }
-      scanned += 1
-      if (scanned % 20 === 0) process.stdout.write(`  scanned ${scanned}/${ranges.length}, found=${rows.length}, lo=${lo}\n`)
-      if (rows.length > 0 && hi < BigInt(head) - 200n && scanned > 5) {
-        // already got something recent, but keep going to get full history; comment out to stop early
-      }
+      hi = start - 1n
     } catch (e) {
-      console.log(`  range ${lo}-${hi} failed:`, (e as Error).message)
+      const msg = (e as Error).message
+      console.log(`range ${start}-${hi} err: ${msg.slice(0, 100)}`)
+      hi = start - 1n
     }
   }
 
   rows.sort((a, b) => a.block - b.block || a.logIdx - b.logIdx)
-  console.log("\ntotal token#0 transfer events:", rows.length)
+  console.log("\ntoken#0 transfer events:", rows.length)
+  const fmt = (v: bigint) => `${(v / 1_000_000n).toString()}.${(v % 1_000_000n).toString().padStart(6, '0')}`
   for (const r of rows) {
-    const fmt = (v: bigint) => `${v}/${(v / 1_000_000n).toString()}.${(v % 1_000_000n).toString().padStart(6, '0')}`
     const tag = r.from === ethers.ZeroAddress ? "MINT" : (r.to === ethers.ZeroAddress ? "BURN" : "XFER")
-    console.log(`  blk=${r.block} ${tag} from=${r.from} to=${r.to} value=${fmt(r.value)} tx=${r.tx}`)
+    console.log(`  blk=${r.block} ${tag.padEnd(4)} value=${fmt(r.value).padStart(12)} from=${r.from} to=${r.to} op=${r.operator}`)
+    console.log(`        tx=${r.tx}`)
   }
 }
 

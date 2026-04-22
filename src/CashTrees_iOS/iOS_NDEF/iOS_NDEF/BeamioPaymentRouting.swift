@@ -211,6 +211,124 @@ enum BeamioPaymentRouting {
         return ChargeableSplit(ccsaPointsWei: ccsaPointsWei, infraPointsWei: infraPointsWei, usdcWei: usdcWei)
     }
 
+    // MARK: - fiat6-only Charge Protocol (see .cursor/rules/beamio-charge-fiat-only-protocol.mdc)
+
+    /// 把账单 currency（如 "50.00" CAD）按 6 位定点直接换成 fiat6 字符串；不做任何 oracle / USDC 换算。
+    /// 客户端在 fiat6-only 协议下，唯一获取 amountFiat6 的入口。
+    static func currencyToFiat6(amount: Double) -> String {
+        if amount <= 0 { return "0" }
+        return String(Int64((amount * 1_000_000.0).rounded()))
+    }
+
+    /// fiat6-only Charge 路由：当 `payCurrency == cardCurrency` 时，CCSA / 程序卡桶直接以
+    /// `ceil(amountFiat6 * 1e6 / pointsUnitPriceInCurrencyE6)` 为 `items[].amount`，零 oracle / 零除回 USDC 漂移。
+    /// 跨币种或跨基础设施卡仍走 oracle（未消的 oracle 漂移由 fiat6-only 协议明确不接受 — 调用方应在 UI 层拒绝跨币种 charge）。
+    /// - Parameters:
+    ///   - amountFiat6: 账单总额（卡币种 6 位定点）
+    ///   - payCurrency: UI 输入币种
+    ///   - cardCurrency: prepare 返回的 BeamioUserCard.currency()
+    ///   - pointsUnitPriceInCurrencyE6: prepare 返回的 BeamioUserCard.pointsUnitPriceInCurrencyE6()
+    ///   - ccsaPoints6 / infraPoints6 / infraCardCurrency / usdcBalance6: 与 `computeChargeContainerSplit` 同
+    ///   - oracle: 仅用于跨币种基础设施卡 / USDC 等价折算（fiat6-only 协议下当 ccsa 路径完整覆盖时不会被命中）
+    ///   - unitPriceUSDC6Fallback: 旧 `unitPriceUSDC6`，当 prepare 未返回 `pointsUnitPriceInCurrencyE6` 时回退使用（向后兼容）
+    static func computeChargeContainerSplitFiat6(
+        amountFiat6: Int64,
+        payCurrency: String,
+        cardCurrency: String?,
+        pointsUnitPriceInCurrencyE6: Int64,
+        ccsaPoints6: Int64,
+        infraPoints6: Int64,
+        infraCardCurrency: String?,
+        usdcBalance6: Int64,
+        oracle: OracleRates,
+        unitPriceUSDC6Fallback: Int64
+    ) -> ChargeableSplit {
+        if amountFiat6 <= 0 { return ChargeableSplit(ccsaPointsWei: 0, infraPointsWei: 0, usdcWei: 0) }
+        let payCur = payCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cardCur = (cardCurrency ?? "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let priceE6 = pointsUnitPriceInCurrencyE6 > 0 ? pointsUnitPriceInCurrencyE6 : unitPriceUSDC6Fallback
+
+        var remainingFiat6 = amountFiat6
+        var ccsaPointsWei: Int64 = 0
+        if ccsaPoints6 > 0, priceE6 > 0, !cardCur.isEmpty, payCur == cardCur {
+            let needCeil = (remainingFiat6 * 1_000_000 + priceE6 - 1) / priceE6
+            ccsaPointsWei = min(needCeil, ccsaPoints6)
+            let consumedFiat6 = (ccsaPointsWei * priceE6) / 1_000_000
+            remainingFiat6 = max(0, remainingFiat6 - consumedFiat6)
+        }
+
+        var infraPointsWei: Int64 = 0
+        let infraCur = infraCardCurrency?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if remainingFiat6 > 0, infraPoints6 > 0, let infraCur, !infraCur.isEmpty {
+            if infraCur == payCur, priceE6 > 0 {
+                let needCeil = (remainingFiat6 * 1_000_000 + priceE6 - 1) / priceE6
+                infraPointsWei = min(needCeil, infraPoints6)
+                let consumedFiat6 = (infraPointsWei * priceE6) / 1_000_000
+                remainingFiat6 = max(0, remainingFiat6 - consumedFiat6)
+            } else {
+                let payRate = getRateForCurrency(payCur, oracle: oracle)
+                let infraRate = getRateForCurrency(infraCur, oracle: oracle)
+                if payRate > 0, infraRate > 0 {
+                    let remainingUsdc6 = Int64((Double(remainingFiat6) / payRate).rounded(.towardZero))
+                    let infraValueUsdc6 = points6ToUsdc6(points6: infraPoints6, cardCurrency: infraCur, oracle: oracle)
+                    let needUsdc6 = min(remainingUsdc6, infraValueUsdc6)
+                    infraPointsWei = Int64(ceil(Double(needUsdc6) * infraRate))
+                    infraPointsWei = max(0, min(infraPointsWei, infraPoints6))
+                    let usedUsdc6 = points6ToUsdc6(points6: infraPointsWei, cardCurrency: infraCur, oracle: oracle)
+                    let usedFiat6 = Int64((Double(usedUsdc6) * payRate).rounded(.towardZero))
+                    remainingFiat6 = max(0, remainingFiat6 - usedFiat6)
+                }
+            }
+        }
+
+        var usdcWei: Int64 = 0
+        if remainingFiat6 > 0 {
+            let payRate = getRateForCurrency(payCur, oracle: oracle)
+            if payRate > 0 {
+                usdcWei = Int64((Double(remainingFiat6) / payRate).rounded(.up))
+                usdcWei = max(0, min(usdcWei, max(0, usdcBalance6)))
+            }
+        }
+
+        return ChargeableSplit(ccsaPointsWei: ccsaPointsWei, infraPointsWei: infraPointsWei, usdcWei: usdcWei)
+    }
+
+    /// 与 `buildPayItems` 形参一致，但不再要求 `amountUsdc6`（fiat6-only 协议下兜底 USDC 项需服务端从 fiat 折算填入）。
+    static func buildPayItemsFiat6(
+        split: ChargeableSplit,
+        infraCard: String
+    ) -> [[String: Any]] {
+        var items: [[String: Any]] = []
+        if split.usdcWei > 0 {
+            items.append([
+                "kind": 0,
+                "asset": BeamioConstants.usdcBase,
+                "amount": String(split.usdcWei),
+                "tokenId": "0",
+                "data": "0x",
+            ])
+        }
+        if split.ccsaPointsWei > 0 {
+            items.append([
+                "kind": 1,
+                "asset": infraCard,
+                "amount": String(split.ccsaPointsWei),
+                "tokenId": "0",
+                "data": "0x",
+            ])
+        }
+        if split.infraPointsWei > 0 {
+            items.append([
+                "kind": 1,
+                "asset": infraCard,
+                "amount": String(split.infraPointsWei),
+                "tokenId": "0",
+                "data": "0x",
+            ])
+        }
+        return items
+    }
+
     static func buildPayItems(
         amountUsdc6: String,
         split: ChargeableSplit,

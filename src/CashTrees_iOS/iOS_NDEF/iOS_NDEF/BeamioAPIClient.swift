@@ -617,12 +617,25 @@ final class BeamioAPIClient: @unchecked Sendable {
 
     // MARK: - Payment (NFC container)
 
-    func payByNfcUidPrepare(uid: String, payee: String, amountUsdc6: String, sun: SunParams?) async -> [String: Any] {
+    /// fiat6-only Charge 协议（推荐）：传 `amountFiat6` + `currency`。`amountUsdc6` 仅作向后兼容存在期内传递，
+    /// 服务端会在 `amountFiat6` + `currency` 都齐全时使用 fiat6 路径并打 deprecation 日志。
+    /// prepare 响应附带 `cardCurrency` 与 `pointsUnitPriceInCurrencyE6`，供客户端做 fiat6 直算。
+    /// 见 `.cursor/rules/beamio-charge-fiat-only-protocol.mdc`。
+    func payByNfcUidPrepare(
+        uid: String,
+        payee: String,
+        amountUsdc6: String? = nil,
+        amountFiat6: String? = nil,
+        currency: String? = nil,
+        sun: SunParams?
+    ) async -> [String: Any] {
         var body: [String: Any] = [
             "uid": uid,
             "payee": payee,
-            "amountUsdc6": amountUsdc6,
         ]
+        if let amountFiat6, !amountFiat6.isEmpty { body["amountFiat6"] = amountFiat6 }
+        if let currency, !currency.isEmpty { body["currency"] = currency.uppercased() }
+        if let amountUsdc6, !amountUsdc6.isEmpty { body["amountUsdc6"] = amountUsdc6 }
         if let sun {
             body["e"] = sun.e
             body["c"] = sun.c
@@ -638,18 +651,24 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// fiat6-only Charge 协议：传 `amountFiat6` + `currency`；`amountUsdc6` 仅向后兼容传递。
+    /// `nfcBill` 仍承载小计/小费/税/折扣 fiat 字段，与 `amountFiat6` 同口径。
     func payByNfcUidSignContainer(
         uid: String,
         containerPayload: [String: Any],
-        amountUsdc6: String,
+        amountUsdc6: String? = nil,
+        amountFiat6: String? = nil,
+        currency: String? = nil,
         sun: SunParams?,
         nfcBill: [String: Any]
     ) async -> SimpleTxResult {
         var body: [String: Any] = [
             "uid": uid,
             "containerPayload": containerPayload,
-            "amountUsdc6": amountUsdc6,
         ]
+        if let amountFiat6, !amountFiat6.isEmpty { body["amountFiat6"] = amountFiat6 }
+        if let currency, !currency.isEmpty { body["currency"] = currency.uppercased() }
+        if let amountUsdc6, !amountUsdc6.isEmpty { body["amountUsdc6"] = amountUsdc6 }
         if let sun {
             body["e"] = sun.e
             body["c"] = sun.c

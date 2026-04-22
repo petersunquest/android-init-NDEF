@@ -6976,6 +6976,7 @@ private struct ScanSheet: View {
     private var chargeChromeHidden: Bool {
         guard action == .payment else { return false }
         if !vm.chargeUsdcDeepLink.isEmpty { return true }
+        if vm.chargeUsdcQrGenerating { return true }
         if vm.chargeApprovedInline != nil { return true }
         if vm.paymentQrInterpreting { return true }
         if let e = vm.chargeNfcReadError, !e.isEmpty { return true }
@@ -7430,10 +7431,15 @@ private struct ScanSheet: View {
     }
 
     /// Charge (NFC + QR): NFC wait panel matches Check Balance (`ScanNfcWaitingPanel`); then QR / routing / errors.
+    /// USDC charge bypasses NFC entirely — `chargeUsdcQrGenerating` shows a "Generating QR…" placeholder while the
+    /// `cardOwner` lookup runs, then the QR replaces it once `chargeUsdcDeepLink` is set.
     @ViewBuilder
     private var paymentScanCenterContent: some View {
         if !vm.chargeUsdcDeepLink.isEmpty {
             usdcChargeCustomerQrBlock(url: vm.chargeUsdcDeepLink)
+                .padding(.horizontal)
+        } else if vm.chargeUsdcQrGenerating {
+            usdcChargeQrGeneratingBlock
                 .padding(.horizontal)
         } else if vm.paymentQrInterpreting {
             RoundedRectangle(cornerRadius: 32)
@@ -7831,8 +7837,49 @@ private struct ScanSheet: View {
         }
     }
 
-    /// USDC charge: after NFC tap, present a QR pointing at `verra-home/usdc-charge` so the customer signs the EIP-3009 USDC transfer in their own wallet (cluster settles to cardOwner; master only logs the breakdown — no `ExecuteForAdmin`).
-    /// Mirrors `usdcTopupCustomerQrBlock`'s frame so layouts stay consistent.
+    /// Loading placeholder shown between `Confirm & Pay` (USDC) and the QR being ready: the merchant should never see
+    /// the legacy NFC waiting panel for a USDC charge. Frame matches `usdcChargeCustomerQrBlock` so the swap is seamless.
+    private var usdcChargeQrGeneratingBlock: some View {
+        VStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 32)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(width: 280, height: 320)
+                .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+                .overlay {
+                    VStack(spacing: 14) {
+                        Text("Generating USDC payment QR…")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.black)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 16)
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(beamioLinkBlue)
+                        Text("Hand the customer's QR over after it appears — no NFC card needed.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(beamioSecondaryGray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 18)
+                    }
+                    .padding(.vertical, 18)
+                }
+            Button {
+                BeamioHaptic.medium()
+                vm.cancelChargeUsdcQr()
+            } label: {
+                Text("Cancel")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 280)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(.white)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(beamioLinkBlue))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+        }
+    }
+
+    /// USDC charge QR (no-NFC): customer scans with any third-party Web3 wallet to sign the EIP-3009 USDC transfer
+    /// straight into the merchant BeamioUserCard's adminEOA. No NFC tap, no @beamioTag — pure off-chain wallet flow.
     private func usdcChargeCustomerQrBlock(url: String) -> some View {
         let qrImage = BeamioLinkAppQr.image(from: url, pointSize: 198, scale: displayScale)
         return VStack(spacing: 10) {
@@ -7917,7 +7964,7 @@ private struct ScanSheet: View {
                 BeamioHaptic.medium()
                 vm.cancelChargeUsdcQr()
             } label: {
-                Text("Cancel & rescan")
+                Text("Cancel")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(width: 280)
                     .padding(.vertical, 12)

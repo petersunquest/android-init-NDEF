@@ -77,6 +77,11 @@ const numOrZero = (raw: string): number => {
 	return Number.isFinite(n) && n > 0 ? n : 0
 }
 
+/**
+ * NFC 模式（兼容旧链路）：URL 同时带 `uid + e + c + m` ⇒ 后端走 SUN 校验。
+ * 第三方钱包模式（iOS POS no-NFC USDC charge）：四个字段全部缺省 ⇒ 后端跳过 SUN，直接 x402 settle 给 cardOwner。
+ * 任意一个 SUN 字段存在但不完整 ⇒ 视为坏链接（防止 partial param 误传到后端被 400）。
+ */
 function parseParams(sp: URLSearchParams): { ok: true; params: ChargeParams } | { ok: false; error: string } {
 	const cardAddress = (sp.get('card') ?? '').trim()
 	const cardOwner = (sp.get('owner') ?? '').trim()
@@ -94,10 +99,16 @@ function parseParams(sp: URLSearchParams): { ok: true; params: ChargeParams } | 
 	const currency = (sp.get('currency') ?? 'CAD').trim().toUpperCase()
 	if (!isEthAddress(cardAddress)) return { ok: false, error: 'Missing or invalid `card` (BeamioUserCard address)' }
 	if (!isEthAddress(cardOwner)) return { ok: false, error: 'Missing or invalid `owner` (card owner EOA)' }
-	if (!uid || !isHex(uid, 14)) return { ok: false, error: 'Missing or invalid `uid` (NFC UID, 14 hex chars)' }
-	if (!isHex(e, 64)) return { ok: false, error: 'Missing or invalid SUN `e` (64 hex chars)' }
-	if (!isHex(c, 6)) return { ok: false, error: 'Missing or invalid SUN `c` (6 hex chars)' }
-	if (!isHex(m, 16)) return { ok: false, error: 'Missing or invalid SUN `m` (16 hex chars)' }
+	const sunFieldsPresent = [uid, e, c, m].filter((v) => v.length > 0).length
+	if (sunFieldsPresent > 0 && sunFieldsPresent < 4) {
+		return { ok: false, error: 'Incomplete NFC SUN params (need all of `uid`, `e`, `c`, `m`, or none for third-party wallet payment)' }
+	}
+	if (sunFieldsPresent === 4) {
+		if (!isHex(uid, 14)) return { ok: false, error: 'Invalid `uid` (NFC UID, 14 hex chars)' }
+		if (!isHex(e, 64)) return { ok: false, error: 'Invalid SUN `e` (64 hex chars)' }
+		if (!isHex(c, 6)) return { ok: false, error: 'Invalid SUN `c` (6 hex chars)' }
+		if (!isHex(m, 16)) return { ok: false, error: 'Invalid SUN `m` (16 hex chars)' }
+	}
 	if (!subtotal || !(Number(subtotal) > 0)) return { ok: false, error: 'Missing or invalid `subtotal`' }
 	if (!currency) return { ok: false, error: 'Missing `currency`' }
 	const total = numOrZero(subtotal) - numOrZero(discount) + numOrZero(tax) + numOrZero(tip)
@@ -322,10 +333,11 @@ export function UsdcCharge() {
 							<h2 className="mb-2 text-xl font-bold">Invalid charge link</h2>
 							<p className="text-sm leading-relaxed">{parsed.error}</p>
 							<p className="mt-4 text-xs opacity-80">
-								Expected query params: <code>card</code>, <code>owner</code>, <code>uid</code>, <code>e</code>,{' '}
-								<code>c</code>, <code>m</code>, <code>subtotal</code>, <code>currency</code>; optional{' '}
-								<code>discount</code>, <code>tax</code>, <code>tip</code>,{' '}
-								<code>discountBps</code>, <code>taxBps</code>, <code>tipBps</code>.
+								Required: <code>card</code>, <code>owner</code>, <code>subtotal</code>,{' '}
+								<code>currency</code>. Optional: <code>discount</code>, <code>tax</code>,{' '}
+								<code>tip</code>, <code>discountBps</code>, <code>taxBps</code>, <code>tipBps</code>.
+								NFC SUN (<code>uid</code>+<code>e</code>+<code>c</code>+<code>m</code>) is optional —
+								provide all four for NFC-bound charges, or none for pure third-party-wallet payment.
 							</p>
 						</div>
 					</div>
@@ -336,6 +348,7 @@ export function UsdcCharge() {
 	}
 
 	const { cardAddress, cardOwner, uid, currency } = parsed.params
+	const hasNfcSun = uid.length > 0
 	const onBase = chainIdHex?.toLowerCase() === BASE_CHAIN_ID_HEX
 	const hasWallet = !!eth
 	const ready = hasWallet && !!account && onBase
@@ -373,7 +386,9 @@ export function UsdcCharge() {
 							<Divider />
 							<Row label="Merchant (card owner)" value={truncate(cardOwner, 8, 6)} mono />
 							<Row label="BeamioUserCard" value={truncate(cardAddress, 8, 6)} mono />
-							<Row label="NFC tag" value={`…${uid.slice(-6).toUpperCase()}`} mono />
+							{hasNfcSun ? (
+								<Row label="NFC tag" value={`…${uid.slice(-6).toUpperCase()}`} mono />
+							) : null}
 							<Row label="Network" value="Base mainnet" mono={false} />
 						</div>
 					</section>

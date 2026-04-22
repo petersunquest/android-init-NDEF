@@ -151,12 +151,17 @@ final class POSViewModel: ObservableObject {
     /// Empty string ⇒ no QR shown (default flow).
     @Published var topupUsdcDeepLink: String = ""
 
-    /// USDC charge: after NFC tap on POS during Charge, show QR linking customer to `verra-home/usdc-charge`.
-    /// URL carries charge breakdown (subtotal/discount/tax/tip + currency) so verra-home can quote + collect via x402.
-    /// Empty string ⇒ no QR shown (default NFC charge flow).
+    /// USDC charge: after Confirm & Pay with USDC selected, show QR linking customer to `verra-home/usdc-charge`.
+    /// URL carries charge breakdown (subtotal/discount/tax/tip + currency) + merchant `card`/`owner` so verra-home can
+    /// quote + collect via x402 directly into the BeamioUserCard's adminEOA — no NFC tap, no customer card binding.
+    /// Empty string ⇒ no QR shown.
     @Published var chargeUsdcDeepLink: String = ""
     /// Optional caption shown under the USDC charge QR (e.g. "Customer scans this QR to pay with USDC.").
     @Published var chargeQrCustomerHint: String = ""
+    /// True between `beginCharge(methodRaw:"usdc")` and `chargeUsdcDeepLink` becoming non-empty (cardOwner fetch in flight).
+    /// Drives the "Generating USDC payment QR…" placeholder in `paymentScanCenterContent` so the merchant doesn't see
+    /// the legacy `ScanNfcWaitingPanel` for a USDC charge (the customer never needs to tap a card).
+    @Published var chargeUsdcQrGenerating: Bool = false
     /// Charge payment method selected on `ChargeAmountPadRoot` ("nfcCard" / "usdc"). Empty ⇒ default `nfcCard`.
     @Published var pendingChargeMethodRaw: String = ""
 
@@ -1327,11 +1332,23 @@ final class POSViewModel: ObservableObject {
         chargeQrCustomerHint = ""
         pendingScanAction = .payment
         scanQrCameraArmed = false
-        scanAwaitingNfcTap = true
         resetPaymentQrChrome()
         qrPaymentResetId += 1
         scanMethod = .nfc
         sheet = .scan(.payment)
+        let normalizedMethod = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // USDC charge：顾客用第三方钱包直接付 USDC → 商户终端跳过 NFC，直接生成 QR 指向 verra-home/usdc-charge。
+        // 收款地址 = BeamioUserCard.owner()（adminEOA），与 USDC top-up 同源；无需 NFC UID/SUN，也不绑定顾客 beamioTag。
+        if normalizedMethod == "usdc" {
+            scanAwaitingNfcTap = false
+            chargeUsdcQrGenerating = true
+            Task { @MainActor in
+                await presentUsdcChargeQrNoNfc(subtotalString: amount, tipBps: tipBps)
+                chargeUsdcQrGenerating = false
+            }
+            return
+        }
+        scanAwaitingNfcTap = true
         startNfcIfNeeded()
     }
 
@@ -1746,6 +1763,20 @@ final class POSViewModel: ObservableObject {
         chargeNfcReadError = nil
         isNfcBusy = false
         qrPaymentResetId += 1
+        // USDC charge (no-NFC)：terminal error 通常来自 cardOwner 解析失败 —— 再跑一次 presentUsdcChargeQrNoNfc 即可，
+        // 不应误把终端切回 NFC 等待面板（顾客本来就用第三方钱包付，没有卡可拍）。
+        if pendingScanAction == .payment,
+           pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines) == "usdc" {
+            scanAwaitingNfcTap = false
+            chargeUsdcQrGenerating = true
+            let amt = amountString
+            let bps = chargeTipRateBps
+            Task { @MainActor in
+                await presentUsdcChargeQrNoNfc(subtotalString: amt, tipBps: bps)
+                chargeUsdcQrGenerating = false
+            }
+            return
+        }
         if pendingScanAction == .payment, scanMethod == .nfc {
             scanAwaitingNfcTap = true
             nfc.begin()
@@ -1800,6 +1831,7 @@ final class POSViewModel: ObservableObject {
         paymentTerminalError = nil
         chargeApprovedInline = nil
         chargeNfcReadError = nil
+        chargeUsdcQrGenerating = false
     }
 
     private func resetTopupQrChrome() {
@@ -2266,15 +2298,111 @@ final class POSViewModel: ObservableObject {
         chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
     }
 
-    /// Customer cancelled / swap card; clear QR and re-arm NFC tap on the same charge scan sheet.
+    /// Merchant cancelled USDC charge QR. With the no-NFC USDC flow there is no card to re-arm — close the scan sheet
+    /// entirely so the merchant lands back on Home and can re-enter the charge amount if needed.
     func cancelChargeUsdcQr() {
         chargeUsdcDeepLink = ""
         chargeQrCustomerHint = ""
-        guard pendingScanAction == .payment else { return }
-        scanQrCameraArmed = false
-        scanAwaitingNfcTap = true
-        paymentRoutingSteps = []
-        nfc.begin()
+        chargeUsdcQrGenerating = false
+        closeScanSheet()
+    }
+
+    /// USDC charge without NFC: build `verra-home/usdc-charge?card=…&owner=…&subtotal=…&tip=…&currency=…` and set
+    /// `chargeUsdcDeepLink` so `paymentScanCenterContent` displays the QR. Owner = on-chain `BeamioUserCard.owner()`
+    /// (adminEOA) — the EOA that will receive USDC via x402 settle on the back-end. No `uid / e / c / m`: the customer
+    /// pays straight from their third-party wallet without owning a Beamio NFC card or @beamioTag account.
+    private func presentUsdcChargeQrNoNfc(subtotalString: String, tipBps: Int) async {
+        guard posChargeMethodRawAllowed("usdc") else {
+            paymentTerminalError = "USDC charge is not enabled for this terminal."
+            return
+        }
+        guard let subtotal = Double(subtotalString), subtotal > 0 else {
+            paymentTerminalError = "Invalid amount"
+            return
+        }
+        guard let payee = walletAddress, !payee.isEmpty else {
+            paymentTerminalError = "Wallet not initialized."
+            return
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty else {
+            paymentTerminalError = "Merchant infrastructure card not configured."
+            return
+        }
+        // cardOwner 解析顺序与 presentUsdcChargeQr / presentUsdcTopupQr 同：缓存 → /api/getCardAdminInfo → BeamioUserCard.owner() (eth_call 兜底)。
+        var resolvedOwner: String? = merchantInfraCardOwnerEoa?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if resolvedOwner?.isEmpty != false {
+            if let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: payee),
+               let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
+                resolvedOwner = ownerAddr
+                merchantInfraCardOwnerEoa = ownerAddr
+            }
+        }
+        if resolvedOwner?.isEmpty != false {
+            resolvedOwner = await api.fetchBeamioUserCardOwner(cardAddress: infra)
+            if let r = resolvedOwner, !r.isEmpty { merchantInfraCardOwnerEoa = r }
+        }
+        guard let cardOwner = resolvedOwner, !cardOwner.isEmpty else {
+            paymentTerminalError = "Cannot resolve card owner. Please retry."
+            return
+        }
+        // Currency 取链上 BeamioUserCard.currencyCode()（与 NFC charge / top-up 同源）；缺省 CAD。
+        let chainCurrency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code
+        let currency = (chainCurrency ?? "CAD").uppercased()
+        // 无顾客卡 → 无 tier discount；taxPercent 走与 NFC charge 同口径的 fetchChargeTierRoutingDetails，缓存兜底。
+        let routingDetails = await api.fetchChargeTierRoutingDetails(wallet: payee, infraCard: infra)
+        let taxP = routingDetails?.taxPercent ?? infraRoutingTaxPercent ?? 0.0
+        let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtotal, tipRateBps: tipBps)
+        let taxAmount = max(0.0, subtotal * (taxP / 100.0))
+        let taxBps = max(0, Int((taxP * 100.0).rounded()))
+        let url = Self.buildUsdcChargeQrUrlNoNfc(
+            cardAddress: infra,
+            cardOwner: cardOwner,
+            subtotal: subtotal,
+            discount: 0,
+            tax: taxAmount,
+            tip: tip,
+            discountBps: 0,
+            taxBps: taxBps,
+            tipBps: tipBps,
+            currency: currency
+        )
+        paymentTerminalError = nil
+        chargeNfcReadError = nil
+        chargeUsdcDeepLink = url
+        chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
+    }
+
+    /// `https://verra.network/usdc-charge?card=…&owner=…&subtotal=…&discount=…&tax=…&tip=…&discountBps=…&taxBps=…&tipBps=…&currency=…`
+    /// No `uid / e / c / m` — verra-home must accept the URL without NFC SUN params (third-party wallet path).
+    private static func buildUsdcChargeQrUrlNoNfc(
+        cardAddress: String,
+        cardOwner: String,
+        subtotal: Double,
+        discount: Double,
+        tax: Double,
+        tip: Double,
+        discountBps: Int,
+        taxBps: Int,
+        tipBps: Int,
+        currency: String
+    ) -> String {
+        let fmt: (Double) -> String = { String(format: "%.2f", max(0.0, $0)) }
+        var comps = URLComponents(string: "https://verra.network/usdc-charge")!
+        comps.queryItems = [
+            URLQueryItem(name: "card", value: cardAddress),
+            URLQueryItem(name: "owner", value: cardOwner),
+            URLQueryItem(name: "subtotal", value: fmt(subtotal)),
+            URLQueryItem(name: "discount", value: fmt(discount)),
+            URLQueryItem(name: "tax", value: fmt(tax)),
+            URLQueryItem(name: "tip", value: fmt(tip)),
+            URLQueryItem(name: "discountBps", value: String(max(0, discountBps))),
+            URLQueryItem(name: "taxBps", value: String(max(0, taxBps))),
+            URLQueryItem(name: "tipBps", value: String(max(0, tipBps))),
+            URLQueryItem(name: "currency", value: currency.uppercased())
+        ]
+        return comps.url?.absoluteString ?? ""
     }
 
     /// `https://verra.network/usdc-charge?card=...&owner=...&uid=...&e=...&c=...&m=...&subtotal=...&discount=...&tax=...&tip=...&discountBps=...&taxBps=...&tipBps=...&currency=...`
@@ -2999,21 +3127,25 @@ final class POSViewModel: ObservableObject {
             )
             return
         }
-        let amountUsdc6 = BeamioPaymentRouting.currencyToUsdc6(amount: total, currency: payCurrency, oracle: oracle)
-        guard let amountBig = Int64(amountUsdc6), amountBig > 0 else {
+        // fiat6-only 协议（参见 .cursor/rules/beamio-charge-fiat-only-protocol.mdc）：
+        // 客户端只发送账单币种 6 位定点 fiat6 与 currency；不再做 oracle USDC 折算，避免「双 oracle」漂移。
+        let amountFiat6Str = BeamioPaymentRouting.currencyToFiat6(amount: total)
+        guard let amountFiat6 = Int64(amountFiat6Str), amountFiat6 > 0 else {
             paymentPatchStep(id: "analyzingAssets", status: .error, detail: "Amount conversion failed")
             isNfcBusy = false
             paymentTerminalError = "Amount conversion failed"
             scanBanner = ""
             return
         }
-        let prep = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountUsdc6: amountUsdc6, sun: sun)
+        let prep = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountFiat6: amountFiat6Str, currency: payCurrency, sun: sun)
         let ok = (prep["ok"] as? Bool) == true
         let account = prep["account"] as? String
         let nonce = prep["nonce"] as? String
         let deadline = prep["deadline"] as? String
         let payeeAA = prep["payeeAA"] as? String
         let unitPriceStr = prep["unitPriceUSDC6"] as? String
+        let cardCurrencyOnChain = (prep["cardCurrency"] as? String)?.uppercased()
+        let pointsPriceCurE6 = Int64(prep["pointsUnitPriceInCurrencyE6"] as? String ?? "0") ?? 0
         guard ok, let account, let nonce, let deadline, let payeeAA, let unitPriceStr,
               let unitPrice = Int64(unitPriceStr), unitPrice > 0
         else {
@@ -3023,6 +3155,8 @@ final class POSViewModel: ObservableObject {
             scanBanner = ""
             return
         }
+        // 仅用于 UI 余额对比 / 兜底；账本由服务端按 fiat6 + chain priceE6 派生。
+        let amountBig: Int64 = (amountFiat6 * unitPrice + 999_999) / 1_000_000
         paymentPatchStep(id: "optimizingRoute", status: .loading)
         let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
@@ -3057,18 +3191,20 @@ final class POSViewModel: ObservableObject {
             return
         }
         paymentPatchStep(id: "optimizingRoute", status: .success, detail: "Direct: NFC → Merchant")
-        let split = BeamioPaymentRouting.computeChargeContainerSplit(
-            amountBig: amountBig,
-            chargeTotalInPayCurrency: total,
+        // fiat6-only：当 payCurrency == cardCurrency 时，CCSA 点数项以 ceil(amountFiat6 * 1e6 / priceE6) 直算，零 oracle 漂移。
+        let split = BeamioPaymentRouting.computeChargeContainerSplitFiat6(
+            amountFiat6: amountFiat6,
             payCurrency: payCurrency,
-            oracle: oracle,
-            unitPriceUSDC6: unitPrice,
+            cardCurrency: cardCurrencyOnChain,
+            pointsUnitPriceInCurrencyE6: pointsPriceCurE6,
             ccsaPoints6: unitPointsStr,
             infraPoints6: infraPointsStr,
             infraCardCurrency: oracleInfraCardsNfc.first?.cardCurrency,
-            usdcBalance6: usdcBal
+            usdcBalance6: usdcBal,
+            oracle: oracle,
+            unitPriceUSDC6Fallback: unitPrice
         )
-        var items = BeamioPaymentRouting.buildPayItems(amountUsdc6: amountUsdc6, split: split, infraCard: merchantInfraCard)
+        var items = BeamioPaymentRouting.buildPayItemsFiat6(split: split, infraCard: merchantInfraCard)
         items = BeamioPaymentRouting.mergeInfraKind1Items(items, infraCard: merchantInfraCard)
         let container: [String: Any] = [
             "account": account,
@@ -3096,7 +3232,8 @@ final class POSViewModel: ObservableObject {
         let pay = await api.payByNfcUidSignContainer(
             uid: uid,
             containerPayload: container,
-            amountUsdc6: amountUsdc6,
+            amountFiat6: amountFiat6Str,
+            currency: payCurrency,
             sun: sun,
             nfcBill: bill
         )
@@ -3615,8 +3752,10 @@ final class POSViewModel: ObservableObject {
         let infraPointsStr = oracleInfraCards.reduce(0) { $0 + (Int64($1.points6) ?? 0) }
 
         var unitPrice = Int64(assets.unitPriceUSDC6 ?? "0") ?? 0
+        var probeCardCurrency: String?
+        var probePointsPriceCurE6: Int64 = 0
         if unitPrice <= 0 {
-            let probe = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountUsdc6: "1", sun: sun)
+            let probe = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountFiat6: "1000000", currency: payCurrency, sun: sun)
             let probeOk = (probe["ok"] as? Bool) == true
             let ups = probe["unitPriceUSDC6"] as? String
             guard probeOk, let ups, let up = Int64(ups), up > 0 else {
@@ -3624,6 +3763,8 @@ final class POSViewModel: ObservableObject {
                 return
             }
             unitPrice = up
+            probeCardCurrency = (probe["cardCurrency"] as? String)?.uppercased()
+            probePointsPriceCurE6 = Int64(probe["pointsUnitPriceInCurrencyE6"] as? String ?? "0") ?? 0
         }
 
         let freshTotal = computeChargeableTotalUsdc6(
@@ -3643,9 +3784,14 @@ final class POSViewModel: ObservableObject {
         var deadline: String?
         var payeeAA: String?
         var unitPriceFromPrep: Int64 = 0
+        var prepCardCurrency: String? = probeCardCurrency
+        var prepPointsPriceCurE6: Int64 = probePointsPriceCurE6
         var prepareReady = false
         for _ in 0 ..< 4 {
-            let prep = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountUsdc6: String(amountBig), sun: sun)
+            // fiat6-only：partial 流程仍以 amountBig (USDC6) 为锁定基准计算 fiat6 输入，
+            // 服务端会按 chain priceE6 重新派生最终 USDC6（与 items[].amount 完全一致）。
+            let amountFiat6Lock = String((amountBig * 1_000_000 + max(unitPrice, 1) - 1) / max(unitPrice, 1))
+            let prep = await api.payByNfcUidPrepare(uid: uid, payee: payee, amountFiat6: amountFiat6Lock, currency: payCurrency, sun: sun)
             let ok = (prep["ok"] as? Bool) == true
             guard ok,
                   let acc = prep["account"] as? String,
@@ -3659,6 +3805,8 @@ final class POSViewModel: ObservableObject {
                 return
             }
             unitPriceFromPrep = upPrep
+            prepCardCurrency = (prep["cardCurrency"] as? String)?.uppercased() ?? prepCardCurrency
+            prepPointsPriceCurE6 = Int64(prep["pointsUnitPriceInCurrencyE6"] as? String ?? "0") ?? prepPointsPriceCurE6
             let backed = nfcBackedSpendableUsdc6(
                 unitPricePoints6: unitPointsStr,
                 oracleInfraCards: oracleInfraCards,
@@ -3693,19 +3841,23 @@ final class POSViewModel: ObservableObject {
             return
         }
         paymentPatchStep(id: "optimizingRoute", status: .success, detail: "Direct: NFC → Merchant")
-        let split = BeamioPaymentRouting.computeChargeContainerSplit(
-            amountBig: amountBig,
-            chargeTotalInPayCurrency: chargedFiat,
+        // partial fiat6：amountFiat6 由 partial USDC6 反算得到（用 chain unitPriceUSDC6），
+        // 与 partial UI 显示的 chargedFiat 在 1 个 fiat6 单位内一致；服务端最终以 amountFiat6 为账本基准。
+        let amountFiat6: Int64 = (amountBig * 1_000_000 + max(unitPriceResolved, 1) - 1) / max(unitPriceResolved, 1)
+        let amountFiat6Str = String(amountFiat6)
+        let split = BeamioPaymentRouting.computeChargeContainerSplitFiat6(
+            amountFiat6: amountFiat6,
             payCurrency: payCurrency,
-            oracle: oracle,
-            unitPriceUSDC6: unitPriceResolved,
+            cardCurrency: prepCardCurrency,
+            pointsUnitPriceInCurrencyE6: prepPointsPriceCurE6,
             ccsaPoints6: unitPointsStr,
             infraPoints6: infraPointsStr,
             infraCardCurrency: oracleInfraCards.first?.cardCurrency,
-            usdcBalance6: usdcBal
+            usdcBalance6: usdcBal,
+            oracle: oracle,
+            unitPriceUSDC6Fallback: unitPriceResolved
         )
-        let amountUsdc6 = String(amountBig)
-        var items = BeamioPaymentRouting.buildPayItems(amountUsdc6: amountUsdc6, split: split, infraCard: merchantInfraCard)
+        var items = BeamioPaymentRouting.buildPayItemsFiat6(split: split, infraCard: merchantInfraCard)
         items = BeamioPaymentRouting.mergeInfraKind1Items(items, infraCard: merchantInfraCard)
         let container: [String: Any] = [
             "account": accountAddr,
@@ -3719,7 +3871,8 @@ final class POSViewModel: ObservableObject {
         let pay = await api.payByNfcUidSignContainer(
             uid: uid,
             containerPayload: container,
-            amountUsdc6: amountUsdc6,
+            amountFiat6: amountFiat6Str,
+            currency: payCurrency,
             sun: sun,
             nfcBill: bill
         )
