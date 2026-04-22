@@ -22,7 +22,7 @@ import * as path from "path";
 import { homedir } from "os";
 
 const CONET_RPC = "https://rpc1.conet.network";
-const ACCOUNT_REGISTRY = process.env.ACCOUNT_REGISTRY || "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35";
+const ACCOUNT_REGISTRY = process.env.ACCOUNT_REGISTRY || "0x4afaca09cf8307070a83836223Ae129073eC92e5";
 const MASTER_PATH = path.join(homedir(), ".master.json");
 
 const AccountRegistryABI = [

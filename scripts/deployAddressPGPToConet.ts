@@ -1,6 +1,6 @@
 /**
  * 部署 AddressPGP 到 CoNET mainnet
- * 需传入 GuardianNodesInfoV6 地址（0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94）
+ * 需传入 GuardianNodesInfoV6 地址（0x6d7a526BFD03E90ea8D19eDB986577395a139872，见 deployments/conet-GuardianNodesInfoV6.json）
  *
  * 运行: npx hardhat run scripts/deployAddressPGPToConet.ts --network conet
  * 或: GUARDIAN_NODES=0x... npx hardhat run scripts/deployAddressPGPToConet.ts --network conet
@@ -14,7 +14,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const GUARDIAN_NODES_INFO_V6 = process.env.GUARDIAN_NODES || "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94";
+const GUARDIAN_NODES_INFO_V6 = process.env.GUARDIAN_NODES || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
 
 async function main() {
   const { ethers } = await hreNetwork.connect();

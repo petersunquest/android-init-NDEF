@@ -1,16 +1,37 @@
 /**
- * 检查 CoNET-DL initManager+ETH_Manager 对应 16 个地址在 CoNET(224422) 上的原生余额；
+ * 检查 CoNET-DL / x402sdk cluster 在 CoNET(224422) 上发起交易的所有钱包地址余额；
  * 对「余额不足」的地址，由部署 admin 各向该地址转账 TOPUP_ETH（默认 5 ETH）。
  *
+ * 覆盖的 ~/.master.json 字段：
+ *   - initManager[]            （ConetPGP addRoutes / batch ETH airdrop）
+ *   - ETH_Manager[]            （batch ETH 兜底）
+ *   - epochManagre             （updateEpochToSC）
+ *   - GB_airdrop               （eGB airdrop）
+ *   - settle_contractAdmin[]   （x402sdk cluster：claimBUnits / purchaseCard / consumeFromUser /
+ *                                 settleBeamioX402 / requestAccounting / OpenContainerRelay 等
+ *                                 走 SC.walletConet 发出的全部 CoNET 链交易）
+ *   - beamio_Admins[]          （x402sdk db.ts 的 followByAdmin / setNameHashBase64 /
+ *                                 addPublicPGPByAdmin / addRoute / setBuintFee 等）
+ *
+ * 必须覆盖 settle_contractAdmin / beamio_Admins —— 否则 chain restart 后这两类钱包
+ * 余额为 0，会出现：
+ *   [claimBUnitsProcess] failed: insufficient funds for intrinsic transaction cost
+ *   [followByAdmin] insufficient funds ...
+ * 只有部分用户/部分请求随机失败（取决于 cluster 命中哪个 worker / 哪个 admin）。
+ *
  * 不足判定：balance < MIN_BALANCE_ETH（默认 5，即低于 5 ETH 视为不足）
+ * 强制模式：FORCE_TOPUP=1 时跳过阈值过滤，对所有地址各转 TOPUP_ETH。
  *
  * 用法:
  *   DRY_RUN=1 npx tsx scripts/topupCoNETDLAdminEth.ts
  *   npx tsx scripts/topupCoNETDLAdminEth.ts
+ *   # 一次性给所有相关钱包各打 1 ETH（不看余额）：
+ *   FORCE_TOPUP=1 TOPUP_ETH=1 npx tsx scripts/topupCoNETDLAdminEth.ts
  *
  * 环境变量:
  *   MIN_BALANCE_ETH — 低于此值视为不足（默认 5）
  *   TOPUP_ETH — 每笔转账数量（默认 5）
+ *   FORCE_TOPUP — 1/true 时跳过阈值，无条件给所有地址各转 TOPUP_ETH
  *   MASTER_JSON / DEPLOYMENT_JSON / NEW_RPC — 与 addCoNETDLRouterAdminsToAddressPGP.ts 相同
  */
 
@@ -32,10 +53,13 @@ const SLEEP_MS = Number(process.env.SLEEP_MS || "2000");
 
 const MIN_BALANCE_ETH = process.env.MIN_BALANCE_ETH || "5";
 const TOPUP_ETH = process.env.TOPUP_ETH || "5";
+const FORCE_TOPUP = process.env.FORCE_TOPUP === "1" || process.env.FORCE_TOPUP === "true";
 
 type MasterJson = {
   initManager?: string[];
   ETH_Manager?: string[];
+  epochManagre?: string;
+  GB_airdrop?: string;
   settle_contractAdmin?: string[];
   beamio_Admins?: string[];
   admin?: string[];
@@ -91,21 +115,50 @@ function pkToAddress(pk: string): string {
   return new ethers.Wallet(normalizePk(pk)).address;
 }
 
-function loadCoNETDLManagerAddresses(): string[] {
+type ManagerEntry = { source: string; address: string };
+
+function loadCoNETDLManagerAddresses(): ManagerEntry[] {
   if (!fs.existsSync(MASTER_JSON)) throw new Error(`未找到 ${MASTER_JSON}`);
   const raw = JSON.parse(fs.readFileSync(MASTER_JSON, "utf-8")) as MasterJson;
-  const combined = [...(raw.initManager ?? []), ...(raw.ETH_Manager ?? [])];
-  if (!combined.length) throw new Error(`${MASTER_JSON} 中未找到 initManager / ETH_Manager`);
-  const set = new Set<string>();
-  for (const pk of combined) {
-    if (!pk || typeof pk !== "string") continue;
-    try {
-      set.add(pkToAddress(pk).toLowerCase());
-    } catch {
-      /* skip */
+
+  const buckets: { source: string; pks: string[] }[] = [
+    { source: "initManager", pks: Array.isArray(raw.initManager) ? raw.initManager : [] },
+    { source: "ETH_Manager", pks: Array.isArray(raw.ETH_Manager) ? raw.ETH_Manager : [] },
+    { source: "epochManagre", pks: typeof raw.epochManagre === "string" && raw.epochManagre ? [raw.epochManagre] : [] },
+    { source: "GB_airdrop", pks: typeof raw.GB_airdrop === "string" && raw.GB_airdrop ? [raw.GB_airdrop] : [] },
+    // x402sdk cluster：claimBUnits / purchaseCard / consumeFromUser / requestAccounting 等
+    // 全部走 SC.walletConet (private key 来自 settle_contractAdmin) 发交易，CoNET 链上必须有 gas。
+    { source: "settle_contractAdmin", pks: Array.isArray(raw.settle_contractAdmin) ? raw.settle_contractAdmin : [] },
+    // x402sdk db.ts: followByAdmin / setNameHashBase64 / addPublicPGPByAdmin / addRoute 等。
+    { source: "beamio_Admins", pks: Array.isArray(raw.beamio_Admins) ? raw.beamio_Admins : [] },
+  ];
+
+  const total = buckets.reduce((n, b) => n + b.pks.length, 0);
+  if (!total) {
+    throw new Error(
+      `${MASTER_JSON} 中未找到 initManager / ETH_Manager / epochManagre / GB_airdrop / settle_contractAdmin / beamio_Admins`
+    );
+  }
+
+  const seen = new Map<string, ManagerEntry>();
+  for (const { source, pks } of buckets) {
+    for (const pk of pks) {
+      if (!pk || typeof pk !== "string") continue;
+      try {
+        const addr = ethers.getAddress(pkToAddress(pk));
+        const key = addr.toLowerCase();
+        const existing = seen.get(key);
+        if (existing) {
+          existing.source += `, ${source}`;
+        } else {
+          seen.set(key, { source, address: addr });
+        }
+      } catch {
+        /* skip */
+      }
     }
   }
-  return [...set].sort();
+  return [...seen.values()].sort((a, b) => a.address.localeCompare(b.address));
 }
 
 function sleep(ms: number) {
@@ -122,43 +175,49 @@ async function main() {
   const minWei = ethers.parseEther(MIN_BALANCE_ETH);
   const topupWei = ethers.parseEther(TOPUP_ETH);
 
-  const targets = loadCoNETDLManagerAddresses().map((a) => ethers.getAddress(a));
+  const targets = loadCoNETDLManagerAddresses();
 
   console.log("=".repeat(60));
-  console.log("CoNET-DL admin 地址余额检查 / 不足则 TOPUP");
+  console.log("CoNET-DL 224422 钱包余额检查 / TOPUP");
   console.log("=".repeat(60));
   console.log("RPC:", NEW_RPC);
   console.log("地址数:", targets.length);
   console.log("不足阈值: <", MIN_BALANCE_ETH, "ETH");
   console.log("单笔转账:", TOPUP_ETH, "ETH");
+  console.log("FORCE_TOPUP:", FORCE_TOPUP);
   console.log("DRY_RUN:", DRY_RUN);
   console.log();
 
-  const rows: { addr: string; wei: bigint; eth: string }[] = [];
-  for (const addr of targets) {
-    const wei = await provider.getBalance(addr);
-    rows.push({ addr, wei, eth: ethers.formatEther(wei) });
+  const rows: { addr: string; source: string; wei: bigint; eth: string }[] = [];
+  for (const t of targets) {
+    const wei = await provider.getBalance(t.address);
+    rows.push({ addr: t.address, source: t.source, wei, eth: ethers.formatEther(wei) });
   }
-
-  const insufficient = rows.filter((r) => r.wei < minWei);
 
   console.log("全部地址余额:");
   for (const r of rows) {
-    console.log(`  ${r.addr}  ${r.eth} ETH`);
-  }
-  console.log();
-  console.log("余额不足（< " + MIN_BALANCE_ETH + " ETH）:", insufficient.length, "个");
-  for (const r of insufficient) {
-    console.log(`  ${r.addr}  ${r.eth} ETH`);
+    console.log(`  [${r.source}] ${r.addr}  ${r.eth} ETH`);
   }
   console.log();
 
-  if (!insufficient.length) {
+  const todo = FORCE_TOPUP ? rows : rows.filter((r) => r.wei < minWei);
+
+  if (FORCE_TOPUP) {
+    console.log(`FORCE_TOPUP=1 → 将给全部 ${todo.length} 个地址各转 ${TOPUP_ETH} ETH`);
+  } else {
+    console.log("余额不足（< " + MIN_BALANCE_ETH + " ETH）:", todo.length, "个");
+  }
+  for (const r of todo) {
+    console.log(`  [${r.source}] ${r.addr}  ${r.eth} ETH`);
+  }
+  console.log();
+
+  if (!todo.length) {
     console.log("无需转账。");
     return;
   }
 
-  const totalNeeded = topupWei * BigInt(insufficient.length);
+  const totalNeeded = topupWei * BigInt(todo.length);
   const signer = new ethers.Wallet(loadDeployerPk(), provider);
   const deployBal = await provider.getBalance(signer.address);
   console.log("部署 admin 签名:", signer.address);
@@ -173,13 +232,13 @@ async function main() {
     return;
   }
 
-  for (let i = 0; i < insufficient.length; i++) {
-    const to = insufficient[i]!.addr;
-    const tx = await signer.sendTransaction({ to, value: topupWei });
-    console.log(`[${i + 1}/${insufficient.length}] ${to} tx ${tx.hash}`);
+  for (let i = 0; i < todo.length; i++) {
+    const r = todo[i]!;
+    const tx = await signer.sendTransaction({ to: r.addr, value: topupWei });
+    console.log(`[${i + 1}/${todo.length}] [${r.source}] ${r.addr} tx ${tx.hash}`);
     await tx.wait();
-    console.log("  ✅");
-    if (i < insufficient.length - 1) await sleep(SLEEP_MS);
+    console.log("  done");
+    if (i < todo.length - 1) await sleep(SLEEP_MS);
   }
 
   console.log("\n完成。");

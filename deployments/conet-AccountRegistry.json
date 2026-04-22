@@ -3,9 +3,9 @@
   "chainId": "224422",
   "contract": "AccountRegistry",
   "source": "src/mainnet/AccountRegistry.sol",
-  "address": "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35",
+  "address": "0x4afaca09cf8307070a83836223Ae129073eC92e5",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "constructorArgs": [],
-  "timestamp": "2026-04-19T18:23:59.164Z",
-  "transactionHash": "0xb076f71307d2116bd12fab1921902463e16f3df3152cda7dc1a004738dd1d363"
+  "timestamp": "2026-04-22T10:19:50.241Z",
+  "transactionHash": "0xbc35dad18c52bb84222578015449a963da78ef0810410deec8ed27fd2d074e6c"
 }

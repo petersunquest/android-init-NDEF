@@ -2,18 +2,21 @@
   "network": "conet",
   "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-04-19T08:18:11.155Z",
-  "diamond": "0x0c29b4DB72F31457570D38eB215b3F855d5989E1",
+  "timestamp": "2026-04-22T03:28:37.759Z",
+  "diamond": "0x45D45de73465b8913B50974Fc188529dFFb7AfFA",
   "facets": {
-    "DiamondCutFacet": "0xd7b8a59294474E384209Ab33B7cE5d82d6F76aD0",
-    "DiamondLoupeFacet": "0x20c84933F3fFAcFF1C0b4D713b059377a9EF5fD1",
-    "OwnershipFacet": "0x9183eCbde2A36B54C8f1d012e013BF1f4Dd5f3E7",
-    "TaskFacet": "0xD98E6D80eFE306301515046f58CeB287401373A8",
-    "StatsFacet": "0x7a0C245A5162EBdB51a4DEF09EF5aF40afD2AcF5",
-    "CatalogFacet": "0x77246a82a4b8974586DecfF1f3952add9134D530",
-    "ActionFacet": "0x8a201310FC30A214DEb8E718aB2f064F5ecBE3Ed",
-    "FeeStatsFacet": "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4",
-    "BeamioUserCardStatsFacet": "0xF1559771a0a695494ff6068B7AB34972BF0Df90e",
-    "AdminFacet": "0xc6162bcD4108b373914c6D06c5C486626C238169"
-  }
+    "DiamondCutFacet": "0x8Eb838e9C7443DB265A7c358584F060786FA6055",
+    "DiamondLoupeFacet": "0x8402b2f003A335b990E897364Ded7A3E1c2aEa45",
+    "OwnershipFacet": "0xdfa426401fC7AC916eEEa696401D60C82Ee3c4E1",
+    "TaskFacet": "0xd764eBA64536cFF1bbE7e7c7Bbc90F35620f72a9",
+    "StatsFacet": "0xCe1F36a78904F9506E5cD3149Ce4992cC91385AF",
+    "CatalogFacet": "0xc5b9f0941BCbc87735EE0fCD78090c065c78955E",
+    "ActionFacet": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB",
+    "FeeStatsFacet": "0x5921f9281E18D226246277F4C5805d1160A59100",
+    "BeamioUserCardStatsFacet": "0xC98810eb7dE7B787568Ff4284D7fF36eAA176845",
+    "AdminFacet": "0xB8065dBea9E50c24574280F8E8245fba90Eba782"
+  },
+  "lastSubordinateAccountIndexUpgradeAt": "2026-04-22T19:24:55.188Z",
+  "lastSubordinateAccountIndexUpgradeFrom": "0x1FFC81D9370CAe7C4A0C8270124F21891c20aEDe",
+  "lastSubordinateAccountIndexUpgradeTo": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB"
 }

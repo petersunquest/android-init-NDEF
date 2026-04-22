@@ -3,9 +3,9 @@
   "chainId": "224422",
   "contract": "LayerMinusNodeRestart_V2",
   "source": "src/mainnet/LayerMinusNodeRestart_V2.sol",
-  "address": "0x28022d17064367F7246F5800af905DA3E53C01A4",
+  "address": "0xf82a6362b9F23F2380C621B5A649987C5bc228B7",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "constructorArgs": [],
-  "timestamp": "2026-04-19T19:41:47.143Z",
-  "transactionHash": "0xe74573bfee80f1c5892bf8dc03bf40fe89688b253a39425dea6196774cfb6157"
+  "timestamp": "2026-04-22T04:08:56.243Z",
+  "transactionHash": "0xfb63f86977d6e9d46da92ba3054670243c377b515fc27a7913e50944f8bb6f68"
 }

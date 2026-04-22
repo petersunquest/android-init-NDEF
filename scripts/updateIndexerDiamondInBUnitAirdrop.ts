@@ -64,10 +64,24 @@ async function main() {
   }
 
   // 2. BUnitAirdrop.setBeamioIndexerDiamond(newIndexer)
-  const airdrop = await ethers.getContractAt("BUnitAirdrop", airdropAddr);
-  const tx2 = await airdrop.setBeamioIndexerDiamond(newIndexerAddr);
-  await tx2.wait();
-  console.log("[2] BUnitAirdrop.setBeamioIndexerDiamond(newIndexer) ok");
+  //    必须由 settle_contractAdmin signer 发起（默认 hardhat signer 不一定是 BUnitAirdrop admin）
+  const airdrop = (await ethers.getContractAt("BUnitAirdrop", airdropAddr)).connect(signer);
+  const currentIndexer: string = await (airdrop as any).beamioIndexerDiamond();
+  if (currentIndexer.toLowerCase() === newIndexerAddr.toLowerCase()) {
+    console.log("[2] BUnitAirdrop.beamioIndexerDiamond 已经是", newIndexerAddr, "，跳过");
+  } else {
+    console.log("[2] 链上当前 beamioIndexerDiamond =", currentIndexer, "→ 更新为", newIndexerAddr);
+    const tx2 = await (airdrop as any).setBeamioIndexerDiamond(newIndexerAddr);
+    await tx2.wait();
+    console.log("[2] BUnitAirdrop.setBeamioIndexerDiamond(", newIndexerAddr, ") ok | tx:", tx2.hash);
+  }
+
+  // 3. 写入校验：再读一次确保链上状态正确
+  const finalIndexer: string = await (airdrop as any).beamioIndexerDiamond();
+  if (finalIndexer.toLowerCase() !== newIndexerAddr.toLowerCase()) {
+    throw new Error(`链上 beamioIndexerDiamond=${finalIndexer} 与期望 ${newIndexerAddr} 不一致`);
+  }
+  console.log("[3] 校验通过：链上 beamioIndexerDiamond =", finalIndexer);
 
   console.log("\n✅ 更新完成");
 }

@@ -2,16 +2,16 @@
   "network": "conet",
   "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-04-19T08:18:54.535Z",
+  "timestamp": "2026-04-22T03:29:07.930Z",
   "contracts": {
     "beamioOracle": {
-      "address": "0x32aa4fC3D3506850b27F767Bf582f4ec449de224",
-      "transactionHash": "0x095b5810d4ed92f00391d67e0f4d88e4a2513afc8a269f077d534e00a137d351"
+      "address": "0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2",
+      "transactionHash": "0xf4531a871e5dd93329775ca352e3d6da2cd5497cb8d0457c12952be2b950b4e9"
     },
     "beamioQuoteHelperV07": {
-      "address": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
-      "oracle": "0x32aa4fC3D3506850b27F767Bf582f4ec449de224",
-      "transactionHash": "0x5452459548c01ca442120b32368d4f502c6a4d137b23e644c73cc92e7c3a9828"
+      "address": "0x5478FABCc76bc1044286764A0115719Ce94F4572",
+      "oracle": "0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2",
+      "transactionHash": "0x21c1970403458a1da421dbab0649f0b6d90468fde7da8d61a3a94ebc737f98bd"
     }
   }
 }

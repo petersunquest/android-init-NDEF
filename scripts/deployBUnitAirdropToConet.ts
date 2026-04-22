@@ -9,11 +9,13 @@
  * 部署后自动执行:
  * 1. BUint.addAdmin(airdropAddress)
  * 2. BUnitAirdrop.addAdmin：对 ~/.master.json 中 settle_contractAdmin + beamio_Admins + admin 私钥对应地址
- * 3. 更新 conet-BUintAirdrop.json、conet-addresses.json
+ * 3. 从 conet-IndexerDiamond.json 读取 diamond 地址并 setBeamioIndexerDiamond（不可省略，
+ *    否则链上保留 address(0)，claimFor 必定 revert）
+ * 4. 更新 conet-BUintAirdrop.json、conet-addresses.json
  *
  * 部署后需手动执行（若使用 ConetTreasury / BeamioIndexerDiamond）:
  * - ConetTreasury.setBUnitAirdrop(newAddress)
- * - BeamioIndexerDiamond AdminFacet.setAdmin(newAddress, true)
+ * - BeamioIndexerDiamond AdminFacet.setAdmin(newAddress, true)（让 BUnitAirdrop 能写记账）
  */
 
 import { network as networkModule } from "hardhat";
@@ -100,6 +102,18 @@ async function main() {
   const beamioIndexerDiamond = fs.existsSync(indexerPath)
     ? JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond
     : "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
+
+  // 关键：必须真正在链上 setBeamioIndexerDiamond，否则构造函数的 DEFAULT_BEAMIO_INDEXER=address(0)
+  // 会让 _indexClaimToBeamioIndexer 调用 IActionFacet(address(0)).syncTokenAction(...)，
+  // Solidity 0.8.20 在外部调用前的 extcodesize 预检失败 → 整个 claimFor 回滚（status=0、空 logs）。
+  // 之前只把 indexer 写进 JSON 不调 setter，是 224422 重启后 BUnitAirdrop.claimFor 必 revert 的根因。
+  if (beamioIndexerDiamond && beamioIndexerDiamond !== "0x0000000000000000000000000000000000000000") {
+    const tx4 = await airdrop.setBeamioIndexerDiamond(beamioIndexerDiamond);
+    await tx4.wait();
+    console.log("[4] BUnitAirdrop.setBeamioIndexerDiamond(", beamioIndexerDiamond, ") ok");
+  } else {
+    console.warn("[4] WARNING: beamioIndexerDiamond 未解析到有效地址，跳过 setter，链上将保留 address(0)，claimFor 会失败！");
+  }
 
   const out = {
     network: "conet",

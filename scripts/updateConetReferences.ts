@@ -83,7 +83,7 @@ function main() {
       c = c.replace(/const beamioConetAccountRegistry = '0x[a-fA-F0-9]{40}'/, `const beamioConetAccountRegistry = '${ar}'`);
       c = c.replace(/const ACCOUNT_REGISTRY = "0x[a-fA-F0-9]{40}"/, `const ACCOUNT_REGISTRY = "${ar}"`);
       c = c.replace(
-        /(const beamioAccountContract = \{\n\taddress: ')0x[a-fA-F0-9]{40}('/,
+        /(const beamioAccountContract = \{\s*address: ')0x[a-fA-F0-9]{40}(',)/,
         `$1${ar}$2`
       );
       c = c.replace(/static let beamioAccountRegistryAddress = "0x[a-fA-F0-9]{40}"/, `static let beamioAccountRegistryAddress = "${ar}"`);

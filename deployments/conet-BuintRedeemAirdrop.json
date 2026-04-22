@@ -19,18 +19,18 @@
     "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
     "0xee73178EE888363C84713434D1570749eaeB880d"
   ],
-  "timestamp": "2026-04-19T08:34:34.810Z",
+  "timestamp": "2026-04-22T03:40:02.703Z",
   "contracts": {
     "BUint": {
-      "address": "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad",
+      "address": "0x1330297821814B06A6DafE3557Fa730F690D7007",
       "mintRewardAdminsDoc": [
-        "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264",
-        "0x0DC615bAc14411CbDCd082fe59CBdDA8768615B0"
+        "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8",
+        "0xdB877ec8572C669C533021764FC1Fecfe8dc6b4c"
       ]
     },
     "BuintRedeemAirdrop": {
-      "address": "0x0DC615bAc14411CbDCd082fe59CBdDA8768615B0",
-      "buint": "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad",
+      "address": "0xdB877ec8572C669C533021764FC1Fecfe8dc6b4c",
+      "buint": "0x1330297821814B06A6DafE3557Fa730F690D7007",
       "redeemAdmins": [
         "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
         "0x678F3570F9173373bB75e7544fcF383153aDAF4C",

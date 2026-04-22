@@ -1,17 +1,22 @@
 /**
- * 从源 RPC（默认 https://rpc1.conet.network / chain 224422）上的 GuardianNodesInfoV6 读取节点，
- * 在 224422（rpc1）目标合约上依次 addNode。
+ * 从源 RPC 上的 GuardianNodesInfoV6 读取节点，在 224422（默认 https://rpc1.conet.network）目标合约上依次 addNode。
  *
- * 目标合约默认: 0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94（须与线上 Guardian 一致）
- * 源合约地址不再写死在仓库：请设置 GUARDIAN_MIGRATE_SOURCE（须与 GUARDIAN_MIGRATE_SOURCE_RPC 为同一链）。
+ * 典型：旧链 224400 合约 0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D → 新链 224422 合约
+ * 0x920E09a09591587501D8bd34F15F807F6b2Dba90（以 deployments/conet-GuardianNodesInfoV6.json 为准）。
  *
  * 用法:
- *   GUARDIAN_MIGRATE_SOURCE=0x... DRY_RUN=1 npx hardhat run scripts/migrateGuardianNodesInfoV6FromLegacyTo224422.ts --network conet
+ *   GUARDIAN_MIGRATE_SOURCE=0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D \
+ *   GUARDIAN_MIGRATE_SOURCE_RPC=https://mainnet-rpc.conet.network \
+ *   GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID=224400 \
+ *   GUARDIAN_MIGRATE_DEST=0x920E09a09591587501D8bd34F15F807F6b2Dba90 \
+ *   DRY_RUN=1 npx hardhat run scripts/migrateGuardianNodesInfoV6FromLegacyTo224422.ts --network conet
  *
  * 环境变量:
  *   GUARDIAN_MIGRATE_SOURCE      必填：源链 GuardianNodesInfoV6 地址
- *   GUARDIAN_MIGRATE_SOURCE_RPC  默认 https://rpc1.conet.network
- *   GUARDIAN_MIGRATE_DEST        目标 GuardianNodesInfoV6，默认见下方常量
+ *   GUARDIAN_MIGRATE_SOURCE_RPC  默认 https://rpc1.conet.network（跨链时请设为 224400 的 RPC，如 mainnet-rpc）
+ *   GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID  若设置则必须与源 RPC chainId 一致，否则退出
+ *   GUARDIAN_MIGRATE_DEST        目标合约；默认读 deployments/conet-GuardianNodesInfoV6.json
+ *   GUARDIAN_MIGRATE_DUMP_PATH   若设置：拉取完成后将有效节点 JSON 写入该路径（DRY_RUN 或非 DRY_RUN 均可）
  *   PAGE_SIZE                    分页 getAllNodes 长度，默认 80
  *   DRY_RUN=1                    只拉取并打印，不发交易
  *   TX_DELAY_MS                  两笔交易间隔毫秒，默认 0
@@ -25,10 +30,28 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SOURCE_RPC_DEFAULT = "https://rpc1.conet.network";
-const DEST_GUARDIAN_DEFAULT = "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94";
+const DEPLOYMENT_GUARDIAN_PATH = path.join(
+  __dirname,
+  "..",
+  "deployments",
+  "conet-GuardianNodesInfoV6.json"
+);
 
-/** 与 GUARDIAN_MIGRATE_SOURCE_RPC 默认（rpc1）一致的 chainId */
-const SOURCE_CHAIN_ID = 224422n;
+function loadDestGuardianDefault(): string {
+  try {
+    if (fs.existsSync(DEPLOYMENT_GUARDIAN_PATH)) {
+      const j = JSON.parse(fs.readFileSync(DEPLOYMENT_GUARDIAN_PATH, "utf-8")) as {
+        contracts?: { GuardianNodesInfoV6?: { address?: string } };
+      };
+      const a = j.contracts?.GuardianNodesInfoV6?.address?.trim();
+      if (a) return a;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "0x920E09a09591587501D8bd34F15F807F6b2Dba90";
+}
+
 /** rpc1 上 Conet 部署链 chainId */
 const DEST_CHAIN_ID = 224422n;
 
@@ -79,7 +102,9 @@ async function main() {
       "请设置 GUARDIAN_MIGRATE_SOURCE 为源 RPC（默认 rpc1）上的 GuardianNodesInfoV6 地址。"
     );
   }
-  const destAddr = (process.env.GUARDIAN_MIGRATE_DEST || DEST_GUARDIAN_DEFAULT).trim();
+  const destAddr = (process.env.GUARDIAN_MIGRATE_DEST || loadDestGuardianDefault()).trim();
+
+  const expectSrcChain = (process.env.GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID || "").trim();
 
   const abi = loadAbi();
   const { ethers } = await hreNetwork.connect();
@@ -87,10 +112,15 @@ async function main() {
   const sourceRpc = process.env.GUARDIAN_MIGRATE_SOURCE_RPC?.trim() || SOURCE_RPC_DEFAULT;
   const sourceProvider = new ethers.JsonRpcProvider(sourceRpc);
   const srcNet = await sourceProvider.getNetwork();
-  if (srcNet.chainId !== SOURCE_CHAIN_ID) {
-    console.warn(
-      `警告: 源 RPC 链 ID 为 ${srcNet.chainId}，预期 ${SOURCE_CHAIN_ID}（默认 rpc1）。若继续可能读错合约。`
-    );
+  if (expectSrcChain) {
+    const want = BigInt(expectSrcChain);
+    if (srcNet.chainId !== want) {
+      throw new Error(
+        `源 RPC chainId ${srcNet.chainId} 与 GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID=${expectSrcChain} 不一致`
+      );
+    }
+  } else {
+    console.log("源链 chainId:", srcNet.chainId.toString(), "（可用 GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID 强制校验）");
   }
 
   const src = new ethers.Contract(sourceAddr, abi, sourceProvider);
@@ -120,9 +150,12 @@ async function main() {
       console.warn("跳过空 ip:", n);
       continue;
     }
-    const owner: string = String(await src.ipaddress2owner(n.ip_addr));
+    let owner: string = String(await src.ipaddress2owner(n.ip_addr));
     if (owner === ethers.ZeroAddress) {
-      console.warn(`跳过（owner 为 0）: ip=${n.ip_addr} id=${n.id}`);
+      owner = String(await src.idOwner(n.id));
+    }
+    if (owner === ethers.ZeroAddress) {
+      console.warn(`跳过（ipaddress2owner 与 idOwner 均为 0）: ip=${n.ip_addr} id=${n.id}`);
       continue;
     }
     rows.push({ ...n, owner });
@@ -132,6 +165,27 @@ async function main() {
   if (rows.length === 0) {
     console.log("无数据可迁移");
     return;
+  }
+
+  const dumpPath = (process.env.GUARDIAN_MIGRATE_DUMP_PATH || "").trim();
+  if (dumpPath) {
+    fs.writeFileSync(
+      dumpPath,
+      JSON.stringify(
+        rows.map((r) => ({
+          id: r.id.toString(),
+          ip_addr: r.ip_addr,
+          regionName: r.regionName,
+          owner: r.owner,
+          PGP: r.PGP,
+          PGPKey: r.PGPKey,
+        })),
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    console.log("已写入 GUARDIAN_MIGRATE_DUMP_PATH:", dumpPath);
   }
 
   if (dry) {

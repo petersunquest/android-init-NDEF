@@ -22,7 +22,7 @@ const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
 
 /** 子项目中若仍写死此 AccountRegistry 地址，部署新注册表时会被替换为本次部署地址。 */
-const ACCOUNT_REGISTRY_ADDRESS_IN_SOURCES = "0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35";
+const ACCOUNT_REGISTRY_ADDRESS_IN_SOURCES = "0x4afaca09cf8307070a83836223Ae129073eC92e5";
 
 const REF_FILES_TO_PATCH = [
   "scripts/addBeamioAdminsToAccountRegistry.ts",

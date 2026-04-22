@@ -3,14 +3,14 @@
   "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-04-19T08:12:35.109Z",
+  "timestamp": "2026-04-22T03:18:55.775Z",
   "contracts": {
     "BUint": {
-      "address": "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad",
+      "address": "0x1330297821814B06A6DafE3557Fa730F690D7007",
       "name": "B-Units",
       "symbol": "BUNIT",
       "decimals": 6,
-      "transactionHash": "0x859be9bfd7d065ce837be87f107eb80029b7b1bdc4df77c85cf384e6b1f0983a"
+      "transactionHash": "0x539bad46f0f54efe70dab36e283c1a5652cdd523d8dda75e43b3730702a4e0a9"
     }
   }
 }

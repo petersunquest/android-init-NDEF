@@ -88,7 +88,7 @@ const eventContract = '0x18A976ee42A89025f0d3c7Fb8B32e0f8B840E1F3'
 
 const {verify, settle} = useFacilitator(facilitator1)
 
-const GuardianNodeInfo_mainnet = '0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94'
+const GuardianNodeInfo_mainnet = '0x6d7a526BFD03E90ea8D19eDB986577395a139872'
 const CONET_MAINNET = new ethers.JsonRpcProvider('https://rpc1.conet.network') 
 const GuardianNodesMainnet = new ethers.Contract(GuardianNodeInfo_mainnet, newNodeInfoABI, CONET_MAINNET)
 
@@ -98,9 +98,9 @@ const GuardianNodesMainnet = new ethers.Contract(GuardianNodeInfo_mainnet, newNo
 const beamiobase = GuardianNodeInfo_mainnet
 const beamioConet = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 const airdropRecord = '0x070BcBd163a3a280Ab6106bA62A079f228139379'
-const beamioConetAccountRegistry = '0x2dF9c4c51564FfF861965572CE11ebe27d3C1B35'
+const beamioConetAccountRegistry = '0x4afaca09cf8307070a83836223Ae129073eC92e5'
 /** CoNET USDC (FactoryERC20) - from deployments/conet-addresses.json, updated by updateConetReferences */
-const CONET_USDC_ADDRESS = '0x456Ecd35370bA9d4a9f615399a154548f07c2437'
+const CONET_USDC_ADDRESS = '0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176'
 
 let Guardian_Nodes: nodeInfo[] = []
 

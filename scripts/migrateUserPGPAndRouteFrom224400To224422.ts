@@ -44,9 +44,9 @@ const NEW_ADDRESS_PGP =
       const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { AddressPGP?: string };
       if (j.AddressPGP) return j.AddressPGP;
     }
-    return "0x9C94238945295146F3F572D77ae492C13DF90bDd";
+    return "0xb2aABe52f476356AE638839A786EAE425A0c1b66";
   })();
-const GUARDIAN_NEW = process.env.GUARDIAN_NEW || "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94";
+const GUARDIAN_NEW = process.env.GUARDIAN_NEW || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
 
 const LEGACY_CHAIN = 224400n;
 const NEW_CHAIN = 224422n;

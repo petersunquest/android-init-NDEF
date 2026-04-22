@@ -18,18 +18,18 @@
     "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
     "0xee73178EE888363C84713434D1570749eaeB880d"
   ],
-  "timestamp": "2026-04-19T08:14:11.177Z",
+  "timestamp": "2026-04-22T03:25:13.814Z",
   "contracts": {
     "BUint": {
-      "address": "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad",
+      "address": "0x1330297821814B06A6DafE3557Fa730F690D7007",
       "admins": [
-        "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264"
+        "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8"
       ]
     },
     "BUnitAirdrop": {
-      "address": "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264",
+      "address": "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8",
       "dailyClaimLimit": "20e6",
-      "beamioIndexerDiamond": "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8",
+      "beamioIndexerDiamond": "0x45D45de73465b8913B50974Fc188529dFFb7AfFA",
       "admins": [
         "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
         "0x678F3570F9173373bB75e7544fcF383153aDAF4C",

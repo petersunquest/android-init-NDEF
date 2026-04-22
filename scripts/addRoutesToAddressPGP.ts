@@ -12,7 +12,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONET_RPC = "https://rpc1.conet.network";
-const GUARDIAN_NODES = process.env.GUARDIAN_NODES || "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94";
+const GUARDIAN_NODES = process.env.GUARDIAN_NODES || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
 const BATCH_SIZE = 50;
 
 const GuardianNodesABI = [
@@ -31,7 +31,7 @@ function getAddressPGPAddress(): string {
     const d = JSON.parse(fs.readFileSync(deployPath, "utf-8"));
     return d.AddressPGP || "";
   }
-  return "0x9C94238945295146F3F572D77ae492C13DF90bDd";
+  return "0xb2aABe52f476356AE638839A786EAE425A0c1b66";
 }
 
 function loadAdminPk(): string {

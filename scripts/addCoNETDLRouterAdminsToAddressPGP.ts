@@ -47,7 +47,7 @@ const NEW_ADDRESS_PGP =
       const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { AddressPGP?: string };
       if (j.AddressPGP) return j.AddressPGP;
     }
-    return "0x9C94238945295146F3F572D77ae492C13DF90bDd";
+    return "0xb2aABe52f476356AE638839A786EAE425A0c1b66";
   })();
 
 const MASTER_JSON = process.env.MASTER_JSON || path.join(os.homedir(), ".master.json");
