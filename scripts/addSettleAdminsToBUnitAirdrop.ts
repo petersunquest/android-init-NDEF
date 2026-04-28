@@ -18,14 +18,14 @@ import { homedir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import Colors from 'colors/safe'
 
-const CONET_RPC = 'https://mainnet-rpc.conet.network'
+const CONET_RPC = 'https://rpc1.conet.network'
 const ADDR_PATH = join(process.cwd(), 'deployments', 'conet-addresses.json')
 function loadBUnitAirdropAddress(): string {
   try {
     const data = JSON.parse(readFileSync(ADDR_PATH, 'utf-8'))
-    return data.BUnitAirdrop || '0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F'
+    return data.BUnitAirdrop || '0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264'
   } catch {
-    return '0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F'
+    return '0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264'
   }
 }
 const BUNIT_AIRDROP_ABI = [

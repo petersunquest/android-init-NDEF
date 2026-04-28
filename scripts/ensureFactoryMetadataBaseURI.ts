@@ -9,7 +9,7 @@
  */
 import { network as networkModule } from "hardhat";
 
-const CARD_FACTORY = "0x2F45f38f2B6EF97b606ec2557E237529e8db9281";
+const CARD_FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 const CORRECT_URI = "https://beamio.app/api/metadata/0x";
 
 async function main() {

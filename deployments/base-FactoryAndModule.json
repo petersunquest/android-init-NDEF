@@ -2,27 +2,35 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-02-06T08:22:42.866Z",
+  "timestamp": "2026-03-25T09:36:04.448Z",
   "contracts": {
-    "beamioContainerModule": {
-      "address": "0xB0F4824519995A2c501D13A624fDBcbBEa0DEC57",
-      "transactionHash": "0x1f7b44ddb8c9987d622623c641319df71f2e9a46555900d006f0ebab627e6d23"
+    "beamioContainerModuleExternalLib": {
+      "address": "0x3984c2ee9e6369c1A8b8D04a737b94142Cc9f256",
+      "transactionHash": "0x3741877f3255bfb34131817b5cf520acf6b2566665ee8564c2bccbd3b6a4e79c"
     },
-    "beamioUserCardPlaceholder": {
-      "address": "0xD5e6F2d09ae64a48Eb4b0Fa4Bd3e584F61D8d66d",
-      "transactionHash": "0x4492572efdf045f0ae72f3138556e4b300f028b55326fd1df414c1ec3af5ae99",
-      "note": "临时占位符合约，稍后应替换为真正的 BeamioUserCard"
+    "beamioContainerModuleExternalLib2": {
+      "address": "0xc23f57D3ac181A598BbA0c21b2D8833306BEEdbE",
+      "transactionHash": "0xf4cd69ee8b820403f78456ba2be2be410f5c759703655bee2b0201d3393b4ba9"
+    },
+    "beamioContainerModule": {
+      "address": "0xFA19303da4bc51EA6961fc488F9840Dd227eA2d3",
+      "transactionHash": "0x1c97a5b6de11cd787b2fa24bf78a0b0b5bec7d720960f10d95ae5524aa84618b",
+      "linkedLibraries": {
+        "beamioContainerModuleExternalLib": "0x3984c2ee9e6369c1A8b8D04a737b94142Cc9f256",
+        "beamioContainerModuleExternalLib2": "0xc23f57D3ac181A598BbA0c21b2D8833306BEEdbE"
+      }
     },
     "beamioFactoryPaymaster": {
-      "address": "0x4811fe90Bb3b3C5dE6491c5Efb90E19756F2C318",
+      "address": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
       "initialAccountLimit": 100,
-      "deployer": "0x0Ae75A3DA679580E2975Ed9DE31d1B5d00c26d65",
-      "containerModule": "0xB0F4824519995A2c501D13A624fDBcbBEa0DEC57",
-      "quoteHelper": "0x50953EB5190ee7dabb0eA86a96364A540a834059",
-      "userCard": "0xD5e6F2d09ae64a48Eb4b0Fa4Bd3e584F61D8d66d",
+      "deployer": "0x139D55591A03550259AF32097A9848ECE9869C90",
+      "previousDeployer": "0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87",
+      "deployerUpdateTx": "0xc04634c7498b102b9af6312e183f6c81d1f6b39f10c39d5ec2f77fbf12d33a3b",
+      "containerModule": "0xFA19303da4bc51EA6961fc488F9840Dd227eA2d3",
+      "quoteHelper": "0xfa30c2086ff9a3D74576d55c2027586797A52F29",
+      "userCard": "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      "transactionHash": "0xa374a6d615b80348f8889fe113cfd24d4cf84b67aa7dbb24da1265d7319fb04d",
-      "note": "Redeployed with fixed BeamioAccount (paymaster/signature parsing)"
+      "transactionHash": "0x941187b3be3e2257e0f8578be4e8ba44000ab38f4cb84a1352eaf3dc1d61ffe6"
     }
   }
 }

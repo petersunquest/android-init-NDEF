@@ -17,15 +17,14 @@ async function main() {
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   const fullPath = path.join(deploymentsDir, "base-FullAccountAndUserCard.json");
   const factoryPath = path.join(deploymentsDir, "base-UserCardFactory.json");
-  const configPath = path.join(__dirname, "..", "config", "base-addresses.ts");
+  const configPath = path.join(__dirname, "..", "config", "base-addresses.json");
 
   let cardFactoryAddr = "";
   let deployerFromFile = "";
 
   if (fs.existsSync(configPath)) {
-    const content = fs.readFileSync(configPath, "utf-8");
-    const m = content.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-    if (m) cardFactoryAddr = m[1];
+    const content = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    if (typeof content.CARD_FACTORY === "string") cardFactoryAddr = content.CARD_FACTORY;
   }
 
   if (fs.existsSync(factoryPath)) {
@@ -41,7 +40,7 @@ async function main() {
   }
 
   if (!cardFactoryAddr) {
-    console.error("未找到当前 Card Factory 地址（请检查 config/base-addresses.ts 或 deployments/base-UserCardFactory.json）");
+    console.error("未找到当前 Card Factory 地址（请检查 config/base-addresses.json 或 deployments/base-UserCardFactory.json）");
     process.exit(1);
   }
 

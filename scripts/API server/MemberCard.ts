@@ -1,6 +1,18 @@
 import { ethers } from 'ethers'
 import BeamioFactoryPaymasterArtifact from './ABI/BeamioUserCardFactoryPaymaster.json'
-const BeamioFactoryPaymasterABI = (Array.isArray(BeamioFactoryPaymasterArtifact) ? BeamioFactoryPaymasterArtifact : (BeamioFactoryPaymasterArtifact?.abi ?? BeamioFactoryPaymasterArtifact)) 
+const BeamioFactoryPaymasterABI = (Array.isArray(BeamioFactoryPaymasterArtifact) ? BeamioFactoryPaymasterArtifact : (BeamioFactoryPaymasterArtifact?.abi ?? BeamioFactoryPaymasterArtifact))
+
+/** Base 工厂 createCardCollectionWithInitCode(address,uint8,uint256,bytes)；勿使用已废弃的 0x9a7eb0f0 */
+const EXPECTED_FACTORY_CREATE_CARD_SELECTOR = '0xef759095'
+{
+	const iface = new ethers.Interface(BeamioFactoryPaymasterABI)
+	const sel = iface.getFunction('createCardCollectionWithInitCode')?.selector
+	if (!sel || sel.toLowerCase() !== EXPECTED_FACTORY_CREATE_CARD_SELECTOR) {
+		throw new Error(
+			`[MemberCard] BeamioUserCardFactoryPaymaster.json: createCardCollectionWithInitCode selector is ${sel ?? 'missing'}; expected ${EXPECTED_FACTORY_CREATE_CARD_SELECTOR}. Update scripts/API server/ABI from chain-aligned factory JSON.`
+		)
+	}
+}
 import { masterSetup, checkSign } from './util'
 import { Request, Response} from 'express'
 import { logger } from './logger'
@@ -40,10 +52,10 @@ try {
 	try {
 		BeamioAAAccountFactoryPaymaster = require('../../config/base-addresses').BASE_MAINNET_FACTORIES.AA_FACTORY
 	} catch {
-		BeamioAAAccountFactoryPaymaster = '0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767'
+		BeamioAAAccountFactoryPaymaster = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 	}
 }
-if (!BeamioAAAccountFactoryPaymaster) BeamioAAAccountFactoryPaymaster = '0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767'
+if (!BeamioAAAccountFactoryPaymaster) BeamioAAAccountFactoryPaymaster = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 const BeamioOracle = '0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B'
 const beamioConetAddress = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 /** UserCard gateway = AA Factory（与 config/base-addresses AA_FACTORY 一致） */
@@ -54,7 +66,7 @@ const DIAMOND = BeamioTaskIndexerAddress
 const providerBase = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
 const providerBaseBackup = new ethers.JsonRpcProvider('https://base-rpc.conet.network')
 const providerBaseBackup1 = new ethers.JsonRpcProvider(masterSetup.base_endpoint)
-const conetEndpoint = 'https://mainnet-rpc.conet.network'
+const conetEndpoint = 'https://rpc1.conet.network'
 const providerConet = new ethers.JsonRpcProvider(conetEndpoint)
 let Settle_ContractPool: {
 	baseFactoryPaymaster: ethers.Contract
@@ -82,7 +94,7 @@ const USDC_SmartContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, providerB
 //			RedeemModule 						0x1EC7540EbC03bcEBEc0C5f981C3D91100d206F5F
 //			BeamioQuoteHelperV07 						0x4DD4b418949911B8A8038295F6a8Af7a1eA8de50
 //			BeamioUserCardDeployerV07 					0x820bB3F54A403B298e2F785FFdA225009e9CA7Bf
-//			BeamioUserCardFactoryPaymasterV07			0xb6D5A5319a5555E087eea9e8FC9d5E6787E4dD66
+//			BeamioUserCardFactoryPaymasterV07			0x2EB245646de404b2Dce87E01C6282C131778bb05
 
 masterSetup.settle_contractAdmin.forEach(n => {
 	const walletBase = new ethers.Wallet(n, providerBaseBackup1)
@@ -576,10 +588,10 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	// ✅ MUST be BeamioUserCardFactoryPaymasterV07 address (the trusted gateway)
 	const factoryAddress = BeamioUserCardFactoryPaymasterV2;
   
-	// ===== BeamioUserCard ctor:
-	// constructor(string uri, uint8 currency, uint256 priceE18, address initialOwner, address gateway)
-	// gateway == factoryAddress (BeamioUserCardFactoryPaymasterV07)
-	const priceE18 = ethers.parseUnits(currencyToPointValue, 18);
+	// ===== BeamioUserCard ctor (7 args): uri, currency, pointsUnitPriceInCurrencyE6, initialOwner, gateway, upgradeType, transferWhitelist
+	// pointsUnitPriceInCurrencyE6 为 E6（与链上 / Master 日志 priceE6 一致），勿用 18 位
+	// gateway 必须为当前工厂地址（与 factoryGateway() 校验一致）
+	const priceE6 = ethers.parseUnits(currencyToPointValue, 6);
 	const currencyId = CurrencyMap[currencyType]; // uint8/number
   
 	const abi = BeamioUserCardABI;
@@ -596,19 +608,43 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	// ===== build initCode for DeployerV07.deploy(initCode) =====
 	const cardFactory = new ethers.ContractFactory(abi, bytecode, signer);
   
-	// ✅ 5 params: uri, currencyId, priceE18, initialOwner(user), gateway(factoryAddress)
 	const deployTx = await cardFactory.getDeployTransaction(
 	  uri,
 	  currencyId,
-	  priceE18,
+	  priceE6,
 	  user,
-	  factoryAddress
+	  factoryAddress,
+	  0,
+	  false
 	);
   
 	const initCodeHex = deployTx.data as string;
 	if (!initCodeHex || initCodeHex.length <= 2) throw new Error("initCode empty");
   
 	const net = await baseProvider.getNetwork();
+	const initCodeByteLength = (initCodeHex.length - 2) / 2;
+	const initCodeKeccak256 = ethers.keccak256(initCodeHex);
+	const createCardDebugPayload = {
+		phase: 'develop1_preflight',
+		chainId: net.chainId.toString(),
+		factoryAddress,
+		gatewayInCtor: factoryAddress,
+		gatewayMatchesFactory: true,
+		signerAddress: signerAddr,
+		cardOwner: user,
+		currencyEnum: currencyId,
+		priceE6: priceE6.toString(),
+		callKind: 'createCardCollectionWithInitCode',
+		initCodeSource: 'MemberCard_artifact_prelinked',
+		initCodeByteLength,
+		initCodeKeccak256,
+		initCodePrefixHex: initCodeHex.slice(0, 26),
+		gasLimit: '8500000',
+		noteReceiptLogs: 'On full tx revert, receipt logs are usually empty; use debug_traceTransaction.',
+		noteCompareMaster:
+			'Compare initCodeKeccak256 with Master/x402sdk logs (same owner, currency, priceE6, gateway=factory).',
+	};
+	console.warn(`[BeamioCreateCard:preflight] ${JSON.stringify(createCardDebugPayload)}`);
 	console.log("chainId:", net.chainId.toString());
 	console.log("deployer signer:", signerAddr);
 	console.log("factoryAddress:", factoryAddress);
@@ -627,9 +663,9 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	  await factory.createCardCollectionWithInitCode.staticCall(
 		user,
 		currencyId,
-		priceE18,
+		priceE6,
 		initCodeHex,
-		{ gasLimit: 6_500_000n }
+		{ gasLimit: 8_500_000n }
 	  );
 	  console.log("✅ factory staticCall ok");
 	} catch (e: any) {
@@ -638,6 +674,14 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	  console.error("❌ factory staticCall FAILED");
 	  console.error("message:", msg);
 	  console.error("revert data:", data);
+	  console.warn(
+		`[BeamioCreateCard:failure] ${JSON.stringify({
+		  ...createCardDebugPayload,
+		  failurePhase: 'staticCall',
+		  failureShortMessage: msg,
+		  revertDataPrefix: typeof data === 'string' ? data.slice(0, 74) : data,
+		})}`,
+	  );
 	  throw e;
 	}
   
@@ -645,9 +689,9 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	const tx = await factory.createCardCollectionWithInitCode(
 	  user,
 	  currencyId,
-	  priceE18,
+	  priceE6,
 	  initCodeHex,
-	  { gasLimit: 6_500_000n }
+	  { gasLimit: 8_500_000n }
 	);
   
 	const rc = await tx.wait();

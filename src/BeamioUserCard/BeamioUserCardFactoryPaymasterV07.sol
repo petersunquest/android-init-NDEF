@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
+//请部署新工厂，请生成 standard JSON以便 验证 合约，请更新引用工厂地址的所有 合约，UI，及 backend 
 pragma solidity ^0.8.20;
 
 import "./BeamioUserCard.sol";
+import "./BeamioUserCardTypes.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
 import "./Errors.sol";
@@ -111,6 +113,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     event CardRegistered(address indexed cardOwner, address indexed card);
     /// @notice createCard 失败时标记步骤：0=CREATE 失败，1=gateway，2=owner，3=currency，4=price
     event DeployFailedStep(uint8 step);
+    /// @notice 仅 step=0 时额外发出，便于链下用相同 initCode 在分叉上复现（CREATE 失败不冒泡 constructor revert data）
+    event DeployFailedCreateDebug(uint256 initCodeLength, bytes32 initCodeHash);
     event RedeemExecuted(address indexed card, address indexed user, bytes32 redeemHash);
     event TokenIdIssued(address indexed card, uint256 indexed id, bool isNft);
     event PointsPurchasedForUser(
@@ -313,6 +317,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card = IBeamioDeployerV07(deployer).deploy(initCode);
         if (card == address(0) || card.code.length == 0) {
             emit DeployFailedStep(0); // CREATE 失败（OOG / EIP-170 / EIP-3860 / constructor revert）
+            emit DeployFailedCreateDebug(initCode.length, keccak256(bytes.concat(initCode)));
             revert BM_DeployFailedAtStep(0);
         }
 
@@ -351,20 +356,20 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     }
 
     /// @notice 创建卡并一次性配置 tiers（与 createCardCollectionWithInitCode 相同，部署后追加 tiers）
-    /// @param tiers BeamioUserCard.Tier 数组，可为空
+    /// @param tiers Tier 数组（见 BeamioUserCardTypes.sol），可为空
     function createCardCollectionWithInitCodeAndTiers(
         address cardOwner,
         uint8 currency,
         uint256 priceInCurrencyE6,
         bytes calldata initCode,
-        BeamioUserCard.Tier[] calldata tiers
+        Tier[] calldata tiers
     ) external onlyPaymaster returns (address card) {
         card = _deployAndRegisterCard(cardOwner, currency, priceInCurrencyE6, initCode);
         BeamioUserCard c = BeamioUserCard(card);
         for (uint256 i = 0; i < tiers.length; i++) {
-            BeamioUserCard.Tier memory t = tiers[i];
+            Tier memory t = tiers[i];
             if (t.minUsdc6 == 0) revert UC_TierMinZero();
-            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds, t.upgradeByBalance);
+            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds);
         }
     }
 
@@ -453,12 +458,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         address cardAddr,
         uint256 minUsdc6,
         uint256 attr,
-        uint256 tierExpirySeconds,
-        bool upgradeByBalance
+        uint256 tierExpirySeconds
     ) external onlyPaymaster {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
-        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds, upgradeByBalance);
+        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds);
     }
 
     /// @notice Owner 离线签名授权 appendTier，由 paymaster 代付 gas 执行。复用 executeForOwner 的 EIP-712 验签。
@@ -469,7 +473,6 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 minUsdc6,
         uint256 attr,
         uint256 tierExpirySeconds,
-        bool upgradeByBalance,
         uint256 deadline,
         bytes32 nonce,
         bytes calldata ownerSignature
@@ -478,8 +481,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
             BeamioUserCard.appendTier.selector,
             minUsdc6,
             attr,
-            tierExpirySeconds,
-            upgradeByBalance
+            tierExpirySeconds
         );
         _executeForOwner(cardAddr, data, deadline, nonce, ownerSignature);
     }

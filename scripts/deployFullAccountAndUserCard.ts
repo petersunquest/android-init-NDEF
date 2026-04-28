@@ -3,6 +3,9 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
+import { execSync } from "child_process";
+import { getAddress } from "ethers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,7 +17,12 @@ const __dirname = path.dirname(__filename);
  */
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [deployer] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  if (!signers.length) {
+    console.error("❌ 未配置部署账户：请在 .env 设置 PRIVATE_KEY 后再运行本脚本。");
+    process.exit(1);
+  }
+  const deployer = signers[0];
 
   console.log("=".repeat(60));
   console.log("一体化部署：BeamioAccount + BeamioUserCard（使用原有 Oracle/QuoteHelper）");
@@ -27,9 +35,17 @@ async function main() {
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   if (!fs.existsSync(deploymentsDir)) fs.mkdirSync(deploymentsDir, { recursive: true });
 
-  const defaultUSDC = chainId === 8453
-    ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-    : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  let defaultUSDC =
+    chainId === 8453
+      ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+      : "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+  if (chainId === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    if (fs.existsSync(conetAddrPath)) {
+      const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));
+      if (ca.conetUsdc && typeof ca.conetUsdc === "string") defaultUSDC = ca.conetUsdc;
+    }
+  }
   const USDC_ADDRESS = process.env.USDC_ADDRESS || defaultUSDC;
   const ENTRY_POINT_V07 = "0x0000000071727De22E5E9d8BAf0edAc6f37da032";
   const INITIAL_ACCOUNT_LIMIT = parseInt(process.env.INITIAL_ACCOUNT_LIMIT || "100");
@@ -42,6 +58,14 @@ async function main() {
     const data = JSON.parse(fs.readFileSync(fullSystemFile, "utf-8"));
     if (!oracleAddress && data.contracts?.beamioOracle?.address) oracleAddress = data.contracts.beamioOracle.address;
     if (!quoteHelperAddress && data.contracts?.beamioQuoteHelper?.address) quoteHelperAddress = data.contracts.beamioQuoteHelper.address;
+  }
+  const conetOQ = path.join(deploymentsDir, "conet-OracleQuoteHelper.json");
+  if ((!oracleAddress || !quoteHelperAddress) && fs.existsSync(conetOQ)) {
+    const data = JSON.parse(fs.readFileSync(conetOQ, "utf-8"));
+    if (!oracleAddress && data.contracts?.beamioOracle?.address) oracleAddress = data.contracts.beamioOracle.address;
+    if (!quoteHelperAddress && data.contracts?.beamioQuoteHelperV07?.address) {
+      quoteHelperAddress = data.contracts.beamioQuoteHelperV07.address;
+    }
   }
   if (!oracleAddress || !quoteHelperAddress) {
     console.log("❌ 必须提供原有 Oracle 和 QuoteHelper 地址");
@@ -93,15 +117,55 @@ async function main() {
   console.log("✅ BeamioAccount:", beamioAccountAddress);
   await verify(beamioAccountAddress, [ENTRY_POINT_V07], "BeamioAccount");
 
-  // ==================== 3. BeamioContainerModuleV07 ====================
+  // ==================== 3. Container external libs + Module ====================
   console.log("\n" + "=".repeat(60));
-  console.log("步骤 3: 部署 BeamioContainerModuleV07");
+  console.log("步骤 3a: 部署 BeamioContainerModuleExternalLibV07");
   console.log("=".repeat(60));
-  const ContainerModuleFactory = await ethers.getContractFactory("BeamioContainerModuleV07");
+  const ExtLibFactory = await ethers.getContractFactory("BeamioContainerModuleExternalLibV07");
+  const containerExtLib = await ExtLibFactory.deploy();
+  await containerExtLib.waitForDeployment();
+  const containerExtLibAddress = await containerExtLib.getAddress();
+  (out.contracts as Record<string, unknown>).beamioContainerModuleExternalLib = {
+    address: containerExtLibAddress,
+    tx: containerExtLib.deploymentTransaction()?.hash,
+  };
+  console.log("✅ BeamioContainerModuleExternalLibV07:", containerExtLibAddress);
+  await verify(containerExtLibAddress, [], "BeamioContainerModuleExternalLibV07");
+
+  console.log("\n" + "=".repeat(60));
+  console.log("步骤 3b: 部署 BeamioContainerModuleExternalLib2V07");
+  console.log("=".repeat(60));
+  const ExtLib2Factory = await ethers.getContractFactory("BeamioContainerModuleExternalLib2V07");
+  const containerExtLib2 = await ExtLib2Factory.deploy();
+  await containerExtLib2.waitForDeployment();
+  const containerExtLib2Address = await containerExtLib2.getAddress();
+  (out.contracts as Record<string, unknown>).beamioContainerModuleExternalLib2 = {
+    address: containerExtLib2Address,
+    tx: containerExtLib2.deploymentTransaction()?.hash,
+  };
+  console.log("✅ BeamioContainerModuleExternalLib2V07:", containerExtLib2Address);
+  await verify(containerExtLib2Address, [], "BeamioContainerModuleExternalLib2V07");
+
+  console.log("\n" + "=".repeat(60));
+  console.log("步骤 3c: 部署 BeamioContainerModuleV07（链接两个 library）");
+  console.log("=".repeat(60));
+  const ContainerModuleFactory = await ethers.getContractFactory("BeamioContainerModuleV07", {
+    libraries: {
+      BeamioContainerModuleExternalLibV07: containerExtLibAddress,
+      BeamioContainerModuleExternalLib2V07: containerExtLib2Address,
+    },
+  });
   const containerModule = await ContainerModuleFactory.deploy();
   await containerModule.waitForDeployment();
   const containerModuleAddress = await containerModule.getAddress();
-  (out.contracts as Record<string, unknown>).beamioContainerModule = { address: containerModuleAddress, tx: containerModule.deploymentTransaction()?.hash };
+  (out.contracts as Record<string, unknown>).beamioContainerModule = {
+    address: containerModuleAddress,
+    tx: containerModule.deploymentTransaction()?.hash,
+    linkedLibraries: {
+      beamioContainerModuleExternalLib: containerExtLibAddress,
+      beamioContainerModuleExternalLib2: containerExtLib2Address,
+    },
+  };
   console.log("✅ BeamioContainerModuleV07:", containerModuleAddress);
   await verify(containerModuleAddress, [], "BeamioContainerModuleV07");
 
@@ -208,8 +272,23 @@ async function main() {
   const USER_CARD_URI = process.env.USER_CARD_URI || "https://beamio.app/api/metadata/0x";
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard");
-  const userCard = await BeamioUserCardFactory.deploy(USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress);
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
+  const userCardLibs = {
+    BeamioUserCardFormattingLib: cardLibs.BeamioUserCardFormattingLib,
+    BeamioUserCardTransferLib: cardLibs.BeamioUserCardTransferLib,
+  };
+  console.log("  BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
+  console.log("  BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(userCardLibs));
+  const userCard = await BeamioUserCardFactory.deploy(
+    USER_CARD_URI,
+    USER_CARD_CURRENCY,
+    USER_CARD_PRICE,
+    deployer.address,
+    aaFactoryAddress,
+    0,
+    false
+  );
   await userCard.waitForDeployment();
   const userCardAddress = await userCard.getAddress();
   (out.contracts as Record<string, unknown>).beamioUserCard = {
@@ -221,7 +300,7 @@ async function main() {
     tx: userCard.deploymentTransaction()?.hash,
   };
   console.log("✅ BeamioUserCard:", userCardAddress);
-  await verify(userCardAddress, [USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress], "BeamioUserCard");
+  await verify(userCardAddress, [USER_CARD_URI, USER_CARD_CURRENCY, USER_CARD_PRICE, deployer.address, aaFactoryAddress, 0, false], "BeamioUserCard");
   await new Promise((r) => setTimeout(r, 3000));
 
   // ==================== 9. 更新 AA Factory 的 UserCard ====================
@@ -239,7 +318,59 @@ async function main() {
 
   // ==================== 保存 ====================
   const outFile = path.join(deploymentsDir, `${networkInfo.name}-FullAccountAndUserCard.json`);
+  if (chainId === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    if (fs.existsSync(conetAddrPath)) {
+      try {
+        const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+        const ar = ca.AccountRegistry;
+        if (typeof ar === "string" && ar.startsWith("0x")) {
+          (out.contracts as Record<string, unknown>).accountRegistry = {
+            address: ar,
+            source: "src/mainnet/AccountRegistry.sol",
+            tx: ca.accountRegistryTx ?? "",
+            deployedAt: ca.accountRegistryDeployedAt,
+            deployer: ca.accountRegistryDeployer,
+          };
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
   fs.writeFileSync(outFile, JSON.stringify(out, null, 2));
+  const configDir = path.join(__dirname, "..", "config");
+  const baseJsonPath = path.join(configDir, "base-addresses.json");
+  let baseJson: Record<string, unknown> = {};
+  if (fs.existsSync(baseJsonPath)) {
+    baseJson = JSON.parse(fs.readFileSync(baseJsonPath, "utf-8"));
+  }
+  baseJson.AA_FACTORY = getAddress(aaFactoryAddress);
+  baseJson.CARD_FACTORY = getAddress(userCardFactoryAddress);
+  baseJson.BEAMIO_USER_CARD_ASSET_ADDRESS = getAddress(userCardAddress);
+  baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
+  baseJson.USDC_BASE = USDC_ADDRESS;
+  fs.mkdirSync(configDir, { recursive: true });
+  fs.writeFileSync(baseJsonPath, JSON.stringify(baseJson, null, 2), "utf-8");
+  console.log("✅ 已更新 config/base-addresses.json（AA_FACTORY / CARD_FACTORY / BEAMIO_USER_CARD_ASSET_ADDRESS 等）");
+  try {
+    execSync("node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+  } catch {
+    console.warn("⚠️  同步 x402sdk chainAddresses 失败，请手动: npm run sync:base-aa-to-x402sdk-chain");
+  }
+  try {
+    execSync("node scripts/syncBeamioAccountToX402sdk.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+    console.log("✅ 已同步 BeamioAccount / AA Factory artifact 至 x402sdk");
+  } catch {
+    console.warn("⚠️  同步 artifact 失败，请执行: npm run compile && npm run sync:beamio-account-x402sdk");
+  }
+
   console.log("\n" + "=".repeat(60));
   console.log("部署完成!");
   console.log("=".repeat(60));

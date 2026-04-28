@@ -11,13 +11,13 @@
 ### Base Reused Existing Dependencies
 
 - `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by `AA Factory`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `BeamioQuoteHelperV07` used by `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `BeamioQuoteHelperV07` used by current `Card Factory`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -27,13 +27,12 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 - `BeamioUserCardPlaceholder`: [`0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`](https://basescan.org/address/0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D)
 - `BeamioUserCardRedeemModuleVNext`: [`0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448`](https://basescan.org/address/0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448)
 - `BeamioUserCardDeployerV07`: [`0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9`](https://basescan.org/address/0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9)
-- Historical `BeamioUserCardFactoryPaymasterV07`: [`0x19C000c00e6A2b254b39d16797930431E310BEdd`](https://basescan.org/address/0x19C000c00e6A2b254b39d16797930431E310BEdd)
 - `BeamioUserCard`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 - Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
 
 ### Base Registered Module Addresses
 
@@ -53,7 +52,7 @@ Current on-chain `BeamioUserCardFactoryPaymasterV07` configuration:
 - `USDC_TOKEN`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `quoteHelper`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `deployer`: `0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`
-- `aaFactory`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `aaFactory`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 - `metadataBaseURI`: `https://beamio.app/api/metadata/0x`
 
 ### Base Card Constructor Record
@@ -64,20 +63,20 @@ From `deployments/base-UserCard.json` (`2026-02-14T20:02:50.581Z`):
 - `currency_`: `4`
 - `pointsUnitPriceInCurrencyE6_`: `1000000`
 - `initialOwner`: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
-- `gateway_`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `gateway_`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 
 ## CoNET Mainnet Deployment
 
 - Network: `conet`
-- Chain ID: `224400`
-- RPC: `https://mainnet-rpc.conet.network`
+- Chain ID: `224422`
+- RPC: `https://rpc1.conet.network`
 - Explorer: [https://mainnet.conet.network/](https://mainnet.conet.network/)
 - Deployment time: `2026-03-12`
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 
 ## Reused Existing Dependencies
 
-- `BeamioOracle`: `0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+- `BeamioOracle`: `0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
 - `BeamioQuoteHelperV07`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
 - `conetUsdc`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
 
@@ -350,7 +349,7 @@ The following query APIs now return structs instead of long tuples, so the ABI i
 ## How To Redeploy Or Reverify
 
 - Reuse the current CoNET dependencies:
-  - `EXISTING_ORACLE_ADDRESS=0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+  - `EXISTING_ORACLE_ADDRESS=0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
   - `EXISTING_QUOTE_HELPER_ADDRESS=0x2c700841f61373FB4eDBD6710ab075c84051731d`
   - `USDC_ADDRESS=0x28fBBb6C5C06A4736B00A540b66378091c224456`
 - Redeploy the combined account + usercard stack with:

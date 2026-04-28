@@ -1,0 +1,66 @@
+# BaseScan 验证说明（via-IR，必须用 --full 导出的 Standard JSON）
+
+与 hardhat.config.ts 一致：solc 0.8.33、optimizer enabled runs=0、viaIR=true、evmVersion=cancun、bytecodeHash=none、revertStrings=strip。
+
+## 一键重新导出（源码变更后务必 clean + compile 再导出）
+
+```bash
+npm run clean && npm run compile
+npm run export:standard-json:full:beamio-account-stack
+```
+
+或单合约：
+
+```bash
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLibV07 --full
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLib2V07 --full
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccountDeployer --full
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccount --full
+```
+
+## 输出文件（deployments/）
+
+| 链上合约 | Standard JSON 文件 | BaseScan Contract Name（完整） |
+|----------|-------------------|--------------------------------|
+| BeamioContainerModuleExternalLibV07 | base-BeamioContainerModuleExternalLibV07-standard-input-FULL.json | project/src/BeamioAccount/BeamioContainerModuleExternalLibV07.sol:BeamioContainerModuleExternalLibV07 |
+| BeamioContainerModuleExternalLib2V07 | base-BeamioContainerModuleExternalLib2V07-standard-input-FULL.json | project/src/BeamioAccount/BeamioContainerModuleExternalLib2V07.sol:BeamioContainerModuleExternalLib2V07 |
+| BeamioContainerModuleV07 | base-BeamioContainerModuleV07-standard-input-FULL.json | project/src/BeamioAccount/BeamioContainerModuleV07.sol:BeamioContainerModuleV07 |
+| BeamioFactoryPaymasterV07 | base-BeamioFactoryPaymasterV07-standard-input-FULL.json | project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07 |
+| BeamioAccountDeployer | base-BeamioAccountDeployer-standard-input-FULL.json | project/src/BeamioAccount/BeamioAccountDeployer.sol:BeamioAccountDeployer |
+| BeamioAccount | base-BeamioAccount-standard-input-FULL.json | project/src/BeamioAccount/BeamioAccount.sol:BeamioAccount |
+
+## 建议验证顺序
+
+1. 两个 **library**（无 constructor 参数）。
+2. **BeamioContainerModuleV07**：若界面要求填写 **library 地址**，填入已验证的 Lib1/Lib2 部署地址（与 artifacts 中 linkReferences 一致）。
+3. **BeamioAccountDeployer**（无 constructor）。
+4. **BeamioFactoryPaymasterV07**（constructor 见下，使用**部署交易**时的参数；与 `base-FactoryAndModule.json` 中 beamioFactoryPaymaster 字段一致）。
+5. **BeamioAccount**：constructor 为 ERC-4337 v0.7 EntryPoint `0x0000000071727De22E5E9d8BAf0edAc6f37da032`。
+
+## BeamioFactoryPaymasterV07 构造参数（来自 base-FactoryAndModule.json 部署记录）
+
+部署时 constructor 为：
+
+- initialAccountLimit: `100` (uint256)
+- deployer_: `0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87`（**创建 Factory 交易**中的参数；后续 `updateDeployer` 不改变已部署 bytecode）
+- module_: `0xFA19303da4bc51EA6961fc488F9840Dd227eA2d3`
+- quoteHelper_: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- userCard_: `0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`
+- usdc_: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+
+链上 Factory 地址（示例，以 BaseScan 为准）：`0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`。
+
+## BeamioAccount 构造参数
+
+- `0x0000000071727De22E5E9d8BAf0edAc6f37da032` (IEntryPointV07)
+
+## 参考地址（2026-03 部署片段，见 base-FactoryAndModule.json）
+
+- Lib1: 0x3984c2ee9e6369c1A8b8D04a737b94142Cc9f256
+- Lib2: 0xc23f57D3ac181A598BbA0c21b2D8833306BEEdbE
+- Module: 0xFA19303da4bc51EA6961fc488F9840Dd227eA2d3
+- 绑定用新 Deployer（非 Factory 构造参数）: 0x139D55591A03550259AF32097A9848ECE9869C90
+
+若 err_code_2：确认 Contract Name 完全一致、constructor 与**创建该合约的交易**一致、模块验证已使用 --full 且 library 地址正确。

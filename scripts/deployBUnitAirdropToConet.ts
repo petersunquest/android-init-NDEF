@@ -8,27 +8,28 @@
  *
  * 部署后自动执行:
  * 1. BUint.addAdmin(airdropAddress)
- * 2. BUnitAirdrop.addAdmin(settle_contractAdmin[i]) 对每个 settle_contractAdmin
- * 3. 更新 conet-BUintAirdrop.json、conet-addresses.json
+ * 2. BUnitAirdrop.addAdmin：对 ~/.master.json 中 settle_contractAdmin + beamio_Admins + admin 私钥对应地址
+ * 3. 从 conet-IndexerDiamond.json 读取 diamond 地址并 setBeamioIndexerDiamond（不可省略，
+ *    否则链上保留 address(0)，claimFor 必定 revert）
+ * 4. 更新 conet-BUintAirdrop.json、conet-addresses.json
  *
  * 部署后需手动执行（若使用 ConetTreasury / BeamioIndexerDiamond）:
  * - ConetTreasury.setBUnitAirdrop(newAddress)
- * - BeamioIndexerDiamond AdminFacet.setAdmin(newAddress, true)
+ * - BeamioIndexerDiamond AdminFacet.setAdmin(newAddress, true)（让 BUnitAirdrop 能写记账）
  */
 
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
-import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 const BUINT_JSON_PATH = path.join(__dirname, "..", "deployments", "conet-BUint.json");
-const MASTER_PATH = path.join(homedir(), ".master.json");
-const CANONICAL_BUINT = "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879";
+const CANONICAL_BUINT = "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad";
 
 function loadBuintAddress(): string {
   if (process.env.BUINT_ADDRESS) return process.env.BUINT_ADDRESS;
@@ -56,10 +57,7 @@ function assertNotDeprecated(addr: string): void {
 }
 
 function loadSettleAdmins(): string[] {
-  if (!fs.existsSync(MASTER_PATH)) return [];
-  const data = JSON.parse(fs.readFileSync(MASTER_PATH, "utf-8"));
-  const arr = data?.settle_contractAdmin || [];
-  return arr.map((pk: string) => (pk.startsWith("0x") ? pk : `0x${pk}`));
+  return mergeConetAdminPrivateKeysFromMasterFile();
 }
 
 async function main() {
@@ -78,7 +76,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log("deployer:", deployer.address);
   console.log("BUint:", BUINT_ADDRESS);
-  console.log("settle_contractAdmin 数量:", settleAddresses.length);
+  console.log("合并 admin 私钥对应地址数量:", settleAddresses.length);
   console.log("chainId:", net.chainId.toString());
 
   const Factory = await ethers.getContractFactory("BUnitAirdrop");
@@ -104,6 +102,18 @@ async function main() {
   const beamioIndexerDiamond = fs.existsSync(indexerPath)
     ? JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond
     : "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
+
+  // 关键：必须真正在链上 setBeamioIndexerDiamond，否则构造函数的 DEFAULT_BEAMIO_INDEXER=address(0)
+  // 会让 _indexClaimToBeamioIndexer 调用 IActionFacet(address(0)).syncTokenAction(...)，
+  // Solidity 0.8.20 在外部调用前的 extcodesize 预检失败 → 整个 claimFor 回滚（status=0、空 logs）。
+  // 之前只把 indexer 写进 JSON 不调 setter，是 224422 重启后 BUnitAirdrop.claimFor 必 revert 的根因。
+  if (beamioIndexerDiamond && beamioIndexerDiamond !== "0x0000000000000000000000000000000000000000") {
+    const tx4 = await airdrop.setBeamioIndexerDiamond(beamioIndexerDiamond);
+    await tx4.wait();
+    console.log("[4] BUnitAirdrop.setBeamioIndexerDiamond(", beamioIndexerDiamond, ") ok");
+  } else {
+    console.warn("[4] WARNING: beamioIndexerDiamond 未解析到有效地址，跳过 setter，链上将保留 address(0)，claimFor 会失败！");
+  }
 
   const out = {
     network: "conet",
@@ -132,7 +142,7 @@ async function main() {
   console.log("\n[4] saved:", outPath);
 
   // 5. 更新 conet-addresses.json
-  const addrData = fs.existsSync(ADDRESSES_PATH) ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8")) : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224400" };
+  const addrData = fs.existsSync(ADDRESSES_PATH) ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8")) : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224422" };
   addrData.BUnitAirdrop = airdropAddress;
   if (!addrData.BUint) addrData.BUint = BUINT_ADDRESS;
   fs.writeFileSync(ADDRESSES_PATH, JSON.stringify(addrData, null, 2) + "\n", "utf-8");

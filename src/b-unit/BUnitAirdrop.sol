@@ -147,15 +147,15 @@ struct KindBurnDetail {
 
 contract BUnitAirdrop is Ownable, EIP712 {
     /// @dev 当前 CoNET mainnet 上部署的 BeamioIndexerDiamond 地址（硬编码默认值）
-    address private constant DEFAULT_BEAMIO_INDEXER = 0x9d481CC9Da04456e98aE2FD6eB6F18e37bf72eb5;
+    address private constant DEFAULT_BEAMIO_INDEXER = address(0);
     /// @dev CoNET 主网 chainId（claim 记账用）
-    uint256 private constant CONET_CHAIN_ID = 224400;
+    uint256 private constant CONET_CHAIN_ID = 224422;
     /// @dev claim 记账 txCategory
     bytes32 private constant TX_BUINT_CLAIM = keccak256("buintClaim");
     /// @dev USDC 购买 B-Unit 记账 txCategory
     bytes32 private constant TX_BUINT_USDC = keccak256("buintUSDC");
     /// @dev CoNET 上 BeamioQuoteHelperV07 地址，用于 baseGas(wei) → USDC6 换算
-    address private constant DEFAULT_QUOTE_HELPER = 0x07B514aDdE61C07B8b338C16444F662Fa6Fb1953;
+    address private constant DEFAULT_QUOTE_HELPER = address(0);
     /// @dev Oracle 中 ETH 的 currency id（BeamioCurrency 扩展）
     uint8 private constant ETH_CURRENCY = 9;
 

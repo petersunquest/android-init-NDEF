@@ -1,0 +1,36 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "settle_contractAdmin": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+    "0x6add8012d4DDb7dA736Ab713FdA13ef3827a05bf",
+    "0x068759bCfd929fb17258aF372c30eE6CD277B872",
+    "0xB272bC809dd8A96294f337aDED3f9602cac0E3B0",
+    "0x2d1D98a96a4C7E1680e43d20F43796264bfdF9E6",
+    "0x99BcBb0f4a0BF72c2d8A2E5FDD0ad3B7dAe40302",
+    "0x8AcB8D56f68F28c0Aa5Ab292513f5fAA7ec6126f",
+    "0x4a083ae4CdE5C1A621Ef711DF4cc18cad092561d",
+    "0x4a0B9B510f0E7395745fdbB8D96b2e2576960b95",
+    "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
+    "0xee73178EE888363C84713434D1570749eaeB880d"
+  ],
+  "constructorArgs": {
+    "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
+    "name": "Business Start Ket",
+    "symbol": "BSK"
+  },
+  "timestamp": "2026-04-22T03:41:31.770Z",
+  "contracts": {
+    "BusinessStartKet": {
+      "address": "0xEb95B6fbC747838BBF3D88758034E0F169190793",
+      "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
+      "name": "Business Start Ket",
+      "symbol": "BSK",
+      "transactionHash": "0xc1846cedf5cf1a5404c6d40932d7986e13baea8b76363f66ae3b01ff21ef7ba1"
+    }
+  }
+}

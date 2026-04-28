@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 const MASTER_PATH = path.join(homedir(), ".master.json");
-const CONET_CHAIN_ID = 224400n;
+const CONET_CHAIN_ID = 224422n;
 const USDC_TO_BUNIT_RATE = 100n;
 async function main() {
   const user = (process.env.VOTE_USER || process.env.USER_ADDR || "0x513087820Af94A7f4d21bC5B68090f3080022E0e").toLowerCase();

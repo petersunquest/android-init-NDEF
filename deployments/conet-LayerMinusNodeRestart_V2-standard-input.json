@@ -1,0 +1,37 @@
+{
+  "language": "Solidity",
+  "settings": {
+    "debug": {
+      "revertStrings": "strip"
+    },
+    "evmVersion": "cancun",
+    "metadata": {
+      "bytecodeHash": "none"
+    },
+    "optimizer": {
+      "enabled": true,
+      "runs": 0
+    },
+    "outputSelection": {
+      "*": {
+        "": [
+          "ast"
+        ],
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata"
+        ]
+      }
+    },
+    "remappings": [],
+    "viaIR": true
+  },
+  "sources": {
+    "project/src/mainnet/LayerMinusNodeRestart_V2.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\ncontract LayerMinusNodeRestart_V2 {\n    mapping(address => bool) public adminList;\n\n    modifier onlyAdmin() {\n        require(adminList[msg.sender] == true, \"NOT_ADMIN\");\n        _;\n    }\n\n    uint256 public restartBlockNumber = 0;\n\n    constructor() {\n        adminList[msg.sender] = true;\n    }\n\n    function changeAddressInAdminlist(address addr, bool status) public onlyAdmin {\n        adminList[addr] = status;\n    }\n\n    function setRestart() public onlyAdmin {\n        restartBlockNumber = block.number;\n    }\n}"
+    }
+  }
+}

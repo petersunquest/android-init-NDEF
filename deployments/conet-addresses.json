@@ -1,17 +1,34 @@
 {
-  "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件或 conet-BUint.json 读取，禁止硬编码旧地址。",
+  "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件或 conet-BUint.json 读取，禁止硬编码旧地址。新链迁移：更新 chainId 与本文件全部地址后运行 npx tsx scripts/updateConetReferences.ts",
   "network": "conet",
-  "chainId": "224400",
-  "BUint": "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879",
-  "BUnitAirdrop": "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F",
-  "BeamioIndexerDiamond": "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe",
-  "ConetTreasury": "0xA7fb50fE8e09E17E74081014d49f4E80729cCA48",
-  "conetUsdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
+  "chainId": "224422",
+  "BUint": "0x1330297821814B06A6DafE3557Fa730F690D7007",
+  "BUnitAirdrop": "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8",
+  "BeamioIndexerDiamond": "0x45D45de73465b8913B50974Fc188529dFFb7AfFA",
+  "MerchantPOSManagement": "0xB7Fb42A67100C6e0C26D21A2d75ffed448610fa2",
+  "beamioOracle": "0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2",
+  "beamioQuoteHelperV07": "0x5478FABCc76bc1044286764A0115719Ce94F4572",
+  "ConetTreasury": "0x540767C2a183871deb22333a271D5e65bF489F22",
+  "conetUsdc": "0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176",
   "DEPRECATED_BUINT": [
     "0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9",
-    "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB"
+    "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+    "0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879"
   ],
   "DEPRECATED_CONET_USDC": [
     "0xF693B1664E20fe66345cF690842D03cA8D981dd5"
-  ]
+  ],
+  "BuintRedeemAirdrop": "0xdB877ec8572C669C533021764FC1Fecfe8dc6b4c",
+  "BusinessStartKet": "0xEb95B6fbC747838BBF3D88758034E0F169190793",
+  "BusinessStartKetRedeem": "0xE25deA33509c4466982942aBC3d062b08D3E840d",
+  "GuardianNodesInfoV6": "0x6d7a526BFD03E90ea8D19eDB986577395a139872",
+  "AddressPGP": "0xb2aABe52f476356AE638839A786EAE425A0c1b66",
+  "AccountRegistry": "0x4afaca09cf8307070a83836223Ae129073eC92e5",
+  "accountRegistryDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "accountRegistryDeployedAt": "2026-04-22T10:19:50.244Z",
+  "accountRegistryTx": "0xbc35dad18c52bb84222578015449a963da78ef0810410deec8ed27fd2d074e6c",
+  "LayerMinusNodeRestart_V2": "0xf82a6362b9F23F2380C621B5A649987C5bc228B7",
+  "layerMinusNodeRestartV2Deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "layerMinusNodeRestartV2DeployedAt": "2026-04-22T04:08:56.248Z",
+  "layerMinusNodeRestartV2Tx": "0xfb63f86977d6e9d46da92ba3054670243c377b515fc27a7913e50944f8bb6f68"
 }

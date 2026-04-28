@@ -56,9 +56,9 @@ export declare namespace ActionFacet {
     }
 
   export interface ActionFacetInterface extends Interface {
-    getFunction(nameOrSignature: "ACCOUNT_MODE_AA" | "ACCOUNT_MODE_ALL" | "ACCOUNT_MODE_EOA" | "ATOMIC_BUCKET_SECONDS" | "CHAIN_ID_FILTER_ALL" | "GAS_CHAIN_FILTER_ALL" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "getAccountActionCount" | "getAccountActionIdsByPeriodPaged" | "getAccountActionIdsPaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAccountTransactionsByCurrentPeriodOffsetPaged" | "getAccountTransactionsByDayOffsetPaged" | "getAccountTransactionsByHourOffsetPaged" | "getAccountTransactionsByMonthOffsetPaged" | "getAccountTransactionsByPeriodPaged" | "getAccountTransactionsByQuarterOffsetPaged" | "getAccountTransactionsByWeekOffsetAndAccountModePaged" | "getAccountTransactionsByWeekOffsetPaged" | "getAccountTransactionsByYearOffsetPaged" | "getAccountTransactionsPaged" | "getLatestTransactionsByCategoryPaged" | "getLatestTransactionsByCategoryPagedFull" | "getLatestTransactionsPaged" | "getLatestTransactionsPagedFull" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getSubordinateTransactionsByWeekOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getTopAdminTransactionsByWeekOffsetAndAccountModePaged" | "getTransactionActionId" | "getTransactionCount" | "getTransactionFull" | "getTransactionFullByTxId" | "getTransactionRecord" | "getTransactionRecordByTxId" | "setAfterNotes" | "syncTokenAction"): FunctionFragment;
+    getFunction(nameOrSignature: "ACCOUNT_MODE_AA" | "ACCOUNT_MODE_ALL" | "ACCOUNT_MODE_EOA" | "ATOMIC_BUCKET_SECONDS" | "CHAIN_ID_FILTER_ALL" | "GAS_CHAIN_FILTER_ALL" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "backfillSubordinateIntoAccountIndex" | "getAccountActionCount" | "getAccountActionIdsByPeriodPaged" | "getAccountActionIdsPaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getAccountTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getAccountTransactionsByCurrentPeriodOffsetPaged" | "getAccountTransactionsByDayOffsetPaged" | "getAccountTransactionsByHourOffsetPaged" | "getAccountTransactionsByMonthOffsetPaged" | "getAccountTransactionsByPeriodPaged" | "getAccountTransactionsByQuarterOffsetPaged" | "getAccountTransactionsByWeekOffsetAndAccountModePaged" | "getAccountTransactionsByWeekOffsetPaged" | "getAccountTransactionsByYearOffsetPaged" | "getAccountTransactionsPaged" | "getLatestTransactionsByCategoryPaged" | "getLatestTransactionsByCategoryPagedFull" | "getLatestTransactionsPaged" | "getLatestTransactionsPagedFull" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getSubordinateTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getSubordinateTransactionsByWeekOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePaged" | "getTopAdminTransactionsByCurrentPeriodOffsetAndAccountModePagedFull" | "getTopAdminTransactionsByWeekOffsetAndAccountModePaged" | "getTransactionActionId" | "getTransactionCount" | "getTransactionFull" | "getTransactionFullByTxId" | "getTransactionRecord" | "getTransactionRecordByTxId" | "isSubordinateAccountIndexBackfilled" | "setAfterNotes" | "syncTokenAction"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AfterNotesUpdated" | "StatsUpdated" | "TransactionRecordSynced"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AfterNotesUpdated" | "StatsUpdated" | "SubordinateAccountIndexBackfilled" | "TransactionRecordSynced"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ACCOUNT_MODE_AA', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ACCOUNT_MODE_ALL', values?: undefined): string;
@@ -72,6 +72,7 @@ encodeFunctionData(functionFragment: 'PERIOD_MONTH', values?: undefined): string
 encodeFunctionData(functionFragment: 'PERIOD_QUARTER', values?: undefined): string;
 encodeFunctionData(functionFragment: 'PERIOD_WEEK', values?: undefined): string;
 encodeFunctionData(functionFragment: 'PERIOD_YEAR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'backfillSubordinateIntoAccountIndex', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAccountActionCount', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAccountActionIdsByPeriodPaged', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAccountActionIdsPaged', values: [AddressLike, BigNumberish, BigNumberish]): string;
@@ -103,6 +104,7 @@ encodeFunctionData(functionFragment: 'getTransactionFull', values: [BigNumberish
 encodeFunctionData(functionFragment: 'getTransactionFullByTxId', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getTransactionRecord', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getTransactionRecordByTxId', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'isSubordinateAccountIndexBackfilled', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setAfterNotes', values: [BigNumberish, string, string]): string;
 encodeFunctionData(functionFragment: 'syncTokenAction', values: [ActionFacet.TransactionInputStruct]): string;
 
@@ -118,6 +120,7 @@ decodeFunctionResult(functionFragment: 'PERIOD_MONTH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_QUARTER', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_WEEK', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'PERIOD_YEAR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'backfillSubordinateIntoAccountIndex', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAccountActionCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAccountActionIdsByPeriodPaged', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAccountActionIdsPaged', data: BytesLike): Result;
@@ -149,6 +152,7 @@ decodeFunctionResult(functionFragment: 'getTransactionFull', data: BytesLike): R
 decodeFunctionResult(functionFragment: 'getTransactionFullByTxId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransactionRecord', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransactionRecordByTxId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isSubordinateAccountIndexBackfilled', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAfterNotes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'syncTokenAction', data: BytesLike): Result;
   }
@@ -170,6 +174,18 @@ decodeFunctionResult(functionFragment: 'syncTokenAction', data: BytesLike): Resu
       export type InputTuple = [hourIndex: BigNumberish, account: AddressLike];
       export type OutputTuple = [hourIndex: bigint, account: string];
       export interface OutputObject {hourIndex: bigint, account: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace SubordinateAccountIndexBackfilledEvent {
+      export type InputTuple = [fromActionId: BigNumberish, toActionId: BigNumberish, pushed: BigNumberish];
+      export type OutputTuple = [fromActionId: bigint, toActionId: bigint, pushed: bigint];
+      export interface OutputObject {fromActionId: bigint, toActionId: bigint, pushed: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -316,6 +332,14 @@ decodeFunctionResult(functionFragment: 'syncTokenAction', data: BytesLike): Resu
       [],
       [bigint],
       'view'
+    >
+    
+
+    
+    backfillSubordinateIntoAccountIndex: TypedContractMethod<
+      [fromActionId: BigNumberish, toActionId: BigNumberish, ],
+      [bigint],
+      'nonpayable'
     >
     
 
@@ -568,6 +592,14 @@ decodeFunctionResult(functionFragment: 'syncTokenAction', data: BytesLike): Resu
     
 
     
+    isSubordinateAccountIndexBackfilled: TypedContractMethod<
+      [actionId: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     setAfterNotes: TypedContractMethod<
       [actionId: BigNumberish, afterNotePayer: string, afterNotePayee: string, ],
       [void],
@@ -645,6 +677,11 @@ getFunction(nameOrSignature: 'PERIOD_YEAR'): TypedContractMethod<
       [],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'backfillSubordinateIntoAccountIndex'): TypedContractMethod<
+      [fromActionId: BigNumberish, toActionId: BigNumberish, ],
+      [bigint],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'getAccountActionCount'): TypedContractMethod<
       [account: AddressLike, ],
@@ -801,6 +838,11 @@ getFunction(nameOrSignature: 'getTransactionRecordByTxId'): TypedContractMethod<
       [[LibActionStorage.TransactionRecordStructOutput, LibActionStorage.RouteItemStructOutput[]] & {tx_: LibActionStorage.TransactionRecordStructOutput, route_: LibActionStorage.RouteItemStructOutput[] }],
       'view'
     >;
+getFunction(nameOrSignature: 'isSubordinateAccountIndexBackfilled'): TypedContractMethod<
+      [actionId: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'setAfterNotes'): TypedContractMethod<
       [actionId: BigNumberish, afterNotePayer: string, afterNotePayee: string, ],
       [void],
@@ -814,6 +856,7 @@ getFunction(nameOrSignature: 'syncTokenAction'): TypedContractMethod<
 
     getEvent(key: 'AfterNotesUpdated'): TypedContractEvent<AfterNotesUpdatedEvent.InputTuple, AfterNotesUpdatedEvent.OutputTuple, AfterNotesUpdatedEvent.OutputObject>;
 getEvent(key: 'StatsUpdated'): TypedContractEvent<StatsUpdatedEvent.InputTuple, StatsUpdatedEvent.OutputTuple, StatsUpdatedEvent.OutputObject>;
+getEvent(key: 'SubordinateAccountIndexBackfilled'): TypedContractEvent<SubordinateAccountIndexBackfilledEvent.InputTuple, SubordinateAccountIndexBackfilledEvent.OutputTuple, SubordinateAccountIndexBackfilledEvent.OutputObject>;
 getEvent(key: 'TransactionRecordSynced'): TypedContractEvent<TransactionRecordSyncedEvent.InputTuple, TransactionRecordSyncedEvent.OutputTuple, TransactionRecordSyncedEvent.OutputObject>;
 
     filters: {
@@ -824,6 +867,10 @@ getEvent(key: 'TransactionRecordSynced'): TypedContractEvent<TransactionRecordSy
 
       'StatsUpdated(uint256,address)': TypedContractEvent<StatsUpdatedEvent.InputTuple, StatsUpdatedEvent.OutputTuple, StatsUpdatedEvent.OutputObject>;
       StatsUpdated: TypedContractEvent<StatsUpdatedEvent.InputTuple, StatsUpdatedEvent.OutputTuple, StatsUpdatedEvent.OutputObject>;
+    
+
+      'SubordinateAccountIndexBackfilled(uint256,uint256,uint256)': TypedContractEvent<SubordinateAccountIndexBackfilledEvent.InputTuple, SubordinateAccountIndexBackfilledEvent.OutputTuple, SubordinateAccountIndexBackfilledEvent.OutputObject>;
+      SubordinateAccountIndexBackfilled: TypedContractEvent<SubordinateAccountIndexBackfilledEvent.InputTuple, SubordinateAccountIndexBackfilledEvent.OutputTuple, SubordinateAccountIndexBackfilledEvent.OutputObject>;
     
 
       'TransactionRecordSynced(uint256,bytes32,bytes32,address,address)': TypedContractEvent<TransactionRecordSyncedEvent.InputTuple, TransactionRecordSyncedEvent.OutputTuple, TransactionRecordSyncedEvent.OutputObject>;

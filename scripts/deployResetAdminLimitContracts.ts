@@ -69,7 +69,7 @@ async function main() {
   const REDEEM_MODULE_ADDRESS = c.redeemModule;
   const QUOTE_HELPER_ADDRESS = c.quoteHelper;
   const DEPLOYER_ADDRESS = data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-  const AA_FACTORY_ADDRESS = c.aaFactory || "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+  const AA_FACTORY_ADDRESS = c.aaFactory || "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   const ISSUED_NFT_MODULE = c.issuedNftModule;
   const FAUCET_MODULE = c.faucetModule;
   const MEMBERSHIP_STATS_MODULE = c.membershipStatsModule;
@@ -190,7 +190,7 @@ async function main() {
     baseJson = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   }
   baseJson.CARD_FACTORY = factoryAddress;
-  baseJson.AA_FACTORY = baseJson.AA_FACTORY ?? AA_FACTORY_ADDRESS;
+  baseJson.AA_FACTORY = AA_FACTORY_ADDRESS;
   baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
   fs.writeFileSync(configPath, JSON.stringify(baseJson, null, 2));
   console.log("已更新 config/base-addresses.json");
@@ -235,7 +235,7 @@ export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
   }
 
   const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
-  let CONET_BUNIT_AIRDROP = "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  let CONET_BUNIT_AIRDROP = "0xbE1CF54f76BcAb40DC49cDcD7FBA525b9ABDa264";
   if (fs.existsSync(conetAddrPath)) {
     const conetData = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));
     if (conetData.BUnitAirdrop) CONET_BUNIT_AIRDROP = conetData.BUnitAirdrop;

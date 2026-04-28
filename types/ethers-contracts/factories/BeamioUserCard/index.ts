@@ -4,9 +4,9 @@
 export * as adminStatsQueryModuleSol from './AdminStatsQueryModule.sol/index.js';
 export * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
-export * as beamioUserCardSol from './BeamioUserCard.sol/index.js';
 export * as beamioUserCardBaseSol from './BeamioUserCardBase.sol/index.js';
 export * as beamioUserCardFactoryPaymasterV07Sol from './BeamioUserCardFactoryPaymasterV07.sol/index.js';
+export * as beamioUserCardInterfacesSol from './BeamioUserCardInterfaces.sol/index.js';
 export * as faucetModuleSol from './FaucetModule.sol/index.js';
 export * as governanceModuleSol from './GovernanceModule.sol/index.js';
 export * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
@@ -14,5 +14,8 @@ export * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js'
 export * as membershipStatsQueryModuleSol from './MembershipStatsQueryModule.sol/index.js';
 export * as redeemModuleSol from './RedeemModule.sol/index.js';
 export { BeamioOracle__factory } from './BeamioOracle__factory.js';
+export { BeamioUserCard__factory } from './BeamioUserCard__factory.js';
 export { BeamioUserCardDeployerV07__factory } from './BeamioUserCardDeployerV07__factory.js';
+export { BeamioUserCardFormattingLib__factory } from './BeamioUserCardFormattingLib__factory.js';
 export { BeamioUserCardPlaceholder__factory } from './BeamioUserCardPlaceholder__factory.js';
+export { BeamioUserCardTransferLib__factory } from './BeamioUserCardTransferLib__factory.js';

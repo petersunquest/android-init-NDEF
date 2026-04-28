@@ -144,13 +144,13 @@ Explorer: https://basescan.org/address/0x5c64a8b0935DA72d60933bBD8cD10579E1C40c5
 
 | 合约 | 地址 | 说明 |
 |------|------|------|
-| **ConetTreasury** | `0xA7fb50fE8e09E17E74081014d49f4E80729cCA48` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
-| **USDC** (FactoryERC20) | `0x28fBBb6C5C06A4736B00A540b66378091c224456` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
-| **BUnitAirdrop** | `0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F` | B-Unit 空投与 USDC 购买入口 |
-| **BUint** | `0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879` | B-Units 代币合约 |
+| **ConetTreasury** | `0x540767C2a183871deb22333a271D5e65bF489F22` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
+| **USDC** (FactoryERC20) | `0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
+| **BUnitAirdrop** | `0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8` | B-Unit 空投与 USDC 购买入口 |
+| **BUint** | `0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad` | B-Units 代币合约 |
 
 **关联地址**：
-- ConetTreasury.guardianNodesInfoV6: `0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D`
+- ConetTreasury.guardianNodesInfoV6: `0x6d7a526BFD03E90ea8D19eDB986577395a139872`
 - USDC baseToken (Base 主网 USDC): `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
 **记账**：BUnitAirdrop 向 BeamioIndexerDiamond (0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612) 记账：claim/claimFor→buintClaim，mintForUsdcPurchase→buintUSDC，consumeFromUser→keccak256(kind 名称)。需将 BUnitAirdrop 设为 BeamioIndexerDiamond 的 admin（AdminFacet.setAdmin）。

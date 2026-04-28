@@ -1,8 +1,8 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "guardianNodesInfoV6": "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D",
-  "timestamp": "2026-02-13T04:37:09.269Z",
-  "AddressPGP": "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4"
+  "guardianNodesInfoV6": "0x6d7a526BFD03E90ea8D19eDB986577395a139872",
+  "timestamp": "2026-04-22T03:43:32.181Z",
+  "AddressPGP": "0xb2aABe52f476356AE638839A786EAE425A0c1b66"
 }

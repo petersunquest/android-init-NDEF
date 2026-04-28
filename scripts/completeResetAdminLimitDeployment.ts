@@ -4,7 +4,7 @@
  *
  * 运行：
  *   GOVERNANCE_MODULE=0x5c56536e833d0bfCC5BF575B3566edbE61987eAD \
- *   FACTORY=0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a \
+ *   FACTORY=0x2EB245646de404b2Dce87E01C6282C131778bb05 \
  *   npx hardhat run scripts/completeResetAdminLimitDeployment.ts --network base
  */
 import { network as networkModule } from "hardhat";
@@ -29,7 +29,7 @@ function loadMasterSetup(): { settle_contractAdmin: string[] } {
 
 async function main() {
   const governanceModule = process.env.GOVERNANCE_MODULE || "0x5c56536e833d0bfCC5BF575B3566edbE61987eAD";
-  const factoryAddress = process.env.FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+  const factoryAddress = process.env.FACTORY || "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 
   const master = loadMasterSetup();
   const deployerPk = master.settle_contractAdmin[0];
@@ -48,7 +48,7 @@ async function main() {
   if (!c) throw new Error("缺少 beamioUserCardFactoryPaymaster 配置");
 
   const DEPLOYER_ADDRESS = data.contracts?.beamioUserCardDeployer?.address || c.deployer;
-  const AA_FACTORY_ADDRESS = c.aaFactory || "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+  const AA_FACTORY_ADDRESS = c.aaFactory || "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   const REDEEM_MODULE = c.redeemModule;
   const ISSUED_NFT_MODULE = c.issuedNftModule;
   const FAUCET_MODULE = c.faucetModule;

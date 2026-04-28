@@ -14,12 +14,12 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-FactoryAndModule.json");
+const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-UserCardFactory.json");
 const FULL_DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-FullAccountAndUserCard.json");
-const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.ts");
+const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.json");
 
-/** Base 主网 Card Factory 默认值，与 config/base-addresses.ts、deployments/base-FullAccountAndUserCard.json 一致 */
-const DEFAULT_CARD_FACTORY = "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";
+/** Base 主网 Card Factory 默认值，与 config/base-addresses.json、deployments/base-UserCardFactory.json 一致 */
+const DEFAULT_CARD_FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05";
 
 function getCardFactoryAddress(): string {
   if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
@@ -28,10 +28,14 @@ function getCardFactoryAddress(): string {
     const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
     if (addr) return addr;
   }
+  if (fs.existsSync(DEPLOYMENT_FILE)) {
+    const data = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf-8"));
+    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
+    if (addr) return addr;
+  }
   if (fs.existsSync(CONFIG_PATH)) {
-    const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-    const m = content.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-    if (m) return m[1];
+    const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+    if (data.CARD_FACTORY) return data.CARD_FACTORY;
   }
   return DEFAULT_CARD_FACTORY;
 }
@@ -45,14 +49,9 @@ async function main() {
 
   let newAAFactory = process.env.NEW_AA_FACTORY;
   if (!newAAFactory) {
-    if (fs.existsSync(DEPLOYMENT_FILE)) {
-      const data = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf-8"));
-      newAAFactory = data.contracts?.beamioFactoryPaymaster?.address;
-    }
-    if (!newAAFactory && fs.existsSync(CONFIG_PATH)) {
-      const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-      const m = content.match(/AA_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-      if (m) newAAFactory = m[1];
+    if (fs.existsSync(CONFIG_PATH)) {
+      const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      newAAFactory = data.AA_FACTORY;
     }
   }
   if (!newAAFactory) {

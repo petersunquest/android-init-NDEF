@@ -9,6 +9,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { fileURLToPath } from "url"
 import { verifyContract } from "./utils/verifyContract.js"
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -138,14 +139,17 @@ async function main() {
   const priceForConstructor = USER_CARD_PRICE_6
 
   console.log("Prepare initCode...")
-  const BeamioUserCard = await ethers.getContractFactory("BeamioUserCard")
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, signer)
+  const BeamioUserCard = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs))
 
   const deployTx = await BeamioUserCard.getDeployTransaction(
     USER_CARD_URI,
     USER_CARD_CURRENCY,
     priceForConstructor,
     TARGET_EOA,
-    USER_CARD_FACTORY_ADDRESS
+    USER_CARD_FACTORY_ADDRESS,
+    0,
+    false
   )
 
   const initCode = deployTx.data

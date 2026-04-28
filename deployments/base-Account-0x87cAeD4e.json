@@ -1,0 +1,9 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "eoa": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "account": "0xE5E345cE5D8eEE4443f6ca06FceA73EfeDD25d9a",
+  "factory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
+  "timestamp": "2026-03-25T10:03:39.638Z",
+  "transactionHash": "0x8c72d2ca889449b801de22aea9a7813d06812be1aa06cf4b3112202a037f3d7e"
+}

@@ -5,6 +5,7 @@ import "./BeamioERC1155Logic.sol";
 import "./BeamioCurrency.sol";
 import "./Errors.sol";
 import "./GovernanceStorage.sol";
+import "./BeamioUserCardAdminPartyMixin.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -25,14 +26,21 @@ interface IBeamioUserCardFactoryPaymasterV07 {
 interface IBeamioMembershipStatsModuleV1 {
     function mintMemberCardInternal(address user, uint256 tierIndex) external;
     function removeNft(address user, uint256 id) external;
+    function alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) external;
     function maybeUpgradeByPointsBalance(address acct) external;
     function maybeUpgrade(address acct, uint256 pointsDelta6) external;
     function syncActiveToBestValid(address user) external;
     function maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) external;
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external;
+    function handlePointsTransferForUpgradeType2(
+        address from,
+        address effectiveTo,
+        uint256[] memory ids,
+        uint256[] memory values
+    ) external;
 }
 
-abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
+abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard, BeamioUserCardAdminPartyMixin {
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
     uint8 public constant POINTS_DECIMALS = BeamioERC1155Logic.POINTS_DECIMALS;
     uint256 internal constant POINTS_ONE = 10 ** uint256(POINTS_DECIMALS);
@@ -76,13 +84,15 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
         uint256 minUsdc6;
         uint256 attr;
         uint256 tierExpirySeconds;
-        bool upgradeByBalance;
     }
 
     Tier[] public tiers;
     uint256 public defaultAttrWhenNoTiers;
 
     uint256 internal _currentIndex = NFT_START_ID;
+
+    /// @dev 0=按单次 topup/redeem pointsDelta；1=按余额；2=按累计向 admin 转 points。constructor 写入后不可改。
+    uint8 public upgradeType;
 
     event MemberNFTIssued(address indexed user, uint256 indexed tokenId, uint256 tierIndexOrMax, uint256 minUsdc6, uint256 expiry);
     event MemberNFTUpgraded(address indexed user, uint256 indexed oldActiveTokenId, uint256 indexed newTokenId, uint256 oldTierIndexOrMax, uint256 newTierIndex, uint256 newExpiry);
@@ -200,6 +210,29 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
         _userOwnedNfts[acct].push(newId);
     }
 
+    /// @dev 升级不 mint 新 ERC1155 id：原地更新同一枚会员 NFT 的 tier / attr / expiry，并修正按 tier 维度的 active 计数。
+    function _upgradeMembershipInPlace(
+        address acct,
+        uint256 tokenId,
+        uint256 oldTierIdx,
+        uint256 newTierIdx,
+        uint256 newAttr,
+        uint256 newExpiry
+    ) internal {
+        if (balanceOf(acct, tokenId) == 0) return;
+        if (_isTrackableTierIndex(oldTierIdx)) {
+            uint256 c = activeMembershipCountByTierIndex[oldTierIdx];
+            if (c > 0) activeMembershipCountByTierIndex[oldTierIdx] = c - 1;
+        }
+        if (_isTrackableTierIndex(newTierIdx)) {
+            activeMembershipCountByTierIndex[newTierIdx] += 1;
+        }
+        attributes[tokenId] = newAttr;
+        tokenTierIndexOrMax[tokenId] = newTierIdx;
+        expiresAt[tokenId] = newExpiry;
+        activeTierIndexOrMax[acct] = newTierIdx;
+    }
+
     function _tierMinPoints6(uint256 i) internal view returns (uint256) {
         return tiers[i].minUsdc6;
     }
@@ -284,4 +317,5 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
             bestTierIndexOrMax = tokenTierIndexOrMax[fallbackId];
         }
     }
+
 }

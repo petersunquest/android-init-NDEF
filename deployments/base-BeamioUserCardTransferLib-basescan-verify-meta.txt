@@ -1,0 +1,17 @@
+BeamioUserCardTransferLib BaseScan 验证
+================================
+
+Compiler Version: 0.8.33+commit.64118f21
+Optimization: Enabled, Runs: 0
+viaIR: true, evmVersion: cancun
+
+Contract Name: project/src/BeamioUserCard/BeamioUserCardTransferLib.sol:BeamioUserCardTransferLib
+
+Deployed address: 0x75b35013063651Dd3859d97b1C17de1dD2268b6f
+
+Standard JSON (FULL, via-IR):
+  - deployments/base-BeamioUserCardTransferLib-standard-input-FULL.json
+
+生成命令（根目录）:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardTransferLib --full

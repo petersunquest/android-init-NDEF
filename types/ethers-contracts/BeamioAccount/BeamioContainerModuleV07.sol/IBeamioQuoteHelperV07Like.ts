@@ -6,15 +6,13 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioQuoteHelperV07LikeInterface extends Interface {
-    getFunction(nameOrSignature: "quoteCurrencyAmountInUSDC6" | "quoteUnitPointInUSDC6"): FunctionFragment;
+    getFunction(nameOrSignature: "quoteCurrencyAmountInUSDC6"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'quoteCurrencyAmountInUSDC6', values: [BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'quoteUnitPointInUSDC6', values: [BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'quoteCurrencyAmountInUSDC6', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'quoteUnitPointInUSDC6', data: BytesLike): Result;
   }
 
   
@@ -60,24 +58,11 @@ decodeFunctionResult(functionFragment: 'quoteUnitPointInUSDC6', data: BytesLike)
     >
     
 
-    
-    quoteUnitPointInUSDC6: TypedContractMethod<
-      [cardCurrency: BigNumberish, unitPointPriceInCurrencyE6: BigNumberish, ],
-      [bigint],
-      'view'
-    >
-    
-
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'quoteCurrencyAmountInUSDC6'): TypedContractMethod<
       [cur: BigNumberish, amount6: BigNumberish, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'quoteUnitPointInUSDC6'): TypedContractMethod<
-      [cardCurrency: BigNumberish, unitPointPriceInCurrencyE6: BigNumberish, ],
       [bigint],
       'view'
     >;
