@@ -16,6 +16,8 @@ enum BeamioConstants {
     /// 2026-04-22 224422 重启后地址：`deployments/conet-IndexerDiamond.json` → `diamond`.
     /// 旧地址 `0x0c29b4DB72F31457570D38eB215b3F855d5989E1` 已无代码（链 wipe），禁止使用。
     static let beamioIndexerDiamondAddress = "0x45D45de73465b8913B50974Fc188529dFFb7AfFA"
+    /// `deployments/conet-addresses.json` / `conet-BUint.json` source of truth for B-Units on CoNET L1.
+    static let buintConet = "0x1330297821814B06A6DafE3557Fa730F690D7007"
 
     /// 默认基础设施卡；运行时以 `/api/myPosAddress?wallet=` 为准
     static let defaultBeamioUserCard = "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14"

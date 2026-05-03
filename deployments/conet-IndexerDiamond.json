@@ -11,12 +11,12 @@
     "TaskFacet": "0xd764eBA64536cFF1bbE7e7c7Bbc90F35620f72a9",
     "StatsFacet": "0xCe1F36a78904F9506E5cD3149Ce4992cC91385AF",
     "CatalogFacet": "0xc5b9f0941BCbc87735EE0fCD78090c065c78955E",
-    "ActionFacet": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB",
+    "ActionFacet": "0x37958d441f15f4863722947e3ca0b10f9ffdb78d",
     "FeeStatsFacet": "0x5921f9281E18D226246277F4C5805d1160A59100",
     "BeamioUserCardStatsFacet": "0xC98810eb7dE7B787568Ff4284D7fF36eAA176845",
     "AdminFacet": "0xB8065dBea9E50c24574280F8E8245fba90Eba782"
   },
-  "lastSubordinateAccountIndexUpgradeAt": "2026-04-22T19:24:55.188Z",
-  "lastSubordinateAccountIndexUpgradeFrom": "0x1FFC81D9370CAe7C4A0C8270124F21891c20aEDe",
-  "lastSubordinateAccountIndexUpgradeTo": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB"
+  "lastSubordinateAccountIndexUpgradeAt": "2026-04-24T01:24:55.570Z",
+  "lastSubordinateAccountIndexUpgradeFrom": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB",
+  "lastSubordinateAccountIndexUpgradeTo": "0x37958d441f15f4863722947e3ca0b10f9ffdb78d"
 }

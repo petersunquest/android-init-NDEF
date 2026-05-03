@@ -79,6 +79,7 @@
     "add:settle-wallets-to-factories": "hardhat run scripts/addSettleWalletsToFactories.ts --network base",
     "deploy:indexer-diamond:conet": "hardhat run scripts/deployCoNETIndexerDiamond.ts --network conet",
     "upgrade:indexer-facets:topadmin-subordinate:conet": "hardhat run scripts/upgradeIndexerFacetsTopAdminSubordinate.ts --network conet",
+    "repair:indexer-action-sync:conet": "hardhat run scripts/repairActionFacetSyncRoutingAndBackfill.ts --network conet",
     "add:indexer-diamond-admins:conet": "hardhat run scripts/addSettleAdminsToBeamioIndexerDiamond.ts --network conet",
     "verify:indexer-diamond:conet": "npx tsx scripts/verifyAllDiamondFacets.ts",
     "verify:indexer-diamond:diamond-only": "npx tsx scripts/verifyBeamioIndexerDiamondStandardJson.ts",

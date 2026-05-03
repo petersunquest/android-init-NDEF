@@ -74,9 +74,17 @@ struct ContentView: View {
     @StateObject private var vm = POSViewModel()
     @State private var amountFlow: AmountFlow?
     @State private var toastPresented = false
+    @State private var primarySurfaceDidAppear = false
+    @State private var launchContentVisible = false
+    @State private var postLaunchSurfacesAllowed = false
+    @State private var launchSurfaceUnlockCycle = 0
+    private let postLaunchSurfaceHoldDelay: Double = 0.0
 
     var body: some View {
         ZStack {
+            Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
+                .ignoresSafeArea()
+
             Group {
                 if vm.showWelcome {
                     VerraEntrySplashView(
@@ -85,6 +93,9 @@ struct ContentView: View {
                             vm.goCreateWallet(prefillNormalizedHandle: prefill.isEmpty ? nil : prefill)
                         }
                     )
+                    .onAppear {
+                        primarySurfaceDidAppear = true
+                    }
                 } else if vm.showOnboarding {
                     ZStack {
                         OnboardingView(
@@ -96,6 +107,9 @@ struct ContentView: View {
                                 vm.showOnboarding = false
                             }
                         )
+                        .onAppear {
+                            primarySurfaceDidAppear = true
+                        }
                         if vm.showVerraWorkspaceGateway {
                             VerraBizWorkspaceGatewayView(vm: vm) {
                                 vm.showVerraWorkspaceGateway = false
@@ -106,20 +120,36 @@ struct ContentView: View {
                     }
                 } else if !vm.showAwaitingParentPermissionGate {
                     HomeRootView(vm: vm, amountFlow: $amountFlow)
+                        .onAppear {
+                            primarySurfaceDidAppear = true
+                        }
                 } else {
                     Color(uiColor: .systemBackground)
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
                 }
             }
+            .opacity(launchContentVisible ? 1 : 0)
 
-            if vm.showLaunchSplash {
-                LaunchBrandSplashOverlay()
-                    .transition(.opacity)
-                    .zIndex(0.9)
-            }
+            LaunchBrandSplashOverlay(
+                shouldParticipate: true,
+                isVisible: vm.showLaunchSplash,
+                primaryContentReady: primarySurfaceDidAppear,
+                onDismissCompleted: {
+                    let cycle = launchSurfaceUnlockCycle
+                    DispatchQueue.main.asyncAfter(deadline: .now() + postLaunchSurfaceHoldDelay) {
+                        guard cycle == launchSurfaceUnlockCycle else { return }
+                        guard !vm.showLaunchSplash else { return }
+                        postLaunchSurfacesAllowed = true
+                        withAnimation(.easeIn(duration: 0.22)) {
+                            launchContentVisible = true
+                        }
+                    }
+                }
+            )
+                .zIndex(0.9)
 
-            if vm.showAwaitingParentPermissionGate {
+            if vm.showAwaitingParentPermissionGate && postLaunchSurfacesAllowed {
                 AwaitingParentWorkspacePermissionOverlay(vm: vm)
                     .transition(.opacity)
                     .zIndex(0.95)
@@ -178,7 +208,6 @@ struct ContentView: View {
                 .zIndex(2)
             }
         }
-        .animation(.easeOut(duration: 0.22), value: vm.showLaunchSplash)
         .animation(.easeOut(duration: 0.22), value: vm.showAwaitingParentPermissionGate)
         .animation(.easeInOut(duration: 0.32), value: vm.sheet?.id)
         .animation(.easeInOut(duration: 0.32), value: amountFlow?.id)
@@ -235,7 +264,7 @@ struct ContentView: View {
         } message: {
             Text(vm.homeToast ?? "")
         }
-        .sheet(isPresented: Binding(
+        .fullScreenCover(isPresented: Binding(
             get: { vm.pendingRecoveryCode != nil },
             set: { if !$0 { vm.pendingRecoveryCode = nil } }
         )) {
@@ -247,29 +276,201 @@ struct ContentView: View {
             }
             .presentationDetents([.large])
         }
+        .onAppear {
+            launchSurfaceUnlockCycle += 1
+            launchContentVisible = false
+            postLaunchSurfacesAllowed = false
+        }
+        .onChange(of: vm.showLaunchSplash) { _, newValue in
+            if newValue {
+                launchSurfaceUnlockCycle += 1
+                launchContentVisible = false
+                postLaunchSurfacesAllowed = false
+            }
+        }
+        .onChange(of: vm.showWelcome) { _, newValue in
+            if newValue {
+                primarySurfaceDidAppear = false
+            }
+        }
+        .onChange(of: vm.showOnboarding) { _, newValue in
+            if newValue {
+                primarySurfaceDidAppear = false
+            }
+        }
     }
 }
 
 /// Matches `LaunchScreen.storyboard`: centered brand mark until Home is ready.
+/// Background must match the dark-navy fill in `LaunchBrandLogo` artwork
+/// so the storyboard → SwiftUI handoff is a seamless single image.
+///
+/// Dismissal is a two-phase handoff:
+/// 1. While loading, render a full-screen dark backdrop + centered brand logo.
+/// 2. After the first real surface is on screen, keep that full-screen launch
+///    layer mounted, then scale the logo up while fading the ENTIRE launch
+///    layer away so the underlying app appears as a true fade-in.
+///
+/// Keep this active for welcome/onboarding/home alike. The earlier bug was not
+/// animation timing; it was that the splash layer was incorrectly excluded when
+/// startup landed on the welcome flow during debug installs.
 private struct LaunchBrandSplashOverlay: View {
+    let shouldParticipate: Bool
+    let isVisible: Bool
+    let primaryContentReady: Bool
+    let onDismissCompleted: () -> Void
+
     private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let launchBackground = Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
+
+    /// Observation mode: faster handoff timing to evaluate the logo motion
+    /// itself against the black launch background.
+    private let burstDelayAfterPrimaryContentReady: Double = 0.27
+    private let burstTargetScale: CGFloat = 2.7
+    private let burstDuration: Double = 0.51
+
+    private enum Phase {
+        case hidden
+        case fullScreen
+        case dismissing
+    }
+
+    @State private var phase: Phase = .hidden
+    @State private var logoScale: CGFloat = 1.0
+    @State private var overlayOpacity: CGFloat = 1.0
+    @State private var didSatisfyVisibleBeat = false
+    @State private var pendingDismissAfterVisibleBeat = false
+    @State private var presentationCycle = 0
 
     var body: some View {
+        Group {
+            switch phase {
+            case .hidden:
+                EmptyView()
+            case .fullScreen:
+                splashBody(showSpinner: true)
+                    .allowsHitTesting(true)
+            case .dismissing:
+                splashBody(showSpinner: false)
+                    .opacity(overlayOpacity)
+                    .allowsHitTesting(true)
+            }
+        }
+        .onAppear {
+            syncLaunchSplashPhase()
+        }
+        .onChange(of: shouldParticipate) { _, _ in
+            syncLaunchSplashPhase()
+        }
+        .onChange(of: isVisible) { _, _ in
+            syncLaunchSplashPhase()
+        }
+        .onChange(of: primaryContentReady) { _, _ in
+            syncLaunchSplashPhase()
+        }
+    }
+
+    @ViewBuilder
+    private func splashBody(showSpinner: Bool) -> some View {
         ZStack {
-            Color(uiColor: .systemBackground)
+            launchBackground
                 .ignoresSafeArea()
-            VStack(spacing: 24) {
-                Image("LaunchBrandLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 120, height: 120)
+            launchLogo
+                .scaleEffect(logoScale, anchor: .center)
+            if showSpinner {
                 ProgressView()
                     .controlSize(.large)
                     .tint(brandBlue)
+                    .offset(y: 96)
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Loading")
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Loading")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var launchLogo: some View {
+        Image("LaunchBrandLogo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 120, height: 120)
+    }
+
+    private func syncLaunchSplashPhase() {
+        guard shouldParticipate else {
+            resetToHidden()
+            return
+        }
+
+        if phase == .hidden {
+            presentFullScreenPhase()
+        }
+
+        if isVisible {
+            if phase != .fullScreen {
+                presentFullScreenPhase()
+            } else {
+                pendingDismissAfterVisibleBeat = false
+            }
+            return
+        }
+
+        guard phase == .fullScreen else { return }
+        if didSatisfyVisibleBeat {
+            startDismissPhase()
+        } else {
+            pendingDismissAfterVisibleBeat = true
+            armBurstTimerIfNeeded()
+        }
+    }
+
+    private func presentFullScreenPhase() {
+        presentationCycle += 1
+        phase = .fullScreen
+        logoScale = 1.0
+        overlayOpacity = 1.0
+        didSatisfyVisibleBeat = false
+        pendingDismissAfterVisibleBeat = false
+        armBurstTimerIfNeeded()
+    }
+
+    private func armBurstTimerIfNeeded() {
+        guard primaryContentReady, phase == .fullScreen, !didSatisfyVisibleBeat else { return }
+        let cycle = presentationCycle
+        DispatchQueue.main.asyncAfter(deadline: .now() + burstDelayAfterPrimaryContentReady) {
+            guard cycle == presentationCycle, phase == .fullScreen else { return }
+            didSatisfyVisibleBeat = true
+            if pendingDismissAfterVisibleBeat || !isVisible {
+                startDismissPhase()
+            }
+        }
+    }
+
+    private func startDismissPhase() {
+        guard phase == .fullScreen else { return }
+        pendingDismissAfterVisibleBeat = false
+        phase = .dismissing
+        logoScale = 1.0
+        overlayOpacity = 1.0
+        let cycle = presentationCycle
+        withAnimation(.easeInOut(duration: burstDuration)) {
+            logoScale = burstTargetScale
+            overlayOpacity = 0.0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + burstDuration + 0.05) {
+            guard cycle == presentationCycle else { return }
+            resetToHidden()
+            onDismissCompleted()
+        }
+    }
+
+    private func resetToHidden() {
+        presentationCycle += 1
+        phase = .hidden
+        logoScale = 1.0
+        overlayOpacity = 1.0
+        didSatisfyVisibleBeat = false
+        pendingDismissAfterVisibleBeat = false
     }
 }
 
@@ -288,6 +489,7 @@ private struct AwaitingParentWorkspacePermissionOverlay: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 96, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .padding(.bottom, 8)
                 ProgressView()
                     .controlSize(.large)
@@ -2479,67 +2681,457 @@ private struct OnboardingView: View {
     }
 
     private var onboardingLoadingOverlay: some View {
+        OnboardingCreatingOverlay(brandBlue: brandBlue)
+    }
+}
+
+private struct OnboardingCreatingOverlay: View {
+    private struct Step: Identifiable {
+        let id: Int
+        let title: String
+        let description: String
+        let symbol: String
+    }
+
+    let brandBlue: Color
+    @State private var creatingStep = 0
+    @State private var spin = false
+    @State private var pulse = false
+
+    private let steps = [
+        Step(id: 0, title: "Generating Secure ID", description: "Creating cryptographic keys", symbol: "key.fill"),
+        Step(id: 1, title: "Finalizing Terminal", description: "Preparing user interface", symbol: "arrow.clockwise")
+    ]
+
+    var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
-            VStack(spacing: 28) {
-                ProgressView()
-                    .scaleEffect(1.4)
-                    .tint(brandBlue)
-                VStack(spacing: 10) {
-                    Text("Creating your business workspace…")
-                        .font(.title2.weight(.heavy))
+            Circle()
+                .fill(brandBlue.opacity(0.08))
+                .frame(width: 240, height: 240)
+                .blur(radius: 70)
+                .offset(x: 110, y: -230)
+            Circle()
+                .fill(Color(red: 0.27, green: 0.36, blue: 0.6).opacity(0.07))
+                .frame(width: 280, height: 280)
+                .blur(radius: 80)
+                .offset(x: -130, y: 240)
+
+            VStack(spacing: 34) {
+                loaderMark
+
+                VStack(spacing: 28) {
+                    Text("Securing your identity...")
+                        .font(.system(size: 30, weight: .heavy))
+                        .tracking(-0.4)
+                        .foregroundStyle(Color(uiColor: .label))
                         .multilineTextAlignment(.center)
-                    Text("We're preparing your business identity and getting your Verra workspace ready.")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Text("This usually takes a few seconds.")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.tertiary)
+
+                    VStack(alignment: .leading, spacing: 20) {
+                        ForEach(steps.indices, id: \.self) { idx in
+                            loadingStepRow(step: steps[idx], idx: idx)
+                        }
+                    }
+                    .frame(maxWidth: 330)
                 }
-                .padding(.horizontal, 24)
             }
+            .padding(.horizontal, 28)
         }
         .allowsHitTesting(true)
+        .task {
+            creatingStep = 0
+            spin = true
+            pulse = true
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.25)) {
+                creatingStep = min(1, steps.count - 1)
+            }
+        }
+    }
+
+    private var loaderMark: some View {
+        ZStack {
+            Circle()
+                .stroke(Color(red: 0.76, green: 0.78, blue: 0.85).opacity(0.3), lineWidth: 1.5)
+                .frame(width: 224, height: 224)
+                .rotationEffect(.degrees(spin ? 360 : 0))
+                .animation(.linear(duration: 12).repeatForever(autoreverses: false), value: spin)
+            Circle()
+                .stroke(brandBlue.opacity(0.2), lineWidth: 1)
+                .frame(width: 172, height: 172)
+                .rotationEffect(.degrees(spin ? -360 : 0))
+                .animation(.linear(duration: 8).repeatForever(autoreverses: false), value: spin)
+            Circle()
+                .stroke(brandBlue.opacity(0.1), lineWidth: 2)
+                .frame(width: 116, height: 116)
+                .rotationEffect(.degrees(spin ? 360 : 0))
+                .animation(.linear(duration: 15).repeatForever(autoreverses: false), value: spin)
+            Circle()
+                .fill(brandBlue.opacity(0.1))
+                .frame(width: pulse ? 184 : 162, height: pulse ? 184 : 162)
+                .blur(radius: 28)
+                .animation(.easeInOut(duration: 4).repeatForever(autoreverses: true), value: pulse)
+
+            Circle()
+                .fill(.white.opacity(0.72))
+                .frame(width: 128, height: 128)
+                .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 1))
+                .shadow(color: .black.opacity(0.06), radius: 32, y: 8)
+                .overlay {
+                    Image("LaunchBrandLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: pulse ? 58 : 54, height: pulse ? 58 : 54)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: pulse)
+                }
+
+            Circle()
+                .fill(brandBlue)
+                .frame(width: 12, height: 12)
+                .shadow(color: brandBlue.opacity(0.6), radius: 12)
+                .offset(y: -112)
+                .rotationEffect(.degrees(spin ? 360 : 0))
+                .animation(.linear(duration: 12).repeatForever(autoreverses: false), value: spin)
+        }
+        .frame(width: 240, height: 240)
+        .accessibilityHidden(true)
+    }
+
+    private func loadingStepRow(step: Step, idx: Int) -> some View {
+        let isCompleted = idx < creatingStep
+        let isActive = idx == creatingStep
+
+        return HStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(isCompleted ? Color.green.opacity(0.1) : isActive ? brandBlue.opacity(0.1) : Color(uiColor: .systemGray5))
+                    .frame(width: 32, height: 32)
+                if isActive {
+                    Circle()
+                        .trim(from: 0.12, to: 1)
+                        .stroke(brandBlue, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .frame(width: 32, height: 32)
+                        .rotationEffect(.degrees(spin ? 360 : 0))
+                        .animation(.linear(duration: 1.1).repeatForever(autoreverses: false), value: spin)
+                }
+                Image(systemName: isCompleted ? "checkmark" : step.symbol)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(isCompleted ? Color.green : isActive ? brandBlue : Color(uiColor: .secondaryLabel))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(step.title)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Color(uiColor: .label))
+                Text(step.description)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+            }
+            Spacer(minLength: 0)
+        }
+        .opacity(!isCompleted && !isActive ? 0.4 : 1)
     }
 }
 
 private struct RecoveryKeySheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
     let code: String
+    @State private var copied = false
+    @State private var hasBackedUp = false
+    @State private var isConfirmed = false
+    @State private var saveError: String?
+
+    private let brandBlue = Color(red: 0.08, green: 0.38, blue: 0.94)
+    private let deepBlue = Color(red: 0.0, green: 0.29, blue: 0.76)
+
+    private var qrImage: UIImage? {
+        BeamioLinkAppQr.image(from: code, pointSize: 208, scale: displayScale)
+    }
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Save your recovery key")
-                    .font(.headline)
-                Text("Store it offline. You need it with your password for QR restore on Verra Business (empty PIN) or username restore.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(code)
-                    .font(.system(.body, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(uiColor: .secondarySystemBackground)))
-                Button("Copy to clipboard") {
-                    BeamioHaptic.medium()
-                    UIPasteboard.general.string = code
-                }
-                .buttonStyle(.borderedProminent)
-                Spacer()
+        GeometryReader { geo in
+            let h = geo.size.height
+            let compact = h < 720
+            let tight = h < 640
+            let ultra = h < 580
+            let metrics = RecoveryBackupMetrics(
+                titleSize: ultra ? 21 : tight ? 23 : compact ? 25 : 28,
+                bodySize: ultra ? 11 : tight ? 12 : 13,
+                qrSize: ultra ? 150 : tight ? 168 : compact ? 192 : 222,
+                logoSize: ultra ? 30 : tight ? 34 : compact ? 40 : 46,
+                cardPadding: ultra ? 8 : tight ? 9 : 11,
+                sectionSpacing: ultra ? 8 : tight ? 10 : compact ? 12 : 16,
+                buttonVerticalPadding: ultra ? 8 : tight ? 10 : 12,
+                footerSpacing: ultra ? 6 : 8,
+                horizontalPadding: tight ? 16 : 20,
+                topPadding: max(8, geo.safeAreaInsets.top + (ultra ? 4 : 8)),
+                bottomPadding: max(8, geo.safeAreaInsets.bottom + (ultra ? 4 : 8))
+            )
+
+            VStack(spacing: 0) {
+                mainBackupContent(metrics: metrics)
+                footerControls(metrics: metrics)
             }
-            .padding()
-            .navigationTitle("Recovery key")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        BeamioHaptic.light()
-                        dismiss()
+            .padding(.horizontal, metrics.horizontalPadding)
+            .padding(.top, metrics.topPadding)
+            .padding(.bottom, metrics.bottomPadding)
+            .frame(width: geo.size.width, height: geo.size.height)
+            .background(Color.white.ignoresSafeArea())
+        }
+        .interactiveDismissDisabled(!isConfirmed)
+    }
+
+    private struct RecoveryBackupMetrics {
+        let titleSize: CGFloat
+        let bodySize: CGFloat
+        let qrSize: CGFloat
+        let logoSize: CGFloat
+        let cardPadding: CGFloat
+        let sectionSpacing: CGFloat
+        let buttonVerticalPadding: CGFloat
+        let footerSpacing: CGFloat
+        let horizontalPadding: CGFloat
+        let topPadding: CGFloat
+        let bottomPadding: CGFloat
+    }
+
+    private func mainBackupContent(metrics: RecoveryBackupMetrics) -> some View {
+        VStack(spacing: metrics.sectionSpacing) {
+            VStack(spacing: 4) {
+                Text("Security Backup")
+                    .font(.system(size: metrics.titleSize, weight: .heavy))
+                    .tracking(-0.4)
+                    .foregroundStyle(Color(uiColor: .label))
+                VStack(spacing: 2) {
+                    Text("Your Recovery Code is your master key.")
+                    Text("If you lose your phone,")
+                    Text("this is the only way to get your funds back.")
+                }
+                .font(.system(size: metrics.bodySize, weight: .medium))
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
+                .multilineTextAlignment(.center)
+            }
+
+            qrCard(metrics: metrics)
+
+            VStack(spacing: 10) {
+                backupButton(
+                    title: "Save to Photos",
+                    systemName: "square.and.arrow.down",
+                    foreground: .white,
+                    background: LinearGradient(colors: [deepBlue, brandBlue], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    disabled: isConfirmed,
+                    verticalPadding: metrics.buttonVerticalPadding,
+                    action: saveRecoveryImage
+                )
+
+                if let saveError {
+                    Text(saveError)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.73, green: 0.1, blue: 0.1))
+                        .multilineTextAlignment(.center)
+                }
+
+                Button {
+                    copyRecoveryCode()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 15, weight: .bold))
+                        Text(copied ? "Copied" : "Copy Recovery Code")
+                            .font(.system(size: 14, weight: .bold))
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, metrics.buttonVerticalPadding)
+                    .foregroundStyle(Color(uiColor: .label))
+                    .background(Color(uiColor: .systemGray5))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle(impact: .medium))
+                .disabled(code.isEmpty || isConfirmed)
+                .opacity((code.isEmpty || isConfirmed) ? 0.5 : 1)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private func qrCard(metrics: RecoveryBackupMetrics) -> some View {
+        VStack(spacing: metrics.sectionSpacing * 0.6) {
+            ZStack {
+                Circle()
+                    .fill(brandBlue.opacity(0.06))
+                    .blur(radius: 24)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(uiColor: .systemGray5))
+                if let qrImage {
+                    Image(uiImage: qrImage)
+                        .interpolation(.none)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(8)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay {
+                            Image("LaunchBrandLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: metrics.logoSize, height: metrics.logoSize)
+                                .padding(4)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                        }
+                        .padding(8)
+                        .accessibilityLabel("Recovery QR code")
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(uiColor: .systemGray4))
+                        .overlay {
+                            Text("Recovery QR unavailable")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(8)
                 }
             }
+            .frame(width: metrics.qrSize, height: metrics.qrSize)
+
+            HStack(spacing: 8) {
+                Text(code.isEmpty ? "Not available" : code)
+                    .font(.system(size: metrics.bodySize - 1, weight: .medium, design: .monospaced))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Color(uiColor: .label))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.72)
+                    .textSelection(.enabled)
+                Spacer(minLength: 0)
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(brandBlue)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(red: 0.95, green: 0.95, blue: 0.97))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .padding(metrics.cardPadding)
+        .background(Color.white.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color(uiColor: .systemGray5), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.06), radius: 18, y: 8)
+    }
+
+    private func footerControls(metrics: RecoveryBackupMetrics) -> some View {
+        VStack(spacing: metrics.footerSpacing) {
+            Button {
+                guard hasBackedUp else { return }
+                BeamioHaptic.light()
+                isConfirmed.toggle()
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(isConfirmed ? deepBlue : Color(uiColor: .systemGray5))
+                            .frame(width: 22, height: 22)
+                        if isConfirmed {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .heavy))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    Text("I have securely saved my recovery code")
+                        .font(.system(size: metrics.bodySize, weight: .medium))
+                        .foregroundStyle(Color(uiColor: .label))
+                        .multilineTextAlignment(.leading)
+                    Spacer(minLength: 0)
+                }
+                .padding(metrics.buttonVerticalPadding)
+                .background(Color(uiColor: .systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color(uiColor: .systemGray5), lineWidth: 1)
+                )
+                .opacity(hasBackedUp ? 1 : 0.4)
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasBackedUp)
+
+            Button {
+                BeamioHaptic.medium()
+                dismiss()
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Continue")
+                        .font(.system(size: 14, weight: .bold))
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, metrics.buttonVerticalPadding)
+                .background(isConfirmed ? deepBlue : Color(uiColor: .systemGray4))
+                .foregroundStyle(isConfirmed ? .white : Color(uiColor: .secondaryLabel))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+            .disabled(!isConfirmed)
+        }
+    }
+
+    private func backupButton(
+        title: String,
+        systemName: String,
+        foreground: Color,
+        background: LinearGradient,
+        disabled: Bool,
+        verticalPadding: CGFloat,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemName)
+                    .font(.system(size: 15, weight: .bold))
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, verticalPadding)
+            .foregroundStyle(foreground)
+            .background(background)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle(impact: .medium))
+        .disabled(disabled)
+        .opacity(disabled ? 0.5 : 1)
+    }
+
+    private func saveRecoveryImage() {
+        guard let qrImage else {
+            saveError = "Unable to create the recovery image. Please copy the recovery code instead."
+            return
+        }
+        saveError = nil
+        BeamioHaptic.medium()
+        UIImageWriteToSavedPhotosAlbum(qrImage, nil, nil, nil)
+        hasBackedUp = true
+    }
+
+    private func copyRecoveryCode() {
+        guard !code.isEmpty else { return }
+        BeamioHaptic.medium()
+        UIPasteboard.general.string = code
+        copied = true
+        hasBackedUp = true
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            copied = false
         }
     }
 }
@@ -2556,77 +3148,104 @@ private struct HomeRootView: View {
 
     var body: some View {
         GeometryReader { geo in
-            // Single fixed-height column — **no ScrollView**, never exceeds device height (per product spec).
-            // Vertical rhythm: every gap (header→card, card→buttons, button↔button) is exactly `gap` pts so
-            // the spacing reads as one consistent grid instead of "card stuck up top, buttons stranded below".
-            let gap: CGFloat = 8
-            VStack(alignment: .leading, spacing: gap) {
+            let tight = geo.size.height < 680
+            let compact = geo.size.height < 760
+            let outerPadding: CGFloat = tight ? 14 : 20
+            let sectionGap: CGFloat = tight ? 12 : compact ? 16 : 20
+            VStack(spacing: 0) {
                 homeTopHeader
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                dashboardBlackCard
-                    .padding(.horizontal, 16)
-                if vm.hasAAAccount == false {
-                    homeWelcomeNoAA
-                        .padding(.horizontal, 16)
-                }
-                VStack(spacing: gap) {
-                    homeActionRow(
-                        title: "Top-Up",
-                        subtitle: "Load balance or new card",
-                        systemImage: "plus",
-                        iconBackground: mintGreen.opacity(0.2),
-                        iconTint: mintGreen,
-                        iconCorner: 20
-                    ) { amountFlow = .topup }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    homeActionRow(
-                        title: "Charge",
-                        subtitle: "Accept NFC or QR code",
-                        systemImage: "qrcode",
-                        iconBackground: brandBlue.opacity(0.1),
-                        iconTint: brandBlue,
-                        iconCorner: 10
-                    ) { amountFlow = .charge }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    homeActionRow(
-                        title: "Check Balance",
-                        subtitle: "Read member profile",
-                        systemImage: "magnifyingglass",
-                        iconBackground: Color(red: 0xf4 / 255, green: 0xf4 / 255, blue: 0xf5 / 255),
-                        iconTint: .primary,
-                        iconCorner: 20
-                    ) { vm.beginReadBalance() }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    homeActionRow(
-                        title: "Transactions",
-                        subtitle: "Top-Ups & charges since last clear",
-                        systemImage: "list.bullet.rectangle",
-                        iconBackground: brandBlue.opacity(0.08),
-                        iconTint: brandBlue,
-                        iconCorner: 10
-                    ) {
-                        amountFlow = .transactions
-                        Task { @MainActor in await vm.openPosTransactionsScreen() }
+                    .padding(.horizontal, outerPadding)
+                    .frame(height: tight ? 54 : 64)
+                    .background(Color.white.opacity(0.94))
+                    .overlay(alignment: .bottom) {
+                        Rectangle()
+                            .fill(Color(uiColor: .separator).opacity(0.38))
+                            .frame(height: 0.5)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    homeActionRow(
-                        title: "Link App",
-                        subtitle: "Scan customer card to link",
-                        systemImage: "link",
-                        iconBackground: linkPurple.opacity(0.1),
-                        iconTint: linkPurple,
-                        iconCorner: 10
-                    ) { vm.beginLinkApp() }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                VStack(spacing: sectionGap) {
+                    homeHeroSummary(compact: compact, tight: tight)
+
+                    HStack(spacing: tight ? 10 : 14) {
+                        homeDataCard(
+                            title: "Period Top-Ups",
+                            value: dashboardCurrencyText(vm.cardTopUpAmount, loaded: vm.homeStatsLoaded),
+                            titleTint: Color(uiColor: .secondaryLabel),
+                            valueTint: Color(uiColor: .label),
+                            compact: compact,
+                            tight: tight
+                        )
+                        homeDataCard(
+                            title: "B-Units",
+                            value: dashboardBUnitText,
+                            titleTint: Color(red: 0xd9 / 255, green: 0x77 / 255, blue: 0x06 / 255),
+                            valueTint: Color(uiColor: .label),
+                            compact: compact,
+                            tight: tight
+                        )
+                    }
+
+                    if vm.hasAAAccount == false {
+                        homeWelcomeNoAA
+                    }
+
+                    homeChargeHeroButton(compact: compact, tight: tight) { amountFlow = .charge }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: tight ? 120 : compact ? 138 : 156)
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+
+                    homeActionArea(compact: compact, tight: tight, gap: tight ? 10 : 14)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
+                .padding(.horizontal, outerPadding)
+                .padding(.top, tight ? 14 : 22)
+                .padding(.bottom, tight ? 14 : 22)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.white)
+    }
+
+    private func homeActionArea(compact: Bool, tight: Bool, gap: CGFloat) -> some View {
+        let tileHeight: CGFloat = tight ? 92 : compact ? 108 : 122
+        return VStack(spacing: gap) {
+            HStack(spacing: gap) {
+                homeActionGridButton(
+                    title: "Check Balance",
+                    systemImage: "magnifyingglass",
+                    iconTint: brandBlue
+                ) { vm.beginReadBalance() }
+                .frame(height: tileHeight)
+
+                homeActionGridButton(
+                    title: "Top-up",
+                    systemImage: "plus",
+                    iconTint: linkPurple
+                ) { amountFlow = .topup }
+                .frame(height: tileHeight)
+            }
+
+            HStack(spacing: gap) {
+                homeActionGridButton(
+                    title: "History",
+                    systemImage: "list.bullet.rectangle",
+                    iconTint: brandBlue
+                ) {
+                    amountFlow = .transactions
+                    Task { @MainActor in await vm.openPosTransactionsScreen() }
+                }
+                .frame(height: tileHeight)
+
+                homeActionGridButton(
+                    title: "Link App",
+                    systemImage: "link",
+                    iconTint: brandBlue
+                ) { vm.beginLinkApp() }
+                .frame(height: tileHeight)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     private var homeTopHeader: some View {
@@ -2640,8 +3259,8 @@ private struct HomeRootView: View {
                 .accessibilityLabel("App icon")
             VStack(alignment: .leading, spacing: 4) {
                 Text(homeHeaderTitleLine)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
             }
             Spacer(minLength: 8)
             if let admin = vm.adminProfile, homeAdminCapsuleHasPresentableIdentity(admin) {
@@ -2669,137 +3288,471 @@ private struct HomeRootView: View {
         return "Terminal"
     }
 
-    private var dashboardBlackCard: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: 0) {
-                chargesColumn
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Rectangle()
-                    .fill(Color.white.opacity(0.1))
-                    .frame(width: 1, height: 88)
-                topUpsColumn
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+    private func homeHeroSummary(compact: Bool, tight: Bool) -> some View {
+        VStack(spacing: tight ? 6 : 8) {
+            Text("Total Due")
+                .font(.system(size: tight ? 11 : 13, weight: .heavy))
+                .tracking(tight ? 2.0 : 2.8)
+                .textCase(.uppercase)
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
+
+            Text(dashboardTotalDueText)
+                .font(.system(size: tight ? 44 : compact ? 54 : 64, weight: .heavy))
+                .tracking(-2.2)
+                .foregroundStyle(Color(uiColor: .label))
+                .lineLimit(1)
+                .minimumScaleFactor(0.42)
+                .allowsTightening(true)
+                .monospacedDigit()
+
+            HStack(alignment: .center, spacing: 10) {
+                Text("Subtotal \(dashboardSubtotalText)")
+                Text("|")
+                    .foregroundStyle(Color(uiColor: .secondaryLabel).opacity(0.5))
+                Text("Tip \(dashboardTipOnlyText)")
             }
-            if let trimmed = vm.homeMerchantProgramCardName?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty {
-                Text(trimmed)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.88))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 10)
-            }
-            homeDashboardBonusDiscountSection
+            .frame(maxWidth: .infinity, alignment: .center)
+            .font(.system(size: tight ? 12 : 14, weight: .medium))
+            .foregroundStyle(Color(uiColor: .secondaryLabel))
+            .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .monospacedDigit()
         }
-        .padding(12)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, tight ? 8 : 14)
+    }
+
+    private var dashboardTotalDueText: String {
+        guard vm.homeStatsLoaded else { return "…" }
+        guard let charge = vm.cardChargeAmount else { return "—" }
+        return formatDashboardTotalDueAmount(charge, currency: "CAD")
+    }
+
+    private var dashboardSubtotalText: String {
+        guard vm.homeStatsLoaded else { return "…" }
+        guard let charge = vm.cardChargeAmount else { return "—" }
+        return formatDashboardTotalDueAmount(max(0, charge - (vm.cardTipsAmount ?? 0)), currency: "CAD")
+    }
+
+    private var dashboardTipOnlyText: String {
+        guard vm.homeStatsLoaded else { return "…" }
+        guard let tips = vm.cardTipsAmount else { return "—" }
+        return formatDashboardTotalDueAmount(tips, currency: "CAD")
+    }
+
+    private func formatDashboardTotalDueAmount(_ value: Double, currency: String) -> String {
+        let amount = max(0, value)
+        let prefix = dashboardCurrencyPrefix(currency)
+        if amount > 10_000_000 {
+            return "\(prefix) \(String(format: "%.2f", amount / 1_000_000))M"
+        }
+        if amount > 10_000 {
+            return "\(prefix) \(String(format: "%.2f", amount / 1_000))K"
+        }
+        return "\(prefix) \(formatDashboardCurrencyCompact(amount))"
+    }
+
+    private func dashboardCurrencyPrefix(_ currency: String) -> String {
+        switch currency.uppercased() {
+        case "CAD": return "CA$"
+        case "USD", "USDC": return "$"
+        case "EUR": return "€"
+        case "JPY": return "JP¥"
+        case "TWD": return "NT$"
+        case "CNY": return "CN¥"
+        case "HKD": return "HK$"
+        case "SGD": return "SG$"
+        default: return currency.uppercased().isEmpty ? "$" : "\(currency.uppercased()) "
+        }
+    }
+
+    private func homeDataCard(
+        title: String,
+        value: String,
+        titleTint: Color,
+        valueTint: Color,
+        compact: Bool,
+        tight: Bool
+    ) -> some View {
+        VStack(spacing: tight ? 5 : 7) {
+            Text(title)
+                .font(.system(size: tight ? 9 : 10, weight: .heavy))
+                .tracking(1.3)
+                .textCase(.uppercase)
+                .foregroundStyle(titleTint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(value)
+                .font(.system(size: tight ? 19 : compact ? 21 : 24, weight: .bold))
+                .foregroundStyle(valueTint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: tight ? 76 : compact ? 86 : 96)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color(uiColor: .separator).opacity(0.42), lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+        )
+    }
+
+    private func dashboardBlackCard(compact: Bool, tight: Bool) -> some View {
+        let metricSpacing: CGFloat = tight ? 16 : compact ? 21 : 26
+        let cardPadding: CGFloat = tight ? 16 : compact ? 21 : 26
+        return VStack(alignment: .leading, spacing: tight ? 6 : 10) {
+            VStack(spacing: metricSpacing) {
+                HStack(alignment: .center, spacing: metricSpacing) {
+                    dashboardMetricTile(
+                        title: "NET SALES",
+                        systemImage: "banknote",
+                        iconTint: brandBlue,
+                        value: dashboardCurrencyText(vm.cardChargeAmount, loaded: vm.homeStatsLoaded),
+                        detail: dashboardUsdcSettlementText(vm.cardChargeUsdcAmount, loaded: vm.homeStatsLoaded),
+                        detailTint: mintGreen,
+                        valueTint: brandBlue,
+                        contentAlignment: .leading,
+                        frameAlignment: .leading,
+                        textAlignment: .leading,
+                        compact: compact,
+                        tight: tight
+                    )
+                    dashboardMetricTile(
+                        title: "TIPS",
+                        systemImage: "hands.sparkles",
+                        iconTint: brandBlue,
+                        value: dashboardCurrencyText(vm.cardTipsAmount, loaded: vm.homeStatsLoaded),
+                        detail: dashboardUsdcSettlementText(vm.cardTipsUsdcAmount, loaded: vm.homeStatsLoaded),
+                        detailTint: mintGreen,
+                        contentAlignment: .trailing,
+                        frameAlignment: .trailing,
+                        textAlignment: .trailing,
+                        compact: compact,
+                        tight: tight
+                    )
+                }
+                HStack(alignment: .center, spacing: metricSpacing) {
+                    dashboardMetricTile(
+                        title: "CREDITS",
+                        systemImage: "creditcard",
+                        iconTint: brandBlue,
+                        value: dashboardCurrencyText(vm.cardTopUpAmount, loaded: vm.homeStatsLoaded),
+                        detail: "Active Float",
+                        detailTint: brandBlue,
+                        contentAlignment: .leading,
+                        frameAlignment: .leading,
+                        textAlignment: .leading,
+                        compact: compact,
+                        tight: tight
+                    )
+                    dashboardMetricTile(
+                        title: "B-UNITS",
+                        systemImage: "bolt.fill",
+                        iconTint: Color(red: 0xf5 / 255, green: 0xa6 / 255, blue: 0x00 / 255),
+                        value: dashboardBUnitText,
+                        detail: "Admin / Owner EOA",
+                        detailTint: Color(uiColor: .secondaryLabel),
+                        progress: dashboardBUnitProgress,
+                        valueTint: Color(uiColor: .secondaryLabel),
+                        valueFontSizeOffset: -4,
+                        contentAlignment: .trailing,
+                        frameAlignment: .trailing,
+                        textAlignment: .trailing,
+                        compact: compact,
+                        tight: tight
+                    )
+                }
+            }
+            .padding(.horizontal, cardPadding)
+            .padding(.vertical, cardPadding)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(uiColor: .systemBackground))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color(uiColor: .separator).opacity(0.45), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.04), radius: 6, y: 1)
+            )
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color.black))
     }
 
-    private var chargesColumn: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                ZStack {
-                    Circle().fill(brandBlue.opacity(0.2)).frame(width: 18, height: 18)
-                    Image(systemName: "arrow.down")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(brandBlue)
-                }
-                Text("Charges")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.55))
-                Text("Today")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(brandBlue)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(brandBlue.opacity(0.15)))
-            }
-            homeDashboardAmount(chargesSide: true)
-        }
+    private var homeProgramCardDisplayName: String {
+        let name = vm.homeMerchantProgramCardName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "VERRA ELITE" : name
     }
 
-    private var topUpsColumn: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            HStack(spacing: 4) {
-                Spacer(minLength: 0)
-                ZStack {
-                    Circle().fill(mintGreen.opacity(0.2)).frame(width: 18, height: 18)
-                    Image(systemName: "arrow.up")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(mintGreen)
-                }
-                Text("Top-Ups")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.55))
-            }
-            homeDashboardAmount(chargesSide: false)
-        }
-    }
+    private func homeTopUpHeroButton(compact: Bool, tight: Bool, action: @escaping () -> Void) -> some View {
+        let topupPurple = Color(red: 0xa7 / 255, green: 0x78 / 255, blue: 0xfa / 255)
+        let topupDeepPurple = Color(red: 0x7c / 255, green: 0x3a / 255, blue: 0xed / 255)
+        let topupPink = Color(red: 0xf0 / 255, green: 0x8a / 255, blue: 0xff / 255)
+        return Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                topupPink,
+                                topupPurple,
+                                topupDeepPurple
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                    )
+                    .shadow(color: topupPurple.opacity(0.46), radius: 30, y: 15)
+                    .shadow(color: topupDeepPurple.opacity(0.18), radius: 10, y: 4)
 
-    private func homeDashboardAmount(chargesSide: Bool) -> some View {
-        Group {
-            if chargesSide {
-                if !vm.homeStatsLoaded {
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(0.85)
-                        .frame(height: 44)
-                } else if let v = vm.cardChargeAmount {
-                    HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text("$")
-                            .font(.system(size: 22, weight: .semibold))
-                        Text(formatDashboardMain(v))
-                            .font(.system(size: 44, weight: .semibold))
-                        Text(formatDashboardDec(v))
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.white.opacity(0.55))
+                VStack(spacing: tight ? 3 : 7) {
+                    HStack {
+                        Text(homeProgramCardDisplayName)
+                            .font(.system(size: tight ? 8 : 10, weight: .heavy))
+                            .tracking(tight ? 1.8 : 2.4)
+                            .foregroundStyle(Color.white.opacity(0.86))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.58)
+                        Spacer(minLength: 6)
+                        if let badge = homeTopUpBonusBadgeText {
+                            Text(badge)
+                                .font(.system(size: tight ? 7 : 9, weight: .heavy))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, tight ? 6 : 9)
+                                .padding(.vertical, tight ? 4 : 5)
+                                .background(Capsule().fill(Color.white.opacity(0.22)))
+                                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.5))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.72)
+                        }
                     }
-                    .foregroundStyle(.white)
-                } else {
-                    Text("—")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-            } else {
-                if !vm.homeStatsLoaded {
-                    ProgressView()
-                        .tint(.white)
-                        .scaleEffect(0.85)
-                        .frame(height: 44)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                } else if let v = vm.cardTopUpAmount {
-                    HStack(alignment: .lastTextBaseline, spacing: 2) {
-                        Text("$")
-                            .font(.system(size: 22, weight: .semibold))
-                        Text(formatDashboardMain(v))
-                            .font(.system(size: 44, weight: .semibold))
-                        Text(formatDashboardDec(v))
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color.white.opacity(0.55))
+
+                    Spacer(minLength: 0)
+
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.22))
+                            .frame(width: tight ? 28 : compact ? 36 : 46, height: tight ? 28 : compact ? 36 : 46)
+                        Image(systemName: "creditcard.fill")
+                            .font(.system(size: tight ? 14 : compact ? 18 : 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                        Image(systemName: "plus")
+                            .font(.system(size: tight ? 8 : 10, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .offset(x: tight ? 11 : 15, y: tight ? 8 : 10)
                     }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                } else {
-                    Text("—")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+
+                    VStack(spacing: 2) {
+                        Text("Top-up Card")
+                            .font(.system(size: tight ? 13 : compact ? 15 : 18, weight: .heavy))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Text(homeTopUpBonusLine)
+                            .font(.system(size: tight ? 7 : 10, weight: .medium))
+                            .tracking(tight ? 0.8 : 1.2)
+                            .foregroundStyle(Color.white.opacity(0.78))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                    }
                 }
+                .padding(.horizontal, tight ? 10 : 14)
+                .padding(.vertical, tight ? 7 : 12)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle())
+    }
+
+    private func homeChargeHeroButton(compact: Bool, tight: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(brandBlue)
+                    .overlay(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.16), Color.white.opacity(0.0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .shadow(color: brandBlue.opacity(0.26), radius: 18, y: 8)
+
+                VStack(spacing: tight ? 8 : 12) {
+                    Text("CHARGE")
+                        .font(.system(size: tight ? 24 : compact ? 30 : 36, weight: .semibold))
+                        .tracking(-0.6)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "wave.3.right.circle")
+                            .font(.system(size: tight ? 16 : 19, weight: .semibold))
+                        Text("Tap to Pay or Scan")
+                            .font(.system(size: tight ? 12 : 14, weight: .semibold))
+                            .tracking(1.0)
+                            .textCase(.uppercase)
+                    }
+                    .foregroundStyle(Color.white.opacity(0.86))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                }
+                .padding(.horizontal, tight ? 14 : 18)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle())
+    }
+
+    private func homeChargeHeroCapsuleRow(compact: Bool, tight: Bool) -> some View {
+        HStack(alignment: .center, spacing: tight ? 6 : 8) {
+            HomeBeamioSelfMiniCapsule(title: homeHeaderTitleLine, tight: tight)
+            Spacer(minLength: 6)
+            if let admin = vm.adminProfile, homeAdminCapsuleHasPresentableIdentity(admin) {
+                HomeBeamioProfileMiniCapsule(profile: admin, tight: tight)
             }
         }
+        .frame(maxWidth: .infinity)
     }
 
-    private func formatDashboardMain(_ v: Double) -> String {
-        let s = String(format: "%.2f", v)
-        guard let dot = s.firstIndex(of: ".") else { return s }
-        return String(s[..<dot])
+    private var homeTopUpBonusBadgeText: String? {
+        guard let rule = vm.programRechargeBonusRules.first else { return nil }
+        if rule.bonusProportional {
+            return "\(homeRechargeBonusTierPercentLabel(rule))% BONUS"
+        }
+        return "+$\(formatHomeBonusAmount(rule.bonusValue))"
     }
 
-    private func formatDashboardDec(_ v: Double) -> String {
-        let s = String(format: "%.2f", v)
-        guard let dot = s.firstIndex(of: ".") else { return "" }
-        return String(s[dot...])
+    private var homeTopUpBonusLine: String {
+        guard let rule = vm.programRechargeBonusRules.first else { return "MEMBER CREDITS" }
+        if rule.bonusProportional {
+            return "GET \(homeRechargeBonusTierPercentLabel(rule))% BONUS"
+        }
+        return "BONUS $\(formatHomeBonusAmount(rule.bonusValue))"
+    }
+
+    private func dashboardMetricTile(
+        title: String,
+        systemImage: String,
+        iconTint: Color,
+        value: String,
+        detail: String,
+        detailTint: Color,
+        progress: Double? = nil,
+        valueTint: Color = Color(uiColor: .label),
+        valueFontSizeOffset: CGFloat = 0,
+        contentAlignment: HorizontalAlignment = .leading,
+        frameAlignment: Alignment = .leading,
+        textAlignment: TextAlignment = .leading,
+        compact: Bool,
+        tight: Bool
+    ) -> some View {
+        let titleRowHeight: CGFloat = tight ? 15 : 18
+        let valueRowHeight: CGFloat = tight ? 40 : compact ? 50 : 60
+        let detailRowHeight: CGFloat = tight ? 13 : 16
+        let valueFontSize: CGFloat = max(
+            12,
+            (tight ? (value.count > 9 ? 28 : 34) : compact ? (value.count > 9 ? 33 : 42) : (value.count > 9 ? 38 : 50)) + valueFontSizeOffset
+        )
+        return VStack(alignment: contentAlignment, spacing: tight ? 4 : 7) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: tight ? 11 : 13, weight: .bold))
+                    .foregroundStyle(iconTint)
+                    .frame(width: tight ? 14 : 16)
+                Text(title)
+                    .font(.system(size: tight ? 10 : 12, weight: .heavy))
+                    .tracking(tight ? 1.2 : 1.6)
+                    .foregroundStyle(Color(uiColor: .label).opacity(0.78))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                    .multilineTextAlignment(textAlignment)
+            }
+            .frame(maxWidth: .infinity, minHeight: titleRowHeight, maxHeight: titleRowHeight, alignment: frameAlignment)
+            Text(value)
+                .font(.system(size: valueFontSize, weight: .heavy))
+                .tracking(-0.8)
+                .foregroundStyle(valueTint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.58)
+                .monospacedDigit()
+                .multilineTextAlignment(textAlignment)
+                .frame(maxWidth: .infinity, minHeight: valueRowHeight, maxHeight: valueRowHeight, alignment: frameAlignment)
+            Text(detail)
+                .font(.system(size: tight ? 10 : 12, weight: .bold))
+                .foregroundStyle(detailTint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .monospacedDigit()
+                .multilineTextAlignment(textAlignment)
+                .frame(maxWidth: .infinity, minHeight: detailRowHeight, maxHeight: detailRowHeight, alignment: frameAlignment)
+            if let progress {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(uiColor: .systemGray5))
+                        Capsule()
+                            .fill(Color(red: 0xf5 / 255, green: 0xa6 / 255, blue: 0x00 / 255))
+                            .frame(width: geo.size.width * max(0, min(1, progress)))
+                    }
+                }
+                .frame(height: tight ? 5 : 6)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: frameAlignment)
+    }
+
+    private func dashboardCurrencyText(_ value: Double?, loaded: Bool) -> String {
+        guard loaded else { return "…" }
+        guard let value else { return "—" }
+        return "$" + formatDashboardCurrencyCompact(value)
+    }
+
+    private func dashboardUsdcSettlementText(_ value: Double?, loaded: Bool) -> String {
+        guard loaded else { return "…" }
+        guard let value else { return "— USDC" }
+        let parts = readBalanceFormatMoney(value, currency: "USDC")
+        return "\(parts.mid)\(parts.suffix)"
+    }
+
+    private func formatDashboardCurrencyCompact(_ value: Double) -> String {
+        let amount = max(0, value)
+        let centsRounded = (amount * 100).rounded() / 100
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter.string(from: NSNumber(value: centsRounded)) ?? String(format: "%.2f", centsRounded)
+    }
+
+    private var dashboardBUnitText: String {
+        guard vm.homeUpstreamBUnitLoaded else { return "…" }
+        guard let value = vm.homeUpstreamBUnitBalance else { return "—" }
+        return formatBUnitBalance(value)
+    }
+
+    private var dashboardBUnitProgress: Double? {
+        guard let value = vm.homeUpstreamBUnitBalance else { return nil }
+        return min(1, value / 100_000.0)
+    }
+
+    private func formatBUnitBalance(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        let rounded = max(0, value).rounded()
+        return formatter.string(from: NSNumber(value: rounded)) ?? String(format: "%.0f", rounded)
     }
 
     /// Tier discount（左）与充值奖励（右）同一行；多条奖励时首行带折扣，其余行仅右侧奖励。
@@ -2844,7 +3797,7 @@ private struct HomeRootView: View {
             }
             Text(displaySummary)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.95))
+                .foregroundStyle(Color(uiColor: .label).opacity(0.88))
                 .lineLimit(1)
                 .multilineTextAlignment(.leading)
         }
@@ -2888,20 +3841,20 @@ private struct HomeRootView: View {
             if r.bonusProportional {
                 Text("Start $\(formatHomeBonusAmount(r.paymentAmount))")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.92))
+                    .foregroundStyle(Color(uiColor: .label).opacity(0.82))
                 Image(systemName: "arrow.right")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
                 Text("Get \(homeRechargeBonusTierPercentLabel(r))%")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(brandBlue.opacity(0.98))
             } else {
                 Text("Pay $\(formatHomeBonusAmount(r.paymentAmount))")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.92))
+                    .foregroundStyle(Color(uiColor: .label).opacity(0.82))
                 Image(systemName: "arrow.right")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
                 Text("Get $\(formatHomeBonusAmount(r.paymentAmount + r.bonusValue))")
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(brandBlue.opacity(0.98))
@@ -2997,6 +3950,42 @@ private struct HomeRootView: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 16).fill(Color(uiColor: .systemBackground)))
+            .shadow(color: .black.opacity(0.12), radius: 12, y: 5)
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle())
+    }
+
+    private func homeActionGridButton(
+        title: String,
+        systemImage: String,
+        iconTint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(iconTint)
+                    .frame(width: 48, height: 48)
+                    .background(iconTint.opacity(0.12))
+                    .clipShape(Circle())
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color(uiColor: .label))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(Color(uiColor: .separator).opacity(0.42), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+            )
         }
         .buttonStyle(BeamioHapticPlainButtonStyle())
     }
@@ -3015,6 +4004,616 @@ private struct HomeRootView: View {
     }
 }
 
+// MARK: - Sales Overview (History → full-screen; design parity with bizSite mockup)
+
+/// Live aggregates from `vm.posLedger` when present; otherwise design-mock figures (bizSite parity).
+private struct POSSalesOverviewScreen: View {
+    @ObservedObject var vm: POSViewModel
+    let onClose: () -> Void
+
+    private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let surfaceBg = Color(red: 0xf5 / 255, green: 0xf6 / 255, blue: 0xf8 / 255)
+
+    private var snapshot: PosLedgerSnapshot? { vm.posLedger }
+
+    private var grossSales: Double {
+        guard let s = snapshot else { return 352.48 }
+        return s.chargeBaseDisplayTotalForSalesOverviewInTerminalStatsPeriod()
+    }
+
+    private var refunds: Double { snapshot == nil ? 20.99 : 0 }
+    private var refundCount: Int { snapshot == nil ? 1 : 0 }
+    private var netSales: Double { max(0, grossSales - refunds) }
+
+    private var usdcSubtotal: Double {
+        snapshot?.chargeUsdcSettlementTotalInTerminalStatsPeriod() ?? 120.00
+    }
+
+    private let taxesAndFees = 0.00
+
+    private var tips: Double {
+        snapshot?.tipsDisplayTotalInTerminalStatsPeriod() ?? 47.24
+    }
+
+    private var amountCollected: Double {
+        guard snapshot != nil else { return 378.73 }
+        return netSales + tips
+    }
+
+    private var transactionCount: Int {
+        snapshot?.chargeTransactionCountInTerminalStatsPeriod() ?? 24
+    }
+
+    private var averageTicket: Double {
+        transactionCount > 0 ? amountCollected / Double(transactionCount) : 0
+    }
+
+    private func fmtMoney(_ n: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 2
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f.string(from: NSNumber(value: n)) ?? String(format: "%.2f", n)
+    }
+
+    private var periodLine: String {
+        if let s = snapshot {
+            return s.overviewSelectedPeriodLine()
+        }
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.startOfDay(for: now)
+        let end = cal.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? now
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "MMM. d, yyyy"
+        let tf = DateFormatter()
+        tf.locale = Locale(identifier: "en_US_POSIX")
+        tf.dateFormat = "h:mm a"
+        let d0 = df.string(from: start)
+        let d1 = df.string(from: end)
+        let t0 = tf.string(from: start).lowercased()
+        let t1 = tf.string(from: end).lowercased()
+        return "\(d0), \(t0) — \(d1), \(t1)"
+    }
+
+    private var profileImageURL: URL? {
+        let raw = vm.adminProfile?.image ?? vm.terminalProfile?.image
+        guard let s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        return URL(string: s)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerBar
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    periodBlock
+                    mainCard
+                    bottomRow
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 28)
+            }
+        }
+        .background(surfaceBg.ignoresSafeArea())
+    }
+
+    private var headerBar: some View {
+        HStack(spacing: 12) {
+            Button {
+                BeamioHaptic.light()
+                onClose()
+            } label: {
+                ZStack {
+                    Circle().fill(Color(red: 0xe8 / 255, green: 0xee / 255, blue: 0xfc / 255))
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(brandBlue)
+                }
+                .frame(width: 40, height: 40)
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+            .accessibilityLabel("Back")
+
+            Text("Sales Overview")
+                .font(.system(size: 18, weight: .heavy))
+                .foregroundStyle(brandBlue)
+                .frame(maxWidth: .infinity)
+
+            HStack(spacing: 8) {
+                Button {
+                    BeamioHaptic.light()
+                } label: {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(Color(uiColor: .tertiarySystemFill)))
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                .accessibilityLabel("Select period")
+
+                profileAvatar
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
+        .background(Color(uiColor: .systemBackground).opacity(0.97))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+
+    private var profileAvatar: some View {
+        Group {
+            if let url = profileImageURL {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                    case .failure, .empty:
+                        profilePlaceholder
+                    @unknown default:
+                        profilePlaceholder
+                    }
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 2))
+            } else {
+                profilePlaceholder
+            }
+        }
+    }
+
+    private var profilePlaceholder: some View {
+        Circle()
+            .fill(
+                LinearGradient(
+                    colors: [brandBlue, Color(red: 0x7c / 255, green: 0x3a / 255, blue: 0xed / 255)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .frame(width: 40, height: 40)
+            .overlay {
+                Text(String((vm.adminProfile?.accountName ?? vm.terminalProfile?.accountName ?? "?").prefix(1)).uppercased())
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+    }
+
+    private var periodBlock: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("SELECTED PERIOD")
+                .font(.system(size: 10, weight: .heavy))
+                .tracking(1.2)
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
+            Text(periodLine)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(Color(uiColor: .label))
+                .lineLimit(3)
+                .minimumScaleFactor(0.85)
+        }
+    }
+
+    private var mainCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Gross Sales")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color(uiColor: .label))
+                Spacer()
+                Text("$\(fmtMoney(grossSales))")
+                    .font(.system(size: 18, weight: .bold))
+                    .monospacedDigit()
+            }
+            HStack(alignment: .center) {
+                HStack(spacing: 8) {
+                    Text("Refunds")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("\(refundCount)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color(uiColor: .tertiarySystemFill)))
+                }
+                Spacer()
+                Text("($\(fmtMoney(refunds)))")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color.red)
+                    .monospacedDigit()
+            }
+            .padding(.top, 14)
+
+            Divider().padding(.vertical, 16)
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("Net Sales")
+                    .font(.system(size: 17, weight: .bold))
+                Spacer()
+                Text("$\(fmtMoney(netSales))")
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(brandBlue)
+                    .monospacedDigit()
+            }
+
+            Divider().padding(.vertical, 16)
+
+            VStack(spacing: 10) {
+                rowLine("USDC Subtotal", usdcSubtotal)
+                rowLine("Taxes & Fees", taxesAndFees)
+                rowLine("Tips", tips)
+            }
+            .font(.system(size: 14, weight: .medium))
+            .foregroundStyle(Color(uiColor: .secondaryLabel))
+
+            Button {
+                BeamioHaptic.light()
+            } label: {
+                HStack {
+                    Text("AMOUNT COLLECTED: $\(fmtMoney(amountCollected))")
+                        .font(.system(size: 11, weight: .heavy))
+                        .tracking(0.6)
+                    Spacer(minLength: 8)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+                .frame(maxWidth: .infinity)
+                .background(Capsule().fill(brandBlue))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+            .padding(.top, 20)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0xee / 255, green: 0xf3 / 255, blue: 0xfb / 255),
+                            Color(red: 0xe4 / 255, green: 0xea / 255, blue: 0xf5 / 255)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.08), radius: 16, y: 6)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(brandBlue.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private func rowLine(_ title: String, _ value: Double) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text("$\(fmtMoney(value))")
+                .fontWeight(.semibold)
+                .foregroundStyle(Color(uiColor: .label))
+                .monospacedDigit()
+        }
+    }
+
+    private var bottomRow: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("TRANSACTIONS")
+                    .font(.system(size: 9, weight: .heavy))
+                    .tracking(1.1)
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+                HStack(spacing: 6) {
+                    Text("\(transactionCount)")
+                        .font(.system(size: 26, weight: .heavy))
+                        .monospacedDigit()
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(brandBlue)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(uiColor: .systemBackground))
+                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+            )
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("AVERAGE TICKET")
+                    .font(.system(size: 9, weight: .heavy))
+                    .tracking(1.1)
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+                Text("$\(fmtMoney(averageTicket))")
+                    .font(.system(size: 26, weight: .heavy))
+                    .monospacedDigit()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(uiColor: .systemBackground))
+                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+            )
+        }
+    }
+}
+
+/// History → Top-Up Overview (settlement window; parity with Android / Merchant OS mock).
+private struct POSTopUpOverviewScreen: View {
+    @ObservedObject var vm: POSViewModel
+    let onClose: () -> Void
+
+    private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let surfaceBg = Color(red: 0xf5 / 255, green: 0xf6 / 255, blue: 0xf8 / 255)
+
+    private var snapshot: PosLedgerSnapshot? { vm.posLedger }
+
+    private var breakdown: PosTopUpOverviewBreakdown {
+        guard let s = snapshot else {
+            return PosTopUpOverviewBreakdown(cashTotal: 150, cardTotal: 200, usdcTotal: 100, cashCount: 8, cardCount: 12, usdcCount: 4)
+        }
+        return s.topUpOverviewBreakdownInTerminalStatsPeriod()
+    }
+
+    private var totalTopUps: Double { breakdown.totalAmount }
+
+    private var periodLine: String {
+        if let s = snapshot {
+            return s.overviewSelectedPeriodLine()
+        }
+        let cal = Calendar.current
+        let now = Date()
+        let start = cal.startOfDay(for: now)
+        let end = cal.date(byAdding: DateComponents(day: 1, second: -1), to: start) ?? now
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "MMM. d, yyyy"
+        let tf = DateFormatter()
+        tf.locale = Locale(identifier: "en_US_POSIX")
+        tf.dateFormat = "h:mm a"
+        let d0 = df.string(from: start)
+        let d1 = df.string(from: end)
+        let t0 = tf.string(from: start).lowercased()
+        let t1 = tf.string(from: end).lowercased()
+        return "\(d0), \(t0) — \(d1), \(t1)"
+    }
+
+    private func fmtMoney(_ n: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 2
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f.string(from: NSNumber(value: n)) ?? String(format: "%.2f", n)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            headerSection
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    heroCard
+                    Text("Payment Breakdown")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color(uiColor: .label))
+                        .padding(.top, 4)
+
+                    topUpBreakdownRow(
+                        icon: "banknote.fill",
+                        title: "Cash Top-Ups",
+                        subtitle: "Retail locations",
+                        amount: breakdown.cashTotal,
+                        txnCount: breakdown.cashCount
+                    )
+                    topUpBreakdownRow(
+                        icon: "creditcard.fill",
+                        title: "Card Top-Ups",
+                        subtitle: "Debit & Credit",
+                        amount: breakdown.cardTotal,
+                        txnCount: breakdown.cardCount
+                    )
+                    topUpBreakdownRow(
+                        icon: "arrow.left.arrow.right.circle.fill",
+                        title: "USDC Top-Ups",
+                        subtitle: "Web3 Wallet",
+                        amount: breakdown.usdcTotal,
+                        txnCount: breakdown.usdcCount
+                    )
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 28)
+            }
+        }
+        .background(surfaceBg.ignoresSafeArea())
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                Button {
+                    BeamioHaptic.light()
+                    onClose()
+                } label: {
+                    ZStack {
+                        Circle().fill(Color(red: 0xe8 / 255, green: 0xee / 255, blue: 0xfc / 255))
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(brandBlue)
+                    }
+                    .frame(width: 40, height: 40)
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                .accessibilityLabel("Back")
+
+                Text("Top-Up Overview")
+                    .font(.system(size: 18, weight: .heavy))
+                    .foregroundStyle(Color(red: 0x0f / 255, green: 0x27 / 255, blue: 0x47 / 255))
+                    .frame(maxWidth: .infinity)
+
+                Button {
+                    BeamioHaptic.light()
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(Color(uiColor: .tertiarySystemFill)))
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                .accessibilityLabel("More options")
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("SELECTED PERIOD")
+                    .font(.system(size: 10, weight: .heavy))
+                    .tracking(1.2)
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+                Text(periodLine)
+                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Color(uiColor: .label))
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.85)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+        }
+        .background(Color(uiColor: .systemBackground).opacity(0.97))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+
+    private var heroCard: some View {
+        ZStack(alignment: .topTrailing) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0x5b / 255, green: 0x94 / 255, blue: 0xfa / 255),
+                            brandBlue,
+                            Color(red: 0x0e / 255, green: 0x4b / 255, blue: 0xbf / 255),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: Color.black.opacity(0.14), radius: 14, y: 6)
+
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("TOTAL TOP-UPS")
+                        .font(.system(size: 10, weight: .heavy))
+                        .tracking(1.4)
+                        .foregroundStyle(Color.white.opacity(0.92))
+                    Spacer()
+                }
+                .padding(.top, 18)
+                .padding(.horizontal, 20)
+
+                Spacer(minLength: 8)
+
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text("$")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(Color.white.opacity(0.95))
+                    Text(fmtMoney(totalTopUps))
+                        .font(.system(size: 38, weight: .heavy))
+                        .foregroundStyle(Color.white)
+                        .monospacedDigit()
+                }
+                .padding(.horizontal, 20)
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.95))
+                    Text("\(breakdown.totalCount) Transactions processed")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.92))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+            }
+
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Color(red: 0x5a / 255, green: 0xe5 / 255, blue: 0x8d / 255))
+                    .frame(width: 6, height: 6)
+                Text("LIVE")
+                    .font(.system(size: 10, weight: .heavy))
+                    .tracking(0.8)
+                    .foregroundStyle(Color.white.opacity(0.95))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(Color.black.opacity(0.38)))
+            .padding(.top, 14)
+            .padding(.trailing, 14)
+        }
+        .frame(height: 200)
+    }
+
+    private func topUpBreakdownRow(icon: String, title: String, subtitle: String, amount: Double, txnCount: Int) -> some View {
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                Circle().fill(Color(red: 0xe8 / 255, green: 0xee / 255, blue: 0xfc / 255))
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(brandBlue)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(brandBlue)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(Color(uiColor: .secondaryLabel))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("$\(fmtMoney(amount))")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(brandBlue)
+                    .monospacedDigit()
+                Text("\(txnCount) TXNS")
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundStyle(brandBlue)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color(red: 0xe8 / 255, green: 0xec / 255, blue: 0xf0 / 255), lineWidth: 1)
+        )
+    }
+}
+
 /// /home → Transactions slide-in. **No filter buttons** (per product spec). Items list is sourced from
 /// `POSViewModel.posLedger` — already bounded by chain `*FromClear` totals so the on-screen sum equals
 /// the post-clear amount on the program card. Reverse-chronological (newest at top).
@@ -3022,11 +4621,16 @@ private struct POSTransactionsScreen: View {
     @ObservedObject var vm: POSViewModel
     let onClose: () -> Void
 
+    @State private var showSalesOverview = false
+    @State private var showTopUpOverview = false
+
     private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
     private let mintGreen = Color(red: 0x34 / 255, green: 0xC7 / 255, blue: 0x59 / 255)
 
     private var snapshot: PosLedgerSnapshot? { vm.posLedger }
-    private var items: [PosLedgerItem] { snapshot?.items ?? [] }
+    private var items: [POSLedgerDisplayItem] {
+        POSLedgerDisplayItem.merged(from: snapshot?.itemsInTerminalStatsPeriod() ?? [])
+    }
 
     /// Discriminator drives the in-page content cross-fade so empty ↔ list transitions match the
     /// parent page's `.move(edge: .trailing)` slide. **No `loading` branch** — first-open flicker
@@ -3059,6 +4663,12 @@ private struct POSTransactionsScreen: View {
         }
         .ignoresSafeArea(.keyboard)
         .refreshable { await vm.refreshPosLedgerTrustedOnly() }
+        .fullScreenCover(isPresented: $showSalesOverview) {
+            POSSalesOverviewScreen(vm: vm, onClose: { showSalesOverview = false })
+        }
+        .fullScreenCover(isPresented: $showTopUpOverview) {
+            POSTopUpOverviewScreen(vm: vm, onClose: { showTopUpOverview = false })
+        }
     }
 
     private var header: some View {
@@ -3086,6 +4696,39 @@ private struct POSTransactionsScreen: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
+            HStack(spacing: 8) {
+                Button {
+                    BeamioHaptic.light()
+                    showTopUpOverview = false
+                    showSalesOverview = true
+                } label: {
+                    ZStack {
+                        Circle().fill(brandBlue.opacity(0.12))
+                        Image(systemName: "chart.bar.xaxis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(brandBlue)
+                    }
+                    .frame(width: 36, height: 36)
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                .accessibilityLabel("Sales overview")
+
+                Button {
+                    BeamioHaptic.light()
+                    showSalesOverview = false
+                    showTopUpOverview = true
+                } label: {
+                    ZStack {
+                        Circle().fill(brandBlue.opacity(0.12))
+                        Image(systemName: "banknote.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(brandBlue)
+                    }
+                    .frame(width: 36, height: 36)
+                }
+                .buttonStyle(BeamioHapticPlainButtonStyle())
+                .accessibilityLabel("Top-up overview")
+            }
             if vm.posLedgerRefreshing || vm.posLedgerLoading {
                 ProgressView().controlSize(.small)
             }
@@ -3121,8 +4764,8 @@ private struct POSTransactionsScreen: View {
     private var listBody: some View {
         ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(items) { tx in
-                    POSTransactionRowView(tx: tx, brandBlue: brandBlue, mintGreen: mintGreen)
+                ForEach(items) { item in
+                    POSTransactionRowView(item: item, brandBlue: brandBlue, mintGreen: mintGreen)
                 }
             }
             .padding(.horizontal, 16)
@@ -3133,12 +4776,140 @@ private struct POSTransactionsScreen: View {
 
 }
 
+private struct POSTransactionTipAmount: Equatable {
+    let value: Double
+    let currencyCode: String
+}
+
+/// Display-only transaction row: matched TX_TIP rows are nested under their parent Charge,
+/// following the Merchant OS mobile Transactions treatment.
+private struct POSLedgerDisplayItem: Identifiable, Equatable {
+    let tx: PosLedgerItem
+    let tips: [PosLedgerItem]
+    let embeddedTip: POSTransactionTipAmount?
+
+    var id: String { tx.id }
+
+    static func merged(from rawItems: [PosLedgerItem]) -> [POSLedgerDisplayItem] {
+        let visibleItems = rawItems.filter { !isHiddenInternalLedgerCategory($0.txCategory) }
+        let tips = visibleItems.filter { $0.type == .tip }
+        var absorbedTipIds = Set<String>()
+        var out: [POSLedgerDisplayItem] = []
+
+        for tx in visibleItems where tx.type != .tip {
+            let matchedTips: [PosLedgerItem]
+            if tx.type == .charge {
+                matchedTips = tips.filter { tipRowMatchesChargeParent(tip: $0, charge: tx) }
+                for tip in matchedTips { absorbedTipIds.insert(tip.id.lowercased()) }
+            } else {
+                matchedTips = []
+            }
+            out.append(POSLedgerDisplayItem(
+                tx: tx,
+                tips: matchedTips,
+                embeddedTip: tx.type == .charge && matchedTips.isEmpty ? parseEmbeddedTip(from: tx) : nil
+            ))
+        }
+
+        // Keep unmatched tip rows visible rather than dropping ledger facts; matched tips never render standalone.
+        for tip in tips where !absorbedTipIds.contains(tip.id.lowercased()) {
+            out.append(POSLedgerDisplayItem(tx: tip, tips: [], embeddedTip: nil))
+        }
+
+        out.sort {
+            if $0.tx.timestamp != $1.tx.timestamp { return $0.tx.timestamp > $1.tx.timestamp }
+            return $0.tx.id > $1.tx.id
+        }
+        return out
+    }
+
+    private static func isHiddenInternalLedgerCategory(_ raw: String) -> Bool {
+        let c = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return hiddenInternalLedgerCategories.contains(c)
+    }
+
+    private static let hiddenInternalLedgerCategories: Set<String> = [
+        // keccak256("nfcTopup:bunitService") / keccak256("usdcTopup:bunitService").
+        // Older `/api/posLedger` deployments may emit these as `type: "charge"`; they are internal
+        // protocol fuel legs, not user-facing Transactions items.
+        "0x02d119b2041653c3b6f7aef339e2560da8ba867b022a04aaa150d062e5212bb7",
+        "0x7067fa2b19fb81129d35576ad5fe635356a1405044d1c080a5ab341df6445776",
+    ]
+
+    private static func tipRowMatchesChargeParent(tip: PosLedgerItem, charge: PosLedgerItem) -> Bool {
+        let tipKeys = tipParentLinkKeys(tip)
+        guard !tipKeys.isEmpty else { return false }
+        let chargeKeys = chargeParentKeys(charge)
+        return tipKeys.contains { chargeKeys.contains($0) }
+    }
+
+    private static func chargeParentKeys(_ tx: PosLedgerItem) -> Set<String> {
+        var out = Set<String>()
+        addNormalized(tx.id, to: &out)
+        addNormalized(tx.originalPaymentHash, to: &out)
+        for h in displayJsonHashes(tx.displayJson, keys: ["finishedHash", "baseRelayTxHash", "requestHash", "originalPaymentHash"]) {
+            addNormalized(h, to: &out)
+        }
+        return out
+    }
+
+    private static func tipParentLinkKeys(_ tx: PosLedgerItem) -> Set<String> {
+        var out = Set<String>()
+        addNormalized(tx.originalPaymentHash, to: &out)
+        for h in displayJsonHashes(tx.displayJson, keys: ["finishedHash", "originalPaymentHash", "baseRelayTxHash"]) {
+            addNormalized(h, to: &out)
+        }
+        return out
+    }
+
+    private static func addNormalized(_ raw: String?, to out: inout Set<String>) {
+        guard let n = normalizeBytes32HexLower(raw) else { return }
+        out.insert(n)
+    }
+
+    private static func normalizeBytes32HexLower(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        if !s.hasPrefix("0x"), s.range(of: #"^[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil {
+            s = "0x" + s
+        }
+        guard s.range(of: #"^0x[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil else { return nil }
+        let lower = s.lowercased()
+        return lower == "0x" + String(repeating: "0", count: 64) ? nil : lower
+    }
+
+    private static func displayJsonHashes(_ displayJson: String, keys: [String]) -> [String] {
+        guard
+            let data = displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [] }
+        return keys.compactMap { obj[$0] as? String }
+    }
+
+    private static func parseEmbeddedTip(from tx: PosLedgerItem) -> POSTransactionTipAmount? {
+        guard
+            let data = tx.displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let breakdown = obj["chargeBreakdown"] as? [String: Any]
+        else { return nil }
+        let rawTip = String(describing: breakdown["tipCurrencyAmount"] ?? "")
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let tip = Double(rawTip), tip > 0 else { return nil }
+        let currency = (breakdown["requestCurrency"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        return POSTransactionTipAmount(value: tip, currencyCode: currency?.isEmpty == false ? currency! : "CAD")
+    }
+}
+
 /// One row in the POS Transactions list. Mirrors the biz Transactions table compact summary
 /// (type icon + amount + tag-line) without any filtering UI affordances.
 private struct POSTransactionRowView: View {
-    let tx: PosLedgerItem
+    let item: POSLedgerDisplayItem
     let brandBlue: Color
     let mintGreen: Color
+
+    private var tx: PosLedgerItem { item.tx }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -3167,6 +4938,12 @@ private struct POSTransactionRowView: View {
                 Text(amountLine)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(amountTint)
+                if let tipLine {
+                    Text(tipLine)
+                        .font(.system(size: 10))
+                        .italic()
+                        .foregroundStyle(.secondary)
+                }
                 Text(timeLine)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
@@ -3177,36 +4954,122 @@ private struct POSTransactionRowView: View {
         .background(RoundedRectangle(cornerRadius: 14).fill(Color(uiColor: .systemBackground)))
     }
 
-    private var tint: Color { tx.type == .topUp ? mintGreen : brandBlue }
-    private var icon: String { tx.type == .topUp ? "arrow.up" : "arrow.down" }
-    private var typeTitle: String { tx.type == .topUp ? "Top-Up" : "Charge" }
+    private var tipPink: Color { Color(red: 0xF4 / 255, green: 0x3F / 255, blue: 0x5E / 255) }
+    private var tint: Color {
+        switch tx.type {
+        case .topUp: return mintGreen
+        case .tip: return tipPink
+        case .charge: return brandBlue
+        }
+    }
+    private var icon: String {
+        switch tx.type {
+        case .topUp: return "arrow.up"
+        case .tip: return "heart.fill"
+        case .charge: return "arrow.down"
+        }
+    }
+    private var typeTitle: String {
+        switch tx.type {
+        case .topUp: return "Top-Up"
+        case .tip: return "Tip"
+        case .charge: return "Charge"
+        }
+    }
     private var amountTint: Color { tx.type == .topUp ? mintGreen : Color.primary }
 
+    /// Prefer the row's fiat/card-currency amount when present, fall back to USDC, and
+    /// for Charge rows include any merged tip that is denominated in the same currency.
+    /// `currencyFiat == 4` (USDC) renders with the trailing " USDC" suffix.
     private var amountLine: String {
-        let usd6 = Double(tx.amountUSDC6) ?? 0
-        let fiat6 = Double(tx.amountFiat6) ?? 0
-        let chosen = usd6 > 0 ? usd6 : fiat6
-        let v = chosen / 1_000_000
-        let n = NumberFormatter()
-        n.locale = Locale(identifier: "en_US_POSIX")
-        n.numberStyle = .decimal
-        n.usesGroupingSeparator = true
-        n.minimumFractionDigits = 2
-        n.maximumFractionDigits = 2
-        let body = n.string(from: NSNumber(value: v)) ?? String(format: "%.2f", v)
+        let base = preferredDisplayAmount(tx)
+        let total = base.value + tipTotal(in: base.currencyCode)
+        let parts = readBalanceFormatMoney(total, currency: base.currencyCode)
         let sign = tx.type == .topUp ? "+" : "−"
-        return "\(sign)$\(body)"
+        return "\(sign)\(parts.prefix)\(parts.mid)\(parts.suffix)"
+    }
+
+    private var tipLine: String? {
+        guard tx.type == .charge else { return nil }
+        let base = preferredDisplayAmount(tx)
+        let grouped = tipTotalsByCurrency()
+        let preferred = grouped[base.currencyCode] ?? grouped.first?.value ?? 0
+        let code = grouped[base.currencyCode] != nil ? base.currencyCode : (grouped.first?.key ?? base.currencyCode)
+        guard preferred > 0.000_001 else { return nil }
+        let parts = readBalanceFormatMoney(preferred, currency: code)
+        return "incl. \(parts.prefix)\(parts.mid)\(parts.suffix) tip"
+    }
+
+    private func preferredDisplayAmount(_ tx: PosLedgerItem) -> POSTransactionTipAmount {
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        let usd6 = Double(tx.amountUSDC6) ?? 0
+        if fiat6 > 0 {
+            return POSTransactionTipAmount(
+                value: fiat6 / 1_000_000,
+                currencyCode: Self.beamioCurrencyCodeForCurrencyFiat(tx.currencyFiat)
+            )
+        }
+        return POSTransactionTipAmount(value: usd6 / 1_000_000, currencyCode: "USDC")
+    }
+
+    private func tipTotalsByCurrency() -> [String: Double] {
+        var totals: [String: Double] = [:]
+        for tip in item.tips {
+            let amt = preferredDisplayAmount(tip)
+            totals[amt.currencyCode, default: 0] += amt.value
+        }
+        if let embedded = item.embeddedTip {
+            totals[embedded.currencyCode, default: 0] += embedded.value
+        }
+        return totals
+    }
+
+    private func tipTotal(in currencyCode: String) -> Double {
+        tipTotalsByCurrency()[currencyCode] ?? 0
+    }
+
+    /// Mirrors `BeamioAPIClient.beamioCurrencyTypeCode` (kept private there).
+    /// 0=CAD, 1=USD, 2=JPY, 3=CNY, 4=USDC, 5=HKD, 6=EUR, 7=SGD, 8=TWD.
+    private static func beamioCurrencyCodeForCurrencyFiat(_ id: Int) -> String {
+        switch id {
+        case 1: return "USD"
+        case 2: return "JPY"
+        case 3: return "CNY"
+        case 4: return "USDC"
+        case 5: return "HKD"
+        case 6: return "EUR"
+        case 7: return "SGD"
+        case 8: return "TWD"
+        default: return "CAD"
+        }
     }
 
     private var secondaryLine: String {
-        if let note = tx.note, !note.isEmpty { return note }
-        let counterparty = tx.type == .topUp ? tx.payer : tx.payee
-        let trimmed = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.lowercased() != "0x0000000000000000000000000000000000000000" else {
-            return tx.type == .topUp ? "From wallet" : "To customer"
+        if tx.type == .tip {
+            if let note = tx.note, !note.isEmpty { return note }
+            let counterparty = tx.payer
+            let trimmed = counterparty.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed.lowercased() != "0x0000000000000000000000000000000000000000" else {
+                return "Member"
+            }
+            let short = trimmed.count >= 10 ? "\(trimmed.prefix(6))…\(trimmed.suffix(4))" : trimmed
+            return short
         }
-        let short = trimmed.count >= 10 ? "\(trimmed.prefix(6))…\(trimmed.suffix(4))" : trimmed
-        return tx.type == .topUp ? "From \(short)" : "To \(short)"
+        let method = (tx.paymentMethodLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let tagRaw = (tx.payerBeamioTag ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let who: String
+        if !tagRaw.isEmpty {
+            who = "@\(tagRaw)"
+        } else {
+            let counterparty = tx.payer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if counterparty.isEmpty || counterparty.lowercased() == "0x0000000000000000000000000000000000000000" {
+                who = tx.type == .topUp ? "Wallet" : "Customer"
+            } else {
+                who = counterparty.count >= 10 ? "\(counterparty.prefix(6))…\(counterparty.suffix(4))" : counterparty
+            }
+        }
+        if method.isEmpty { return who }
+        return "\(who) · \(method)"
     }
 
     private var timeLine: String {
@@ -3225,6 +5088,105 @@ private struct POSTransactionRowView: View {
 }
 
 /// Android `BeamioCapsuleCompact`: avatar + displayName + @tag
+private struct HomeBeamioSelfMiniCapsule: View {
+    let title: String
+    let tight: Bool
+
+    var body: some View {
+        let iconSize: CGFloat = tight ? 18 : 22
+        HStack(spacing: tight ? 5 : 6) {
+            Image("LaunchBrandLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: iconSize, height: iconSize)
+                .clipShape(Circle())
+            Text(title)
+                .font(.system(size: tight ? 10 : 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .padding(.leading, tight ? 5 : 6)
+        .padding(.trailing, tight ? 7 : 8)
+        .padding(.vertical, tight ? 4 : 5)
+        .background(Capsule().fill(Color.white.opacity(0.18)))
+        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
+    }
+}
+
+private struct HomeBeamioProfileMiniCapsule: View {
+    let profile: TerminalProfile
+    let tight: Bool
+
+    var body: some View {
+        let iconSize: CGFloat = tight ? 18 : 22
+        let label = capsuleLabel
+        HStack(spacing: tight ? 5 : 6) {
+            avatarView(image: profile.image, fallbackUrl: fallbackAvatarUrl)
+                .frame(width: iconSize, height: iconSize)
+                .clipShape(Circle())
+            Text(label)
+                .font(.system(size: tight ? 10 : 11, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.leading, tight ? 5 : 6)
+        .padding(.trailing, tight ? 7 : 8)
+        .padding(.vertical, tight ? 4 : 5)
+        .background(Capsule().fill(Color.white.opacity(0.18)))
+        .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.5))
+    }
+
+    private var capsuleLabel: String {
+        if let tag = sanitize(profile.accountName) { return "@\(tag)" }
+        let name = displayNameLine(first: profile.firstName, last: profile.lastName)
+        return name.isEmpty ? "Parent" : name
+    }
+
+    private var fallbackAvatarUrl: URL? {
+        let seed = sanitize(profile.accountName) ?? "Beamio"
+        let enc = seed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? seed
+        return URL(string: "https://api.dicebear.com/8.x/fun-emoji/png?seed=\(enc)")
+    }
+
+    @ViewBuilder
+    private func avatarView(image: String?, fallbackUrl: URL?) -> some View {
+        let trimmed = image?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmed.isEmpty {
+            BeamioCardRasterOrSvgImage(urlString: trimmed, rasterContentMode: .fill) {
+                fallbackDice(fallbackUrl)
+            }
+        } else {
+            fallbackDice(fallbackUrl)
+        }
+    }
+
+    private func fallbackDice(_ url: URL?) -> some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .success(let img): img.resizable().scaledToFill()
+            case .failure: Color.white.opacity(0.22)
+            case .empty: Color.white.opacity(0.16)
+            @unknown default: Color.white.opacity(0.22)
+            }
+        }
+    }
+
+    private func sanitize(_ raw: String?) -> String? {
+        let t = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if t.isEmpty || t.lowercased() == "null" { return nil }
+        return t.hasPrefix("@") ? String(t.dropFirst()) : t
+    }
+
+    private func displayNameLine(first: String?, last: String?) -> String {
+        let f = sanitize(first) ?? ""
+        let lastRaw = last?.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\r\n").first.map(String.init) ?? ""
+        let l0 = lastRaw.hasPrefix("{") ? "" : (sanitize(lastRaw) ?? "")
+        return "\(f) \(l0)".trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 private struct HomeBeamioCapsuleCompact: View {
     let profile: TerminalProfile
     let fallbackAddress: String?
@@ -3323,6 +5285,9 @@ private enum ChargePaymentMethodRaw {
     static let usdc = "usdc"
 }
 
+private let posChargeAmountPageBackground = Color(red: 0xEE / 255, green: 0xF5 / 255, blue: 0xFF / 255)
+private let posTopupAmountPageBackground = Color(red: 0xF7 / 255, green: 0xF0 / 255, blue: 0xFF / 255)
+
 private struct ChargeAmountTipNavigationSheet: View {
     var chargePolicy: PosTerminalPolicy
     var onCancel: () -> Void
@@ -3351,7 +5316,7 @@ private struct ChargeAmountTipNavigationSheet: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        .background(posChargeAmountPageBackground.ignoresSafeArea())
         .compositingGroup()
         .onAppear { path = NavigationPath() }
     }
@@ -3417,7 +5382,7 @@ private struct ChargeAmountPadRoot: View {
                 .padding(.leading, 8)
                 .safeAreaPadding(.top, 6)
         }
-        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        .background(posChargeAmountPageBackground.ignoresSafeArea())
         .compositingGroup()
     }
 
@@ -3790,7 +5755,7 @@ private struct TopupAmountPadFullPage: View {
     @State private var selectedBonusRate: Int = 20
 
     /// Same primary as Read Balance “Top-Up Card Now”.
-    private let topUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+    private let topUpPurple = Color(red: 0x7C / 255, green: 0x3A / 255, blue: 0xED / 255)
     private let bonusPink = Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
 
     private var allowedMethods: [TopupPaymentMethodOption] {
@@ -3868,7 +5833,7 @@ private struct TopupAmountPadFullPage: View {
                 .padding(.leading, 8)
                 .safeAreaPadding(.top, 6)
         }
-        .background(readBalanceDetailsSurface.ignoresSafeArea())
+        .background(posTopupAmountPageBackground.ignoresSafeArea())
         /// Eager compositing so the whole screen (incl. payment tiles) participates in the trailing push transition; `LazyVGrid` can leave cells on the old layer during `move`.
         .compositingGroup()
         .onChange(of: topupPolicy) { _, _ in
@@ -3896,7 +5861,7 @@ private struct TopupAmountPadFullPage: View {
     }
 
     private var amountDisplayAccentColor: Color {
-        selectedMethod == .bonus ? bonusPink : topUpBlue
+        selectedMethod == .bonus ? bonusPink : topUpPurple
     }
 
     private func bonusSection(compact: Bool) -> some View {
@@ -4007,7 +5972,7 @@ private struct TopupAmountPadFullPage: View {
             } label: {
                 ZStack(alignment: .trailing) {
                     Capsule(style: .continuous)
-                        .fill(topUpBlue)
+                        .fill(topUpPurple)
                         .frame(width: compact ? 38 : 42, height: compact ? 22 : 24)
                     Circle()
                         .fill(Color.white)
@@ -4082,7 +6047,7 @@ private struct TopupAmountPadFullPage: View {
                             .foregroundStyle(readBalanceDetailsOnSurface.opacity(0.82))
                         Text(topupSummaryAmountString(totalWithBonusValue))
                             .font(.system(size: compact ? 14 : 15, weight: .bold, design: .monospaced))
-                            .foregroundStyle(topUpBlue)
+                            .foregroundStyle(topUpPurple)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                     }
@@ -4142,7 +6107,7 @@ private struct TopupAmountPadFullPage: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, compact ? 17 : 19)
                 .foregroundStyle(.white)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(topUpBlue))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(topUpPurple))
         }
         .buttonStyle(BeamioHapticPlainButtonStyle())
         .disabled(!canContinue)
@@ -7777,6 +9742,14 @@ private struct ScanSheet: View {
                                 .padding(.top, 6)
                                 .padding(.horizontal, 8)
                         }
+                        if !vm.topupUsdcSessionProgressLabel.isEmpty {
+                            Text(vm.topupUsdcSessionProgressLabel)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(beamioLinkBlue)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 4)
+                                .padding(.horizontal, 8)
+                        }
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -7914,6 +9887,22 @@ private struct ScanSheet: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.top, 6)
                                 .padding(.horizontal, 8)
+                        }
+                        // PR #4: 编排器中间态进度（USDC 已 settle → topup → charge）。Empty ⇒ 顾客还没付 / 已 terminal，无需显示。
+                        // 显示在客户提示之下，作为"系统正在推进"的非阻塞反馈，避免 merchant 误以为 QR 卡死。
+                        if !vm.chargeUsdcSessionProgressLabel.isEmpty {
+                            HStack(spacing: 6) {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .tint(beamioLinkBlue)
+                                Text(vm.chargeUsdcSessionProgressLabel)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(beamioLinkBlue)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.top, 4)
+                            .padding(.horizontal, 8)
+                            .accessibilityLabel("Payment progress: \(vm.chargeUsdcSessionProgressLabel)")
                         }
                     }
                     .padding(.horizontal, 12)

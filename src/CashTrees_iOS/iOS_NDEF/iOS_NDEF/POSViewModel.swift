@@ -31,12 +31,25 @@ final class POSViewModel: ObservableObject {
 
     /// `nil` = unknown (align Android); `false` = no AA / welcome panel
     @Published var hasAAAccount: Bool?
-    /// Today dashboard (getAdminStatsFull); `nil` = not loaded or RPC failed
+    /// Home dashboard totals from POS ledger (`/api/posLedger`): **current settlement window**, not calendar day; `nil` = not loaded or RPC failed
     @Published var cardChargeAmount: Double?
     @Published var cardTopUpAmount: Double?
+    @Published var cardTipsAmount: Double?
+    @Published var cardChargeUsdcAmount: Double?
+    @Published var cardTipsUsdcAmount: Double?
+    /// CoNET L1 BUint balance for the POS upstream workspace EOA (`upperAdmin`, else card owner), displayed on /home.
+    @Published var homeUpstreamBUnitBalance: Double?
+    @Published private(set) var homeUpstreamBUnitLoaded = false
     @Published private(set) var homeStatsLoaded = false
     /// Home full refresh in progress — ignore overlapping triggers (duplicate Tasks, concurrent refresh).
     private var homeRefreshInFlight = false
+    private var homeUpstreamBUnitSourceEoa: String?
+    /// Keep the launch splash visible long enough that the custom handoff
+    /// animation is perceptible instead of being swallowed by the system
+    /// launch-screen fade.
+    private let minimumLaunchSplashVisibleDuration: TimeInterval = 0.9
+    private var launchSplashVisibleSince: Date?
+    private var launchSplashDismissTask: Task<Void, Never>?
     /// While the parent-permission full-screen gate is up: wake every 6s and call `refreshHomeProfiles` if idle (no overlap).
     private var parentPermissionGatePollTask: Task<Void, Never>?
     private static let parentPermissionGatePollIntervalNs: UInt64 = 6_000_000_000
@@ -63,6 +76,15 @@ final class POSViewModel: ObservableObject {
     /// Last untrusted error message — surface as toast/banner; never overwrites `posLedger`.
     @Published var posLedgerLastError: String?
     private var posLedgerRefreshTask: Task<Void, Never>?
+
+    /// PR #3: USDC charge no-NFC session poll loop — single-flight (`setTimeout` chain pattern from `parentPermissionGatePollLoop`).
+    /// Started from `presentUsdcChargeQrNoNfc` after URL is set; cancelled in `cancelChargeUsdcQr`, `closeScanSheet`, and on
+    /// terminal state inside the loop itself. Keyed by current `chargeUsdcSessionId`; exits if the sid changes (defense against
+    /// a quick cancel→retry that races a stale tick).
+    private var chargeUsdcSessionPollTask: Task<Void, Never>?
+    /// 1.5 s between polls — fast enough that POS users see ≤2 s lag from customer "Pay" tap to success UI; slow enough
+    /// that 60 s of waiting only burns ~40 polls per terminal (cluster GET is in-memory map lookup, ~µs cost).
+    private static let chargeUsdcSessionPollIntervalNs: UInt64 = 1_500_000_000
 
     @Published var homeToast: String?
     /// 注册成功后展示一次（与 web Recovery QR 秘密等价，勿记入日志）
@@ -150,6 +172,12 @@ final class POSViewModel: ObservableObject {
     /// Customer scans with their crypto wallet (in-wallet browser) to sign the EIP-3009 USDC transfer.
     /// Empty string ⇒ no QR shown (default flow).
     @Published var topupUsdcDeepLink: String = ""
+    /// PR #3 topup 变体：与 `chargeUsdcSessionId` 对齐，QR 携带 `sid` + `pos` 时轮询 `GET /api/nfcUsdcChargeSession`。
+    @Published private(set) var topupUsdcSessionId: String = ""
+    @Published private(set) var topupUsdcSessionProgressLabel: String = ""
+    private var topupUsdcSessionPollTask: Task<Void, Never>?
+    private var topupUsdcTopupAuthSubmittedSids: Set<String> = []
+    private var topupUsdcTopupAuthInflightSids: Set<String> = []
 
     /// USDC charge: after Confirm & Pay with USDC selected, show QR linking customer to `verra-home/usdc-charge`.
     /// URL carries charge breakdown (subtotal/discount/tax/tip + currency) + merchant `card`/`owner` so verra-home can
@@ -162,6 +190,21 @@ final class POSViewModel: ObservableObject {
     /// Drives the "Generating USDC payment QR…" placeholder in `paymentScanCenterContent` so the merchant doesn't see
     /// the legacy `ScanNfcWaitingPanel` for a USDC charge (the customer never needs to tap a card).
     @Published var chargeUsdcQrGenerating: Bool = false
+    /// PR #3: UUID v4 generated client-side and embedded in `chargeUsdcDeepLink` as `&sid=…`. Cluster keys an
+    /// in-memory session record by this `sid` while the customer pays in verra-home, so iOS POS can `setTimeout`-
+    /// chain–poll `GET /api/nfcUsdcChargeSession?sid=…` to detect terminal state (success/error) and switch UI
+    /// without waiting for any callback. Empty between charge attempts.
+    @Published private(set) var chargeUsdcSessionId: String = ""
+    /// PR #4: human-readable progress hint surfaced beneath the QR while non-terminal session states stream in.
+    /// Empty ⇒ POS shows nothing extra (default behaviour). Cleared automatically on terminal state / cancel.
+    /// Possible values: "Verifying payment…", "Settling USDC…", "Crediting merchant…", "Recording charge…".
+    @Published private(set) var chargeUsdcSessionProgressLabel: String = ""
+
+    /// PR #4 v2 (POS-signed admin path): 记录已经为哪些 sid POST 过 ExecuteForAdmin 签名，避免轮询每拍重复签 + 重复 POST。
+    /// poll loop 在终结/cancel 时清掉对应 sid。
+    private var chargeUsdcTopupAuthSubmittedSids: Set<String> = []
+    /// 同上：已经在签的 sid（防止 0.5s polling 间隔内 task 还没回就再起一个）。
+    private var chargeUsdcTopupAuthInflightSids: Set<String> = []
     /// Charge payment method selected on `ChargeAmountPadRoot` ("nfcCard" / "usdc"). Empty ⇒ default `nfcCard`.
     @Published var pendingChargeMethodRaw: String = ""
 
@@ -337,7 +380,7 @@ final class POSViewModel: ObservableObject {
             walletAddress = try? BeamioEthWallet.address(fromPrivateKeyHex: hex)
             showWelcome = false
             showOnboarding = false
-            showLaunchSplash = true
+            presentLaunchSplash()
             applyTrustedProfileCachesFromDisk()
             if let w = walletAddress {
                 let wl = w.lowercased()
@@ -345,9 +388,6 @@ final class POSViewModel: ObservableObject {
                 // First paint should reuse the last rendered gate state, then async refresh reconciles with trusted server data.
                 applyInitialParentPermissionGateUiState(walletLower: wl)
                 applyTrustedStatsAndRoutingCachesForInfra(wallet: w, infra: merchantInfraCard, replaceDisplayValues: false)
-            }
-            if shouldDismissLaunchSplashFromTrustedHomeCache {
-                showLaunchSplash = false
             }
         } else {
             showWelcome = true
@@ -391,13 +431,16 @@ final class POSViewModel: ObservableObject {
     /// stats + routing + program-card name + recharge bonus rules. Local-first → render immediately; later trusted refresh
     /// merges & re-renders. `replaceDisplayValues` true when POS infra address changed so we do not show another card’s numbers.
     private func applyTrustedStatsAndRoutingCachesForInfra(wallet: String, infra: String, replaceDisplayValues: Bool) {
-        let (c, t) = POSHomeScreenTrustedCache.loadStats(wallet: wallet, infraCard: infra)
+        let (c, t, tips, chargeUsdc, tipsUsdc) = POSHomeScreenTrustedCache.loadStats(wallet: wallet, infraCard: infra)
         let rout = POSHomeScreenTrustedCache.loadRouting(wallet: wallet, infraCard: infra)
         let prog = POSHomeScreenTrustedCache.loadProgram(wallet: wallet, infraCard: infra)
         if replaceDisplayValues {
             cardChargeAmount = c
             cardTopUpAmount = t
-            homeStatsLoaded = c != nil || t != nil
+            cardTipsAmount = tips
+            cardChargeUsdcAmount = chargeUsdc
+            cardTipsUsdcAmount = tipsUsdc
+            homeStatsLoaded = c != nil || t != nil || tips != nil || chargeUsdc != nil || tipsUsdc != nil
             if let rout {
                 infraRoutingTaxPercent = rout.tax
                 infraRoutingDiscountSummary = rout.summary
@@ -410,7 +453,10 @@ final class POSViewModel: ObservableObject {
         } else {
             if let c { cardChargeAmount = c }
             if let t { cardTopUpAmount = t }
-            if c != nil || t != nil { homeStatsLoaded = true }
+            if let tips { cardTipsAmount = tips }
+            if let chargeUsdc { cardChargeUsdcAmount = chargeUsdc }
+            if let tipsUsdc { cardTipsUsdcAmount = tipsUsdc }
+            if c != nil || t != nil || tips != nil || chargeUsdc != nil || tipsUsdc != nil { homeStatsLoaded = true }
             if let rout {
                 infraRoutingTaxPercent = rout.tax
                 infraRoutingDiscountSummary = rout.summary
@@ -420,8 +466,30 @@ final class POSViewModel: ObservableObject {
         }
     }
 
-    private var shouldDismissLaunchSplashFromTrustedHomeCache: Bool {
-        terminalProfile != nil || adminProfile != nil || homeStatsLoaded
+    private func presentLaunchSplash() {
+        launchSplashDismissTask?.cancel()
+        if !showLaunchSplash || launchSplashVisibleSince == nil {
+            launchSplashVisibleSince = Date()
+        }
+        showLaunchSplash = true
+    }
+
+    private func scheduleLaunchSplashDismissIfNeeded() {
+        guard showLaunchSplash else { return }
+        launchSplashDismissTask?.cancel()
+        let visibleSince = launchSplashVisibleSince ?? Date()
+        launchSplashDismissTask = Task { @MainActor in
+            let elapsed = Date().timeIntervalSince(visibleSince)
+            let remaining = max(0, minimumLaunchSplashVisibleDuration - elapsed)
+            if remaining > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            }
+            guard !Task.isCancelled else { return }
+            if !showWelcome && !showOnboarding {
+                showLaunchSplash = false
+                launchSplashVisibleSince = nil
+            }
+        }
     }
 
     private func reconcileKeychainWithAppContainer() {
@@ -494,7 +562,7 @@ final class POSViewModel: ObservableObject {
             pendingRecoveryCode = payload.recoveryCode
             showOnboarding = false
             showWelcome = false
-            showLaunchSplash = true
+            presentLaunchSplash()
             let seeded = TerminalProfile(accountName: tag, firstName: nil, lastName: nil, image: nil, address: lower)
             terminalProfile = seeded
             POSHomeScreenTrustedCache.saveTerminal(seeded, wallet: lower)
@@ -882,7 +950,7 @@ final class POSViewModel: ObservableObject {
             showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
             showWelcome = false
             showOnboarding = false
-            showLaunchSplash = true
+            presentLaunchSplash()
             applyTrustedProfileCachesFromDisk()
             let seeded = TerminalProfile(accountName: tag, firstName: nil, lastName: nil, image: nil, address: lower)
             terminalProfile = seeded
@@ -949,7 +1017,7 @@ final class POSViewModel: ObservableObject {
             showAwaitingParentPermissionGate = (lastTrustedInfraPosHomeAccess != true)
             showWelcome = false
             showOnboarding = false
-            showLaunchSplash = true
+            presentLaunchSplash()
             applyTrustedProfileCachesFromDisk()
             let seeded = TerminalProfile(accountName: nil, firstName: nil, lastName: nil, image: nil, address: lower)
             terminalProfile = seeded
@@ -1048,7 +1116,7 @@ final class POSViewModel: ObservableObject {
         defer {
             homeRefreshInFlight = false
             if !showWelcome && !showOnboarding {
-                showLaunchSplash = false
+                scheduleLaunchSplashDismissIfNeeded()
             }
             if pendingHomeBootstrapRefreshAfterGateAllow, !showAwaitingParentPermissionGate {
                 pendingHomeBootstrapRefreshAfterGateAllow = false
@@ -1072,14 +1140,18 @@ final class POSViewModel: ObservableObject {
         // Resolve admin EOA → profile with **global** `search-users` (not POS-filtered API), same as CoNET parent lookup.
         // Use `upperAdmin` only (no `owner` fallback).
         let infraLower = infra.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var upstreamBUnitEoa: String?
         if let pend = pendingGetCardAdminInfoRootForHome, pend.cardLower == infraLower {
             pendingGetCardAdminInfoRootForHome = nil
             let root = pend.root
             // `owner` field (issuer EOA = `card.owner()`) — used by USDC x402 QR as `payTo`.
-            if let ownerAddr = (root["owner"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !ownerAddr.isEmpty {
+            let ownerAddr = (root["owner"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            if let ownerAddr, !ownerAddr.isEmpty {
                 merchantInfraCardOwnerEoa = ownerAddr
             }
-            if let adminAddr = (root["upperAdmin"] as? String)?.nilIfEmpty, !adminAddr.isEmpty {
+            let adminAddr = (root["upperAdmin"] as? String)?.nilIfEmpty
+            upstreamBUnitEoa = adminAddr ?? ownerAddr
+            if let adminAddr, !adminAddr.isEmpty {
                 if let adminProf = await api.searchUsers(keyward: adminAddr) {
                     adminProfile = adminProf
                     POSHomeScreenTrustedCache.saveAdmin(adminProf, wallet: w)
@@ -1094,6 +1166,7 @@ final class POSViewModel: ObservableObject {
                 if let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
                     merchantInfraCardOwnerEoa = ownerAddr
                 }
+                upstreamBUnitEoa = adminTuple.upperAdmin?.nilIfEmpty ?? adminTuple.owner?.nilIfEmpty
                 if let adminAddr = adminTuple.upperAdmin?.nilIfEmpty, !adminAddr.isEmpty {
                     if let adminProf = await api.searchUsers(keyward: adminAddr) {
                         adminProfile = adminProf
@@ -1131,7 +1204,32 @@ final class POSViewModel: ObservableObject {
             if let t = st.topUp { cardTopUpAmount = t }
             POSHomeScreenTrustedCache.mergeAndSaveStats(wallet: w, infraCard: infra, charge: st.charge, topUp: st.topUp)
         }
+        if let ledger = await api.fetchPosLedger(eoa: w, infraCard: infra) {
+            posLedger = ledger
+            POSHomeScreenTrustedCache.savePosLedger(ledger, wallet: w, infraCard: infra)
+            let tipsPeriod = ledger.tipsDisplayTotalInTerminalStatsPeriod()
+            let chargeDuePeriod = ledger.chargeAndTipGrossDisplayTotalInTerminalStatsPeriod()
+            let topUpPeriod = ledger.topUpDisplayTotalInTerminalStatsPeriod()
+            let chargeUsdcPeriod = ledger.chargeUsdcSettlementTotalInTerminalStatsPeriod()
+            let tipsUsdcPeriod = ledger.tipsUsdcSettlementTotalInTerminalStatsPeriod()
+            cardChargeAmount = chargeDuePeriod
+            cardTopUpAmount = topUpPeriod
+            cardTipsAmount = tipsPeriod
+            cardChargeUsdcAmount = chargeUsdcPeriod
+            cardTipsUsdcAmount = tipsUsdcPeriod
+            POSHomeScreenTrustedCache.mergeAndSaveStats(
+                wallet: w,
+                infraCard: infra,
+                charge: chargeDuePeriod,
+                topUp: topUpPeriod,
+                tips: tipsPeriod,
+                chargeUsdc: chargeUsdcPeriod,
+                tipsUsdc: tipsUsdcPeriod
+            )
+        }
         homeStatsLoaded = true
+
+        await refreshHomeUpstreamBUnitBalance(upstreamEoa: upstreamBUnitEoa ?? merchantInfraCardOwnerEoa)
 
         if let r = await api.fetchInfraRoutingSummary(wallet: w, infraCard: infra) {
             infraRoutingTaxPercent = r.tax
@@ -1164,6 +1262,25 @@ final class POSViewModel: ObservableObject {
                 bonusRules: []
             )
         }
+    }
+
+    private func refreshHomeUpstreamBUnitBalance(upstreamEoa raw: String?) async {
+        guard let normalized = normalizeEoaAddress(raw) else {
+            homeUpstreamBUnitSourceEoa = nil
+            homeUpstreamBUnitBalance = nil
+            homeUpstreamBUnitLoaded = true
+            return
+        }
+        if homeUpstreamBUnitSourceEoa?.lowercased() != normalized.lowercased() {
+            homeUpstreamBUnitSourceEoa = normalized
+            homeUpstreamBUnitBalance = nil
+            homeUpstreamBUnitLoaded = false
+        }
+        guard let balance = await api.fetchBUnitBalanceOnConet(account: normalized) else {
+            return
+        }
+        homeUpstreamBUnitBalance = balance
+        homeUpstreamBUnitLoaded = true
     }
 
     /// `getAdminAirdropLimit` + cumulative `mintCounterFromClear` — aligns with biz Terminal Onboarding reload cap.
@@ -1260,10 +1377,15 @@ final class POSViewModel: ObservableObject {
         return nil
     }
 
-    /// Charge / Top-up 成功展示后约 6s 自动再拉取首页数据（`refreshHomeProfiles`）。
+    /// Charge / Top-up 成功展示后约 5s 自动再拉取首页数据（`refreshHomeProfiles`）。
     func scheduleHomeProfilesRefreshAfterTxSuccess() {
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            var waits = 0
+            while homeRefreshInFlight && waits < 20 {
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                waits += 1
+            }
             await refreshHomeProfiles()
         }
     }
@@ -1316,11 +1438,19 @@ final class POSViewModel: ObservableObject {
     func beginTopUp() {
         pendingScanAction = .topup
         scanQrCameraArmed = false
-        scanAwaitingNfcTap = true
         resetTopupQrChrome()
         topupQrResetId += 1
         scanMethod = .nfc
         sheet = .scan(.topup)
+        let methodNorm = pendingTopupMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if methodNorm == "usdc" {
+            scanAwaitingNfcTap = false
+            Task { @MainActor in
+                await presentUsdcTopupQrPhase1Only()
+            }
+            return
+        }
+        scanAwaitingNfcTap = true
         startNfcIfNeeded()
     }
 
@@ -1330,6 +1460,12 @@ final class POSViewModel: ObservableObject {
         pendingChargeMethodRaw = methodRaw
         chargeUsdcDeepLink = ""
         chargeQrCustomerHint = ""
+        // PR #3: 每次进入 charge 都丢弃旧 sid；老 poll task 由 `resetPaymentQrChrome()` 统一 cancel。
+        chargeUsdcSessionId = ""
+        chargeUsdcSessionProgressLabel = ""
+        // PR #4 v2：丢弃旧 sid 的 topup-auth 提交记录，避免新 charge 误认为已经签过。
+        chargeUsdcTopupAuthSubmittedSids.removeAll()
+        chargeUsdcTopupAuthInflightSids.removeAll()
         pendingScanAction = .payment
         scanQrCameraArmed = false
         resetPaymentQrChrome()
@@ -1541,19 +1677,36 @@ final class POSViewModel: ObservableObject {
         let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: request, tipRateBps: chargeTipRateBps)
         let total = BeamioPaymentRouting.chargeTotalInCurrency(requestAmount: request, taxPercent: taxP, tierDiscountPercent: disc, tipAmount: tip)
         let payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? "CAD"
-        let amountUsdc6 = BeamioPaymentRouting.currencyToUsdc6(amount: total, currency: payCurrency, oracle: oracle)
-        guard amountUsdc6 != "0", let entered = Int64(amountUsdc6), entered > 0 else {
+        // fiat6-only Charge: QR payments must match NFC and derive card points from card currency,
+        // not via local fiat->USDC oracle then chain quote back to points.
+        let amountFiat6Str = BeamioPaymentRouting.currencyToFiat6(amount: total)
+        guard let amountFiat6 = Int64(amountFiat6Str), amountFiat6 > 0 else {
             paymentPatchStep(id: "analyzingAssets", status: .error, detail: "Amount conversion failed")
             isNfcBusy = false
             scanBanner = ""
             paymentTerminalError = "Amount conversion failed"
             return
         }
+        let cardChainInfo: (code: String, priceE6: UInt64)?
+        if let cardAddr = payCard?.cardAddress.nilIfEmpty ?? assets.cardAddress?.nilIfEmpty {
+            cardChainInfo = await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: cardAddr)
+        } else {
+            cardChainInfo = nil
+        }
         let unitPriceStr = assets.unitPriceUSDC6 ?? "0"
         let unitPrice = Int64(unitPriceStr) ?? 0
         let cards = BeamioPaymentRouting.chargeableCards(from: assets, infraCard: merchantInfraCard)
         let partQr = BeamioPaymentRouting.partitionPointsForMerchantCharge(cards: cards, merchantInfraCard: merchantInfraCard)
         let unitPoints6 = partQr.unitPricePoints6
+        if unitPoints6 > 0, cardChainInfo == nil {
+            paymentPatchStep(id: "analyzingAssets", status: .error, detail: "Card price unavailable")
+            isNfcBusy = false
+            scanBanner = ""
+            paymentTerminalError = "Card price unavailable. Please refresh the customer balance and try again."
+            return
+        }
+        let cardCurrencyOnChain = cardChainInfo?.code.uppercased()
+        let pointsPriceCurE6 = Int64(cardChainInfo?.priceE6 ?? 0)
         let oracleInfraCardsQr = partQr.oracleInfraCards
         let infraPoints6 = oracleInfraCardsQr.reduce(0) { $0 + (Int64($1.points6) ?? 0) }
         let usdcBal = payerUsdcBalance6ForChargePolicy(assets: assets)
@@ -1562,9 +1715,13 @@ final class POSViewModel: ObservableObject {
             partial + BeamioPaymentRouting.points6ToUsdc6(points6: Int64(c.points6) ?? 0, cardCurrency: c.cardCurrency, oracle: oracle)
         }
         let totalBal = unitBucketUsdc6 + infraValue + usdcBal
+        let amountBig =
+            unitPrice > 0
+            ? (amountFiat6 * unitPrice + 999_999) / 1_000_000
+            : (Int64(BeamioPaymentRouting.currencyToUsdc6(amount: total, currency: payCurrency, oracle: oracle)) ?? 0)
 
         let analyzingDetail: String
-        if unitBucketUsdc6 >= entered {
+        if unitBucketUsdc6 >= amountBig {
             analyzingDetail = "Program points (sufficient)"
         } else if unitBucketUsdc6 > 0 {
             analyzingDetail = "Program points (partial)"
@@ -1574,7 +1731,7 @@ final class POSViewModel: ObservableObject {
         paymentPatchStep(id: "analyzingAssets", status: .success, detail: analyzingDetail)
         paymentPatchStep(id: "optimizingRoute", status: .loading)
 
-        guard totalBal >= entered else {
+        guard totalBal >= amountBig else {
             paymentPatchStep(id: "optimizingRoute", status: .error, detail: "Insufficient balance")
             presentChargeInsufficientFunds(
                 assets: assets,
@@ -1585,7 +1742,7 @@ final class POSViewModel: ObservableObject {
                 tip: tip,
                 taxPercent: taxP,
                 tierDiscountPercent: disc,
-                requiredUsdc6: entered,
+                requiredUsdc6: amountBig,
                 availableUsdc6: totalBal,
                 settlementViaQr: true,
                 nfcRetryUid: nil,
@@ -1596,18 +1753,19 @@ final class POSViewModel: ObservableObject {
             return
         }
 
-        let split = BeamioPaymentRouting.computeChargeContainerSplit(
-            amountBig: entered,
-            chargeTotalInPayCurrency: total,
+        let split = BeamioPaymentRouting.computeChargeContainerSplitFiat6(
+            amountFiat6: amountFiat6,
             payCurrency: payCurrency,
-            oracle: oracle,
-            unitPriceUSDC6: unitPrice,
+            cardCurrency: cardCurrencyOnChain,
+            pointsUnitPriceInCurrencyE6: pointsPriceCurE6,
             ccsaPoints6: unitPoints6,
             infraPoints6: infraPoints6,
             infraCardCurrency: oracleInfraCardsQr.first?.cardCurrency,
-            usdcBalance6: usdcBal
+            usdcBalance6: usdcBal,
+            oracle: oracle,
+            unitPriceUSDC6Fallback: unitPrice
         )
-        var items = BeamioPaymentRouting.buildPayItems(amountUsdc6: amountUsdc6, split: split, infraCard: merchantInfraCard)
+        var items = BeamioPaymentRouting.buildPayItemsFiat6(split: split, infraCard: merchantInfraCard)
         items = BeamioPaymentRouting.mergeInfraKind1Items(items, infraCard: merchantInfraCard)
         let beamio1155Wei = mergedInfraKind1Amount(from: items, infraCard: merchantInfraCard)
         let usdcWei = firstUsdcAmount6(from: items)
@@ -1832,6 +1990,12 @@ final class POSViewModel: ObservableObject {
         chargeApprovedInline = nil
         chargeNfcReadError = nil
         chargeUsdcQrGenerating = false
+        // PR #3: 任何 reset chrome 路径（cancel / close sheet / retry begin）都应取消还在飞的 USDC charge 轮询，避免老 sid 的 stale tick 在新 charge 上空触发 success/error。
+        cancelChargeUsdcSessionPoll()
+        chargeUsdcSessionProgressLabel = ""
+        // PR #4 v2：清掉 topup-auth dedupe 集合（保险冗余；beginCharge 也会清）。
+        chargeUsdcTopupAuthSubmittedSids.removeAll()
+        chargeUsdcTopupAuthInflightSids.removeAll()
     }
 
     private func resetTopupQrChrome() {
@@ -1844,6 +2008,12 @@ final class POSViewModel: ObservableObject {
         topupExecuteDisplayTotal = nil
         topupExecuteDisplayBonus = nil
         topupUsdcDeepLink = ""
+        topupUsdcSessionPollTask?.cancel()
+        topupUsdcSessionPollTask = nil
+        topupUsdcSessionId = ""
+        topupUsdcSessionProgressLabel = ""
+        topupUsdcTopupAuthSubmittedSids.removeAll()
+        topupUsdcTopupAuthInflightSids.removeAll()
     }
 
     private func resetReadQrChrome() {
@@ -2103,10 +2273,103 @@ final class POSViewModel: ObservableObject {
         // USDC: customer scans the QR to settle via `verra-home/usdc-topup` (EIP-3009 in their wallet).
         let methodRaw = resolveTopupMethodRawForSplit()
         if methodRaw == "usdc" {
+            if topupUsdcDeepLink.isEmpty, !topupUsdcSessionId.isEmpty {
+                await runTopup(
+                    beamioTag: nil,
+                    wallet: nil,
+                    uid: uid,
+                    sun: sun,
+                    privateKeyHex: key,
+                    topupFromQr: false,
+                    usdcTopupSessionId: topupUsdcSessionId
+                )
+                return
+            }
             await presentUsdcTopupQr(uid: uid, sun: sun)
             return
         }
         await runTopup(beamioTag: nil, wallet: nil, uid: uid, sun: sun, privateKeyHex: key, topupFromQr: false)
+    }
+
+    /// USDC top-up phase 1 only: keypad amount → QR without NFC params; customer pays first, then taps card on terminal.
+    private func presentUsdcTopupQrPhase1Only() async {
+        guard posTopupMethodRawAllowed("usdc") else {
+            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: false)
+            sheet = nil
+            return
+        }
+        let amt = amountString
+        guard Double(amt) ?? 0 > 0 else {
+            reportTopupFailure("Invalid amount", topupFromQr: false)
+            sheet = nil
+            return
+        }
+        guard walletAddress != nil else {
+            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            sheet = nil
+            return
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty else {
+            reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: false)
+            sheet = nil
+            return
+        }
+        var resolvedOwner: String? = merchantInfraCardOwnerEoa?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if resolvedOwner?.isEmpty != false {
+            if let w = walletAddress,
+               let adminTuple = await api.fetchCardAdminInfo(cardAddress: infra, wallet: w),
+               let ownerAddr = adminTuple.owner?.nilIfEmpty, !ownerAddr.isEmpty {
+                resolvedOwner = ownerAddr
+                merchantInfraCardOwnerEoa = ownerAddr
+            }
+        }
+        if resolvedOwner?.isEmpty != false {
+            resolvedOwner = await api.fetchBeamioUserCardOwner(cardAddress: infra)
+            if let r = resolvedOwner, !r.isEmpty { merchantInfraCardOwnerEoa = r }
+        }
+        guard let cardOwner = resolvedOwner, !cardOwner.isEmpty else {
+            reportTopupFailure("Cannot resolve card owner. Please retry.", topupFromQr: false)
+            sheet = nil
+            return
+        }
+        let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
+        let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let sid = UUID().uuidString.lowercased()
+        topupUsdcSessionId = sid
+        guard let posWallet = walletAddress, !posWallet.isEmpty else {
+            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            topupUsdcSessionId = ""
+            sheet = nil
+            return
+        }
+        let url = Self.buildUsdcTopupQrUrlPhase1(
+            cardAddress: infra,
+            cardOwner: cardOwner,
+            amount: apiAmountString,
+            currency: currency,
+            sid: sid,
+            pos: posWallet
+        )
+        nfc.invalidate()
+        scanAwaitingNfcTap = false
+        scanBanner = ""
+        isNfcBusy = false
+        topupQrSigningInProgress = false
+        topupQrExecuteError = nil
+        topupNfcReadError = nil
+        topupUsdcDeepLink = url
+        topupQrCustomerHint = "Customer scans this QR to pay with USDC."
+        let emptySun = SunParams(uid: "", e: "", c: "", m: "")
+        startTopupUsdcSessionPoll(
+            sid: sid,
+            uid: "",
+            sun: emptySun,
+            cardAddress: infra,
+            currency: currency,
+            topupAmountString: apiAmountString
+        )
     }
 
     /// Builds the `verra-home/usdc-topup` URL with NFC + card + amount + currency, sets `topupUsdcDeepLink` ⇒ UI shows QR.
@@ -2155,13 +2418,22 @@ final class POSViewModel: ObservableObject {
         }
         let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
         let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let sid = UUID().uuidString.lowercased()
+        topupUsdcSessionId = sid
+        guard let posWallet = walletAddress, !posWallet.isEmpty else {
+            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            topupUsdcSessionId = ""
+            return
+        }
         let url = Self.buildUsdcTopupQrUrl(
             cardAddress: infra,
             cardOwner: cardOwner,
             uid: uid,
             sun: sun,
             amount: apiAmountString,
-            currency: currency
+            currency: currency,
+            sid: sid,
+            pos: posWallet
         )
         // Stop NFC immediately — customer flow continues entirely in their phone.
         nfc.invalidate()
@@ -2173,17 +2445,50 @@ final class POSViewModel: ObservableObject {
         topupNfcReadError = nil
         topupUsdcDeepLink = url
         topupQrCustomerHint = "Customer scans this QR to pay with USDC."
+        startTopupUsdcSessionPoll(
+            sid: sid,
+            uid: uid,
+            sun: sun,
+            cardAddress: infra,
+            currency: currency,
+            topupAmountString: apiAmountString
+        )
     }
 
-    /// `https://verra.network/usdc-topup?card=...&owner=...&uid=...&e=...&c=...&m=...&amount=...&currency=...`
+    /// Raw `https://verra.network/usdc-topup?card=&owner=&amount=&currency=&sid=&pos=`（阶段 1，URL 不含 NFC）。
+    /// 与 `buildUsdcChargeQrUrlNoNfc` 一致：直出 HTTPS，便于任意钱包/系统相机扫码自选浏览器打开，不经 `metamask.app.link`。
+    private static func buildUsdcTopupQrUrlPhase1(
+        cardAddress: String,
+        cardOwner: String,
+        amount: String,
+        currency: String,
+        sid: String,
+        pos: String
+    ) -> String {
+        var comps = URLComponents(string: "https://verra.network/usdc-topup")!
+        comps.queryItems = [
+            URLQueryItem(name: "card", value: cardAddress),
+            URLQueryItem(name: "owner", value: cardOwner),
+            URLQueryItem(name: "amount", value: amount),
+            URLQueryItem(name: "currency", value: currency.uppercased()),
+            URLQueryItem(name: "sid", value: sid),
+            URLQueryItem(name: "pos", value: pos),
+        ]
+        return comps.url?.absoluteString ?? ""
+    }
+
+    /// Raw `https://verra.network/usdc-topup?card=...&owner=...&uid=...&e=...&c=...&m=...&amount=...&currency=...&sid=...&pos=...`
     /// Mirrors the param contract in `src/verra-home/src/pages/UsdcTopup.tsx → parseParams`.
+    /// 直出 raw HTTPS（与 `buildUsdcChargeQrUrlNoNfc` / PR「放弃 metamask.app.link 包装」一致）。
     private static func buildUsdcTopupQrUrl(
         cardAddress: String,
         cardOwner: String,
         uid: String,
         sun: SunParams,
         amount: String,
-        currency: String
+        currency: String,
+        sid: String,
+        pos: String
     ) -> String {
         var comps = URLComponents(string: "https://verra.network/usdc-topup")!
         comps.queryItems = [
@@ -2194,7 +2499,9 @@ final class POSViewModel: ObservableObject {
             URLQueryItem(name: "c", value: sun.c),
             URLQueryItem(name: "m", value: sun.m),
             URLQueryItem(name: "amount", value: amount),
-            URLQueryItem(name: "currency", value: currency.uppercased())
+            URLQueryItem(name: "currency", value: currency.uppercased()),
+            URLQueryItem(name: "sid", value: sid),
+            URLQueryItem(name: "pos", value: pos),
         ]
         return comps.url?.absoluteString ?? ""
     }
@@ -2203,10 +2510,244 @@ final class POSViewModel: ObservableObject {
     func cancelTopupUsdcQr() {
         topupUsdcDeepLink = ""
         topupQrCustomerHint = ""
+        topupUsdcSessionPollTask?.cancel()
+        topupUsdcSessionPollTask = nil
+        topupUsdcSessionId = ""
+        topupUsdcSessionProgressLabel = ""
+        topupUsdcTopupAuthSubmittedSids.removeAll()
+        topupUsdcTopupAuthInflightSids.removeAll()
         guard pendingScanAction == .topup else { return }
         scanQrCameraArmed = false
         scanAwaitingNfcTap = true
         nfc.begin()
+    }
+
+    private struct TopupUsdcSessionPollContext {
+        let sid: String
+        let uid: String
+        let sun: SunParams
+        let cardAddress: String
+        let currency: String
+        let topupAmountString: String
+    }
+
+    private func startTopupUsdcSessionPoll(
+        sid: String,
+        uid: String,
+        sun: SunParams,
+        cardAddress: String,
+        currency: String,
+        topupAmountString: String
+    ) {
+        topupUsdcSessionPollTask?.cancel()
+        let snap = TopupUsdcSessionPollContext(
+            sid: sid,
+            uid: uid,
+            sun: sun,
+            cardAddress: cardAddress,
+            currency: currency,
+            topupAmountString: topupAmountString
+        )
+        topupUsdcSessionPollTask = Task { [weak self] in
+            await self?.runTopupUsdcSessionPollLoop(ctx: snap)
+        }
+    }
+
+    private func runTopupUsdcSessionPollLoop(ctx: TopupUsdcSessionPollContext) async {
+        defer { topupUsdcSessionPollTask = nil }
+        do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+        while !Task.isCancelled {
+            guard topupUsdcSessionId == ctx.sid, !topupUsdcDeepLink.isEmpty else { return }
+            let result = await api.fetchUsdcChargeSession(sid: ctx.sid)
+            guard let r = result else {
+                do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+                continue
+            }
+            if r.state == .success {
+                await handleTopupUsdcSessionSuccess(ctx: ctx, result: r)
+                return
+            }
+            if r.state == .error {
+                handleTopupUsdcSessionError(ctx: ctx, result: r)
+                return
+            }
+            if r.state == .awaitingBeneficiary {
+                handleTopupUsdcAwaitingBeneficiary(ctx: ctx)
+                return
+            }
+            if r.state == .awaitingTopupAuth {
+                kickOffTopupAuthSubmissionForUsdcTopupIfNeeded(ctx: ctx, result: r)
+            }
+            applyTopupUsdcIntermediateState(ctx: ctx, state: r.state)
+            do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+        }
+    }
+
+    private func kickOffTopupAuthSubmissionForUsdcTopupIfNeeded(
+        ctx: TopupUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) {
+        if topupUsdcTopupAuthSubmittedSids.contains(ctx.sid) { return }
+        if topupUsdcTopupAuthInflightSids.contains(ctx.sid) { return }
+        guard let cardAddr = result.pendingTopupCardAddr,
+              let data = result.pendingTopupData,
+              let deadline = result.pendingTopupDeadline,
+              let nonce = result.pendingTopupNonce else {
+            return
+        }
+        guard let pkHex = BeamioKeychain.loadPrivateKeyHex(), !pkHex.isEmpty else {
+            reportTopupFailure("POS wallet missing; cannot authorize top-up. Please re-import the terminal wallet.", topupFromQr: false)
+            topupUsdcDeepLink = ""
+            topupUsdcSessionPollTask?.cancel()
+            topupUsdcSessionPollTask = nil
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            return
+        }
+        topupUsdcTopupAuthInflightSids.insert(ctx.sid)
+        let sid = ctx.sid
+        Task { [weak self] in
+            await self?.runUsdcTopupTopupAuthSubmission(
+                sid: sid,
+                cardAddr: cardAddr,
+                dataHex: data,
+                deadline: deadline,
+                nonceHex: nonce,
+                privateKeyHex: pkHex
+            )
+        }
+    }
+
+    private func runUsdcTopupTopupAuthSubmission(
+        sid: String,
+        cardAddr: String,
+        dataHex: String,
+        deadline: UInt64,
+        nonceHex: String,
+        privateKeyHex: String
+    ) async {
+        let signature: String
+        do {
+            signature = try BeamioEthWallet.signExecuteForAdmin(
+                privateKeyHex: privateKeyHex,
+                cardAddr: cardAddr,
+                dataHex: dataHex,
+                deadline: deadline,
+                nonceHex: nonceHex
+            )
+        } catch {
+            topupUsdcTopupAuthInflightSids.remove(sid)
+            guard topupUsdcSessionId == sid else { return }
+            reportTopupFailure("Failed to sign top-up authorization: \(error.localizedDescription)", topupFromQr: false)
+            topupUsdcDeepLink = ""
+            topupUsdcSessionPollTask?.cancel()
+            topupUsdcSessionPollTask = nil
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            return
+        }
+
+        let submitResult = await api.submitUsdcChargeTopupAuth(sid: sid, signature: signature)
+        topupUsdcTopupAuthInflightSids.remove(sid)
+        guard topupUsdcSessionId == sid else { return }
+        switch submitResult {
+        case .none:
+            return
+        case let .some((ok, errorMessage)):
+            if ok {
+                topupUsdcTopupAuthSubmittedSids.insert(sid)
+                return
+            }
+            reportTopupFailure(errorMessage?.nilIfEmpty ?? "Server rejected top-up authorization.", topupFromQr: false)
+            topupUsdcDeepLink = ""
+            topupUsdcSessionPollTask?.cancel()
+            topupUsdcSessionPollTask = nil
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+        }
+    }
+
+    private func applyTopupUsdcIntermediateState(
+        ctx: TopupUsdcSessionPollContext,
+        state: BeamioAPIClient.UsdcChargeSessionState
+    ) {
+        guard topupUsdcSessionId == ctx.sid else { return }
+        let next: String
+        switch state {
+        case .awaitingPayment, .unknown:
+            next = ""
+        case .verifying:
+            next = "Verifying payment…"
+        case .settling:
+            next = "Settling USDC…"
+        case .awaitingTopupAuth:
+            next = "Authorizing top-up…"
+        case .awaitingBeneficiary:
+            next = "USDC received — ask customer to tap card…"
+        case .topupPending:
+            next = "Crediting card…"
+        case .topupConfirmed, .chargePending:
+            next = "Finalizing…"
+        case .success, .error:
+            next = ""
+        }
+        if topupUsdcSessionProgressLabel != next {
+            topupUsdcSessionProgressLabel = next
+        }
+    }
+
+    private func handleTopupUsdcAwaitingBeneficiary(ctx: TopupUsdcSessionPollContext) {
+        guard topupUsdcSessionId == ctx.sid else { return }
+        topupUsdcSessionPollTask?.cancel()
+        topupUsdcSessionPollTask = nil
+        topupUsdcDeepLink = ""
+        topupQrCustomerHint = "USDC paid. Ask the customer to tap their Beamio card."
+        topupUsdcSessionProgressLabel = ""
+        scanAwaitingNfcTap = true
+        scanBanner = "Hold the customer's NTAG 424 DNA card near the NFC sensor."
+        nfc.begin()
+    }
+
+    private func handleTopupUsdcSessionError(
+        ctx: TopupUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) {
+        guard topupUsdcSessionId == ctx.sid else { return }
+        reportTopupFailure(result.error?.nilIfEmpty ?? "USDC top-up failed. Please ask the customer to retry.", topupFromQr: false)
+        topupUsdcDeepLink = ""
+        topupUsdcSessionId = ""
+        topupUsdcSessionProgressLabel = ""
+        sheet = nil
+    }
+
+    private func handleTopupUsdcSessionSuccess(
+        ctx: TopupUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) async {
+        guard topupUsdcSessionId == ctx.sid else { return }
+        let tx = result.topupTxHash?.nilIfEmpty ?? result.USDC_tx?.nilIfEmpty ?? ""
+        topupUsdcSessionId = ""
+        topupUsdcSessionProgressLabel = ""
+        topupUsdcDeepLink = ""
+        topupQrCustomerHint = ""
+        await completeTopupSuccessUi(
+            amount: ctx.topupAmountString,
+            txHash: tx,
+            cardAddr: ctx.cardAddress,
+            preBalance: "—",
+            cardCurrency: ctx.currency,
+            address: nil,
+            preCard: nil,
+            settlementViaQr: true,
+            fetchPostAssets: {
+                await self.api.getUIDAssets(
+                    uid: ctx.uid,
+                    sun: ctx.sun,
+                    merchantInfraCard: self.merchantInfraCard,
+                    merchantInfraOnly: false
+                )
+            }
+        )
     }
 
     /// Builds the `verra-home/usdc-charge` URL with NFC + card + breakdown + currency, sets `chargeUsdcDeepLink` ⇒ UI shows QR.
@@ -2304,7 +2845,267 @@ final class POSViewModel: ObservableObject {
         chargeUsdcDeepLink = ""
         chargeQrCustomerHint = ""
         chargeUsdcQrGenerating = false
+        cancelChargeUsdcSessionPoll()
+        chargeUsdcSessionId = ""
+        chargeUsdcSessionProgressLabel = ""
         closeScanSheet()
+    }
+
+    /// PR #3: 启动 USDC charge no-NFC session 轮询。单飞 — 已在飞的 task 先取消，避免 retry 后重叠。
+    /// `setTimeout` chain 模式 (per `beamio-no-setinterval` rule + `parentPermissionGatePollLoop` template)。
+    private func startChargeUsdcSessionPoll(
+        sid: String,
+        cardAddress: String,
+        cardOwner: String,
+        posOperator: String,
+        currency: String,
+        subtotalAmount: Double,
+        taxBps: Int,
+        tipBps: Int
+    ) {
+        cancelChargeUsdcSessionPoll()
+        let snapshot = ChargeUsdcSessionPollContext(
+            sid: sid,
+            cardAddress: cardAddress,
+            cardOwner: cardOwner,
+            posOperator: posOperator,
+            currency: currency,
+            subtotalAmount: subtotalAmount,
+            taxBps: taxBps,
+            tipBps: tipBps
+        )
+        chargeUsdcSessionPollTask = Task { [weak self] in
+            await self?.runChargeUsdcSessionPollLoop(ctx: snapshot)
+        }
+    }
+
+    private func cancelChargeUsdcSessionPoll() {
+        chargeUsdcSessionPollTask?.cancel()
+        chargeUsdcSessionPollTask = nil
+    }
+
+    private func runChargeUsdcSessionPollLoop(ctx: ChargeUsdcSessionPollContext) async {
+        defer { chargeUsdcSessionPollTask = nil }
+        // 第一拍稍微 sleep 一下，给 verra-home 一个 round-trip 时间触发 POST；不延迟则首拍 100% awaiting_payment 浪费一次往返。
+        do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+        while !Task.isCancelled {
+            // 防御：sid 已被换掉（cancel→重 begin），或 QR 已被关闭 ⇒ 跳出
+            guard chargeUsdcSessionId == ctx.sid, !chargeUsdcDeepLink.isEmpty else { return }
+            let result = await api.fetchUsdcChargeSession(sid: ctx.sid)
+            // untrusted 失败 ⇒ 不切 UI，下一轮再试（per beamio-trusted-vs-untrusted-fetch.mdc）
+            guard let r = result else {
+                do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+                continue
+            }
+            if r.state == .success {
+                handleChargeUsdcSessionSuccess(ctx: ctx, result: r)
+                return
+            }
+            if r.state == .error {
+                handleChargeUsdcSessionError(ctx: ctx, result: r)
+                return
+            }
+            // PR #4 v2：编排器进入 awaiting_topup_auth ⇒ POS 端用 admin EOA 离线签 ExecuteForAdmin 后 POST 回 cluster。
+            // 启动一次 fire-and-forget 签名+提交任务（不阻塞轮询，server 接收后会立刻把 state 推进到 topup_pending/_confirmed）。
+            if r.state == .awaitingTopupAuth {
+                kickOffTopupAuthSubmissionIfNeeded(ctx: ctx, result: r)
+            }
+            // 非 terminal：把 PR #4 编排器的中间态投影到一个 label，让 merchant 看到推进而不是「卡在 QR 没动」。
+            // awaiting_payment ⇒ 顾客还没扫 QR / 还没在 verra-home POST，UI 不显示 label（避免误导客户已经付款）。
+            applyChargeUsdcIntermediateState(ctx: ctx, state: r.state)
+            do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+        }
+    }
+
+    /// PR #4 v2: 当 cluster session 进入 `awaiting_topup_auth` 时，POS 用 admin EOA 私钥本地签 ExecuteForAdmin（10ms 量级），
+    /// POST 给 `/api/nfcUsdcChargeTopupAuth`。Cluster 验签 recover==session.pos 后注入 orchestrator，1 拍内 state 推进到 topup_pending/_confirmed。
+    /// - 必须 idempotent：每个 sid 只签一次（cluster 那边一次性消耗签名后清 pendingTopup* 字段；重复 POST 会被 cluster 当 idempotent 200 兜回，但更早在客户端 dedupe 省一次往返）。
+    /// - 异常分类：
+    ///   - 私钥不在 Keychain（极小概率：用户在 charge 中途 wipe 应用） ⇒ 写 paymentTerminalError + cancel poll。
+    ///   - sign 抛错（私钥/字段格式问题） ⇒ 同上。
+    ///   - cluster 4xx（如 signer mismatch / signature recover failed） ⇒ 同上。
+    ///   - cluster 5xx / 网络 nil ⇒ 解锁 inflight flag + 不写 error，下一拍重试（untrusted）。
+    private func kickOffTopupAuthSubmissionIfNeeded(
+        ctx: ChargeUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) {
+        if chargeUsdcTopupAuthSubmittedSids.contains(ctx.sid) { return }
+        if chargeUsdcTopupAuthInflightSids.contains(ctx.sid) { return }
+        guard let cardAddr = result.pendingTopupCardAddr,
+              let data = result.pendingTopupData,
+              let deadline = result.pendingTopupDeadline,
+              let nonce = result.pendingTopupNonce else {
+            // 编排器还没 push 完整字段（极少见的 read-modify-write 间隙）；下一拍再来。
+            return
+        }
+        guard let pkHex = BeamioKeychain.loadPrivateKeyHex(), !pkHex.isEmpty else {
+            paymentTerminalError = "POS wallet missing; cannot authorize merchant top-up. Please re-import the terminal wallet."
+            chargeUsdcQrGenerating = false
+            chargeUsdcDeepLink = ""
+            cancelChargeUsdcSessionPoll()
+            chargeUsdcSessionId = ""
+            chargeUsdcSessionProgressLabel = ""
+            return
+        }
+        chargeUsdcTopupAuthInflightSids.insert(ctx.sid)
+        let sid = ctx.sid
+        Task { [weak self] in
+            await self?.runTopupAuthSubmission(sid: sid, cardAddr: cardAddr, dataHex: data, deadline: deadline, nonceHex: nonce, privateKeyHex: pkHex)
+        }
+    }
+
+    private func runTopupAuthSubmission(
+        sid: String,
+        cardAddr: String,
+        dataHex: String,
+        deadline: UInt64,
+        nonceHex: String,
+        privateKeyHex: String
+    ) async {
+        let signature: String
+        do {
+            signature = try BeamioEthWallet.signExecuteForAdmin(
+                privateKeyHex: privateKeyHex,
+                cardAddr: cardAddr,
+                dataHex: dataHex,
+                deadline: deadline,
+                nonceHex: nonceHex
+            )
+        } catch {
+            chargeUsdcTopupAuthInflightSids.remove(sid)
+            guard chargeUsdcSessionId == sid else { return }
+            paymentTerminalError = "Failed to sign top-up authorization: \(error.localizedDescription)"
+            chargeUsdcQrGenerating = false
+            chargeUsdcDeepLink = ""
+            cancelChargeUsdcSessionPoll()
+            chargeUsdcSessionId = ""
+            chargeUsdcSessionProgressLabel = ""
+            return
+        }
+
+        let result = await api.submitUsdcChargeTopupAuth(sid: sid, signature: signature)
+        chargeUsdcTopupAuthInflightSids.remove(sid)
+        // sid 已被换/清 ⇒ 当前提交属于一笔已废弃的 charge，安静丢弃即可。
+        guard chargeUsdcSessionId == sid else { return }
+        switch result {
+        case .none:
+            // untrusted 失败：下一拍 polling 命中 awaitingTopupAuth 时会重试（inflight 已 release）。
+            return
+        case let .some((ok, errorMessage)):
+            if ok {
+                chargeUsdcTopupAuthSubmittedSids.insert(sid)
+                return
+            }
+            // 4xx：cluster 拒收（如 signer mismatch、session 已 error）⇒ 终结当前 charge 让 merchant 处理。
+            paymentTerminalError = errorMessage?.nilIfEmpty ?? "Server rejected top-up authorization."
+            chargeUsdcQrGenerating = false
+            chargeUsdcDeepLink = ""
+            cancelChargeUsdcSessionPoll()
+            chargeUsdcSessionId = ""
+            chargeUsdcSessionProgressLabel = ""
+        }
+    }
+
+    /// PR #4：把 cluster session 的非 terminal state 投影成 POS 上 customer 可见的进度文案。
+    /// 注意：该 label 只在 `chargeUsdcDeepLink` 仍然展示时有意义；任何 success/error/cancel 路径都会把 label 清空。
+    private func applyChargeUsdcIntermediateState(
+        ctx: ChargeUsdcSessionPollContext,
+        state: BeamioAPIClient.UsdcChargeSessionState
+    ) {
+        guard chargeUsdcSessionId == ctx.sid else { return }
+        let next: String
+        switch state {
+        case .awaitingPayment, .unknown:
+            next = ""
+        case .verifying:
+            next = "Verifying payment…"
+        case .settling:
+            next = "Settling USDC…"
+        case .awaitingTopupAuth:
+            next = "Authorizing top-up…"
+        case .awaitingBeneficiary:
+            next = "USDC received — ask customer to tap card…"
+        case .topupPending:
+            next = "Crediting merchant card…"
+        case .topupConfirmed, .chargePending:
+            next = "Recording charge…"
+        case .success, .error:
+            next = ""
+        }
+        if chargeUsdcSessionProgressLabel != next {
+            chargeUsdcSessionProgressLabel = next
+        }
+    }
+
+    private func handleChargeUsdcSessionSuccess(
+        ctx: ChargeUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) {
+        guard chargeUsdcSessionId == ctx.sid else { return }
+        // 把 USDC charge 用 ChargeSuccessState 渲染到 inline success view（与 NFC charge 同 UI 路径）。
+        // amount = total fiat（含 tax/tip/discount）；payee = cardOwner（USDC 收款 EOA）；txHash = USDC_tx。
+        let total = result.total ?? String(format: "%.2f", ctx.subtotalAmount)
+        let payee = (result.cardOwner?.isEmpty == false) ? result.cardOwner! : ctx.cardOwner
+        let tx = result.USDC_tx ?? ""
+        let cur = result.currency ?? ctx.currency
+        let state = ChargeSuccessState(
+            amount: total,
+            payee: payee,
+            txHash: tx,
+            subtotal: result.subtotal ?? String(format: "%.2f", ctx.subtotalAmount),
+            tip: result.tip,
+            postBalance: nil,
+            cardCurrency: cur,
+            memberNo: nil,
+            cardBackground: nil,
+            cardImage: nil,
+            cardName: nil,
+            tierName: nil,
+            cardType: nil,
+            passCard: nil,
+            settlementViaQr: true,
+            chargeTaxPercent: ctx.taxBps > 0 ? Double(ctx.taxBps) / 100.0 : nil,
+            chargeTierDiscountPercent: nil,
+            tableNumber: nil,
+            isPartialApproval: false,
+            originalOrderTotal: nil,
+            remainingShortfall: nil,
+            customerBeamioTag: nil,
+            customerWalletAddress: result.payer
+        )
+        paymentRoutingSteps = []
+        paymentTerminalError = nil
+        chargeNfcReadError = nil
+        chargeUsdcQrGenerating = false
+        chargeApprovedInline = state
+        scheduleHomeProfilesRefreshAfterTxSuccess()
+        // QR 已完成使命；deep link 仍由 success view 接管（不立即清，否则中间帧会 flash 回 Home）；sid + progress label 清掉避免下一次重复进 loop / UI 残留。
+        chargeUsdcSessionId = ""
+        chargeUsdcSessionProgressLabel = ""
+    }
+
+    private func handleChargeUsdcSessionError(
+        ctx: ChargeUsdcSessionPollContext,
+        result: BeamioAPIClient.UsdcChargeSessionResult
+    ) {
+        guard chargeUsdcSessionId == ctx.sid else { return }
+        paymentTerminalError = result.error?.nilIfEmpty ?? "USDC payment failed. Please ask the customer to retry."
+        chargeUsdcQrGenerating = false
+        // 让 UI 在 paymentScanCenterContent 显示 retry/cancel chrome（同 NFC charge error 路径）；deep link 由用户决定 cancel or retry.
+        chargeUsdcDeepLink = ""
+        chargeUsdcSessionId = ""
+        chargeUsdcSessionProgressLabel = ""
+    }
+
+    private struct ChargeUsdcSessionPollContext {
+        let sid: String
+        let cardAddress: String
+        let cardOwner: String
+        let posOperator: String
+        let currency: String
+        let subtotalAmount: Double
+        let taxBps: Int
+        let tipBps: Int
     }
 
     /// USDC charge without NFC: build `verra-home/usdc-charge?card=…&owner=…&subtotal=…&tip=…&currency=…` and set
@@ -2351,10 +3152,9 @@ final class POSViewModel: ObservableObject {
         let chainCurrency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code
         let currency = (chainCurrency ?? "CAD").uppercased()
         // 无顾客卡 → 无 tier discount；taxPercent 走与 NFC charge 同口径的 fetchChargeTierRoutingDetails，缓存兜底。
+        // 新 minimal URL schema（PR #1）只需 `pos + subtotal + *Bps`：tax/tip 绝对金额由 verra-home 后端按 Bps 重算。
         let routingDetails = await api.fetchChargeTierRoutingDetails(wallet: payee, infraCard: infra)
         let taxP = routingDetails?.taxPercent ?? infraRoutingTaxPercent ?? 0.0
-        let tip = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtotal, tipRateBps: tipBps)
-        let taxAmount = max(0.0, subtotal * (taxP / 100.0))
         let taxBps = max(0, Int((taxP * 100.0).rounded()))
         // 出 QR 前 fast-fail 预检：cardOwner 是否有足够 B-Unit 覆盖未来双腿 orchestrator 的 topup 手续费。
         // PR #2 范围 — `ok=false` ⇒ 不出 QR；`nil`（trusted 网络/解析失败）⇒ 视作 unknown，按 untrusted 协议放行（沿用 beamio-trusted-vs-untrusted-fetch.mdc）。
@@ -2369,56 +3169,76 @@ final class POSViewModel: ObservableObject {
             currency: currency
         ) {
             if !pre.ok {
-                paymentTerminalError = pre.error?.nilIfEmpty ?? "Card owner has insufficient B-Units to settle a USDC charge. Please top up B-Units before charging."
+                // backend 现在覆盖两类预检：cardOwner B-Unit fee 余额 + POS 作为 subordinate admin 的 airdrop 配额链路；
+                // pre.error 已经是携带具体 signer/used/limit 的可操作文案，这里仅在缺省时给一个通用兜底。
+                paymentTerminalError = pre.error?.nilIfEmpty ?? "Pre-check failed: card owner B-Unit balance or POS admin airdrop quota is insufficient. Please top up B-Units or raise the POS admin's mint limit."
                 return
             }
         }
+        // cardOwner 已通过 `merchantInfraCardOwnerEoa` 缓存被使用过（早期 guard），URL 不再携带；verra-home 会通过 quote endpoint 链上权威读取 `card.owner()`。
+        _ = cardOwner
+        // PR #3: 每张 QR 一个 UUID v4，让 cluster 把支付状态 keying 起来，POS 可单飞轮询出 success/error。
+        let sid = UUID().uuidString.lowercased()
+        chargeUsdcSessionId = sid
+        // QR 内容固定为 raw `https://verra.network/usdc-charge?...` HTTP URL（PR：放弃 WC v2 协议；不再走 metamask.app.link 包装）。
+        // 顾客在系统相机/任意第三方钱包扫码后自行选择浏览器打开，不锁定单一钱包入口。
         let url = Self.buildUsdcChargeQrUrlNoNfc(
             cardAddress: infra,
-            cardOwner: cardOwner,
+            pos: payee,
+            sid: sid,
             subtotal: subtotal,
-            discount: 0,
-            tax: taxAmount,
-            tip: tip,
             discountBps: 0,
             taxBps: taxBps,
-            tipBps: tipBps,
-            currency: currency
+            tipBps: tipBps
         )
         paymentTerminalError = nil
         chargeNfcReadError = nil
         chargeUsdcDeepLink = url
         chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
+        // 出 QR 后立即启动轮询；terminal state（success/error）⇒ task 自动结束并切 UI（`chargeApprovedInline` / `paymentTerminalError`）。
+        startChargeUsdcSessionPoll(
+            sid: sid,
+            cardAddress: infra,
+            cardOwner: cardOwner,
+            posOperator: payee,
+            currency: currency,
+            subtotalAmount: subtotal,
+            taxBps: taxBps,
+            tipBps: tipBps
+        )
     }
 
-    /// `https://verra.network/usdc-charge?card=…&owner=…&subtotal=…&discount=…&tax=…&tip=…&discountBps=…&taxBps=…&tipBps=…&currency=…`
-    /// No `uid / e / c / m` — verra-home must accept the URL without NFC SUN params (third-party wallet path).
+    /// `https://verra.network/usdc-charge?card=…&pos=…&sid=…&subtotal=…&tipBps=…&taxBps=…&discountBps=…`
+    /// No `owner / currency / discount / tax / tip / uid / e / c / m` — verra-home reads owner & currency on-chain via the
+    /// quote endpoint, and recomputes the absolute amounts from `subtotal × *Bps / 10000` to keep the QR small enough to scan
+    /// reliably. PR #1 minimal schema (see design doc), aligned with `verra-home/src/pages/UsdcCharge.tsx → parseParams`.
+    /// `sid` (PR #3): UUID v4 keying the cluster session record so iOS POS can poll `GET /api/nfcUsdcChargeSession?sid=…`.
+    ///
+    /// **统一 HTTP 协议（PR：放弃 WC v2）**：以前为了「MetaMask 内置 QR 扫描器把外链扔到系统浏览器」问题，曾用 `metamask.app.link/dapp/...`
+    /// Universal Link 把 verra URL 包装一层；用户明确要求「不再以小狐狸包装的 url」+「放弃 wc 协议」，改为单一路径：
+    /// 直出 raw `https://verra.network/usdc-charge?...`；任意第三方钱包/系统相机扫码后由用户自行选择在哪个钱包浏览器内打开
+    /// （避免锁定 MetaMask 单一入口，对 Coinbase Wallet / Rabby / Trust 等更友好）。
     private static func buildUsdcChargeQrUrlNoNfc(
         cardAddress: String,
-        cardOwner: String,
+        pos: String,
+        sid: String,
         subtotal: Double,
-        discount: Double,
-        tax: Double,
-        tip: Double,
         discountBps: Int,
         taxBps: Int,
-        tipBps: Int,
-        currency: String
+        tipBps: Int
     ) -> String {
         let fmt: (Double) -> String = { String(format: "%.2f", max(0.0, $0)) }
         var comps = URLComponents(string: "https://verra.network/usdc-charge")!
-        comps.queryItems = [
+        var items: [URLQueryItem] = [
             URLQueryItem(name: "card", value: cardAddress),
-            URLQueryItem(name: "owner", value: cardOwner),
-            URLQueryItem(name: "subtotal", value: fmt(subtotal)),
-            URLQueryItem(name: "discount", value: fmt(discount)),
-            URLQueryItem(name: "tax", value: fmt(tax)),
-            URLQueryItem(name: "tip", value: fmt(tip)),
-            URLQueryItem(name: "discountBps", value: String(max(0, discountBps))),
-            URLQueryItem(name: "taxBps", value: String(max(0, taxBps))),
-            URLQueryItem(name: "tipBps", value: String(max(0, tipBps))),
-            URLQueryItem(name: "currency", value: currency.uppercased())
+            URLQueryItem(name: "pos", value: pos),
+            URLQueryItem(name: "sid", value: sid),
+            URLQueryItem(name: "subtotal", value: fmt(subtotal))
         ]
+        if tipBps > 0 { items.append(URLQueryItem(name: "tipBps", value: String(tipBps))) }
+        if taxBps > 0 { items.append(URLQueryItem(name: "taxBps", value: String(taxBps))) }
+        if discountBps > 0 { items.append(URLQueryItem(name: "discountBps", value: String(discountBps))) }
+        comps.queryItems = items
         return comps.url?.absoluteString ?? ""
     }
 
@@ -2456,7 +3276,24 @@ final class POSViewModel: ObservableObject {
             URLQueryItem(name: "tipBps", value: String(max(0, tipBps))),
             URLQueryItem(name: "currency", value: currency.uppercased())
         ]
-        return comps.url?.absoluteString ?? ""
+        return wrapVerraUrlForMetaMaskDeepLink(comps.url?.absoluteString ?? "")
+    }
+
+    /// 把任意 `https://verra.network/...` 转成 `https://metamask.app.link/dapp/verra.network/...`。
+    /// MetaMask 内置 QR 扫描器识别此前缀后直接载入 MetaMask Browser，注入 `window.ethereum`，
+    /// 顾客可在钱包内完成 USDC 支付，不再被踢到系统浏览器。
+    /// 详见 `buildUsdcChargeQrUrlNoNfc` 的 trade-off 说明（未装 MetaMask 的用户不会自动 302 回 verra）。
+    /// - 入参为空或不是 verra.network 主机时原样返回，不做包装（防止误转）。
+    private static func wrapVerraUrlForMetaMaskDeepLink(_ rawUrl: String) -> String {
+        guard !rawUrl.isEmpty,
+              let comps = URLComponents(string: rawUrl),
+              comps.scheme == "https",
+              let host = comps.host,
+              host == "verra.network" || host.hasSuffix(".verra.network")
+        else { return rawUrl }
+        let path = comps.path
+        let query = comps.percentEncodedQuery.map { "?\($0)" } ?? ""
+        return "https://metamask.app.link/dapp/\(host)\(path)\(query)"
     }
 
     private func reportTopupFailure(_ message: String, topupFromQr: Bool, homeToast: Bool = false) {
@@ -2676,7 +3513,7 @@ final class POSViewModel: ObservableObject {
         return v
     }
 
-    private func runTopup(beamioTag: String?, wallet: String?, uid: String? = nil, sun: SunParams? = nil, privateKeyHex: String, topupFromQr: Bool = false) async {
+    private func runTopup(beamioTag: String?, wallet: String?, uid: String? = nil, sun: SunParams? = nil, privateKeyHex: String, topupFromQr: Bool = false, usdcTopupSessionId: String? = nil) async {
         topupExecuteDisplayTotal = nil
         topupExecuteDisplayBonus = nil
         let amt = amountString
@@ -2782,7 +3619,8 @@ final class POSViewModel: ObservableObject {
                 nonce: nonce,
                 adminSignature: sigBeamio,
                 sun: nil,
-                currencySplit: currencySplit
+                currencySplit: currencySplit,
+                usdcTopupSessionId: usdcTopupSessionId
             )
             guard payBeamio.success else {
                 let msg = payBeamio.error ?? "Top-up failed"
@@ -2879,7 +3717,8 @@ final class POSViewModel: ObservableObject {
                 nonce: nonce,
                 adminSignature: sigW,
                 sun: nil,
-                currencySplit: currencySplit
+                currencySplit: currencySplit,
+                usdcTopupSessionId: usdcTopupSessionId
             )
             guard payW.success else {
                 let msg = payW.error ?? "Top-up failed"
@@ -2971,7 +3810,8 @@ final class POSViewModel: ObservableObject {
             nonce: nonce,
             adminSignature: sigN,
             sun: sunN,
-            currencySplit: currencySplit
+            currencySplit: currencySplit,
+            usdcTopupSessionId: usdcTopupSessionId
         )
         guard payN.success else {
             let msg = payN.error ?? "Top-up failed"
@@ -3050,6 +3890,7 @@ final class POSViewModel: ObservableObject {
         topupNfcReadError = nil
         topupExecuteDisplayTotal = nil
         topupExecuteDisplayBonus = nil
+        topupUsdcSessionId = ""
         nfc.invalidate()
         sheet = nil
         clearPendingTopupPadAccountingParams()
@@ -3990,18 +4831,34 @@ final class POSViewModel: ObservableObject {
         let unitPoints6Partial = partQrPartial.unitPricePoints6
         let oracleInfraPartial = partQrPartial.oracleInfraCards
         let infraPoints6 = oracleInfraPartial.reduce(0) { $0 + (Int64($1.points6) ?? 0) }
-        let split = BeamioPaymentRouting.computeChargeContainerSplit(
-            amountBig: amountPartial,
-            chargeTotalInPayCurrency: chargedFiat,
+        let partialFiat6Str = BeamioPaymentRouting.currencyToFiat6(amount: chargedFiat)
+        guard let partialFiat6 = Int64(partialFiat6Str), partialFiat6 > 0 else {
+            surfacePartialChargeRoutingFailure(message: "Invalid charge amount", stepId: "optimizingRoute")
+            return
+        }
+        let cardChainInfo: (code: String, priceE6: UInt64)?
+        if let cardAddr = payCard?.cardAddress.nilIfEmpty ?? assets.cardAddress?.nilIfEmpty {
+            cardChainInfo = await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: cardAddr)
+        } else {
+            cardChainInfo = nil
+        }
+        if unitPoints6Partial > 0, cardChainInfo == nil {
+            surfacePartialChargeRoutingFailure(message: "Card price unavailable. Please refresh the customer balance and try again.", stepId: "optimizingRoute")
+            return
+        }
+        let split = BeamioPaymentRouting.computeChargeContainerSplitFiat6(
+            amountFiat6: partialFiat6,
             payCurrency: payCurrency,
-            oracle: oracle,
-            unitPriceUSDC6: unitPrice,
+            cardCurrency: cardChainInfo?.code.uppercased(),
+            pointsUnitPriceInCurrencyE6: Int64(cardChainInfo?.priceE6 ?? 0),
             ccsaPoints6: unitPoints6Partial,
             infraPoints6: infraPoints6,
             infraCardCurrency: oracleInfraPartial.first?.cardCurrency,
-            usdcBalance6: usdcBal
+            usdcBalance6: usdcBal,
+            oracle: oracle,
+            unitPriceUSDC6Fallback: unitPrice
         )
-        var items = BeamioPaymentRouting.buildPayItems(amountUsdc6: String(amountPartial), split: split, infraCard: merchantInfraCard)
+        var items = BeamioPaymentRouting.buildPayItemsFiat6(split: split, infraCard: merchantInfraCard)
         items = BeamioPaymentRouting.mergeInfraKind1Items(items, infraCard: merchantInfraCard)
         let beamio1155Wei = mergedInfraKind1Amount(from: items, infraCard: merchantInfraCard)
         let usdcWei = firstUsdcAmount6(from: items)
@@ -4118,6 +4975,13 @@ private extension POSViewModel {
         return hex.allSatisfy { ch in
             ch.isASCII && ((ch >= "0" && ch <= "9") || (ch >= "a" && ch <= "f") || (ch >= "A" && ch <= "F"))
         }
+    }
+
+    private func normalizeEoaAddress(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard looksLikeAddress(t) else { return nil }
+        return t.lowercased()
     }
 }
 

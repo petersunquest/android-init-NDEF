@@ -12,6 +12,42 @@ enum BeamioAPIError: Error {
     case decode
 }
 
+private actor BeamioEthCallFetchCache {
+    private struct Entry {
+        let value: String
+        let fetchedAt: Date
+    }
+
+    private var cache: [String: Entry] = [:]
+    private var inFlight: [String: Task<String?, Never>] = [:]
+    private var tail: Task<Void, Never>?
+
+    func fetch(key: String, ttl: TimeInterval = 30, fetcher: @Sendable @escaping () async -> String?) async -> String? {
+        let now = Date()
+        if let hit = cache[key], now.timeIntervalSince(hit.fetchedAt) < ttl {
+            return hit.value
+        }
+        if let task = inFlight[key] {
+            return await task.value
+        }
+
+        let previous = tail
+        let task = Task<String?, Never> {
+            await previous?.value
+            return await fetcher()
+        }
+        inFlight[key] = task
+        tail = Task<Void, Never> { _ = await task.value }
+
+        let value = await task.value
+        inFlight[key] = nil
+        if let value {
+            cache[key] = Entry(value: value, fetchedAt: Date())
+        }
+        return value
+    }
+}
+
 /// `/api/myPosAddress` → `terminalMetadata.allowedTopupMethods` (keys: cash, bankCard, usdc, airdrop).
 struct PosTerminalPolicy: Equatable {
     var allowTopupCash: Bool
@@ -77,6 +113,7 @@ struct PosLedgerItem: Equatable, Codable, Identifiable, Sendable {
     enum Kind: String, Codable, Sendable {
         case topUp
         case charge
+        case tip
     }
 
     let id: String
@@ -98,6 +135,30 @@ struct PosLedgerItem: Equatable, Codable, Identifiable, Sendable {
     let topAdmin: String?
     let subordinate: String?
     let note: String?
+    /** Cluster-enriched: payer `accountName` without `@`. */
+    let payerBeamioTag: String?
+    /** `USDC` / `Card` / `Cash` / `Bonus` for top-up/charge rows. */
+    let paymentMethodLabel: String?
+}
+
+/// Latest `TX_Terminal_RESET` indexer row for this terminal (`/api/posLedger` → `lastTerminalReset`).
+struct PosLedgerTerminalResetMarker: Equatable, Codable, Sendable {
+    let txId: String
+    let timestamp: Int64
+    let payer: String
+}
+
+/// POS History → Top-Up Overview buckets (aligned with cluster `paymentMethodLabel` / `displayJson.topupPaymentLeg`).
+struct PosTopUpOverviewBreakdown: Equatable, Sendable {
+    var cashTotal: Double
+    var cardTotal: Double
+    var usdcTotal: Double
+    var cashCount: Int
+    var cardCount: Int
+    var usdcCount: Int
+
+    var totalAmount: Double { cashTotal + cardTotal + usdcTotal }
+    var totalCount: Int { cashCount + cardCount + usdcCount }
 }
 
 /// Cluster `/api/posLedger` snapshot (items + the `*FromClear` totals shown in the panel header to prove parity).
@@ -106,6 +167,26 @@ struct PosLedgerSnapshot: Equatable, Codable, Sendable {
     let topUpFromClear6: String
     let chargeFromClear6: String
     let items: [PosLedgerItem]
+    /// Newest indexer settlement reset for this POS EOA; absence = no reset row (or old API). Stats use `timestamp` as exclusive lower bound.
+    let lastTerminalReset: PosLedgerTerminalResetMarker?
+
+    init(
+        topUpFromClear6: String,
+        chargeFromClear6: String,
+        items: [PosLedgerItem],
+        lastTerminalReset: PosLedgerTerminalResetMarker? = nil
+    ) {
+        self.topUpFromClear6 = topUpFromClear6
+        self.chargeFromClear6 = chargeFromClear6
+        self.items = items
+        self.lastTerminalReset = lastTerminalReset
+    }
+
+    /// Business rows after the latest `TX_Terminal_RESET` (server already filters; client re-filters when marker present as a safety net).
+    func itemsInTerminalStatsPeriod() -> [PosLedgerItem] {
+        guard let m = lastTerminalReset else { return items }
+        return items.filter { $0.timestamp > m.timestamp }
+    }
 
     /// Display-units conversion (divide by 1e6) — sufficient up to ~9e9 with `Double`.
     var topUpFromClearDisplay: Double { Self.atomic6ToDouble(topUpFromClear6) }
@@ -116,6 +197,353 @@ struct PosLedgerSnapshot: Equatable, Codable, Sendable {
         let t = s.trimmingCharacters(in: .whitespaces)
         guard let n = Double(t) else { return 0 }
         return n / 1_000_000
+    }
+
+    /// Dashboard Tips: mirror Transactions display semantics. Matched `tip` rows are counted once
+    /// under their parent Charge; embedded `chargeBreakdown.tipCurrencyAmount` is used only when no
+    /// separate tip row matched that Charge. Internal B-Unit service legs are ignored.
+    /// Scope: **current settlement window** only (`itemsInTerminalStatsPeriod`), not calendar day.
+    func tipsDisplayTotalInTerminalStatsPeriod() -> Double {
+        Self.tipsDisplayTotal(from: itemsInTerminalStatsPeriod())
+    }
+
+    func chargeUsdcSettlementTotalInTerminalStatsPeriod() -> Double {
+        itemsInTerminalStatsPeriod()
+            .filter {
+                $0.type == .charge
+                    && !Self.isHiddenInternalLedgerCategory($0.txCategory)
+                    && Self.isExplicitUsdcAccountingCurrency($0)
+            }
+            .reduce(0) { $0 + Self.usdcAmount($1) }
+    }
+
+    func tipsUsdcSettlementTotalInTerminalStatsPeriod() -> Double {
+        Self.tipsUsdcSettlementTotal(from: itemsInTerminalStatsPeriod())
+    }
+
+    private static func tipsDisplayTotal(from rawItems: [PosLedgerItem]) -> Double {
+        let visibleItems = rawItems.filter { !isHiddenInternalLedgerCategory($0.txCategory) }
+        let charges = visibleItems.filter { $0.type == .charge }
+        let tips = visibleItems.filter { $0.type == .tip }
+        var absorbedTipIds = Set<String>()
+        var total = 0.0
+
+        for charge in charges {
+            let matched = tips.filter { tipRowMatchesChargeParent(tip: $0, charge: charge) }
+            if matched.isEmpty {
+                total += parseEmbeddedTipDisplayAmount(from: charge) ?? 0
+            } else {
+                for tip in matched {
+                    absorbedTipIds.insert(tip.id.lowercased())
+                    total += displayAmount(tip)
+                }
+            }
+        }
+
+        for tip in tips where !absorbedTipIds.contains(tip.id.lowercased()) {
+            total += displayAmount(tip)
+        }
+        return total
+    }
+
+    private static func displayAmount(_ tx: PosLedgerItem) -> Double {
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        if fiat6 > 0 { return fiat6 / 1_000_000 }
+        let usdc6 = Double(tx.amountUSDC6) ?? 0
+        return usdc6 / 1_000_000
+    }
+
+    private static func usdcAmount(_ tx: PosLedgerItem) -> Double {
+        let usdc6 = Double(tx.amountUSDC6) ?? 0
+        return usdc6 / 1_000_000
+    }
+
+    private static func tipsUsdcSettlementTotal(from rawItems: [PosLedgerItem]) -> Double {
+        let visibleItems = rawItems.filter { !isHiddenInternalLedgerCategory($0.txCategory) }
+        let charges = visibleItems.filter { $0.type == .charge }
+        let tips = visibleItems.filter { $0.type == .tip }
+        var absorbedTipIds = Set<String>()
+        var total = 0.0
+
+        for charge in charges {
+            let matched = tips.filter { tipRowMatchesChargeParent(tip: $0, charge: charge) }
+            for tip in matched {
+                absorbedTipIds.insert(tip.id.lowercased())
+                if isExplicitUsdcAccountingCurrency(tip) {
+                    total += usdcAmount(tip)
+                }
+            }
+        }
+
+        for tip in tips where !absorbedTipIds.contains(tip.id.lowercased()) {
+            if isExplicitUsdcAccountingCurrency(tip) {
+                total += usdcAmount(tip)
+            }
+        }
+        return total
+    }
+
+    private static func isHiddenInternalLedgerCategory(_ raw: String) -> Bool {
+        hiddenInternalLedgerCategories.contains(raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    private static func isExplicitUsdcAccountingCurrency(_ tx: PosLedgerItem) -> Bool {
+        tx.currencyFiat == 4
+    }
+
+    private static let hiddenInternalLedgerCategories: Set<String> = [
+        "0x02d119b2041653c3b6f7aef339e2560da8ba867b022a04aaa150d062e5212bb7",
+        "0x7067fa2b19fb81129d35576ad5fe635356a1405044d1c080a5ab341df6445776",
+    ]
+
+    private static func tipRowMatchesChargeParent(tip: PosLedgerItem, charge: PosLedgerItem) -> Bool {
+        let tipKeys = tipParentLinkKeys(tip)
+        guard !tipKeys.isEmpty else { return false }
+        let chargeKeys = chargeParentKeys(charge)
+        return tipKeys.contains { chargeKeys.contains($0) }
+    }
+
+    private static func chargeParentKeys(_ tx: PosLedgerItem) -> Set<String> {
+        var out = Set<String>()
+        addNormalized(tx.id, to: &out)
+        addNormalized(tx.originalPaymentHash, to: &out)
+        for h in displayJsonHashes(tx.displayJson, keys: ["finishedHash", "baseRelayTxHash", "requestHash", "originalPaymentHash"]) {
+            addNormalized(h, to: &out)
+        }
+        return out
+    }
+
+    private static func tipParentLinkKeys(_ tx: PosLedgerItem) -> Set<String> {
+        var out = Set<String>()
+        addNormalized(tx.originalPaymentHash, to: &out)
+        for h in displayJsonHashes(tx.displayJson, keys: ["finishedHash", "originalPaymentHash", "baseRelayTxHash"]) {
+            addNormalized(h, to: &out)
+        }
+        return out
+    }
+
+    private static func addNormalized(_ raw: String?, to out: inout Set<String>) {
+        guard let n = normalizeBytes32HexLower(raw) else { return }
+        out.insert(n)
+    }
+
+    private static func normalizeBytes32HexLower(_ raw: String?) -> String? {
+        guard var s = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty else { return nil }
+        if !s.hasPrefix("0x"), s.range(of: #"^[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil {
+            s = "0x" + s
+        }
+        guard s.range(of: #"^0x[0-9a-fA-F]{64}$"#, options: .regularExpression) != nil else { return nil }
+        let lower = s.lowercased()
+        return lower == "0x" + String(repeating: "0", count: 64) ? nil : lower
+    }
+
+    private static func displayJsonHashes(_ displayJson: String, keys: [String]) -> [String] {
+        guard
+            let data = displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [] }
+        return keys.compactMap { obj[$0] as? String }
+    }
+
+    private static func parseEmbeddedTipDisplayAmount(from tx: PosLedgerItem) -> Double? {
+        guard
+            let data = tx.displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let breakdown = obj["chargeBreakdown"] as? [String: Any]
+        else { return nil }
+        let rawTip = String(describing: breakdown["tipCurrencyAmount"] ?? "")
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let tip = Double(rawTip), tip > 0 else { return nil }
+        return tip
+    }
+
+    /// Matches `POSTransactionRowView.amountLine`: charge base (`preferredLedgerDisplay`) + tips in **base currency**
+    /// (merged TX_TIP rows and/or embedded `chargeBreakdown` when no separate tips matched).
+    private static func grossChargeRowDisplayTotal(charge: PosLedgerItem, matchedTips: [PosLedgerItem]) -> Double {
+        let base = preferredLedgerDisplay(charge)
+        var tipByCurrency: [String: Double] = [:]
+        for t in matchedTips {
+            let a = preferredLedgerDisplay(t)
+            tipByCurrency[a.code, default: 0] += a.value
+        }
+        if matchedTips.isEmpty, let emb = embeddedTipValueAndCurrency(from: charge) {
+            tipByCurrency[emb.code, default: 0] += emb.value
+        }
+        return base.value + (tipByCurrency[base.code] ?? 0)
+    }
+
+    private static func preferredLedgerDisplay(_ tx: PosLedgerItem) -> (value: Double, code: String) {
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        let usd6 = Double(tx.amountUSDC6) ?? 0
+        if fiat6 > 0 {
+            return (fiat6 / 1_000_000, beamioCurrencyCodeFromFiatInt(tx.currencyFiat))
+        }
+        return (usd6 / 1_000_000, "USDC")
+    }
+
+    /// Same mapping as `ContentView.POSTransactionRowView.beamioCurrencyCodeForCurrencyFiat`.
+    private static func beamioCurrencyCodeFromFiatInt(_ id: Int) -> String {
+        switch id {
+        case 1: return "USD"
+        case 2: return "JPY"
+        case 3: return "CNY"
+        case 4: return "USDC"
+        case 5: return "HKD"
+        case 6: return "EUR"
+        case 7: return "SGD"
+        case 8: return "TWD"
+        default: return "CAD"
+        }
+    }
+
+    private static func embeddedTipValueAndCurrency(from tx: PosLedgerItem) -> (value: Double, code: String)? {
+        guard
+            let data = tx.displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let breakdown = obj["chargeBreakdown"] as? [String: Any]
+        else { return nil }
+        let rawTip = String(describing: breakdown["tipCurrencyAmount"] ?? "")
+            .replacingOccurrences(of: ",", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let tip = Double(rawTip), tip > 0 else { return nil }
+        let cur = (breakdown["requestCurrency"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        let code = (cur?.isEmpty == false) ? cur! : "CAD"
+        return (tip, code)
+    }
+
+    /// Home **Total Due** (card-currency display): sum of Transactions-style Charge row totals for the
+    /// **current settlement window** (`itemsInTerminalStatsPeriod` after `lastTerminalReset`). Standalone tip rows add their face amount
+    /// so `Total Due − Tip` stays aligned with subtotal semantics.
+    func chargeAndTipGrossDisplayTotalInTerminalStatsPeriod() -> Double {
+        let window = itemsInTerminalStatsPeriod()
+        let visible = window.filter { !Self.isHiddenInternalLedgerCategory($0.txCategory) }
+        let charges = visible.filter { $0.type == .charge }
+        let tips = visible.filter { $0.type == .tip }
+        var absorbedTipIds = Set<String>()
+        var gross = 0.0
+        for charge in charges {
+            let matched = tips.filter { Self.tipRowMatchesChargeParent(tip: $0, charge: charge) }
+            for t in matched { absorbedTipIds.insert(t.id.lowercased()) }
+            gross += Self.grossChargeRowDisplayTotal(charge: charge, matchedTips: matched)
+        }
+        for tip in tips where !absorbedTipIds.contains(tip.id.lowercased()) {
+            gross += Self.preferredLedgerDisplay(tip).value
+        }
+        return gross
+    }
+
+    /// Home **Top-Ups** total for the **current settlement window** (same rows as Transactions after `*FromClear`).
+    func topUpDisplayTotalInTerminalStatsPeriod() -> Double {
+        var sum = 0.0
+        for tx in itemsInTerminalStatsPeriod() where tx.type == .topUp {
+            guard !Self.isHiddenInternalLedgerCategory(tx.txCategory) else { continue }
+            sum += Self.preferredLedgerDisplay(tx).value
+        }
+        return sum
+    }
+
+    /// Sales Overview **Gross Sales**: charge face amounts only (no merged tip roll-up), settlement window.
+    func chargeBaseDisplayTotalForSalesOverviewInTerminalStatsPeriod() -> Double {
+        itemsInTerminalStatsPeriod()
+            .filter { $0.type == .charge && !Self.isHiddenInternalLedgerCategory($0.txCategory) }
+            .reduce(0) { $0 + Self.preferredLedgerDisplay($1).value }
+    }
+
+    /// Count of charge rows in the settlement window (Sales Overview **TRANSACTIONS** chip).
+    func chargeTransactionCountInTerminalStatsPeriod() -> Int {
+        itemsInTerminalStatsPeriod()
+            .filter { $0.type == .charge && !Self.isHiddenInternalLedgerCategory($0.txCategory) }
+            .count
+    }
+
+    /// Header line: latest Settlement → `now` (matches Android `posSalesOverviewSelectedPeriodLine`).
+    func overviewSelectedPeriodLine(now: Date = Date()) -> String {
+        let nowSec = Int64(now.timeIntervalSince1970)
+        let endPart = Self.formatEpochSecondsForOverviewPeriod(nowSec)
+        let resetSec = lastTerminalReset?.timestamp
+        let periodItems = itemsInTerminalStatsPeriod()
+        let startSec: Int64? = resetSec ?? periodItems.map(\.timestamp).min()
+        guard let startSec else { return "— \(endPart)" }
+        return "\(Self.formatEpochSecondsForOverviewPeriod(startSec)) — \(endPart)"
+    }
+
+    private static func formatEpochSecondsForOverviewPeriod(_ epochSeconds: Int64) -> String {
+        let d = Date(timeIntervalSince1970: TimeInterval(epochSeconds))
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "MMM. d, yyyy"
+        let tf = DateFormatter()
+        tf.locale = Locale(identifier: "en_US_POSIX")
+        tf.dateFormat = "h:mm a"
+        return "\(df.string(from: d)) \(tf.string(from: d).lowercased())"
+    }
+
+    func topUpOverviewBreakdownInTerminalStatsPeriod() -> PosTopUpOverviewBreakdown {
+        var cashT = 0.0, cardT = 0.0, usdcT = 0.0
+        var cashC = 0, cardC = 0, usdcC = 0
+        for tx in itemsInTerminalStatsPeriod() where tx.type == .topUp {
+            guard !Self.isHiddenInternalLedgerCategory(tx.txCategory) else { continue }
+            let amt = Self.preferredLedgerDisplay(tx).value
+            switch Self.topUpOverviewBucket(tx) {
+            case .cash:
+                cashT += amt
+                cashC += 1
+            case .card:
+                cardT += amt
+                cardC += 1
+            case .usdc:
+                usdcT += amt
+                usdcC += 1
+            }
+        }
+        return PosTopUpOverviewBreakdown(
+            cashTotal: cashT,
+            cardTotal: cardT,
+            usdcTotal: usdcT,
+            cashCount: cashC,
+            cardCount: cardC,
+            usdcCount: usdcC
+        )
+    }
+
+    private enum TopUpOverviewBucket {
+        case cash, card, usdc
+    }
+
+    private static func topUpOverviewBucket(_ tx: PosLedgerItem) -> TopUpOverviewBucket {
+        guard tx.type == .topUp else { return .card }
+        let label = tx.paymentMethodLabel?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        switch label {
+        case "cash": return .cash
+        case "usdc": return .usdc
+        case "card", "bonus": return .card
+        default: break
+        }
+        if !label.isEmpty { return .card }
+
+        let leg = topUpPaymentLeg(from: tx.displayJson)
+        switch leg {
+        case "cash": return .cash
+        case "credit", "bonus": return .card
+        default: break
+        }
+
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        let usdc6 = Double(tx.amountUSDC6) ?? 0
+        if fiat6 <= 0, usdc6 > 0 { return .usdc }
+        return .card
+    }
+
+    private static func topUpPaymentLeg(from displayJson: String) -> String {
+        guard
+            let data = displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let leg = obj["topupPaymentLeg"] as? String
+        else { return "" }
+        return leg.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }
 
@@ -206,6 +634,7 @@ extension BeamioAPIClient {
 
 final class BeamioAPIClient: @unchecked Sendable {
     private let session: URLSession
+    private static let ethCallFetchCache = BeamioEthCallFetchCache()
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -521,7 +950,8 @@ final class BeamioAPIClient: @unchecked Sendable {
         nonce: String,
         adminSignature: String,
         sun: SunParams?,
-        currencySplit: NfcTopupCurrencySplit? = nil
+        currencySplit: NfcTopupCurrencySplit? = nil,
+        usdcTopupSessionId: String? = nil
     ) async -> SimpleTxResult {
         var body: [String: Any] = [
             "cardAddr": cardAddr,
@@ -544,6 +974,9 @@ final class BeamioAPIClient: @unchecked Sendable {
             body["cardCurrencyAmount"] = s.cardCurrencyAmount
             body["cashCurrencyAmount"] = s.cashCurrencyAmount
             body["bonusCurrencyAmount"] = s.bonusCurrencyAmount
+        }
+        if let sid = usdcTopupSessionId?.trimmingCharacters(in: .whitespacesAndNewlines), !sid.isEmpty {
+            body["usdcTopupSessionId"] = sid.lowercased()
         }
         do {
             let (code, obj) = try await postJsonAllowErrorBody(path: "/api/nfcTopup", body: body, timeout: 120)
@@ -1162,6 +1595,264 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// Cluster `GET /api/nfcUsdcChargeSession?sid=<uuid v4>`: PR #3 — POS 出 USDC charge QR 后单飞轮询此端点，
+    /// 拉取顾客在 verra-home 的支付进度。语义：
+    /// - `nil` ⇒ 网络/解析失败（trusted endpoint 失败按 untrusted 处理：调用方应当作 "unknown"，下一轮再拉，绝不当 error 切 UI）
+    /// - `state == awaitingPayment` ⇒ 顾客尚未到达 POST 阶段或 sid 还没有 session record，继续轮询
+    /// - `state == verifying / settling` ⇒ 顾客已经触发 charge，正在 x402 verify 或 USDC settle，继续轮询并可在 UI 上提示进度
+    /// - `state == topupPending / topupConfirmed / chargePending` ⇒ PR #4 编排器中间态；仅 UI 提示推进，**不要**当 success/error 处理
+    /// - `state == success` ⇒ terminal：USDC 已到 cardOwner（NFC 模式）或编排器 L2 charge 已上链（no-NFC 模式），POS 切 `chargeApprovedInline` UI，停止轮询
+    /// - `state == error` ⇒ terminal：把 `error` 文案直接灌进 `paymentTerminalError`，停止轮询
+    enum UsdcChargeSessionState: String, Sendable {
+        case awaitingPayment = "awaiting_payment"
+        case verifying
+        case settling
+        case topupPending = "topup_pending"
+        /// PR #4 v2: 编排器已生成 tmpEOA + nfcTopupPreparePayload，等 POS 用 admin EOA 离线签 ExecuteForAdmin。
+        /// POS 轮询命中此态 ⇒ 读 `pendingTopup*` 字段 → `BeamioEthWallet.signExecuteForAdmin` → POST `/api/nfcUsdcChargeTopupAuth`。
+        case awaitingTopupAuth = "awaiting_topup_auth"
+        /// USDC settled; customer must tap card on terminal (`nfcTopup` phase 2).
+        case awaitingBeneficiary = "awaiting_beneficiary"
+        case topupConfirmed = "topup_confirmed"
+        case chargePending = "charge_pending"
+        case success
+        case error
+        case unknown
+    }
+
+    struct UsdcChargeSessionResult: Sendable {
+        let ok: Bool
+        let sid: String?
+        let state: UsdcChargeSessionState
+        let error: String?
+        let cardAddr: String?
+        let cardOwner: String?
+        let pos: String?
+        let currency: String?
+        let subtotal: String?
+        let discount: String?
+        let tax: String?
+        let tip: String?
+        let total: String?
+        let usdcAmount6: String?
+        let USDC_tx: String?
+        let payer: String?
+        /// PR #4 编排器扩展字段（NFC mode 缺省 nil）
+        let tmpEOA: String?
+        let tmpAA: String?
+        let pointsMinted6: String?
+        let topupTxHash: String?
+        let chargeTxHash: String?
+        /// PR #4 v2 (POS-signed admin path)：state==awaitingTopupAuth 时由 cluster 暴露给 POS 终端的
+        /// ExecuteForAdmin 全部签名输入。POS 必须用这些 *exact* 值签名（hash mismatch ⇒ recover 不到 POS EOA ⇒ cluster 拒收）。
+        let pendingTopupCardAddr: String?
+        let pendingTopupRecipientEOA: String?
+        let pendingTopupData: String?
+        let pendingTopupDeadline: UInt64?
+        let pendingTopupNonce: String?
+        let pendingTopupPoints6: String?
+        let pendingTopupBUnitFee: String?
+
+        var isTerminal: Bool { state == .success || state == .error }
+    }
+
+    func fetchUsdcChargeSession(sid: String) async -> UsdcChargeSessionResult? {
+        let sidTrim = sid.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !sidTrim.isEmpty, sidTrim.count == 36 else { return nil }
+        let sidEnc = sidTrim.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? sidTrim
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/nfcUsdcChargeSession?sid=\(sidEnc)") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 10
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            let okFlag = (root["ok"] as? Bool) ?? false
+            let err = root["error"] as? String
+            // 4xx with ok=false ⇒ 明确的拒绝（如 invalid sid 格式）；其他失败按 untrusted 返回 nil
+            if !(200 ... 299).contains(http.statusCode) {
+                return UsdcChargeSessionResult(
+                    ok: false, sid: sidTrim, state: .unknown, error: err,
+                    cardAddr: nil, cardOwner: nil, pos: nil, currency: nil,
+                    subtotal: nil, discount: nil, tax: nil, tip: nil, total: nil,
+                    usdcAmount6: nil, USDC_tx: nil, payer: nil,
+                    tmpEOA: nil, tmpAA: nil, pointsMinted6: nil,
+                    topupTxHash: nil, chargeTxHash: nil,
+                    pendingTopupCardAddr: nil, pendingTopupRecipientEOA: nil,
+                    pendingTopupData: nil, pendingTopupDeadline: nil,
+                    pendingTopupNonce: nil, pendingTopupPoints6: nil,
+                    pendingTopupBUnitFee: nil
+                )
+            }
+            let stateRaw = (root["state"] as? String) ?? ""
+            let parsedState = UsdcChargeSessionState(rawValue: stateRaw) ?? .unknown
+            // pendingTopupDeadline 后端用 number；JSONSerialization 给 NSNumber，需要安全 cast
+            let deadlineN = (root["pendingTopupDeadline"] as? NSNumber)?.uint64Value
+            return UsdcChargeSessionResult(
+                ok: okFlag,
+                sid: (root["sid"] as? String) ?? sidTrim,
+                state: parsedState,
+                error: err,
+                cardAddr: root["cardAddr"] as? String,
+                cardOwner: root["cardOwner"] as? String,
+                pos: root["pos"] as? String,
+                currency: root["currency"] as? String,
+                subtotal: root["subtotal"] as? String,
+                discount: root["discount"] as? String,
+                tax: root["tax"] as? String,
+                tip: root["tip"] as? String,
+                total: root["total"] as? String,
+                usdcAmount6: root["usdcAmount6"] as? String,
+                USDC_tx: root["USDC_tx"] as? String,
+                payer: root["payer"] as? String,
+                tmpEOA: root["tmpEOA"] as? String,
+                tmpAA: root["tmpAA"] as? String,
+                pointsMinted6: root["pointsMinted6"] as? String,
+                topupTxHash: root["topupTxHash"] as? String,
+                chargeTxHash: root["chargeTxHash"] as? String,
+                pendingTopupCardAddr: root["pendingTopupCardAddr"] as? String,
+                pendingTopupRecipientEOA: root["pendingTopupRecipientEOA"] as? String,
+                pendingTopupData: root["pendingTopupData"] as? String,
+                pendingTopupDeadline: deadlineN,
+                pendingTopupNonce: root["pendingTopupNonce"] as? String,
+                pendingTopupPoints6: root["pendingTopupPoints6"] as? String,
+                pendingTopupBUnitFee: root["pendingTopupBUnitFee"] as? String
+            )
+        } catch {
+            return nil
+        }
+    }
+
+    /// PR #4 v2 (POS-signed admin path): POS 端在 `state == awaitingTopupAuth` 时，本地用 `BeamioEthWallet.signExecuteForAdmin`
+    /// 签出 ExecuteForAdmin 65-byte sig，POST 给 cluster `/api/nfcUsdcChargeTopupAuth`。
+    /// - returns:
+    ///   - `(ok: true, errorMessage: nil)` 签名已被 cluster 接受（也可能是 idempotent 重提）。POSViewModel 应继续轮询拉 charge 进度。
+    ///   - `(ok: false, errorMessage: <reason>)` HTTP 4xx/5xx：写到 `paymentTerminalError` 让用户看到（如 "Signature does not recover to bound POS operator"）。
+    ///   - `nil` ⇒ untrusted 网络/解析失败（按 untrusted fetch protocol 处理：调用方继续下一拍轮询，不要切 UI）。
+    func submitUsdcChargeTopupAuth(sid: String, signature: String) async -> (ok: Bool, errorMessage: String?)? {
+        let sidTrim = sid.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let sigTrim = signature.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sidTrim.isEmpty, sidTrim.count == 36, sigTrim.hasPrefix("0x"), sigTrim.count == 132 else { return nil }
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/nfcUsdcChargeTopupAuth") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 15
+        let body: [String: Any] = ["sid": sidTrim, "signature": sigTrim]
+        guard let data = try? JSONSerialization.data(withJSONObject: body, options: []) else { return nil }
+        req.httpBody = data
+        do {
+            let (respData, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return nil }
+            let root = (try? JSONSerialization.jsonObject(with: respData) as? [String: Any]) ?? [:]
+            let success = (root["success"] as? Bool) ?? false
+            let errMsg = root["error"] as? String
+            if (200 ... 299).contains(http.statusCode), success {
+                return (ok: true, errorMessage: nil)
+            }
+            return (ok: false, errorMessage: errMsg ?? "HTTP \(http.statusCode)")
+        } catch {
+            return nil
+        }
+    }
+
+    /// WC v2 / 任意第三方钱包签到的 EIP-3009 USDC raw sig 提交。
+    ///
+    /// 与 `submitUsdcChargeTopupAuth` 区别：那个是 PR #4 双腿 orchestrator 路径下 POS 自签的 ExecuteForAdmin 授权；
+    /// 这个是**纯第三方钱包顾客**通过 WC 会话签的 USDC.transferWithAuthorization (EIP-3009)，由 cluster `/api/nfcUsdcChargeRawSig`
+    /// 走 Master 直接在 Base 链上提交（**不走 x402**、**不走 orchestrator 双腿**），结算成功后 session 直接进 `success`。
+    ///
+    /// - parameters:
+    ///   - sid: UUID v4 lowercased，POS 端在出 QR 前生成的 charge session id（与 charge poll 同源）。
+    ///   - card: BeamioUserCard 合约地址（0x… 42 长）。
+    ///   - pos: POS 终端 EOA 地址（0x… 42 长，可选；建议传以便后端记账归属 POS operator）。
+    ///   - subtotal: 顾客单据小计（人类可读两位小数，如 `"10.00"`）。
+    ///   - tipBps / taxBps / discountBps: 与 NFC charge / verra-home /usdc-charge 同口径的 bps；省略 = 0。
+    ///   - currency: 三字母大写（如 `"CAD"`）；省略时 cluster 用 `card.currency()` 链上权威值。
+    ///   - payer: EIP-3009 `from`（顾客钱包地址，0x… 42 长）。
+    ///   - usdcAmount6: 顾客在签名中授权的 USDC value（atomic E6 uint256 decimal 字符串，应 ≥ 后端报价）。
+    ///   - validAfter / validBefore: EIP-3009 时间窗 (uint256 decimal seconds since epoch)。
+    ///   - nonce: EIP-3009 nonce (32-byte hex `0x...`)。
+    ///   - signature: 65-byte `r||s||v` ECDSA hex（`0x` + 130 hex 字符）。
+    /// - returns:
+    ///   - `(ok: true, ...)` USDC tx 已上链确认；POSViewModel 切到 `chargeApprovedInline`，session 已进 `success`。
+    ///   - `(ok: false, ...)` HTTP 4xx/5xx：写到 `paymentTerminalError` 让 POS 看到。
+    ///   - `nil` ⇒ untrusted 网络/解析失败（按 untrusted fetch protocol：调用方继续轮询 session，不要切 UI）。
+    func submitUsdcChargeRawSig(
+        sid: String,
+        card: String,
+        pos: String?,
+        subtotal: String,
+        tipBps: Int,
+        taxBps: Int,
+        discountBps: Int,
+        currency: String?,
+        payer: String,
+        usdcAmount6: String,
+        validAfter: String,
+        validBefore: String,
+        nonce: String,
+        signature: String
+    ) async -> (ok: Bool, USDC_tx: String?, errorMessage: String?)? {
+        let sidTrim = sid.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cardTrim = card.trimmingCharacters(in: .whitespacesAndNewlines)
+        let payerTrim = payer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nonceTrim = nonce.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sigTrim = signature.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !sidTrim.isEmpty, sidTrim.count == 36 else { return nil }
+        guard cardTrim.hasPrefix("0x"), cardTrim.count == 42 else { return nil }
+        guard payerTrim.hasPrefix("0x"), payerTrim.count == 42 else { return nil }
+        guard nonceTrim.hasPrefix("0x"), nonceTrim.count == 66 else { return nil }
+        guard sigTrim.hasPrefix("0x"), sigTrim.count == 132 else { return nil }
+        guard let _ = UInt64(usdcAmount6) ?? UInt64(usdcAmount6, radix: 10) else { return nil }
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/nfcUsdcChargeRawSig") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        // USDC.transferWithAuthorization 上链等待 1 个 confirmation（Base ~2s/block），保守给 30s。
+        req.timeoutInterval = 30
+        var body: [String: Any] = [
+            "sid": sidTrim,
+            "card": cardTrim,
+            "subtotal": subtotal,
+            "discountBps": discountBps,
+            "taxBps": taxBps,
+            "tipBps": tipBps,
+            "payer": payerTrim,
+            "value": usdcAmount6,
+            "validAfter": validAfter,
+            "validBefore": validBefore,
+            "nonce": nonceTrim,
+            "signature": sigTrim,
+        ]
+        if let p = pos?.trimmingCharacters(in: .whitespacesAndNewlines), p.hasPrefix("0x"), p.count == 42 {
+            body["pos"] = p
+        }
+        if let cur = currency?.trimmingCharacters(in: .whitespacesAndNewlines), !cur.isEmpty {
+            body["currency"] = cur.uppercased()
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: body, options: []) else { return nil }
+        req.httpBody = data
+        do {
+            let (respData, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse else { return nil }
+            let root = (try? JSONSerialization.jsonObject(with: respData) as? [String: Any]) ?? [:]
+            let success = (root["success"] as? Bool) ?? false
+            let txHash = root["USDC_tx"] as? String
+            let errMsg = root["error"] as? String
+            if (200 ... 299).contains(http.statusCode), success {
+                return (ok: true, USDC_tx: txHash, errorMessage: nil)
+            }
+            return (ok: false, USDC_tx: txHash, errorMessage: errMsg ?? "HTTP \(http.statusCode)")
+        } catch {
+            return nil
+        }
+    }
+
     /// Base: read `owner()` on a `BeamioUserCard` via `eth_call` (authoritative vs DB `cardMetadata.cardOwner`,
     /// which can drift if ownership transferred on chain). Returns checksummed `0x...` (EIP-55-ish: lowercased
     /// hex; backend only checks normalized equality with `ethers.getAddress`). `nil` = RPC/parse failure.
@@ -1242,6 +1933,8 @@ final class BeamioAPIClient: @unchecked Sendable {
                 let topAdmin = (raw["topAdmin"] as? String).flatMap { $0.isEmpty ? nil : $0 }
                 let subordinate = (raw["subordinate"] as? String).flatMap { $0.isEmpty ? nil : $0 }
                 let note = (raw["note"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                let payerBeamioTag = (raw["payerBeamioTag"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                let paymentMethodLabel = (raw["paymentMethodLabel"] as? String).flatMap { $0.isEmpty ? nil : $0 }
                 items.append(PosLedgerItem(
                     id: id,
                     originalPaymentHash: oph,
@@ -1256,12 +1949,28 @@ final class BeamioAPIClient: @unchecked Sendable {
                     displayJson: displayJson,
                     topAdmin: topAdmin,
                     subordinate: subordinate,
-                    note: note
+                    note: note,
+                    payerBeamioTag: payerBeamioTag,
+                    paymentMethodLabel: paymentMethodLabel
                 ))
             }
             // Server already sorted newest-first; re-sort defensively (untrusted ordering is cheap to fix client-side).
             items.sort { $0.timestamp > $1.timestamp }
-            return PosLedgerSnapshot(topUpFromClear6: topUp6, chargeFromClear6: charge6, items: items)
+            var resetMarker: PosLedgerTerminalResetMarker?
+            if let rawReset = root["lastTerminalReset"] as? [String: Any], !rawReset.isEmpty {
+                let txId = (rawReset["txId"] as? String) ?? ""
+                let ts = Self.coerceInt64(rawReset["timestamp"]) ?? 0
+                let payer = (rawReset["payer"] as? String) ?? ""
+                if !txId.isEmpty, ts >= 0 {
+                    resetMarker = PosLedgerTerminalResetMarker(txId: txId, timestamp: ts, payer: payer)
+                }
+            }
+            return PosLedgerSnapshot(
+                topUpFromClear6: topUp6,
+                chargeFromClear6: charge6,
+                items: items,
+                lastTerminalReset: resetMarker
+            )
         } catch {
             return nil
         }
@@ -1292,6 +2001,23 @@ final class BeamioAPIClient: @unchecked Sendable {
             return (nil, nil)
         }
         return (pair.0, pair.1)
+    }
+
+    /// CoNET L1 BUint `balanceOf(address)` for the POS upstream admin/owner EOA. Raw token precision is 6 decimals.
+    func fetchBUnitBalanceOnConet(account: String) async -> Double? {
+        let a = account.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive).lowercased()
+        guard a.count == 40, a.allSatisfy(\.isASCIIHexDigit) else { return nil }
+        let data = Self.buildErc20BalanceOfCalldata(addressLower: a)
+        let token = BeamioConstants.buintConet.lowercased()
+        let key = "conet:eoa:\(a):token:\(token):balanceOf"
+        guard let hex = await Self.ethCallFetchCache.fetch(key: key, ttl: 30, fetcher: { [session] in
+            await Self.jsonRpcEthCallConet(session: session, to: token, dataHex: data)
+        }) else { return nil }
+        guard var word = Self.jsonRpcLastUint256WordHex(from: hex) else { return nil }
+        while word.first == "0" { word.removeFirst() }
+        if word.isEmpty { return 0 }
+        let raw = Self.abiUInt256HexToDouble(word)
+        return raw / 1_000_000.0
     }
 
     /// Tax % + discount summary line (Android: `fetchInfraRoutingForTerminalWalletSync` + cardMetadata fallback).
@@ -1726,11 +2452,42 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    private static func jsonRpcEthCallConet(session: URLSession, to: String, dataHex: String) async -> String? {
+        let toLower = to.hasPrefix("0x") ? to.lowercased() : "0x\(to.lowercased())"
+        let data = dataHex.hasPrefix("0x") ? dataHex.lowercased() : "0x\(dataHex.lowercased())"
+        guard let url = URL(string: BeamioConstants.conetMainnetRpcUrl) else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.timeoutInterval = 10
+        let payload: [String: Any] = [
+            "jsonrpc": "2.0", "id": 1, "method": "eth_call",
+            "params": [["to": toLower, "data": data], "latest"],
+        ]
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (raw, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: raw) as? [String: Any],
+                  root["error"] == nil,
+                  let result = root["result"] as? String,
+                  result.hasPrefix("0x"), result.count > 2
+            else { return nil }
+            return result
+        } catch {
+            return nil
+        }
+    }
+
     private static func buildGetAdminStatsFullCalldata(adminAddrLower: String) -> String {
         let addrPadded = String(repeating: "0", count: 24) + adminAddrLower.lowercased()
         let periodDay = String(repeating: "0", count: 63) + "1"
         let z = String(repeating: "0", count: 64)
         return "0x9abc4888" + addrPadded + periodDay + z + z
+    }
+
+    private static func buildErc20BalanceOfCalldata(addressLower: String) -> String {
+        "0x70a08231" + String(repeating: "0", count: 24) + addressLower.lowercased()
     }
 
     /// Cumulative stats: `periodType = 0`, `anchorTs = 0`, `cumulativeStartTs = 0` (biz `fetchBizTerminalChainStats`).

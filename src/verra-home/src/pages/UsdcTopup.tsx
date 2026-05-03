@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { createWalletClient, custom, type Address } from 'viem'
 import { base } from 'viem/chains'
 import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
+import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
 import { SiteFooter } from '../components/SiteFooter'
 import { SiteHeader } from '../components/SiteHeader'
+import { isMobileDeviceForWalletApps } from '../utils/mobileWalletApps'
 
 declare global {
 	interface Window {
@@ -43,12 +45,17 @@ type QuoteResponse = {
 type TopupParams = {
 	cardAddress: string
 	cardOwner: string
+	/** 无 NFC 的 POS 两阶段 QR 可省略；有值时需与 e/c/m 成套 */
 	uid: string
 	e: string
 	c: string
 	m: string
 	amount: string
 	currency: string
+	/** POS 轮询 `nfcUsdcChargeSession` 的 UUID v4；与 `pos` 成对出现在 POS 生成的 QR 上 */
+	sid: string
+	/** POS 终端 admin EOA（与 `sid` 成对）；后端据此走 POS 签 ExecuteForAdmin 闭环 */
+	pos: string
 }
 
 const truncate = (s: string, head = 6, tail = 4): string =>
@@ -59,6 +66,9 @@ const isHex = (s: string, len?: number): boolean =>
 
 const isEthAddress = (s: string): boolean => typeof s === 'string' && /^0x[0-9a-fA-F]{40}$/.test(s)
 
+const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const isUuidV4 = (s: string): boolean => typeof s === 'string' && UUID_V4_RE.test(s)
+
 function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | { ok: false; error: string } {
 	const cardAddress = (sp.get('card') ?? '').trim()
 	const cardOwner = (sp.get('owner') ?? '').trim()
@@ -68,15 +78,44 @@ function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | {
 	const m = (sp.get('m') ?? '').trim()
 	const amount = (sp.get('amount') ?? '').trim()
 	const currency = (sp.get('currency') ?? 'CAD').trim().toUpperCase()
+	const sid = (sp.get('sid') ?? '').trim().toLowerCase()
+	const pos = (sp.get('pos') ?? '').trim()
 	if (!isEthAddress(cardAddress)) return { ok: false, error: 'Missing or invalid `card` (BeamioUserCard address)' }
 	if (!isEthAddress(cardOwner)) return { ok: false, error: 'Missing or invalid `owner` (card owner EOA)' }
-	if (!uid || !isHex(uid, 14)) return { ok: false, error: 'Missing or invalid `uid` (NFC UID, 14 hex chars)' }
-	if (!isHex(e, 64)) return { ok: false, error: 'Missing or invalid SUN `e` (64 hex chars)' }
-	if (!isHex(c, 6)) return { ok: false, error: 'Missing or invalid SUN `c` (6 hex chars)' }
-	if (!isHex(m, 16)) return { ok: false, error: 'Missing or invalid SUN `m` (16 hex chars)' }
+	if (sid && !isUuidV4(sid)) return { ok: false, error: 'Invalid `sid` (expect UUID v4)' }
+	if (sid && !isEthAddress(pos)) return { ok: false, error: 'Missing or invalid `pos` when `sid` is set (POS terminal EOA)' }
+	if (!sid && pos && !isEthAddress(pos)) return { ok: false, error: 'Invalid `pos` (expect checksummed EOA)' }
+	const hasSidPos = Boolean(sid && isEthAddress(pos))
+	if (!hasSidPos) {
+		if (!uid || !isHex(uid, 14)) return { ok: false, error: 'Missing or invalid `uid` (NFC UID, 14 hex chars)' }
+		if (!isHex(e, 64)) return { ok: false, error: 'Missing or invalid SUN `e` (64 hex chars)' }
+		if (!isHex(c, 6)) return { ok: false, error: 'Missing or invalid SUN `c` (6 hex chars)' }
+		if (!isHex(m, 16)) return { ok: false, error: 'Missing or invalid SUN `m` (16 hex chars)' }
+	} else {
+		if (uid) {
+			if (!isHex(uid, 14)) return { ok: false, error: 'Invalid `uid` (expect 14 hex chars)' }
+			if (!isHex(e, 64) || !isHex(c, 6) || !isHex(m, 16)) {
+				return { ok: false, error: 'When `uid` is present, SUN params `e`, `c`, `m` are required' }
+			}
+		}
+	}
 	if (!amount || !(Number(amount) > 0)) return { ok: false, error: 'Missing or invalid `amount`' }
 	if (!currency) return { ok: false, error: 'Missing `currency`' }
-	return { ok: true, params: { cardAddress, cardOwner, uid, e, c, m, amount, currency } }
+	return {
+		ok: true,
+		params: {
+			cardAddress,
+			cardOwner,
+			uid: hasSidPos && !uid ? '' : uid,
+			e: hasSidPos && !uid ? '' : e,
+			c: hasSidPos && !uid ? '' : c,
+			m: hasSidPos && !uid ? '' : m,
+			amount,
+			currency,
+			sid,
+			pos: pos && isEthAddress(pos) ? pos : '',
+		},
+	}
 }
 
 function formatCurrencyAmount(amount: string, currency: string): string {
@@ -109,7 +148,15 @@ export function UsdcTopup() {
 	const [quote, setQuote] = useState<QuoteResponse | null>(null)
 	const [status, setStatus] = useState<Status>('idle')
 	const [error, setError] = useState<string | null>(null)
-	const [result, setResult] = useState<{ usdcTx?: string; topupTx?: string; settle?: unknown } | null>(null)
+	const [result, setResult] = useState<{
+		usdcTx?: string
+		topupTx?: string
+		settle?: unknown
+		/** POS QR：USDC 已结算，挂点mint 由终端 admin 离线签闭环 */
+		awaitingPosAuthorization?: boolean
+		/** POS 两阶段：仅 USDC 已付，顾客需在终端贴卡完成入账 */
+		awaitingBeneficiaryTap?: boolean
+	} | null>(null)
 
 	const eth = typeof window !== 'undefined' ? window.ethereum : undefined
 
@@ -236,7 +283,22 @@ export function UsdcTopup() {
 				walletClient as unknown as Parameters<typeof wrapFetchWithPayment>[1],
 				BigInt(1_000_000_000) // 1000 USDC max guard, server enforces real price
 			)
-			const body = JSON.stringify(parsed.params)
+			const p = parsed.params
+			const bodyObj: Record<string, string> = {
+				cardAddress: p.cardAddress,
+				cardOwner: p.cardOwner,
+				amount: p.amount,
+				currency: p.currency,
+			}
+			if (p.sid) bodyObj.sid = p.sid
+			if (p.pos) bodyObj.pos = p.pos
+			if (p.uid) {
+				bodyObj.uid = p.uid
+				bodyObj.e = p.e
+				bodyObj.c = p.c
+				bodyObj.m = p.m
+			}
+			const body = JSON.stringify(bodyObj)
 			const response = await fetchWithPay(`${BEAMIO_API}/api/nfcUsdcTopup`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -248,6 +310,8 @@ export function UsdcTopup() {
 				error?: string
 				USDC_tx?: string
 				executeForAdmin_tx?: string
+				awaitingPosAuthorization?: boolean
+				awaitingBeneficiaryTap?: boolean
 			}
 			const xPayResp = response.headers.get('x-payment-response')
 			const decoded = xPayResp ? decodeXPaymentResponse(xPayResp) : null
@@ -256,7 +320,13 @@ export function UsdcTopup() {
 				setStatus('error')
 				return
 			}
-			setResult({ usdcTx: json.USDC_tx, topupTx: json.executeForAdmin_tx, settle: decoded })
+			setResult({
+				usdcTx: json.USDC_tx,
+				topupTx: json.executeForAdmin_tx,
+				settle: decoded,
+				awaitingPosAuthorization: json.awaitingPosAuthorization === true,
+				awaitingBeneficiaryTap: json.awaitingBeneficiaryTap === true,
+			})
 			setStatus('success')
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e)
@@ -275,8 +345,10 @@ export function UsdcTopup() {
 							<h2 className="mb-2 text-xl font-bold">Invalid topup link</h2>
 							<p className="text-sm leading-relaxed">{parsed.error}</p>
 							<p className="mt-4 text-xs opacity-80">
-								Expected query params: <code>card</code>, <code>owner</code>, <code>uid</code>, <code>e</code>,{' '}
-								<code>c</code>, <code>m</code>, <code>amount</code>, <code>currency</code>.
+								Expected: <code>card</code>, <code>owner</code>, <code>amount</code>, <code>currency</code>; with POS session{' '}
+								<code>sid</code> + <code>pos</code> the NFC <code>uid</code>/<code>e</code>/<code>c</code>/<code>m</code> may be
+								omitted (pay USDC first, then tap card on terminal). Without <code>sid</code>/<code>pos</code>, full NFC params are
+								required.
 							</p>
 						</div>
 					</div>
@@ -286,7 +358,8 @@ export function UsdcTopup() {
 		)
 	}
 
-	const { cardAddress, cardOwner, uid, amount, currency } = parsed.params
+	const { cardAddress, cardOwner, uid, amount, currency, sid: topupSid } = parsed.params
+	const showNfcTagRow = Boolean(uid && uid.length >= 6)
 	const onBase = chainIdHex?.toLowerCase() === BASE_CHAIN_ID_HEX
 	const hasWallet = !!eth
 	const ready = hasWallet && !!account && onBase
@@ -301,7 +374,10 @@ export function UsdcTopup() {
 					<header className="mb-8 text-center">
 						<h1 className="text-3xl font-extrabold tracking-tight">Top up your card</h1>
 						<p className="mt-2 text-on-surface-variant">
-							Pay with USDC on Base from your own wallet. Your NFC card will be credited automatically.
+							Pay with USDC on Base from your own wallet.
+							{topupSid
+								? ' After payment, tap your Beamio card on the merchant terminal to receive the credit.'
+								: ' Your NFC card will be credited automatically.'}
 						</p>
 					</header>
 
@@ -312,14 +388,22 @@ export function UsdcTopup() {
 							<Divider />
 							<Row label="Merchant (card owner)" value={truncate(cardOwner, 8, 6)} mono />
 							<Row label="BeamioUserCard" value={truncate(cardAddress, 8, 6)} mono />
-							<Row label="NFC tag" value={`…${uid.slice(-6).toUpperCase()}`} mono />
+							{showNfcTagRow ? (
+								<Row label="NFC tag" value={`…${uid.slice(-6).toUpperCase()}`} mono />
+							) : (
+								<Row label="NFC tag" value="After payment — tap card at terminal" mono={false} />
+							)}
 							<Row label="Network" value="Base mainnet" mono={false} />
 						</div>
 					</section>
 
 					<section className="mt-6">
 						{!hasWallet ? (
-							<NoWalletPanel deeplink={buildMetamaskDeeplink()} />
+							isMobileDeviceForWalletApps() ? (
+								<MobileWalletPayPanel fallbackDeeplink={buildMetamaskDeeplink()} />
+							) : (
+								<NoWalletPanel deeplink={buildMetamaskDeeplink()} />
+							)
 						) : !account ? (
 							<button
 								type="button"
@@ -342,6 +426,8 @@ export function UsdcTopup() {
 							<SuccessPanel
 								usdcTx={result?.usdcTx}
 								topupTx={result?.topupTx}
+								awaitingPosAuthorization={result?.awaitingPosAuthorization}
+								awaitingBeneficiaryTap={result?.awaitingBeneficiaryTap}
 								onDone={() => window.close()}
 							/>
 						) : (
@@ -403,13 +489,14 @@ function Divider() {
 	return <div className="my-1 h-px w-full bg-outline-variant/20" />
 }
 
+/** Desktop / laptop only (mobile uses `MobileWalletPayPanel` instead). */
 function NoWalletPanel({ deeplink }: { deeplink: string }) {
 	return (
 		<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-100">
 			<p className="text-sm font-semibold">No browser wallet detected</p>
 			<p className="mt-1 text-xs leading-relaxed opacity-90">
-				Open this page inside your wallet's built-in browser (MetaMask, Rabby, Coinbase Wallet, etc.) to pay with
-				USDC on Base.
+				Open this page inside your wallet's built-in browser (MetaMask, OKX Wallet, Base Wallet, etc.) to pay
+				with USDC on Base.
 			</p>
 			<a
 				href={deeplink}
@@ -426,16 +513,26 @@ function NoWalletPanel({ deeplink }: { deeplink: string }) {
 function SuccessPanel({
 	usdcTx,
 	topupTx,
+	awaitingPosAuthorization,
+	awaitingBeneficiaryTap,
 	onDone,
 }: {
 	usdcTx?: string
 	topupTx?: string
+	awaitingPosAuthorization?: boolean
+	awaitingBeneficiaryTap?: boolean
 	onDone: () => void
 }) {
 	return (
 		<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-100">
 			<p className="text-lg font-bold">Payment confirmed</p>
-			<p className="mt-1 text-sm opacity-90">USDC transferred and your NFC card will be topped up shortly.</p>
+			<p className="mt-1 text-sm opacity-90">
+				{awaitingBeneficiaryTap
+					? 'Your USDC payment is complete. Tap your Beamio card on the merchant terminal to finish top-up.'
+					: awaitingPosAuthorization
+						? 'Your USDC payment is complete. The merchant terminal will finalize crediting your card in a moment.'
+						: 'USDC transferred and your NFC card will be topped up shortly.'}
+			</p>
 			<div className="mt-4 grid gap-2 text-xs">
 				{usdcTx ? (
 					<a

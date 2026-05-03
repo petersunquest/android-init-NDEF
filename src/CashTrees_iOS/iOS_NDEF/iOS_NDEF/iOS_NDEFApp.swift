@@ -25,6 +25,8 @@ struct iOS_NDEFApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                // POS UI is authored for light mode; ignore system Dark Mode globally.
+                .preferredColorScheme(.light)
         }
     }
 }

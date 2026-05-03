@@ -70,19 +70,36 @@ enum POSHomeScreenTrustedCache {
     private struct StatsPayload: Codable {
         var charge: Double?
         var topUp: Double?
+        var tips: Double?
+        var chargeUsdc: Double?
+        var tipsUsdc: Double?
     }
 
-    static func loadStats(wallet: String, infraCard: String) -> (charge: Double?, topUp: Double?) {
+    static func loadStats(wallet: String, infraCard: String) -> (
+        charge: Double?,
+        topUp: Double?,
+        tips: Double?,
+        chargeUsdc: Double?,
+        tipsUsdc: Double?
+    ) {
         let key = statsKey(wallet, infraCard: infraCard)
         guard let data = ud.data(forKey: key),
               let p = try? JSONDecoder().decode(StatsPayload.self, from: data)
-        else { return (nil, nil) }
-        return (p.charge, p.topUp)
+        else { return (nil, nil, nil, nil, nil) }
+        return (p.charge, p.topUp, p.tips, p.chargeUsdc, p.tipsUsdc)
     }
 
     /// Merge with existing file so a one-sided RPC success does not erase the other side.
-    static func mergeAndSaveStats(wallet: String, infraCard: String, charge: Double?, topUp: Double?) {
-        var p = StatsPayload(charge: nil, topUp: nil)
+    static func mergeAndSaveStats(
+        wallet: String,
+        infraCard: String,
+        charge: Double?,
+        topUp: Double?,
+        tips: Double? = nil,
+        chargeUsdc: Double? = nil,
+        tipsUsdc: Double? = nil
+    ) {
+        var p = StatsPayload(charge: nil, topUp: nil, tips: nil, chargeUsdc: nil, tipsUsdc: nil)
         if let data = ud.data(forKey: statsKey(wallet, infraCard: infraCard)),
            let decoded = try? JSONDecoder().decode(StatsPayload.self, from: data)
         {
@@ -90,6 +107,9 @@ enum POSHomeScreenTrustedCache {
         }
         if let charge { p.charge = charge }
         if let topUp { p.topUp = topUp }
+        if let tips { p.tips = tips }
+        if let chargeUsdc { p.chargeUsdc = chargeUsdc }
+        if let tipsUsdc { p.tipsUsdc = tipsUsdc }
         guard let data = try? JSONEncoder().encode(p) else { return }
         ud.set(data, forKey: statsKey(wallet, infraCard: infraCard))
     }

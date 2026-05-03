@@ -145,6 +145,7 @@ struct Transaction {
 | TX_MERCHANT_PAY_CONFIRMED | `merchant_pay:confirmed` | 商户支付主单确认 |
 | TX_MERCHANT_PAY_TIP_UPDATED | `merchant_pay:tip_updated` | 商户支付小费追加 |
 | TX_TIP | `TX_TIP` | NFC Container Charge 小费单独一条 `syncTokenAction`：`id`=随机 bytes32，`originalPaymentHash`=同一笔 Base `relayContainerMainRelayed` 的 tx hash，`finalRequestAmount*` 为小费法币 E6 与当时排价 USDC6 |
+| TX_Terminal_RESET | `TX_Terminal_RESET` | **Settlement clear**：上级 admin 在 Merchant OS 对 Terminal 执行「Settlement clear」且 Master `cardTerminalSettlementClearProcess` 成功后推一行：`payer`=上级 admin EOA，`payee`=Terminal（POS）EOA，金额字段为 0；POS `/api/posLedger` 与终端本地统计以**最新**一条为周期起点。与 Base 上 **`clearAdminMintCounter` / Reset Terminal Limit** 独立，不改变链上 issuance 计数。 |
 | TX_TRANSFER_IN_CONFIRMED | `transfer_in:confirmed` | 转入确认 |
 | TX_TRANSFER_OUT_CONFIRMED | `transfer_out:confirmed` | 转出确认 |
 | TX_TOPUP_CONFIRMED | `topup:confirmed` | 充值确认 |
@@ -244,6 +245,8 @@ bytes32 constant TX_REQUEST_FULFILLED_CONFIRMED = keccak256("request_fulfilled:c
 bytes32 constant TX_REQUEST_EXPIRED_CONFIRMED = keccak256("request_expired:confirmed");
 bytes32 constant TX_REQUEST_CANCEL_CONFIRMED = keccak256("request_cancel:confirmed");
 bytes32 constant TX_BEAMIO_USERCARD_MINT_CONFIRMED = keccak256("beamio_usercard_mint:confirmed");
+// Terminal 结算周期标点：`cardTerminalSettlementClearProcess` → syncTokenAction（与 Base mint 清零独立）
+bytes32 constant TX_Terminal_RESET = keccak256("TX_Terminal_RESET");
 // USDC 购点（purchasingCardProcess）
 bytes32 constant TX_USDC_NEW_CARD = keccak256("usdcNewCard");
 bytes32 constant TX_USDC_UPGRADE_NEW_CARD = keccak256("usdcUpgradeNewCard");
