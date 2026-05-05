@@ -120,6 +120,7 @@ struct ContentView: View {
                     }
                 } else if !vm.showAwaitingParentPermissionGate {
                     HomeRootView(vm: vm, amountFlow: $amountFlow)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .onAppear {
                             primarySurfaceDidAppear = true
                         }
@@ -204,6 +205,12 @@ struct ContentView: View {
                     vm: vm,
                     onClose: { amountFlow = nil }
                 )
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
+
+            if case .some(.activeCoupons) = amountFlow {
+                POSActiveCouponsScreen(vm: vm, onClose: { amountFlow = nil })
                 .transition(.move(edge: .trailing))
                 .zIndex(2)
             }
@@ -915,6 +922,7 @@ enum AmountFlow: String, Identifiable {
     case charge
     case topup
     case transactions
+    case activeCoupons
     var id: String { rawValue }
 }
 
@@ -3147,64 +3155,68 @@ private struct HomeRootView: View {
     private let mintGreen = Color(red: 0x34 / 255, green: 0xC7 / 255, blue: 0x59 / 255)
 
     var body: some View {
-        GeometryReader { geo in
-            let tight = geo.size.height < 680
-            let compact = geo.size.height < 760
-            let outerPadding: CGFloat = tight ? 14 : 20
-            let sectionGap: CGFloat = tight ? 12 : compact ? 16 : 20
-            VStack(spacing: 0) {
-                homeTopHeader
+        ZStack(alignment: .topLeading) {
+            Color.white
+                .ignoresSafeArea()
+            GeometryReader { geo in
+                let tight = geo.size.height < 680
+                let compact = geo.size.height < 760
+                let outerPadding: CGFloat = tight ? 14 : 20
+                let sectionGap: CGFloat = tight ? 12 : compact ? 16 : 20
+                VStack(spacing: 0) {
+                    homeTopHeader
+                        .padding(.horizontal, outerPadding)
+                        .frame(height: tight ? 54 : 64)
+                        .background(Color.white.opacity(0.94))
+                        .overlay(alignment: .bottom) {
+                            Rectangle()
+                                .fill(Color(uiColor: .separator).opacity(0.38))
+                                .frame(height: 0.5)
+                        }
+
+                    VStack(spacing: sectionGap) {
+                        homeHeroSummary(compact: compact, tight: tight, amountFlow: $amountFlow)
+
+                        HStack(spacing: tight ? 10 : 14) {
+                            homeDataCard(
+                                title: "Period Top-Ups",
+                                value: dashboardCurrencyText(vm.cardTopUpAmount, loaded: vm.homeStatsLoaded),
+                                titleTint: Color(uiColor: .secondaryLabel),
+                                valueTint: Color(uiColor: .label),
+                                compact: compact,
+                                tight: tight
+                            )
+                            homeDataCard(
+                                title: "B-Units",
+                                value: dashboardBUnitText,
+                                titleTint: Color(red: 0xd9 / 255, green: 0x77 / 255, blue: 0x06 / 255),
+                                valueTint: Color(uiColor: .label),
+                                compact: compact,
+                                tight: tight
+                            )
+                        }
+
+                        if vm.hasAAAccount == false {
+                            homeWelcomeNoAA
+                        }
+
+                        homeChargeHeroButton(compact: compact, tight: tight) { amountFlow = .charge }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: tight ? 120 : compact ? 138 : 156)
+                            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+
+                        homeActionArea(compact: compact, tight: tight, gap: tight ? 10 : 14)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
                     .padding(.horizontal, outerPadding)
-                    .frame(height: tight ? 54 : 64)
-                    .background(Color.white.opacity(0.94))
-                    .overlay(alignment: .bottom) {
-                        Rectangle()
-                            .fill(Color(uiColor: .separator).opacity(0.38))
-                            .frame(height: 0.5)
-                    }
-
-                VStack(spacing: sectionGap) {
-                    homeHeroSummary(compact: compact, tight: tight)
-
-                    HStack(spacing: tight ? 10 : 14) {
-                        homeDataCard(
-                            title: "Period Top-Ups",
-                            value: dashboardCurrencyText(vm.cardTopUpAmount, loaded: vm.homeStatsLoaded),
-                            titleTint: Color(uiColor: .secondaryLabel),
-                            valueTint: Color(uiColor: .label),
-                            compact: compact,
-                            tight: tight
-                        )
-                        homeDataCard(
-                            title: "B-Units",
-                            value: dashboardBUnitText,
-                            titleTint: Color(red: 0xd9 / 255, green: 0x77 / 255, blue: 0x06 / 255),
-                            valueTint: Color(uiColor: .label),
-                            compact: compact,
-                            tight: tight
-                        )
-                    }
-
-                    if vm.hasAAAccount == false {
-                        homeWelcomeNoAA
-                    }
-
-                    homeChargeHeroButton(compact: compact, tight: tight) { amountFlow = .charge }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: tight ? 120 : compact ? 138 : 156)
-                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-
-                    homeActionArea(compact: compact, tight: tight, gap: tight ? 10 : 14)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, tight ? 14 : 22)
+                    .padding(.bottom, tight ? 14 : 22)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 }
-                .padding(.horizontal, outerPadding)
-                .padding(.top, tight ? 14 : 22)
-                .padding(.bottom, tight ? 14 : 22)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
         }
-        .background(Color.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func homeActionArea(compact: Bool, tight: Bool, gap: CGFloat) -> some View {
@@ -3288,7 +3300,7 @@ private struct HomeRootView: View {
         return "Terminal"
     }
 
-    private func homeHeroSummary(compact: Bool, tight: Bool) -> some View {
+    private func homeHeroSummary(compact: Bool, tight: Bool, amountFlow: Binding<AmountFlow?>) -> some View {
         VStack(spacing: tight ? 6 : 8) {
             Text("Total Due")
                 .font(.system(size: tight ? 11 : 13, weight: .heavy))
@@ -3296,14 +3308,40 @@ private struct HomeRootView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(Color(uiColor: .secondaryLabel))
 
-            Text(dashboardTotalDueText)
-                .font(.system(size: tight ? 44 : compact ? 54 : 64, weight: .heavy))
-                .tracking(-2.2)
-                .foregroundStyle(Color(uiColor: .label))
-                .lineLimit(1)
-                .minimumScaleFactor(0.42)
-                .allowsTightening(true)
-                .monospacedDigit()
+            HStack(alignment: .center, spacing: tight ? 8 : 12) {
+                Text(dashboardTotalDueText)
+                    .font(.system(size: tight ? 44 : compact ? 54 : 64, weight: .heavy))
+                    .tracking(-2.2)
+                    .foregroundStyle(Color(uiColor: .label))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.42)
+                    .allowsTightening(true)
+                    .monospacedDigit()
+
+                if let coupons = vm.merchantActiveIssuedCoupons, !coupons.isEmpty {
+                    Button {
+                        BeamioHaptic.light()
+                        amountFlow.wrappedValue = .activeCoupons
+                    } label: {
+                        Image(systemName: "gift.circle.fill")
+                            .font(.system(size: tight ? 32 : compact ? 38 : 44, weight: .semibold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 1, green: 0.52, blue: 0.14),
+                                        Color(red: 1, green: 0.28, blue: 0.34),
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(color: Color.orange.opacity(0.28), radius: 4, y: 1)
+                    }
+                    .buttonStyle(BeamioHapticPlainButtonStyle())
+                    .accessibilityLabel("Bonus coupons")
+                }
+            }
+            .frame(maxWidth: .infinity)
 
             HStack(alignment: .center, spacing: 10) {
                 Text("Subtotal \(dashboardSubtotalText)")
@@ -4006,7 +4044,7 @@ private struct HomeRootView: View {
 
 // MARK: - Sales Overview (History → full-screen; design parity with bizSite mockup)
 
-/// Live aggregates from `vm.posLedger` when present; otherwise design-mock figures (bizSite parity).
+/// Live aggregates from `vm.posLedger` when present; placeholder KPIs only when ledger has not loaded (`snapshot == nil`).
 private struct POSSalesOverviewScreen: View {
     @ObservedObject var vm: POSViewModel
     let onClose: () -> Void
@@ -4017,35 +4055,56 @@ private struct POSSalesOverviewScreen: View {
     private var snapshot: PosLedgerSnapshot? { vm.posLedger }
 
     private var grossSales: Double {
-        guard let s = snapshot else { return 352.48 }
+        guard let s = snapshot else { return 0 }
         return s.chargeBaseDisplayTotalForSalesOverviewInTerminalStatsPeriod()
     }
 
-    private var refunds: Double { snapshot == nil ? 20.99 : 0 }
-    private var refundCount: Int { snapshot == nil ? 1 : 0 }
+    private var refunds: Double { 0 }
+    private var refundCount: Int { 0 }
     private var netSales: Double { max(0, grossSales - refunds) }
-
-    private var usdcSubtotal: Double {
-        snapshot?.chargeUsdcSettlementTotalInTerminalStatsPeriod() ?? 120.00
-    }
 
     private let taxesAndFees = 0.00
 
     private var tips: Double {
-        snapshot?.tipsDisplayTotalInTerminalStatsPeriod() ?? 47.24
+        snapshot?.tipsDisplayTotalInTerminalStatsPeriod() ?? 0
     }
 
     private var amountCollected: Double {
-        guard snapshot != nil else { return 378.73 }
+        guard snapshot != nil else { return 0 }
         return netSales + tips
     }
 
     private var transactionCount: Int {
-        snapshot?.chargeTransactionCountInTerminalStatsPeriod() ?? 24
+        snapshot?.chargeTransactionCountInTerminalStatsPeriod() ?? 0
     }
 
-    private var averageTicket: Double {
-        transactionCount > 0 ? amountCollected / Double(transactionCount) : 0
+    /// Terminal home refresh: infrastructure row currency from `getWalletAssets` (not customer `lastReadAssets`).
+    private var merchantProgramCurrencyCode: String {
+        vm.homeMerchantProgramCardCurrency ?? "CAD"
+    }
+
+    /// Subtitle under USDC settlement: merchant-currency amount aligned with **Net Sales** (charge subtotal, excludes standalone tip rows).
+    private func salesOverviewApproxCurrencySubtitle(amount: Double) -> String {
+        let code = merchantProgramCurrencyCode
+        let amt = fmtMoney(amount)
+        switch code {
+        case "CAD": return "≈ CA$\(amt)"
+        case "USD": return "≈ $\(amt)"
+        case "EUR": return "≈ €\(amt)"
+        case "JPY": return "≈ JP¥\(amt)"
+        case "CNY": return "≈ CN¥\(amt)"
+        case "HKD": return "≈ HK$\(amt)"
+        case "SGD": return "≈ SG$\(amt)"
+        case "TWD": return "≈ NT$\(amt)"
+        case "USDC": return "≈ $\(amt) USDC"
+        default: return "≈ \(amt) \(code)"
+        }
+    }
+
+    /// Charge + tip rows accounted in USDC (`currencyFiat == USDC`), settlement window.
+    private var usdcSettlementGrandTotal: Double {
+        guard let s = snapshot else { return 0 }
+        return s.chargeUsdcSettlementTotalInTerminalStatsPeriod() + s.tipsUsdcSettlementTotalInTerminalStatsPeriod()
     }
 
     private func fmtMoney(_ n: Double) -> String {
@@ -4246,32 +4305,24 @@ private struct POSSalesOverviewScreen: View {
             Divider().padding(.vertical, 16)
 
             VStack(spacing: 10) {
-                rowLine("USDC Subtotal", usdcSubtotal)
                 rowLine("Taxes & Fees", taxesAndFees)
                 rowLine("Tips", tips)
             }
             .font(.system(size: 14, weight: .medium))
             .foregroundStyle(Color(uiColor: .secondaryLabel))
 
-            Button {
-                BeamioHaptic.light()
-            } label: {
-                HStack {
-                    Text("AMOUNT COLLECTED: $\(fmtMoney(amountCollected))")
-                        .font(.system(size: 11, weight: .heavy))
-                        .tracking(0.6)
-                    Spacer(minLength: 8)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
-                .background(Capsule().fill(brandBlue))
+            Divider().padding(.vertical, 16)
+
+            HStack(alignment: .firstTextBaseline) {
+                Text("Amount Collected")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Color(uiColor: .label))
+                Spacer()
+                Text("$\(fmtMoney(amountCollected))")
+                    .font(.system(size: 22, weight: .heavy))
+                    .foregroundStyle(brandBlue)
+                    .monospacedDigit()
             }
-            .buttonStyle(BeamioHapticPlainButtonStyle())
-            .padding(.top, 20)
         }
         .padding(20)
         .background(
@@ -4306,45 +4357,60 @@ private struct POSSalesOverviewScreen: View {
     }
 
     private var bottomRow: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("TRANSACTIONS")
-                    .font(.system(size: 9, weight: .heavy))
-                    .tracking(1.1)
-                    .foregroundStyle(Color(uiColor: .secondaryLabel))
-                HStack(spacing: 6) {
-                    Text("\(transactionCount)")
-                        .font(.system(size: 26, weight: .heavy))
-                        .monospacedDigit()
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(brandBlue)
+        Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 0) {
+            GridRow {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TRANSACTIONS")
+                        .font(.system(size: 9, weight: .heavy))
+                        .tracking(1.1)
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                    HStack(spacing: 6) {
+                        Text("\(transactionCount)")
+                            .font(.system(size: 22, weight: .heavy))
+                            .monospacedDigit()
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(brandBlue)
+                    }
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground))
-                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
-            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(uiColor: .systemBackground))
+                        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+                )
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("AVERAGE TICKET")
-                    .font(.system(size: 9, weight: .heavy))
-                    .tracking(1.1)
-                    .foregroundStyle(Color(uiColor: .secondaryLabel))
-                Text("$\(fmtMoney(averageTicket))")
-                    .font(.system(size: 26, weight: .heavy))
-                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("USDC SETTLEMENT")
+                        .font(.system(size: 9, weight: .heavy))
+                        .tracking(1.1)
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text(fmtMoney(usdcSettlementGrandTotal))
+                            .font(.system(size: 22, weight: .heavy))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.35)
+                            .allowsTightening(true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("USDC")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color(uiColor: .secondaryLabel))
+                            .frame(minWidth: 0, alignment: .trailing)
+                    }
+                    Text(salesOverviewApproxCurrencySubtitle(amount: netSales))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color(uiColor: .secondaryLabel))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(uiColor: .systemBackground))
+                        .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
+                )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground))
-                    .shadow(color: .black.opacity(0.06), radius: 8, y: 2)
-            )
         }
     }
 }
@@ -4610,6 +4676,121 @@ private struct POSTopUpOverviewScreen: View {
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color(red: 0xe8 / 255, green: 0xec / 255, blue: 0xf0 / 255), lineWidth: 1)
+        )
+    }
+}
+
+/// /home → Active program coupons (`/api/cardActiveIssuedCouponSeries`), slide-in parity with Transactions / Charge flows.
+private struct POSActiveCouponsScreen: View {
+    @ObservedObject var vm: POSViewModel
+    let onClose: () -> Void
+
+    private let brandBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
+
+    private var coupons: [MerchantActiveIssuedCoupon] { vm.merchantActiveIssuedCoupons ?? [] }
+
+    var body: some View {
+        ZStack {
+            Color(uiColor: .systemGroupedBackground).ignoresSafeArea()
+            VStack(spacing: 0) {
+                header
+                if coupons.isEmpty {
+                    emptyState
+                } else {
+                    listBody
+                }
+            }
+        }
+        .refreshable { await vm.refreshHomeProfiles() }
+    }
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            Button {
+                BeamioHaptic.light()
+                onClose()
+            } label: {
+                ZStack {
+                    Circle().fill(Color(uiColor: .systemBackground))
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                }
+                .frame(width: 36, height: 36)
+                .overlay(Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.5))
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Program coupons")
+                    .font(.system(size: 18, weight: .semibold))
+                Text("Issued NFT offers on your program card")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(uiColor: .systemBackground).opacity(0.96))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color(uiColor: .separator).opacity(0.35))
+                .frame(height: 0.5)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Spacer(minLength: 24)
+            Image(systemName: "ticket")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(brandBlue.opacity(0.55))
+            Text("No active coupons")
+                .font(.system(size: 17, weight: .semibold))
+            Text("Pull to refresh after publishing a new offer.")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var listBody: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(coupons) { row in
+                    activeCouponRow(row)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+    }
+
+    private func activeCouponRow(_ row: MerchantActiveIssuedCoupon) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(row.displayTitle)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color(uiColor: .label))
+            Text(row.validitySummary)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
+            Text("Token \(row.tokenId)")
+                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color(uiColor: .separator).opacity(0.45), lineWidth: 0.5)
         )
     }
 }
@@ -5459,18 +5640,66 @@ private struct ChargeAmountPadRoot: View {
     }
 }
 
+private func sanitizePosTipAmountInput(_ raw: String) -> String {
+    let noComma = raw.replacingOccurrences(of: ",", with: "")
+    var out = ""
+    var dotSeen = false
+    for ch in noComma {
+        if ch.isNumber {
+            out.append(ch)
+        } else if ch == ".", !dotSeen {
+            dotSeen = true
+            out.append(".")
+        }
+    }
+    if let r = out.range(of: ".") {
+        let frac = out[out.index(after: r.lowerBound)...]
+        if frac.count > 2 {
+            let end = out.index(r.lowerBound, offsetBy: 3, limitedBy: out.endIndex) ?? out.endIndex
+            out = String(out[..<end])
+        }
+    }
+    return out
+}
+
 // MARK: - Tip (pushed inside `ChargeAmountTipNavigationSheet`)
 
 private struct TipFlowPage: View {
     var subtotal: String
     var onConfirm: (Int) -> Void
 
-    @State private var selected: Double = 0
+    private enum TipEntryMode: Equatable {
+        case percent(Double)
+        case customAmount
+    }
+
+    @State private var mode: TipEntryMode = .percent(0.15)
+    @State private var customTipText: String = ""
+    @State private var customTipFieldVisible: Bool = false
+    @FocusState private var customTipFocused: Bool
 
     /// Same as Read Balance `Top-Up Card Now` / AmountPad top-up primary.
     private let primaryBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
 
     private var num: Double { Double(subtotal) ?? 0 }
+
+    private var parsedCustomTip: Double {
+        let t = customTipText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        guard let v = Double(t), v >= 0 else { return 0 }
+        return v
+    }
+
+    private var confirmTipBps: Int {
+        switch mode {
+        case .percent(let rate):
+            let r = min(max(rate, 0), 1)
+            return Int((r * 10_000).rounded())
+        case .customAmount:
+            guard num > 0 else { return 0 }
+            let rawBps = Int(((parsedCustomTip / num) * 10_000).rounded())
+            return min(max(rawBps, 0), 10_000)
+        }
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -5481,10 +5710,10 @@ private struct TipFlowPage: View {
                     .foregroundStyle(.secondary)
                 Text("$\(String(format: "%.2f", num))")
                     .font(.system(size: 44, weight: .light, design: .rounded))
-                tipGrid
+                tipGrid(compact: compact)
                 Button {
-                    let bps = Int((selected * 10_000).rounded())
-                    onConfirm(bps)
+                    customTipFocused = false
+                    onConfirm(confirmTipBps)
                 } label: {
                     HStack(spacing: 8) {
                         Text("Confirm & Pay")
@@ -5505,36 +5734,95 @@ private struct TipFlowPage: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var tipGrid: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 16) {
-                tipCell(rate: 0.15, label: "15%")
-                tipCell(rate: 0.18, label: "18%")
-            }
-            HStack(spacing: 16) {
-                tipCell(rate: 0.20, label: "20%")
-                tipCell(rate: 0, label: "No Tip")
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { customTipFocused = false }
             }
         }
     }
 
-    private func tipCell(rate: Double, label: String) -> some View {
-        let on = selected == rate
+    private func tipGrid(compact: Bool) -> some View {
+        VStack(spacing: 16) {
+            if !(mode == .customAmount && customTipFieldVisible) {
+                HStack(spacing: 16) {
+                    tipPercentCell(rate: 0.15, label: "15%", compact: compact)
+                    tipPercentCell(rate: 0.18, label: "18%", compact: compact)
+                }
+                HStack(spacing: 16) {
+                    tipPercentCell(rate: 0.20, label: "20%", compact: compact)
+                    tipCustomCell(compact: compact)
+                }
+            }
+            if mode == .customAmount && customTipFieldVisible {
+                HStack(alignment: .center, spacing: 8) {
+                    Text("$")
+                        .font(.system(size: compact ? 20 : 22, weight: .semibold))
+                        .foregroundStyle(primaryBlue)
+                    TextField("0.00", text: $customTipText)
+                        .keyboardType(.decimalPad)
+                        .focused($customTipFocused)
+                        .font(.system(size: compact ? 20 : 22, weight: .semibold, design: .rounded))
+                        .onChange(of: customTipText) { _, newValue in
+                            let s = sanitizePosTipAmountInput(newValue)
+                            if s != newValue { customTipText = s }
+                        }
+                        .onAppear { customTipFocused = true }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, compact ? 14 : 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .strokeBorder(Color.black.opacity(0.08), lineWidth: 1)
+                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white))
+                )
+            }
+        }
+    }
+
+    private func tipPercentCell(rate: Double, label: String, compact: Bool) -> some View {
+        let on: Bool
+        if case .percent(let r) = mode {
+            on = r == rate
+        } else {
+            on = false
+        }
         return Button {
-            selected = rate
+            mode = .percent(rate)
+            customTipFocused = false
+            customTipFieldVisible = false
         } label: {
             VStack(spacing: 8) {
                 Text(label)
-                    .font(.title3.bold())
-                if rate == 0 {
-                    Text("+$0.00").font(.subheadline).foregroundStyle(.secondary)
-                } else {
-                    Text("+$\(String(format: "%.2f", num * rate))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                    .font(.system(size: compact ? 19 : 21, weight: .bold))
+                Text("+$\(String(format: "%.2f", num * rate))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 24)
+            .background(
+                RoundedRectangle(cornerRadius: 24)
+                    .strokeBorder(on ? primaryBlue : Color.black.opacity(0.08), lineWidth: on ? 2 : 1)
+                    .background(RoundedRectangle(cornerRadius: 24).fill(on ? primaryBlue.opacity(0.08) : Color.white))
+            )
+        }
+        .buttonStyle(BeamioHapticPlainButtonStyle(impact: .light))
+    }
+
+    private func tipCustomCell(compact: Bool) -> some View {
+        let on = mode == .customAmount
+        return Button {
+            mode = .customAmount
+            customTipFieldVisible = true
+        } label: {
+            VStack(spacing: 8) {
+                Text("$ Amount")
+                    .font(.system(size: compact ? 17 : 19, weight: .bold))
+                Text("+$\(String(format: "%.2f", parsedCustomTip))")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 24)
@@ -6823,8 +7111,14 @@ private func readBalancePosAdminCards(from assets: UIDAssets?, merchantInfraCard
     }
     if infra.isEmpty {
         if let c = assets.cards, !c.isEmpty {
-            let infraRows = c.filter { $0.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "infrastructure" }
-            let pick = dedupeSameAddress(infraRows.isEmpty ? [c[0]] : infraRows)
+            let allowed = c.filter { row in
+                let t = row.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if t == "ccsa" { return false }
+                let a = row.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+                if a.caseInsensitiveCompare(BeamioConstants.defaultBeamioUserCard) == .orderedSame { return false }
+                return true
+            }
+            let pick = dedupeSameAddress(allowed)
             return pick.isEmpty ? [] : [pick[0]]
         }
         if let list = readBalanceCardList(from: assets) {
@@ -8959,6 +9253,9 @@ private struct ScanSheet: View {
     private var topupQrChromeHidden: Bool {
         guard action == .topup else { return false }
         if let e = vm.topupNfcReadError, !e.isEmpty { return true }
+        if vm.pendingScanAction == .topup, !vm.topupUsdcSessionId.isEmpty, vm.topupUsdcDeepLink.isEmpty {
+            return true
+        }
         guard vm.scanMethod == .qr else { return false }
         if vm.topupQrSigningInProgress { return true }
         if let e = vm.topupQrExecuteError, !e.isEmpty { return true }
@@ -9114,7 +9411,10 @@ private struct ScanSheet: View {
         if !vm.topupUsdcDeepLink.isEmpty {
             usdcTopupCustomerQrBlock(url: vm.topupUsdcDeepLink)
                 .padding(.horizontal)
-        } else if vm.scanAwaitingNfcTap && vm.scanMethod == .nfc && !vm.topupQrSigningInProgress && !nfcLoading {
+        } else if vm.pendingScanAction == .topup, !vm.topupUsdcSessionId.isEmpty, vm.topupUsdcDeepLink.isEmpty, !vm.scanAwaitingNfcTap {
+            topupUsdcSessionSettlingCenterBlock
+                .padding(.horizontal)
+        } else if vm.scanAwaitingNfcTap && vm.pendingScanAction == .topup && !vm.topupQrSigningInProgress && !nfcLoading {
             ScanNfcWaitingPanel(
                 subtitle: "Hold the customer's card near the top of your iPhone."
             )
@@ -9704,6 +10004,66 @@ private struct ScanSheet: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// After USDC payment QR is dismissed but the NFC session is still finishing (phase 2, auth, or balance refresh) —
+    /// keep the same loading chrome as normal top-up instead of flashing the beamio QR camera.
+    private var topupUsdcSessionSettlingCenterBlock: some View {
+        let topupBonusPink = Color(red: 0xEC / 255, green: 0x48 / 255, blue: 0x99 / 255)
+        let showTopupTotals = (vm.topupExecuteDisplayTotal ?? 0) > 0
+        let subtitle = vm.topupUsdcSessionProgressLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        return RoundedRectangle(cornerRadius: 32)
+            .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+            .frame(height: showTopupTotals ? 330 : 280)
+            .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+            .overlay {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    ProgressView()
+                        .scaleEffect(1.2)
+                        .tint(Self.scanOverlayTopUpBlue)
+                        .padding(.bottom, 16)
+                    if showTopupTotals, let tot = vm.topupExecuteDisplayTotal {
+                        VStack(spacing: 4) {
+                            Text("Total credit")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Self.scanOverlayLabelGray)
+                            Text("$\(formatUsdAmountScanOverlay(tot))")
+                                .font(.system(size: 30, weight: .semibold))
+                                .foregroundStyle(Self.scanOverlayTopUpBlue)
+                                .minimumScaleFactor(0.65)
+                                .lineLimit(1)
+                            if let b = vm.topupExecuteDisplayBonus, b > 1e-6 {
+                                Text("Bonus $\(formatUsdAmountScanOverlay(b))")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(topupBonusPink)
+                            }
+                        }
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, 12)
+                    }
+                    VStack(spacing: 4) {
+                        Text("Processing top-up…")
+                            .font(.system(size: 18, weight: .semibold))
+                        if !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Self.scanOverlayTopUpBlue)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 12)
+                        }
+                        if !vm.topupQrCustomerHint.isEmpty {
+                            Text(vm.topupQrCustomerHint)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 4)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(24)
+            }
     }
 
     /// USDC top-up: after NFC tap, present a QR pointing at `verra-home/usdc-topup` so the customer signs the EIP-3009 USDC transfer in their own wallet (admin signs `ExecuteForAdmin` on the back-end after settlement).

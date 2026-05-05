@@ -96,3 +96,9 @@ error UC_InvalidTimeWindow(uint256 nowTs, uint256 validAfter, uint256 validBefor
 error UC_InvalidDateRange(uint64 validAfter, uint64 validBefore);
 error UC_ResolveAccountFailed(address eoa, address aaFactory, address acct);
 error UC_InsufficientBalance(address fromAccount, uint256 id, uint256 have, uint256 need);
+/// @dev User EIP-712 free claim cannot mint if series has paid list price (>0 purchase path).
+error UC_IssuedNftSigClaimNotFree(uint256 tokenId, uint256 priceInCurrency6);
+/// @dev At most one free signed claim per (userEOA, issued tokenId).
+error UC_IssuedNftSigClaimAlreadyUsed(address userEOA, uint256 tokenId);
+/// @dev issued series outside validAfter/validBefore or unknown id (isIssuedNftValid false)
+error UC_IssuedNftInactive(uint256 tokenId);

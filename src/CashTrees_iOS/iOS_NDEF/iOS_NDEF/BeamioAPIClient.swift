@@ -99,6 +99,18 @@ struct BeamioRechargeBonusRule: Equatable, Sendable, Codable {
     var bonusProportional: Bool
 }
 
+/// GET `/api/cardActiveIssuedCouponSeries` — issued program coupon series that are still valid on-chain (`isIssuedNftValid`).
+struct MerchantActiveIssuedCoupon: Identifiable, Equatable, Sendable {
+    let id: String
+    let cardAddress: String
+    let tokenId: String
+    let issuedNftValidAfterSec: UInt64?
+    let issuedNftValidBeforeSec: UInt64?
+    let createdAtIso: String?
+    let displayTitle: String
+    let validitySummary: String
+}
+
 /// `/api/nfcTopup` optional split: `card + cash + bonus == currencyAmount` (6 decimal places, server `parseUnits`).
 struct NfcTopupCurrencySplit: Equatable {
     let currencyAmount: String
@@ -146,6 +158,19 @@ struct PosLedgerTerminalResetMarker: Equatable, Codable, Sendable {
     let txId: String
     let timestamp: Int64
     let payer: String
+}
+
+/// Charge rows → Sales Overview subtotals (`displayJson.title`, aligned with `salesOverviewLedger.ts`).
+struct PosSalesOverviewChargeBuckets: Equatable, Sendable {
+    var usdcSubtotal: Double
+    var cardSubtotalsByCurrency: [String: Double]
+    var cashSubtotalsByCurrency: [String: Double]
+
+    static let empty = PosSalesOverviewChargeBuckets(
+        usdcSubtotal: 0,
+        cardSubtotalsByCurrency: [:],
+        cashSubtotalsByCurrency: [:]
+    )
 }
 
 /// POS History → Top-Up Overview buckets (aligned with cluster `paymentMethodLabel` / `displayJson.topupPaymentLeg`).
@@ -207,14 +232,48 @@ struct PosLedgerSnapshot: Equatable, Codable, Sendable {
         Self.tipsDisplayTotal(from: itemsInTerminalStatsPeriod())
     }
 
-    func chargeUsdcSettlementTotalInTerminalStatsPeriod() -> Double {
-        itemsInTerminalStatsPeriod()
-            .filter {
-                $0.type == .charge
-                    && !Self.isHiddenInternalLedgerCategory($0.txCategory)
-                    && Self.isExplicitUsdcAccountingCurrency($0)
+    /// Charge buckets for Sales Overview (title-based USDC / NFC card / cash fallback); same settlement window as gross.
+    func chargeSalesOverviewBucketsInTerminalStatsPeriod() -> PosSalesOverviewChargeBuckets {
+        var card: [String: Double] = [:]
+        var cash: [String: Double] = [:]
+        var usdcSum = 0.0
+        for tx in itemsInTerminalStatsPeriod() {
+            guard tx.type == .charge else { continue }
+            guard !Self.isHiddenInternalLedgerCategory(tx.txCategory) else { continue }
+            let titleLc = Self.salesOverviewDisplayTitleLower(tx.displayJson)
+            if titleLc.contains("terminal settlement") { continue }
+            if titleLc == "aa to eoa" { continue }
+            let fiat6 = Double(tx.amountFiat6) ?? 0
+            let usdc6 = Double(tx.amountUSDC6) ?? 0
+            let fiatH = fiat6 / 1_000_000
+            let usdcH = usdc6 / 1_000_000
+            let ccy = Self.beamioCurrencyCodeFromFiatInt(tx.currencyFiat)
+            switch titleLc {
+            case Self.salesOverviewTitleUsdcMerchantCharge:
+                if usdcH > 0 { usdcSum += usdcH }
+            case Self.salesOverviewTitleNfcMerchantPayment:
+                if fiatH > 0 { Self.mergeSalesOverviewCurrencyBucket(&card, code: ccy, amt: fiatH) }
+            default:
+                if fiatH > 0 {
+                    Self.mergeSalesOverviewCurrencyBucket(&cash, code: ccy, amt: fiatH)
+                } else if usdcH > 0 {
+                    if ccy == "USDC" {
+                        usdcSum += usdcH
+                    } else {
+                        Self.mergeSalesOverviewCurrencyBucket(&cash, code: "USDC", amt: usdcH)
+                    }
+                }
             }
-            .reduce(0) { $0 + Self.usdcAmount($1) }
+        }
+        return PosSalesOverviewChargeBuckets(
+            usdcSubtotal: usdcSum,
+            cardSubtotalsByCurrency: card,
+            cashSubtotalsByCurrency: cash
+        )
+    }
+
+    func chargeUsdcSettlementTotalInTerminalStatsPeriod() -> Double {
+        chargeSalesOverviewBucketsInTerminalStatsPeriod().usdcSubtotal
     }
 
     func tipsUsdcSettlementTotalInTerminalStatsPeriod() -> Double {
@@ -289,6 +348,25 @@ struct PosLedgerSnapshot: Equatable, Codable, Sendable {
 
     private static func isExplicitUsdcAccountingCurrency(_ tx: PosLedgerItem) -> Bool {
         tx.currencyFiat == 4
+    }
+
+    private static let salesOverviewTitleUsdcMerchantCharge = "usdc merchant charge"
+    private static let salesOverviewTitleNfcMerchantPayment = "nfc merchant payment"
+
+    private static func salesOverviewDisplayTitleLower(_ displayJson: String) -> String {
+        guard
+            let data = displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let t = obj["title"] as? String
+        else { return "" }
+        return t.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func mergeSalesOverviewCurrencyBucket(_ map: inout [String: Double], code: String, amt: Double) {
+        guard amt > 0, amt.isFinite else { return }
+        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let key = trimmed.isEmpty ? "CAD" : trimmed
+        map[key, default: 0] += amt
     }
 
     private static let hiddenInternalLedgerCategories: Set<String> = [
@@ -883,6 +961,7 @@ final class BeamioAPIClient: @unchecked Sendable {
         var deadline: UInt64?
         var nonce: String?
         var wallet: String?
+        var factoryGateway: String?
         var error: String?
     }
 
@@ -915,10 +994,16 @@ final class BeamioAPIClient: @unchecked Sendable {
         do {
             let (code, obj) = try await postJsonAllowErrorBody(path: "/api/nfcTopupPrepare", body: body, timeout: 20)
             guard let obj else {
-                return NfcTopupPrepareResult(error: "API response error (HTTP \(code))")
+                return NfcTopupPrepareResult(
+                    cardAddr: nil, data: nil, deadline: nil, nonce: nil, wallet: nil,
+                    factoryGateway: nil, error: "API response error (HTTP \(code))"
+                )
             }
             if let err = (obj["error"] as? String)?.nilIfEmpty {
-                return NfcTopupPrepareResult(error: err)
+                return NfcTopupPrepareResult(
+                    cardAddr: nil, data: nil, deadline: nil, nonce: nil, wallet: nil,
+                    factoryGateway: nil, error: err
+                )
             }
             let dl = (obj["deadline"] as? NSNumber)?.uint64Value
                 ?? UInt64((obj["deadline"] as? String) ?? "") ?? 0
@@ -928,10 +1013,14 @@ final class BeamioAPIClient: @unchecked Sendable {
                 deadline: dl > 0 ? dl : nil,
                 nonce: (obj["nonce"] as? String)?.nilIfEmpty,
                 wallet: (obj["wallet"] as? String)?.nilIfEmpty,
+                factoryGateway: (obj["factoryGateway"] as? String)?.nilIfEmpty,
                 error: nil
             )
         } catch {
-            return NfcTopupPrepareResult(error: error.localizedDescription)
+            return NfcTopupPrepareResult(
+                cardAddr: nil, data: nil, deadline: nil, nonce: nil, wallet: nil,
+                factoryGateway: nil, error: error.localizedDescription
+            )
         }
     }
 
@@ -1652,6 +1741,8 @@ final class BeamioAPIClient: @unchecked Sendable {
         let pendingTopupNonce: String?
         let pendingTopupPoints6: String?
         let pendingTopupBUnitFee: String?
+        /// EIP-712 ExecuteForAdmin.domain.verifyingContract：卡 `factoryGateway()`，与 cluster 验签一致。
+        let pendingTopupVerifyingContract: String?
 
         var isTerminal: Bool { state == .success || state == .error }
     }
@@ -1683,7 +1774,8 @@ final class BeamioAPIClient: @unchecked Sendable {
                     pendingTopupCardAddr: nil, pendingTopupRecipientEOA: nil,
                     pendingTopupData: nil, pendingTopupDeadline: nil,
                     pendingTopupNonce: nil, pendingTopupPoints6: nil,
-                    pendingTopupBUnitFee: nil
+                    pendingTopupBUnitFee: nil,
+                    pendingTopupVerifyingContract: nil
                 )
             }
             let stateRaw = (root["state"] as? String) ?? ""
@@ -1718,7 +1810,8 @@ final class BeamioAPIClient: @unchecked Sendable {
                 pendingTopupDeadline: deadlineN,
                 pendingTopupNonce: root["pendingTopupNonce"] as? String,
                 pendingTopupPoints6: root["pendingTopupPoints6"] as? String,
-                pendingTopupBUnitFee: root["pendingTopupBUnitFee"] as? String
+                pendingTopupBUnitFee: root["pendingTopupBUnitFee"] as? String,
+                pendingTopupVerifyingContract: root["pendingTopupVerifyingContract"] as? String
             )
         } catch {
             return nil
@@ -2235,6 +2328,36 @@ final class BeamioAPIClient: @unchecked Sendable {
         return Self.parseRechargeBonusRules(fromMetadata: meta)
     }
 
+    /// Active program coupons on the merchant **program** BeamioUserCard (`/api/cardActiveIssuedCouponSeries`).
+    /// - Returns: `nil` if the response is untrusted (network / non-JSON / malformed); caller must not clear cached rows.
+    /// - Returns: `[]` only when HTTP 200 and `items` is a valid empty array.
+    func fetchMerchantActiveIssuedCoupons(cardAddress: String, limit: Int = 50) async -> [MerchantActiveIssuedCoupon]? {
+        let trimmed = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isPlausibleEvmAddress(trimmed) else { return [] }
+        let enc = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trimmed
+        let lim = max(1, min(limit, 50))
+        guard let url = URL(string: "\(BeamioConstants.beamioApi)/api/cardActiveIssuedCouponSeries?card=\(enc)&limit=\(lim)") else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "GET"
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        req.timeoutInterval = 12
+        do {
+            let (data, resp) = try await session.data(for: req)
+            guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            guard let items = root["items"] as? [Any] else { return nil }
+            var out: [MerchantActiveIssuedCoupon] = []
+            out.reserveCapacity(items.count)
+            for any in items {
+                guard let d = any as? [String: Any], let row = Self.parseMerchantActiveIssuedCouponRow(d) else { continue }
+                out.append(row)
+            }
+            return out
+        } catch {
+            return nil
+        }
+    }
+
     /// Card issuance stores recharge tiers under `metadata.shareTokenMetadata` (biz `createBeamioCard`); some responses also duplicate at `metadata` root.
     private static func parseRechargeBonusRules(fromMetadata meta: [String: Any]) -> [BeamioRechargeBonusRule] {
         let direct = parseRechargeBonusRulesDirect(from: meta)
@@ -2312,6 +2435,105 @@ final class BeamioAPIClient: @unchecked Sendable {
         }()
         guard let x, x.isFinite, x >= 0 else { return nil }
         return (x * 100).rounded() / 100
+    }
+
+    private static let couponListDateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone.current
+        df.dateStyle = .medium
+        df.timeStyle = .none
+        return df
+    }()
+
+    private static func isPlausibleEvmAddress(_ raw: String) -> Bool {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard s.hasPrefix("0x"), s.count == 42 else { return false }
+        return s.dropFirst(2).allSatisfy(\.isHexDigit)
+    }
+
+    private static func parseCouponMetaU64(_ any: Any?) -> UInt64? {
+        if let n = any as? NSNumber {
+            if n.doubleValue < 0 || n.doubleValue > Double(UInt64.max) { return nil }
+            return n.uint64Value
+        }
+        if let s = any as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty, t.allSatisfy(\.isNumber), let v = UInt64(t) else { return nil }
+            return v
+        }
+        return nil
+    }
+
+    private static func couponDisplayTitle(metadata: Any?, tokenId: String) -> String {
+        guard let meta = metadata as? [String: Any] else { return Self.couponUntitledLabel(tokenId: tokenId) }
+        for key in ["name", "title"] {
+            if let s = meta[key] as? String {
+                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty { return t }
+            }
+        }
+        if let s = meta["couponId"] as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { return t }
+        }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if let s = bc["couponId"] as? String {
+                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !t.isEmpty { return t }
+            }
+        }
+        return Self.couponUntitledLabel(tokenId: tokenId)
+    }
+
+    private static func couponUntitledLabel(tokenId: String) -> String {
+        let t = tokenId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.count >= 6 else { return "Program coupon" }
+        let tail = String(t.suffix(6))
+        return "Program coupon #\(tail)"
+    }
+
+    private static func couponValiditySummary(afterSec: UInt64?, beforeSec: UInt64?) -> String {
+        let df = couponListDateFormatter
+        let fmt: (UInt64) -> String = { s in
+            df.string(from: Date(timeIntervalSince1970: TimeInterval(s)))
+        }
+        let va = afterSec.flatMap { $0 > 0 ? $0 : nil }
+        let vb = beforeSec.flatMap { $0 > 0 ? $0 : nil }
+        switch (va, vb) {
+        case (nil, nil):
+            return "Open-ended validity"
+        case (nil, let b?):
+            return "Valid until \(fmt(b))"
+        case (let a?, nil):
+            return "Valid from \(fmt(a))"
+        case (let a?, let b?):
+            return "Valid \(fmt(a)) – \(fmt(b))"
+        }
+    }
+
+    private static func parseMerchantActiveIssuedCouponRow(_ d: [String: Any]) -> MerchantActiveIssuedCoupon? {
+        let card = (d["cardAddress"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let tokenId = (d["tokenId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard isPlausibleEvmAddress(card), !tokenId.isEmpty else { return nil }
+        let after = parseCouponMetaU64(d["issuedNftValidAfter"])
+        let before = parseCouponMetaU64(d["issuedNftValidBefore"])
+        let createdAt = (d["createdAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let title = couponDisplayTitle(metadata: d["metadata"], tokenId: tokenId)
+        let summary = couponValiditySummary(afterSec: after, beforeSec: before)
+        let id = "\(card.lowercased()):\(tokenId)"
+        return MerchantActiveIssuedCoupon(
+            id: id,
+            cardAddress: card,
+            tokenId: tokenId,
+            issuedNftValidAfterSec: after,
+            issuedNftValidBeforeSec: before,
+            createdAtIso: createdAt,
+            displayTitle: title,
+            validitySummary: summary
+        )
     }
 
     private func fetchTierRoutingFromCardMetadataApi(cardAddress: String) async -> (tax: Double, discountSummary: String)? {

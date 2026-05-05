@@ -140,12 +140,14 @@ enum BeamioEthWallet {
     }
 
     /// EIP-712 `ExecuteForAdmin` — 对齐 `BeamioWeb3Wallet.signExecuteForAdmin`
+    /// - Parameter verifyingContractHex: 卡链上 `factoryGateway()`；缺省时回退 `BeamioConstants.baseCardFactory`（仅限旧服务端）。
     static func signExecuteForAdmin(
         privateKeyHex: String,
         cardAddr: String,
         dataHex: String,
         deadline: UInt64,
-        nonceHex: String
+        nonceHex: String,
+        verifyingContractHex: String? = nil
     ) throws -> String {
         let sk = try normalizePrivateKeyHex(privateKeyHex)
         let dataBytes = try decodeHexData(dataHex)
@@ -155,7 +157,9 @@ enum BeamioEthWallet {
         if !nh.hasPrefix("0x") { nh = "0x" + nh }
         let nonceWords = try abiWordsFromHex32(nh)
 
-        let domainSep = try eip712DomainSeparator()
+        let gwTrim = verifyingContractHex?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let gw = gwTrim.nilIfEmpty ?? BeamioConstants.baseCardFactory
+        let domainSep = try eip712DomainSeparator(verifyingContractHex: gw)
         let structHash = try eip712ExecuteForAdminStructHash(
             cardAddress: cardAddr,
             dataHash32: dataHash,
@@ -199,7 +203,7 @@ enum BeamioEthWallet {
         return sigHex
     }
 
-    private static func eip712DomainSeparator() throws -> Data {
+    private static func eip712DomainSeparator(verifyingContractHex: String) throws -> Data {
         let type =
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         let typeHash = keccak256(Data(type.utf8))
@@ -210,7 +214,7 @@ enum BeamioEthWallet {
         enc.append(nameHash)
         enc.append(versionHash)
         enc.append(abiUInt256(BeamioConstants.baseChainId))
-        enc.append(try abiAddressWords(BeamioConstants.baseCardFactory))
+        enc.append(try abiAddressWords(verifyingContractHex))
         return keccak256(enc)
     }
 
@@ -267,6 +271,11 @@ enum BeamioEthWallet {
 }
 
 private extension String {
+    var nilIfEmpty: String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
     func bytesFromHex() throws -> [UInt8] {
         var data = [UInt8]()
         var idx = startIndex

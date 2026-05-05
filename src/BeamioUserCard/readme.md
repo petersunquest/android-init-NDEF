@@ -17,7 +17,7 @@
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -32,18 +32,18 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 - Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2EB245646de404b2Dce87E01C6282C131778bb05`](https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
 
 ### Base Registered Module Addresses
 
-From on-chain reads and `deployments/base-UserCardModules.json`:
+Canonical from `deployments/base-UserCardFactory.json` (2026-05-05: IssuedNft + AdminStatsQuery upgrade for `registerSeries`):
 
-- `defaultRedeemModule`: [`0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2`](https://basescan.org/address/0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2)
-- `defaultIssuedNftModule`: [`0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3`](https://basescan.org/address/0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3)
+- `defaultRedeemModule`: [`0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6`](https://basescan.org/address/0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6)
+- `defaultIssuedNftModule`: [`0x5C2e89C63fC359Fad798ea580b205A25efF8CA55`](https://basescan.org/address/0x5C2e89C63fC359Fad798ea580b205A25efF8CA55)
 - `defaultFaucetModule`: [`0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F`](https://basescan.org/address/0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F)
-- `defaultGovernanceModule`: [`0x3f38A0df1c9339e801487f244b885aEe0041E7eF`](https://basescan.org/address/0x3f38A0df1c9339e801487f244b885aEe0041E7eF)
-- `defaultMembershipStatsModule`: [`0x5E5C920103f0952c39b2839D64883C6697fd5eB3`](https://basescan.org/address/0x5E5C920103f0952c39b2839D64883C6697fd5eB3)
-- `defaultAdminStatsQueryModule`: [`0x737B9a91a9afD4779057dddF157237aD1818db89`](https://basescan.org/address/0x737B9a91a9afD4779057dddF157237aD1818db89)
+- `defaultGovernanceModule`: [`0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41`](https://basescan.org/address/0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41)
+- `defaultMembershipStatsModule`: [`0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0`](https://basescan.org/address/0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0)
+- `defaultAdminStatsQueryModule`: [`0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B`](https://basescan.org/address/0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B)
 
 ### Base Factory Configuration
 

@@ -17,7 +17,8 @@ final class POSViewModel: ObservableObject {
     @Published private(set) var walletPrivateKeyHex: String?
     @Published private(set) var walletAddress: String?
 
-    @Published var merchantInfraCard: String = BeamioConstants.defaultBeamioUserCard
+    /// Owner/admin-assigned program card from `/api/myPosAddress` only — no default shared infra/CCSA template.
+    @Published var merchantInfraCard: String = ""
     /// `/api/myPosAddress` `terminalMetadata.allowedTopupMethods`; on fetch failure keep last value.
     @Published var posTerminalPolicy: PosTerminalPolicy = .allAllowed
     /// On-chain reload/mint budget for this POS on the program card (Terminal Onboarding). `nil` if not fetched or RPC failed.
@@ -63,8 +64,12 @@ final class POSViewModel: ObservableObject {
     @Published var infraRoutingDiscountSummary: String?
     /// Infrastructure / program `BeamioUserCard` metadata `name` (`cards[].cardName`) for the POS `merchantInfraCard` row.
     @Published var homeMerchantProgramCardName: String?
+    /// Terminal wallet `getWalletAssets`: ISO currency for the `merchantInfraCard` row (Sales Overview `≈` subtitle).
+    @Published var homeMerchantProgramCardCurrency: String?
     /// Card Issuance recharge tiers (`metadata` or `metadata.shareTokenMetadata` bonus fields) for `merchantInfraCard`; home row + top-up bump.
     @Published var programRechargeBonusRules: [BeamioRechargeBonusRule] = []
+    /// GET `/api/cardActiveIssuedCouponSeries` for `merchantInfraCard`. `nil` = never loaded or last fetch untrusted — do not hide a prior trusted badge; `[]` = trusted empty.
+    @Published var merchantActiveIssuedCoupons: [MerchantActiveIssuedCoupon]?
 
     /// /home → Transactions screen state. `nil` ⇒ never loaded for this `(wallet, infra)`; renders "—" instead of "0".
     @Published var posLedger: PosLedgerSnapshot?
@@ -363,6 +368,7 @@ final class POSViewModel: ObservableObject {
         guard nextLower != prevLower else { return }
         pendingGetCardAdminInfoRootForHome = nil
         posTerminalReloadQuota = nil
+        merchantActiveIssuedCoupons = nil
         // 不在此处把 `homeMerchantProgramCardName` / `programRechargeBonusRules` 直接清成 nil/[]：
         // 让 `applyTrustedStatsAndRoutingCachesForInfra(replaceDisplayValues: true)` 用新 infra 的本地可信缓存原子替换。
         // 新 infra 无缓存时该函数自然把 program name 置 nil、rules 置 []，行为与旧逻辑一致；
@@ -449,7 +455,9 @@ final class POSViewModel: ObservableObject {
                 infraRoutingDiscountSummary = nil
             }
             homeMerchantProgramCardName = prog.programCardName
+            homeMerchantProgramCardCurrency = nil
             programRechargeBonusRules = prog.bonusRules ?? []
+            merchantActiveIssuedCoupons = nil
         } else {
             if let c { cardChargeAmount = c }
             if let t { cardTopUpAmount = t }
@@ -1190,6 +1198,7 @@ final class POSViewModel: ObservableObject {
             // 只有 `ast.ok == true` 才信任 program 卡片名（即使取出来的是 nil，也是「可信空」可以入缓存覆盖）。
             let trustedName = Self.merchantProgramMetadataDisplayName(from: ast, merchantInfraCard: infra)
             homeMerchantProgramCardName = trustedName
+            homeMerchantProgramCardCurrency = Self.merchantProgramCardCurrency(from: ast, merchantInfraCard: infra)
             POSHomeScreenTrustedCache.mergeAndSaveProgram(
                 wallet: w,
                 infraCard: infra,
@@ -1261,6 +1270,16 @@ final class POSViewModel: ObservableObject {
                 programCardName: nil,
                 bonusRules: []
             )
+        }
+
+        if showAwaitingParentPermissionGate {
+            merchantActiveIssuedCoupons = nil
+        } else if looksLikeAddress(infra) {
+            if let coupons = await api.fetchMerchantActiveIssuedCoupons(cardAddress: infra, limit: 50) {
+                merchantActiveIssuedCoupons = coupons
+            }
+        } else {
+            merchantActiveIssuedCoupons = nil
         }
     }
 
@@ -1407,20 +1426,11 @@ final class POSViewModel: ObservableObject {
         return posTerminalPolicy.allowPayerUsdcInCharge ? raw : 0
     }
 
-    /// When Cluster has not bound this POS yet (`myPosAddress` empty), pick the first factory `cardsOfOwner` card where this wallet is `owner` or `isAdmin` so Home stats / `getWalletAssets` target the real program card (default constant is often wrong).
+    /// POS program card comes only from Cluster `myPosAddress` — the upstream owner/admin-assigned BeamioUserCard. No CCSA/shared-template fallback.
     private func ensureMerchantInfraCardForPosDashboard(wallet w: String) async {
         if let b = await api.fetchMyPosBinding(wallet: w), looksLikeAddress(b.cardAddress) {
             posTerminalPolicy = b.policy
             adoptMerchantInfraCardForHome(wallet: w, addr: b.cardAddress, replaceDisplayValues: true)
-            return
-        }
-        let cards = await api.fetchMyCardAddresses(ownerEoa: w)
-        for raw in cards {
-            guard looksLikeAddress(raw) else { continue }
-            if let allowed = await api.fetchPosProgramCardHomeAccessAllowed(cardAddress: raw, wallet: w), allowed {
-                adoptMerchantInfraCardForHome(wallet: w, addr: raw, replaceDisplayValues: true)
-                return
-            }
         }
     }
 
@@ -1444,10 +1454,10 @@ final class POSViewModel: ObservableObject {
         sheet = .scan(.topup)
         let methodNorm = pendingTopupMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
         if methodNorm == "usdc" {
-            scanAwaitingNfcTap = false
-            Task { @MainActor in
-                await presentUsdcTopupQrPhase1Only()
-            }
+            scanAwaitingNfcTap = true
+            scanBanner =
+                "Amount entered on the previous screen. Tap the customer's Beamio NFC card or scan their Beamio / wallet QR. Then show the USDC payment QR."
+            startNfcIfNeeded()
             return
         }
         scanAwaitingNfcTap = true
@@ -2291,28 +2301,33 @@ final class POSViewModel: ObservableObject {
         await runTopup(beamioTag: nil, wallet: nil, uid: uid, sun: sun, privateKeyHex: key, topupFromQr: false)
     }
 
-    /// USDC top-up phase 1 only: keypad amount → QR without NFC params; customer pays first, then taps card on terminal.
-    private func presentUsdcTopupQrPhase1Only() async {
+    /// USDC top-up phase 1 only: keypad amount → QR without NFC params; customer pays USDC first.
+    /// Phase 2: NFC tap **or** (when `qrBeneficiary*` set) same `/api/nfcTopupPrepare` + `/api/nfcTopup` + `usdcTopupSessionId` as cash/card QR top-up (`TX_USDC_*`).
+    private func presentUsdcTopupQrPhase1Only(
+        topupFromCustomerQr: Bool,
+        qrBeneficiaryBeamioTag: String? = nil,
+        qrBeneficiaryWallet: String? = nil
+    ) async {
         guard posTopupMethodRawAllowed("usdc") else {
-            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: false)
+            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
         let amt = amountString
         guard Double(amt) ?? 0 > 0 else {
-            reportTopupFailure("Invalid amount", topupFromQr: false)
+            reportTopupFailure("Invalid amount", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
         guard walletAddress != nil else {
-            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            reportTopupFailure("Wallet not initialized.", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
         await refreshInfraCardFromDbIfPossible()
         let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !infra.isEmpty else {
-            reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: false)
+            reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
@@ -2330,16 +2345,16 @@ final class POSViewModel: ObservableObject {
             if let r = resolvedOwner, !r.isEmpty { merchantInfraCardOwnerEoa = r }
         }
         guard let cardOwner = resolvedOwner, !cardOwner.isEmpty else {
-            reportTopupFailure("Cannot resolve card owner. Please retry.", topupFromQr: false)
+            reportTopupFailure("Cannot resolve card owner. Please retry.", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
         let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
-        let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let (apiAmountString, splitUsdc, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
         let sid = UUID().uuidString.lowercased()
         topupUsdcSessionId = sid
         guard let posWallet = walletAddress, !posWallet.isEmpty else {
-            reportTopupFailure("Wallet not initialized.", topupFromQr: false)
+            reportTopupFailure("Wallet not initialized.", topupFromQr: topupFromCustomerQr)
             topupUsdcSessionId = ""
             sheet = nil
             return
@@ -2360,7 +2375,12 @@ final class POSViewModel: ObservableObject {
         topupQrExecuteError = nil
         topupNfcReadError = nil
         topupUsdcDeepLink = url
-        topupQrCustomerHint = "Customer scans this QR to pay with USDC."
+        let hasQrBeneficiary =
+            qrBeneficiaryBeamioTag?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty != nil
+            || qrBeneficiaryWallet?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty != nil
+        topupQrCustomerHint = hasQrBeneficiary
+            ? "Customer scans this QR to pay with USDC. Points credit automatically after payment."
+            : "Customer scans this QR to pay with USDC. If prompted after payment, ask them to tap their Beamio NFC card."
         let emptySun = SunParams(uid: "", e: "", c: "", m: "")
         startTopupUsdcSessionPoll(
             sid: sid,
@@ -2368,7 +2388,10 @@ final class POSViewModel: ObservableObject {
             sun: emptySun,
             cardAddress: infra,
             currency: currency,
-            topupAmountString: apiAmountString
+            topupAmountString: apiAmountString,
+            qrBeneficiaryBeamioTag: qrBeneficiaryBeamioTag,
+            qrBeneficiaryWallet: qrBeneficiaryWallet,
+            currencySplit: splitUsdc
         )
     }
 
@@ -2390,9 +2413,11 @@ final class POSViewModel: ObservableObject {
             reportTopupFailure("Wallet not initialized.", topupFromQr: false)
             return
         }
+        isNfcBusy = true
         await refreshInfraCardFromDbIfPossible()
         let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !infra.isEmpty else {
+            isNfcBusy = false
             reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: false)
             return
         }
@@ -2418,6 +2443,26 @@ final class POSViewModel: ObservableObject {
         }
         let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
         let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+
+        let assetsTuple = await api.getUIDAssetsWithRawJson(uid: uid, sun: sun, merchantInfraCard: merchantInfraCard, merchantInfraOnly: false)
+        let assets = assetsTuple.0
+        guard assets.ok else {
+            reportTopupFailure(assets.error ?? "Query failed", topupFromQr: false)
+            return
+        }
+        let topupCardPre = assets.cards?.first { $0.cardAddress.caseInsensitiveCompare(infra) == .orderedSame }
+        let preCur = topupCardPre?.cardCurrency ?? assets.cardCurrency ?? "CAD"
+        if let err = await validateTopupMeetsMinimumTierForNonMember(
+            amountStr: apiAmountString,
+            cardAddr: infra,
+            preCard: topupCardPre,
+            currency: preCur,
+            customerAa: assets.aaAddress
+        ) {
+            reportTopupFailure(err, topupFromQr: false)
+            return
+        }
+
         let sid = UUID().uuidString.lowercased()
         topupUsdcSessionId = sid
         guard let posWallet = walletAddress, !posWallet.isEmpty else {
@@ -2444,7 +2489,8 @@ final class POSViewModel: ObservableObject {
         topupQrExecuteError = nil
         topupNfcReadError = nil
         topupUsdcDeepLink = url
-        topupQrCustomerHint = "Customer scans this QR to pay with USDC."
+        topupQrCustomerHint =
+            "Customer scans this QR to pay with USDC. If prompted after payment, ask them to tap their Beamio NFC card."
         startTopupUsdcSessionPoll(
             sid: sid,
             uid: uid,
@@ -2529,6 +2575,10 @@ final class POSViewModel: ObservableObject {
         let cardAddress: String
         let currency: String
         let topupAmountString: String
+        /// Scan QR (beamio / wallet) customer — Phase 2 uses same `/api/nfcTopup` + `usdcTopupSessionId` as cash/card QR top-up (`TX_USDC_*`).
+        let qrBeneficiaryBeamioTag: String?
+        let qrBeneficiaryWallet: String?
+        let currencySplit: NfcTopupCurrencySplit?
     }
 
     private func startTopupUsdcSessionPoll(
@@ -2537,7 +2587,10 @@ final class POSViewModel: ObservableObject {
         sun: SunParams,
         cardAddress: String,
         currency: String,
-        topupAmountString: String
+        topupAmountString: String,
+        qrBeneficiaryBeamioTag: String? = nil,
+        qrBeneficiaryWallet: String? = nil,
+        currencySplit: NfcTopupCurrencySplit? = nil
     ) {
         topupUsdcSessionPollTask?.cancel()
         let snap = TopupUsdcSessionPollContext(
@@ -2546,7 +2599,10 @@ final class POSViewModel: ObservableObject {
             sun: sun,
             cardAddress: cardAddress,
             currency: currency,
-            topupAmountString: topupAmountString
+            topupAmountString: topupAmountString,
+            qrBeneficiaryBeamioTag: qrBeneficiaryBeamioTag,
+            qrBeneficiaryWallet: qrBeneficiaryWallet,
+            currencySplit: currencySplit
         )
         topupUsdcSessionPollTask = Task { [weak self] in
             await self?.runTopupUsdcSessionPollLoop(ctx: snap)
@@ -2556,8 +2612,21 @@ final class POSViewModel: ObservableObject {
     private func runTopupUsdcSessionPollLoop(ctx: TopupUsdcSessionPollContext) async {
         defer { topupUsdcSessionPollTask = nil }
         do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
+        var ticks = 0
         while !Task.isCancelled {
-            guard topupUsdcSessionId == ctx.sid, !topupUsdcDeepLink.isEmpty else { return }
+            ticks += 1
+            if ticks > 600 {
+                guard topupUsdcSessionId == ctx.sid else { return }
+                topupUsdcDeepLink = ""
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                topupQrCustomerHint = ""
+                sheet = nil
+                homeToast = "USDC top-up timed out."
+                return
+            }
+            guard topupUsdcSessionId == ctx.sid else { return }
+            guard !topupUsdcDeepLink.isEmpty else { return }
             let result = await api.fetchUsdcChargeSession(sid: ctx.sid)
             guard let r = result else {
                 do { try await Task.sleep(nanoseconds: Self.chargeUsdcSessionPollIntervalNs) } catch { return }
@@ -2613,7 +2682,8 @@ final class POSViewModel: ObservableObject {
                 dataHex: data,
                 deadline: deadline,
                 nonceHex: nonce,
-                privateKeyHex: pkHex
+                privateKeyHex: pkHex,
+                verifyingContractHex: result.pendingTopupVerifyingContract
             )
         }
     }
@@ -2624,7 +2694,8 @@ final class POSViewModel: ObservableObject {
         dataHex: String,
         deadline: UInt64,
         nonceHex: String,
-        privateKeyHex: String
+        privateKeyHex: String,
+        verifyingContractHex: String?
     ) async {
         let signature: String
         do {
@@ -2633,7 +2704,8 @@ final class POSViewModel: ObservableObject {
                 cardAddr: cardAddr,
                 dataHex: dataHex,
                 deadline: deadline,
-                nonceHex: nonceHex
+                nonceHex: nonceHex,
+                verifyingContractHex: verifyingContractHex
             )
         } catch {
             topupUsdcTopupAuthInflightSids.remove(sid)
@@ -2701,6 +2773,19 @@ final class POSViewModel: ObservableObject {
         topupUsdcSessionPollTask?.cancel()
         topupUsdcSessionPollTask = nil
         topupUsdcDeepLink = ""
+
+        let tagQr = ctx.qrBeneficiaryBeamioTag?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        let walletQr = ctx.qrBeneficiaryWallet?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+
+        if tagQr != nil || walletQr != nil {
+            topupQrCustomerHint = ""
+            topupUsdcSessionProgressLabel = "Crediting card…"
+            Task { [weak self] in
+                await self?.finishUsdcTopupPhase2ViaQrBeneficiary(ctx: ctx)
+            }
+            return
+        }
+
         topupQrCustomerHint = "USDC paid. Ask the customer to tap their Beamio card."
         topupUsdcSessionProgressLabel = ""
         scanAwaitingNfcTap = true
@@ -2708,12 +2793,245 @@ final class POSViewModel: ObservableObject {
         nfc.begin()
     }
 
+    /// After Phase-1 USDC settle (`awaiting_beneficiary`): same `/api/nfcTopupPrepare` + signed `/api/nfcTopup` + `usdcTopupSessionId` as cash/card Scan QR top-up (readme `TX_USDC_*`).
+    private func finishUsdcTopupPhase2ViaQrBeneficiary(ctx: TopupUsdcSessionPollContext) async {
+        guard topupUsdcSessionId == ctx.sid else { return }
+        guard let pkHex = BeamioKeychain.loadPrivateKeyHex(), !pkHex.isEmpty else {
+            reportTopupFailure("POS wallet missing; cannot complete top-up.", topupFromQr: true, homeToast: true)
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            sheet = nil
+            return
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty else {
+            reportTopupFailure("Merchant infrastructure card not configured.", topupFromQr: true, homeToast: true)
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            sheet = nil
+            return
+        }
+        let topupPrepareCurrency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
+        let apiAmt = ctx.topupAmountString
+        let split = ctx.currencySplit
+
+        let prepOutcome: (
+            wallet: String,
+            cardAddr: String,
+            data: String,
+            deadline: UInt64,
+            nonce: String,
+            factoryGateway: String?,
+            preBal: String,
+            cur: String,
+            custAddr: String?,
+            preCard: CardItem?
+        )?
+        if let tag = ctx.qrBeneficiaryBeamioTag?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty {
+            let tagPrep = await api.nfcTopupPrepare(
+                uid: nil,
+                wallet: nil,
+                beamioTag: tag,
+                amount: apiAmt,
+                sun: nil,
+                infraCard: infra,
+                currency: topupPrepareCurrency
+            )
+            if let err = tagPrep.error {
+                reportTopupFailure(err, topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            guard let rw = tagPrep.wallet,
+                  let ca = tagPrep.cardAddr,
+                  let d = tagPrep.data,
+                  let dl = tagPrep.deadline,
+                  let n = tagPrep.nonce
+            else {
+                reportTopupFailure("Prepare failed.", topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            let preAssets = await getWalletAssetsForTopupWithEnsureAA(wallet: rw, infra: infra)
+            guard preAssets.ok else {
+                reportTopupFailure(preAssets.error ?? "Query failed", topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            let pc = preAssets.cards?.first { $0.cardAddress.caseInsensitiveCompare(ca) == .orderedSame }
+            if let err = await validateTopupMeetsMinimumTierForNonMember(
+                amountStr: apiAmt,
+                cardAddr: ca,
+                preCard: pc,
+                currency: pc?.cardCurrency ?? preAssets.cardCurrency ?? "CAD",
+                customerAa: preAssets.aaAddress
+            ) {
+                reportTopupFailure(err, topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            prepOutcome = (
+                rw,
+                ca,
+                d,
+                dl,
+                n,
+                tagPrep.factoryGateway,
+                pc?.points ?? preAssets.points ?? "0",
+                pc?.cardCurrency ?? preAssets.cardCurrency ?? "CAD",
+                preAssets.address,
+                pc
+            )
+        } else if let w = ctx.qrBeneficiaryWallet?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty {
+            var prep = await api.nfcTopupPrepare(
+                uid: nil,
+                wallet: w,
+                beamioTag: nil,
+                amount: apiAmt,
+                sun: nil,
+                infraCard: infra,
+                currency: topupPrepareCurrency
+            )
+            if prep.error != nil {
+                _ = await api.ensureAAForEOA(eoa: w)
+                prep = await api.nfcTopupPrepare(
+                    uid: nil,
+                    wallet: w,
+                    beamioTag: nil,
+                    amount: apiAmt,
+                    sun: nil,
+                    infraCard: infra,
+                    currency: topupPrepareCurrency
+                )
+            }
+            guard prep.error == nil,
+                  let ca = prep.cardAddr,
+                  let d = prep.data,
+                  let dl = prep.deadline,
+                  let n = prep.nonce
+            else {
+                reportTopupFailure(prep.error ?? "Prepare failed.", topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            let preAssets = await getWalletAssetsForTopupWithEnsureAA(wallet: w, infra: infra)
+            guard preAssets.ok else {
+                reportTopupFailure(preAssets.error ?? "Query failed", topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            let pc = preAssets.cards?.first { $0.cardAddress.caseInsensitiveCompare(ca) == .orderedSame }
+            if let err = await validateTopupMeetsMinimumTierForNonMember(
+                amountStr: apiAmt,
+                cardAddr: ca,
+                preCard: pc,
+                currency: pc?.cardCurrency ?? preAssets.cardCurrency ?? "CAD",
+                customerAa: preAssets.aaAddress
+            ) {
+                reportTopupFailure(err, topupFromQr: true, homeToast: true)
+                topupUsdcSessionId = ""
+                topupUsdcSessionProgressLabel = ""
+                sheet = nil
+                return
+            }
+            prepOutcome = (
+                w,
+                ca,
+                d,
+                dl,
+                n,
+                prep.factoryGateway,
+                pc?.points ?? preAssets.points ?? "0",
+                pc?.cardCurrency ?? preAssets.cardCurrency ?? "CAD",
+                preAssets.address,
+                pc
+            )
+        } else {
+            prepOutcome = nil
+        }
+
+        guard let out = prepOutcome else { return }
+
+        let sig: String
+        do {
+            sig = try BeamioEthWallet.signExecuteForAdmin(
+                privateKeyHex: pkHex,
+                cardAddr: out.cardAddr,
+                dataHex: out.data,
+                deadline: out.deadline,
+                nonceHex: out.nonce,
+                verifyingContractHex: out.factoryGateway
+            )
+        } catch {
+            reportTopupFailure(error.localizedDescription, topupFromQr: true, homeToast: true)
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            sheet = nil
+            return
+        }
+
+        let pay = await api.nfcTopup(
+            uid: nil,
+            wallet: out.wallet,
+            cardAddr: out.cardAddr,
+            data: out.data,
+            deadline: out.deadline,
+            nonce: out.nonce,
+            adminSignature: sig,
+            sun: nil,
+            currencySplit: split,
+            usdcTopupSessionId: ctx.sid
+        )
+        guard pay.success else {
+            reportTopupFailure(pay.error ?? "Top-up failed.", topupFromQr: true, homeToast: true)
+            topupUsdcSessionId = ""
+            topupUsdcSessionProgressLabel = ""
+            sheet = nil
+            return
+        }
+
+        let wFinal = out.wallet
+        topupUsdcSessionProgressLabel = "Finalizing…"
+        await completeTopupSuccessUi(
+            amount: apiAmt,
+            txHash: pay.txHash,
+            cardAddr: out.cardAddr,
+            preBalance: out.preBal,
+            cardCurrency: out.cur,
+            address: out.custAddr,
+            preCard: out.preCard,
+            settlementViaQr: true,
+            fetchPostAssets: {
+                await self.api.getWalletAssets(
+                    wallet: wFinal,
+                    merchantInfraCard: self.merchantInfraCard,
+                    merchantInfraOnly: false,
+                    forPostPayment: false
+                )
+            }
+        )
+    }
+
     private func handleTopupUsdcSessionError(
         ctx: TopupUsdcSessionPollContext,
         result: BeamioAPIClient.UsdcChargeSessionResult
     ) {
         guard topupUsdcSessionId == ctx.sid else { return }
-        reportTopupFailure(result.error?.nilIfEmpty ?? "USDC top-up failed. Please ask the customer to retry.", topupFromQr: false)
+        let msg = result.error?.nilIfEmpty ?? "USDC top-up failed. Please ask the customer to retry."
+        reportTopupFailure(msg, topupFromQr: false, homeToast: true)
         topupUsdcDeepLink = ""
         topupUsdcSessionId = ""
         topupUsdcSessionProgressLabel = ""
@@ -2726,10 +3044,9 @@ final class POSViewModel: ObservableObject {
     ) async {
         guard topupUsdcSessionId == ctx.sid else { return }
         let tx = result.topupTxHash?.nilIfEmpty ?? result.USDC_tx?.nilIfEmpty ?? ""
-        topupUsdcSessionId = ""
-        topupUsdcSessionProgressLabel = ""
         topupUsdcDeepLink = ""
         topupQrCustomerHint = ""
+        topupUsdcSessionProgressLabel = "Finalizing…"
         await completeTopupSuccessUi(
             amount: ctx.topupAmountString,
             txHash: tx,
@@ -2950,7 +3267,15 @@ final class POSViewModel: ObservableObject {
         chargeUsdcTopupAuthInflightSids.insert(ctx.sid)
         let sid = ctx.sid
         Task { [weak self] in
-            await self?.runTopupAuthSubmission(sid: sid, cardAddr: cardAddr, dataHex: data, deadline: deadline, nonceHex: nonce, privateKeyHex: pkHex)
+            await self?.runTopupAuthSubmission(
+                sid: sid,
+                cardAddr: cardAddr,
+                dataHex: data,
+                deadline: deadline,
+                nonceHex: nonce,
+                privateKeyHex: pkHex,
+                verifyingContractHex: result.pendingTopupVerifyingContract
+            )
         }
     }
 
@@ -2960,7 +3285,8 @@ final class POSViewModel: ObservableObject {
         dataHex: String,
         deadline: UInt64,
         nonceHex: String,
-        privateKeyHex: String
+        privateKeyHex: String,
+        verifyingContractHex: String?
     ) async {
         let signature: String
         do {
@@ -2969,7 +3295,8 @@ final class POSViewModel: ObservableObject {
                 cardAddr: cardAddr,
                 dataHex: dataHex,
                 deadline: deadline,
-                nonceHex: nonceHex
+                nonceHex: nonceHex,
+                verifyingContractHex: verifyingContractHex
             )
         } catch {
             chargeUsdcTopupAuthInflightSids.remove(sid)
@@ -3175,6 +3502,26 @@ final class POSViewModel: ObservableObject {
                 return
             }
         }
+        // No customer NFC card: treat as non-member for first-tier floor; total matches NFC charge (`chargeTotalInCurrency` + tip bps on subtotal).
+        let tipAmtNoNfc = BeamioPaymentRouting.chargeTipFromRequestAndBps(requestAmount: subtotal, tipRateBps: tipBps)
+        let chargeTotalNoNfc = BeamioPaymentRouting.chargeTotalInCurrency(
+            requestAmount: subtotal,
+            taxPercent: taxP,
+            tierDiscountPercent: 0,
+            tipAmount: tipAmtNoNfc
+        )
+        let chargeTotalStr = String(format: "%.2f", chargeTotalNoNfc)
+        if let tierErr = await validateTopupMeetsMinimumTierForNonMember(
+            amountStr: chargeTotalStr,
+            cardAddr: infra,
+            preCard: nil,
+            currency: currency,
+            customerAa: nil,
+            preflightKind: .charge
+        ) {
+            paymentTerminalError = tierErr
+            return
+        }
         // cardOwner 已通过 `merchantInfraCardOwnerEoa` 缓存被使用过（早期 guard），URL 不再携带；verra-home 会通过 quote endpoint 链上权威读取 `card.owner()`。
         _ = cardOwner
         // PR #3: 每张 QR 一个 UUID v4，让 cluster 把支付状态 keying 起来，POS 可单飞轮询出 success/error。
@@ -3336,13 +3683,19 @@ final class POSViewModel: ObservableObject {
         return false
     }
 
+    private enum MinimumTierAmountPreflightKind {
+        case topup
+        case charge
+    }
+
     /// Before sign/submit: **only without valid membership** — minted `points6` must be ≥ lowest tier `minUsdc6` (`_requirePointsMintAllowsFirstMembership`). When input currency matches on-chain card currency, uses `ceil(amountCurrency6 * 1e6 / pointsUnitPriceInCurrencyE6)` like `MemberCard.nfcTopupPreparePayload` — **not** oracle `currencyToUsdc6` vs tier (wrong units). If chain read fails or currencies differ, skip local check (server/chain still enforce).
     private func validateTopupMeetsMinimumTierForNonMember(
         amountStr: String,
         cardAddr: String,
         preCard: CardItem?,
         currency: String,
-        customerAa: String? = nil
+        customerAa: String? = nil,
+        preflightKind: MinimumTierAmountPreflightKind = .topup
     ) async -> String? {
         guard let amt = Double(amountStr), amt > 0 else { return nil }
         guard !Self.cardHasValidMembershipForTopup(preCard) else { return nil }
@@ -3384,7 +3737,12 @@ final class POSViewModel: ObservableObject {
         nf.maximumFractionDigits = 2
         nf.locale = Locale(identifier: "en_US")
         let minFormatted = nf.string(from: NSNumber(value: minPay)) ?? String(format: "%.2f", minPay)
-        return "No active membership for this customer. Top-up must be at least \(minFormatted) \(ccy) (first tier minimum for this card)."
+        switch preflightKind {
+        case .topup:
+            return "No active membership for this customer. Top-up must be at least \(minFormatted) \(ccy) (first tier minimum for this card)."
+        case .charge:
+            return "Charge total must be at least \(minFormatted) \(ccy) (first tier minimum for this card)."
+        }
     }
 
     private static func topupCeilDivUInt64(_ a: UInt64, _ b: UInt64) -> UInt64 {
@@ -3597,6 +3955,13 @@ final class POSViewModel: ObservableObject {
                 return
             }
 
+            if methodRaw == "usdc" {
+                scanBanner = ""
+                topupQrExecuteError = nil
+                await presentUsdcTopupQrPhase1Only(topupFromCustomerQr: true, qrBeneficiaryBeamioTag: beamioTag)
+                return
+            }
+
             let sigBeamio: String
             do {
                 sigBeamio = try BeamioEthWallet.signExecuteForAdmin(
@@ -3604,7 +3969,8 @@ final class POSViewModel: ObservableObject {
                     cardAddr: cardAddr,
                     dataHex: data,
                     deadline: deadline,
-                    nonceHex: nonce
+                    nonceHex: nonce,
+                    verifyingContractHex: tagPrep.factoryGateway
                 )
             } catch {
                 reportTopupFailure(error.localizedDescription, topupFromQr: topupFromQr)
@@ -3695,6 +4061,13 @@ final class POSViewModel: ObservableObject {
                 return
             }
 
+            if methodRaw == "usdc" {
+                scanBanner = ""
+                topupQrExecuteError = nil
+                await presentUsdcTopupQrPhase1Only(topupFromCustomerQr: true, qrBeneficiaryWallet: wallet)
+                return
+            }
+
             let sigW: String
             do {
                 sigW = try BeamioEthWallet.signExecuteForAdmin(
@@ -3702,7 +4075,8 @@ final class POSViewModel: ObservableObject {
                     cardAddr: cardAddr,
                     dataHex: data,
                     deadline: deadline,
-                    nonceHex: nonce
+                    nonceHex: nonce,
+                    verifyingContractHex: prep.factoryGateway
                 )
             } catch {
                 reportTopupFailure(error.localizedDescription, topupFromQr: topupFromQr)
@@ -3795,7 +4169,8 @@ final class POSViewModel: ObservableObject {
                 cardAddr: cardAddr,
                 dataHex: data,
                 deadline: deadline,
-                nonceHex: nonce
+                nonceHex: nonce,
+                verifyingContractHex: prep.factoryGateway
             )
         } catch {
             reportTopupFailure(error.localizedDescription, topupFromQr: topupFromQr)
@@ -3967,6 +4342,21 @@ final class POSViewModel: ObservableObject {
                 scanBanner = ""
                 paymentTerminalError = "Card does not support SUN. Cannot accept USDC charge."
                 paymentPatchStep(id: "analyzingAssets", status: .error, detail: "SUN missing")
+                return
+            }
+            let totalStr = String(format: "%.2f", total)
+            if let tierErr = await validateTopupMeetsMinimumTierForNonMember(
+                amountStr: totalStr,
+                cardAddr: merchantInfraCard,
+                preCard: payCard,
+                currency: payCurrency,
+                customerAa: assets.aaAddress,
+                preflightKind: .charge
+            ) {
+                isNfcBusy = false
+                scanBanner = ""
+                paymentTerminalError = tierErr
+                paymentPatchStep(id: "analyzingAssets", status: .error, detail: "")
                 return
             }
             // discount currency = subtotal × normalizedTierDiscountPercent / 100（与 nfcBill `nfcDiscountAmountFiat6` 同口径）。
@@ -4966,6 +5356,21 @@ private extension POSViewModel {
         if line.caseInsensitiveCompare("Asset Card") == .orderedSame { return nil }
         if line.caseInsensitiveCompare("Card") == .orderedSame { return nil }
         return line
+    }
+
+    /// Row for `merchantInfraCard` in terminal `getWalletAssets` — `cardCurrency` / root fallback.
+    static func merchantProgramCardCurrency(from assets: UIDAssets, merchantInfraCard infra: String) -> String {
+        let key = infra.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !key.isEmpty else { return "CAD" }
+        if let row = assets.cards?.first(where: {
+            $0.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == key
+        }) {
+            return row.cardCurrency.uppercased()
+        }
+        if let c = assets.cardCurrency?.trimmingCharacters(in: .whitespacesAndNewlines), !c.isEmpty {
+            return c.uppercased()
+        }
+        return "CAD"
     }
 
     func looksLikeAddress(_ s: String) -> Bool {

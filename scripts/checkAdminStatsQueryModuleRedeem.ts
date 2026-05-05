@@ -6,7 +6,7 @@
  */
 import { network as networkModule } from "hardhat";
 
-const FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05";
+const FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 const CARD_FROM_ERROR = "0x48952F9EA1231b59e5c5FA1a99BC657B122CFDfD";
 const ROUTE_REDEEM = 0;
 const ROUTE_INVALID = 255;

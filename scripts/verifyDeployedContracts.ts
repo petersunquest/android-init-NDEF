@@ -34,7 +34,7 @@ async function main() {
   }
 
   const factoryData = fs.existsSync(factoryFile) ? JSON.parse(fs.readFileSync(factoryFile, "utf-8")) : {};
-  const factoryAddr = factoryData.contracts?.beamioUserCardFactoryPaymaster?.address ?? "0x2EB245646de404b2Dce87E01C6282C131778bb05";
+  const factoryAddr = factoryData.contracts?.beamioUserCardFactoryPaymaster?.address ?? "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 
   console.log("=".repeat(60));
   console.log("验证已部署合约");

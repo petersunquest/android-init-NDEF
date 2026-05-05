@@ -12,32 +12,14 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-UserCardFactory.json");
-const FULL_DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-FullAccountAndUserCard.json");
+const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
 const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.json");
 
-/** Base 主网 Card Factory 默认值，与 config/base-addresses.json、deployments/base-UserCardFactory.json 一致 */
-const DEFAULT_CARD_FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05";
-
 function getCardFactoryAddress(): string {
-  if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
-  if (fs.existsSync(FULL_DEPLOYMENT_FILE)) {
-    const data = JSON.parse(fs.readFileSync(FULL_DEPLOYMENT_FILE, "utf-8"));
-    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-    if (addr) return addr;
-  }
-  if (fs.existsSync(DEPLOYMENT_FILE)) {
-    const data = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf-8"));
-    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-    if (addr) return addr;
-  }
-  if (fs.existsSync(CONFIG_PATH)) {
-    const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
-    if (data.CARD_FACTORY) return data.CARD_FACTORY;
-  }
-  return DEFAULT_CARD_FACTORY;
+  return resolveBaseCardFactoryAddress(DEPLOYMENTS_DIR);
 }
 
 async function main() {

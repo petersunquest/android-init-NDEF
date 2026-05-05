@@ -33,7 +33,7 @@ function appendTierForCard(
 
 ## 部署要求
 
-**Factory 需重新部署或升级** 才能使用 `appendTierForCard`。请仅以当前 canonical Factory `0x2EB245646de404b2Dce87E01C6282C131778bb05` 为准，不要再使用旧 Factory 地址。
+**Factory 需重新部署或升级** 才能使用 `appendTierForCard`。请仅以当前 canonical Factory `0x52cc9E977Ca3EA33c69383a41F87f32a71140A52` 为准，不要再使用旧 Factory 地址。
 
 - 若 Factory 为可升级合约，可增加该函数并升级。
 - 若为不可升级，需部署新 Factory 并迁移（gateway 变更会涉及所有已部署卡）。

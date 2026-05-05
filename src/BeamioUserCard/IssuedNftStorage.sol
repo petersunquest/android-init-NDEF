@@ -17,6 +17,8 @@ library IssuedNftStorage {
         mapping(uint256 => uint256) issuedNftMaxSupply;
         mapping(uint256 => uint256) issuedNftMintedCount;
         mapping(uint256 => uint256) issuedNftPriceInCurrency6;
+        /// @dev keyed by keccak256(abi.encode(userEOA, tokenId)): free EIP-712 path claimed once per EOA per issued series
+        mapping(bytes32 => bool) issuedNftUserSigClaimUsed;
     }
 
     function layout() internal pure returns (Layout storage l) {

@@ -4,7 +4,6 @@ import { createWalletClient, custom, type Address } from 'viem'
 import { base } from 'viem/chains'
 import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
 import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
-import { SiteFooter } from '../components/SiteFooter'
 import { SiteHeader } from '../components/SiteHeader'
 import { isMobileDeviceForWalletApps } from '../utils/mobileWalletApps'
 
@@ -286,7 +285,37 @@ function randomBytes32Hex(): `0x${string}` {
 }
 
 function shouldFallbackToRawSignature(errorMessage: string): boolean {
-	return /no valid assets?/i.test(errorMessage)
+	return /no valid assets?|maxAmountRequired|ZodError/i.test(errorMessage)
+}
+
+/**
+ * Backend `/api/nfcUsdcChargeRawSig` currently expects 65-byte (`r+s+v`) hex signatures.
+ * Some wallets may return compact 64-byte EIP-2098 (`r+vs`) signatures for typed data.
+ * Convert 64-byte -> 65-byte so fallback can proceed.
+ */
+function normalizeTo65ByteSignature(signature: string): string | null {
+	if (!/^0x[0-9a-fA-F]+$/.test(signature)) return null
+	const body = signature.slice(2)
+	// already 65-byte
+	if (body.length === 130) return `0x${body}`
+	// compact 64-byte (EIP-2098): r(32) + vs(32)
+	if (body.length === 128) {
+		const r = body.slice(0, 64)
+		const vsHex = body.slice(64)
+		let vs: bigint
+		try {
+			vs = BigInt(`0x${vsHex}`)
+		} catch {
+			return null
+		}
+		const highBitMask = 1n << 255n
+		const sMask = highBitMask - 1n
+		const v = (vs & highBitMask) !== 0n ? 28 : 27
+		const s = (vs & sMask).toString(16).padStart(64, '0')
+		const vHex = v.toString(16).padStart(2, '0')
+		return `0x${r}${s}${vHex}`
+	}
+	return null
 }
 
 function buildMetamaskDeeplink(): string {
@@ -493,6 +522,12 @@ export function UsdcCharge() {
 					nonce,
 				},
 			})
+			const normalizedSignature = normalizeTo65ByteSignature(signature)
+			if (!normalizedSignature) {
+				throw new Error(
+					`Wallet returned unsupported signature format (len=${signature.startsWith('0x') ? (signature.length - 2) / 2 : -1} bytes)`
+				)
+			}
 			setStatus('settling')
 			const p = parsed.params
 			const bodyObj: Record<string, string> = {
@@ -503,7 +538,7 @@ export function UsdcCharge() {
 				validAfter,
 				validBefore,
 				nonce,
-				signature,
+				signature: normalizedSignature,
 			}
 			if (p.pos) bodyObj.pos = p.pos
 			if (p.currency) bodyObj.currency = p.currency
@@ -617,7 +652,7 @@ export function UsdcCharge() {
 	if (!parsed.ok) {
 		return (
 			<div className="min-h-dvh bg-background text-on-surface antialiased">
-				<SiteHeader />
+				<SiteHeader logoSrc="/beamio-logo.png" logoRounded wordmark="Beamio" />
 				<main className="pt-24 pb-12">
 					<div className="mx-auto max-w-xl px-6">
 						<div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 dark:border-rose-800/50 dark:bg-rose-950/30 dark:text-rose-200">
@@ -634,7 +669,6 @@ export function UsdcCharge() {
 						</div>
 					</div>
 				</main>
-				<SiteFooter />
 			</div>
 		)
 	}
@@ -657,7 +691,7 @@ export function UsdcCharge() {
 
 	return (
 		<div className="min-h-dvh bg-background text-on-surface antialiased">
-			<SiteHeader />
+			<SiteHeader logoSrc="/beamio-logo.png" logoRounded wordmark="Beamio" />
 			<main className="pt-24 pb-12">
 				<div className="mx-auto max-w-xl px-6">
 					<header className="mb-8 text-center">
@@ -757,7 +791,6 @@ export function UsdcCharge() {
 					</section>
 				</div>
 			</main>
-			<SiteFooter />
 		</div>
 	)
 }

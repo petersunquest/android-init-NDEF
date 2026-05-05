@@ -22,7 +22,7 @@ const domain = {
 	name: 'BeamioUserCardFactory',
 	version: '1',
 	chainId: 8453,
-	verifyingContract: '0x2EB245646de404b2Dce87E01C6282C131778bb05',
+	verifyingContract: '0x52cc9E977Ca3EA33c69383a41F87f32a71140A52',
 };
 const types = {
 	ExecuteForAdmin: [

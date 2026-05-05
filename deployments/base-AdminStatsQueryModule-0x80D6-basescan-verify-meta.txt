@@ -21,7 +21,7 @@ node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
 
 - Deploy script: `npx hardhat run scripts/deployAdminStatsQueryModuleForMintLimit.ts --network base`
 - Old module: `0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70`
-- Factory: `0x2EB245646de404b2Dce87E01C6282C131778bb05`
+- Factory: `0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`
 - New module selector checks passed before factory update:
   - `createRedeemAdmin(bytes32,string,uint64,uint64,uint256)` -> `ROUTE_REDEEM`
   - `getGlobalAdminToAdminHourlyData(uint256)` -> `ROUTE_STATS_QUERY`

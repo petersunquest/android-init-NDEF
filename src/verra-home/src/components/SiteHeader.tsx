@@ -12,15 +12,22 @@ const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
 		? "rounded-lg bg-primary-container/15 py-3 pl-4 font-['Inter'] font-semibold text-blue-600 dark:text-blue-400"
 		: "rounded-lg py-3 pl-4 font-['Inter'] font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
 
-const logoProps = {
-	className: 'flex items-center gap-0',
-	imgClassName: 'h-8 w-8 shrink-0 object-contain md:h-9 md:w-9',
-	wordmarkClassName: 'text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-500',
-} as const
+type SiteHeaderProps = {
+	logoSrc?: string
+	logoRounded?: boolean
+	wordmark?: string
+}
 
-export function SiteHeader() {
+export function SiteHeader({ logoSrc, logoRounded = false, wordmark }: SiteHeaderProps = {}) {
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const location = useLocation()
+	const logoProps = {
+		className: 'flex items-center gap-0',
+		imgClassName: `h-8 w-8 shrink-0 object-contain md:h-9 md:w-9 ${logoRounded ? 'rounded-full' : ''}`.trim(),
+		wordmarkClassName: 'text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-500',
+		logoSrc,
+		wordmark,
+	} as const
 
 	useEffect(() => {
 		setMobileMenuOpen(false)

@@ -1,0 +1,33 @@
+# BaseScan 验证 — AdminStatsQueryModule 0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B
+
+## 路由（registerSeries）
+
+| Selector | ROUTE_ISSUED_NFT (=2) / 备注 |
+|---------|-----------------------------|
+| issuedNftSharedMetadataHash(uint256) | ROUTE_ISSUED_NFT (2) |
+| createIssuedNft(...) | ROUTE_ISSUED_NFT (2) |
+
+## Contract Name
+
+project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1
+
+## Standard JSON
+
+deployments/base-AdminStatsQueryModule-standard-input-FULL.json
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
+```
+
+## Factory
+
+0x52cc9E977Ca3EA33c69383a41F87f32a71140A52
+
+## Previous module
+
+0x80D6A0ed075285306430F0C024bC6488583D2d6b
+
+## BaseScan
+
+https://basescan.org/address/0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B#code

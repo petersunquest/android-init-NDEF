@@ -58,6 +58,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
     bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
 
+    bytes32 public constant CLAIM_ISSUED_NFT_TYPEHASH = keccak256(
+        "ClaimIssuedNft(address cardAddress,uint256 tokenId,uint256 deadline,bytes32 nonce)"
+    );
+
     // ===== immutable chain config =====
     address public immutable USDC_TOKEN;
 
@@ -94,6 +98,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
     // Admin-signed execute: nonce replay protection（executeForAdmin，per card per admin）
     mapping(bytes32 => bool) public usedAdminExecuteNonces;
+
+    /// @dev User signed ClaimIssuedNft replay protection (scoped by userEOA + nonce bytes32)
+    mapping(bytes32 => bool) public usedIssuedNftClaimSigNonces;
 
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event PaymasterStatusChanged(address indexed account, bool allowed);
@@ -134,6 +141,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 usdcAmount6,
         bytes32 nonce
     );
+    event IssuedNftClaimedWithUserSig(address indexed card, address indexed userEOA, uint256 indexed tokenId, bytes32 nonce);
     event AdminExecuteExecuted(address indexed card, address indexed adminSigner, bytes32 nonce);
 
     modifier onlyOwner() {
@@ -624,6 +632,40 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card.mintIssuedNftByGateway(userEOA, tokenId, amount);
 
         emit IssuedNftPurchasedForUser(cardAddr, userEOA, cardOwner, tokenId, amount, usdcAmount6, nonce);
+    }
+
+    /// @notice User EIP-712 free claim (`issuedNftPriceInCurrency6[tokenId]==0` only): 1 NFT per signer EOA per tokenId; obey maxSupply & validity window.
+    function claimIssuedNftWithUserSig(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external onlyPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (usedIssuedNftClaimSigNonces[nonceKey]) revert UC_NonceUsed();
+        usedIssuedNftClaimSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_ISSUED_NFT_TYPEHASH, cardAddr, tokenId, deadline, nonce)
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        if (!card.isIssuedNftValid(tokenId)) revert UC_IssuedNftInactive(tokenId);
+
+        card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+
+        emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
     }
 
     bytes32 public constant EXECUTE_FOR_OWNER_TYPEHASH = keccak256(

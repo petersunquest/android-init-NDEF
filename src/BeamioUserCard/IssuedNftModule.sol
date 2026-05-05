@@ -55,6 +55,11 @@ contract BeamioUserCardIssuedNftModuleV1 {
         emit IssuedNftCreated(tokenId, title, validAfter, validBefore, maxSupply, priceInCurrency6, sharedMetadataHash);
     }
 
+    /// @notice EIP-1155 URI / coupon series registration: hash committed at createIssuedNft (card fallback delegatecalls here)
+    function issuedNftSharedMetadataHash(uint256 tokenId) external view returns (bytes32) {
+        return IssuedNftStorage.layout().issuedNftSharedMetadataHash[tokenId];
+    }
+
     /// @notice Validate and record mint; card does _mint(acct, tokenId, amount) after.
     function validateAndRecordMintIssuedNft(address acct, uint256 tokenId, uint256 amount) external onlyGateway {
         if (acct == address(0)) revert BM_ZeroAddress();
@@ -69,5 +74,30 @@ contract BeamioUserCardIssuedNftModuleV1 {
         l.issuedNftMintedCount[tokenId] = cnt + amount;
 
         emit IssuedNftMinted(tokenId, acct, amount);
+    }
+
+    /// @notice Free user-signed mint path (via Factory): exactly 1; one claim per userEOA per tokenId.
+    /// @dev Card must gate priceInCurrency6==0 to avoid bypassing paid purchase.
+    function validateAndRecordMintIssuedNftUserSigClaim(address userEOA, address recipientAcct, uint256 tokenId) external onlyGateway {
+        if (userEOA == address(0) || recipientAcct == address(0)) revert BM_ZeroAddress();
+        if (tokenId < ISSUED_NFT_START_ID) revert UC_InvalidTokenId(tokenId, ISSUED_NFT_START_ID);
+
+        IssuedNftStorage.Layout storage l = IssuedNftStorage.layout();
+        bytes32 claimKey = keccak256(abi.encode(userEOA, tokenId));
+        if (l.issuedNftUserSigClaimUsed[claimKey]) revert UC_IssuedNftSigClaimAlreadyUsed(userEOA, tokenId);
+
+        uint256 price = l.issuedNftPriceInCurrency6[tokenId];
+        if (price != 0) revert UC_IssuedNftSigClaimNotFree(tokenId, price);
+
+        uint256 amount = 1;
+        uint256 maxSupply = l.issuedNftMaxSupply[tokenId];
+        if (maxSupply == 0) revert UC_InvalidTokenId(tokenId, 0);
+        uint256 cnt = l.issuedNftMintedCount[tokenId];
+        if (cnt + amount > maxSupply) revert UC_InsufficientBalance(address(this), tokenId, maxSupply - cnt, amount);
+
+        l.issuedNftUserSigClaimUsed[claimKey] = true;
+        l.issuedNftMintedCount[tokenId] = cnt + amount;
+
+        emit IssuedNftMinted(tokenId, recipientAcct, amount);
     }
 }

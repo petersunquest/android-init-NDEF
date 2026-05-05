@@ -10,11 +10,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
+    getFunction(nameOrSignature: "CLAIM_ISSUED_NFT_TYPEHASH" | "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "claimIssuedNftWithUserSig" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedIssuedNftClaimSigNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedCreateDebug" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedCreateDebug" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftClaimedWithUserSig" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'CLAIM_ISSUED_NFT_TYPEHASH', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'EXECUTE_FOR_ADMIN_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'EXECUTE_FOR_OWNER_TYPEHASH', values?: undefined): string;
@@ -29,6 +30,7 @@ encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,u
 encodeFunctionData(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardsOfOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'changePaymasterStatus', values: [AddressLike, boolean]): string;
+encodeFunctionData(functionFragment: 'claimIssuedNftWithUserSig', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCode', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, TierStruct[]]): string;
 encodeFunctionData(functionFragment: 'defaultAdminStatsQueryModule', values?: undefined): string;
@@ -75,9 +77,11 @@ encodeFunctionData(functionFragment: 'tokenIdIssued', values: [AddressLike, BigN
 encodeFunctionData(functionFragment: 'transferOwner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'usedAdminExecuteNonces', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'usedClearAdminMintCounterNonces', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'usedIssuedNftClaimSigNonces', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'usedOwnerExecuteNonces', values: [BytesLike]): string;
 
-    decodeFunctionResult(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'CLAIM_ISSUED_NFT_TYPEHASH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'EXECUTE_FOR_ADMIN_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'EXECUTE_FOR_OWNER_TYPEHASH', data: BytesLike): Result;
@@ -92,6 +96,7 @@ decodeFunctionResult(functionFragment: 'buyPointsForUser(address,address,uint256
 decodeFunctionResult(functionFragment: 'buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardsOfOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'changePaymasterStatus', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimIssuedNftWithUserSig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCodeAndTiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultAdminStatsQueryModule', data: BytesLike): Result;
@@ -138,6 +143,7 @@ decodeFunctionResult(functionFragment: 'tokenIdIssued', data: BytesLike): Result
 decodeFunctionResult(functionFragment: 'transferOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedAdminExecuteNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedClearAdminMintCounterNonces', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usedIssuedNftClaimSigNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike): Result;
   }
 
@@ -298,6 +304,18 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
   
 
+    export namespace IssuedNftClaimedWithUserSigEvent {
+      export type InputTuple = [card: AddressLike, userEOA: AddressLike, tokenId: BigNumberish, nonce: BytesLike];
+      export type OutputTuple = [card: string, userEOA: string, tokenId: bigint, nonce: string];
+      export interface OutputObject {card: string, userEOA: string, tokenId: bigint, nonce: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace IssuedNftPurchasedForUserEvent {
       export type InputTuple = [card: AddressLike, userEOA: AddressLike, cardOwner: AddressLike, tokenId: BigNumberish, amount: BigNumberish, usdcAmount6: BigNumberish, nonce: BytesLike];
       export type OutputTuple = [card: string, userEOA: string, cardOwner: string, tokenId: bigint, amount: bigint, usdcAmount6: bigint, nonce: string];
@@ -428,6 +446,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     
     
+    CLAIM_ISSUED_NFT_TYPEHASH: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     CLEAR_ADMIN_MINT_COUNTER_TYPEHASH: TypedContractMethod<
       [],
       [string],
@@ -542,6 +568,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
     changePaymasterStatus: TypedContractMethod<
       [a: AddressLike, ok: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    claimIssuedNftWithUserSig: TypedContractMethod<
+      [cardAddr: AddressLike, userEOA: AddressLike, tokenId: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -916,6 +950,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    usedIssuedNftClaimSigNonces: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     usedOwnerExecuteNonces: TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -926,7 +968,12 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH'): TypedContractMethod<
+    getFunction(nameOrSignature: 'CLAIM_ISSUED_NFT_TYPEHASH'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH'): TypedContractMethod<
       [],
       [string],
       'view'
@@ -998,6 +1045,11 @@ getFunction(nameOrSignature: 'cardsOfOwner'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'changePaymasterStatus'): TypedContractMethod<
       [a: AddressLike, ok: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'claimIssuedNftWithUserSig'): TypedContractMethod<
+      [cardAddr: AddressLike, userEOA: AddressLike, tokenId: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1231,6 +1283,11 @@ getFunction(nameOrSignature: 'usedClearAdminMintCounterNonces'): TypedContractMe
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'usedIssuedNftClaimSigNonces'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'usedOwnerExecuteNonces'): TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -1250,6 +1307,7 @@ getEvent(key: 'DefaultRedeemModuleUpdated'): TypedContractEvent<DefaultRedeemMod
 getEvent(key: 'DeployFailedCreateDebug'): TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;
 getEvent(key: 'DeployFailedStep'): TypedContractEvent<DeployFailedStepEvent.InputTuple, DeployFailedStepEvent.OutputTuple, DeployFailedStepEvent.OutputObject>;
 getEvent(key: 'DeployerChanged'): TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
+getEvent(key: 'IssuedNftClaimedWithUserSig'): TypedContractEvent<IssuedNftClaimedWithUserSigEvent.InputTuple, IssuedNftClaimedWithUserSigEvent.OutputTuple, IssuedNftClaimedWithUserSigEvent.OutputObject>;
 getEvent(key: 'IssuedNftPurchasedForUser'): TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;
 getEvent(key: 'MetadataBaseURIUpdated'): TypedContractEvent<MetadataBaseURIUpdatedEvent.InputTuple, MetadataBaseURIUpdatedEvent.OutputTuple, MetadataBaseURIUpdatedEvent.OutputObject>;
 getEvent(key: 'OwnerChanged'): TypedContractEvent<OwnerChangedEvent.InputTuple, OwnerChangedEvent.OutputTuple, OwnerChangedEvent.OutputObject>;
@@ -1311,6 +1369,10 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
 
       'DeployerChanged(address,address)': TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
       DeployerChanged: TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
+    
+
+      'IssuedNftClaimedWithUserSig(address,address,uint256,bytes32)': TypedContractEvent<IssuedNftClaimedWithUserSigEvent.InputTuple, IssuedNftClaimedWithUserSigEvent.OutputTuple, IssuedNftClaimedWithUserSigEvent.OutputObject>;
+      IssuedNftClaimedWithUserSig: TypedContractEvent<IssuedNftClaimedWithUserSigEvent.InputTuple, IssuedNftClaimedWithUserSigEvent.OutputTuple, IssuedNftClaimedWithUserSigEvent.OutputObject>;
     
 
       'IssuedNftPurchasedForUser(address,address,address,uint256,uint256,uint256,bytes32)': TypedContractEvent<IssuedNftPurchasedForUserEvent.InputTuple, IssuedNftPurchasedForUserEvent.OutputTuple, IssuedNftPurchasedForUserEvent.OutputObject>;

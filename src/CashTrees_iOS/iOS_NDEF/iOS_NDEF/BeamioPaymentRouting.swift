@@ -80,33 +80,43 @@ enum BeamioPaymentRouting {
         var usdcWei: Int64
     }
 
-    /// 参与 Charge 的全部卡行：以服务端 `cards[]` 为准（含独立部署的 BeamioUserCard），不再按 `ccsa` 或终端 infra 地址硬筛。
-    static func chargeableCards(from assets: UIDAssets, infraCard: String) -> [CardItem] {
+    /// 参与 Charge 的卡行：以服务端 `cards[]` 为准，但排除已弃用的 **CCSA** 行与历史共享基础设施模板地址（POS 仅使用上级登记的程序卡）。
+    static func chargeableCards(from assets: UIDAssets, infraCard _: String) -> [CardItem] {
+        let base: [CardItem]
         if let cards = assets.cards, !cards.isEmpty {
-            return cards
+            base = cards
+        } else {
+            let addr = assets.cardAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if addr.isEmpty { return [] }
+            base = [
+                CardItem(
+                    cardAddress: addr,
+                    cardName: "Asset Card",
+                    cardType: "",
+                    points: assets.points ?? "0",
+                    points6: assets.points6 ?? "0",
+                    cardCurrency: assets.cardCurrency ?? "CAD",
+                    nfts: assets.nfts ?? [],
+                    cardBackground: nil,
+                    cardImage: nil,
+                    tierName: nil,
+                    tierDescription: nil,
+                    primaryMemberTokenId: {
+                        let s = assets.primaryMemberTokenId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        return s.isEmpty ? nil : s
+                    }(),
+                    tierDiscountPercent: nil
+                ),
+            ]
         }
-        let addr = assets.cardAddress?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if addr.isEmpty { return [] }
-        return [
-            CardItem(
-                cardAddress: addr,
-                cardName: "Asset Card",
-                cardType: "",
-                points: assets.points ?? "0",
-                points6: assets.points6 ?? "0",
-                cardCurrency: assets.cardCurrency ?? "CAD",
-                nfts: assets.nfts ?? [],
-                cardBackground: nil,
-                cardImage: nil,
-                tierName: nil,
-                tierDescription: nil,
-                primaryMemberTokenId: {
-                    let s = assets.primaryMemberTokenId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                    return s.isEmpty ? nil : s
-                }(),
-                tierDiscountPercent: nil
-            ),
-        ]
+        return base.filter { !isDeprecatedCcsaOrSharedInfraTemplateRow($0) }
+    }
+
+    private static func isDeprecatedCcsaOrSharedInfraTemplateRow(_ c: CardItem) -> Bool {
+        let t = c.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if t == "ccsa" { return true }
+        let a = c.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        return a.caseInsensitiveCompare(BeamioConstants.defaultBeamioUserCard) == .orderedSame
     }
 
     /// 拆分点余额：`unitPrice` 桶走 prepare 返回的 `unitPriceUSDC6`（BeamioUserCard / 程序卡行）；`oracleInfra` 桶为 **他址** 的纯 infrastructure 行（oracle 折 USDC）。

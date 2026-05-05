@@ -3,6 +3,7 @@
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "timestamp": "2026-02-13T23:36:00.000Z",
+  "note": "Legacy full-stack snapshot: Oracle / QuoteHelper / AA stack predates May 2026 UserCard redeploy; beamioUserCardFactoryPaymaster + beamioUserCardDeployer updated to canonical Base UserCard paths for tooling fallback.",
   "existing": {
     "beamioOracle": "0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B",
     "beamioQuoteHelper": "0xfa30c2086ff9a3D74576d55c2027586797A52F29"
@@ -28,10 +29,10 @@
       "address": "0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448"
     },
     "beamioUserCardDeployer": {
-      "address": "0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9"
+      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x2EB245646de404b2Dce87E01C6282C131778bb05"
+      "address": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52"
     },
     "beamioUserCard": {
       "address": "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270"

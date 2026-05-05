@@ -7,6 +7,7 @@ type BrandLogoProps = {
 	to?: string | null
 	className?: string
 	imgClassName?: string
+	logoSrc?: string
 	showWordmark?: boolean
 	wordmark?: string
 	wordmarkClassName?: string
@@ -18,6 +19,7 @@ export function BrandLogo({
 	to = '/',
 	className = 'flex items-center gap-2',
 	imgClassName = 'h-8 w-8 shrink-0 object-contain',
+	logoSrc = VERRA_LOGO_URL,
 	showWordmark = true,
 	wordmark = 'Verra',
 	wordmarkClassName = '',
@@ -29,7 +31,7 @@ export function BrandLogo({
 
 	const inner = (
 		<>
-			<img src={VERRA_LOGO_URL} alt="" width={512} height={512} className={markClasses} />
+			<img src={logoSrc} alt="" width={512} height={512} className={markClasses} />
 			{showWordmark ? <span className={wordmarkClassName}>{wordmark}</span> : null}
 		</>
 	)

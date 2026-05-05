@@ -5,7 +5,7 @@
 import { ethers } from "ethers";
 
 const CARD = "0xB7644DDb12656F4854dC746464af47D33C206F0E";
-const CARD_FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05";
+const CARD_FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 
 const ABI = {
   owner: "function owner() view returns (address)",

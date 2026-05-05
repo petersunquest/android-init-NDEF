@@ -22,7 +22,7 @@
     "print:beamio-account-deployer:base": "hardhat run scripts/printBeamioAccountDeployer.ts --network base",
     "repro:conet-createcard:base": "CARD_OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e GAS_LIMIT=8000000 hardhat run scripts/createDebugCardOnDebugFactory.ts --network base",
     "repro:conet-createcard:andtiers:base": "CARD_OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e DEBUG_WITH_TIERS=1 INITCODE_LINK_MAINNET_LIBS=1 GAS_LIMIT=8500000 hardhat run scripts/createDebugCardOnDebugFactory.ts --network base",
-    "repro:conet-createcard:prod-factory-andtiers:base": "CARD_OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e CARD_FACTORY=0x2EB245646de404b2Dce87E01C6282C131778bb05 DEBUG_WITH_TIERS=1 INITCODE_LINK_MAINNET_LIBS=1 GAS_LIMIT=8500000 hardhat run scripts/createDebugCardOnDebugFactory.ts --network base",
+    "repro:conet-createcard:prod-factory-andtiers:base": "CARD_OWNER=0x513087820Af94A7f4d21bC5B68090f3080022E0e CARD_FACTORY=0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 DEBUG_WITH_TIERS=1 INITCODE_LINK_MAINNET_LIBS=1 GAS_LIMIT=8500000 hardhat run scripts/createDebugCardOnDebugFactory.ts --network base",
     "parse:createcard-failure:base": "hardhat run scripts/parseCreateCardFailureReceipt.ts --network base",
     "debug:workflow:beamio-account-key:base": "hardhat run scripts/beamioAccountKeyDebugWorkflow.ts --network base",
     "deploy:factory:base": "hardhat run scripts/deployFactoryAndModule.ts --network base",

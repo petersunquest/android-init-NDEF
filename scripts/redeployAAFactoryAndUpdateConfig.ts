@@ -25,6 +25,7 @@ import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
 import { execSync } from "child_process";
 import { getAddress, ethers as ethersLib, type Signer } from "ethers";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,19 +35,9 @@ const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
 const DEPLOYMENT_FILE = path.join(DEPLOYMENTS_DIR, "base-FactoryAndModule.json");
 const FULL_ACCOUNT_FILE = path.join(DEPLOYMENTS_DIR, "base-FullAccountAndUserCard.json");
 
-/** 当前 Base 主网 Card Factory，写入 config 时保持不改；与 config/base-addresses.json 一致 */
+/** 当前 Base 主网 Card Factory；与 config / base-UserCardFactory.json / FullAccount 回退顺序一致 */
 function getCardFactoryForConfig(): string {
-  if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
-  if (fs.existsSync(FULL_ACCOUNT_FILE)) {
-    const data = JSON.parse(fs.readFileSync(FULL_ACCOUNT_FILE, "utf-8"));
-    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-    if (addr) return addr;
-  }
-  if (fs.existsSync(CONFIG_JSON_PATH)) {
-    const data = JSON.parse(fs.readFileSync(CONFIG_JSON_PATH, "utf-8"));
-    if (data.CARD_FACTORY) return data.CARD_FACTORY;
-  }
-  return "0x2EB245646de404b2Dce87E01C6282C131778bb05";
+  return resolveBaseCardFactoryAddress(DEPLOYMENTS_DIR);
 }
 
 function loadSignerPk(): string {

@@ -50,6 +50,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol",
     contractName: "BeamioUserCardFactoryPaymasterV07",
   },
+  BeamioUserCardIssuedNftModuleV1: {
+    sourceKey: "project/src/BeamioUserCard/IssuedNftModule.sol",
+    contractName: "BeamioUserCardIssuedNftModuleV1",
+  },
   BeamioQuoteHelperV07: {
     sourceKey: "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol",
     contractName: "BeamioQuoteHelperV07",

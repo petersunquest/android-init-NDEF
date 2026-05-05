@@ -19,11 +19,11 @@ enum BeamioConstants {
     /// `deployments/conet-addresses.json` / `conet-BUint.json` source of truth for B-Units on CoNET L1.
     static let buintConet = "0x1330297821814B06A6DafE3557Fa730F690D7007"
 
-    /// 默认基础设施卡；运行时以 `/api/myPosAddress?wallet=` 为准
+    /// 历史共享基础设施模板地址。POS **不得**再作为默认 `merchantInfraCard`；终端程序卡仅以 `/api/myPosAddress` 登记为准。仍用于过滤 `getWalletAssets` 中该行，避免 Charge 误用。
     static let defaultBeamioUserCard = "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14"
 
     /// 与 `chainAddresses.BASE_CARD_FACTORY` / Android `BeamioWeb3Wallet` 一致（EIP-712 verifyingContract）
-    static let baseCardFactory = "0x2EB245646de404b2Dce87E01C6282C131778bb05"
+    static let baseCardFactory = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52"
     static let baseChainId: UInt64 = 8453
 
     static let deprecatedCardAddress = "0xEcC5bDFF6716847e45363befD3506B1D539c02D5"

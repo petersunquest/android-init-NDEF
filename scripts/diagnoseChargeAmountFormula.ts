@@ -13,7 +13,7 @@
 import { ethers } from "ethers"
 
 const RPC = process.env.BASE_RPC_URL || "https://mainnet.base.org"
-const FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05" // Card Factory（quote 来源），与 SC.baseFactoryPaymaster 一致
+const FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52" // Card Factory（quote 来源），与 SC.baseFactoryPaymaster 一致
 const CARD = "0x52aF5f5E7C136cc1BD596d64CB44eB7F5c9D2d6c"
 const CCSA = "0x2032A363BB2cf331142391fC0DAd21D6504922C7"
 const BLOCK = 45047606

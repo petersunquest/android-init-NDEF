@@ -170,7 +170,10 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (sel == bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"))) {
             return ROUTE_FAUCET;
         }
-        if (sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))) {
+        if (
+            sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))
+                || sel == bytes4(keccak256("issuedNftSharedMetadataHash(uint256)"))
+        ) {
             return ROUTE_ISSUED_NFT;
         }
         return ROUTE_INVALID;

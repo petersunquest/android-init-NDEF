@@ -25,7 +25,7 @@
 
 | 项目 | 值 |
 |------|-----|
-| **地址** | 0x2EB245646de404b2Dce87E01C6282C131778bb05 |
+| **地址** | 0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 |
 | **Contract Name** | project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07 |
 | **Compiler** | v0.8.33 |
 | **Constructor args** | 见下方 |
@@ -45,7 +45,7 @@
 ```
 
 **验证步骤**：
-1. 打开 https://basescan.org/address/0x2EB245646de404b2Dce87E01C6282C131778bb05#code
+1. 打开 https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52#code
 2. 点击 "Verify and Publish"
 3. 选择 "Solidity (Standard-Json-Input)"
 4. 上传 `deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json`
@@ -62,7 +62,7 @@
 npx hardhat verify --network base 0x5c56536e833d0bfCC5BF575B3566edbE61987eAD
 
 # Factory（当前 canonical；需 constructor args）
-npx hardhat verify --network base 0x2EB245646de404b2Dce87E01C6282C131778bb05 \
+npx hardhat verify --network base 0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 \
   "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" \
   "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6" \
   "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF" \

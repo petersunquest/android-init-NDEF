@@ -4,7 +4,6 @@ import { createWalletClient, custom, type Address } from 'viem'
 import { base } from 'viem/chains'
 import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
 import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
-import { SiteFooter } from '../components/SiteFooter'
 import { SiteHeader } from '../components/SiteHeader'
 import { isMobileDeviceForWalletApps } from '../utils/mobileWalletApps'
 
@@ -140,6 +139,10 @@ function buildMetamaskDeeplink(): string {
 	return `https://metamask.app.link/dapp/${host}${path}${search}`
 }
 
+function isX402RequirementShapeError(errorMessage: string): boolean {
+	return /maxAmountRequired|ZodError/i.test(errorMessage)
+}
+
 export function UsdcTopup() {
 	const [sp] = useSearchParams()
 	const parsed = useMemo(() => parseParams(sp), [sp])
@@ -218,8 +221,19 @@ export function UsdcTopup() {
 			setChainIdHex(chain)
 			setStatus('idle')
 		} catch (e: unknown) {
-			const msg = e instanceof Error ? e.message : String(e)
-			setError(msg)
+			const err = e as { name?: string; message?: string; cause?: unknown; code?: number | string } | null
+			const name = err?.name ?? typeof e
+			const msg = err?.message ?? String(e)
+			const codeStr = err?.code !== undefined ? ` code=${err.code}` : ''
+			const causeStr = err?.cause ? ` cause=${err.cause instanceof Error ? err.cause.message : String(err.cause)}` : ''
+			if (isX402RequirementShapeError(msg)) {
+				setError(
+					`Payment requirement schema mismatch from server (x402 maxAmountRequired). Please retry in a moment.${codeStr}${causeStr}`
+				)
+				setStatus('error')
+				return
+			}
+			setError(`${name}: ${msg}${codeStr}${causeStr}`)
 			setStatus('error')
 		}
 	}
@@ -338,7 +352,7 @@ export function UsdcTopup() {
 	if (!parsed.ok) {
 		return (
 			<div className="min-h-dvh bg-background text-on-surface antialiased">
-				<SiteHeader />
+				<SiteHeader logoSrc="/beamio-logo.png" logoRounded wordmark="Beamio" />
 				<main className="pt-24 pb-12">
 					<div className="mx-auto max-w-xl px-6">
 						<div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-800 dark:border-rose-800/50 dark:bg-rose-950/30 dark:text-rose-200">
@@ -353,7 +367,6 @@ export function UsdcTopup() {
 						</div>
 					</div>
 				</main>
-				<SiteFooter />
 			</div>
 		)
 	}
@@ -368,7 +381,7 @@ export function UsdcTopup() {
 
 	return (
 		<div className="min-h-dvh bg-background text-on-surface antialiased">
-			<SiteHeader />
+			<SiteHeader logoSrc="/beamio-logo.png" logoRounded wordmark="Beamio" />
 			<main className="pt-24 pb-12">
 				<div className="mx-auto max-w-xl px-6">
 					<header className="mb-8 text-center">
@@ -461,7 +474,6 @@ export function UsdcTopup() {
 					</section>
 				</div>
 			</main>
-			<SiteFooter />
 		</div>
 	)
 }

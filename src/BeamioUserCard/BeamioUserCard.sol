@@ -279,6 +279,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return IssuedNftStorage.layout().issuedNftPriceInCurrency6[tokenId];
     }
 
+    function issuedNftSharedMetadataHash(uint256 tokenId) external view returns (bytes32) {
+        return IssuedNftStorage.layout().issuedNftSharedMetadataHash[tokenId];
+    }
+
     function isAdmin(address a) external view returns (bool) { return GovernanceStorage.layout().isAdmin[a]; }
     /// @notice 查询 admin 的 parent（谁添加了该 admin；owner 添加的为 address(0)）
     function adminParent(address a) external view returns (address) {
@@ -826,6 +830,29 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         if (to == address(0)) revert BM_ZeroAddress();
         if (amount == 0) revert UC_AmountZero();
         _mintIssuedNftChecked(_toAccount(to), tokenId, amount);
+    }
+
+    /// @notice Gateway: user EIP-712 免费领取路径（每张卡 `issuedNftPriceInCurrency6[tokenId]==0`）；每名 EOA 每个 tokenId 仅一次一枚
+    function mintIssuedNftByUserSigClaim(address userEOA, uint256 tokenId) external onlyAuthorizedGateway nonReentrant {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        address acct = _toAccount(userEOA);
+        _callModule(
+            MODULE_ISSUED_NFT,
+            abi.encodeWithSelector(
+                IBeamioIssuedNftModuleV1.validateAndRecordMintIssuedNftUserSigClaim.selector,
+                userEOA,
+                acct,
+                tokenId
+            )
+        );
+        _mint(acct, tokenId, 1, "");
+        emit IssuedNftMinted(tokenId, acct, 1);
+    }
+
+    /// @notice Whether `userEOA` has consumed the EIP-712 free claim slot for `tokenId`.
+    function issuedNftUserSigClaimUsed(address userEOA, uint256 tokenId) external view returns (bool) {
+        bytes32 key = keccak256(abi.encode(userEOA, tokenId));
+        return IssuedNftStorage.layout().issuedNftUserSigClaimUsed[key];
     }
 
     /// @notice Gateway 为用户 mint（Factory 收 USDC 后调用）

@@ -20,7 +20,7 @@ import type { ethers as EthersNS } from "ethers"
 
 const TARGET_AA = (process.env.AA || "0x73706772A6D22A4DD1B36A793D10c538C7e7210D").trim()
 const FORCE_CARD = (process.env.CARD || "").trim()
-const BASE_CARD_FACTORY = "0x2EB245646de404b2Dce87E01C6282C131778bb05"
+const BASE_CARD_FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52"
 const POINTS_TOKEN_ID = 0n
 const E6 = 1_000_000n
 

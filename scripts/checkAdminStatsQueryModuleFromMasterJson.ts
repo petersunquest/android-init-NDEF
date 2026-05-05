@@ -10,7 +10,7 @@ import { homedir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { ethers } from 'ethers'
 
-const FACTORY = '0x2EB245646de404b2Dce87E01C6282C131778bb05'
+const FACTORY = '0x52cc9E977Ca3EA33c69383a41F87f32a71140A52'
 const ROUTE_REDEEM = 0
 const ROUTE_INVALID = 255
 

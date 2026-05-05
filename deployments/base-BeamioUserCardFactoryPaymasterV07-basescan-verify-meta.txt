@@ -1,19 +1,56 @@
-BeamioUserCardFactoryPaymasterV07 BaseScan 合约验证
-==================================================
+# BaseScan verification — BeamioUserCardFactoryPaymasterV07 (Base mainnet 2026-05-04 deploy)
 
-Compiler Version: 0.8.33+commit.64118f21
-Optimization: Enabled, Runs: 0（以 hardhat.config.ts 为准）
-viaIR: true, evmVersion: cancun
+Deployed address: https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52
+Creation tx (example): deployments/base-UserCardFactory.json → beamioUserCardFactoryPaymaster.transactionHash
 
-Contract Name: project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+## Compiler (must match exported JSON)
 
-Standard JSON 文件:
-  - base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json（via-IR 全量 build-info，推荐）
+- Solidity: **0.8.33+commit.64118f21**
+- Optimization: **enabled**, runs: **0**
+- viaIR: **true**
+- evmVersion: **cancun**
+- bytecodeHash: **none**, revertStrings: **strip** (same as hardhat.config.ts used for deployment)
 
-链接库: 本合约 artifact 无 linkReferences，验证时一般无需填 Library。
+## Standard JSON input (via-IR full build-info — required)
 
-生成 FULL:
+Upload file:
+
+  deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json
+
+Regenerate:
+
   npm run clean && npm run compile
   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
 
-Constructor: 按部署交易 input 填写 ABI-encoded 构造参数（与链上创建交易一致）。
+## Contract Name (paste exactly — fully qualified source path)
+
+  project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+
+## Constructor arguments (ABI-encoded hex, appended after bytecode or via BaseScan “ABI-encoded Constructor Arguments” field)
+
+Six address constructor:
+
+  `(address usdc_, address redeem_, address quote_, address deployer_, address aaFactory_, address owner_)`
+
+Values used on Base (see deployments/base-UserCardFactory.json):
+
+  usdc_:      0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+  redeem_:    0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6
+  quote_:     0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF
+  deployer_:  0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32
+  aaFactory_: 0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
+  owner_:     0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+
+Prepared hex (ethers ABI encode, **without** leading bytecode prefix):
+
+```
+0x000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda0291300000000000000000000000017db9029ded9d5f4e4cf819d3e8ec742cf0c79e6000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff0000000000000000000000002e8b1fac17439d03756fe63f930ce9dc3479ac320000000000000000000000004b31d6a05cdc817cac1b06369555b37a5b18212200000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+```
+
+## Libraries
+
+BeamioUserCardFactoryPaymasterV07 artifact has **no** linkReferences — no library placeholders for this contract.
+
+## Post-deploy Binding (already done on-chain; not part of bytecode verify)
+
+Same pattern as redeploy docs: ownership paymaster whitelist, deployer.factory(), setIssuedNftModule/setMetadataBaseURI/other module binds per deployment manifest.

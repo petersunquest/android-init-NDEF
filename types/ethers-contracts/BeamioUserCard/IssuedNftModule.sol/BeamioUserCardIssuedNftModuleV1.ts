@@ -6,15 +6,19 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardIssuedNftModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "createIssuedNft" | "validateAndRecordMintIssuedNft"): FunctionFragment;
+    getFunction(nameOrSignature: "createIssuedNft" | "issuedNftSharedMetadataHash" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "IssuedNftCreated" | "IssuedNftMinted"): EventFragment;
 
     encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNft', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', values: [AddressLike, AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', data: BytesLike): Result;
   }
 
   
@@ -84,8 +88,24 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: B
     
 
     
+    issuedNftSharedMetadataHash: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >
+    
+
+    
     validateAndRecordMintIssuedNft: TypedContractMethod<
       [acct: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    validateAndRecordMintIssuedNftUserSigClaim: TypedContractMethod<
+      [userEOA: AddressLike, recipientAcct: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -99,8 +119,18 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: B
       [bigint],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'validateAndRecordMintIssuedNft'): TypedContractMethod<
       [acct: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'validateAndRecordMintIssuedNftUserSigClaim'): TypedContractMethod<
+      [userEOA: AddressLike, recipientAcct: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >;
