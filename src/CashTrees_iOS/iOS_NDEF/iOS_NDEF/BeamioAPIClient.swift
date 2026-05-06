@@ -2514,10 +2514,23 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// API may emit `tokenId` as JSON string or number; both must parse or every row becomes empty → no POS coupon icon.
+    private static func couponTokenIdString(from any: Any?) -> String? {
+        if let s = any as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+        if let n = any as? NSNumber {
+            let t = n.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+        return nil
+    }
+
     private static func parseMerchantActiveIssuedCouponRow(_ d: [String: Any]) -> MerchantActiveIssuedCoupon? {
         let card = (d["cardAddress"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let tokenId = (d["tokenId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard isPlausibleEvmAddress(card), !tokenId.isEmpty else { return nil }
+        guard isPlausibleEvmAddress(card) else { return nil }
+        guard let tokenId = couponTokenIdString(from: d["tokenId"]), !tokenId.isEmpty else { return nil }
         let after = parseCouponMetaU64(d["issuedNftValidAfter"])
         let before = parseCouponMetaU64(d["issuedNftValidBefore"])
         let createdAt = (d["createdAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty

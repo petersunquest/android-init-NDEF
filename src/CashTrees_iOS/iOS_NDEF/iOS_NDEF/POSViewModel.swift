@@ -1272,15 +1272,37 @@ final class POSViewModel: ObservableObject {
             )
         }
 
+        let couponCard = resolvedProgramCardForCouponFetch(ast: ast, bindingInfra: infra)
         if showAwaitingParentPermissionGate {
             merchantActiveIssuedCoupons = nil
-        } else if looksLikeAddress(infra) {
-            if let coupons = await api.fetchMerchantActiveIssuedCoupons(cardAddress: infra, limit: 50) {
+        } else if looksLikeAddress(couponCard) {
+            if let coupons = await api.fetchMerchantActiveIssuedCoupons(cardAddress: couponCard, limit: 50) {
                 merchantActiveIssuedCoupons = coupons
             }
         } else {
             merchantActiveIssuedCoupons = nil
         }
+    }
+
+    /// Prefer Cluster `/api/myPosAddress`; if still empty, use trusted `getWalletAssets.cards[]` — **`infrastructure` program row first**, excluding CCSA / legacy shared template — so `/api/cardActiveIssuedCouponSeries` targets `0xFf63…` even when `myPosAddress` lags or fails.
+    private func resolvedProgramCardForCouponFetch(ast: UIDAssets, bindingInfra: String) -> String {
+        let b = bindingInfra.trimmingCharacters(in: .whitespacesAndNewlines)
+        if looksLikeAddress(b) { return b }
+        guard ast.ok, let rows = ast.cards, !rows.isEmpty else { return "" }
+        func allowed(_ row: CardItem) -> Bool {
+            let t = row.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if t == "ccsa" { return false }
+            let a = row.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            if a.caseInsensitiveCompare(BeamioConstants.defaultBeamioUserCard) == .orderedSame { return false }
+            return looksLikeAddress(a)
+        }
+        if let row = rows.first(where: { allowed($0) && $0.cardType.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "infrastructure" }) {
+            return row.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let row = rows.first(where: { allowed($0) }) {
+            return row.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return ""
     }
 
     private func refreshHomeUpstreamBUnitBalance(upstreamEoa raw: String?) async {
