@@ -5547,9 +5547,9 @@ private extension POSViewModel {
             return false
         }
 
-        let ownerSig: String
+        let adminSig: String
         do {
-            ownerSig = try BeamioEthWallet.signExecuteForOwner(
+            adminSig = try BeamioEthWallet.signExecuteForAdmin(
                 privateKeyHex: pkHex,
                 cardAddr: cardAddr,
                 dataHex: data,
@@ -5567,7 +5567,8 @@ private extension POSViewModel {
             data: data,
             deadline: deadline,
             nonce: nonce,
-            ownerSignature: ownerSig
+            adminSignature: adminSig,
+            signerEOA: walletAddress
         )
         if !submit.success {
             homeToast = submit.error ?? "Coupon consume failed."

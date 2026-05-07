@@ -2472,7 +2472,7 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
-    /// POS balance coupon consume prepare: cluster pre-checks ownership/balance and returns executeForOwner payload.
+    /// POS balance coupon consume prepare: cluster pre-checks balance and returns executeForAdmin payload.
     func cardCouponPosConsumePrepare(
         cardAddress: String,
         couponId: String,
@@ -2525,30 +2525,34 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
-    /// Submit owner-signed ExecuteForOwner transaction for coupon consume.
+    /// Submit admin-signed ExecuteForAdmin transaction for coupon consume.
     func cardCouponPosConsumeSubmit(
         cardAddress: String,
         data: String,
         deadline: UInt64,
         nonce: String,
-        ownerSignature: String
+        adminSignature: String,
+        signerEOA: String?
     ) async -> CouponConsumeResult {
         let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let dat = data.trimmingCharacters(in: .whitespacesAndNewlines)
         let nn = nonce.trimmingCharacters(in: .whitespacesAndNewlines)
-        let sig = ownerSignature.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sig = adminSignature.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.isPlausibleEvmAddress(card), !dat.isEmpty, !nn.isEmpty, !sig.isEmpty else {
             return CouponConsumeResult(success: false, txHash: nil, error: "Invalid consume submit payload.")
         }
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "cardAddress": card,
             "data": dat,
             "deadline": deadline,
             "nonce": nn,
-            "ownerSignature": sig,
+            "adminSignature": sig,
         ]
+        if let signerEOA, Self.isPlausibleEvmAddress(signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            body["signerEOA"] = signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         do {
-            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/executeForOwner", body: body, timeout: 90)
+            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/cardCouponPosConsumeSubmit", body: body, timeout: 90)
             guard let obj else {
                 return CouponConsumeResult(success: false, txHash: nil, error: "HTTP \(code)")
             }
