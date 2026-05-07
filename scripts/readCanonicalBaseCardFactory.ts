@@ -5,7 +5,7 @@
 import * as fs from "fs";
 import * as path from "path";
 
-const DEFAULT_BASE_CARD_FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
+const DEFAULT_BASE_CARD_FACTORY = "0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B";
 
 /** @param deploymentsDir Absolute or repo-relative `deployments` directory path */
 export function resolveBaseCardFactoryAddress(deploymentsDir: string): string {

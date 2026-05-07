@@ -2,16 +2,10 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-05-06T23:42:09.500Z",
-  "note": "IssuedNft + AdminStatsQuery upgrade (0x6563d3A8… / 0xe34C33B4…) registerSeries",
-  "previousFactory": "0x2EB245646de404b2Dce87E01C6282C131778bb05",
+  "timestamp": "2026-05-07T01:05:58.789Z",
   "contracts": {
-    "beamioUserCardDeployer": {
-      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
-      "transactionHash": "0xe5a22f7360d309b3924b0338ade7355755096b08ebfcf85da209cc43010ea789"
-    },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52",
+      "address": "0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
@@ -24,8 +18,7 @@
       "adminStatsQueryModule": "0xe34C33B4d0daC52E3853d721d058Db84df218976",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0x48ac06463d1a3765cf32f6db082041da7868450fbe6a8d9685e6650ebbbc8f22",
-      "modulesBoundFrom": "base-UserCardModules.json"
+      "transactionHash": "0xb8641b1f1adafce183364fde42c336b9ae7ab23aa60a73eb65848ee2bb340feb"
     }
   }
 }

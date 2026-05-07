@@ -17,7 +17,7 @@
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B`](https://basescan.org/address/0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -32,7 +32,7 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 - Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B`](https://basescan.org/address/0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B)
 
 ### Base Registered Module Addresses
 
