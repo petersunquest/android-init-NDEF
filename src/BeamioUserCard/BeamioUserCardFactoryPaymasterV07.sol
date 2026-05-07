@@ -37,6 +37,7 @@ interface IBeamioDeployerV07 {
 contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant MINT_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("mintPointsByAdmin(address,uint256)"));
     bytes4 private constant BURN_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("burnPointsByAdmin(address,uint256)"));
+    bytes4 private constant BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR = bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"));
     bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
     bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
     bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
@@ -814,6 +815,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (
             selector != MINT_POINTS_BY_ADMIN_SELECTOR &&
             selector != BURN_POINTS_BY_ADMIN_SELECTOR &&
+            selector != BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR &&
             selector != ADMIN_MANAGER_SELECTOR &&
             selector != ADMIN_MANAGER_WITH_LIMIT_SELECTOR &&
             selector != SET_ADMIN_AIRDROP_LIMIT_SELECTOR &&
@@ -890,6 +892,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         } else if (selector == BURN_POINTS_BY_ADMIN_SELECTOR) {
             (address target, uint256 amount) = abi.decode(data[4:], (address, uint256));
             callData = abi.encodeWithSelector(BeamioUserCard.burnPointsByAdmin.selector, target, amount);
+        } else if (selector == BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR) {
+            (address holder, uint256 tokenId, uint256 amount) = abi.decode(data[4:], (address, uint256, uint256));
+            callData = abi.encodeWithSelector(BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR, holder, tokenId, amount);
         } else if (selector == MINT_POINTS_BY_ADMIN_SELECTOR) {
             (address user, uint256 points6) = abi.decode(data[4:], (address, uint256));
             callData = abi.encodeWithSelector(BeamioUserCard.mintPointsByAdminWithOperator.selector, user, points6, signer);
