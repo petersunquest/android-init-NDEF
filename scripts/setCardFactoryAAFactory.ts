@@ -12,28 +12,14 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-FactoryAndModule.json");
-const FULL_DEPLOYMENT_FILE = path.join(__dirname, "..", "deployments", "base-FullAccountAndUserCard.json");
-const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.ts");
-
-/** Base 主网 Card Factory 默认值，与 config/base-addresses.ts、deployments/base-FullAccountAndUserCard.json 一致 */
-const DEFAULT_CARD_FACTORY = "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";
+const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
+const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.json");
 
 function getCardFactoryAddress(): string {
-  if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
-  if (fs.existsSync(FULL_DEPLOYMENT_FILE)) {
-    const data = JSON.parse(fs.readFileSync(FULL_DEPLOYMENT_FILE, "utf-8"));
-    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-    if (addr) return addr;
-  }
-  if (fs.existsSync(CONFIG_PATH)) {
-    const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-    const m = content.match(/CARD_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-    if (m) return m[1];
-  }
-  return DEFAULT_CARD_FACTORY;
+  return resolveBaseCardFactoryAddress(DEPLOYMENTS_DIR);
 }
 
 async function main() {
@@ -45,14 +31,9 @@ async function main() {
 
   let newAAFactory = process.env.NEW_AA_FACTORY;
   if (!newAAFactory) {
-    if (fs.existsSync(DEPLOYMENT_FILE)) {
-      const data = JSON.parse(fs.readFileSync(DEPLOYMENT_FILE, "utf-8"));
-      newAAFactory = data.contracts?.beamioFactoryPaymaster?.address;
-    }
-    if (!newAAFactory && fs.existsSync(CONFIG_PATH)) {
-      const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-      const m = content.match(/AA_FACTORY:\s*['"](0x[a-fA-F0-9]{40})['"]/);
-      if (m) newAAFactory = m[1];
+    if (fs.existsSync(CONFIG_PATH)) {
+      const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      newAAFactory = data.AA_FACTORY;
     }
   }
   if (!newAAFactory) {

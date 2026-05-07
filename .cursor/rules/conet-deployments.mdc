@@ -8,10 +8,10 @@ alwaysApply: false
 
 ## BUint / BUnitAirdrop 权威地址
 
-- **当前 BUint (CoNET mainnet)**: `0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879`
-- **当前 BUnitAirdrop (CoNET mainnet): `0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F`
-- **当前 ConetTreasury (CoNET mainnet)**: `0xA7fb50fE8e09E17E74081014d49f4E80729cCA48`
-- **conet-USDC**: `0x28fBBb6C5C06A4736B00A540b66378091c224456` (ConetTreasury 工厂创建)
+- **当前 BUint (CoNET mainnet)**: `0x1330297821814B06A6DafE3557Fa730F690D7007`
+- **当前 BUnitAirdrop (CoNET mainnet)**: `0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8`
+- **当前 ConetTreasury (CoNET mainnet)**: `0x540767C2a183871deb22333a271D5e65bF489F22`
+- **conet-USDC**: `0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176` (ConetTreasury 工厂创建)
 - 配置来源: `deployments/conet-addresses.json`
 
 ## 禁止使用的废弃地址
@@ -33,3 +33,16 @@ alwaysApply: false
 
 - **ConetTreasury.setBUnitAirdrop(新地址)**：ConetTreasury owner 执行
 - **BeamioIndexerDiamond AdminFacet.setAdmin(新地址, true)**：Indexer owner 执行，用于 claim/焚烧/USDC 购买记账
+
+## BeamioIndexerDiamond — subordinate → accountActionIds 索引并入（2026-04-22 升级）
+
+`ActionFacet._recordTransaction` 中已把 `in_.subordinate`（与 `in_.payer` / `in_.payee` 去重）追加到
+`accountActionIds[subordinate]`，使 `getAccountTransactionsPaged(POS_EOA)` 能直接返回 POS 终端经手记录
+（旧实现下 POS EOA 仅以 `subordinate` 维度记录、`/api/posLedger` 始终返回空 items）。
+
+- 新 ActionFacet: `0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB`
+- 旧 ActionFacet（已被 diamondCut Replace，**禁止**作为新部署引用）: `0x1FFC81D9370CAe7C4A0C8270124F21891c20aEDe`
+- 升级脚本（含 owner-only `backfillSubordinateIntoAccountIndex(from,to)` 幂等回填，单次 ≤500）：
+  `scripts/upgradeActionFacetSubordinateAccountIndex.ts`
+- 任何后续 ActionFacet 变更必须保持 `subordinate dedup-push` 语义不被回退；新部署需确保对历史
+  actionId 调用一次 backfill。

@@ -100,6 +100,18 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         uint256 periodIssued;
         uint256 periodUpgraded;
         uint256 adminCount;
+        uint256 cumulativeAdminToAdminTransfer;
+        uint256 cumulativeAdminToAdminTransferAmount;
+        uint256 periodAdminToAdminTransfer;
+        uint256 periodAdminToAdminTransferAmount;
+        uint256 lifetimeAdminToAdminTransferCount;
+        uint256 lifetimeAdminToAdminTransferAmount;
+    }
+
+    struct GlobalAdminToAdminHourlyView {
+        uint256 transferCount;
+        uint256 transferAmount;
+        bool hasData;
     }
 
     /// @dev Keep selector classification out of BeamioUserCard runtime so the card stays below EIP-170.
@@ -113,7 +125,9 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
                 || sel == bytes4(keccak256("getAdminSubordinatesWithMetadata(address)"))
                 || sel == bytes4(keccak256("getAdminAirdropLimit(address)"))
                 || sel == bytes4(keccak256("getAdminAndSubordinateLimits(address)"))
-                || sel == bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"))
+                ||             sel == bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"))
+                || sel == bytes4(keccak256("getGlobalAdminToAdminHourlyData(uint256)"))
+                || sel == bytes4(keccak256("getGlobalAdminToAdminCounters()"))
         ) return ROUTE_STATS_QUERY;
 
         if (
@@ -156,7 +170,13 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (sel == bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"))) {
             return ROUTE_FAUCET;
         }
-        if (sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))) {
+        if (
+            sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))
+                || sel == bytes4(keccak256("issuedNftSharedMetadataHash(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMaxSupply(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMintedCount(uint256)"))
+                || sel == bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"))
+        ) {
             return ROUTE_ISSUED_NFT;
         }
         return ROUTE_INVALID;
@@ -221,6 +241,26 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         result.periodIssued = r.periodIssued;
         result.periodUpgraded = r.periodUpgraded;
         result.adminCount = r.adminCount;
+        result.cumulativeAdminToAdminTransfer = r.cumulativeAdminToAdminTransfer;
+        result.cumulativeAdminToAdminTransferAmount = r.cumulativeAdminToAdminTransferAmount;
+        result.periodAdminToAdminTransfer = r.periodAdminToAdminTransfer;
+        result.periodAdminToAdminTransferAmount = r.periodAdminToAdminTransferAmount;
+        result.lifetimeAdminToAdminTransferCount = r.lifetimeAdminToAdminTransferCount;
+        result.lifetimeAdminToAdminTransferAmount = r.lifetimeAdminToAdminTransferAmount;
+    }
+
+    /// @notice 按小时的全局 admin↔admin（不含 card owner）points 转账统计；与 getAdminHourlyData 的 per-admin 维度独立
+    function getGlobalAdminToAdminHourlyData(uint256 hourIndex) external view returns (GlobalAdminToAdminHourlyView memory result) {
+        AdminStatsStorage.Layout storage l = AdminStatsStorage.layout();
+        result.transferCount = l.globalAdminToAdminTransferCountByHour[hourIndex];
+        result.transferAmount = l.globalAdminToAdminTransferAmountByHour[hourIndex];
+        result.hasData = (result.transferCount > 0 || result.transferAmount > 0);
+    }
+
+    /// @notice 卡级终身 admin↔admin 转账次数与金额（不因 subordinate clear 清零）
+    function getGlobalAdminToAdminCounters() external view returns (uint256 transferCount, uint256 transferAmount) {
+        AdminStatsStorage.Layout storage l = AdminStatsStorage.layout();
+        return (l.globalAdminToAdminTransferCount, l.globalAdminToAdminTransferAmount);
     }
 
     function getAdminStatsFull(address admin, uint8 periodType, uint256 anchorTs, uint256 cumulativeStartTs)

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@400;500&amp;family=Space+Grotesk:wght@500&amp;family=Roboto+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-high": "#e7e8ed",
+                        "inverse-on-surface": "#f0f0f5",
+                        "tertiary": "#3b3d41",
+                        "primary": "#003692",
+                        "outline": "#737685",
+                        "on-secondary-fixed": "#00184a",
+                        "on-primary-fixed-variant": "#003fa5",
+                        "primary-container": "#004bc3",
+                        "on-surface-variant": "#434654",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c6cb",
+                        "outline-variant": "#c3c6d6",
+                        "surface-bright": "#f9f9fe",
+                        "secondary": "#0052d2",
+                        "on-secondary-fixed-variant": "#003fa5",
+                        "on-primary-container": "#b7c8ff",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#1a1c1f",
+                        "surface-dim": "#d9dade",
+                        "surface-container": "#ededf2",
+                        "inverse-surface": "#2e3034",
+                        "surface": "#f9f9fe",
+                        "on-primary": "#ffffff",
+                        "surface-container-highest": "#e2e2e7",
+                        "on-background": "#1a1c1f",
+                        "inverse-primary": "#b3c5ff",
+                        "error": "#ba1a1a",
+                        "background": "#f9f9fe",
+                        "on-error-container": "#93000a",
+                        "secondary-fixed": "#dbe1ff",
+                        "tertiary-container": "#535458",
+                        "surface-tint": "#1b56cd",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed": "#e2e2e7",
+                        "primary-fixed": "#dbe1ff",
+                        "on-secondary-container": "#fefcff",
+                        "surface-container-low": "#f3f3f8",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#45474b",
+                        "secondary-fixed-dim": "#b3c5ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#c8c8cd",
+                        "on-primary-fixed": "#00184a",
+                        "surface-variant": "#e2e2e7",
+                        "secondary-container": "#266af8",
+                        "on-surface": "#1a1c1f"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px",
+                        "md": "24px"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Space Grotesk"],
+                        "mono": ["Roboto Mono", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9fe; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .monospaced-value {
+            font-family: 'Roboto Mono', monospace;
+            letter-spacing: -0.05em;
+        }
+        .signature-gradient {
+            background: linear-gradient(135deg, #004bc3 0%, #1562f0 100%);
+        }
+        .glass-card-red {
+            background: linear-gradient(135deg, rgba(186, 26, 26, 0.9) 0%, rgba(147, 0, 10, 0.95) 100%);
+            box-shadow: 0 12px 40px rgba(186, 26, 26, 0.2);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-background min-h-screen flex flex-col items-center">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex items-center px-6 h-16 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.04)]">
+<div class="flex items-center gap-4 w-full max-w-2xl mx-auto">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100/50 transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-blue-700">arrow_back</span>
+</button>
+<h1 class="font-['Manrope'] tracking-[-0.02em] font-bold text-lg text-blue-700">Balance Details</h1>
+</div>
+</header>
+<main class="w-full max-w-2xl px-6 pt-24 flex-1 flex flex-col gap-8 pb-12">
+<!-- Member Hero Card -->
+<section class="glass-card-red rounded-md p-8 relative overflow-hidden flex flex-col justify-between aspect-[1.6/1] text-white">
+<div class="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+<div class="flex justify-between items-start z-10">
+<div class="flex flex-col">
+<span class="text-xs font-label uppercase tracking-widest opacity-80 mb-1">Member Name</span>
+<h2 class="text-2xl font-extrabold tracking-tight">VERRA BDemo</h2>
+</div>
+<div class="text-right">
+<span class="text-xs font-label uppercase tracking-widest opacity-80 mb-1">Member No</span>
+<p class="font-mono text-sm">M-000101</p>
+</div>
+</div>
+<div class="z-10 mt-auto">
+<span class="text-xs font-label uppercase tracking-widest opacity-80 mb-2 block">CURRENT BALANCE</span>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl md:text-5xl font-mono font-bold tracking-tighter">CA$ 45.20</span>
+</div>
+</div>
+<div class="absolute bottom-4 right-8 opacity-20">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+</div>
+</section>
+<!-- Account Summary Panel -->
+<section class="bg-surface-container-low rounded-md p-8 grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<span class="text-[0.6875rem] font-label uppercase tracking-widest text-outline">Last Top-Up</span>
+<p class="monospaced-value text-xl font-bold text-on-surface">CA$ 100.00</p>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-[0.6875rem] font-label uppercase tracking-widest text-outline">Points Balance</span>
+<div class="flex items-center gap-2">
+<p class="monospaced-value text-xl font-bold text-on-surface">1,240</p>
+<span class="material-symbols-outlined text-secondary text-sm" style="font-variation-settings: 'FILL' 1;">stars</span>
+</div>
+</div>
+</section>
+<!-- Recent Activity List -->
+<section class="flex flex-col gap-6">
+<div class="flex justify-between items-end px-2">
+<h3 class="text-lg font-bold tracking-tight text-on-surface">Recent Activity</h3>
+<span class="text-xs font-medium text-primary cursor-pointer hover:underline">View All</span>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Transaction 1 -->
+<div class="bg-surface-container-lowest rounded-md p-5 flex items-center justify-between group transition-all duration-300">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">shopping_bag</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-on-surface">Charge at Store #402</span>
+<span class="text-xs text-outline">Oct 24, 2023 • 14:32</span>
+</div>
+</div>
+<span class="monospaced-value font-bold text-error text-lg">-CA$ 12.80</span>
+</div>
+<!-- Transaction 2 -->
+<div class="bg-surface-container-lowest rounded-md p-5 flex items-center justify-between group transition-all duration-300">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary-container">add_card</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-on-surface">Top-Up via Debit</span>
+<span class="text-xs text-outline">Oct 22, 2023 • 09:15</span>
+</div>
+</div>
+<span class="monospaced-value font-bold text-secondary text-lg">+CA$ 100.00</span>
+</div>
+<!-- Transaction 3 -->
+<div class="bg-surface-container-lowest rounded-md p-5 flex items-center justify-between group transition-all duration-300">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">restaurant</span>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-on-surface">Cafe Beaumont</span>
+<span class="text-xs text-outline">Oct 20, 2023 • 12:45</span>
+</div>
+</div>
+<span class="monospaced-value font-bold text-error text-lg">-CA$ 8.50</span>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Action Button -->
+</body></html>

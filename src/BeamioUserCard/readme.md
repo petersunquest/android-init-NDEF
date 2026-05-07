@@ -11,13 +11,13 @@
 ### Base Reused Existing Dependencies
 
 - `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by `AA Factory`: `0x50953EB5190ee7dabb0eA86a96364A540a834059`
+- `BeamioQuoteHelperV07` used by `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `BeamioQuoteHelperV07` used by current `Card Factory`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
 ### Base Current Active Contracts
 
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
 - Current active `BeamioUserCard` referenced by `AA Factory`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 ### Base Historical Combined Deployment Record
@@ -27,24 +27,23 @@ From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`)
 - `BeamioUserCardPlaceholder`: [`0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`](https://basescan.org/address/0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D)
 - `BeamioUserCardRedeemModuleVNext`: [`0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448`](https://basescan.org/address/0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448)
 - `BeamioUserCardDeployerV07`: [`0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9`](https://basescan.org/address/0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9)
-- Historical `BeamioUserCardFactoryPaymasterV07`: [`0x19C000c00e6A2b254b39d16797930431E310BEdd`](https://basescan.org/address/0x19C000c00e6A2b254b39d16797930431E310BEdd)
 - `BeamioUserCard`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
 
 From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 - Current `BeamioUserCardDeployerV07`: [`0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`](https://basescan.org/address/0xA6a824cA25E0cd95EEB98f2b8a911396f6672685)
-- Current `BeamioUserCardFactoryPaymasterV07`: [`0x2F45f38f2B6EF97b606ec2557E237529e8db9281`](https://basescan.org/address/0x2F45f38f2B6EF97b606ec2557E237529e8db9281)
+- Current `BeamioUserCardFactoryPaymasterV07`: [`0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`](https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52)
 
 ### Base Registered Module Addresses
 
-From on-chain reads and `deployments/base-UserCardModules.json`:
+Canonical from `deployments/base-UserCardFactory.json` (2026-05-06: IssuedNft + AdminStatsQuery upgrade for issued supply getters):
 
-- `defaultRedeemModule`: [`0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2`](https://basescan.org/address/0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2)
-- `defaultIssuedNftModule`: [`0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3`](https://basescan.org/address/0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3)
+- `defaultRedeemModule`: [`0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6`](https://basescan.org/address/0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6)
+- `defaultIssuedNftModule`: [`0x6563d3A8c876469946b42B8d57Ac01577a5534A2`](https://basescan.org/address/0x6563d3A8c876469946b42B8d57Ac01577a5534A2)
 - `defaultFaucetModule`: [`0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F`](https://basescan.org/address/0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F)
-- `defaultGovernanceModule`: [`0x3f38A0df1c9339e801487f244b885aEe0041E7eF`](https://basescan.org/address/0x3f38A0df1c9339e801487f244b885aEe0041E7eF)
-- `defaultMembershipStatsModule`: [`0x5E5C920103f0952c39b2839D64883C6697fd5eB3`](https://basescan.org/address/0x5E5C920103f0952c39b2839D64883C6697fd5eB3)
-- `defaultAdminStatsQueryModule`: [`0x737B9a91a9afD4779057dddF157237aD1818db89`](https://basescan.org/address/0x737B9a91a9afD4779057dddF157237aD1818db89)
+- `defaultGovernanceModule`: [`0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41`](https://basescan.org/address/0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41)
+- `defaultMembershipStatsModule`: [`0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0`](https://basescan.org/address/0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0)
+- `defaultAdminStatsQueryModule`: [`0xe34C33B4d0daC52E3853d721d058Db84df218976`](https://basescan.org/address/0xe34C33B4d0daC52E3853d721d058Db84df218976)
 
 ### Base Factory Configuration
 
@@ -53,7 +52,7 @@ Current on-chain `BeamioUserCardFactoryPaymasterV07` configuration:
 - `USDC_TOKEN`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `quoteHelper`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `deployer`: `0xA6a824cA25E0cd95EEB98f2b8a911396f6672685`
-- `aaFactory`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `aaFactory`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 - `metadataBaseURI`: `https://beamio.app/api/metadata/0x`
 
 ### Base Card Constructor Record
@@ -64,20 +63,20 @@ From `deployments/base-UserCard.json` (`2026-02-14T20:02:50.581Z`):
 - `currency_`: `4`
 - `pointsUnitPriceInCurrencyE6_`: `1000000`
 - `initialOwner`: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
-- `gateway_`: `0xD86403DD1755F7add19540489Ea10cdE876Cc1CE`
+- `gateway_`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`
 
 ## CoNET Mainnet Deployment
 
 - Network: `conet`
-- Chain ID: `224400`
-- RPC: `https://mainnet-rpc.conet.network`
+- Chain ID: `224422`
+- RPC: `https://rpc1.conet.network`
 - Explorer: [https://mainnet.conet.network/](https://mainnet.conet.network/)
 - Deployment time: `2026-03-12`
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 
 ## Reused Existing Dependencies
 
-- `BeamioOracle`: `0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+- `BeamioOracle`: `0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
 - `BeamioQuoteHelperV07`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
 - `conetUsdc`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
 
@@ -350,7 +349,7 @@ The following query APIs now return structs instead of long tuples, so the ABI i
 ## How To Redeploy Or Reverify
 
 - Reuse the current CoNET dependencies:
-  - `EXISTING_ORACLE_ADDRESS=0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4`
+  - `EXISTING_ORACLE_ADDRESS=0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
   - `EXISTING_QUOTE_HELPER_ADDRESS=0x2c700841f61373FB4eDBD6710ab075c84051731d`
   - `USDC_ADDRESS=0x28fBBb6C5C06A4736B00A540b66378091c224456`
 - Redeploy the combined account + usercard stack with:

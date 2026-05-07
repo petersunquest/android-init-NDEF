@@ -7,7 +7,7 @@
  */
 import { ethers } from 'ethers';
 
-const CARD = process.argv[2] || '0x9cda8477c9f03b8759ac64e21941e578908fd750';
+const CARD = process.argv[2] || '0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14';
 const ACCOUNT = process.argv[3] || '0x8Eb31413EC7Ce13367a39eae203e6659e8F6f32D';
 const GLOBAL = process.argv[3] === '--global';
 const RPC = process.env.BASE_RPC_URL || 'https://base-rpc.conet.network';
@@ -18,7 +18,7 @@ const ABI = [
   'function getAdminListWithMetadata() view returns (address[] admins, string[] metadatas, address[] parents)',
   'function getAdminAirdropLimit(address admin) view returns (address admin, address parent, uint256 limit, uint256 usedFromClear, uint256 remainingAvailable, bool unlimited)',
   'function getAdminStatsFull(address admin, uint8 periodType, uint256 anchorTs, uint256 cumulativeStartTs) view returns (uint256 cumulativeMint, uint256 cumulativeBurn, uint256 cumulativeTransfer, uint256 cumulativeTransferAmount, uint256 cumulativeRedeemMint, uint256 cumulativeUSDCMint, uint256 cumulativeIssued, uint256 cumulativeUpgraded, uint256 periodMint, uint256 periodBurn, uint256 periodTransfer, uint256 periodTransferAmount, uint256 periodRedeemMint, uint256 periodUSDCMint, uint256 periodIssued, uint256 periodUpgraded, uint256 mintCounterFromClear, uint256 burnCounterFromClear, uint256 transferCounterFromClear, uint256 transferAmountFromClear, uint256 redeemMintCounterFromClear, uint256 usdcMintCounterFromClear, address[] subordinates)',
-  'function getGlobalStatsFull(uint8 periodType, uint256 anchorTs, uint256 cumulativeStartTs) view returns (uint256 cumulativeMint, uint256 cumulativeBurn, uint256 cumulativeTransfer, uint256 cumulativeTransferAmount, uint256 cumulativeRedeemMint, uint256 cumulativeUSDCMint, uint256 cumulativeIssued, uint256 cumulativeUpgraded, uint256 periodMint, uint256 periodBurn, uint256 periodTransfer, uint256 periodTransferAmount, uint256 periodRedeemMint, uint256 periodUSDCMint, uint256 periodIssued, uint256 periodUpgraded, uint256 adminCount)',
+  'function getGlobalStatsFull(uint8 periodType, uint256 anchorTs, uint256 cumulativeStartTs) view returns (uint256 cumulativeMint, uint256 cumulativeBurn, uint256 cumulativeTransfer, uint256 cumulativeTransferAmount, uint256 cumulativeRedeemMint, uint256 cumulativeUSDCMint, uint256 cumulativeIssued, uint256 cumulativeUpgraded, uint256 periodMint, uint256 periodBurn, uint256 periodTransfer, uint256 periodTransferAmount, uint256 periodRedeemMint, uint256 periodUSDCMint, uint256 periodIssued, uint256 periodUpgraded, uint256 adminCount, uint256 cumulativeAdminToAdminTransfer, uint256 cumulativeAdminToAdminTransferAmount, uint256 periodAdminToAdminTransfer, uint256 periodAdminToAdminTransferAmount, uint256 lifetimeAdminToAdminTransferCount, uint256 lifetimeAdminToAdminTransferAmount)',
 ];
 
 const e6 = (v) => Number(v) / 1_000_000;
@@ -88,7 +88,7 @@ async function main() {
     const parseGlobalStatsFull = (rawHex) => {
       if (!rawHex || typeof rawHex !== 'string') return null;
       const hex = rawHex.replace(/^0x/, '');
-      if (hex.length < 32 * 18) return null;
+      if (hex.length < 32 * 24) return null;
       const u256 = (i) => BigInt('0x' + hex.slice(i * 64, (i + 1) * 64));
       const offset = Number(u256(0));
       const base = offset / 32;
@@ -110,6 +110,12 @@ async function main() {
         periodIssued: u256(base + 14),
         periodUpgraded: u256(base + 15),
         adminCount: u256(base + 16),
+        cumulativeAdminToAdminTransfer: u256(base + 17),
+        cumulativeAdminToAdminTransferAmount: u256(base + 18),
+        periodAdminToAdminTransfer: u256(base + 19),
+        periodAdminToAdminTransferAmount: u256(base + 20),
+        lifetimeAdminToAdminTransferCount: u256(base + 21),
+        lifetimeAdminToAdminTransferAmount: u256(base + 22),
       };
     };
     let g0 = null;
@@ -151,7 +157,31 @@ async function main() {
       console.log('Root admins (for aggregation):', rootAdmins.length, rootAdmins.map((a) => a.slice(0, 10) + '...'));
       console.log('');
       const sum = (a, b) => (a || 0n) + (b || 0n);
-      g0 = { cumulativeMint: 0n, cumulativeBurn: 0n, cumulativeTransfer: 0n, cumulativeTransferAmount: 0n, cumulativeRedeemMint: 0n, cumulativeUSDCMint: 0n, cumulativeIssued: 0n, cumulativeUpgraded: 0n, periodMint: 0n, periodBurn: 0n, periodTransfer: 0n, periodTransferAmount: 0n, periodRedeemMint: 0n, periodUSDCMint: 0n, periodIssued: 0n, periodUpgraded: 0n, adminCount: BigInt(admins.length) };
+      g0 = {
+        cumulativeMint: 0n,
+        cumulativeBurn: 0n,
+        cumulativeTransfer: 0n,
+        cumulativeTransferAmount: 0n,
+        cumulativeRedeemMint: 0n,
+        cumulativeUSDCMint: 0n,
+        cumulativeIssued: 0n,
+        cumulativeUpgraded: 0n,
+        periodMint: 0n,
+        periodBurn: 0n,
+        periodTransfer: 0n,
+        periodTransferAmount: 0n,
+        periodRedeemMint: 0n,
+        periodUSDCMint: 0n,
+        periodIssued: 0n,
+        periodUpgraded: 0n,
+        adminCount: BigInt(admins.length),
+        cumulativeAdminToAdminTransfer: 0n,
+        cumulativeAdminToAdminTransferAmount: 0n,
+        periodAdminToAdminTransfer: 0n,
+        periodAdminToAdminTransferAmount: 0n,
+        lifetimeAdminToAdminTransferCount: 0n,
+        lifetimeAdminToAdminTransferAmount: 0n,
+      };
       g1 = { periodMint: 0n, periodTransferAmount: 0n, periodUSDCMint: 0n };
       for (const admin of rootAdmins) {
         const s0 = await fetchAdminStatsFull(admin, 0);
@@ -190,12 +220,36 @@ async function main() {
     console.log('  cumulativeUSDCMint (E6):', g0.cumulativeUSDCMint.toString(), '→', e6(g0.cumulativeUSDCMint));
     console.log('  cumulativeIssued:', g0.cumulativeIssued.toString());
     console.log('  cumulativeUpgraded:', g0.cumulativeUpgraded.toString());
+    console.log('  cumulativeAdminToAdminTransfer:', g0.cumulativeAdminToAdminTransfer?.toString?.() ?? '—');
+    console.log(
+      '  cumulativeAdminToAdminTransferAmount (E6):',
+      g0.cumulativeAdminToAdminTransferAmount?.toString?.() ?? '—',
+      '→',
+      g0.cumulativeAdminToAdminTransferAmount != null ? e6(g0.cumulativeAdminToAdminTransferAmount) : '—',
+      'CAD'
+    );
+    console.log('  lifetimeAdminToAdminTransferCount:', g0.lifetimeAdminToAdminTransferCount?.toString?.() ?? '—');
+    console.log(
+      '  lifetimeAdminToAdminTransferAmount (E6):',
+      g0.lifetimeAdminToAdminTransferAmount?.toString?.() ?? '—',
+      '→',
+      g0.lifetimeAdminToAdminTransferAmount != null ? e6(g0.lifetimeAdminToAdminTransferAmount) : '—',
+      'CAD'
+    );
     console.log('  periodMint (E6):', g0.periodMint.toString(), '→', e6(g0.periodMint));
     console.log('  periodTransferAmount (E6):', g0.periodTransferAmount.toString(), '→', e6(g0.periodTransferAmount), 'CAD');
     console.log('  adminCount:', g0.adminCount != null ? g0.adminCount.toString() : '—');
     console.log('');
     console.log('--- Global Stats (periodType=1 day) ---');
     console.log('  periodTransferAmount (E6):', g1.periodTransferAmount.toString(), '→', e6(g1.periodTransferAmount), 'CAD');
+    console.log('  periodAdminToAdminTransfer:', g1.periodAdminToAdminTransfer?.toString?.() ?? '—');
+    console.log(
+      '  periodAdminToAdminTransferAmount (E6):',
+      g1.periodAdminToAdminTransferAmount?.toString?.() ?? '—',
+      '→',
+      g1.periodAdminToAdminTransferAmount != null ? e6(g1.periodAdminToAdminTransferAmount) : '—',
+      'CAD'
+    );
     console.log('  periodUSDCMint (E6):', g1.periodUSDCMint.toString(), '→', e6(g1.periodUSDCMint));
     console.log('  periodMint (E6):', g1.periodMint.toString(), '→', e6(g1.periodMint));
     return;

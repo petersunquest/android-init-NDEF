@@ -1,12 +1,12 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-03T00:35:38.408Z",
+  "timestamp": "2026-04-22T03:36:32.123Z",
   "contracts": {
     "MerchantPOSManagement": {
-      "address": "0x3Eb57035d3237Fce4b1cB273662E875EdfA0D54f",
-      "transactionHash": "0xfd5e03b3b6e5d2c1a94eb3e7e5de4c3113b6d18ea348de8cf07d821f7ba8b7dd"
+      "address": "0xB7Fb42A67100C6e0C26D21A2d75ffed448610fa2",
+      "transactionHash": "0xa241122f3c3364316c36d1849dcf124d07e21645c54c800e6ccbf964b2075bdd"
     }
   }
 }

@@ -7,6 +7,9 @@ pragma solidity ^0.8.20;
 // - Emits core events here; container events emitted in Module ONLY
 
 import "./BeamioTypesV07.sol";
+import "./BeamioContainerLayoutConstantsV07.sol";
+import "./BeamioContainerItemTypesV07.sol";
+import "./IBeamioAccountAssetBalanceV07.sol";
 import "../contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/utils/cryptography/MessageHashUtils.sol";
 import "../contracts/token/ERC1155/utils/ERC1155Holder.sol";
@@ -17,19 +20,10 @@ interface IBeamioAccountFactoryConfigV2 {
   function quoteHelper() external view returns (address);
   function beamioUserCard() external view returns (address);
   function USDC() external view returns (address);
+  function openContainerMintExecutor() external view returns (address);
 }
 
 interface IBeamioContainerModuleV07 {
-	// MUST match layout used by client and module
-	enum AssetKind { ERC20, ERC1155 }
-	struct ContainerItem {
-		AssetKind kind;
-		address asset;
-		uint256 amount;
-		uint256 tokenId;
-		bytes data;
-	}
-
 	// to-bound owner relayed (existing)
 	function containerMainRelayed(
 		address to,
@@ -52,6 +46,27 @@ interface IBeamioContainerModuleV07 {
 
 	function simulateOpenContainer(
 		address to,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external view returns (bool ok, string memory reason);
+
+	/// @notice Open + USDC→卡 owner + executor mint points，再转出 (mint 量 + 原 #0 量) 到 pointsTo
+	function containerMainRelayedOpenUsdcTopupThenPoints(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external;
+
+	function simulateOpenContainerUsdcTopupThenPoints(
+		address pointsTo,
 		ContainerItem[] calldata items,
 		uint8 currencyType,
 		uint256 maxAmount,
@@ -98,9 +113,29 @@ interface IBeamioContainerModuleV07 {
 
 	// reserve gate: 在 execute 前校验，防止 owner 通过 AA 路径转出被 lock 的资产
 	function preExecuteCheck(address dest, uint256 value, bytes calldata func) external view;
+
+	// Reserve (beneficiary time-locked release)
+	function createReserve(ContainerItem[] calldata items, address beneficiary, uint32 cancelWindowSeconds) external;
+
+	function cancelReserve(address beneficiary, uint256 index) external;
+
+	function execReserve(address beneficiary, uint256 index) external;
+
+	function transferReserve(address beneficiary, uint256 index) external;
+
+	/// @dev Not `view`: reads module layout on this account via delegatecall return path.
+	/// itemBundles[i] is abi.encode(ContainerItem[]) for row i.
+	function searchReserve(address beneficiary)
+		external
+		returns (
+			uint256[] memory index,
+			bytes[] memory itemBundles,
+			uint8[] memory execStatus,
+			string[] memory statusLabel
+		);
 }
 
-contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
+contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAssetBalanceV07 {
 	using ECDSA for bytes32;
 	using MessageHashUtils for bytes32;
 
@@ -369,7 +404,7 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 	// --- to-bound owner relayed container (factory pays gas) ---
 	function containerMainRelayed(
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint256 nonce_,
 		uint256 deadline_,
 		bytes calldata sig
@@ -383,7 +418,7 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 	// --- open relayed container (no-to signature; module enforces all rules) ---
 	function containerMainRelayedOpen(
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint8 currencyType,
 		uint256 maxAmount,
 		uint256 nonce_,
@@ -396,10 +431,25 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 		));
 	}
 
+	function containerMainRelayedOpenUsdcTopupThenPoints(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyFactory {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.containerMainRelayedOpenUsdcTopupThenPoints.selector,
+			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
+		));
+	}
+
 	// --- view-only simulation for open container (eth_call) ---
 	function simulateOpenContainer(
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint8 currencyType,
 		uint256 maxAmount,
 		uint256 nonce_,
@@ -413,13 +463,29 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 		return abi.decode(out, (bool, string));
 	}
 
+	function simulateOpenContainerUsdcTopupThenPoints(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external view returns (bool ok, string memory reason) {
+		bytes memory out = _staticDelegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.simulateOpenContainerUsdcTopupThenPoints.selector,
+			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
+		));
+		return abi.decode(out, (bool, string));
+	}
+
 	/// @notice Factory 代付 gas 时调用，执行 owner 签名的 module calldata（createRedeem、cancelRedeem、createFaucetPool、cancelFaucetPool 等）
 	function executeFromFactory(bytes calldata data) external onlyFactory {
 		_delegate(data);
 	}
 
 	// --- redeem single-use password ---
-	function createRedeem(bytes32 passwordHash, address to, IBeamioContainerModuleV07.ContainerItem[] calldata items, uint64 expiry)
+	function createRedeem(bytes32 passwordHash, address to, ContainerItem[] calldata items, uint64 expiry)
 		external
 		onlyOwnerDirect
 	{
@@ -444,7 +510,7 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 	}
 
 	// --- faucet pool ---
-	function createFaucetPool(bytes32 passwordHash, uint32 totalCount, uint64 expiry, IBeamioContainerModuleV07.ContainerItem[] calldata items)
+	function createFaucetPool(bytes32 passwordHash, uint32 totalCount, uint64 expiry, ContainerItem[] calldata items)
 		external
 		onlyOwnerDirect
 	{
@@ -461,11 +527,50 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 		));
 	}
 
-	function faucetRedeemPool(string calldata password, address claimer, address to, IBeamioContainerModuleV07.ContainerItem[] calldata items) external {
+	function faucetRedeemPool(string calldata password, address claimer, address to, ContainerItem[] calldata items) external {
 		_delegate(abi.encodeWithSelector(
 			IBeamioContainerModuleV07.faucetRedeemPool.selector,
 			password, claimer, to, items
 		));
+	}
+
+	// --- Reserve (owner lock → beneficiary approve → public transfer) ---
+	function createReserve(
+		ContainerItem[] calldata items,
+		address beneficiary,
+		uint32 cancelWindowSeconds
+	) external onlyOwnerDirect {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.createReserve.selector,
+			items,
+			beneficiary,
+			cancelWindowSeconds
+		));
+	}
+
+	function cancelReserve(address beneficiary, uint256 index) external onlyOwnerDirect {
+		_delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.cancelReserve.selector, beneficiary, index));
+	}
+
+	function execReserve(address beneficiary, uint256 index) external {
+		_delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.execReserve.selector, beneficiary, index));
+	}
+
+	function transferReserve(address beneficiary, uint256 index) external {
+		_delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.transferReserve.selector, beneficiary, index));
+	}
+
+	function searchReserve(address beneficiary)
+		external
+		returns (
+			uint256[] memory index,
+			bytes[] memory itemBundles,
+			uint8[] memory execStatus,
+			string[] memory statusLabel
+		)
+	{
+		bytes memory out = _delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.searchReserve.selector, beneficiary));
+		(index, itemBundles, execStatus, statusLabel) = abi.decode(out, (uint256[], bytes[], uint8[], string[]));
 	}
 
 	// --- nonces view passthrough ---
@@ -477,6 +582,46 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271 {
 	function openRelayedNonce() external view returns (uint256) {
 		bytes memory out = _staticDelegate(abi.encodeWithSelector(IBeamioContainerModuleV07.openRelayedNonce.selector));
 		return abi.decode(out, (uint256));
+	}
+
+	// --- container reserve + balance (read this contract's storage; matches delegatecall module layout) ---
+	function _sloadUint(bytes32 slot) private view returns (uint256 v) {
+		assembly {
+			v := sload(slot)
+		}
+	}
+
+	function _reservedErc20(address token) private view returns (uint256) {
+		uint256 mapSlot = uint256(BeamioContainerLayoutConstantsV07.SLOT) + 2;
+		bytes32 dataSlot = keccak256(abi.encode(token, mapSlot));
+		return _sloadUint(dataSlot);
+	}
+
+	function _reserved1155(address token, uint256 id) private view returns (uint256) {
+		uint256 outer = uint256(BeamioContainerLayoutConstantsV07.SLOT) + 3;
+		bytes32 innerBase = keccak256(abi.encode(token, outer));
+		bytes32 dataSlot = keccak256(abi.encode(id, uint256(innerBase)));
+		return _sloadUint(dataSlot);
+	}
+
+	/// @inheritdoc IBeamioAccountAssetBalanceV07
+	function getAssetBalanceView(AssetKind kind, address asset, uint256 tokenId)
+		external
+		view
+		override
+		returns (AssetBalanceView memory out)
+	{
+		if (asset == address(0)) revert ZeroAddress();
+
+		if (kind == AssetKind.ERC20) {
+			out.reserved = _reservedErc20(asset);
+			out.total = IERC20Like(asset).balanceOf(address(this));
+		} else {
+			out.reserved = _reserved1155(asset, tokenId);
+			out.total = IERC1155Like(asset).balanceOf(address(this), tokenId);
+		}
+
+		out.spendable = out.total > out.reserved ? out.total - out.reserved : 0;
 	}
 
 	// =========================================================

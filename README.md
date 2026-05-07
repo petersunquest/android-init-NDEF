@@ -234,8 +234,8 @@ Canonical infrastructure; do not redeploy. See [deployments/BASE_MAINNET_FACTORI
 
 | Role            | Address |
 |-----------------|--------|
-| AA Factory      | `0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767` |
-| Card Factory    | `0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b` |
+| AA Factory      | `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122` |
+| Card Factory    | `0x52cc9E977Ca3EA33c69383a41F87f32a71140A52` |
 
 ---
 

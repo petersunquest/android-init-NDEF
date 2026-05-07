@@ -575,7 +575,16 @@ class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     ): Boolean {
         if (provisionResult.route == "fresh") {
             val url = readback.ndefUrl ?: return false
-            return url == provisionResult.templateUrl
+            if (url == provisionResult.templateUrl) return true
+            // After SDM (fresh_offsets_applied), readback is a dynamic SUN URL; templateUrl still has
+            // placeholder e/c/m zeros — same check as rewritten dynamic readback.
+            if (provisionResult.sdmStatus == "fresh_offsets_applied") {
+                return isValidRewrittenDynamicReadback(
+                    provisionResult = provisionResult,
+                    readback = readback
+                )
+            }
+            return false
         }
         if (isValidRewrittenDynamicReadback(
             provisionResult = provisionResult,

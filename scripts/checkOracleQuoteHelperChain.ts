@@ -7,12 +7,13 @@
  *   3. Oracle 已配置卡币种汇率（如 CAD：npm run set:oracle-cad:base）
  *
  * 运行：CARD_FACTORY=0x... QUOTE_HELPER=0x... ORACLE=0x... npx hardhat run scripts/checkOracleQuoteHelperChain.ts --network base
- * 或不带 env，从 deployments/base-FullAccountAndUserCard.json 读取。
+ * 或不带 env，从 config / deployments/base-UserCardFactory.json 解析 Card Factory，Oracle/QuoteHelper 可仍从 FullAccountAndUserCard 读取。
  */
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,8 @@ async function main() {
   let EXPECTED_QUOTE_HELPER = process.env.QUOTE_HELPER || "";
   let EXPECTED_ORACLE = process.env.ORACLE || "";
 
+  if (!CARD_FACTORY) CARD_FACTORY = resolveBaseCardFactoryAddress(deploymentsDir);
+
   if (!CARD_FACTORY || !EXPECTED_QUOTE_HELPER || !EXPECTED_ORACLE || !AA_FACTORY) {
     if (fs.existsSync(fullPath)) {
       const data = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
@@ -34,15 +37,13 @@ async function main() {
       const contracts = data.contracts || {};
       if (!EXPECTED_ORACLE) EXPECTED_ORACLE = existing.beamioOracle || "";
       if (!EXPECTED_QUOTE_HELPER) EXPECTED_QUOTE_HELPER = existing.beamioQuoteHelper || "";
-      const ucf = contracts.beamioUserCardFactoryPaymaster;
-      if (!CARD_FACTORY && ucf?.address) CARD_FACTORY = ucf.address;
       const aaf = contracts.beamioFactoryPaymaster;
       if (!AA_FACTORY && aaf?.address) AA_FACTORY = aaf.address;
     }
   }
 
   if (!CARD_FACTORY) {
-    console.error("请设置 CARD_FACTORY 或确保 deployments/base-FullAccountAndUserCard.json 存在且含 beamioUserCardFactoryPaymaster.address");
+    console.error("请设置 CARD_FACTORY、或维护 config/base-addresses.json / deployments/base-UserCardFactory.json");
     process.exit(1);
   }
 

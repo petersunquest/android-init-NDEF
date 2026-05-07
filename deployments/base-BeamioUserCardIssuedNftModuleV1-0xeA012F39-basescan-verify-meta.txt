@@ -1,0 +1,36 @@
+# BaseScan verification — BeamioUserCardIssuedNftModuleV1 (coupon registerSeries support)
+
+Deployed: https://basescan.org/address/0xeA012F3938D5E9a8221b2B17b1e55f84d040cf84
+Script: scripts/upgradeIssuedNftAndAdminStatsModulesRegisterSeries.ts
+
+## Adds
+
+- issuedNftSharedMetadataHash(uint256) view (delegatecall storage read)
+
+## Standard JSON input
+
+deployments/base-BeamioUserCardIssuedNftModuleV1-standard-input-FULL.json
+
+Regenerate:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV1 --full
+
+## Contract Name
+
+  project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+
+## Constructor arguments
+
+**None**
+
+## Compiler
+
+Solidity **0.8.33**, optimizer runs **0**, **viaIR: true**, **cancun**, **bytecodeHash: none**, **strip** (matches Hardhat / FULL JSON).
+
+## Previous module
+
+0x5C2e89C63fC359Fad798ea580b205A25efF8CA55
+
+## Factory configuration
+
+FACTORY=0x52cc9E977Ca3EA33c69383a41F87f32a71140A52

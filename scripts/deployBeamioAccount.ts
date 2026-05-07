@@ -9,7 +9,10 @@ const __dirname = path.dirname(__filename);
 async function main() {
   const { ethers } = await networkModule.connect();
   const [deployer] = await ethers.getSigners();
-  
+  if (!deployer) {
+    throw new Error("无签名账户 — 请在本网络配置 .env 的 PRIVATE_KEY（与 npm run deploy:base 相同）");
+  }
+
   console.log("部署账户:", deployer.address);
   console.log("账户余额:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH");
 

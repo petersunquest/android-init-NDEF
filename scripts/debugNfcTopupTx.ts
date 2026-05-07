@@ -4,8 +4,8 @@
  */
 import { ethers } from 'ethers'
 
-const BASE_CARD_FACTORY = '0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b'
-const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
+const BASE_CARD_FACTORY = '0x52cc9E977Ca3EA33c69383a41F87f32a71140A52'
+const BASE_AA_FACTORY = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 /** 与 UI baseRpc 一致：默认 CoNET Base RPC；部分 call 可能返回 missing revert data，可设 BASE_RPC_FALLBACK 备用 */
 const RPC = process.env.BASE_RPC || 'https://base-rpc.conet.network'
 const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://base-rpc.conet.network'

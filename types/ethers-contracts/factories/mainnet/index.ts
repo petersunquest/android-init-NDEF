@@ -3,4 +3,5 @@
 /* eslint-disable */
 export { AccountRegistry__factory } from './AccountRegistry__factory.js';
 export { AddressPGP__factory } from './AddressPGP__factory.js';
+export { LayerMinusNodeRestart_V2__factory } from './LayerMinusNodeRestart_V2__factory.js';
 export { MerchantPOSManagement__factory } from './MerchantPOSManagement__factory.js';

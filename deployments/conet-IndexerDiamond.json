@@ -1,20 +1,22 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-18T02:55:08.681Z",
-  "diamond": "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe",
+  "timestamp": "2026-04-22T03:28:37.759Z",
+  "diamond": "0x45D45de73465b8913B50974Fc188529dFFb7AfFA",
   "facets": {
-    "DiamondCutFacet": "0xcE01C5Fa1c8622f1f85007CB6420635Dd7440b9C",
-    "DiamondLoupeFacet": "0x368F3524e5AeaDEeAA897D0FDb4Ad9918305349b",
-    "OwnershipFacet": "0x6cC43696B67A5F8B46f8e4F4D8d7cfe0409C8956",
-    "TaskFacet": "0x9B1D9B7A00c9448994620601eD31655fD7c33544",
-    "StatsFacet": "0x1AB6E1d49f4A90CF6C3CA5E5a990a86BD4Eb5643",
-    "CatalogFacet": "0x460E453b2810eedCf38D56018479970b1a7314bf",
-    "ActionFacet": "0x856edbC6f866BCbA32Ff68D174b7F5bdd54959A5",
-    "FeeStatsFacet": "0x59d655615C28972FDC6a3Ec4A196d9772b90f437",
-    "BeamioUserCardStatsFacet": "0x7FBd3d4a2D5Aa959D823d3F13952B04dfFe0E418",
-    "AdminFacet": "0x04431b242add7A50BF72CbC56940F04Bf4450d6c"
+    "DiamondCutFacet": "0x8Eb838e9C7443DB265A7c358584F060786FA6055",
+    "DiamondLoupeFacet": "0x8402b2f003A335b990E897364Ded7A3E1c2aEa45",
+    "OwnershipFacet": "0xdfa426401fC7AC916eEEa696401D60C82Ee3c4E1",
+    "TaskFacet": "0xd764eBA64536cFF1bbE7e7c7Bbc90F35620f72a9",
+    "StatsFacet": "0xCe1F36a78904F9506E5cD3149Ce4992cC91385AF",
+    "CatalogFacet": "0xc5b9f0941BCbc87735EE0fCD78090c065c78955E",
+    "ActionFacet": "0x37958d441f15f4863722947e3ca0b10f9ffdb78d",
+    "FeeStatsFacet": "0x5921f9281E18D226246277F4C5805d1160A59100",
+    "BeamioUserCardStatsFacet": "0xC98810eb7dE7B787568Ff4284D7fF36eAA176845",
+    "AdminFacet": "0xB8065dBea9E50c24574280F8E8245fba90Eba782"
   },
-  "lastTopAdminSubordinateUpgradeAt": "2026-03-18T03:42:44.020Z"
+  "lastSubordinateAccountIndexUpgradeAt": "2026-04-24T01:24:55.570Z",
+  "lastSubordinateAccountIndexUpgradeFrom": "0x3a0e389B5df8D32D07B9698dd736Fe39Fb9D0bDB",
+  "lastSubordinateAccountIndexUpgradeTo": "0x37958d441f15f4863722947e3ca0b10f9ffdb78d"
 }

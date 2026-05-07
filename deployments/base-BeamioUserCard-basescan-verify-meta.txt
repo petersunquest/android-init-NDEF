@@ -8,8 +8,17 @@ viaIR: true, evmVersion: cancun
 Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard
 
 Standard JSON 文件:
-  - base-BeamioUserCard-basescan-standard-input.json (28 个当前源码依赖，推荐)
-  - base-BeamioUserCard-basescan-minimal.json (28 个当前源码依赖，内容相同，作为备份)
+  - base-BeamioUserCard-standard-input-FULL.json（via-IR 全量 build-info，与链上一致；推荐）
+  - base-BeamioUserCard-basescan-standard-input.json（精简依赖）
+  - base-BeamioUserCard-basescan-minimal.json（备份）
+
+链接库（须先单独验证链上库地址，或在验证器填写 Library 地址）:
+  - BeamioUserCardFormattingLib → 见 base-BeamioUserCardFormattingLib-basescan-verify-meta.txt
+  - BeamioUserCardTransferLib → 见 base-BeamioUserCardTransferLib-basescan-verify-meta.txt
+
+生成 FULL:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCard --full
 
 重要：BaseScan 新版 STANDARD_JSON_INPUT 页面不会手动选择 Contract Name，
 它会从上传 JSON 自动匹配；若失败，请先确认 Constructor Arguments ABI-encoded 未留空。

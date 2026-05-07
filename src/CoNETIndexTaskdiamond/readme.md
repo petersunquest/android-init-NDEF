@@ -145,6 +145,7 @@ struct Transaction {
 | TX_MERCHANT_PAY_CONFIRMED | `merchant_pay:confirmed` | 商户支付主单确认 |
 | TX_MERCHANT_PAY_TIP_UPDATED | `merchant_pay:tip_updated` | 商户支付小费追加 |
 | TX_TIP | `TX_TIP` | NFC Container Charge 小费单独一条 `syncTokenAction`：`id`=随机 bytes32，`originalPaymentHash`=同一笔 Base `relayContainerMainRelayed` 的 tx hash，`finalRequestAmount*` 为小费法币 E6 与当时排价 USDC6 |
+| TX_Terminal_RESET | `TX_Terminal_RESET` | **Settlement clear**：上级 admin 在 Merchant OS 对 Terminal 执行「Settlement clear」且 Master `cardTerminalSettlementClearProcess` 成功后推一行：`payer`=上级 admin EOA，`payee`=Terminal（POS）EOA，金额字段为 0；POS `/api/posLedger` 与终端本地统计以**最新**一条为周期起点。与 Base 上 **`clearAdminMintCounter` / Reset Terminal Limit** 独立，不改变链上 issuance 计数。 |
 | TX_TRANSFER_IN_CONFIRMED | `transfer_in:confirmed` | 转入确认 |
 | TX_TRANSFER_OUT_CONFIRMED | `transfer_out:confirmed` | 转出确认 |
 | TX_TOPUP_CONFIRMED | `topup:confirmed` | 充值确认 |
@@ -244,6 +245,8 @@ bytes32 constant TX_REQUEST_FULFILLED_CONFIRMED = keccak256("request_fulfilled:c
 bytes32 constant TX_REQUEST_EXPIRED_CONFIRMED = keccak256("request_expired:confirmed");
 bytes32 constant TX_REQUEST_CANCEL_CONFIRMED = keccak256("request_cancel:confirmed");
 bytes32 constant TX_BEAMIO_USERCARD_MINT_CONFIRMED = keccak256("beamio_usercard_mint:confirmed");
+// Terminal 结算周期标点：`cardTerminalSettlementClearProcess` → syncTokenAction（与 Base mint 清零独立）
+bytes32 constant TX_Terminal_RESET = keccak256("TX_Terminal_RESET");
 // USDC 购点（purchasingCardProcess）
 bytes32 constant TX_USDC_NEW_CARD = keccak256("usdcNewCard");
 bytes32 constant TX_USDC_UPGRADE_NEW_CARD = keccak256("usdcUpgradeNewCard");
@@ -252,6 +255,14 @@ bytes32 constant TX_USDC_TOPUP_CARD = keccak256("usdcTopupCard");
 bytes32 constant TX_NEW_CARD = keccak256("newCard");
 bytes32 constant TX_UPGRADE_NEW_CARD = keccak256("upgradeNewCard");
 bytes32 constant TX_TOPUP_CARD = keccak256("topupCard");
+// NFC/OTC topup 拆分入账（mint 总额拆为卡/现/赠；与 x402sdk `executeForAdminPostBaseProcess` 多笔 `syncTokenAction` 一致；历史仅 `newCard`/`upgradeNewCard`/`topupCard` 单笔在 bizSite 展示口径归为 Cash）
+bytes32 constant TX_CREDIT_TOPUP_CARD = keccak256("creditTopupCard");
+bytes32 constant TX_CASH_TOPUP_CARD = keccak256("cashTopupCard");
+bytes32 constant TX_CREDIT_UPGRADE_NEW_CARD = keccak256("creditUpgradeNewCard");
+bytes32 constant TX_CASH_UPGRADE_NEW_CARD = keccak256("cashUpgradeNewCard");
+bytes32 constant TX_CREDIT_NEW_CARD = keccak256("creditNewCard");
+bytes32 constant TX_CASH_NEW_CARD = keccak256("cashNewCard");
+bytes32 constant TX_BONUS_CARD = keccak256("bonusCard");
 // Redeem 码（cardRedeemIndexerAccountingProcess）
 bytes32 constant TX_REDEEM_NEW_CARD = keccak256("redeemNewCard");
 bytes32 constant TX_REDEEM_UPGRADE_NEW_CARD = keccak256("redeemUpgradeNewCard");
@@ -287,7 +298,7 @@ BUnitAirdrop 在 claim/claimFor 成功后向 BeamioIndexerDiamond 调用 `syncTo
 | 字段 | 值 |
 |------|-----|
 | txCategory | `keccak256("buintClaim")` |
-| chainId | 224400（CoNET 主网） |
+| chainId | 224422（CoNET 主网） |
 | payer | BUint 合约地址 |
 | payee | claimant（申领人） |
 | finalRequestAmountFiat6 | claimAmount（BUnitAirdrop.claimAmount，6 位精度） |
@@ -337,7 +348,7 @@ Top Up 业务按入口使用以下 `txCategory`：
 | `amountE6` | Top Up 时 currency 的 amount（E6 精度） | 即本次增加的 points |
 | `offsetInRequestCurrencyE6` | `0` | 固定 |
 
-说明：以上 RouteItem 使 BeamioIndexerDiamond 能按 BeamioUserCard 维度索引 Top Up 交易，支持 OTC（NFT 卡）topup、redeem 码兑换与 USDC 购点统一记账口径。Top Up 细分由 txCategory 表达（usdcNewCard/usdcUpgradeNewCard/usdcTopupCard、newCard/upgradeNewCard/topupCard、redeemNewCard/redeemUpgradeNewCard/redeemTopupCard）。
+说明：以上 RouteItem 使 BeamioIndexerDiamond 能按 BeamioUserCard 维度索引 Top Up 交易，支持 OTC（NFT 卡）topup、redeem 码兑换与 USDC 购点统一记账口径。Top Up 细分由 txCategory 表达（usdcNewCard/usdcUpgradeNewCard/usdcTopupCard、newCard/upgradeNewCard/topupCard、redeemNewCard/redeemUpgradeNewCard/redeemTopupCard，以及 POS 拆分：`creditTopupCard`/`cashTopupCard`、`creditUpgradeNewCard`/`cashUpgradeNewCard`、`creditNewCard`/`cashNewCard`、`bonusCard`）。
 
 ethers.js 调用示例（mintTxCategoryFilter + chainIdFilter）：
 
@@ -742,6 +753,27 @@ function setAfterNotes(uint256 actionId, string calldata afterNotePayer, string 
 - 账户维度索引以 `payer/payee` 为准，不再区分旧的 `userActions/cardActions`。
 - 分类筛选以 `txCategory` 为准，不再使用 `actionType`。
 - `actionId` 仅作为链上顺序索引；业务唯一性依赖 `Transaction.id(txHash)`。
+
+### 7.5.0 分页 `offset` 语义：账户 vs 卡资产（严禁混用）
+
+**背景（2026-04 踩坑复盘）**：链上 CoNET Indexer 已写入最新 Top-Up / Charge（如 `getAccountActionCount` 已增长、`finalRequestAmountFiat6` 正确），但 Merchant OS / Web 客户端账本**长时间不出现最新行**。根因多为：**把 `getAccountTransactionsPaged` 当成与 `getAssetTransactionsPaged` 同一套 offset 方向**，导致首轮 RPC **跳过账户索引中「最新」若干条**。
+
+两类接口在合约中的实现**不一致**（必须以源码为准，不可凭直觉统一成「都从 `total - limit` 起算」）：
+
+| 接口 | Facet | 实现要点 | **`offset = 0` 时** | 从新到旧拉满一页再翻页 |
+|------|--------|----------|---------------------|-------------------------|
+| `getAccountTransactionsPaged(account, offset, limit)` | `ActionFacet` | `revIndex = total - 1 - (offset + i)`，再取 `txRecordByActionId[ids[revIndex]]` | **当前账户下最新一条** | `offset` **从 0 递增**，`limit` 为页大小，直到 `offset >= total` |
+| `getAssetTransactionsPaged(asset, offset, limit)` | `BeamioUserCardStatsFacet` | `ids` 为**追加序**（下标小 = 更旧），`page[i] = txRecordByActionId[ids[offset + i]]` | **该资产下最旧一条** | 取「最新一页」应 **`offset = total - limit`**（且 `limit <= total`），再向更小 `offset` 翻页 |
+
+**错误模式**：对 **账户** 接口使用 **`offset = total - limit`** 作为首页 → 首轮即**丢弃** `ids` 尾部（最新）的 `total - limit` 条之前的所有**更新**都可能进不了首屏合并；若再配合「本地重复 id 提前停止翻页」，表现即为**链上有、客户端无**。
+
+**推荐自检**：
+
+- **账户**：探针 / 单元对照应调用 `getAccountTransactionsPaged(account, 0, N)`，首条时间戳与金额应与产品侧「最后一笔」一致。仓库脚本：`scripts/ledgerProbeIndexerAccount.mjs`（账户维度固定 `offset=0` 展示最新窗口，避免排查误判）。
+- **卡资产**：最新窗口使用 `getAssetTransactionsPaged(asset, max(0, total - N), N)`（或与合约一致的尾向分页循环）。
+- **多端实现**：同一产品内若同时拉账户与资产，须在注释与常量区**显式标注**两种 offset 方向，禁止复制粘贴同一套 `for` 循环变量名而不改语义。
+
+**源码锚点**：`src/CoNETIndexTaskdiamond/facets/ActionFacet.sol` — `getAccountTransactionsPaged`；`src/CoNETIndexTaskdiamond/facets/BeamioUserCardStatsFacet.sol` — `getAssetTransactionsPaged`。
 
 ### 7.5.1 FeeStatsFacet TopN 接口约束（bServiceUnits6）
 
@@ -1161,7 +1193,7 @@ const admins = await card.getAdminList()
 
 | 项目 | 值 |
 |------|-----|
-| RPC | `https://mainnet-rpc.conet.network` |
+| RPC | `https://rpc1.conet.network` |
 | Indexer 地址 | 见 `deployments/conet-addresses.json`（当前 `0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe`） |
 | 交易总数 (txCount) | **262** |
 
@@ -1184,7 +1216,7 @@ const admins = await card.getAdminList()
 ### 9.2 链分布
 
 - **chainId 8453**：Base 主网（transfer、internal_transfer、request_create 等）
-- **chainId 224400**：CoNET 主网（buintClaim、buintUSDC、buintBurn 等）
+- **chainId 224422**：CoNET 主网（buintClaim、buintUSDC、buintBurn 等）
 
 ## 10. 交付物清单
 

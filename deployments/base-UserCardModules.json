@@ -1,19 +1,22 @@
 {
   "network": "base",
   "chainId": "8453",
-  "timestamp": "2026-03-17T00:00:00.000Z",
+  "timestamp": "2026-05-06T23:42:09.502Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
+  "factory": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52",
   "modules": {
     "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
-    "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
+    "issuedNftModule": "0x6563d3A8c876469946b42B8d57Ac01577a5534A2",
     "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
     "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
-    "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
-    "adminStatsQueryModule": "0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70"
+    "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
+    "adminStatsQueryModule": "0xe34C33B4d0daC52E3853d721d058Db84df218976"
+  },
+  "replaced": {
+    "issuedNftModule": "0xeA012F3938D5E9a8221b2B17b1e55f84d040cf84",
+    "adminStatsQueryModule": "0xdF0eff2051074885dBCc111d1242AA7eBC65812D"
   },
   "checks": {
-    "appendTierForCardWithOwnerSignature": true,
-    "createCardCollectionWithInitCodeAndTiers": true
+    "issuedNftSharedMetadataHashRoutedToIssuedNft": true
   }
 }

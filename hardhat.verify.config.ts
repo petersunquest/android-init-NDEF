@@ -12,5 +12,5 @@ export default defineConfig({
       viaIR: false  // 尝试不用 viaIR
     }
   },
-  networks: { conet: { url: "https://mainnet-rpc.conet.network", chainId: 224400 } },
+  networks: { conet: { url: "https://rpc1.conet.network", chainId: 224422 } },
 })

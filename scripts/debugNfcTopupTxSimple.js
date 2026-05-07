@@ -4,8 +4,8 @@
  */
 import { ethers } from 'ethers'
 
-const BASE_CARD_FACTORY = '0xbDC8a165820bB8FA23f5d953632409F73E804eE5'
-const BASE_AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
+const BASE_CARD_FACTORY = '0x52cc9E977Ca3EA33c69383a41F87f32a71140A52'
+const BASE_AA_FACTORY = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 const RPC = process.env.BASE_RPC || 'https://base-rpc.conet.network'
 const RPC_FALLBACK = process.env.BASE_RPC_FALLBACK || 'https://base-rpc.conet.network'
 

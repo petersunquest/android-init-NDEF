@@ -1,0 +1,8 @@
+Welcome to Verra — the Cash Trees experience on Beamio, packaged for your phone.
+
+• Fast access to the Cash Trees web app in a dedicated shell
+• NFC on supported devices to read tags and link your physical card
+• Camera permission only when the in-app flow needs QR or scanning
+• Updated branding and launcher icon under the Verra name
+
+Thank you for using Verra. We appreciate your feedback.

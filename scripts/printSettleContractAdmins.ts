@@ -7,7 +7,7 @@ import { homedir } from 'node:os'
 import { readFileSync } from 'node:fs'
 import { ethers } from 'ethers'
 
-const CONET_RPC = 'https://mainnet-rpc.conet.network'
+const CONET_RPC = 'https://rpc1.conet.network'
 const providerConet = new ethers.JsonRpcProvider(CONET_RPC)
 
 const setupFile = join(homedir(), '.master.json')

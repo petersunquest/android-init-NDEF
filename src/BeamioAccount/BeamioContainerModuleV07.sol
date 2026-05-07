@@ -1,23 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// BeamioContainerModuleV07.sol
-// - Emits ONLY here (ContainerRelayed / Redeem / Pool events)
-// - Strict errors
-// - Reserves (freeze) enforced for all module-driven spends
-//
-// Open-Relayed rules (per your latest requirement):
-//   - Signature binds ONLY: (account, currencyType, maxAmount, nonce, deadline)
-//     NOT bind: to / itemsHash / token
-//   - maxAmount == 0: unlimited, any item combination allowed (ERC20/1155 any asset),
-//     still requires owner open-sign + nonce + deadline.
-//   - maxAmount > 0: items MUST be "valuatable":
-//       * ERC20 must be USDC
-//       * ERC1155 must be BeamioUserCard and tokenId==0
-//       * require totalUsdc6 + cardValueUsdc6 <= quoteCurrencyAmountInUSDC6(currencyType, maxAmount)
-//   - No owner top-up. If balance/transfer fails => revert.
+// BeamioContainerModuleV07.sol — container relay / open / redeem / reserve / pool; events + CM_/RD_/FP_/RS_ errors.
+// Open relay: digest binds (account,currencyType,maxAmount,nonce,deadline) only. maxAmount>0 ⇒ valuatable USDC + factory card #0.
+// Open USDC topup path: mixed USDC + card #0 items; USDC→card owner, mint via executor, then transfer basePoints+mint to pointsTo.
 
 import "./BeamioTypesV07.sol";
+import "./BeamioContainerStorageV07.sol";
+import "./BeamioContainerItemTypesV07.sol";
+import "./BeamioContainerModuleErrorsV07.sol";
+import { BeamioContainerModuleExternalLibV07 as CExtLib } from "./BeamioContainerModuleExternalLibV07.sol";
+import { BeamioContainerModuleExternalLib2V07 as CExtLib2 } from "./BeamioContainerModuleExternalLib2V07.sol";
 import "../contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -25,64 +18,20 @@ interface IBeamioAccountFactoryConfigV2 {
 	function quoteHelper() external view returns (address);
 	function beamioUserCard() external view returns (address);
 	function USDC() external view returns (address);
+	function openContainerMintExecutor() external view returns (address);
+	function isBeamioAccount(address account) external view returns (bool);
+}
+
+interface IOwnableMinimal {
+	function owner() external view returns (address);
+}
+
+interface IBeamioOpenContainerMintExecutorLike {
+	function mintPointsForOpen(address userCard, uint256 points6, address operator) external;
 }
 
 interface IBeamioQuoteHelperV07Like {
 	function quoteCurrencyAmountInUSDC6(uint8 cur, uint256 amount6) external view returns (uint256);
-	function quoteUnitPointInUSDC6(uint8 cardCurrency, uint256 unitPointPriceInCurrencyE6) external view returns (uint256);
-}
-
-interface IBeamioUserCardLike {
-	function currency() external view returns (uint8);
-	function pointsUnitPriceInCurrencyE6() external view returns (uint256);
-}
-
-// ===== MUST match Account client struct layout =====
-enum AssetKind { ERC20, ERC1155 }
-struct ContainerItem {
-	AssetKind kind;
-	address asset;
-	uint256 amount;
-	uint256 tokenId;
-	bytes data;
-}
-
-library BeamioContainerStorageV07 {
-	bytes32 internal constant SLOT = keccak256("beamio.container.module.storage.v07");
-
-	struct Redeem {
-		bool active;
-		bool used;
-		uint64 expiry;      // 0 => never
-		address presetTo;   // optional preset recipient (can be 0)
-		bytes32 itemsHash;
-		bytes itemsData;    // abi.encode(ContainerItem[])
-	}
-
-	struct Pool {
-		bool active;
-		uint64 expiry;      // 0 => never
-		uint32 remaining;
-		bytes32 itemsHash;
-		bytes itemsData;    // abi.encode(ContainerItem[])
-	}
-
-	struct Layout {
-		uint256 relayedNonce;
-		uint256 openRelayedNonce;
-
-		mapping(address => uint256) reservedErc20; // token => reserved
-		mapping(address => mapping(uint256 => uint256)) reserved1155; // token => id => reserved
-
-		mapping(bytes32 => Redeem) redeems; // passwordHash => Redeem
-		mapping(bytes32 => Pool) pools;     // passwordHash => Pool
-		mapping(bytes32 => mapping(address => bool)) poolClaimed; // passwordHash => to(recipient) => claimed，每个 to 仅可领取一次
-	}
-
-	function layout() internal pure returns (Layout storage l) {
-		bytes32 slot = SLOT;
-		assembly { l.slot := slot }
-	}
 }
 
 contract BeamioContainerModuleV07 {
@@ -100,55 +49,20 @@ contract BeamioContainerModuleV07 {
 	event FaucetPoolCancelled(bytes32 indexed passwordHash);
 	event FaucetClaimed(bytes32 indexed passwordHash, address indexed claimer, address indexed to, uint32 remaining);
 
-	// ========= Errors (precise) =========
-	error CM_ToZero();
-	error CM_Expired(uint256 nowTs, uint256 deadline);
-	error CM_BadNonce(uint256 got, uint256 expected);
-	error CM_BadSigLen(uint256 got);
-	error CM_SignerNotOwner(address signer, address owner);
+	event ReserveCreated(uint256 indexed reserveId, address indexed beneficiary, bytes32 itemsHash, uint64 cancelDeadline);
+	event ReserveCancelled(uint256 indexed reserveId, address indexed beneficiary, uint256 index);
+	event ReserveApprovedEvt(uint256 indexed reserveId, address indexed beneficiary, uint256 index);
+	event ReserveTransferred(uint256 indexed reserveId, address indexed beneficiary, uint256 index);
 
-	error CM_EmptyItems();
-	error CM_ItemAssetZero(uint256 i);
-	error CM_UnsupportedKind(uint256 i);
-	error CM_ERC20HasTokenIdOrData(uint256 i);
-	error CM_ERC1155TokenIdNotZero(uint256 i, uint256 tokenId);
-
-	error CM_NoFactory();
-	error CM_NoQuoteHelper();
-	error CM_NoUSDC();
-	error CM_NoUserCard();
-	error CM_ERC1155NotUserCard(uint256 i, address token, address userCard);
-	error CM_TokenNotUSDC(address token, address usdc);
-
-	error CM_UnitPriceZero();
-	error CM_ExceedsMaxDetailed(uint256 totalUsdc6, uint256 cardValueUsdc6, uint256 maxUsdc6);
-	error CM_MaxAmountTooSmall(uint256 maxAmount);
-
-	error CM_ReservedERC20Violation(address token, uint256 spend, uint256 bal, uint256 reserved);
-	error CM_Reserved1155Violation(address token, uint256 id, uint256 spend, uint256 bal, uint256 reserved);
-
-	error CM_ERC20TransferFailed(address token, address to, uint256 amount);
-	error CM_ERC1155TransferFailed(address token, address to);
-
-	error RD_ZeroPasswordHash();
-	error RD_AlreadyExists(bytes32 passwordHash);
-	error RD_NotFound(bytes32 passwordHash);
-	error RD_AlreadyUsed(bytes32 passwordHash);
-	error RD_Expired(bytes32 passwordHash);
-	error RD_BadPassword();
-	error RD_PresetToMismatch(address to, address presetTo);
-
-	error FP_ZeroPasswordHash();
-	error FP_InvalidTotalCount();
-	error FP_AlreadyExists(bytes32 passwordHash);
-	error FP_NotFound(bytes32 passwordHash);
-	error FP_Expired(bytes32 passwordHash);
-	error FP_OutOfStock(bytes32 passwordHash);
-	error FP_AlreadyClaimed(bytes32 passwordHash, address to);
-	error FP_ToMustEqualClaimer();
-	error FP_ItemsMismatch();
-
-	error CM_OnlyDelegatecall();
+	event ContainerOpenUsdcTopupThenPoints(
+		address indexed pointsTo,
+		address indexed userCard,
+		uint256 usdc6,
+		uint256 topupPoints6,
+		uint256 basePoints6,
+		uint256 nonce,
+		uint256 deadline
+	);
 
 	// ========= onlyDelegatecall =========
 	address private immutable SELF;
@@ -168,17 +82,15 @@ contract BeamioContainerModuleV07 {
 	bytes32 private constant NAME_HASH = keccak256(bytes("BeamioAccount"));
 	bytes32 private constant VERSION_HASH = keccak256(bytes("1"));
 
-	bytes32 private constant CONTAINER_TYPEHASH =
-		keccak256("ContainerMain(address account,address to,bytes32 itemsHash,uint256 nonce,uint256 deadline)");
-
-	// Open: binds ONLY (account,currencyType,maxAmount,nonce,deadline)
-	bytes32 private constant OPEN_CONTAINER_TYPEHASH =
-		keccak256("OpenContainerMain(address account,uint8 currencyType,uint256 maxAmount,uint256 nonce,uint256 deadline)");
-
 	// ========= Context helpers (delegatecall or staticcall facade) =========
 	function _ctxAccount() internal view returns (address acct) {
 		// staticcall facade path: Account.staticDelegate 调用时，calldata 末尾 20 字节为 account 地址
-		if (msg.sig == this.simulateOpenContainer.selector || msg.sig == this.relayedNonce.selector || msg.sig == this.openRelayedNonce.selector) {
+		if (
+			msg.sig == this.simulateOpenContainer.selector ||
+			msg.sig == this.simulateOpenContainerUsdcTopupThenPoints.selector ||
+			msg.sig == this.relayedNonce.selector ||
+			msg.sig == this.openRelayedNonce.selector
+		) {
 			if (msg.data.length >= 20) {
 				address a;
 				assembly {
@@ -218,6 +130,19 @@ contract BeamioContainerModuleV07 {
 		return (abi.decode(ret, (address)), true);
 	}
 
+	function _requireMsgSenderIsOwner(address acct) internal view {
+		address o = _owner(acct);
+		if (msg.sender != o) revert RS_NotOwner(msg.sender, o);
+	}
+
+	function _reserveStatusLabel(uint8 st) internal pure returns (string memory) {
+		if (st == 0) return "Pending";
+		if (st == 1) return "ReserveApproved";
+		if (st == 2) return "Completed";
+		if (st == 3) return "Cancelled";
+		return "Unknown";
+	}
+
 	function domainSeparator(address acct) public view returns (bytes32) {
 		return keccak256(
 			abi.encode(
@@ -230,26 +155,13 @@ contract BeamioContainerModuleV07 {
 		);
 	}
 
-	// ========= Hashing =========
+	// ========= Hashing (delegate to linked library) =========
 	function hashItem(ContainerItem calldata it) public pure returns (bytes32) {
-		return keccak256(
-			abi.encode(
-				uint8(it.kind),
-				it.asset,
-				it.amount,
-				it.tokenId,
-				keccak256(it.data)
-			)
-		);
+		return CExtLib.hashItem(it);
 	}
 
 	function hashItems(ContainerItem[] calldata items) public pure returns (bytes32 itemsHash) {
-		uint256 n = items.length;
-		bytes32[] memory hs = new bytes32[](n);
-		for (uint256 i = 0; i < n; i++) {
-			hs[i] = hashItem(items[i]);
-		}
-		return keccak256(abi.encode(hs));
+		return CExtLib.hashItems(items);
 	}
 
 	function _hashContainerMessage(
@@ -259,10 +171,7 @@ contract BeamioContainerModuleV07 {
 		uint256 nonce_,
 		uint256 deadline_
 	) internal view returns (bytes32) {
-		bytes32 structHash = keccak256(
-			abi.encode(CONTAINER_TYPEHASH, acct, to, itemsHash_, nonce_, deadline_)
-		);
-		return keccak256(abi.encodePacked("\x19\x01", domainSeparator(acct), structHash));
+		return CExtLib.hashContainerMessage(domainSeparator(acct), acct, to, itemsHash_, nonce_, deadline_);
 	}
 
 	function _hashOpenContainerMessage(
@@ -272,10 +181,34 @@ contract BeamioContainerModuleV07 {
 		uint256 nonce_,
 		uint256 deadline_
 	) internal view returns (bytes32) {
-		bytes32 structHash = keccak256(
-			abi.encode(OPEN_CONTAINER_TYPEHASH, acct, currencyType, maxAmount, nonce_, deadline_)
-		);
-		return keccak256(abi.encodePacked("\x19\x01", domainSeparator(acct), structHash));
+		return CExtLib.hashOpenContainerMessage(domainSeparator(acct), acct, currencyType, maxAmount, nonce_, deadline_);
+	}
+
+	function _factoryLoadValuatableTokens(address acct)
+		internal
+		view
+		returns (address f, address helperAddr, address usdc, address userCard)
+	{
+		f = _factory(acct);
+		helperAddr = IBeamioAccountFactoryConfigV2(f).quoteHelper();
+		usdc = IBeamioAccountFactoryConfigV2(f).USDC();
+		userCard = IBeamioAccountFactoryConfigV2(f).beamioUserCard();
+		if (helperAddr == address(0) || helperAddr.code.length == 0) revert CM_NoQuoteHelper();
+		if (usdc == address(0)) revert CM_NoUSDC();
+		if (userCard == address(0) || userCard.code.length == 0) revert CM_NoUserCard();
+	}
+
+	function _openRelayPreamble(
+		BeamioContainerStorageV07.Layout storage l,
+		uint256 deadline_,
+		uint256 nonce_,
+		bytes calldata sig,
+		ContainerItem[] calldata items
+	) internal view {
+		if (block.timestamp > deadline_) revert CM_Expired(block.timestamp, deadline_);
+		if (nonce_ != l.openRelayedNonce) revert CM_BadNonce(nonce_, l.openRelayedNonce);
+		if (sig.length != 65) revert CM_BadSigLen(sig.length);
+		if (items.length == 0) revert CM_EmptyItems();
 	}
 
 	// ========= Views (nonce) =========
@@ -328,24 +261,44 @@ contract BeamioContainerModuleV07 {
 		}
 	}
 
+	function _requireSpendableOne(
+		address acct,
+		BeamioContainerStorageV07.Layout storage l,
+		AssetKind kind,
+		address asset,
+		uint256 amount,
+		uint256 tokenId,
+		uint256 errIdx
+	) internal view {
+		if (amount == 0) return;
+		if (kind == AssetKind.ERC20) {
+			uint256 bal = IERC20Like(asset).balanceOf(acct);
+			uint256 r = l.reservedErc20[asset];
+			if (bal < r + amount) revert CM_ReservedERC20Violation(asset, amount, bal, r);
+			return;
+		}
+		if (kind == AssetKind.ERC1155) {
+			uint256 bal = IERC1155Like(asset).balanceOf(acct, tokenId);
+			uint256 r2 = l.reserved1155[asset][tokenId];
+			if (bal < r2 + amount) revert CM_Reserved1155Violation(asset, tokenId, amount, bal, r2);
+			return;
+		}
+		revert CM_UnsupportedKind(errIdx);
+	}
+
 	function _checkSpendable(address acct, ContainerItem[] calldata items) internal view {
 		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
-
 		for (uint256 i = 0; i < items.length; i++) {
 			ContainerItem calldata it = items[i];
-			if (it.amount == 0) continue;
+			_requireSpendableOne(acct, l, it.kind, it.asset, it.amount, it.tokenId, i);
+		}
+	}
 
-			if (it.kind == AssetKind.ERC20) {
-				uint256 bal = IERC20Like(it.asset).balanceOf(acct);
-				uint256 r = l.reservedErc20[it.asset];
-				if (bal < r + it.amount) revert CM_ReservedERC20Violation(it.asset, it.amount, bal, r);
-			} else if (it.kind == AssetKind.ERC1155) {
-				uint256 bal = IERC1155Like(it.asset).balanceOf(acct, it.tokenId);
-				uint256 r2 = l.reserved1155[it.asset][it.tokenId];
-				if (bal < r2 + it.amount) revert CM_Reserved1155Violation(it.asset, it.tokenId, it.amount, bal, r2);
-			} else {
-				revert CM_UnsupportedKind(i);
-			}
+	function _checkSpendableMem(address acct, ContainerItem[] memory items) internal view {
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		for (uint256 i = 0; i < items.length; i++) {
+			ContainerItem memory it = items[i];
+			_requireSpendableOne(acct, l, it.kind, it.asset, it.amount, it.tokenId, i);
 		}
 	}
 
@@ -381,148 +334,7 @@ contract BeamioContainerModuleV07 {
 	/// @notice 在 Account.execute / executeBatch 前调用，校验即将执行的外部调用是否会转出被 reserve 锁定的资产。若会违反 reserve 则 revert。
 	/// @dev 仅校验 ERC20 transfer、transferFrom(from==account)、ERC1155 safeTransferFrom/safeBatchTransferFrom(from==account)。其他调用放行。
 	function preExecuteCheck(address dest, uint256 /* value */, bytes calldata func) external view {
-		address acct = address(this);
-		if (func.length < 4) return;
-
-		bytes4 sel;
-		assembly {
-			sel := calldataload(func.offset)
-		}
-		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
-
-		// ERC20 transfer(address to, uint256 amount)
-		if (sel == 0xa9059cbb) {
-			if (func.length < 4 + 32 + 32) return;
-			(, uint256 amount) = abi.decode(func[4:], (address, uint256));
-			uint256 bal = IERC20Like(dest).balanceOf(acct);
-			uint256 r = l.reservedErc20[dest];
-			if (bal < r + amount) revert CM_ReservedERC20Violation(dest, amount, bal, r);
-			return;
-		}
-
-		// ERC20 transferFrom(address from, address to, uint256 amount)
-		if (sel == 0x23b872dd) {
-			if (func.length < 4 + 32 * 3) return;
-			(address from,, uint256 amount) = abi.decode(func[4:], (address, address, uint256));
-			if (from != acct) return; // 非从本账户转出，放行
-			uint256 bal = IERC20Like(dest).balanceOf(acct);
-			uint256 r = l.reservedErc20[dest];
-			if (bal < r + amount) revert CM_ReservedERC20Violation(dest, amount, bal, r);
-			return;
-		}
-
-		// ERC1155 safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)
-		if (sel == 0xf242432a) {
-			if (func.length < 4 + 32*4) return;
-			(address from,, uint256 id, uint256 amount,) = abi.decode(func[4:], (address, address, uint256, uint256, bytes));
-			if (from != acct) return;
-			uint256 bal = IERC1155Like(dest).balanceOf(acct, id);
-			uint256 r = l.reserved1155[dest][id];
-			if (bal < r + amount) revert CM_Reserved1155Violation(dest, id, amount, bal, r);
-			return;
-		}
-
-		// ERC1155 safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)
-		if (sel == 0x2eb2c2d6) {
-			if (func.length < 4 + 32 * 5) return; // selector + 5 param slots (dynamic array offsets)
-			(address from,, uint256[] memory ids, uint256[] memory amounts,) = abi.decode(func[4:], (address, address, uint256[], uint256[], bytes));
-			if (from != acct) return;
-			for (uint256 i = 0; i < ids.length; i++) {
-				uint256 bal = IERC1155Like(dest).balanceOf(acct, ids[i]);
-				uint256 r = l.reserved1155[dest][ids[i]];
-				uint256 amt = i < amounts.length ? amounts[i] : 0;
-				if (bal < r + amt) revert CM_Reserved1155Violation(dest, ids[i], amt, bal, r);
-			}
-			return;
-		}
-
-		// 非上述转账调用，放行
-	}
-
-	// ========= Internal transfer pipeline =========
-	function _containerERC20(address to, ContainerItem[] memory items20) internal {
-		for (uint256 i = 0; i < items20.length; i++) {
-			ContainerItem memory it = items20[i];
-			if (it.amount == 0) continue;
-
-			bool ok = IERC20Like(it.asset).transfer(to, it.amount);
-			if (!ok) revert CM_ERC20TransferFailed(it.asset, to, it.amount);
-		}
-	}
-
-	function _containerERC1155_token(
-		address token,
-		address to,
-		uint256[] memory ids,
-		uint256[] memory amounts,
-		bytes[] memory datas
-	) internal {
-		uint256 n = ids.length;
-		if (n == 0) return;
-		if (n != amounts.length || n != datas.length) revert LenMismatch();
-
-		bool sameData = true;
-		bytes32 d0 = keccak256(datas[0]);
-		for (uint256 i = 1; i < n; i++) {
-			if (keccak256(datas[i]) != d0) { sameData = false; break; }
-		}
-
-		if (sameData) {
-			try IERC1155Like(token).safeBatchTransferFrom(address(this), to, ids, amounts, datas[0]) {
-				return;
-			} catch {
-				// fallback to singles
-			}
-		}
-
-		for (uint256 i = 0; i < n; i++) {
-			if (amounts[i] == 0) continue;
-			try IERC1155Like(token).safeTransferFrom(address(this), to, ids[i], amounts[i], datas[i]) {
-			} catch {
-				revert CM_ERC1155TransferFailed(token, to);
-			}
-		}
-	}
-
-	function _containerERC1155(address to, ContainerItem[] memory items1155) internal {
-		uint256 n = items1155.length;
-		if (n == 0) return;
-
-		address[] memory tokens = new address[](n);
-		uint256 tLen = 0;
-
-		for (uint256 i = 0; i < n; i++) {
-			address token = items1155[i].asset;
-			bool seen = false;
-			for (uint256 j = 0; j < tLen; j++) {
-				if (tokens[j] == token) { seen = true; break; }
-			}
-			if (!seen) tokens[tLen++] = token;
-		}
-
-		for (uint256 ti = 0; ti < tLen; ti++) {
-			address token = tokens[ti];
-
-			uint256 m = 0;
-			for (uint256 i = 0; i < n; i++) {
-				if (items1155[i].asset == token) m++;
-			}
-
-			uint256[] memory ids = new uint256[](m);
-			uint256[] memory amts = new uint256[](m);
-			bytes[] memory datas = new bytes[](m);
-
-			uint256 p = 0;
-			for (uint256 i = 0; i < n; i++) {
-				if (items1155[i].asset != token) continue;
-				ids[p] = items1155[i].tokenId;
-				amts[p] = items1155[i].amount;
-				datas[p] = items1155[i].data;
-				p++;
-			}
-
-			_containerERC1155_token(token, to, ids, amts, datas);
-		}
+		CExtLib2.preExecuteCheck(BeamioContainerStorageV07.layout(), address(this), dest, func);
 	}
 
 	function _containerMain(address to, ContainerItem[] calldata items) internal {
@@ -530,7 +342,7 @@ contract BeamioContainerModuleV07 {
 		for (uint256 i = 0; i < items.length; i++) {
 			m[i] = items[i];
 		}
-		_containerMainMem(to, m);
+		CExtLib2.containerMainMem(to, m);
 	}
 
 	// =========================================================
@@ -581,78 +393,20 @@ contract BeamioContainerModuleV07 {
 		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
 
 		if (to == address(0)) revert CM_ToZero();
-		if (block.timestamp > deadline_) revert CM_Expired(block.timestamp, deadline_);
-		if (nonce_ != l.openRelayedNonce) revert CM_BadNonce(nonce_, l.openRelayedNonce);
-		if (sig.length != 65) revert CM_BadSigLen(sig.length);
-		if (items.length == 0) revert CM_EmptyItems();
+		_openRelayPreamble(l, deadline_, nonce_, sig, items);
 
-		// reserve check always
 		_checkSpendable(acct, items);
 
-		address usdc = address(0);
-		address userCard = address(0);
-		address helperAddr = address(0);
-
+		address helperAddr;
+		address usdc;
+		address userCard;
 		if (maxAmount > 0) {
-			if (maxAmount < 1e4) revert CM_MaxAmountTooSmall(maxAmount); // 强制 E6 精度，避免误传「10=10美元」
-			address f = _factory(acct);
-			helperAddr = IBeamioAccountFactoryConfigV2(f).quoteHelper();
-			usdc = IBeamioAccountFactoryConfigV2(f).USDC();
-			userCard = IBeamioAccountFactoryConfigV2(f).beamioUserCard();
-
-			if (helperAddr == address(0) || helperAddr.code.length == 0) revert CM_NoQuoteHelper();
-			if (usdc == address(0)) revert CM_NoUSDC();
-			if (userCard == address(0) || userCard.code.length == 0) revert CM_NoUserCard();
+			if (maxAmount < 1e4) revert CM_MaxAmountTooSmall(maxAmount);
+			(, helperAddr, usdc, userCard) = _factoryLoadValuatableTokens(acct);
 		}
 
-		uint256 totalUsdc6 = 0;
-		uint256 cardPoints6 = 0;  // ERC1155 tokenId==0 的 it.amount，须为 points E6（1e6=1 point）
-
-		for (uint256 i = 0; i < items.length; i++) {
-			ContainerItem calldata it = items[i];
-			if (it.asset == address(0)) revert CM_ItemAssetZero(i);
-
-			if (it.kind == AssetKind.ERC20) {
-				if (it.tokenId != 0 || it.data.length != 0) revert CM_ERC20HasTokenIdOrData(i);
-
-				if (maxAmount > 0) {
-					if (it.asset != usdc) revert CM_TokenNotUSDC(it.asset, usdc);
-					totalUsdc6 += it.amount;  // USDC 6 decimals
-				}
-				continue;
-			}
-
-			if (it.kind == AssetKind.ERC1155) {
-				if (maxAmount > 0) {
-					if (it.asset != userCard) revert CM_ERC1155NotUserCard(i, it.asset, userCard);
-					if (it.tokenId != 0) revert CM_ERC1155TokenIdNotZero(i, it.tokenId);
-					cardPoints6 += it.amount;
-				}
-				// unlimited: any 1155 ok
-				continue;
-			}
-
-			revert CM_UnsupportedKind(i);
-		}
-
-		if (maxAmount > 0) {
-			IBeamioQuoteHelperV07Like qh = IBeamioQuoteHelperV07Like(helperAddr);
-			uint256 maxUsdc6 = qh.quoteCurrencyAmountInUSDC6(currencyType, maxAmount);
-
-			uint256 cardValueUsdc6 = 0;
-			if (cardPoints6 > 0) {
-				uint8 cardCur = IBeamioUserCardLike(userCard).currency();
-				uint256 unitPriceE6 = IBeamioUserCardLike(userCard).pointsUnitPriceInCurrencyE6();
-				if (unitPriceE6 == 0) revert CM_UnitPriceZero();
-				// unitPriceE6: 每 1e6 points 的单价(E6)；cardPoints6 为 points E6
-				uint256 unitPointUsdc6 = qh.quoteUnitPointInUSDC6(cardCur, unitPriceE6);
-				cardValueUsdc6 = (cardPoints6 * unitPointUsdc6) / 1e6;
-			}
-
-			if (totalUsdc6 + cardValueUsdc6 > maxUsdc6) {
-				revert CM_ExceedsMaxDetailed(totalUsdc6, cardValueUsdc6, maxUsdc6);
-			}
-		}
+		(uint256 totalUsdc6, uint256 cardPoints6) = CExtLib.scanOpenItemsForRelay(items, maxAmount > 0, usdc, userCard);
+		CExtLib.enforceOpenMaxBudget(maxAmount, helperAddr, userCard, currencyType, totalUsdc6, cardPoints6);
 
 		// signature binds only budget fields (NOT to/items/token)
 		bytes32 digest = _hashOpenContainerMessage(acct, currencyType, maxAmount, nonce_, deadline_);
@@ -665,6 +419,171 @@ contract BeamioContainerModuleV07 {
 		_containerMain(to, items);
 
 		emit ContainerRelayed(to, bytes32(0), nonce_, deadline_);
+	}
+
+	// =========================================================
+	// (C) open relayed: USDC → UserCard.owner（topup 收款），再经 executor mint points，最后转出 basePoints + mint 量
+	// =========================================================
+	function containerMainRelayedOpenUsdcTopupThenPoints(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyDelegatecall {
+		address acct = address(this);
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+
+		if (pointsTo == address(0)) revert CM_ToZero();
+		_openRelayPreamble(l, deadline_, nonce_, sig, items);
+
+		(address f, address helperAddr, address usdc, address userCard) = _factoryLoadValuatableTokens(acct);
+
+		if (maxAmount > 0) {
+			if (maxAmount < 1e4) revert CM_MaxAmountTooSmall(maxAmount);
+		}
+
+		(ContainerItem[] memory usdcItems, uint256 totalUsdc6, uint256 basePoints6, bytes memory data1155) =
+			CExtLib.parseAndValidateOpenTopupItems(items, usdc, userCard);
+
+		_checkSpendable(acct, items);
+
+		CExtLib.enforceOpenMaxBudget(maxAmount, helperAddr, userCard, currencyType, totalUsdc6, basePoints6);
+
+		bytes32 digest = _hashOpenContainerMessage(acct, currencyType, maxAmount, nonce_, deadline_);
+		address signer = ECDSA.recover(digest, sig);
+		address o2 = _owner(acct);
+		if (signer != o2) revert CM_SignerNotOwner(signer, o2);
+
+		uint256 topupPoints6 = CExtLib.usdc6ToTopupPoints6(totalUsdc6, userCard, helperAddr);
+		if (basePoints6 + topupPoints6 == 0) revert CM_OpenTopupZeroOut();
+
+		l.openRelayedNonce = nonce_ + 1;
+
+		address cardOwner = IOwnableMinimal(userCard).owner();
+		if (totalUsdc6 > 0) {
+			CExtLib2.containerERC20(cardOwner, usdcItems);
+		}
+
+		if (topupPoints6 > 0) {
+			address exec = IBeamioAccountFactoryConfigV2(f).openContainerMintExecutor();
+			if (exec == address(0)) revert CM_OpenTopupNoExecutor();
+			IBeamioOpenContainerMintExecutorLike(exec).mintPointsForOpen(userCard, topupPoints6, cardOwner);
+		}
+
+		ContainerItem[] memory out1155 = new ContainerItem[](1);
+		out1155[0] = ContainerItem({
+			kind: AssetKind.ERC1155,
+			asset: userCard,
+			amount: basePoints6 + topupPoints6,
+			tokenId: 0,
+			data: data1155
+		});
+
+		_checkSpendableMem(acct, out1155);
+
+		CExtLib2.containerMainMem(pointsTo, out1155);
+
+		emit ContainerOpenUsdcTopupThenPoints(pointsTo, userCard, totalUsdc6, topupPoints6, basePoints6, nonce_, deadline_);
+		emit ContainerRelayed(pointsTo, bytes32(0), nonce_, deadline_);
+	}
+
+	function simulateOpenContainerUsdcTopupThenPoints(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external view returns (bool ok, string memory reason) {
+		address acct = _ctxAccount();
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+
+		if (pointsTo == address(0)) return (false, "pointsTo=0");
+		if (block.timestamp > deadline_) return (false, "expired");
+		if (nonce_ != l.openRelayedNonce) return (false, "bad nonce");
+		if (sig.length != 65) return (false, "bad sig len");
+		if (items.length == 0) return (false, "empty items");
+
+		(bool spendOk, string memory spendReason) = _checkSpendableSafe(acct, items);
+		if (!spendOk) return (false, spendReason);
+
+		(address f, bool factoryOk) = _factorySafe(acct);
+		if (!factoryOk) return (false, "no factory");
+		address helperAddr = IBeamioAccountFactoryConfigV2(f).quoteHelper();
+		address usdc = IBeamioAccountFactoryConfigV2(f).USDC();
+		address userCard = IBeamioAccountFactoryConfigV2(f).beamioUserCard();
+
+		if (helperAddr == address(0) || helperAddr.code.length == 0) return (false, "no helper");
+		if (usdc == address(0)) return (false, "no usdc");
+		if (userCard == address(0) || userCard.code.length == 0) return (false, "no usercard");
+
+		if (maxAmount > 0) {
+			if (maxAmount < 1e4) return (false, "max amount too small");
+		}
+
+		uint256 n = items.length;
+		uint256 n20;
+		uint256 n1155;
+		for (uint256 i = 0; i < n; i++) {
+			ContainerItem calldata it = items[i];
+			if (it.kind == AssetKind.ERC20) n20++;
+			else if (it.kind == AssetKind.ERC1155) n1155++;
+			else return (false, "open topup not mixed");
+		}
+		if (n20 == 0 || n1155 == 0) return (false, "open topup not mixed");
+
+		uint256 totalUsdc6 = 0;
+		uint256 basePoints6 = 0;
+		for (uint256 i = 0; i < n; i++) {
+			ContainerItem calldata it = items[i];
+			if (it.kind == AssetKind.ERC20) {
+				if (it.asset == address(0)) return (false, "item asset=0");
+				if (it.asset != usdc) return (false, "erc20 not usdc");
+				if (it.tokenId != 0 || it.data.length != 0) return (false, "erc20 has tokenId/data");
+				totalUsdc6 += it.amount;
+			} else {
+				if (it.asset == address(0)) return (false, "item asset=0");
+				if (it.asset != userCard) return (false, "1155 not usercard");
+				if (it.tokenId != 0) return (false, "erc1155 tokenId!=0");
+				basePoints6 += it.amount;
+			}
+		}
+
+		bool needUnit = (maxAmount > 0 && basePoints6 > 0) || (totalUsdc6 > 0);
+		uint256 unitPu;
+		if (needUnit) {
+			(bool upOk, uint256 u) = CExtLib.simTryUnitPointUsdc6(userCard, helperAddr);
+			if (!upOk) return (false, "unit point");
+			unitPu = u;
+		}
+
+		if (maxAmount > 0) {
+			IBeamioQuoteHelperV07Like qh = IBeamioQuoteHelperV07Like(helperAddr);
+			uint256 maxUsdc6 = qh.quoteCurrencyAmountInUSDC6(currencyType, maxAmount);
+			uint256 cardValueUsdc6 = (basePoints6 > 0) ? (basePoints6 * unitPu) / 1e6 : 0;
+			if (totalUsdc6 + cardValueUsdc6 > maxUsdc6) return (false, "exceeds max");
+		}
+
+		uint256 topupPoints6 = (totalUsdc6 > 0) ? ((totalUsdc6 * 1e6) / unitPu) : 0;
+
+		if (basePoints6 + topupPoints6 == 0) return (false, "zero out");
+
+		if (topupPoints6 > 0) {
+			address exec = IBeamioAccountFactoryConfigV2(f).openContainerMintExecutor();
+			if (exec == address(0)) return (false, "no open mint executor");
+		}
+
+		bytes32 digest = _hashOpenContainerMessage(acct, currencyType, maxAmount, nonce_, deadline_);
+		address signer = ECDSA.recover(digest, sig);
+		(address o2, bool ownerOk) = _ownerSafe(acct);
+		if (!ownerOk) return (false, "owner call failed");
+		if (signer != o2) return (false, "sig not owner");
+
+		return (true, "ok");
 	}
 
 	// =========================================================
@@ -736,19 +655,17 @@ contract BeamioContainerModuleV07 {
 			return (false, "unsupported kind");
 		}
 
+		uint256 unitPu;
+		if (maxAmount > 0 && cardPoints6 > 0) {
+			(bool upOk, uint256 u) = CExtLib.simTryUnitPointUsdc6(userCard, helperAddr);
+			if (!upOk) return (false, "unit point");
+			unitPu = u;
+		}
+
 		if (maxAmount > 0) {
 			IBeamioQuoteHelperV07Like qh = IBeamioQuoteHelperV07Like(helperAddr);
 			uint256 maxUsdc6 = qh.quoteCurrencyAmountInUSDC6(currencyType, maxAmount);
-
-			uint256 cardValueUsdc6 = 0;
-			if (cardPoints6 > 0) {
-				uint8 cardCur = IBeamioUserCardLike(userCard).currency();
-				uint256 unitPriceE6 = IBeamioUserCardLike(userCard).pointsUnitPriceInCurrencyE6();
-				if (unitPriceE6 == 0) return (false, "unitPrice=0");
-				uint256 unitPointUsdc6 = qh.quoteUnitPointInUSDC6(cardCur, unitPriceE6);
-				cardValueUsdc6 = (cardPoints6 * unitPointUsdc6) / 1e6;
-			}
-
+			uint256 cardValueUsdc6 = (cardPoints6 > 0) ? (cardPoints6 * unitPu) / 1e6 : 0;
 			if (totalUsdc6 + cardValueUsdc6 > maxUsdc6) return (false, "exceeds max");
 		}
 
@@ -770,7 +687,6 @@ contract BeamioContainerModuleV07 {
 		ContainerItem[] calldata items,
 		uint64 expiry
 	) external onlyDelegatecall {
-		address acct = address(this);
 		if (passwordHash == bytes32(0)) revert RD_ZeroPasswordHash();
 
 		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
@@ -812,40 +728,6 @@ contract BeamioContainerModuleV07 {
 		emit RedeemCancelled(ph);
 	}
 
-	function _containerMainMem(address to, ContainerItem[] memory items) internal {
-		if (to == address(0)) revert CM_ToZero();
-		uint256 n = items.length;
-		if (n == 0) revert CM_EmptyItems();
-
-		uint256 n20 = 0;
-		uint256 n1155 = 0;
-
-		for (uint256 i = 0; i < n; i++) {
-			if (items[i].asset == address(0)) revert CM_ItemAssetZero(i);
-			if (items[i].kind == AssetKind.ERC20) n20++;
-			else if (items[i].kind == AssetKind.ERC1155) n1155++;
-			else revert CM_UnsupportedKind(i);
-		}
-
-		if (n20 > 0) {
-			ContainerItem[] memory a20 = new ContainerItem[](n20);
-			uint256 p = 0;
-			for (uint256 i = 0; i < n; i++) {
-				if (items[i].kind == AssetKind.ERC20) a20[p++] = items[i];
-			}
-			_containerERC20(to, a20);
-		}
-
-		if (n1155 > 0) {
-			ContainerItem[] memory a1155 = new ContainerItem[](n1155);
-			uint256 p2 = 0;
-			for (uint256 i = 0; i < n; i++) {
-				if (items[i].kind == AssetKind.ERC1155) a1155[p2++] = items[i];
-			}
-			_containerERC1155(to, a1155);
-		}
-	}
-
 	function redeem(string calldata password, address to) external onlyDelegatecall {
 		if (to == address(0)) revert CM_ToZero();
 		bytes32 ph = keccak256(bytes(password));
@@ -866,7 +748,7 @@ contract BeamioContainerModuleV07 {
 		r.used = true;
 		r.active = false;
 
-		_containerMainMem(to, items);
+		CExtLib2.containerMainMem(to, items);
 
 		delete l.redeems[ph];
 
@@ -966,6 +848,139 @@ contract BeamioContainerModuleV07 {
 
 		if (p.remaining == 0) {
 			delete l.pools[ph];
+		}
+	}
+
+	// =========================================================
+	// Reserve: owner locks container for beneficiary; time-bounded cancel; beneficiary approves then public transfer
+	// =========================================================
+	function createReserve(
+		ContainerItem[] calldata items,
+		address beneficiary,
+		uint32 cancelWindowSeconds
+	) external onlyDelegatecall {
+		address acct = address(this);
+		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
+		if (cancelWindowSeconds == 0) revert RS_CancelWindowZero();
+		if (items.length == 0) revert CM_EmptyItems();
+
+		uint256 dl = uint256(block.timestamp) + uint256(cancelWindowSeconds);
+		if (dl > type(uint64).max) revert RS_CancelWindowTooLong();
+
+		_requireMsgSenderIsOwner(acct);
+		_checkSpendable(acct, items);
+
+		bytes memory enc = abi.encode(items);
+		bytes32 ih = hashItems(items);
+
+		ContainerItem[] memory memItems = abi.decode(enc, (ContainerItem[]));
+		_reserveAdd(memItems);
+
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		uint256 id = l.nextReserveId++;
+		l.reserveIdsByBeneficiary[beneficiary].push(id);
+
+		BeamioContainerStorageV07.ReserveEntry storage e = l.reserveById[id];
+		e.status = 0;
+		e.cancelDeadline = uint64(dl);
+		e.beneficiary = beneficiary;
+		e.itemsHash = ih;
+		e.itemsData = enc;
+
+		emit ReserveCreated(id, beneficiary, ih, uint64(dl));
+	}
+
+	function cancelReserve(address beneficiary, uint256 index) external onlyDelegatecall {
+		address acct = address(this);
+		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
+		_requireMsgSenderIsOwner(acct);
+
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		uint256[] storage ids = l.reserveIdsByBeneficiary[beneficiary];
+		if (index >= ids.length) revert RS_BadIndex(beneficiary, index, ids.length);
+		uint256 id = ids[index];
+		BeamioContainerStorageV07.ReserveEntry storage e = l.reserveById[id];
+		if (e.itemsHash == bytes32(0)) revert RS_NotFound(id);
+		if (e.status != 0) revert RS_BadStatus(id, e.status, 0);
+		if (block.timestamp > e.cancelDeadline) revert RS_CancelDeadlinePassed(e.cancelDeadline, block.timestamp);
+
+		ContainerItem[] memory items = abi.decode(e.itemsData, (ContainerItem[]));
+		_reserveSub(items);
+		e.status = 3;
+
+		emit ReserveCancelled(id, beneficiary, index);
+	}
+
+	function execReserve(address beneficiary, uint256 index) external onlyDelegatecall {
+		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
+		if (msg.sender != beneficiary) revert RS_NotBeneficiary(msg.sender, beneficiary);
+
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		uint256[] storage ids = l.reserveIdsByBeneficiary[beneficiary];
+		if (index >= ids.length) revert RS_BadIndex(beneficiary, index, ids.length);
+		uint256 id = ids[index];
+		BeamioContainerStorageV07.ReserveEntry storage e = l.reserveById[id];
+		if (e.itemsHash == bytes32(0)) revert RS_NotFound(id);
+		if (e.status != 0) revert RS_BadStatus(id, e.status, 0);
+		if (block.timestamp <= e.cancelDeadline) revert RS_CancelNotYetExpired(e.cancelDeadline, block.timestamp);
+
+		e.status = 1;
+
+		emit ReserveApprovedEvt(id, beneficiary, index);
+	}
+
+	function transferReserve(address beneficiary, uint256 index) external onlyDelegatecall {
+		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
+
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		uint256[] storage ids = l.reserveIdsByBeneficiary[beneficiary];
+		if (index >= ids.length) revert RS_BadIndex(beneficiary, index, ids.length);
+		uint256 id = ids[index];
+		BeamioContainerStorageV07.ReserveEntry storage e = l.reserveById[id];
+		if (e.itemsHash == bytes32(0)) revert RS_NotFound(id);
+		if (e.status != 1) revert RS_BadStatus(id, e.status, 1);
+
+		ContainerItem[] memory items = abi.decode(e.itemsData, (ContainerItem[]));
+		_reserveSub(items);
+		CExtLib2.containerMainMem(beneficiary, items);
+
+		e.status = 2;
+
+		emit ReserveTransferred(id, beneficiary, index);
+	}
+
+	/// @return index Slot position in beneficiary's reserve list (same as execReserve / transferReserve `index`).
+	/// @return itemBundles Each element is `abi.encode(ContainerItem[])` for that reserve (empty if corrupt entry).
+	/// @return execStatus Raw status: 0 Pending, 1 ReserveApproved, 2 Completed, 3 Cancelled.
+	/// @return statusLabel English label for UI.
+	function searchReserve(address beneficiary)
+		external
+		view
+		onlyDelegatecall
+		returns (
+			uint256[] memory index,
+			bytes[] memory itemBundles,
+			uint8[] memory execStatus,
+			string[] memory statusLabel
+		)
+	{
+		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
+		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
+		uint256[] storage ids = l.reserveIdsByBeneficiary[beneficiary];
+		uint256 n = ids.length;
+		index = new uint256[](n);
+		itemBundles = new bytes[](n);
+		execStatus = new uint8[](n);
+		statusLabel = new string[](n);
+		for (uint256 i = 0; i < n; ) {
+			BeamioContainerStorageV07.ReserveEntry storage e = l.reserveById[ids[i]];
+			index[i] = i;
+			itemBundles[i] = e.itemsData;
+			execStatus[i] = e.status;
+			statusLabel[i] = _reserveStatusLabel(e.status);
+			unchecked {
+				++i;
+			}
 		}
 	}
 }

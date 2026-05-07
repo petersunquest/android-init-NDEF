@@ -19,6 +19,8 @@ library MembershipStatsStorage {
         mapping(uint64 => FlowBucket) hourlyGlobal;
         mapping(uint256 => mapping(uint64 => FlowBucket)) hourlyByTokenId;
         mapping(uint256 => mapping(uint64 => FlowBucket)) hourlyByTierIndex;
+        /// @dev upgradeType==2：发送方累计转给 admin 的 points（6 位精度）；升级成功后由模块清零
+        mapping(address => uint256) cumulativePointsTransferredToAdmin6;
     }
 
     function layout() internal pure returns (Layout storage l) {

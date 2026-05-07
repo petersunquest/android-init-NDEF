@@ -151,7 +151,7 @@ async function main() {
 
   // 更新 conet-addresses.json
   const addrPath = path.join(deploymentsDir, "conet-addresses.json");
-  const addrData = fs.existsSync(addrPath) ? JSON.parse(fs.readFileSync(addrPath, "utf-8")) : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224400" };
+  const addrData = fs.existsSync(addrPath) ? JSON.parse(fs.readFileSync(addrPath, "utf-8")) : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224422" };
   addrData.ConetTreasury = treasuryAddress;
   addrData.conetUsdc = CONET_USDC;
   fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
@@ -159,28 +159,41 @@ async function main() {
 
   console.log("\nConetTreasury 地址:", treasuryAddress);
 
-  // 6. BeamioIndexerDiamond.setAdmin(BUnitAirdrop, true) - 使 claim/焚烧/USDC 购买可记账
+  // 7. BeamioIndexerDiamond.setAdmin(BUnitAirdrop, true) - 使 claim/焚烧/USDC 购买可记账
   const indexerPath = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
-  const diamondAddr = fs.existsSync(indexerPath)
-    ? JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond
-    : "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
+  if (!fs.existsSync(indexerPath)) {
+    console.log("[7] 未找到 conet-IndexerDiamond.json，跳过 Indexer admin 登记");
+    return;
+  }
+  const diamondAddr = JSON.parse(fs.readFileSync(indexerPath, "utf-8")).diamond;
+  if (!diamondAddr || !airdropAddress) {
+    console.log("[7] 缺少 diamond 或 airdrop 地址，跳过 Indexer admin 登记");
+    return;
+  }
+  const code = await ethers.provider.getCode(diamondAddr);
+  if (!code || code === "0x") {
+    console.log("[7] Indexer 地址未部署代码，跳过 Indexer admin 登记");
+    return;
+  }
   const masterData = JSON.parse(fs.readFileSync(path.join(homedir(), ".master.json"), "utf-8"));
   const ownerPk = masterData?.settle_contractAdmin?.[0];
-  if (ownerPk && airdropAddress) {
-    const ownerSigner = new ethers.Wallet(ownerPk.startsWith("0x") ? ownerPk : `0x${ownerPk}`, ethers.provider);
-    const diamond = await ethers.getContractAt(
-      ["function setAdmin(address admin, bool enabled) external", "function isAdmin(address) view returns (bool)"],
-      diamondAddr,
-      ownerSigner
-    );
-    const isAdmin = await diamond.isAdmin(airdropAddress);
-    if (!isAdmin) {
-      const txAdmin = await diamond.setAdmin(airdropAddress, true);
-      await txAdmin.wait();
-      console.log("[7] BeamioIndexerDiamond.setAdmin(BUnitAirdrop, true) ok");
-    } else {
-      console.log("[7] BUnitAirdrop 已是 Indexer admin，跳过");
-    }
+  if (!ownerPk) {
+    console.log("[7] ~/.master.json 缺少 settle_contractAdmin[0]，跳过 Indexer admin 登记");
+    return;
+  }
+  const ownerSigner = new ethers.Wallet(ownerPk.startsWith("0x") ? ownerPk : `0x${ownerPk}`, ethers.provider);
+  const diamond = await ethers.getContractAt(
+    ["function setAdmin(address admin, bool enabled) external", "function isAdmin(address) view returns (bool)"],
+    diamondAddr,
+    ownerSigner
+  );
+  const isAdmin = await diamond.isAdmin(airdropAddress);
+  if (!isAdmin) {
+    const txAdmin = await diamond.setAdmin(airdropAddress, true);
+    await txAdmin.wait();
+    console.log("[7] BeamioIndexerDiamond.setAdmin(BUnitAirdrop, true) ok");
+  } else {
+    console.log("[7] BUnitAirdrop 已是 Indexer admin，跳过");
   }
 }
 

@@ -1,0 +1,30 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-05-04T21:23:03.997Z",
+  "note": "New factory after IssuedNftUserSigClaim; update config/chainAddresses and paymaster allowlist manually.",
+  "previousFactory": "0x2EB245646de404b2Dce87E01C6282C131778bb05",
+  "contracts": {
+    "beamioUserCardIssuedNftModule": {
+      "address": "0xbA28068ec0C3C95B9e930B1660f594d8221E8BF2",
+      "transactionHash": "0xcf1fd56a53c052a33c3bcd58ddcbb6ea4481bc8b7892b9f3f004a42b75bab991"
+    },
+    "beamioUserCardFactoryPaymaster": {
+      "address": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52",
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
+      "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
+      "deployer": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "aaFactory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
+      "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
+      "issuedNftModule": "0xbA28068ec0C3C95B9e930B1660f594d8221E8BF2",
+      "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
+      "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
+      "adminStatsQueryModule": "0x80D6A0ed075285306430F0C024bC6488583D2d6b",
+      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
+      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "transactionHash": "0x48ac06463d1a3765cf32f6db082041da7868450fbe6a8d9685e6650ebbbc8f22"
+    }
+  }
+}

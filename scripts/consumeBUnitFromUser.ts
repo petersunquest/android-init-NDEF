@@ -17,14 +17,14 @@ const ADDR_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.jso
 function loadBUnitAirdrop(): string {
   if (fs.existsSync(ADDR_PATH)) {
     const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-    return d.BUnitAirdrop || "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+    return d.BUnitAirdrop || "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8";
   }
-  return "0x28fBBb6C5C06A4736B00A540b66378091c224456";
+  return "0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176";
 }
 const CONET_USDC = (() => {
   if (fs.existsSync(ADDR_PATH)) {
     const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-    return d.conetUsdc || "0x28fBBb6C5C06A4736B00A540b66378091c224456";
+    return d.conetUsdc || "0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176";
   }
   return "0x28fBBb6C5C06A4736B00A540b66378091c224456";
 })();

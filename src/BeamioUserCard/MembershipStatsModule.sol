@@ -40,12 +40,35 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         }
     }
 
+    function alignMembershipTierToPointsBalance(address acct, bool allowUpgrade) external {
+        _alignMembershipTierToPointsBalanceInternal(acct, allowUpgrade);
+    }
+
     function maybeUpgradeByPointsBalance(address acct) external {
-        _maybeUpgradeByPointsBalanceInternal(acct);
+        if (upgradeType != 1) return;
+        _alignMembershipTierToPointsBalanceInternal(acct, true);
     }
 
     function maybeUpgrade(address acct, uint256 pointsDelta6) external {
         _maybeUpgradeInternal(acct, pointsDelta6);
+    }
+
+    function handlePointsTransferForUpgradeType2(
+        address from,
+        address effectiveTo,
+        uint256[] memory ids,
+        uint256[] memory values
+    ) external {
+        if (upgradeType != 2) return;
+        if (_resolveAdminEoaForPointTransferParty(effectiveTo) == address(0)) return;
+        uint256 addToAdmin6;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (ids[i] != POINTS_ID || values[i] == 0) continue;
+            addToAdmin6 += values[i];
+        }
+        if (addToAdmin6 == 0) return;
+        MembershipStatsStorage.layout().cumulativePointsTransferredToAdmin6[from] += addToAdmin6;
+        _maybeUpgradeInternal(from, 0);
     }
 
     function syncActiveToBestValid(address user) external {
@@ -55,12 +78,14 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     function maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) external {
         address acct = _toAccount(acctOrEOA);
         _syncActiveToBestValidInternal(acct);
-        if (activeMembershipId[acct] != 0) return;
+        if (_hasValidCard(acct)) return;
+        if (tiers.length > 0 && pointsDelta6 == 0) return;
         _issueFromPointsDelta(acct, pointsDelta6);
     }
 
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external {
-        if (activeMembershipId[acct] != 0) revert UC_AlreadyHasValidCard();
+        _syncActiveToBestValidInternal(acct);
+        if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
         _issueFromPointsDelta(acct, pointsDelta6);
     }
 
@@ -161,35 +186,53 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
             return;
         }
 
-        (bool okTier, uint256 tierIdx, uint256 attr) = _tierFromPointsDelta(pointsDelta6);
-        if (!okTier) return;
-        uint256 effExpiry = _effectiveExpirySeconds(tierIdx);
+        uint256 lowIdx = _tierIndexWithMinThreshold();
+        if (pointsDelta6 < tiers[lowIdx].minUsdc6) revert UC_BelowMinThreshold();
+        Tier memory t = tiers[lowIdx];
+        uint256 effExpiry = _effectiveExpirySeconds(lowIdx);
         uint256 expiry2 = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
-        uint256 newId2 = _mintMembershipNft(acct, tierIdx, attr, expiry2);
-        _recordMembershipIssuedTotal(tierIdx);
-        emit MemberNFTIssued(acct, newId2, tierIdx, tiers[tierIdx].minUsdc6, expiry2);
-        _activateIssuedMembership(acct, newId2, tierIdx, false);
+        uint256 newId2 = _mintMembershipNft(acct, lowIdx, t.attr, expiry2);
+        _recordMembershipIssuedTotal(lowIdx);
+        emit MemberNFTIssued(acct, newId2, lowIdx, t.minUsdc6, expiry2);
+        _activateIssuedMembership(acct, newId2, lowIdx, false);
     }
 
-    function _maybeUpgradeByPointsBalanceInternal(address acct) internal {
+    /// @dev 按当前 points 余额对齐档位（同一 tokenId 原地改 tier）。allowUpgrade=false 时仅下调（避免与 upgradeType 0/2 的升档规则冲突）。
+    /// @dev 若余额低于任何 tier 门槛，目标档退化为 `minUsdc6` 最小的那一档（地板档）；已处于该档则不再变化。
+    function _alignMembershipTierToPointsBalanceInternal(address acct, bool allowUpgrade) internal {
         if (tiers.length == 0) return;
         _syncActiveToBestValidInternal(acct);
-        uint256 points = balanceOf(acct, POINTS_ID);
-        (bool okTier, uint256 tierIdx, uint256 attr) = _tierFromPointsBalance(points);
-        if (!okTier) return;
         uint256 currentActiveId = activeMembershipId[acct];
         if (currentActiveId == 0 || _isExpired(currentActiveId)) return;
         uint256 currentTierIdx = activeTierIndexOrMax[acct];
         if (currentTierIdx >= tiers.length) return;
-        if (tiers[tierIdx].minUsdc6 <= tiers[currentTierIdx].minUsdc6) return;
 
-        uint256 effExpiry = _effectiveExpirySeconds(tierIdx);
-        uint256 expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
-        uint256 newId = _mintMembershipNft(acct, tierIdx, attr, expiry);
-        _recordMembershipIssuedTotal(tierIdx);
-        _recordMembershipUpgradedTotal();
-        emit MemberNFTUpgraded(acct, currentActiveId, newId, currentTierIdx, tierIdx, expiry);
-        _activateIssuedMembership(acct, newId, tierIdx, true);
+        uint256 bal = balanceOf(acct, POINTS_ID);
+        (bool okTier, uint256 targetIdx, uint256 attr) = _tierFromPointsBalance(bal);
+        if (!okTier) {
+            targetIdx = _tierIndexWithMinThreshold();
+            attr = tiers[targetIdx].attr;
+        }
+
+        uint256 currentMin = tiers[currentTierIdx].minUsdc6;
+        uint256 targetMin = tiers[targetIdx].minUsdc6;
+        if (targetMin == currentMin) return;
+
+        if (targetMin > currentMin) {
+            if (!allowUpgrade) return;
+            uint256 effExpiry = _effectiveExpirySeconds(targetIdx);
+            uint256 expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
+            _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, targetIdx, attr, expiry);
+            _recordMembershipUpgradedTotal();
+            emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, targetIdx, expiry);
+            _recordUpgradeFlow(currentActiveId, targetIdx);
+            return;
+        }
+
+        uint256 effExpiryD = _effectiveExpirySeconds(targetIdx);
+        uint256 expiryD = effExpiryD == 0 ? 0 : block.timestamp + effExpiryD;
+        _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, targetIdx, attr, expiryD);
+        emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, targetIdx, expiryD);
     }
 
     function _maybeUpgradeInternal(address acct, uint256 pointsDelta6) internal {
@@ -200,22 +243,29 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         uint256 currentTierIdx = activeTierIndexOrMax[acct];
         if (currentTierIdx >= tiers.length) return;
 
+        if (upgradeType == 1) {
+            _alignMembershipTierToPointsBalanceInternal(acct, true);
+            return;
+        }
+
         uint256 nextTierIdx = _nextTierIndexAbove(currentTierIdx);
         if (nextTierIdx == type(uint256).max) return;
         Tier memory nextTier = tiers[nextTierIdx];
-        if (nextTier.upgradeByBalance) {
-            if (balanceOf(acct, POINTS_ID) < nextTier.minUsdc6) return;
-        } else if (pointsDelta6 < nextTier.minUsdc6) {
-            return;
+        if (upgradeType == 2) {
+            if (MembershipStatsStorage.layout().cumulativePointsTransferredToAdmin6[acct] < nextTier.minUsdc6) return;
+        } else {
+            if (pointsDelta6 < nextTier.minUsdc6) return;
         }
 
         uint256 effExpiry = _effectiveExpirySeconds(nextTierIdx);
         uint256 expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
-        uint256 newId = _mintMembershipNft(acct, nextTierIdx, nextTier.attr, expiry);
-        _recordMembershipIssuedTotal(nextTierIdx);
+        _upgradeMembershipInPlace(acct, currentActiveId, currentTierIdx, nextTierIdx, nextTier.attr, expiry);
         _recordMembershipUpgradedTotal();
-        emit MemberNFTUpgraded(acct, currentActiveId, newId, currentTierIdx, nextTierIdx, expiry);
-        _activateIssuedMembership(acct, newId, nextTierIdx, true);
+        emit MemberNFTUpgraded(acct, currentActiveId, currentActiveId, currentTierIdx, nextTierIdx, expiry);
+        _recordUpgradeFlow(currentActiveId, nextTierIdx);
+        if (upgradeType == 2) {
+            MembershipStatsStorage.layout().cumulativePointsTransferredToAdmin6[acct] = 0;
+        }
     }
 
     function _incrementIssue(MembershipStatsStorage.FlowBucket storage b) internal {

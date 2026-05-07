@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	body {
+		@apply bg-background text-on-surface antialiased;
+		font-family: theme('fontFamily.body');
+		min-height: max(884px, 100dvh);
+	}
+	h1,
+	h2,
+	h3 {
+		font-family: theme('fontFamily.headline');
+	}
+	.font-headline {
+		font-family: theme('fontFamily.headline');
+	}
+}
+
+.material-symbols-outlined {
+	font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+	vertical-align: middle;
+}
+
+.glass-effect {
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+}
+
+.primary-gradient {
+	background: linear-gradient(135deg, #004bc3 0%, #1562f0 100%);
+}
+
+.mesh-gradient {
+	background: linear-gradient(135deg, #0051d1 0%, #7a9dff 100%);
+}
+
+.signature-gradient {
+	background: linear-gradient(135deg, #004bc3 0%, #1562f0 100%);
+}
+
+.glass-panel {
+	background: rgba(255, 255, 255, 0.7);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+}
+
+.hero-overlay {
+	background: linear-gradient(
+		to bottom,
+		rgba(249, 249, 254, 0.8) 0%,
+		rgba(249, 249, 254, 0.95) 100%
+	);
+}
+
+.mono-fig {
+	font-variant-numeric: tabular-nums;
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.text-mono {
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.no-scrollbar {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+	display: none;
+}
+
+::-webkit-scrollbar {
+	width: 8px;
+}
+::-webkit-scrollbar-track {
+	background: #f9f9fe;
+}
+::-webkit-scrollbar-thumb {
+	background: #e2e2e7;
+	border-radius: 10px;
+}

@@ -13,7 +13,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 function loadBUnitAirdrop(): string {
   if (!fs.existsSync(ADDR_PATH)) throw new Error("conet-addresses.json not found");
   const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-  return d.BUnitAirdrop || "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F";
+  return d.BUnitAirdrop || "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8";
 }
 const ADDR_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 
@@ -24,7 +24,7 @@ const PURCHASE_USDC = 0.02;
 function loadConetTreasury(): string {
   if (!fs.existsSync(ADDR_PATH)) throw new Error("conet-addresses.json not found");
   const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-  return d.ConetTreasury || "0x4Abb173016665897F9f334590af2A4495DFaad55";
+  return d.ConetTreasury || "0x540767C2a183871deb22333a271D5e65bF489F22";
 }
 
 async function main() {

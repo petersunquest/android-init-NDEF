@@ -1,6 +1,6 @@
 /**
  * 部署 BUint (B-Units ERC20) 到 CoNET mainnet
- * RPC: mainnet-rpc.conet.network
+ * RPC: https://rpc1.conet.network
  *
  * 运行: npx hardhat run scripts/deployBUintToConet.ts --network conet
  *
@@ -29,8 +29,8 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("balance:", ethers.formatEther(balance), "CNET");
 
-  const BUintFactory = await ethers.getContractFactory("BUint");
-  const buint = await BUintFactory.deploy(deployer.address);
+  const BUintFactory = await ethers.getContractFactory("BeamioBUnits");
+  const buint = await BUintFactory.deploy();
   await buint.waitForDeployment();
   const buintAddress = await buint.getAddress();
   console.log("BUint deployed:", buintAddress);
@@ -57,6 +57,16 @@ async function main() {
   const outPath = path.join(deploymentsDir, "conet-BUint.json");
   fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
   console.log("saved:", outPath);
+
+  const addressesPath = path.join(deploymentsDir, "conet-addresses.json");
+  const addresses = fs.existsSync(addressesPath)
+    ? JSON.parse(fs.readFileSync(addressesPath, "utf-8"))
+    : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: net.chainId.toString() };
+  addresses.network = "conet";
+  addresses.chainId = net.chainId.toString();
+  addresses.BUint = buintAddress;
+  fs.writeFileSync(addressesPath, JSON.stringify(addresses, null, 2) + "\n", "utf-8");
+  console.log("updated:", addressesPath, "BUint =", buintAddress);
 }
 
 main().catch((e) => {

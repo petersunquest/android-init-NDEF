@@ -29,6 +29,21 @@ contract ActionFacet {
         address payee
     );
     event AfterNotesUpdated(uint256 indexed actionId);
+    /// @dev 一次性 backfill：把范围 [fromActionId, toActionId) 的 subordinate 并入 accountActionIds
+    event SubordinateAccountIndexBackfilled(uint256 fromActionId, uint256 toActionId, uint256 pushed);
+
+    /// @dev ActionFacet 私有 diamond storage slot（不污染 LibActionStorage.Layout，便于未来追加字段）
+    bytes32 internal constant _ACTION_FACET_SUBORDINATE_BACKFILL_SLOT =
+        keccak256("beamio.indexer.actionfacet.subordinatebackfill.v1");
+
+    struct SubordinateBackfillStorage {
+        mapping(uint256 => bool) done;
+    }
+
+    function _subordinateBackfillStorage() internal pure returns (SubordinateBackfillStorage storage s) {
+        bytes32 slot = _ACTION_FACET_SUBORDINATE_BACKFILL_SLOT;
+        assembly { s.slot := slot }
+    }
 
     struct RouteItemInput {
         address asset;
@@ -199,6 +214,16 @@ contract ActionFacet {
         a.actionIdPlusOneByTxId[in_.txId] = actionId + 1;
         a.accountActionIds[in_.payer].push(actionId);
         if (in_.payee != in_.payer) a.accountActionIds[in_.payee].push(actionId);
+        // POS subordinate (terminal/经手人) 也并入按账户分页索引，便于
+        // `getAccountTransactionsPaged(POS_EOA)` 直接返回 POS 经手记录。
+        // 与 payer/payee 去重以避免同一 actionId 在数组中重复。
+        if (
+            in_.subordinate != address(0) &&
+            in_.subordinate != in_.payer &&
+            in_.subordinate != in_.payee
+        ) {
+            a.accountActionIds[in_.subordinate].push(actionId);
+        }
         if (in_.fees.feePayer != address(0)) {
             a.feePayerActionIds[in_.fees.feePayer].push(actionId);
             if (in_.fees.bServiceUnits6 > 0 && !a.bServiceSeenAccountIndexed[in_.fees.feePayer]) {
@@ -1620,5 +1645,45 @@ contract ActionFacet {
         LibActionStorage.Layout storage a = LibActionStorage.layout();
         require(actionId < a.txCount, "invalid actionId");
         require(a.txRecordByActionId[actionId].exists, "tx not found");
+    }
+
+    /// @notice 一次性 backfill：把范围 [fromActionId, toActionId) 内 subordinate 不为 0 且不等于 payer/payee
+    /// 的 actionId 追加到 accountActionIds[subordinate]，使 `getAccountTransactionsPaged(POS_EOA)`
+    /// 能直接返回 POS 终端经手的全部历史记录。
+    ///
+    /// - 仅 Diamond owner 可调用（与 AdminFacet/setAdmin 同等权限源）
+    /// - 单次最多 500 条，超出会 revert，调用方自行分批
+    /// - 用 ActionFacet 私有 slot 的 `done[actionId]` 做幂等保护，重复调用不会重复 push
+    /// - 事件 `SubordinateAccountIndexBackfilled(from,to,pushed)` 便于离线核对
+    function backfillSubordinateIntoAccountIndex(uint256 fromActionId, uint256 toActionId)
+        external
+        returns (uint256 pushed)
+    {
+        LibDiamond.enforceIsContractOwner();
+        LibActionStorage.Layout storage a = LibActionStorage.layout();
+        uint256 total = a.txCount;
+        if (toActionId > total) toActionId = total;
+        require(fromActionId < toActionId, "empty range");
+        require(toActionId - fromActionId <= 500, "range too large");
+
+        SubordinateBackfillStorage storage bf = _subordinateBackfillStorage();
+        for (uint256 id = fromActionId; id < toActionId; ++id) {
+            if (bf.done[id]) continue;
+            bf.done[id] = true;
+            LibActionStorage.TransactionRecord storage txr = a.txRecordByActionId[id];
+            if (!txr.exists) continue;
+            address sub = txr.subordinate;
+            if (sub == address(0)) continue;
+            if (sub == txr.payer) continue;
+            if (sub == txr.payee) continue;
+            a.accountActionIds[sub].push(id);
+            unchecked { ++pushed; }
+        }
+        emit SubordinateAccountIndexBackfilled(fromActionId, toActionId, pushed);
+    }
+
+    /// @notice 查询某个 actionId 是否已经被 `backfillSubordinateIntoAccountIndex` 处理过（幂等保护）。
+    function isSubordinateAccountIndexBackfilled(uint256 actionId) external view returns (bool) {
+        return _subordinateBackfillStorage().done[actionId];
     }
 }

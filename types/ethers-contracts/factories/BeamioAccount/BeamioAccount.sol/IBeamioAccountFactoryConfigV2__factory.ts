@@ -47,6 +47,19 @@
   },
   {
     "inputs": [],
+    "name": "openContainerMintExecutor",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "quoteHelper",
     "outputs": [
       {
