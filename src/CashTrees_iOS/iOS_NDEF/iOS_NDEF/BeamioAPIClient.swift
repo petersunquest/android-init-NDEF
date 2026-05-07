@@ -100,15 +100,25 @@ struct BeamioRechargeBonusRule: Equatable, Sendable, Codable {
 }
 
 /// GET `/api/cardActiveIssuedCouponSeries` — issued program coupon series that are still valid on-chain (`isIssuedNftValid`).
-struct MerchantActiveIssuedCoupon: Identifiable, Equatable, Sendable {
+struct MerchantActiveIssuedCoupon: Identifiable, Equatable, Sendable, Codable {
     let id: String
     let cardAddress: String
     let tokenId: String
+    let couponId: String?
+    let requiresRedeemCode: Bool
     let issuedNftValidAfterSec: UInt64?
     let issuedNftValidBeforeSec: UInt64?
+    let issuedNftMaxSupply: String?
+    let issuedNftMintedCount: String?
+    let issuedNftRemainingSupply: String?
     let createdAtIso: String?
     let displayTitle: String
     let validitySummary: String
+    /// Coupon metadata-driven visuals (optional).
+    let subtitle: String?
+    let iconUrl: String?
+    let backgroundImageUrl: String?
+    let backgroundColorHex: String?
 }
 
 /// `/api/nfcTopup` optional split: `card + cash + bonus == currencyAmount` (6 decimal places, server `parseUnits`).
@@ -2113,6 +2123,40 @@ final class BeamioAPIClient: @unchecked Sendable {
         return raw / 1_000_000.0
     }
 
+    /// Base CADD (`0x16F93eBC...`) ERC20 balance for the provided wallet.
+    /// Returns human-readable token amount (scaled by on-chain `decimals()`).
+    func fetchCaddBalanceOnBase(account: String) async -> Double? {
+        await fetchErc20BalanceOnBase(account: account, tokenAddress: BeamioConstants.caddBase)
+    }
+
+    /// Generic Base ERC20 balance reader with trusted cache semantics.
+    /// - `nil`: RPC/parse failure (untrusted)
+    /// - value: trusted on-chain amount (including trusted empty `0`)
+    func fetchErc20BalanceOnBase(account: String, tokenAddress: String) async -> Double? {
+        let a = account.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive).lowercased()
+        let t = tokenAddress.replacingOccurrences(of: "0x", with: "", options: .caseInsensitive).lowercased()
+        guard a.count == 40, a.allSatisfy(\.isASCIIHexDigit), t.count == 40, t.allSatisfy(\.isASCIIHexDigit) else { return nil }
+        let session = session
+        let token = "0x\(t)"
+        let balData = Self.buildErc20BalanceOfCalldata(addressLower: a)
+        let balKey = "base:eoa:\(a):token:\(t):balanceOf"
+        guard let balHex = await Self.ethCallFetchCache.fetch(key: balKey, ttl: 30, fetcher: { [session] in
+            await Self.jsonRpcEthCallBase(session: session, to: token, dataHex: balData)
+        }) else { return nil }
+        guard var balWord = Self.jsonRpcLastUint256WordHex(from: balHex) else { return nil }
+        while balWord.first == "0" { balWord.removeFirst() }
+        let raw = balWord.isEmpty ? 0 : Self.abiUInt256HexToDouble(balWord)
+
+        let decKey = "base:token:\(t):decimals"
+        let decData = Self.ethCallErc20DecimalsSelector
+        let decimalsWord = await Self.ethCallFetchCache.fetch(key: decKey, ttl: 3600, fetcher: { [session] in
+            await Self.jsonRpcEthCallBase(session: session, to: token, dataHex: decData)
+        }).flatMap { Self.jsonRpcLastUint256WordHex(from: $0) }
+        let decimalsU64 = decimalsWord.flatMap(Self.jsonRpcUInt64FromHexWord) ?? 18
+        guard decimalsU64 <= 30 else { return nil }
+        return raw / pow(10, Double(decimalsU64))
+    }
+
     /// Tax % + discount summary line (Android: `fetchInfraRoutingForTerminalWalletSync` + cardMetadata fallback).
     func fetchInfraRoutingSummary(wallet: String, infraCard: String) async -> (tax: Double, discountSummary: String)? {
         let wNorm = wallet.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -2358,6 +2402,167 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    struct CouponClaimResult {
+        var success: Bool
+        var txHash: String?
+        var error: String?
+    }
+
+    struct CouponConsumePrepareResult {
+        var success: Bool
+        var cardAddress: String?
+        var data: String?
+        var deadline: UInt64?
+        var nonce: String?
+        var factoryGateway: String?
+        var tokenId: String?
+        var amount: String?
+        var targetAddress: String?
+        var error: String?
+    }
+
+    struct CouponConsumeResult {
+        var success: Bool
+        var txHash: String?
+        var error: String?
+    }
+
+    /// POS one-tap claim for open coupons (NFC card flow): cluster signs with NFC card key and forwards to Master.
+    func cardCouponPosClaim(
+        cardAddress: String,
+        couponId: String,
+        userEOA: String,
+        uid: String?,
+        tagIdHex: String?,
+        tokenId: String?
+    ) async -> CouponClaimResult {
+        let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let coupon = couponId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let user = userEOA.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isPlausibleEvmAddress(card), Self.isPlausibleEvmAddress(user), !coupon.isEmpty else {
+            return CouponClaimResult(success: false, txHash: nil, error: "Invalid claim payload.")
+        }
+        var body: [String: Any] = [
+            "cardAddress": card,
+            "couponId": coupon,
+            "userEOA": user,
+        ]
+        if let uid, !uid.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["uid"] = uid.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let tagIdHex, !tagIdHex.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["tagIdHex"] = tagIdHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let tokenId, !tokenId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["tokenId"] = tokenId.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        do {
+            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/cardCouponPosClaim", body: body, timeout: 45)
+            guard let obj else {
+                return CouponClaimResult(success: false, txHash: nil, error: "HTTP \(code)")
+            }
+            let ok = (200 ... 299).contains(code) && ((obj["success"] as? Bool) ?? true)
+            return CouponClaimResult(
+                success: ok,
+                txHash: (obj["tx"] as? String)?.nilIfEmpty,
+                error: (obj["error"] as? String)?.nilIfEmpty
+            )
+        } catch {
+            return CouponClaimResult(success: false, txHash: nil, error: error.localizedDescription)
+        }
+    }
+
+    /// POS balance coupon consume prepare: cluster pre-checks ownership/balance and returns executeForOwner payload.
+    func cardCouponPosConsumePrepare(
+        cardAddress: String,
+        couponId: String,
+        userEOA: String,
+        signerEOA: String?,
+        tokenId: String?,
+        amount: String = "1"
+    ) async -> CouponConsumePrepareResult {
+        let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let coupon = couponId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let user = userEOA.trimmingCharacters(in: .whitespacesAndNewlines)
+        let amt = amount.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isPlausibleEvmAddress(card), Self.isPlausibleEvmAddress(user), !coupon.isEmpty, !amt.isEmpty else {
+            return CouponConsumePrepareResult(success: false, cardAddress: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, tokenId: nil, amount: nil, targetAddress: nil, error: "Invalid consume payload.")
+        }
+        var body: [String: Any] = [
+            "cardAddress": card,
+            "couponId": coupon,
+            "userEOA": user,
+            "amount": amt,
+        ]
+        if let signerEOA, Self.isPlausibleEvmAddress(signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            body["signerEOA"] = signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let tokenId, !tokenId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["tokenId"] = tokenId.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        do {
+            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/cardCouponPosConsumePrepare", body: body, timeout: 45)
+            guard let obj else {
+                return CouponConsumePrepareResult(success: false, cardAddress: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, tokenId: nil, amount: nil, targetAddress: nil, error: "HTTP \(code)")
+            }
+            let ok = (200 ... 299).contains(code) && ((obj["success"] as? Bool) ?? true)
+            let dl = (obj["deadline"] as? NSNumber)?.uint64Value
+                ?? UInt64((obj["deadline"] as? String) ?? "") ?? 0
+            return CouponConsumePrepareResult(
+                success: ok,
+                cardAddress: (obj["cardAddress"] as? String)?.nilIfEmpty,
+                data: (obj["data"] as? String)?.nilIfEmpty,
+                deadline: dl > 0 ? dl : nil,
+                nonce: (obj["nonce"] as? String)?.nilIfEmpty,
+                factoryGateway: (obj["factoryGateway"] as? String)?.nilIfEmpty,
+                tokenId: (obj["tokenId"] as? String)?.nilIfEmpty,
+                amount: (obj["amount"] as? String)?.nilIfEmpty,
+                targetAddress: (obj["targetAddress"] as? String)?.nilIfEmpty,
+                error: (obj["error"] as? String)?.nilIfEmpty
+            )
+        } catch {
+            return CouponConsumePrepareResult(success: false, cardAddress: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, tokenId: nil, amount: nil, targetAddress: nil, error: error.localizedDescription)
+        }
+    }
+
+    /// Submit owner-signed ExecuteForOwner transaction for coupon consume.
+    func cardCouponPosConsumeSubmit(
+        cardAddress: String,
+        data: String,
+        deadline: UInt64,
+        nonce: String,
+        ownerSignature: String
+    ) async -> CouponConsumeResult {
+        let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dat = data.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nn = nonce.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sig = ownerSignature.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isPlausibleEvmAddress(card), !dat.isEmpty, !nn.isEmpty, !sig.isEmpty else {
+            return CouponConsumeResult(success: false, txHash: nil, error: "Invalid consume submit payload.")
+        }
+        let body: [String: Any] = [
+            "cardAddress": card,
+            "data": dat,
+            "deadline": deadline,
+            "nonce": nn,
+            "ownerSignature": sig,
+        ]
+        do {
+            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/executeForOwner", body: body, timeout: 90)
+            guard let obj else {
+                return CouponConsumeResult(success: false, txHash: nil, error: "HTTP \(code)")
+            }
+            let ok = (200 ... 299).contains(code) && ((obj["success"] as? Bool) ?? true)
+            return CouponConsumeResult(
+                success: ok,
+                txHash: ((obj["txHash"] as? String) ?? (obj["tx"] as? String))?.nilIfEmpty,
+                error: (obj["error"] as? String)?.nilIfEmpty
+            )
+        } catch {
+            return CouponConsumeResult(success: false, txHash: nil, error: error.localizedDescription)
+        }
+    }
+
     /// Card issuance stores recharge tiers under `metadata.shareTokenMetadata` (biz `createBeamioCard`); some responses also duplicate at `metadata` root.
     private static func parseRechargeBonusRules(fromMetadata meta: [String: Any]) -> [BeamioRechargeBonusRule] {
         let direct = parseRechargeBonusRulesDirect(from: meta)
@@ -2488,6 +2693,127 @@ final class BeamioAPIClient: @unchecked Sendable {
         return Self.couponUntitledLabel(tokenId: tokenId)
     }
 
+    private static func couponIdFromMetadata(_ metadata: Any?) -> String? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        if let s = meta["couponId"] as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { return t }
+        }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any],
+           let s = bc["couponId"] as? String
+        {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty { return t }
+        }
+        return nil
+    }
+
+    private static func parseTruthyFlag(_ any: Any?) -> Bool {
+        if let b = any as? Bool { return b }
+        if let n = any as? NSNumber { return n.boolValue }
+        if let s = any as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return t == "true" || t == "1"
+        }
+        return false
+    }
+
+    private static func couponRequiresRedeemCode(metadata: Any?) -> Bool {
+        guard let meta = metadata as? [String: Any] else { return false }
+        if parseTruthyFlag(meta["requiresRedeemCode"]) || parseTruthyFlag(meta["redeemCodeRequired"]) {
+            return true
+        }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if parseTruthyFlag(bc["requiresRedeemCode"]) || parseTruthyFlag(bc["redeemCodeRequired"]) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private static func couponVisualSubtitle(metadata: Any?) -> String? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        let pick: ([String: Any], [String]) -> String? = { src, keys in
+            for k in keys {
+                if let s = src[k] as? String {
+                    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty { return t }
+                }
+            }
+            return nil
+        }
+        if let direct = pick(meta, ["subtitle", "merchantName", "brandName", "storeName"]) { return direct }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if let nested = pick(bc, ["subtitle", "merchantName", "brandName", "storeName"]) { return nested }
+        }
+        return nil
+    }
+
+    private static func couponVisualIconUrl(metadata: Any?) -> String? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        let pick: ([String: Any], [String]) -> String? = { src, keys in
+            for k in keys {
+                if let s = src[k] as? String {
+                    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if t.lowercased().hasPrefix("http://") || t.lowercased().hasPrefix("https://") { return t }
+                }
+            }
+            return nil
+        }
+        if let direct = pick(meta, ["icon", "iconUrl", "logo", "logoUrl", "image"]) { return direct }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if let nested = pick(bc, ["icon", "iconUrl", "logo", "logoUrl", "image"]) { return nested }
+        }
+        return nil
+    }
+
+    private static func couponVisualBackgroundImageUrl(metadata: Any?) -> String? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        let pick: ([String: Any], [String]) -> String? = { src, keys in
+            for k in keys {
+                if let s = src[k] as? String {
+                    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if t.lowercased().hasPrefix("http://") || t.lowercased().hasPrefix("https://") { return t }
+                }
+            }
+            return nil
+        }
+        if let direct = pick(meta, ["background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return direct }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if let nested = pick(bc, ["background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return nested }
+        }
+        return nil
+    }
+
+    private static func couponVisualBackgroundColorHex(metadata: Any?) -> String? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        let pick: ([String: Any], [String]) -> String? = { src, keys in
+            for k in keys {
+                if let s = src[k] as? String {
+                    let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !t.isEmpty { return t }
+                }
+            }
+            return nil
+        }
+        if let direct = pick(meta, ["backgroundColor", "bgColor", "color"]) { return direct }
+        if let props = meta["properties"] as? [String: Any],
+           let bc = props["beamioCoupon"] as? [String: Any]
+        {
+            if let nested = pick(bc, ["backgroundColor", "bgColor", "color"]) { return nested }
+        }
+        return nil
+    }
+
     private static func couponUntitledLabel(tokenId: String) -> String {
         let t = tokenId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard t.count >= 6 else { return "Program coupon" }
@@ -2527,25 +2853,93 @@ final class BeamioAPIClient: @unchecked Sendable {
         return nil
     }
 
+    private static func couponFirstNonEmptyNumericString(_ map: [String: Any], keys: [String]) -> String? {
+        for k in keys {
+            if let v = couponTokenIdString(from: map[k]) { return v }
+        }
+        return nil
+    }
+
+    private static func couponMetadataBeamioCoupon(_ metadata: Any?) -> [String: Any]? {
+        guard let meta = metadata as? [String: Any] else { return nil }
+        if let props = meta["properties"] as? [String: Any],
+           let beamioCoupon = props["beamioCoupon"] as? [String: Any]
+        {
+            return beamioCoupon
+        }
+        return nil
+    }
+
+    private static func couponMetadataRoot(_ metadata: Any?) -> [String: Any]? {
+        metadata as? [String: Any]
+    }
+
+    private static func couponRemainingFromMaxAndMinted(maxSupply: String?, mintedCount: String?) -> String? {
+        guard let maxSupply, let mintedCount,
+              let maxDec = Decimal(string: maxSupply),
+              let mintedDec = Decimal(string: mintedCount)
+        else { return nil }
+        let remain = maxDec - mintedDec
+        if remain <= 0 { return "0" }
+        return NSDecimalNumber(decimal: remain).stringValue
+    }
+
     private static func parseMerchantActiveIssuedCouponRow(_ d: [String: Any]) -> MerchantActiveIssuedCoupon? {
         let card = (d["cardAddress"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard isPlausibleEvmAddress(card) else { return nil }
         guard let tokenId = couponTokenIdString(from: d["tokenId"]), !tokenId.isEmpty else { return nil }
+        let metadata = d["metadata"]
+        let couponId = couponIdFromMetadata(metadata)
+        let requiresRedeem = couponRequiresRedeemCode(metadata: metadata)
         let after = parseCouponMetaU64(d["issuedNftValidAfter"])
         let before = parseCouponMetaU64(d["issuedNftValidBefore"])
+        let metadataRoot = couponMetadataRoot(metadata)
+        let beamioCoupon = couponMetadataBeamioCoupon(metadata)
+        let maxSupply = couponFirstNonEmptyNumericString(
+            d,
+            keys: ["issuedNftMaxSupply", "maxSupply", "issuedNftSupply", "totalSupply", "supply"]
+        )
+            ?? (metadataRoot.flatMap { couponFirstNonEmptyNumericString($0, keys: ["issueTotal", "maxSupply", "totalSupply", "supply"]) })
+            ?? (beamioCoupon.flatMap { couponFirstNonEmptyNumericString($0, keys: ["issueTotal", "maxSupply", "totalSupply", "supply"]) })
+        let mintedCount = couponFirstNonEmptyNumericString(
+            d,
+            keys: ["issuedNftMintedCount", "mintedCount", "issuedCount", "claimedCount", "minted"]
+        )
+            ?? (metadataRoot.flatMap { couponFirstNonEmptyNumericString($0, keys: ["mintedCount", "issuedCount", "claimedCount", "minted", "issued"]) })
+            ?? (beamioCoupon.flatMap { couponFirstNonEmptyNumericString($0, keys: ["mintedCount", "issuedCount", "claimedCount", "minted", "issued"]) })
+        let remainingSupply = couponFirstNonEmptyNumericString(
+            d,
+            keys: ["issuedNftRemainingSupply", "remainingSupply", "leftSupply", "remaining", "availableSupply"]
+        )
+            ?? (metadataRoot.flatMap { couponFirstNonEmptyNumericString($0, keys: ["remainingSupply", "remaining", "leftSupply", "availableSupply", "issueLeft"]) })
+            ?? (beamioCoupon.flatMap { couponFirstNonEmptyNumericString($0, keys: ["remainingSupply", "remaining", "leftSupply", "availableSupply", "issueLeft"]) })
+            ?? couponRemainingFromMaxAndMinted(maxSupply: maxSupply, mintedCount: mintedCount)
         let createdAt = (d["createdAt"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        let title = couponDisplayTitle(metadata: d["metadata"], tokenId: tokenId)
+        let title = couponDisplayTitle(metadata: metadata, tokenId: tokenId)
         let summary = couponValiditySummary(afterSec: after, beforeSec: before)
+        let subtitle = couponVisualSubtitle(metadata: metadata)
+        let iconUrl = couponVisualIconUrl(metadata: metadata)
+        let backgroundImageUrl = couponVisualBackgroundImageUrl(metadata: metadata)
+        let backgroundColorHex = couponVisualBackgroundColorHex(metadata: metadata)
         let id = "\(card.lowercased()):\(tokenId)"
         return MerchantActiveIssuedCoupon(
             id: id,
             cardAddress: card,
             tokenId: tokenId,
+            couponId: couponId,
+            requiresRedeemCode: requiresRedeem,
             issuedNftValidAfterSec: after,
             issuedNftValidBeforeSec: before,
+            issuedNftMaxSupply: maxSupply,
+            issuedNftMintedCount: mintedCount,
+            issuedNftRemainingSupply: remainingSupply,
             createdAtIso: createdAt,
             displayTitle: title,
-            validitySummary: summary
+            validitySummary: summary,
+            subtitle: subtitle,
+            iconUrl: iconUrl,
+            backgroundImageUrl: backgroundImageUrl,
+            backgroundColorHex: backgroundColorHex
         )
     }
 
@@ -2661,6 +3055,10 @@ final class BeamioAPIClient: @unchecked Sendable {
     }
 
     private func jsonRpcEthCallBase(to: String, dataHex: String) async -> String? {
+        await Self.jsonRpcEthCallBase(session: session, to: to, dataHex: dataHex)
+    }
+
+    private static func jsonRpcEthCallBase(session: URLSession, to: String, dataHex: String) async -> String? {
         let toLower = to.hasPrefix("0x") ? to.lowercased() : "0x\(to.lowercased())"
         let data = dataHex.hasPrefix("0x") ? dataHex.lowercased() : "0x\(dataHex.lowercased())"
         guard let url = URL(string: BeamioConstants.baseRpcUrl) else { return nil }
@@ -2724,6 +3122,8 @@ final class BeamioAPIClient: @unchecked Sendable {
     private static func buildErc20BalanceOfCalldata(addressLower: String) -> String {
         "0x70a08231" + String(repeating: "0", count: 24) + addressLower.lowercased()
     }
+
+    private static let ethCallErc20DecimalsSelector = "0x313ce567"
 
     /// Cumulative stats: `periodType = 0`, `anchorTs = 0`, `cumulativeStartTs = 0` (biz `fetchBizTerminalChainStats`).
     private static func buildGetAdminStatsFullAllTimeCalldata(adminAddrLower: String) -> String {

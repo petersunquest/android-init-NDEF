@@ -36,14 +36,14 @@ From `deployments/base-UserCardFactory.json` (`2026-03-14T19:53:37.772Z`):
 
 ### Base Registered Module Addresses
 
-Canonical from `deployments/base-UserCardFactory.json` (2026-05-05: IssuedNft + AdminStatsQuery upgrade for `registerSeries`):
+Canonical from `deployments/base-UserCardFactory.json` (2026-05-06: IssuedNft + AdminStatsQuery upgrade for issued supply getters):
 
 - `defaultRedeemModule`: [`0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6`](https://basescan.org/address/0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6)
-- `defaultIssuedNftModule`: [`0x5C2e89C63fC359Fad798ea580b205A25efF8CA55`](https://basescan.org/address/0x5C2e89C63fC359Fad798ea580b205A25efF8CA55)
+- `defaultIssuedNftModule`: [`0x6563d3A8c876469946b42B8d57Ac01577a5534A2`](https://basescan.org/address/0x6563d3A8c876469946b42B8d57Ac01577a5534A2)
 - `defaultFaucetModule`: [`0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F`](https://basescan.org/address/0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F)
 - `defaultGovernanceModule`: [`0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41`](https://basescan.org/address/0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41)
 - `defaultMembershipStatsModule`: [`0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0`](https://basescan.org/address/0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0)
-- `defaultAdminStatsQueryModule`: [`0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B`](https://basescan.org/address/0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B)
+- `defaultAdminStatsQueryModule`: [`0xe34C33B4d0daC52E3853d721d058Db84df218976`](https://basescan.org/address/0xe34C33B4d0daC52E3853d721d058Db84df218976)
 
 ### Base Factory Configuration
 

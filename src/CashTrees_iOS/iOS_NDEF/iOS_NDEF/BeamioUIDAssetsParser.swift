@@ -36,6 +36,16 @@ enum BeamioUIDAssetsParser {
         return nil
     }
 
+    private static func coerceBool(_ any: Any?) -> Bool {
+        if let b = any as? Bool { return b }
+        if let n = any as? NSNumber { return n.intValue != 0 }
+        if let s = any as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return t == "true" || t == "1" || t == "yes"
+        }
+        return false
+    }
+
     static func parse(data: Data) -> UIDAssets {
         guard
             let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -107,9 +117,39 @@ enum BeamioUIDAssetsParser {
 
         let unitPriceUSDC6 = s("unitPriceUSDC6")
         let beamioUserCard = s("beamioUserCard")
+        let caddBalance = coerceOptionalString(root["caddBalance"])
         let posLastTopupAt = s("posLastTopupAt")
         let posLastTopupUsdcE6 = coerceOptionalString(root["posLastTopupUsdcE6"])
         let posLastTopupPointsE6 = coerceOptionalString(root["posLastTopupPointsE6"])
+        let merchantCouponBalances: [MerchantCouponBalanceItem]? = (root["merchantCouponBalances"] as? [[String: Any]])?.compactMap { row in
+            guard
+                let cardAddress = coerceOptionalString(row["cardAddress"]),
+                let couponId = coerceOptionalString(row["couponId"]),
+                let tokenId = coerceOptionalString(row["tokenId"])
+            else { return nil }
+            return MerchantCouponBalanceItem(
+                cardAddress: cardAddress,
+                couponId: couponId,
+                tokenId: tokenId,
+                title: coerceOptionalString(row["title"]) ?? "Coupon #\(tokenId)",
+                balance: coerceOptionalString(row["balance"]) ?? "0",
+                requiresRedeemCode: coerceBool(row["requiresRedeemCode"])
+            )
+        }
+        let merchantClaimableCoupons: [MerchantClaimableCouponItem]? = (root["merchantClaimableCoupons"] as? [[String: Any]])?.compactMap { row in
+            guard
+                let cardAddress = coerceOptionalString(row["cardAddress"]),
+                let couponId = coerceOptionalString(row["couponId"]),
+                let tokenId = coerceOptionalString(row["tokenId"])
+            else { return nil }
+            return MerchantClaimableCouponItem(
+                cardAddress: cardAddress,
+                couponId: couponId,
+                tokenId: tokenId,
+                title: coerceOptionalString(row["title"]) ?? "Coupon #\(tokenId)",
+                requiresRedeemCode: coerceBool(row["requiresRedeemCode"])
+            )
+        }
         let beamioTagVal =
             s("beamioTag") ?? s("accountName") ?? s("username")
         let beamioTagNormalized =
@@ -142,6 +182,7 @@ enum BeamioUIDAssetsParser {
                 points: first.points,
                 points6: first.points6,
                 usdcBalance: s("usdcBalance"),
+                caddBalance: caddBalance,
                 cardCurrency: first.cardCurrency,
                 nfts: first.nfts.isEmpty ? nil : first.nfts,
                 cards: cards,
@@ -150,7 +191,9 @@ enum BeamioUIDAssetsParser {
                 error: s("error"),
                 posLastTopupAt: posLastTopupAt,
                 posLastTopupUsdcE6: posLastTopupUsdcE6,
-                posLastTopupPointsE6: posLastTopupPointsE6
+                posLastTopupPointsE6: posLastTopupPointsE6,
+                merchantCouponBalances: merchantCouponBalances?.nilIfEmpty,
+                merchantClaimableCoupons: merchantClaimableCoupons?.nilIfEmpty
             )
         }
 
@@ -174,6 +217,7 @@ enum BeamioUIDAssetsParser {
             points: legacyPoints,
             points6: legacyPoints6,
             usdcBalance: s("usdcBalance"),
+            caddBalance: caddBalance,
             cardCurrency: isDep ? nil : s("cardCurrency"),
             nfts: isDep ? nil : legacyNfts.flatMap { $0.isEmpty ? nil : $0 },
             cards: nil,
@@ -182,7 +226,9 @@ enum BeamioUIDAssetsParser {
             error: s("error"),
             posLastTopupAt: posLastTopupAt,
             posLastTopupUsdcE6: posLastTopupUsdcE6,
-            posLastTopupPointsE6: posLastTopupPointsE6
+            posLastTopupPointsE6: posLastTopupPointsE6,
+            merchantCouponBalances: merchantCouponBalances?.nilIfEmpty,
+            merchantClaimableCoupons: merchantClaimableCoupons?.nilIfEmpty
         )
     }
 }

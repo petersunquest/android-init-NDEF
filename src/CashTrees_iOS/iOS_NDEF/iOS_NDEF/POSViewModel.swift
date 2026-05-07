@@ -231,6 +231,11 @@ final class POSViewModel: ObservableObject {
     @Published var lastReadAssets: UIDAssets?
     @Published var lastReadError: String?
     @Published var lastReadRawJson: String?
+    /// Base CADD balance for the currently displayed read result address.
+    @Published var lastReadCaddBalance: Double?
+    @Published var lastReadCaddLoading = false
+    @Published var readBalanceClaimingCouponId: String?
+    @Published var readBalanceConsumingCouponId: String?
     /// `true` if balance was loaded via beamio.app QR / wallet link (vs NFC tag).
     @Published var lastReadViaQr = false
 
@@ -249,6 +254,7 @@ final class POSViewModel: ObservableObject {
     @Published var chargeInsufficientFunds: ChargeInsufficientFundsState?
 
     private let nfc = BeamioNFCSession()
+    private var lastReadCaddRequestId = 0
 
     /// Last successful QR parse for Top-up retry (Android `topupScreenUid` / `topupScreenWallet`).
     private var topupQrLastBeamioTag: String?
@@ -434,7 +440,7 @@ final class POSViewModel: ObservableObject {
     }
 
     /// Restore the entire Home black-card panel inputs from disk for `(wallet, infra)`:
-    /// stats + routing + program-card name + recharge bonus rules. Local-first → render immediately; later trusted refresh
+    /// stats + routing + program-card name + recharge bonus rules + active coupons. Local-first → render immediately; later trusted refresh
     /// merges & re-renders. `replaceDisplayValues` true when POS infra address changed so we do not show another card’s numbers.
     private func applyTrustedStatsAndRoutingCachesForInfra(wallet: String, infra: String, replaceDisplayValues: Bool) {
         let (c, t, tips, chargeUsdc, tipsUsdc) = POSHomeScreenTrustedCache.loadStats(wallet: wallet, infraCard: infra)
@@ -457,7 +463,7 @@ final class POSViewModel: ObservableObject {
             homeMerchantProgramCardName = prog.programCardName
             homeMerchantProgramCardCurrency = nil
             programRechargeBonusRules = prog.bonusRules ?? []
-            merchantActiveIssuedCoupons = nil
+            merchantActiveIssuedCoupons = prog.activeCoupons
         } else {
             if let c { cardChargeAmount = c }
             if let t { cardTopUpAmount = t }
@@ -471,6 +477,7 @@ final class POSViewModel: ObservableObject {
             }
             if let name = prog.programCardName { homeMerchantProgramCardName = name }
             if let rules = prog.bonusRules { programRechargeBonusRules = rules }
+            if let coupons = prog.activeCoupons { merchantActiveIssuedCoupons = coupons }
         }
     }
 
@@ -1203,7 +1210,8 @@ final class POSViewModel: ObservableObject {
                 wallet: w,
                 infraCard: infra,
                 programCardName: trustedName ?? "",
-                bonusRules: nil
+                bonusRules: nil,
+                activeCoupons: nil
             )
         }
 
@@ -1258,7 +1266,8 @@ final class POSViewModel: ObservableObject {
                     wallet: w,
                     infraCard: infra,
                     programCardName: nil,
-                    bonusRules: rules
+                    bonusRules: rules,
+                    activeCoupons: nil
                 )
             }
         } else {
@@ -1268,7 +1277,8 @@ final class POSViewModel: ObservableObject {
                 wallet: w,
                 infraCard: infra,
                 programCardName: nil,
-                bonusRules: []
+                bonusRules: [],
+                activeCoupons: nil
             )
         }
 
@@ -1278,9 +1288,23 @@ final class POSViewModel: ObservableObject {
         } else if looksLikeAddress(couponCard) {
             if let coupons = await api.fetchMerchantActiveIssuedCoupons(cardAddress: couponCard, limit: 50) {
                 merchantActiveIssuedCoupons = coupons
+                POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                    wallet: w,
+                    infraCard: infra,
+                    programCardName: nil,
+                    bonusRules: nil,
+                    activeCoupons: coupons
+                )
             }
         } else {
-            merchantActiveIssuedCoupons = nil
+            merchantActiveIssuedCoupons = []
+            POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                wallet: w,
+                infraCard: infra,
+                programCardName: nil,
+                bonusRules: nil,
+                activeCoupons: []
+            )
         }
     }
 
@@ -1604,6 +1628,7 @@ final class POSViewModel: ObservableObject {
                 lastReadViaQr = true
                 lastReadError = nil
                 sheet = .readResult
+                primeLastReadCaddBalance(for: assets)
                 await refreshInfraCardFromDbIfPossible()
             } else {
                 lastReadError = assets.error ?? "Query failed"
@@ -2273,6 +2298,7 @@ final class POSViewModel: ObservableObject {
             lastReadError = nil
             readQrExecuteError = nil
             sheet = .readResult
+            primeLastReadCaddBalance(for: assets)
             await refreshInfraCardFromDbIfPossible()
         } else {
             lastReadError = assets.error ?? "Query failed"
@@ -5353,6 +5379,14 @@ final class POSViewModel: ObservableObject {
             }
         )
     }
+
+    func claimMerchantCouponFromLastRead(_ coupon: MerchantClaimableCouponItem) async -> Bool {
+        await _claimMerchantCouponFromLastRead(coupon)
+    }
+
+    func consumeMerchantCouponFromLastRead(_ coupon: MerchantCouponBalanceItem) async -> Bool {
+        await _consumeMerchantCouponFromLastRead(coupon)
+    }
 }
 
 private extension POSViewModel {
@@ -5393,6 +5427,175 @@ private extension POSViewModel {
             return c.uppercased()
         }
         return "CAD"
+    }
+
+    private func primeLastReadCaddBalance(for assets: UIDAssets) {
+        let requestId = lastReadCaddRequestId + 1
+        lastReadCaddRequestId = requestId
+        lastReadCaddBalance = nil
+
+        guard let account = normalizeEoaAddress(assets.address) else {
+            lastReadCaddLoading = false
+            return
+        }
+
+        lastReadCaddLoading = true
+        Task { [weak self] in
+            guard let self else { return }
+            let balance = await self.api.fetchCaddBalanceOnBase(account: account)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard self.lastReadCaddRequestId == requestId else { return }
+                self.lastReadCaddBalance = balance
+                self.lastReadCaddLoading = false
+            }
+        }
+    }
+
+    private func _claimMerchantCouponFromLastRead(_ coupon: MerchantClaimableCouponItem) async -> Bool {
+        guard readBalanceClaimingCouponId == nil else { return false }
+        guard var assets = lastReadAssets else {
+            homeToast = "No loaded balance context."
+            return false
+        }
+        let user = assets.address?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !looksLikeAddress(user) {
+            homeToast = "Invalid user account for claim."
+            return false
+        }
+        readBalanceClaimingCouponId = coupon.id
+        defer { readBalanceClaimingCouponId = nil }
+        let result = await api.cardCouponPosClaim(
+            cardAddress: coupon.cardAddress,
+            couponId: coupon.couponId,
+            userEOA: user,
+            uid: assets.uid,
+            tagIdHex: assets.tagIdHex,
+            tokenId: coupon.tokenId
+        )
+        if !result.success {
+            homeToast = result.error ?? "Coupon claim failed."
+            return false
+        }
+
+        if var claimable = assets.merchantClaimableCoupons {
+            claimable.removeAll { $0.id == coupon.id }
+            assets.merchantClaimableCoupons = claimable.isEmpty ? nil : claimable
+        }
+        var balances = assets.merchantCouponBalances ?? []
+        if let idx = balances.firstIndex(where: { $0.id == coupon.id }) {
+            let old = Int64(balances[idx].balance.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+            balances[idx] = MerchantCouponBalanceItem(
+                cardAddress: balances[idx].cardAddress,
+                couponId: balances[idx].couponId,
+                tokenId: balances[idx].tokenId,
+                title: balances[idx].title,
+                balance: String(max(0, old) + 1),
+                requiresRedeemCode: balances[idx].requiresRedeemCode
+            )
+        } else {
+            balances.append(
+                MerchantCouponBalanceItem(
+                    cardAddress: coupon.cardAddress,
+                    couponId: coupon.couponId,
+                    tokenId: coupon.tokenId,
+                    title: coupon.title,
+                    balance: "1",
+                    requiresRedeemCode: coupon.requiresRedeemCode
+                )
+            )
+        }
+        assets.merchantCouponBalances = balances
+        lastReadAssets = assets
+        homeToast = "Coupon claimed."
+        return true
+    }
+
+    private func _consumeMerchantCouponFromLastRead(_ coupon: MerchantCouponBalanceItem) async -> Bool {
+        guard readBalanceConsumingCouponId == nil else { return false }
+        guard var assets = lastReadAssets else {
+            homeToast = "No loaded balance context."
+            return false
+        }
+        guard let pkHex = walletPrivateKeyHex?.trimmingCharacters(in: .whitespacesAndNewlines), !pkHex.isEmpty else {
+            homeToast = "Merchant signature wallet is unavailable."
+            return false
+        }
+        let user = assets.address?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !looksLikeAddress(user) {
+            homeToast = "Invalid user account for consume."
+            return false
+        }
+        readBalanceConsumingCouponId = coupon.id
+        defer { readBalanceConsumingCouponId = nil }
+
+        let prep = await api.cardCouponPosConsumePrepare(
+            cardAddress: coupon.cardAddress,
+            couponId: coupon.couponId,
+            userEOA: user,
+            signerEOA: walletAddress,
+            tokenId: coupon.tokenId,
+            amount: "1"
+        )
+        guard prep.success,
+              let cardAddr = prep.cardAddress,
+              let data = prep.data,
+              let deadline = prep.deadline,
+              let nonce = prep.nonce
+        else {
+            homeToast = prep.error ?? "Consume prepare failed."
+            return false
+        }
+
+        let ownerSig: String
+        do {
+            ownerSig = try BeamioEthWallet.signExecuteForOwner(
+                privateKeyHex: pkHex,
+                cardAddr: cardAddr,
+                dataHex: data,
+                deadline: deadline,
+                nonceHex: nonce,
+                verifyingContractHex: prep.factoryGateway
+            )
+        } catch {
+            homeToast = "Merchant signature failed."
+            return false
+        }
+
+        let submit = await api.cardCouponPosConsumeSubmit(
+            cardAddress: cardAddr,
+            data: data,
+            deadline: deadline,
+            nonce: nonce,
+            ownerSignature: ownerSig
+        )
+        if !submit.success {
+            homeToast = submit.error ?? "Coupon consume failed."
+            return false
+        }
+
+        if var balances = assets.merchantCouponBalances {
+            if let idx = balances.firstIndex(where: { $0.id == coupon.id }) {
+                let old = Int64(balances[idx].balance.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+                let next = max(0, old - 1)
+                if next == 0 {
+                    balances.remove(at: idx)
+                } else {
+                    balances[idx] = MerchantCouponBalanceItem(
+                        cardAddress: balances[idx].cardAddress,
+                        couponId: balances[idx].couponId,
+                        tokenId: balances[idx].tokenId,
+                        title: balances[idx].title,
+                        balance: String(next),
+                        requiresRedeemCode: balances[idx].requiresRedeemCode
+                    )
+                }
+            }
+            assets.merchantCouponBalances = balances.isEmpty ? nil : balances
+        }
+        lastReadAssets = assets
+        homeToast = "Coupon consumed."
+        return true
     }
 
     func looksLikeAddress(_ s: String) -> Bool {

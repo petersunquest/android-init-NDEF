@@ -2,8 +2,8 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-05-05T20:29:39.633Z",
-  "note": "IssuedNft + AdminStatsQuery upgrade (0x5C2e89C6… / 0x6C73F36A…) registerSeries",
+  "timestamp": "2026-05-06T23:42:09.500Z",
+  "note": "IssuedNft + AdminStatsQuery upgrade (0x6563d3A8… / 0xe34C33B4…) registerSeries",
   "previousFactory": "0x2EB245646de404b2Dce87E01C6282C131778bb05",
   "contracts": {
     "beamioUserCardDeployer": {
@@ -18,10 +18,10 @@
       "deployer": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
       "aaFactory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
       "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
-      "issuedNftModule": "0x5C2e89C63fC359Fad798ea580b205A25efF8CA55",
+      "issuedNftModule": "0x6563d3A8c876469946b42B8d57Ac01577a5534A2",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
       "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
-      "adminStatsQueryModule": "0x6C73F36A5221a5840C1EAB91c70F0C9C27D8B33B",
+      "adminStatsQueryModule": "0xe34C33B4d0daC52E3853d721d058Db84df218976",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
       "transactionHash": "0x48ac06463d1a3765cf32f6db082041da7868450fbe6a8d9685e6650ebbbc8f22",

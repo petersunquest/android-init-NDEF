@@ -274,6 +274,7 @@ struct UIDAssets: Equatable {
     var points: String?
     var points6: String?
     var usdcBalance: String?
+    var caddBalance: String?
     var cardCurrency: String?
     var nfts: [NftItem]?
     var cards: [CardItem]?
@@ -284,6 +285,8 @@ struct UIDAssets: Equatable {
     var posLastTopupAt: String?
     var posLastTopupUsdcE6: String?
     var posLastTopupPointsE6: String?
+    var merchantCouponBalances: [MerchantCouponBalanceItem]?
+    var merchantClaimableCoupons: [MerchantClaimableCouponItem]?
 
     /// Android `memberNoPrimaryFromSortedCardsItem`
     func memberNoPrimaryFromSortedCards() -> String {
@@ -314,6 +317,7 @@ struct UIDAssets: Equatable {
         points: String? = nil,
         points6: String? = nil,
         usdcBalance: String? = nil,
+        caddBalance: String? = nil,
         cardCurrency: String? = nil,
         nfts: [NftItem]? = nil,
         cards: [CardItem]? = nil,
@@ -322,7 +326,9 @@ struct UIDAssets: Equatable {
         error: String? = nil,
         posLastTopupAt: String? = nil,
         posLastTopupUsdcE6: String? = nil,
-        posLastTopupPointsE6: String? = nil
+        posLastTopupPointsE6: String? = nil,
+        merchantCouponBalances: [MerchantCouponBalanceItem]? = nil,
+        merchantClaimableCoupons: [MerchantClaimableCouponItem]? = nil
     ) {
         self.ok = ok
         self.address = address
@@ -337,6 +343,7 @@ struct UIDAssets: Equatable {
         self.points = points
         self.points6 = points6
         self.usdcBalance = usdcBalance
+        self.caddBalance = caddBalance
         self.cardCurrency = cardCurrency
         self.nfts = nfts
         self.cards = cards
@@ -346,7 +353,28 @@ struct UIDAssets: Equatable {
         self.posLastTopupAt = posLastTopupAt
         self.posLastTopupUsdcE6 = posLastTopupUsdcE6
         self.posLastTopupPointsE6 = posLastTopupPointsE6
+        self.merchantCouponBalances = merchantCouponBalances
+        self.merchantClaimableCoupons = merchantClaimableCoupons
     }
+}
+
+struct MerchantCouponBalanceItem: Identifiable, Equatable, Sendable, Codable {
+    var id: String { "\(cardAddress.lowercased()):\(tokenId)" }
+    let cardAddress: String
+    let couponId: String
+    let tokenId: String
+    let title: String
+    let balance: String
+    let requiresRedeemCode: Bool
+}
+
+struct MerchantClaimableCouponItem: Identifiable, Equatable, Sendable, Codable {
+    var id: String { "\(cardAddress.lowercased()):\(tokenId)" }
+    let cardAddress: String
+    let couponId: String
+    let tokenId: String
+    let title: String
+    let requiresRedeemCode: Bool
 }
 
 struct TerminalProfile: Equatable, Codable {

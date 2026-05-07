@@ -107,6 +107,9 @@ interface IBeamioFaucetModuleV1 {
 
 interface IBeamioIssuedNftModuleV1 {
     function issuedNftSharedMetadataHash(uint256 tokenId) external view returns (bytes32);
+    function issuedNftMaxSupply(uint256 tokenId) external view returns (uint256);
+    function issuedNftMintedCount(uint256 tokenId) external view returns (uint256);
+    function burnIssuedNftByGateway(address holder, uint256 tokenId, uint256 amount) external;
     function createIssuedNft(bytes32 title, uint64 validAfter, uint64 validBefore, uint256 maxSupply, uint256 priceInCurrency6, bytes32 sharedMetadataHash) external returns (uint256 tokenId);
     function validateAndRecordMintIssuedNft(address acct, uint256 tokenId, uint256 amount) external;
     /// @notice Exactly 1 NFT; per userEOA per tokenId at most once; maxSupply enforced

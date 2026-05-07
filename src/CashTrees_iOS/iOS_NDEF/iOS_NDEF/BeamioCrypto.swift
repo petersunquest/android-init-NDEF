@@ -203,6 +203,69 @@ enum BeamioEthWallet {
         return sigHex
     }
 
+    /// EIP-712 `ExecuteForOwner` signature for `/api/executeForOwner`.
+    static func signExecuteForOwner(
+        privateKeyHex: String,
+        cardAddr: String,
+        dataHex: String,
+        deadline: UInt64,
+        nonceHex: String,
+        verifyingContractHex: String? = nil
+    ) throws -> String {
+        let sk = try normalizePrivateKeyHex(privateKeyHex)
+        let dataBytes = try decodeHexData(dataHex)
+        let dataHash = keccak256(dataBytes)
+
+        var nh = nonceHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !nh.hasPrefix("0x") { nh = "0x" + nh }
+        let nonceWords = try abiWordsFromHex32(nh)
+
+        let gwTrim = verifyingContractHex?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let gw = gwTrim.nilIfEmpty ?? BeamioConstants.baseCardFactory
+        let domainSep = try eip712DomainSeparator(verifyingContractHex: gw)
+        let structHash = try eip712ExecuteForOwnerStructHash(
+            cardAddress: cardAddr,
+            dataHash32: dataHash,
+            deadline: deadline,
+            nonce32: nonceWords
+        )
+        var preamble = Data([0x19, 0x01])
+        preamble.append(domainSep)
+        preamble.append(structHash)
+        let digest = keccak256(preamble)
+
+        var sig = secp256k1_ecdsa_recoverable_signature()
+        let okSign: Int32 = sk.withUnsafeBytes { skRaw in
+            digest.withUnsafeBytes { digRaw in
+                secp256k1_ecdsa_sign_recoverable(
+                    ctxSign,
+                    &sig,
+                    digRaw.bindMemory(to: UInt8.self).baseAddress!,
+                    skRaw.bindMemory(to: UInt8.self).baseAddress!,
+                    nil,
+                    nil
+                )
+            }
+        }
+        guard okSign == 1 else { throw BeamioCryptoError.secp256k1 }
+
+        var recid: Int32 = 0
+        var compact = [UInt8](repeating: 0, count: 64)
+        guard secp256k1_ecdsa_recoverable_signature_serialize_compact(ctxSign, &compact, &recid, &sig) == 1 else {
+            throw BeamioCryptoError.secp256k1
+        }
+
+        let r = compact[0 ..< 32]
+        let s = compact[32 ..< 64]
+        let v = UInt8(recid + 27)
+        let sigHex =
+            "0x" +
+            r.map { String(format: "%02x", $0) }.joined() +
+            s.map { String(format: "%02x", $0) }.joined() +
+            String(format: "%02x", v)
+        return sigHex
+    }
+
     private static func eip712DomainSeparator(verifyingContractHex: String) throws -> Data {
         let type =
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
@@ -225,6 +288,25 @@ enum BeamioEthWallet {
         nonce32: Data
     ) throws -> Data {
         let type = "ExecuteForAdmin(address cardAddress,bytes32 dataHash,uint256 deadline,bytes32 nonce)"
+        let typeHash = keccak256(Data(type.utf8))
+        var enc = Data()
+        enc.append(typeHash)
+        enc.append(try abiAddressWords(cardAddress))
+        guard dataHash32.count == 32 else { throw BeamioCryptoError.invalidHex }
+        enc.append(dataHash32)
+        enc.append(abiUInt256(deadline))
+        guard nonce32.count == 32 else { throw BeamioCryptoError.invalidHex }
+        enc.append(nonce32)
+        return keccak256(enc)
+    }
+
+    private static func eip712ExecuteForOwnerStructHash(
+        cardAddress: String,
+        dataHash32: Data,
+        deadline: UInt64,
+        nonce32: Data
+    ) throws -> Data {
+        let type = "ExecuteForOwner(address cardAddress,bytes32 dataHash,uint256 deadline,bytes32 nonce)"
         let typeHash = keccak256(Data(type.utf8))
         var enc = Data()
         enc.append(typeHash)

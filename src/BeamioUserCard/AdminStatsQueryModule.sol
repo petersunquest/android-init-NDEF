@@ -173,6 +173,9 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (
             sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))
                 || sel == bytes4(keccak256("issuedNftSharedMetadataHash(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMaxSupply(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMintedCount(uint256)"))
+                || sel == bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"))
         ) {
             return ROUTE_ISSUED_NFT;
         }

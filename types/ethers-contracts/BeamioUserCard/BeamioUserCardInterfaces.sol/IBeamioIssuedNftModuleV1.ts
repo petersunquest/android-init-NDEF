@@ -6,16 +6,22 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioIssuedNftModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "createIssuedNft" | "issuedNftSharedMetadataHash" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
+    getFunction(nameOrSignature: "burnIssuedNftByGateway" | "createIssuedNft" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftSharedMetadataHash" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+    encodeFunctionData(functionFragment: 'burnIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'issuedNftMaxSupply', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftMintedCount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNft', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', values: [AddressLike, AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'burnIssuedNftByGateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftMaxSupply', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftMintedCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', data: BytesLike): Result;
@@ -57,10 +63,34 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
 
     
     
+    burnIssuedNftByGateway: TypedContractMethod<
+      [holder: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     createIssuedNft: TypedContractMethod<
       [title: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, maxSupply: BigNumberish, priceInCurrency6: BigNumberish, sharedMetadataHash: BytesLike, ],
       [bigint],
       'nonpayable'
+    >
+    
+
+    
+    issuedNftMaxSupply: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    issuedNftMintedCount: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
     >
     
 
@@ -91,10 +121,25 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'createIssuedNft'): TypedContractMethod<
+    getFunction(nameOrSignature: 'burnIssuedNftByGateway'): TypedContractMethod<
+      [holder: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'createIssuedNft'): TypedContractMethod<
       [title: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, maxSupply: BigNumberish, priceInCurrency6: BigNumberish, sharedMetadataHash: BytesLike, ],
       [bigint],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'issuedNftMaxSupply'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftMintedCount'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
       [tokenId: BigNumberish, ],

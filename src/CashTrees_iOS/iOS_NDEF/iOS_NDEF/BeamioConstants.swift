@@ -12,6 +12,8 @@ enum BeamioConstants {
     /// `beamioAccountContract.address` in `bizSite/src/services/beamio.ts`
     static let beamioAccountRegistryAddress = "0x4afaca09cf8307070a83836223Ae129073eC92e5"
     static let usdcBase = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    /// Base CADD token (requested for POS balance completion view).
+    static let caddBase = "0x16F93eBC5320C89EfC8701577efe49d14A276a06"
     /// `BEAMIO_INDEXER_DIAMOND` (CoNET DePIN, biz `chainAddresses.ts`) — `getAccountTransactionsPaged` source for POS Transactions screen.
     /// 2026-04-22 224422 重启后地址：`deployments/conet-IndexerDiamond.json` → `diamond`.
     /// 旧地址 `0x0c29b4DB72F31457570D38eB215b3F855d5989E1` 已无代码（链 wipe），禁止使用。
