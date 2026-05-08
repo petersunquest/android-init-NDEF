@@ -236,6 +236,7 @@ final class POSViewModel: ObservableObject {
     @Published var lastReadCaddLoading = false
     @Published var readBalanceClaimingCouponId: String?
     @Published var readBalanceConsumingCouponId: String?
+    @Published var readBalanceClaimSucceededCouponId: String?
     /// `true` if balance was loaded via beamio.app QR / wallet link (vs NFC tag).
     @Published var lastReadViaQr = false
 
@@ -1413,18 +1414,20 @@ final class POSViewModel: ObservableObject {
         case "cash": return posTerminalPolicy.allowTopupCash
         case "creditCard": return posTerminalPolicy.allowTopupBankCard
         case "usdc": return posTerminalPolicy.allowTopupUsdc
+        case "cadd": return posTerminalPolicy.allowTopupCadd
         case "bonus": return posTerminalPolicy.allowTopupAirdrop
         default: return false
         }
     }
 
-    /// Charge 方法许可：与 topup `usdc` 同源 (`PosTerminalPolicy.allowPayerUsdcInCharge` ≡ `allowTopupUsdc`)。
+    /// Charge 方法许可：支持 `usdc` / `cadd` 外部钱包支付。
     /// `nfcCard`（默认）始终允许；其他未知值视为禁用。
     private func posChargeMethodRawAllowed(_ methodRaw: String) -> Bool {
-        let r = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let r = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch r {
-        case "", "nfcCard": return true
+        case "", "nfccard": return true
         case "usdc": return posTerminalPolicy.allowPayerUsdcInCharge
+        case "cadd": return posTerminalPolicy.allowPayerCaddInCharge
         default: return false
         }
     }
@@ -1498,11 +1501,12 @@ final class POSViewModel: ObservableObject {
         topupQrResetId += 1
         scanMethod = .nfc
         sheet = .scan(.topup)
-        let methodNorm = pendingTopupMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if methodNorm == "usdc" {
+        let methodNorm = Self.normalizedPaymentMethodRaw(pendingTopupMethodRaw)
+        if Self.isExternalWalletStablecoinMethod(methodNorm) {
+            let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: methodNorm)
             scanAwaitingNfcTap = true
             scanBanner =
-                "Amount entered on the previous screen. Tap the customer's Beamio NFC card or scan their Beamio / wallet QR. Then show the USDC payment QR."
+                "Amount entered on the previous screen. Tap the customer's Beamio NFC card or scan their Beamio / wallet QR. Then show the \(tokenSymbol) payment QR."
             startNfcIfNeeded()
             return
         }
@@ -1528,10 +1532,10 @@ final class POSViewModel: ObservableObject {
         qrPaymentResetId += 1
         scanMethod = .nfc
         sheet = .scan(.payment)
-        let normalizedMethod = methodRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedMethod = Self.normalizedPaymentMethodRaw(methodRaw)
         // USDC charge：顾客用第三方钱包直接付 USDC → 商户终端跳过 NFC，直接生成 QR 指向 verra-home/usdc-charge。
         // 收款地址 = BeamioUserCard.owner()（adminEOA），与 USDC top-up 同源；无需 NFC UID/SUN，也不绑定顾客 beamioTag。
-        if normalizedMethod == "usdc" {
+        if Self.isExternalWalletStablecoinMethod(normalizedMethod) {
             scanAwaitingNfcTap = false
             chargeUsdcQrGenerating = true
             Task { @MainActor in
@@ -1560,6 +1564,26 @@ final class POSViewModel: ObservableObject {
         guard scanMethod == .nfc else { return }
         scanBanner = "Hold the customer's NTAG 424 DNA card near the NFC sensor."
         nfc.begin()
+    }
+
+    private static func normalizedPaymentMethodRaw(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func isExternalWalletStablecoinMethod(_ raw: String) -> Bool {
+        let normalized = normalizedPaymentMethodRaw(raw)
+        return normalized == "usdc" || normalized == "cadd"
+    }
+
+    private static func stablecoinSymbol(forMethodRaw raw: String) -> String {
+        normalizedPaymentMethodRaw(raw) == "cadd" ? "CADD" : "USDC"
+    }
+
+    private static func paymentTokenQueryValue(forMethodRaw raw: String) -> String? {
+        let normalized = normalizedPaymentMethodRaw(raw)
+        if normalized == "cadd" { return "CADD" }
+        if normalized == "usdc" { return "USDC" }
+        return nil
     }
 
     func onQrScanned(_ text: String) async {
@@ -1624,6 +1648,7 @@ final class POSViewModel: ObservableObject {
             readQrFetchingInProgress = false
             if assets.ok {
                 lastReadAssets = assets
+                readBalanceClaimSucceededCouponId = nil
                 lastReadRawJson = rawJson
                 lastReadViaQr = true
                 lastReadError = nil
@@ -1981,7 +2006,7 @@ final class POSViewModel: ObservableObject {
         // USDC charge (no-NFC)：terminal error 通常来自 cardOwner 解析失败 —— 再跑一次 presentUsdcChargeQrNoNfc 即可，
         // 不应误把终端切回 NFC 等待面板（顾客本来就用第三方钱包付，没有卡可拍）。
         if pendingScanAction == .payment,
-           pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines) == "usdc" {
+           Self.isExternalWalletStablecoinMethod(pendingChargeMethodRaw) {
             scanAwaitingNfcTap = false
             chargeUsdcQrGenerating = true
             let amt = amountString
@@ -2293,6 +2318,7 @@ final class POSViewModel: ObservableObject {
         let (assets, rawJson) = await api.getUIDAssetsWithRawJson(uid: uid, sun: sun, merchantInfraCard: merchantInfraCard, merchantInfraOnly: false)
         if assets.ok {
             lastReadAssets = assets
+            readBalanceClaimSucceededCouponId = nil
             lastReadRawJson = rawJson
             lastReadViaQr = false
             lastReadError = nil
@@ -2330,7 +2356,7 @@ final class POSViewModel: ObservableObject {
         }
         // USDC: customer scans the QR to settle via `verra-home/usdc-topup` (EIP-3009 in their wallet).
         let methodRaw = resolveTopupMethodRawForSplit()
-        if methodRaw == "usdc" {
+        if Self.isExternalWalletStablecoinMethod(methodRaw) {
             if topupUsdcDeepLink.isEmpty, !topupUsdcSessionId.isEmpty {
                 await runTopup(
                     beamioTag: nil,
@@ -2343,7 +2369,7 @@ final class POSViewModel: ObservableObject {
                 )
                 return
             }
-            await presentUsdcTopupQr(uid: uid, sun: sun)
+            await presentUsdcTopupQr(uid: uid, sun: sun, paymentMethodRaw: methodRaw)
             return
         }
         await runTopup(beamioTag: nil, wallet: nil, uid: uid, sun: sun, privateKeyHex: key, topupFromQr: false)
@@ -2352,12 +2378,15 @@ final class POSViewModel: ObservableObject {
     /// USDC top-up phase 1 only: keypad amount → QR without NFC params; customer pays USDC first.
     /// Phase 2: NFC tap **or** (when `qrBeneficiary*` set) same `/api/nfcTopupPrepare` + `/api/nfcTopup` + `usdcTopupSessionId` as cash/card QR top-up (`TX_USDC_*`).
     private func presentUsdcTopupQrPhase1Only(
+        paymentMethodRaw: String,
         topupFromCustomerQr: Bool,
         qrBeneficiaryBeamioTag: String? = nil,
         qrBeneficiaryWallet: String? = nil
     ) async {
-        guard posTopupMethodRawAllowed("usdc") else {
-            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: topupFromCustomerQr)
+        let methodRaw = Self.normalizedPaymentMethodRaw(paymentMethodRaw)
+        let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: methodRaw)
+        guard posTopupMethodRawAllowed(methodRaw) else {
+            reportTopupFailure("\(tokenSymbol) top-up is not enabled for this terminal.", topupFromQr: topupFromCustomerQr)
             sheet = nil
             return
         }
@@ -2398,7 +2427,7 @@ final class POSViewModel: ObservableObject {
             return
         }
         let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
-        let (apiAmountString, splitUsdc, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let (apiAmountString, splitUsdc, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: methodRaw)
         let sid = UUID().uuidString.lowercased()
         topupUsdcSessionId = sid
         guard let posWallet = walletAddress, !posWallet.isEmpty else {
@@ -2413,7 +2442,8 @@ final class POSViewModel: ObservableObject {
             amount: apiAmountString,
             currency: currency,
             sid: sid,
-            pos: posWallet
+            pos: posWallet,
+            paymentToken: Self.paymentTokenQueryValue(forMethodRaw: methodRaw)
         )
         nfc.invalidate()
         scanAwaitingNfcTap = false
@@ -2427,8 +2457,8 @@ final class POSViewModel: ObservableObject {
             qrBeneficiaryBeamioTag?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty != nil
             || qrBeneficiaryWallet?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty != nil
         topupQrCustomerHint = hasQrBeneficiary
-            ? "Customer scans this QR to pay with USDC. Points credit automatically after payment."
-            : "Customer scans this QR to pay with USDC. If prompted after payment, ask them to tap their Beamio NFC card."
+            ? "Customer scans this QR to pay with \(tokenSymbol). Points credit automatically after payment."
+            : "Customer scans this QR to pay with \(tokenSymbol). If prompted after payment, ask them to tap their Beamio NFC card."
         let emptySun = SunParams(uid: "", e: "", c: "", m: "")
         startTopupUsdcSessionPoll(
             sid: sid,
@@ -2447,9 +2477,11 @@ final class POSViewModel: ObservableObject {
     /// `cardOwner` MUST be the on-chain `BeamioUserCard.owner()` (the EOA that will receive USDC via x402 settle).
     /// The POS terminal wallet (`walletAddress`) is the **admin** of the card, not necessarily the owner —
     /// using it would trip the back-end check `card.owner() == owner` and surface as `cardOwner mismatch`.
-    private func presentUsdcTopupQr(uid: String, sun: SunParams) async {
-        guard posTopupMethodRawAllowed("usdc") else {
-            reportTopupFailure("USDC top-up is not enabled for this terminal.", topupFromQr: false)
+    private func presentUsdcTopupQr(uid: String, sun: SunParams, paymentMethodRaw: String) async {
+        let methodRaw = Self.normalizedPaymentMethodRaw(paymentMethodRaw)
+        let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: methodRaw)
+        guard posTopupMethodRawAllowed(methodRaw) else {
+            reportTopupFailure("\(tokenSymbol) top-up is not enabled for this terminal.", topupFromQr: false)
             return
         }
         let amt = amountString
@@ -2490,7 +2522,7 @@ final class POSViewModel: ObservableObject {
             return
         }
         let currency = (await api.fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6(cardAddress: infra))?.code ?? "CAD"
-        let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: "usdc")
+        let (apiAmountString, _, _) = resolveTopupApiAmountAndSplit(keypadAmountString: amt, methodRaw: methodRaw)
 
         let assetsTuple = await api.getUIDAssetsWithRawJson(uid: uid, sun: sun, merchantInfraCard: merchantInfraCard, merchantInfraOnly: false)
         let assets = assetsTuple.0
@@ -2526,7 +2558,8 @@ final class POSViewModel: ObservableObject {
             amount: apiAmountString,
             currency: currency,
             sid: sid,
-            pos: posWallet
+            pos: posWallet,
+            paymentToken: Self.paymentTokenQueryValue(forMethodRaw: methodRaw)
         )
         // Stop NFC immediately — customer flow continues entirely in their phone.
         nfc.invalidate()
@@ -2538,7 +2571,7 @@ final class POSViewModel: ObservableObject {
         topupNfcReadError = nil
         topupUsdcDeepLink = url
         topupQrCustomerHint =
-            "Customer scans this QR to pay with USDC. If prompted after payment, ask them to tap their Beamio NFC card."
+            "Customer scans this QR to pay with \(tokenSymbol). If prompted after payment, ask them to tap their Beamio NFC card."
         startTopupUsdcSessionPoll(
             sid: sid,
             uid: uid,
@@ -2557,10 +2590,11 @@ final class POSViewModel: ObservableObject {
         amount: String,
         currency: String,
         sid: String,
-        pos: String
+        pos: String,
+        paymentToken: String?
     ) -> String {
         var comps = URLComponents(string: "https://verra.network/usdc-topup")!
-        comps.queryItems = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "card", value: cardAddress),
             URLQueryItem(name: "owner", value: cardOwner),
             URLQueryItem(name: "amount", value: amount),
@@ -2568,6 +2602,10 @@ final class POSViewModel: ObservableObject {
             URLQueryItem(name: "sid", value: sid),
             URLQueryItem(name: "pos", value: pos),
         ]
+        if let paymentToken, !paymentToken.isEmpty {
+            queryItems.append(URLQueryItem(name: "paymentToken", value: paymentToken))
+        }
+        comps.queryItems = queryItems
         return comps.url?.absoluteString ?? ""
     }
 
@@ -2582,10 +2620,11 @@ final class POSViewModel: ObservableObject {
         amount: String,
         currency: String,
         sid: String,
-        pos: String
+        pos: String,
+        paymentToken: String?
     ) -> String {
         var comps = URLComponents(string: "https://verra.network/usdc-topup")!
-        comps.queryItems = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "card", value: cardAddress),
             URLQueryItem(name: "owner", value: cardOwner),
             URLQueryItem(name: "uid", value: uid),
@@ -2597,6 +2636,10 @@ final class POSViewModel: ObservableObject {
             URLQueryItem(name: "sid", value: sid),
             URLQueryItem(name: "pos", value: pos),
         ]
+        if let paymentToken, !paymentToken.isEmpty {
+            queryItems.append(URLQueryItem(name: "paymentToken", value: paymentToken))
+        }
+        comps.queryItems = queryItems
         return comps.url?.absoluteString ?? ""
     }
 
@@ -3127,12 +3170,15 @@ final class POSViewModel: ObservableObject {
         tip: Double,
         discountBps: Int,
         tipBps: Int,
-        currency: String
+        currency: String,
+        paymentMethodRaw: String
     ) async {
-        guard posChargeMethodRawAllowed("usdc") else {
+        let methodRaw = Self.normalizedPaymentMethodRaw(paymentMethodRaw)
+        let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: methodRaw)
+        guard posChargeMethodRawAllowed(methodRaw) else {
             isNfcBusy = false
             scanBanner = ""
-            paymentTerminalError = "USDC charge is not enabled for this terminal."
+            paymentTerminalError = "\(tokenSymbol) charge is not enabled for this terminal."
             return
         }
         guard subtotal > 0 else {
@@ -3190,7 +3236,8 @@ final class POSViewModel: ObservableObject {
             discountBps: discountBps,
             taxBps: taxBps,
             tipBps: tipBps,
-            currency: currency
+            currency: currency,
+            paymentToken: Self.paymentTokenQueryValue(forMethodRaw: methodRaw)
         )
         nfc.invalidate()
         scanAwaitingNfcTap = false
@@ -3199,9 +3246,9 @@ final class POSViewModel: ObservableObject {
         paymentTerminalError = nil
         chargeNfcReadError = nil
         // 成功步骤标记到 sendTx（与 NFC charge UI 节奏一致：showing QR == 等待外部钱包 settle）。
-        paymentPatchStep(id: "optimizingRoute", status: .success, detail: "Awaiting USDC payment")
+        paymentPatchStep(id: "optimizingRoute", status: .success, detail: "Awaiting \(tokenSymbol) payment")
         chargeUsdcDeepLink = url
-        chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
+        chargeQrCustomerHint = "Customer scans this QR to pay with \(tokenSymbol)."
     }
 
     /// Merchant cancelled USDC charge QR. With the no-NFC USDC flow there is no card to re-arm — close the scan sheet
@@ -3488,8 +3535,10 @@ final class POSViewModel: ObservableObject {
     /// (adminEOA) — the EOA that will receive USDC via x402 settle on the back-end. No `uid / e / c / m`: the customer
     /// pays straight from their third-party wallet without owning a Beamio NFC card or @beamioTag account.
     private func presentUsdcChargeQrNoNfc(subtotalString: String, tipBps: Int) async {
-        guard posChargeMethodRawAllowed("usdc") else {
-            paymentTerminalError = "USDC charge is not enabled for this terminal."
+        let methodRaw = Self.normalizedPaymentMethodRaw(pendingChargeMethodRaw)
+        let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: methodRaw)
+        guard posChargeMethodRawAllowed(methodRaw) else {
+            paymentTerminalError = "\(tokenSymbol) charge is not enabled for this terminal."
             return
         }
         guard let subtotal = Double(subtotalString), subtotal > 0 else {
@@ -3584,12 +3633,13 @@ final class POSViewModel: ObservableObject {
             subtotal: subtotal,
             discountBps: 0,
             taxBps: taxBps,
-            tipBps: tipBps
+            tipBps: tipBps,
+            paymentToken: Self.paymentTokenQueryValue(forMethodRaw: methodRaw)
         )
         paymentTerminalError = nil
         chargeNfcReadError = nil
         chargeUsdcDeepLink = url
-        chargeQrCustomerHint = "Customer scans this QR to pay with USDC."
+        chargeQrCustomerHint = "Customer scans this QR to pay with \(tokenSymbol)."
         // 出 QR 后立即启动轮询；terminal state（success/error）⇒ task 自动结束并切 UI（`chargeApprovedInline` / `paymentTerminalError`）。
         startChargeUsdcSessionPoll(
             sid: sid,
@@ -3620,7 +3670,8 @@ final class POSViewModel: ObservableObject {
         subtotal: Double,
         discountBps: Int,
         taxBps: Int,
-        tipBps: Int
+        tipBps: Int,
+        paymentToken: String?
     ) -> String {
         let fmt: (Double) -> String = { String(format: "%.2f", max(0.0, $0)) }
         var comps = URLComponents(string: "https://verra.network/usdc-charge")!
@@ -3633,6 +3684,9 @@ final class POSViewModel: ObservableObject {
         if tipBps > 0 { items.append(URLQueryItem(name: "tipBps", value: String(tipBps))) }
         if taxBps > 0 { items.append(URLQueryItem(name: "taxBps", value: String(taxBps))) }
         if discountBps > 0 { items.append(URLQueryItem(name: "discountBps", value: String(discountBps))) }
+        if let paymentToken, !paymentToken.isEmpty {
+            items.append(URLQueryItem(name: "paymentToken", value: paymentToken))
+        }
         comps.queryItems = items
         return comps.url?.absoluteString ?? ""
     }
@@ -3651,11 +3705,12 @@ final class POSViewModel: ObservableObject {
         discountBps: Int,
         taxBps: Int,
         tipBps: Int,
-        currency: String
+        currency: String,
+        paymentToken: String?
     ) -> String {
         let fmt: (Double) -> String = { String(format: "%.2f", max(0.0, $0)) }
         var comps = URLComponents(string: "https://verra.network/usdc-charge")!
-        comps.queryItems = [
+        var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "card", value: cardAddress),
             URLQueryItem(name: "owner", value: cardOwner),
             URLQueryItem(name: "uid", value: uid),
@@ -3671,6 +3726,10 @@ final class POSViewModel: ObservableObject {
             URLQueryItem(name: "tipBps", value: String(max(0, tipBps))),
             URLQueryItem(name: "currency", value: currency.uppercased())
         ]
+        if let paymentToken, !paymentToken.isEmpty {
+            queryItems.append(URLQueryItem(name: "paymentToken", value: paymentToken))
+        }
+        comps.queryItems = queryItems
         return wrapVerraUrlForMetaMaskDeepLink(comps.url?.absoluteString ?? "")
     }
 
@@ -3839,6 +3898,7 @@ final class POSViewModel: ObservableObject {
         if title.caseInsensitiveCompare("Cash") == .orderedSame { return "cash" }
         if title.caseInsensitiveCompare("Bonus") == .orderedSame { return "bonus" }
         if title.caseInsensitiveCompare("USDC") == .orderedSame { return "usdc" }
+        if title.caseInsensitiveCompare("CADD") == .orderedSame { return "cadd" }
         return "creditCard"
     }
 
@@ -4003,10 +4063,14 @@ final class POSViewModel: ObservableObject {
                 return
             }
 
-            if methodRaw == "usdc" {
+            if Self.isExternalWalletStablecoinMethod(methodRaw) {
                 scanBanner = ""
                 topupQrExecuteError = nil
-                await presentUsdcTopupQrPhase1Only(topupFromCustomerQr: true, qrBeneficiaryBeamioTag: beamioTag)
+                await presentUsdcTopupQrPhase1Only(
+                    paymentMethodRaw: methodRaw,
+                    topupFromCustomerQr: true,
+                    qrBeneficiaryBeamioTag: beamioTag
+                )
                 return
             }
 
@@ -4109,10 +4173,14 @@ final class POSViewModel: ObservableObject {
                 return
             }
 
-            if methodRaw == "usdc" {
+            if Self.isExternalWalletStablecoinMethod(methodRaw) {
                 scanBanner = ""
                 topupQrExecuteError = nil
-                await presentUsdcTopupQrPhase1Only(topupFromCustomerQr: true, qrBeneficiaryWallet: wallet)
+                await presentUsdcTopupQrPhase1Only(
+                    paymentMethodRaw: methodRaw,
+                    topupFromCustomerQr: true,
+                    qrBeneficiaryWallet: wallet
+                )
                 return
             }
 
@@ -4383,12 +4451,13 @@ final class POSViewModel: ObservableObject {
         let total = BeamioPaymentRouting.chargeTotalInCurrency(requestAmount: subtotal, taxPercent: taxP, tierDiscountPercent: disc, tipAmount: tip)
         // USDC charge：顾客用外部钱包付 USDC → 不再走 NFC payByNfcUid 路径，改成生成 verra-home /usdc-charge QR。
         // 必须放在 breakdown 计算之后，确保 discount/tip/tax 与 NFC charge 结算口径完全一致。
-        if pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines) == "usdc" {
+        if Self.isExternalWalletStablecoinMethod(pendingChargeMethodRaw) {
+            let tokenSymbol = Self.stablecoinSymbol(forMethodRaw: pendingChargeMethodRaw)
             // SUN 必须存在 → 才能让 cluster 后端 verifySunOnce 校验「物理卡确实拍过」(防止仅凭 cardAddress 伪造 USDC charge)。
             guard let sunParams = sun else {
                 isNfcBusy = false
                 scanBanner = ""
-                paymentTerminalError = "Card does not support SUN. Cannot accept USDC charge."
+                paymentTerminalError = "Card does not support SUN. Cannot accept \(tokenSymbol) charge."
                 paymentPatchStep(id: "analyzingAssets", status: .error, detail: "SUN missing")
                 return
             }
@@ -4419,7 +4488,8 @@ final class POSViewModel: ObservableObject {
                 tip: tip,
                 discountBps: BeamioPaymentRouting.tierDiscountBasisPoints(disc),
                 tipBps: chargeTipRateBps,
-                currency: payCurrency
+                currency: payCurrency,
+                paymentMethodRaw: pendingChargeMethodRaw
             )
             return
         }
@@ -5464,6 +5534,7 @@ private extension POSViewModel {
             return false
         }
         readBalanceClaimingCouponId = coupon.id
+        readBalanceClaimSucceededCouponId = nil
         defer { readBalanceClaimingCouponId = nil }
         let result = await api.cardCouponPosClaim(
             cardAddress: coupon.cardAddress,
@@ -5507,6 +5578,7 @@ private extension POSViewModel {
         }
         assets.merchantCouponBalances = balances
         lastReadAssets = assets
+        readBalanceClaimSucceededCouponId = coupon.id
         homeToast = "Coupon claimed."
         return true
     }
@@ -5595,6 +5667,9 @@ private extension POSViewModel {
             assets.merchantCouponBalances = balances.isEmpty ? nil : balances
         }
         lastReadAssets = assets
+        if readBalanceClaimSucceededCouponId == coupon.id {
+            readBalanceClaimSucceededCouponId = nil
+        }
         homeToast = "Coupon consumed."
         return true
     }

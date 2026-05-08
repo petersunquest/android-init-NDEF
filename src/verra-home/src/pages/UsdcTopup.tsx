@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { createWalletClient, custom, type Address } from 'viem'
+import { createPublicClient, createWalletClient, custom, http, type Address } from 'viem'
 import { base } from 'viem/chains'
 import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
 import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
@@ -20,6 +20,8 @@ declare global {
 
 const BEAMIO_API = 'https://beamio.app'
 const BASE_CHAIN_ID_HEX = '0x2105'
+const BASE_USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
+const BASE_CADD_ADDRESS = '0x16F93eBC5320C89EfC8701577efe49d14A276a06' as Address
 
 type Status =
 	| 'idle'
@@ -39,6 +41,7 @@ type QuoteResponse = {
 	currency?: string
 	amount?: string
 	cardOwner?: string
+	permitSpender?: string
 }
 
 type TopupParams = {
@@ -55,6 +58,7 @@ type TopupParams = {
 	sid: string
 	/** POS 终端 admin EOA（与 `sid` 成对）；后端据此走 POS 签 ExecuteForAdmin 闭环 */
 	pos: string
+	paymentToken: 'USDC' | 'CADD'
 }
 
 const truncate = (s: string, head = 6, tail = 4): string =>
@@ -69,6 +73,17 @@ const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-
 const isUuidV4 = (s: string): boolean => typeof s === 'string' && UUID_V4_RE.test(s)
 
 function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | { ok: false; error: string } {
+	const queryGetCI = (...keys: string[]): string => {
+		for (const key of keys) {
+			const direct = sp.get(key)
+			if (direct !== null) return direct
+		}
+		const folded = keys.map((k) => k.trim().toLowerCase())
+		for (const [k, v] of sp.entries()) {
+			if (folded.includes(k.trim().toLowerCase())) return v
+		}
+		return ''
+	}
 	const cardAddress = (sp.get('card') ?? '').trim()
 	const cardOwner = (sp.get('owner') ?? '').trim()
 	const uid = (sp.get('uid') ?? '').trim()
@@ -77,6 +92,8 @@ function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | {
 	const m = (sp.get('m') ?? '').trim()
 	const amount = (sp.get('amount') ?? '').trim()
 	const currency = (sp.get('currency') ?? 'CAD').trim().toUpperCase()
+	const tokenRaw = queryGetCI('paymentToken', 'payToken').trim().toUpperCase()
+	const paymentToken: 'USDC' | 'CADD' = tokenRaw === 'CADD' || currency === 'CADD' ? 'CADD' : 'USDC'
 	const sid = (sp.get('sid') ?? '').trim().toLowerCase()
 	const pos = (sp.get('pos') ?? '').trim()
 	if (!isEthAddress(cardAddress)) return { ok: false, error: 'Missing or invalid `card` (BeamioUserCard address)' }
@@ -113,6 +130,7 @@ function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | {
 			currency,
 			sid,
 			pos: pos && isEthAddress(pos) ? pos : '',
+			paymentToken,
 		},
 	}
 }
@@ -130,6 +148,72 @@ function formatUsdc(usdc6OrHuman: string | undefined): string {
 	const n = Number(usdc6OrHuman)
 	if (!Number.isFinite(n)) return '— USDC'
 	return `${(n / 1_000_000).toFixed(2)} USDC`
+}
+
+function decimalToAtomic6(raw: string): string | null {
+	const s = String(raw ?? '').trim()
+	if (!/^\d+(?:\.\d+)?$/.test(s)) return null
+	const [intPart, fracPart = ''] = s.split('.')
+	const frac6 = `${fracPart}000000`.slice(0, 6)
+	try {
+		return (BigInt(intPart) * 1_000_000n + BigInt(frac6)).toString()
+	} catch {
+		return null
+	}
+}
+
+function tokenAddressBySymbol(symbol: 'USDC' | 'CADD'): Address {
+	return symbol === 'CADD' ? BASE_CADD_ADDRESS : BASE_USDC_ADDRESS
+}
+
+async function resolveTokenDomain(symbol: 'USDC' | 'CADD', tokenAddress: Address): Promise<{ name: string; version: string }> {
+	if (symbol === 'USDC') return { name: 'USD Coin', version: '2' }
+	const pc = createPublicClient({
+		chain: base,
+		transport: http('https://base-rpc.conet.network'),
+	})
+	const abi = [
+		{ type: 'function', name: 'name', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+		{ type: 'function', name: 'version', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+	] as const
+	let name: string = symbol
+	let version = '1'
+	try {
+		const n = await pc.readContract({ address: tokenAddress, abi, functionName: 'name' })
+		if (typeof n === 'string' && n.trim()) name = n.trim()
+	} catch {
+		/* fallback */
+	}
+	try {
+		const v = await pc.readContract({ address: tokenAddress, abi, functionName: 'version' })
+		if (typeof v === 'string' && v.trim()) version = v.trim()
+	} catch {
+		/* fallback */
+	}
+	return { name, version }
+}
+
+function normalizeTo65ByteSignature(signature: string): string | null {
+	if (!/^0x[0-9a-fA-F]+$/.test(signature)) return null
+	const body = signature.slice(2)
+	if (body.length === 130) return `0x${body}`
+	if (body.length === 128) {
+		const r = body.slice(0, 64)
+		const vsHex = body.slice(64)
+		let vs: bigint
+		try {
+			vs = BigInt(`0x${vsHex}`)
+		} catch {
+			return null
+		}
+		const highBitMask = 1n << 255n
+		const sMask = highBitMask - 1n
+		const v = (vs & highBitMask) !== 0n ? 28 : 27
+		const s = (vs & sMask).toString(16).padStart(64, '0')
+		const vHex = v.toString(16).padStart(2, '0')
+		return `0x${r}${s}${vHex}`
+	}
+	return null
 }
 
 function buildMetamaskDeeplink(): string {
@@ -291,6 +375,124 @@ export function UsdcTopup() {
 				chain: base,
 				transport: custom(eth),
 			})
+			if (parsed.params.paymentToken === 'CADD') {
+				const effectiveCurrency = (quote?.currency ?? parsed.params.currency ?? '').trim().toUpperCase()
+				const caddCadDirect = effectiveCurrency === 'CAD' || effectiveCurrency === 'CADD'
+				const value = caddCadDirect
+					? (decimalToAtomic6(parsed.params.amount) ?? '')
+					: (() => {
+						const quoted = quote?.quotedUsdc6?.trim()
+						if (quoted && /^\d+$/.test(quoted) && BigInt(quoted) > 0n) return quoted
+						const n = Number(quote?.quotedUsdc ?? '')
+						return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n * 1_000_000)).toString() : ''
+					})()
+				if (!value) {
+					setError('Missing CADD quote amount.')
+					setStatus('error')
+					return
+				}
+				const now = Math.floor(Date.now() / 1000)
+				const permitDeadline = (now + 120).toString()
+				const tokenAddress = tokenAddressBySymbol('CADD')
+				const domain = await resolveTokenDomain('CADD', tokenAddress)
+				const spender = (quote?.permitSpender ?? '').trim()
+				if (!isEthAddress(spender)) {
+					setError('CADD permit spender is missing from quote response.')
+					setStatus('error')
+					return
+				}
+				const pc = createPublicClient({
+					chain: base,
+					transport: http('https://base-rpc.conet.network'),
+				})
+				const permitNonceOnChain = await pc.readContract({
+					address: tokenAddress,
+					abi: [{ type: 'function', name: 'nonces', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
+					functionName: 'nonces',
+					args: [account],
+				})
+				const permitNonce = permitNonceOnChain.toString()
+				const signatureRaw = await walletClient.signTypedData({
+					account,
+					domain: {
+						name: domain.name,
+						version: domain.version,
+						chainId: 8453,
+						verifyingContract: tokenAddress,
+					},
+					types: {
+						Permit: [
+							{ name: 'owner', type: 'address' },
+							{ name: 'spender', type: 'address' },
+							{ name: 'value', type: 'uint256' },
+							{ name: 'nonce', type: 'uint256' },
+							{ name: 'deadline', type: 'uint256' },
+						],
+					},
+					primaryType: 'Permit',
+					message: {
+						owner: account,
+						spender: spender as Address,
+						value: BigInt(value),
+						nonce: BigInt(permitNonce),
+						deadline: BigInt(permitDeadline),
+					},
+				})
+				const signature = normalizeTo65ByteSignature(signatureRaw)
+				if (!signature) {
+					setError('Wallet returned unsupported signature format.')
+					setStatus('error')
+					return
+				}
+				const p = parsed.params
+				const bodyObj: Record<string, string> = {
+					cardAddress: p.cardAddress,
+					cardOwner: p.cardOwner,
+					amount: p.amount,
+					currency: p.currency,
+					paymentToken: 'CADD',
+					payer: account,
+					value,
+					permitDeadline,
+					permitNonce,
+					signature,
+				}
+				if (p.sid) bodyObj.sid = p.sid
+				if (p.pos) bodyObj.pos = p.pos
+				if (p.uid) {
+					bodyObj.uid = p.uid
+					bodyObj.e = p.e
+					bodyObj.c = p.c
+					bodyObj.m = p.m
+				}
+				const response = await fetch(`${BEAMIO_API}/api/nfcUsdcTopup`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(bodyObj),
+				})
+				setStatus('settling')
+				const json = (await response.json().catch(() => ({}))) as {
+					success?: boolean
+					error?: string
+					USDC_tx?: string
+					executeForAdmin_tx?: string
+					awaitingPosAuthorization?: boolean
+					awaitingBeneficiaryTap?: boolean
+				}
+				if (!response.ok || json.success === false) {
+					setError(json.error ?? `Topup failed (HTTP ${response.status})`)
+					setStatus('error')
+					return
+				}
+				setResult({
+					usdcTx: json.USDC_tx,
+					topupTx: json.executeForAdmin_tx,
+					awaitingPosAuthorization: json.awaitingPosAuthorization === true,
+					awaitingBeneficiaryTap: json.awaitingBeneficiaryTap === true,
+				})
+				setStatus('success')
+				return
+			}
 			const fetchWithPay = wrapFetchWithPayment(
 				fetch,
 				// viem walletClient satisfies x402 SignerWallet shape
@@ -377,7 +579,7 @@ export function UsdcTopup() {
 	const hasWallet = !!eth
 	const ready = hasWallet && !!account && onBase
 
-	const quotedUsdcLabel = formatUsdc(quote?.quotedUsdc ?? quote?.quotedUsdc6)
+	const quotedUsdcLabel = formatUsdc(quote?.quotedUsdc ?? quote?.quotedUsdc6).replace(/USDC/g, parsed.params.paymentToken)
 
 	return (
 		<div className="min-h-dvh bg-background text-on-surface antialiased">
@@ -387,7 +589,7 @@ export function UsdcTopup() {
 					<header className="mb-8 text-center">
 						<h1 className="text-3xl font-extrabold tracking-tight">Top up your card</h1>
 						<p className="mt-2 text-on-surface-variant">
-							Pay with USDC on Base from your own wallet.
+							Pay with {parsed.params.paymentToken} on Base from your own wallet.
 							{topupSid
 								? ' After payment, tap your Beamio card on the merchant terminal to receive the credit.'
 								: ' Your NFC card will be credited automatically.'}
@@ -439,6 +641,7 @@ export function UsdcTopup() {
 							<SuccessPanel
 								usdcTx={result?.usdcTx}
 								topupTx={result?.topupTx}
+								tokenLabel={parsed.params.paymentToken}
 								awaitingPosAuthorization={result?.awaitingPosAuthorization}
 								awaitingBeneficiaryTap={result?.awaitingBeneficiaryTap}
 								onDone={() => window.close()}
@@ -525,12 +728,14 @@ function NoWalletPanel({ deeplink }: { deeplink: string }) {
 function SuccessPanel({
 	usdcTx,
 	topupTx,
+	tokenLabel,
 	awaitingPosAuthorization,
 	awaitingBeneficiaryTap,
 	onDone,
 }: {
 	usdcTx?: string
 	topupTx?: string
+	tokenLabel: string
 	awaitingPosAuthorization?: boolean
 	awaitingBeneficiaryTap?: boolean
 	onDone: () => void
@@ -540,10 +745,10 @@ function SuccessPanel({
 			<p className="text-lg font-bold">Payment confirmed</p>
 			<p className="mt-1 text-sm opacity-90">
 				{awaitingBeneficiaryTap
-					? 'Your USDC payment is complete. Tap your Beamio card on the merchant terminal to finish top-up.'
+					? `Your ${tokenLabel} payment is complete. Tap your Beamio card on the merchant terminal to finish top-up.`
 					: awaitingPosAuthorization
-						? 'Your USDC payment is complete. The merchant terminal will finalize crediting your card in a moment.'
-						: 'USDC transferred and your NFC card will be topped up shortly.'}
+						? `Your ${tokenLabel} payment is complete. The merchant terminal will finalize crediting your card in a moment.`
+						: `${tokenLabel} transferred and your NFC card will be topped up shortly.`}
 			</p>
 			<div className="mt-4 grid gap-2 text-xs">
 				{usdcTx ? (
@@ -553,7 +758,7 @@ function SuccessPanel({
 						rel="noopener noreferrer"
 						className="font-mono underline hover:opacity-80"
 					>
-						USDC tx: {truncate(usdcTx, 10, 8)}
+						{tokenLabel} tx: {truncate(usdcTx, 10, 8)}
 					</a>
 				) : null}
 				{topupTx ? (

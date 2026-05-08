@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { createWalletClient, custom, type Address } from 'viem'
+import { createPublicClient, createWalletClient, custom, http, type Address } from 'viem'
 import { base } from 'viem/chains'
 import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
 import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
@@ -22,6 +22,7 @@ const BEAMIO_API = 'https://beamio.app'
 const BASE_CHAIN_ID_HEX = '0x2105'
 const BASE_CHAIN_ID = 8453
 const BASE_USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
+const BASE_CADD_ADDRESS = '0x16F93eBC5320C89EfC8701577efe49d14A276a06' as Address
 
 type Status =
 	| 'idle'
@@ -49,6 +50,7 @@ type QuoteResponse = {
 	tipBps?: number
 	cardOwner?: string
 	pos?: string | null
+	permitSpender?: string
 }
 
 /**
@@ -80,6 +82,7 @@ type ChargeParams = {
 	taxBps: string
 	tipBps: string
 	currency: string
+	paymentToken: 'USDC' | 'CADD'
 }
 
 const truncate = (s: string, head = 6, tail = 4): string =>
@@ -164,6 +167,17 @@ function scaleUsdc6ToCanonicalTotal(
 }
 
 function parseParams(sp: URLSearchParams): { ok: true; params: ChargeParams } | { ok: false; error: string } {
+	const queryGetCI = (...keys: string[]): string => {
+		for (const key of keys) {
+			const direct = sp.get(key)
+			if (direct !== null) return direct
+		}
+		const folded = keys.map((k) => k.trim().toLowerCase())
+		for (const [k, v] of sp.entries()) {
+			if (folded.includes(k.trim().toLowerCase())) return v
+		}
+		return ''
+	}
 	const cardAddress = (sp.get('card') ?? '').trim()
 	const pos = (sp.get('pos') ?? '').trim()
 	const cardOwner = (sp.get('owner') ?? '').trim()
@@ -180,6 +194,8 @@ function parseParams(sp: URLSearchParams): { ok: true; params: ChargeParams } | 
 	const taxBps = (sp.get('taxBps') ?? '0').trim()
 	const tipBps = (sp.get('tipBps') ?? '0').trim()
 	const currency = (sp.get('currency') ?? '').trim().toUpperCase()
+	const tokenRaw = queryGetCI('paymentToken', 'payToken').trim().toUpperCase()
+	const paymentToken: 'USDC' | 'CADD' = tokenRaw === 'CADD' || currency === 'CADD' ? 'CADD' : 'USDC'
 	if (!isEthAddress(cardAddress)) return { ok: false, error: 'Missing or invalid `card` (BeamioUserCard address)' }
 	if (pos && !isEthAddress(pos)) return { ok: false, error: 'Invalid `pos` (POS terminal admin EOA)' }
 	if (cardOwner && !isEthAddress(cardOwner)) return { ok: false, error: 'Invalid `owner` (card owner EOA)' }
@@ -222,7 +238,7 @@ function parseParams(sp: URLSearchParams): { ok: true; params: ChargeParams } | 
 	if (!(total > 0)) return { ok: false, error: 'Invalid breakdown (total <= 0)' }
 	return {
 		ok: true,
-		params: { cardAddress, pos, cardOwner, sid, uid, e, c, m, subtotal, discount, tax, tip, discountBps, taxBps, tipBps, currency },
+		params: { cardAddress, pos, cardOwner, sid, uid, e, c, m, subtotal, discount, tax, tip, discountBps, taxBps, tipBps, currency, paymentToken },
 	}
 }
 
@@ -241,6 +257,37 @@ function formatUsdc(usdc6OrHuman: string | undefined): string {
 	return `${(n / 1_000_000).toFixed(2)} USDC`
 }
 
+function tokenAddressBySymbol(symbol: 'USDC' | 'CADD'): Address {
+	return symbol === 'CADD' ? BASE_CADD_ADDRESS : BASE_USDC_ADDRESS
+}
+
+async function resolveTokenDomain(symbol: 'USDC' | 'CADD', tokenAddress: Address): Promise<{ name: string; version: string }> {
+	if (symbol === 'USDC') return { name: 'USD Coin', version: '2' }
+	const pc = createPublicClient({
+		chain: base,
+		transport: http('https://base-rpc.conet.network'),
+	})
+	const abi = [
+		{ type: 'function', name: 'name', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+		{ type: 'function', name: 'version', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+	] as const
+	let name: string = symbol
+	let version = '1'
+	try {
+		const n = await pc.readContract({ address: tokenAddress, abi, functionName: 'name' })
+		if (typeof n === 'string' && n.trim()) name = n.trim()
+	} catch {
+		/* fallback */
+	}
+	try {
+		const v = await pc.readContract({ address: tokenAddress, abi, functionName: 'version' })
+		if (typeof v === 'string' && v.trim()) version = v.trim()
+	} catch {
+		/* fallback */
+	}
+	return { name, version }
+}
+
 function quoteToUsdc6Atomic(quote: QuoteResponse | null): string | null {
 	const atomic = quote?.quotedUsdc6?.trim()
 	if (atomic && /^\d+$/.test(atomic) && BigInt(atomic) > 0n) return atomic
@@ -251,6 +298,18 @@ function quoteToUsdc6Atomic(quote: QuoteResponse | null): string | null {
 	return BigInt(Math.round(n * 1_000_000)).toString()
 }
 
+function decimalToAtomic6(raw: string): string | null {
+	const s = String(raw ?? '').trim()
+	if (!/^\d+(?:\.\d+)?$/.test(s)) return null
+	const [intPart, fracPart = ''] = s.split('.')
+	const frac6 = `${fracPart}000000`.slice(0, 6)
+	try {
+		return (BigInt(intPart) * 1_000_000n + BigInt(frac6)).toString()
+	} catch {
+		return null
+	}
+}
+
 /** 展示与 raw-sig 支付用：canonical breakdown + 在 API total 滞后时按比例修正 USDC6 */
 function resolvePayPricing(quote: QuoteResponse | null, p: ChargeParams) {
 	const b = mergedBreakdown(quote, p)
@@ -258,10 +317,12 @@ function resolvePayPricing(quote: QuoteResponse | null, p: ChargeParams) {
 	const subtotalNum = Number(subtotalStr)
 	const apiTotal =
 		quote?.total != null && String(quote.total).trim() !== '' ? Number(quote.total) : b.total
-	const baseAt = quoteToUsdc6Atomic(quote)
+	const effectiveCurrency = (quote?.currency ?? p.currency ?? '').trim().toUpperCase()
+	const caddCadDirect = p.paymentToken === 'CADD' && (effectiveCurrency === 'CAD' || effectiveCurrency === 'CADD')
+	const baseAt = caddCadDirect ? decimalToAtomic6(b.total.toFixed(6)) : quoteToUsdc6Atomic(quote)
 	let quotedUsdc6: string | null = baseAt
 	let usdcScaledFromApi = false
-	if (baseAt && apiTotal > 0) {
+	if (baseAt && apiTotal > 0 && !caddCadDirect) {
 		const { scaled, didScale } = scaleUsdc6ToCanonicalTotal(baseAt, apiTotal, b.total)
 		quotedUsdc6 = scaled
 		usdcScaledFromApi = didScale
@@ -485,6 +546,7 @@ export function UsdcCharge() {
 		})
 		const submitRawSignatureFallback = async (): Promise<void> => {
 			if (!parsed.ok) throw new Error('Invalid charge link')
+			const payToken = parsed.params.paymentToken
 			const pay = resolvePayPricing(quote, parsed.params)
 			const value = pay.quotedUsdc6 ?? quoteToUsdc6Atomic(quote)
 			if (!value) throw new Error('Missing USDC quote for raw signature fallback')
@@ -494,34 +556,82 @@ export function UsdcCharge() {
 			const nonce = randomBytes32Hex()
 			const payTo = (quote?.cardOwner ?? parsed.params.cardOwner ?? '').trim()
 			if (!isEthAddress(payTo)) throw new Error('Cannot resolve merchant card owner for raw signature fallback')
-			const signature = await walletClient.signTypedData({
-				account,
-				domain: {
-					name: 'USD Coin',
-					version: '2',
-					chainId: BASE_CHAIN_ID,
-					verifyingContract: BASE_USDC_ADDRESS,
-				},
-				types: {
-					TransferWithAuthorization: [
-						{ name: 'from', type: 'address' },
-						{ name: 'to', type: 'address' },
-						{ name: 'value', type: 'uint256' },
-						{ name: 'validAfter', type: 'uint256' },
-						{ name: 'validBefore', type: 'uint256' },
-						{ name: 'nonce', type: 'bytes32' },
-					],
-				},
-				primaryType: 'TransferWithAuthorization',
-				message: {
-					from: account,
-					to: payTo as Address,
-					value: BigInt(value),
-					validAfter: BigInt(validAfter),
-					validBefore: BigInt(validBefore),
-					nonce,
-				},
-			})
+			const tokenAddress = tokenAddressBySymbol(payToken)
+			const domain = await resolveTokenDomain(payToken, tokenAddress)
+			let signature: string
+			let permitNonce = ''
+			let permitDeadline = ''
+			if (payToken === 'CADD') {
+				const spender = (quote?.permitSpender ?? '').trim()
+				if (!isEthAddress(spender)) throw new Error('CADD permit spender is missing from quote response')
+				const pc = createPublicClient({
+					chain: base,
+					transport: http('https://base-rpc.conet.network'),
+				})
+				const nonceOnChain = await pc.readContract({
+					address: tokenAddress,
+					abi: [{ type: 'function', name: 'nonces', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ type: 'uint256' }] }] as const,
+					functionName: 'nonces',
+					args: [account],
+				})
+				permitNonce = nonceOnChain.toString()
+				permitDeadline = validBefore
+				signature = await walletClient.signTypedData({
+					account,
+					domain: {
+						name: domain.name,
+						version: domain.version,
+						chainId: BASE_CHAIN_ID,
+						verifyingContract: tokenAddress,
+					},
+					types: {
+						Permit: [
+							{ name: 'owner', type: 'address' },
+							{ name: 'spender', type: 'address' },
+							{ name: 'value', type: 'uint256' },
+							{ name: 'nonce', type: 'uint256' },
+							{ name: 'deadline', type: 'uint256' },
+						],
+					},
+					primaryType: 'Permit',
+					message: {
+						owner: account,
+						spender: spender as Address,
+						value: BigInt(value),
+						nonce: BigInt(permitNonce),
+						deadline: BigInt(permitDeadline),
+					},
+				})
+			} else {
+				signature = await walletClient.signTypedData({
+					account,
+					domain: {
+						name: domain.name,
+						version: domain.version,
+						chainId: BASE_CHAIN_ID,
+						verifyingContract: tokenAddress,
+					},
+					types: {
+						TransferWithAuthorization: [
+							{ name: 'from', type: 'address' },
+							{ name: 'to', type: 'address' },
+							{ name: 'value', type: 'uint256' },
+							{ name: 'validAfter', type: 'uint256' },
+							{ name: 'validBefore', type: 'uint256' },
+							{ name: 'nonce', type: 'bytes32' },
+						],
+					},
+					primaryType: 'TransferWithAuthorization',
+					message: {
+						from: account,
+						to: payTo as Address,
+						value: BigInt(value),
+						validAfter: BigInt(validAfter),
+						validBefore: BigInt(validBefore),
+						nonce,
+					},
+				})
+			}
 			const normalizedSignature = normalizeTo65ByteSignature(signature)
 			if (!normalizedSignature) {
 				throw new Error(
@@ -535,9 +645,6 @@ export function UsdcCharge() {
 				subtotal: p.subtotal,
 				payer: account,
 				value,
-				validAfter,
-				validBefore,
-				nonce,
 				signature: normalizedSignature,
 			}
 			if (p.pos) bodyObj.pos = p.pos
@@ -549,7 +656,17 @@ export function UsdcCharge() {
 			if (p.taxBps && Number(p.taxBps) > 0) bodyObj.taxBps = p.taxBps
 			if (p.tipBps && Number(p.tipBps) > 0) bodyObj.tipBps = p.tipBps
 			if (p.sid) bodyObj.sid = p.sid
-			const response = await fetch(`${BEAMIO_API}/api/nfcUsdcChargeRawSig`, {
+			bodyObj.paymentToken = payToken
+			if (payToken === 'CADD') {
+				bodyObj.permitNonce = permitNonce
+				bodyObj.permitDeadline = permitDeadline
+			} else {
+				bodyObj.validAfter = validAfter
+				bodyObj.validBefore = validBefore
+				bodyObj.nonce = nonce
+			}
+			const endpoint = payToken === 'CADD' ? '/api/nfcUsdcCharge' : '/api/nfcUsdcChargeRawSig'
+			const response = await fetch(`${BEAMIO_API}${endpoint}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(bodyObj),
@@ -566,6 +683,10 @@ export function UsdcCharge() {
 			setStatus('success')
 		}
 		try {
+			if (parsed.params.paymentToken === 'CADD') {
+				await submitRawSignatureFallback()
+				return
+			}
 			const fetchWithPay = wrapFetchWithPayment(
 				fetch,
 				walletClient as unknown as Parameters<typeof wrapFetchWithPayment>[1],
@@ -687,7 +808,7 @@ export function UsdcCharge() {
 	const taxNum = pricing?.taxNum ?? 0
 	const tipNum = pricing?.tipNum ?? 0
 	const totalNum = pricing?.totalNum ?? 0
-	const quotedUsdcLabel = formatUsdc(pricing?.quotedUsdc6 ?? undefined)
+	const quotedUsdcLabel = formatUsdc(pricing?.quotedUsdc6 ?? undefined).replace(/USDC/g, parsed.params.paymentToken)
 
 	return (
 		<div className="min-h-dvh bg-background text-on-surface antialiased">
@@ -695,9 +816,9 @@ export function UsdcCharge() {
 			<main className="pt-24 pb-12">
 				<div className="mx-auto max-w-xl px-6">
 					<header className="mb-8 text-center">
-						<h1 className="text-3xl font-extrabold tracking-tight">Pay with USDC</h1>
+						<h1 className="text-3xl font-extrabold tracking-tight">Pay with {parsed.params.paymentToken}</h1>
 						<p className="mt-2 text-on-surface-variant">
-							Settle this purchase with USDC on Base from your own wallet.
+							Settle this purchase with {parsed.params.paymentToken} on Base from your own wallet.
 						</p>
 					</header>
 
@@ -759,7 +880,7 @@ export function UsdcCharge() {
 								{status === 'switching-chain' ? 'Switching…' : 'Switch to Base'}
 							</button>
 						) : status === 'success' ? (
-							<SuccessPanel usdcTx={result?.usdcTx} onDone={() => window.close()} />
+							<SuccessPanel usdcTx={result?.usdcTx} tokenLabel={parsed.params.paymentToken} onDone={() => window.close()} />
 						) : (
 							<button
 								type="button"
@@ -842,11 +963,11 @@ function NoWalletPanel({ deeplink }: { deeplink: string }) {
 	)
 }
 
-function SuccessPanel({ usdcTx, onDone }: { usdcTx?: string; onDone: () => void }) {
+function SuccessPanel({ usdcTx, tokenLabel, onDone }: { usdcTx?: string; tokenLabel: string; onDone: () => void }) {
 	return (
 		<div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-100">
 			<p className="text-lg font-bold">Payment confirmed</p>
-			<p className="mt-1 text-sm opacity-90">USDC transferred to the merchant. You can close this page.</p>
+			<p className="mt-1 text-sm opacity-90">{tokenLabel} transferred to the merchant. You can close this page.</p>
 			<div className="mt-4 grid gap-2 text-xs">
 				{usdcTx ? (
 					<a
@@ -855,7 +976,7 @@ function SuccessPanel({ usdcTx, onDone }: { usdcTx?: string; onDone: () => void 
 						rel="noopener noreferrer"
 						className="font-mono underline hover:opacity-80"
 					>
-						USDC tx: {truncate(usdcTx, 10, 8)}
+						{tokenLabel} tx: {truncate(usdcTx, 10, 8)}
 					</a>
 				) : null}
 			</div>

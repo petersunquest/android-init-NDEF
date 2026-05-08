@@ -5752,11 +5752,39 @@ private struct HomeBeamioCapsuleCompact: View {
 // MARK: - Amount pad
 
 /// Charge: full-screen slide-in from trailing (same host as `TopupAmountPadFullPage`); amount root → push tip. Avoids `.sheet` + nested sheet races (`tipSubtotal` as `"0"`).
-/// Charge 支付方式只有两种：USDC 启用 ⇒ raw `"usdc"`；USDC 关闭 ⇒ raw `"nfcCard"`（默认 NFC 卡持卡人付款）。
-/// 与 topup 端 `TopupPaymentMethodOption.usdc` 同源（`PosTerminalPolicy.allowPayerUsdcInCharge` ≡ `allowTopupUsdc`）。
+/// Charge 支付方式：`"usdc"` / `"cadd"` / `"nfcCard"`（默认 NFC 卡持卡人付款）。
+/// 稳定币按钮与终端策略同源：`allowPayerUsdcInCharge` / `allowPayerCaddInCharge`。
 private enum ChargePaymentMethodRaw {
     static let nfcCard = "nfcCard"
     static let usdc = "usdc"
+    static let cadd = "cadd"
+}
+
+private enum ChargePaymentMethodOption: String, CaseIterable, Identifiable {
+    case credit
+    case usdc
+    case cadd
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .credit: return "Beamio"
+        case .usdc: return "USDC"
+        case .cadd: return "CADD"
+        }
+    }
+
+    var accentColor: Color {
+        switch self {
+        case .credit:
+            return Color(red: 0xD4 / 255, green: 0x9B / 255, blue: 0x1F / 255)
+        case .usdc:
+            return Color(red: 0x27 / 255, green: 0x75 / 255, blue: 0xCA / 255)
+        case .cadd:
+            return Color(red: 0xE5 / 255, green: 0x3A / 255, blue: 0x2F / 255)
+        }
+    }
 }
 
 private let posChargeAmountPageBackground = Color(red: 0xEE / 255, green: 0xF5 / 255, blue: 0xFF / 255)
@@ -5797,30 +5825,46 @@ private struct ChargeAmountTipNavigationSheet: View {
 }
 
 /// Charge amount entry: same chrome as `TopupAmountPadFullPage` (surface, circular back, expandable keypad).
-/// 当 `chargePolicy.allowPayerUsdcInCharge == true` 时，金额面板右侧出现「USDC enable/disable」二态切换：
-/// - enable → 蓝色（`usdcAccent`）+ 实心 `dollarsign.circle.fill`，methodRaw = `"usdc"`；
-/// - disable → 浅灰（`usdcDisabledGray`）+ 描边图标，methodRaw = `"nfcCard"`（默认）。
-/// 终端无 USDC 许可时按钮整体不显示。
+/// 右侧 method 按钮风格对齐 Top-up（单按钮循环切换）：Credit / USDC / CADD。
 private struct ChargeAmountPadRoot: View {
     var chargePolicy: PosTerminalPolicy
     var onCancel: () -> Void
-    /// (amount, methodRaw) — methodRaw ∈ {"usdc","nfcCard"}
+    /// (amount, methodRaw) — methodRaw ∈ {"usdc","cadd","nfcCard"}
     var onContinue: (String, String) -> Void
 
-    /// `false` ⇒ NFC 卡付款（默认）；`true` ⇒ USDC 外部钱包付款。policy 关闭时强制回 false。
-    @AppStorage("pos.charge.usdcEnabled")
-    private var persistedUsdcEnabled: Bool = false
+    @AppStorage("pos.charge.lastPaymentMethod")
+    private var persistedSelectedMethodRaw: String = ChargePaymentMethodOption.credit.rawValue
     @State private var amount = "0"
 
     private let primaryBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
-    private let usdcAccent = Color(red: 0x27 / 255, green: 0x75 / 255, blue: 0xCA / 255)
-    private let usdcDisabledGray = Color(red: 0xB0 / 255, green: 0xB4 / 255, blue: 0xBC / 255)
+    private var allowedMethods: [ChargePaymentMethodOption] {
+        var methods: [ChargePaymentMethodOption] = [.credit]
+        if chargePolicy.allowPayerUsdcInCharge { methods.append(.usdc) }
+        if chargePolicy.allowPayerCaddInCharge { methods.append(.cadd) }
+        return methods
+    }
 
-    private var usdcAllowed: Bool { chargePolicy.allowPayerUsdcInCharge }
-    private var usdcEnabled: Bool { usdcAllowed && persistedUsdcEnabled }
+    private var selectedMethod: ChargePaymentMethodOption {
+        let candidate = ChargePaymentMethodOption(rawValue: persistedSelectedMethodRaw) ?? .credit
+        return allowedMethods.contains(candidate) ? candidate : allowedMethods[0]
+    }
 
     private var selectedMethodRaw: String {
-        usdcEnabled ? ChargePaymentMethodRaw.usdc : ChargePaymentMethodRaw.nfcCard
+        switch selectedMethod {
+        case .usdc: return ChargePaymentMethodRaw.usdc
+        case .cadd: return ChargePaymentMethodRaw.cadd
+        case .credit: return ChargePaymentMethodRaw.nfcCard
+        }
+    }
+
+    private var nextSelectedMethod: ChargePaymentMethodOption {
+        guard !allowedMethods.isEmpty else { return selectedMethod }
+        let idx = allowedMethods.firstIndex(of: selectedMethod) ?? 0
+        return allowedMethods[(idx + 1) % allowedMethods.count]
+    }
+
+    private func setSelectedMethod(_ method: ChargePaymentMethodOption) {
+        persistedSelectedMethodRaw = method.rawValue
     }
 
     var body: some View {
@@ -5858,12 +5902,15 @@ private struct ChargeAmountPadRoot: View {
         }
         .background(posChargeAmountPageBackground.ignoresSafeArea())
         .compositingGroup()
+        .onChange(of: chargePolicy) { _, _ in
+            if !allowedMethods.contains(selectedMethod) {
+                setSelectedMethod(allowedMethods[0])
+            }
+        }
     }
 
     private func chargeAmountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat, methodIconSize: CGFloat) -> some View {
-        let amountAccent = usdcEnabled ? usdcAccent : primaryBlue
-        let toggleColor = usdcEnabled ? usdcAccent : usdcDisabledGray
-        let toggleIcon = usdcEnabled ? "dollarsign.circle.fill" : "dollarsign.circle"
+        let amountAccent = selectedMethod.accentColor
         return HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("$")
@@ -5875,32 +5922,30 @@ private struct ChargeAmountPadRoot: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.35)
             }
-            .frame(maxWidth: .infinity, alignment: usdcAllowed ? .leading : .trailing)
-            if usdcAllowed {
-                Button {
-                    BeamioHaptic.light()
-                    persistedUsdcEnabled.toggle()
-                } label: {
-                    VStack(spacing: compact ? 6 : 8) {
-                        Text("USDC")
-                            .font(.system(size: compact ? 11 : 12, weight: .semibold))
-                            .foregroundStyle(toggleColor)
-                            .lineLimit(1)
-                        ZStack {
-                            Circle()
-                                .fill(toggleColor.opacity(usdcEnabled ? 0.16 : 0.12))
-                                .frame(width: methodIconSize, height: methodIconSize)
-                            Image(systemName: toggleIcon)
-                                .font(.system(size: methodIconSize * 0.5, weight: .semibold))
-                                .foregroundStyle(toggleColor)
-                        }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Button {
+                guard allowedMethods.count > 1 else { return }
+                BeamioHaptic.light()
+                setSelectedMethod(nextSelectedMethod)
+            } label: {
+                VStack(spacing: compact ? 6 : 8) {
+                    Text(selectedMethod.title)
+                        .font(.system(size: compact ? 11 : 12, weight: .semibold))
+                        .foregroundStyle(selectedMethod.accentColor)
+                        .lineLimit(1)
+                    ZStack {
+                        Circle()
+                            .fill(selectedMethod.accentColor.opacity(0.14))
+                            .frame(width: methodIconSize, height: methodIconSize)
+                        chargeMethodIcon(selectedMethod, methodIconSize: methodIconSize)
                     }
-                    .frame(minWidth: compact ? 64 : 72)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(usdcEnabled ? "USDC payment enabled. Tap to disable." : "USDC payment disabled. Tap to enable."))
+                .frame(minWidth: compact ? 64 : 72)
             }
+            .buttonStyle(.plain)
+            .disabled(allowedMethods.count <= 1)
+            .opacity(allowedMethods.count <= 1 ? 0.72 : 1)
+            .accessibilityLabel(Text("Payment method \(selectedMethod.title). Tap to switch"))
         }
         .padding(.vertical, compact ? 18 : 22)
         .padding(.horizontal, 14)
@@ -5909,6 +5954,26 @@ private struct ChargeAmountPadRoot: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(readBalanceDetailsSurfaceContainerLow)
         )
+    }
+
+    @ViewBuilder
+    private func chargeMethodIcon(_ method: ChargePaymentMethodOption, methodIconSize: CGFloat) -> some View {
+        switch method {
+        case .credit:
+            Image(systemName: "creditcard.fill")
+                .font(.system(size: methodIconSize * 0.42, weight: .semibold))
+                .foregroundStyle(method.accentColor)
+        case .usdc:
+            Image("UsdcIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: methodIconSize * 0.56, height: methodIconSize * 0.56)
+        case .cadd:
+            Image("CaddIcon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: methodIconSize * 0.56, height: methodIconSize * 0.56)
+        }
     }
 
     private var canContinue: Bool {
@@ -6273,18 +6338,20 @@ private struct BeamioNumericAmountPadKeypad: View {
 private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
     case creditCard
     case usdc
+    case cadd
     case cash
     case bonus
 
     var id: String { rawValue }
 
     /// Cycle order for method chip (must match Android `TOPUP_METHOD_CYCLE_ORDER`).
-    static let cycleOrder: [TopupPaymentMethodOption] = [.creditCard, .usdc, .cash, .bonus]
+    static let cycleOrder: [TopupPaymentMethodOption] = [.creditCard, .usdc, .cadd, .cash, .bonus]
 
     var title: String {
         switch self {
         case .creditCard: return "Card"
         case .usdc: return "USDC"
+        case .cadd: return "CADD"
         case .cash: return "Cash"
         case .bonus: return "Bonus"
         }
@@ -6294,6 +6361,7 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
         switch self {
         case .creditCard: return "creditcard.fill"
         case .usdc: return "dollarsign.circle.fill"
+        case .cadd: return "banknote.fill"
         case .cash: return "banknote.fill"
         case .bonus: return "sparkles"
         }
@@ -6305,6 +6373,8 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
             return Color(red: 0xD4 / 255, green: 0x9B / 255, blue: 0x1F / 255)
         case .usdc:
             return Color(red: 0x27 / 255, green: 0x75 / 255, blue: 0xCA / 255)
+        case .cadd:
+            return Color(red: 0xE5 / 255, green: 0x3A / 255, blue: 0x2F / 255)
         case .cash:
             return Color(red: 0x6B / 255, green: 0x72 / 255, blue: 0x80 / 255)
         case .bonus:
@@ -6316,6 +6386,7 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
         switch self {
         case .creditCard: return policy.allowTopupBankCard
         case .usdc: return policy.allowTopupUsdc
+        case .cadd: return policy.allowTopupCadd
         case .cash: return policy.allowTopupCash
         case .bonus: return policy.allowTopupAirdrop
         }
@@ -6649,9 +6720,21 @@ private struct TopupAmountPadFullPage: View {
                         Circle()
                             .fill(selectedMethod.accentColor.opacity(0.14))
                             .frame(width: methodIconSize, height: methodIconSize)
-                        Image(systemName: selectedMethod.systemImage)
-                            .font(.system(size: methodIconSize * 0.46))
-                            .foregroundStyle(selectedMethod.accentColor)
+                        if selectedMethod == .usdc {
+                            Image("UsdcIcon")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: methodIconSize * 0.56, height: methodIconSize * 0.56)
+                        } else if selectedMethod == .cadd {
+                            Image("CaddIcon")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: methodIconSize * 0.56, height: methodIconSize * 0.56)
+                        } else {
+                            Image(systemName: selectedMethod.systemImage)
+                                .font(.system(size: methodIconSize * 0.46))
+                                .foregroundStyle(selectedMethod.accentColor)
+                        }
                     }
                 }
                 .frame(minWidth: compact ? 64 : 72)
@@ -7048,6 +7131,10 @@ private struct ReadBalanceLastTopUpUsdcStatsCard: View {
                         .tracking(1)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Image("UsdcIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
                         Text(readBalanceFormatUsdcThousands(usdcBalance))
                             .font(.system(size: 20, weight: .bold, design: .monospaced))
                             .foregroundStyle(readBalanceDetailsOnSurface)
@@ -7062,20 +7149,24 @@ private struct ReadBalanceLastTopUpUsdcStatsCard: View {
                         .tracking(1)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Image("CaddIcon")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
                         if caddLoading {
                             Text("Loading...")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(readBalanceDetailsOutline)
                         } else if let caddBalance {
                             Text(readBalanceFormatUsdcThousands(caddBalance))
-                                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                .font(.system(size: 20, weight: .bold, design: .monospaced))
                                 .foregroundStyle(readBalanceDetailsOnSurface)
                             Text("CADD")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(readBalanceDetailsOutline)
                         } else {
                             Text("—")
-                                .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                                .font(.system(size: 20, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(readBalanceDetailsOutline)
                         }
                     }
@@ -7111,6 +7202,7 @@ private struct SheetHost: View {
                         caddLoading: vm.lastReadCaddLoading,
                         claimInFlightCouponId: vm.readBalanceClaimingCouponId,
                         consumeInFlightCouponId: vm.readBalanceConsumingCouponId,
+                        claimSucceededCouponId: vm.readBalanceClaimSucceededCouponId,
                         merchantInfraCard: vm.merchantInfraCard,
                         amountFlow: $amountFlow,
                         onClaimCoupon: { coupon in
@@ -7228,6 +7320,7 @@ private struct ReadBalanceView: View {
     let caddLoading: Bool
     let claimInFlightCouponId: String?
     let consumeInFlightCouponId: String?
+    let claimSucceededCouponId: String?
     /// Terminal-registered merchant / infrastructure card; Balance Details only lists this card’s pass row.
     let merchantInfraCard: String
     @Binding var amountFlow: AmountFlow?
@@ -7380,24 +7473,13 @@ private struct ReadBalanceView: View {
             || !((assets.tagIdHex ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         if !owned.isEmpty || !claimable.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Merchant Coupons")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(readBalanceDetailsOnSurface)
                 if !owned.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Owned")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(readBalanceDetailsOutline)
-                        ForEach(owned.prefix(6)) { row in
-                            readBalanceCouponOwnedCard(row)
-                        }
+                    ForEach(owned.prefix(6)) { row in
+                        readBalanceCouponOwnedCard(row)
                     }
                 }
                 if !claimable.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Available to Claim")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(readBalanceDetailsOutline)
                         ForEach(claimable.prefix(6)) { row in
                             readBalanceCouponClaimableCard(
                                 row,
@@ -7412,9 +7494,6 @@ private struct ReadBalanceView: View {
                     }
                 }
             }
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(readBalanceDetailsSurfaceContainerLowest))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.black.opacity(0.05), lineWidth: 1))
         }
     }
 
@@ -7429,6 +7508,7 @@ private struct ReadBalanceView: View {
         )
         let canConsume = consumeInFlightCouponId == nil || consumeInFlightCouponId == row.id
         let isConsuming = consumeInFlightCouponId == row.id
+        let showClaimedSuccess = claimSucceededCouponId == row.id && !isConsuming
         return ZStack {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(
@@ -7459,29 +7539,39 @@ private struct ReadBalanceView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(Capsule().fill(tone.badgeBg))
-                    Button {
-                        Task { _ = await onConsumeCoupon(row) }
-                    } label: {
-                        if isConsuming {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                                .frame(width: 16, height: 16)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                        } else {
-                            Text("Consume")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+                    if showClaimedSuccess {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(Color.green))
+                            .clipShape(Capsule())
+                    } else {
+                        Button {
+                            Task { _ = await onConsumeCoupon(row) }
+                        } label: {
+                            if isConsuming {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(.white)
+                                    .frame(width: 16, height: 16)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 6)
+                            } else {
+                                Text("Consume")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                            }
                         }
+                        .buttonStyle(BeamioHapticPlainButtonStyle())
+                        .disabled(!canConsume)
+                        .background(Capsule().fill(topUpBlue))
+                        .clipShape(Capsule())
+                        .opacity(canConsume ? 1 : 0.55)
                     }
-                    .buttonStyle(BeamioHapticPlainButtonStyle())
-                    .disabled(!canConsume)
-                    .background(Capsule().fill(topUpBlue))
-                    .clipShape(Capsule())
-                    .opacity(canConsume ? 1 : 0.55)
                 }
             }
             .padding(.horizontal, 14)
@@ -7535,18 +7625,34 @@ private struct ReadBalanceView: View {
                     Task { _ = await onClaimCoupon(row) }
                 } label: {
                     if claimInFlightCouponId == row.id {
-                        ProgressView().progressViewStyle(.circular).tint(.white).frame(width: 16, height: 16).padding(.horizontal, 8)
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                            .frame(width: 16, height: 16)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
                     } else {
-                        Text("Claim")
-                            .font(.system(size: 11, weight: .semibold))
+                        Image(systemName: "gift.fill")
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
+                            .padding(.horizontal, 9)
                             .padding(.vertical, 6)
                     }
                 }
                 .buttonStyle(BeamioHapticPlainButtonStyle())
                 .disabled(!canTap)
-                .background(Capsule().fill(topUpBlue))
+                .background(
+                    Capsule().fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 1, green: 0.52, blue: 0.14),
+                                Color(red: 1, green: 0.28, blue: 0.34),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                )
                 .clipShape(Capsule())
                 .opacity(canTap ? 1 : 0.55)
             }
@@ -10663,6 +10769,7 @@ private struct ScanSheet: View {
 
     /// USDC top-up: after NFC tap, present a QR pointing at `verra-home/usdc-topup` so the customer signs the EIP-3009 USDC transfer in their own wallet (admin signs `ExecuteForAdmin` on the back-end after settlement).
     private func usdcTopupCustomerQrBlock(url: String) -> some View {
+        let tokenSymbol = vm.pendingTopupMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cadd" ? "CADD" : "USDC"
         let qrImage = BeamioLinkAppQr.image(from: url, pointSize: 198, scale: displayScale)
         return VStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 32)
@@ -10671,7 +10778,7 @@ private struct ScanSheet: View {
                 .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
                 .overlay {
                     VStack(spacing: 0) {
-                        Text("Scan to pay USDC")
+                        Text("Scan to pay \(tokenSymbol)")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.black)
                         Text("Open in your crypto wallet's browser to confirm")
@@ -10687,7 +10794,7 @@ private struct ScanSheet: View {
                                 .scaledToFit()
                                 .frame(width: 198, height: 198)
                                 .padding(.vertical, 2)
-                                .accessibilityLabel("USDC top-up payment QR")
+                                .accessibilityLabel("\(tokenSymbol) top-up payment QR")
                         }
                         if !vm.topupQrCustomerHint.isEmpty {
                             Text(vm.topupQrCustomerHint)
@@ -10768,14 +10875,15 @@ private struct ScanSheet: View {
     /// Loading placeholder shown between `Confirm & Pay` (USDC) and the QR being ready: the merchant should never see
     /// the legacy NFC waiting panel for a USDC charge. Frame matches `usdcChargeCustomerQrBlock` so the swap is seamless.
     private var usdcChargeQrGeneratingBlock: some View {
-        VStack(spacing: 10) {
+        let tokenSymbol = vm.pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cadd" ? "CADD" : "USDC"
+        return VStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 32)
                 .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
                 .frame(width: 280, height: 320)
                 .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
                 .overlay {
                     VStack(spacing: 14) {
-                        Text("Generating USDC payment QR…")
+                        Text("Generating \(tokenSymbol) payment QR…")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.black)
                             .multilineTextAlignment(.center)
@@ -10809,6 +10917,7 @@ private struct ScanSheet: View {
     /// USDC charge QR (no-NFC): customer scans with any third-party Web3 wallet to sign the EIP-3009 USDC transfer
     /// straight into the merchant BeamioUserCard's adminEOA. No NFC tap, no @beamioTag — pure off-chain wallet flow.
     private func usdcChargeCustomerQrBlock(url: String) -> some View {
+        let tokenSymbol = vm.pendingChargeMethodRaw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cadd" ? "CADD" : "USDC"
         let qrImage = BeamioLinkAppQr.image(from: url, pointSize: 198, scale: displayScale)
         return VStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 32)
@@ -10817,7 +10926,7 @@ private struct ScanSheet: View {
                 .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
                 .overlay {
                     VStack(spacing: 0) {
-                        Text("Scan to pay USDC")
+                        Text("Scan to pay \(tokenSymbol)")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Color.black)
                         Text("Open in your crypto wallet's browser to confirm")
@@ -10833,7 +10942,7 @@ private struct ScanSheet: View {
                                 .scaledToFit()
                                 .frame(width: 198, height: 198)
                                 .padding(.vertical, 2)
-                                .accessibilityLabel("USDC charge payment QR")
+                                .accessibilityLabel("\(tokenSymbol) charge payment QR")
                         }
                         if !vm.chargeQrCustomerHint.isEmpty {
                             Text(vm.chargeQrCustomerHint)

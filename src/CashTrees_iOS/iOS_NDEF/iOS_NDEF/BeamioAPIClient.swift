@@ -48,17 +48,26 @@ private actor BeamioEthCallFetchCache {
     }
 }
 
-/// `/api/myPosAddress` → `terminalMetadata.allowedTopupMethods` (keys: cash, bankCard, usdc, airdrop).
+/// `/api/myPosAddress` → `terminalMetadata.allowedTopupMethods` (keys: cash, bankCard, usdc, cadd, airdrop).
 struct PosTerminalPolicy: Equatable {
     var allowTopupCash: Bool
     var allowTopupBankCard: Bool
     var allowTopupUsdc: Bool
+    var allowTopupCadd: Bool
     var allowTopupAirdrop: Bool
 
-    static let allAllowed = PosTerminalPolicy(allowTopupCash: true, allowTopupBankCard: true, allowTopupUsdc: true, allowTopupAirdrop: true)
+    static let allAllowed = PosTerminalPolicy(
+        allowTopupCash: true,
+        allowTopupBankCard: true,
+        allowTopupUsdc: true,
+        allowTopupCadd: true,
+        allowTopupAirdrop: true
+    )
 
     /// When false, Charge treats payer wallet USDC as unavailable (same flag as merchant "USDC" top-up method).
     var allowPayerUsdcInCharge: Bool { allowTopupUsdc }
+    /// Charge-side CADD toggle permission from terminal metadata (`allowedTopupMethods` contains `cadd`).
+    var allowPayerCaddInCharge: Bool { allowTopupCadd }
 
     static func parse(terminalMetadata: Any?) -> PosTerminalPolicy {
         guard let meta = terminalMetadata as? [String: Any] else { return .allAllowed }
@@ -69,12 +78,19 @@ struct PosTerminalPolicy: Equatable {
             if let s = x as? String, !s.isEmpty { set.insert(s) }
         }
         if set.isEmpty {
-            return PosTerminalPolicy(allowTopupCash: false, allowTopupBankCard: false, allowTopupUsdc: false, allowTopupAirdrop: false)
+            return PosTerminalPolicy(
+                allowTopupCash: false,
+                allowTopupBankCard: false,
+                allowTopupUsdc: false,
+                allowTopupCadd: false,
+                allowTopupAirdrop: false
+            )
         }
         return PosTerminalPolicy(
             allowTopupCash: set.contains("cash"),
             allowTopupBankCard: set.contains("bankCard"),
             allowTopupUsdc: set.contains("usdc"),
+            allowTopupCadd: set.contains("cadd"),
             allowTopupAirdrop: set.contains("airdrop")
         )
     }
@@ -654,7 +670,7 @@ extension BeamioAPIClient {
         return rounded
     }
 
-    /// POS keypad string (no `,` grouping). `methodRaw`: `creditCard` | `usdc` | `cash` | `bonus` (same raw values as `TopupPaymentMethodOption`).
+    /// POS keypad string (no `,` grouping). `methodRaw`: `creditCard` | `usdc` | `cadd` | `cash` | `bonus` (same raw values as `TopupPaymentMethodOption`).
     ///
     /// Product rules (must match `/api/nfcTopup` sum check: `card + cash + bonus == currencyAmount`):
     /// - **Bonus** switch: entire top-up is promotional → `currencyAmount == bonusCurrencyAmount`, card/cash `0`.
@@ -669,7 +685,7 @@ extension BeamioAPIClient {
         guard let base = Decimal(string: raw), base > 0 else { return nil }
         let z = formatDecimalTopupApi6(0)
         switch methodRaw {
-        case "creditCard", "usdc":
+        case "creditCard", "usdc", "cadd":
             if bonusExpanded {
                 let rate = Decimal(selectedBonusRate) / Decimal(100)
                 let bonusPart = decimalRound6(base * rate)
