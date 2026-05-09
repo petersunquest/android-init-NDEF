@@ -1,0 +1,16 @@
+{
+  "source": "/Users/peter/Downloads/BeamioContract/src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS/ContentView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Loading",
+        "location": {
+          "startingColumn": 33,
+          "startingLine": 975
+        }
+      }
+    ]
+  },
+  "version": 1
+}

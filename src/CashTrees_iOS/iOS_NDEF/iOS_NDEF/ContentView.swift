@@ -190,6 +190,7 @@ struct ContentView: View {
             if case .some(.charge) = amountFlow {
                 ChargeAmountTipNavigationSheet(
                     chargePolicy: vm.posTerminalPolicy,
+                    programCardDisplayName: vm.homeMerchantProgramCardName ?? "",
                     onCancel: { amountFlow = nil },
                     onChargeComplete: { amount, tipBps, methodRaw in
                         amountFlow = nil
@@ -5792,6 +5793,8 @@ private let posTopupAmountPageBackground = Color(red: 0xF7 / 255, green: 0xF0 / 
 
 private struct ChargeAmountTipNavigationSheet: View {
     var chargePolicy: PosTerminalPolicy
+    /// `cards[].cardName` for POS `merchantInfraCard` (trusted home refresh).
+    var programCardDisplayName: String
     var onCancel: () -> Void
     /// (subtotal, tipBps, methodRaw)
     var onChargeComplete: (String, Int, String) -> Void
@@ -5804,6 +5807,7 @@ private struct ChargeAmountTipNavigationSheet: View {
         NavigationStack(path: $path) {
             ChargeAmountPadRoot(
                 chargePolicy: chargePolicy,
+                programCardDisplayName: programCardDisplayName,
                 onCancel: onCancel,
                 onContinue: { subtotal, methodRaw in
                     pendingMethodRaw = methodRaw
@@ -5828,6 +5832,7 @@ private struct ChargeAmountTipNavigationSheet: View {
 /// 右侧 method 按钮风格对齐 Top-up（单按钮循环切换）：Credit / USDC / CADD。
 private struct ChargeAmountPadRoot: View {
     var chargePolicy: PosTerminalPolicy
+    var programCardDisplayName: String
     var onCancel: () -> Void
     /// (amount, methodRaw) — methodRaw ∈ {"usdc","cadd","nfcCard"}
     var onContinue: (String, String) -> Void
@@ -5865,6 +5870,16 @@ private struct ChargeAmountPadRoot: View {
 
     private func setSelectedMethod(_ method: ChargePaymentMethodOption) {
         persistedSelectedMethodRaw = method.rawValue
+    }
+
+    private func chargeMethodToggleTitle(for method: ChargePaymentMethodOption) -> String {
+        switch method {
+        case .credit:
+            let t = programCardDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? "Beamio" : t
+        case .usdc, .cadd:
+            return method.title
+        }
     }
 
     var body: some View {
@@ -5929,10 +5944,12 @@ private struct ChargeAmountPadRoot: View {
                 setSelectedMethod(nextSelectedMethod)
             } label: {
                 VStack(spacing: compact ? 6 : 8) {
-                    Text(selectedMethod.title)
+                    Text(chargeMethodToggleTitle(for: selectedMethod))
                         .font(.system(size: compact ? 11 : 12, weight: .semibold))
                         .foregroundStyle(selectedMethod.accentColor)
-                        .lineLimit(1)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
                     ZStack {
                         Circle()
                             .fill(selectedMethod.accentColor.opacity(0.14))
@@ -5945,7 +5962,7 @@ private struct ChargeAmountPadRoot: View {
             .buttonStyle(.plain)
             .disabled(allowedMethods.count <= 1)
             .opacity(allowedMethods.count <= 1 ? 0.72 : 1)
-            .accessibilityLabel(Text("Payment method \(selectedMethod.title). Tap to switch"))
+            .accessibilityLabel(Text("Payment method \(chargeMethodToggleTitle(for: selectedMethod)). Tap to switch"))
         }
         .padding(.vertical, compact ? 18 : 22)
         .padding(.horizontal, 14)

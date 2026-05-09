@@ -8,6 +8,7 @@ import { TermsOfService } from './pages/TermsOfService'
 import { TheLocal } from './pages/TheLocal'
 import { UsdcCharge } from './pages/UsdcCharge'
 import { UsdcTopup } from './pages/UsdcTopup'
+import { Vouchers } from './pages/Vouchers'
 
 function App() {
 	return (
@@ -22,6 +23,8 @@ function App() {
 				<Route path="/contact" element={<Contact />} />
 				<Route path="/usdc-topup" element={<UsdcTopup />} />
 				<Route path="/usdc-charge" element={<UsdcCharge />} />
+				<Route path="/Vouchers" element={<Vouchers />} />
+				<Route path="/vouchers" element={<Vouchers />} />
 			</Routes>
 		</BrowserRouter>
 	)
