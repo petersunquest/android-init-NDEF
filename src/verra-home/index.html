@@ -3,6 +3,24 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!-- Base / Coinbase in-app browsers often default to dark canvas; force light until app CSS loads. -->
+		<meta name="color-scheme" content="light" />
+		<style>
+			html {
+				color-scheme: light;
+				background: #f9f9fe;
+			}
+			body {
+				margin: 0;
+				background: #f9f9fe;
+				color: #1a1c1f;
+				-webkit-text-size-adjust: 100%;
+			}
+			#root {
+				min-height: 100vh;
+				min-height: 100dvh;
+			}
+		</style>
 		<title>Verra | Official Home Page</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

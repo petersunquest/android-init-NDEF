@@ -40,18 +40,29 @@ function writeCache(id: MobileWalletId, installed: boolean) {
 }
 
 function getEthereumProvidersList(): NonNullable<typeof window.ethereum>[] {
-	const eth = typeof window !== 'undefined' ? window.ethereum : undefined
-	if (!eth) return []
-	const multi = (eth as unknown as { providers?: NonNullable<typeof window.ethereum>[] }).providers
-	if (Array.isArray(multi) && multi.length > 0) return multi.filter(Boolean)
-	return [eth]
+	try {
+		const eth = typeof window !== 'undefined' ? window.ethereum : undefined
+		if (!eth) return []
+		const multi = (eth as unknown as { providers?: NonNullable<typeof window.ethereum>[] }).providers
+		if (Array.isArray(multi) && multi.length > 0) return multi.filter(Boolean)
+		return [eth]
+	} catch {
+		return []
+	}
 }
 
 export function isMobileDeviceForWalletApps(): boolean {
 	if (typeof navigator === 'undefined') return false
 	const ua = navigator.userAgent || ''
-	const coarse =
-		typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+	let coarse = false
+	try {
+		coarse =
+			typeof window !== 'undefined' &&
+			typeof window.matchMedia === 'function' &&
+			window.matchMedia('(pointer: coarse)').matches
+	} catch {
+		coarse = false
+	}
 	if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return true
 	if (coarse && !/Windows NT|Macintosh|X11|Linux x86_64/i.test(ua)) return true
 	return false

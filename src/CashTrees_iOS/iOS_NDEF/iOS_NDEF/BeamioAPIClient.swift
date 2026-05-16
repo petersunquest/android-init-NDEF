@@ -2765,11 +2765,11 @@ final class BeamioAPIClient: @unchecked Sendable {
             }
             return nil
         }
-        if let direct = pick(meta, ["subtitle", "merchantName", "brandName", "storeName"]) { return direct }
+        if let direct = pick(meta, ["description", "subtitle", "merchantName", "brandName", "storeName"]) { return direct }
         if let props = meta["properties"] as? [String: Any],
            let bc = props["beamioCoupon"] as? [String: Any]
         {
-            if let nested = pick(bc, ["subtitle", "merchantName", "brandName", "storeName"]) { return nested }
+            if let nested = pick(bc, ["description", "subtitle", "merchantName", "brandName", "storeName"]) { return nested }
         }
         return nil
     }
@@ -2805,11 +2805,11 @@ final class BeamioAPIClient: @unchecked Sendable {
             }
             return nil
         }
-        if let direct = pick(meta, ["background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return direct }
+        if let direct = pick(meta, ["couponImage", "background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return direct }
         if let props = meta["properties"] as? [String: Any],
            let bc = props["beamioCoupon"] as? [String: Any]
         {
-            if let nested = pick(bc, ["background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return nested }
+            if let nested = pick(bc, ["couponImage", "background", "backgroundImage", "backgroundImageUrl", "cover", "coverImage"]) { return nested }
         }
         return nil
     }

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { createPublicClient, createWalletClient, custom, http, type Address } from 'viem'
 import { base } from 'viem/chains'
-import { wrapFetchWithPayment, decodeXPaymentResponse } from 'x402-fetch'
 import { MobileWalletPayPanel } from '../components/MobileWalletPayPanel'
 import { SiteHeader } from '../components/SiteHeader'
+import { WalletAppDappIconButtons } from '../components/WalletAppDappIconButtons'
 import { isMobileDeviceForWalletApps } from '../utils/mobileWalletApps'
 
 declare global {
@@ -214,13 +214,6 @@ function normalizeTo65ByteSignature(signature: string): string | null {
 		return `0x${r}${s}${vHex}`
 	}
 	return null
-}
-
-function buildMetamaskDeeplink(): string {
-	const host = window.location.host
-	const path = window.location.pathname
-	const search = window.location.search
-	return `https://metamask.app.link/dapp/${host}${path}${search}`
 }
 
 function isX402RequirementShapeError(errorMessage: string): boolean {
@@ -493,6 +486,7 @@ export function UsdcTopup() {
 				setStatus('success')
 				return
 			}
+			const { wrapFetchWithPayment, decodeXPaymentResponse } = await import('x402-fetch')
 			const fetchWithPay = wrapFetchWithPayment(
 				fetch,
 				// viem walletClient satisfies x402 SignerWallet shape
@@ -615,9 +609,9 @@ export function UsdcTopup() {
 					<section className="mt-6">
 						{!hasWallet ? (
 							isMobileDeviceForWalletApps() ? (
-								<MobileWalletPayPanel fallbackDeeplink={buildMetamaskDeeplink()} />
+								<MobileWalletPayPanel />
 							) : (
-								<NoWalletPanel deeplink={buildMetamaskDeeplink()} />
+								<NoWalletPanel />
 							)
 						) : !account ? (
 							<button
@@ -705,22 +699,15 @@ function Divider() {
 }
 
 /** Desktop / laptop only (mobile uses `MobileWalletPayPanel` instead). */
-function NoWalletPanel({ deeplink }: { deeplink: string }) {
+function NoWalletPanel() {
 	return (
 		<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-100">
 			<p className="text-sm font-semibold">No browser wallet detected</p>
 			<p className="mt-1 text-xs leading-relaxed opacity-90">
-				Open this page inside your wallet's built-in browser (MetaMask, OKX Wallet, Base Wallet, etc.) to pay
-				with USDC on Base.
+				Open this page inside your wallet&apos;s built-in browser to pay with USDC on Base. Tap an icon to open the
+				app or store.
 			</p>
-			<a
-				href={deeplink}
-				target="_blank"
-				rel="noopener noreferrer"
-				className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-amber-600 px-6 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
-			>
-				Open in MetaMask
-			</a>
+			<WalletAppDappIconButtons className="mt-5" />
 		</div>
 	)
 }

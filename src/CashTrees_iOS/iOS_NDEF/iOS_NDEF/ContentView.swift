@@ -4681,6 +4681,273 @@ private struct POSTopUpOverviewScreen: View {
     }
 }
 
+// MARK: - Coupon ticket (biz Coupon preview parity)
+
+private func posCouponExpiryPresentation(validBeforeSec: UInt64?) -> (label: String, urgent: Bool, expired: Bool) {
+    guard let before = validBeforeSec, before > 0 else {
+        return ("NO EXPIRY", false, false)
+    }
+    let now = UInt64(Date().timeIntervalSince1970)
+    if before <= now {
+        return ("EXPIRED", true, true)
+    }
+    let delta = before - now
+    let hours = Double(delta) / 3600.0
+    if hours <= 48 {
+        let h = max(1, Int(ceil(hours)))
+        return ("EXPIRES IN \(h)H", true, false)
+    }
+    let days = max(1, Int(ceil(Double(delta) / 86400.0)))
+    return ("EXPIRES IN \(days)D", false, false)
+}
+
+private struct POSCouponTicketStripeOverlay: View {
+    var body: some View {
+        GeometryReader { _ in
+            Canvas { ctx, size in
+                let step: CGFloat = 9
+                var x: CGFloat = -size.height * 0.5
+                while x < size.width + size.height {
+                    var p = Path()
+                    p.move(to: CGPoint(x: x, y: 0))
+                    p.addLine(to: CGPoint(x: x + size.height * 0.38, y: size.height))
+                    ctx.stroke(p, with: .color(Color.white.opacity(0.12)), lineWidth: 1)
+                    x += step
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private func posCouponExpiryPill(label: String, urgent: Bool, expired: Bool) -> some View {
+    let red = Color(red: 0xE6 / 255, green: 0x4A / 255, blue: 0x4A / 255)
+    let useRed = urgent || expired
+    let bg = useRed ? red : Color.white.opacity(0.18)
+    return HStack(spacing: 5) {
+        Image(systemName: useRed ? "clock.fill" : "calendar")
+            .font(.system(size: 11, weight: .bold))
+        Text(label)
+            .font(.system(size: 10, weight: .heavy))
+            .kerning(0.35)
+    }
+    .foregroundStyle(Color.white)
+    .padding(.horizontal, 10)
+    .padding(.vertical, 5)
+    .background(
+        Capsule()
+            .fill(bg)
+            .overlay {
+                if !useRed {
+                    Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1)
+                }
+            }
+    )
+}
+
+private struct POSBizCouponPreviewTicket<Trailing: View>: View {
+    let notchParentColor: Color
+    let title: String
+    let subtitle: String
+    let iconUrl: String?
+    let fallbackLetter: String
+    let backgroundImageUrl: String?
+    let gradientStart: Color
+    let gradientEnd: Color
+    let overlayTopOpacity: Double
+    let overlayBottomOpacity: Double
+    let primaryText: Color
+    let secondaryText: Color
+    let borderColor: Color
+    let iconBackdrop: Color
+    let iconStroke: Color
+    let expiry: (label: String, urgent: Bool, expired: Bool)
+    private let trailing: Trailing
+
+    private let cornerR: CGFloat = 28
+    private let notchD: CGFloat = 36
+
+    init(
+        notchParentColor: Color,
+        title: String,
+        subtitle: String,
+        iconUrl: String?,
+        fallbackLetter: String,
+        backgroundImageUrl: String?,
+        gradientStart: Color,
+        gradientEnd: Color,
+        overlayTopOpacity: Double,
+        overlayBottomOpacity: Double,
+        primaryText: Color,
+        secondaryText: Color,
+        borderColor: Color,
+        iconBackdrop: Color,
+        iconStroke: Color,
+        expiry: (label: String, urgent: Bool, expired: Bool),
+        @ViewBuilder trailing: () -> Trailing
+    ) {
+        self.notchParentColor = notchParentColor
+        self.title = title
+        self.subtitle = subtitle
+        self.iconUrl = iconUrl
+        self.fallbackLetter = fallbackLetter
+        self.backgroundImageUrl = backgroundImageUrl
+        self.gradientStart = gradientStart
+        self.gradientEnd = gradientEnd
+        self.overlayTopOpacity = overlayTopOpacity
+        self.overlayBottomOpacity = overlayBottomOpacity
+        self.primaryText = primaryText
+        self.secondaryText = secondaryText
+        self.borderColor = borderColor
+        self.iconBackdrop = iconBackdrop
+        self.iconStroke = iconStroke
+        self.expiry = expiry
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        ZStack {
+            ticketFace
+                .clipShape(RoundedRectangle(cornerRadius: cornerR, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerR, style: .continuous)
+                        .stroke(borderColor, lineWidth: 1)
+                )
+            Circle()
+                .fill(notchParentColor)
+                .frame(width: notchD, height: notchD)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .offset(x: -notchD / 2)
+            Circle()
+                .fill(notchParentColor)
+                .frame(width: notchD, height: notchD)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .offset(x: notchD / 2)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var ticketFace: some View {
+        ZStack {
+            backgroundLayer
+            if backgroundImageTrimmed.isEmpty {
+                POSCouponTicketStripeOverlay()
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(overlayTopOpacity * 0.55 + 0.04),
+                        Color.clear,
+                        Color.black.opacity(overlayBottomOpacity * 0.9),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            HStack(alignment: .center, spacing: 12) {
+                iconColumn
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(primaryText)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(secondaryText)
+                        .lineLimit(2)
+                    posCouponExpiryPill(label: expiry.label, urgent: expiry.urgent, expired: expiry.expired)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 4)
+                trailing
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+        }
+        .frame(minHeight: 118)
+        // Align with biz coupon preview: max-w-md (448px) / min-h-[7.5rem] (120px) = 56:15 aspect ratio
+        .aspectRatio(56 / 15, contentMode: .fit)
+    }
+
+    private var backgroundImageTrimmed: String {
+        (backgroundImageUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    @ViewBuilder
+    private var backgroundLayer: some View {
+        let trimmed = backgroundImageTrimmed
+        if !trimmed.isEmpty,
+           let u = URL(string: trimmed),
+           let scheme = u.scheme?.lowercased(),
+           scheme == "https" || scheme == "http"
+        {
+            ZStack {
+                AsyncImage(url: u) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image
+                            .resizable()
+                            // Use 1:1 crop for coupon background image
+                            .aspectRatio(1, contentMode: .fill)
+                            .clipped()
+                    default:
+                        LinearGradient(
+                            colors: [gradientStart, gradientEnd],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
+                }
+                LinearGradient(
+                    colors: [Color.black.opacity(0.72), Color.black.opacity(0.35)],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
+        } else {
+            LinearGradient(
+                colors: [gradientStart, gradientEnd],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
+
+    private var iconColumn: some View {
+        let trimmed = (iconUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let letter = String(fallbackLetter.prefix(1)).uppercased()
+        return ZStack {
+            Circle()
+                .fill(Color.white.opacity(0.95))
+                .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 2)
+            if !trimmed.isEmpty,
+               let u = URL(string: trimmed),
+               let scheme = u.scheme?.lowercased(),
+               scheme == "https" || scheme == "http"
+            {
+                AsyncImage(url: u) { phase in
+                    switch phase {
+                    case let .success(image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 54, height: 54)
+                    default:
+                        Text(letter.isEmpty ? "?" : letter)
+                            .font(.system(size: 20, weight: .heavy))
+                            .foregroundStyle(primaryText.opacity(0.82))
+                    }
+                }
+            } else {
+                Text(letter.isEmpty ? "?" : letter)
+                    .font(.system(size: 20, weight: .heavy))
+                    .foregroundStyle(primaryText.opacity(0.82))
+            }
+        }
+        .frame(width: 54, height: 54)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(iconStroke, lineWidth: 2))
+    }
+}
+
 /// /home → Active program coupons (`/api/cardActiveIssuedCouponSeries`), slide-in parity with Transactions / Charge flows.
 private struct POSActiveCouponsScreen: View {
     @ObservedObject var vm: POSViewModel
@@ -4791,6 +5058,7 @@ private struct POSActiveCouponsScreen: View {
                     activeCouponRow(row)
                 }
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
         }
@@ -4798,112 +5066,55 @@ private struct POSActiveCouponsScreen: View {
 
     private func activeCouponRow(_ row: MerchantActiveIssuedCoupon) -> some View {
         let tone = couponCardTone(row)
-        return ZStack {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [tone.gradientStart, tone.gradientEnd],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            Circle()
-                .fill(tone.decorativeCircle)
-                .frame(width: 150, height: 150)
-                .offset(x: 98, y: -56)
-            LinearGradient(
-                colors: [Color.black.opacity(tone.overlayOpacityTop), Color.black.opacity(tone.overlayOpacityBottom)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            HStack(spacing: 14) {
-                couponIconView(row, tone: tone)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(row.displayTitle)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(tone.primaryText)
-                        .lineLimit(1)
-                    Text((row.subtitle?.isEmpty == false ? row.subtitle! : "Program Offer"))
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(tone.secondaryText)
-                        .lineLimit(1)
-                    if let supplySummary = couponSupplySummaryText(row) {
-                        Text(supplySummary)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(tone.secondaryText.opacity(0.92))
-                            .lineLimit(1)
+        let exp = posCouponExpiryPresentation(validBeforeSec: row.issuedNftValidBeforeSec)
+        let rawSub = row.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
+        let rawTitle = row.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
+        return VStack(alignment: .leading, spacing: 6) {
+            POSBizCouponPreviewTicket(
+                notchParentColor: Color(uiColor: .systemGroupedBackground),
+                title: row.displayTitle,
+                subtitle: sub,
+                iconUrl: row.iconUrl,
+                fallbackLetter: letter,
+                backgroundImageUrl: row.backgroundImageUrl,
+                gradientStart: tone.gradientStart,
+                gradientEnd: tone.gradientEnd,
+                overlayTopOpacity: tone.overlayOpacityTop,
+                overlayBottomOpacity: tone.overlayOpacityBottom,
+                primaryText: tone.primaryText,
+                secondaryText: tone.secondaryText,
+                borderColor: tone.borderColor,
+                iconBackdrop: tone.qrBackground,
+                iconStroke: Color.white.opacity(0.4),
+                expiry: exp
+            ) {
+                Group {
+                    if canShareOpenClaim(row) {
+                        Button {
+                            BeamioHaptic.light()
+                            sharingCoupon = row
+                        } label: {
+                            Image(systemName: "qrcode")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(tone.primaryText)
+                                .frame(width: 34, height: 34)
+                                .background(Circle().fill(tone.qrBackground))
+                        }
+                        .buttonStyle(BeamioHapticPlainButtonStyle())
+                        .accessibilityLabel("Show coupon claim QR and URL")
                     }
-                    HStack(spacing: 6) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(tone.pillText)
-                        Text(couponExpiryPillText(row))
-                            .font(.system(size: 12, weight: .heavy))
-                            .kerning(0.35)
-                            .foregroundStyle(tone.pillText)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(tone.pillBackground))
-                }
-                Spacer(minLength: 8)
-                if canShareOpenClaim(row) {
-                    Button {
-                        BeamioHaptic.light()
-                        sharingCoupon = row
-                    } label: {
-                        Image(systemName: "qrcode")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(tone.primaryText)
-                            .frame(width: 34, height: 34)
-                            .background(Circle().fill(tone.qrBackground))
-                    }
-                    .buttonStyle(BeamioHapticPlainButtonStyle())
-                    .accessibilityLabel("Show coupon claim QR and URL")
                 }
             }
-            .padding(16)
+            if let supplySummary = couponSupplySummaryText(row) {
+                Text(supplySummary)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 136)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(tone.borderColor, lineWidth: 1)
-        )
-        .overlay(alignment: .leading) {
-            Circle()
-                .fill(Color(uiColor: .systemGroupedBackground))
-                .frame(width: 26, height: 26)
-                .offset(x: -13)
-        }
-        .overlay(alignment: .trailing) {
-            Circle()
-                .fill(Color(uiColor: .systemGroupedBackground))
-                .frame(width: 26, height: 26)
-                .offset(x: 13)
-        }
-    }
-
-    private func couponExpiryPillText(_ row: MerchantActiveIssuedCoupon) -> String {
-        guard let before = row.issuedNftValidBeforeSec, before > 0 else { return "VALID NOW" }
-        let now = UInt64(Date().timeIntervalSince1970)
-        if before <= now { return "EXPIRED" }
-        let delta = before - now
-        let day: UInt64 = 86_400
-        let hour: UInt64 = 3_600
-        let minute: UInt64 = 60
-        if delta >= day {
-            let d = Int((delta + day - 1) / day)
-            return "EXPIRES IN \(d)D"
-        }
-        if delta >= hour {
-            let h = Int((delta + hour - 1) / hour)
-            return "EXPIRES IN \(h)H"
-        }
-        let m = max(1, Int((delta + minute - 1) / minute))
-        return "EXPIRES IN \(m)M"
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func couponSupplySummaryText(_ row: MerchantActiveIssuedCoupon) -> String? {
@@ -4926,11 +5137,8 @@ private struct POSActiveCouponsScreen: View {
         var gradientEnd: Color
         var primaryText: Color
         var secondaryText: Color
-        var decorativeCircle: Color
         var borderColor: Color
         var qrBackground: Color
-        var pillBackground: Color
-        var pillText: Color
         var overlayOpacityTop: Double
         var overlayOpacityBottom: Double
     }
@@ -4944,52 +5152,18 @@ private struct POSActiveCouponsScreen: View {
         )
         let primary = darkForeground ? Color.black.opacity(0.84) : Color.white
         let secondary = darkForeground ? Color.black.opacity(0.72) : Color.white.opacity(0.9)
-        let deco = darkForeground ? Color.black.opacity(0.06) : Color.white.opacity(0.05)
         let border = darkForeground ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
         let qrBg = darkForeground ? Color.white.opacity(0.35) : Color.black.opacity(0.25)
-        let pillBg = darkForeground
-            ? Color(red: 0xD3 / 255, green: 0x3D / 255, blue: 0x3D / 255)
-            : Color(red: 0xE6 / 255, green: 0x4A / 255, blue: 0x4A / 255)
-        let pillText = Color.white
         return CouponCardTone(
             gradientStart: start,
             gradientEnd: end,
             primaryText: primary,
             secondaryText: secondary,
-            decorativeCircle: deco,
             borderColor: border,
             qrBackground: qrBg,
-            pillBackground: pillBg,
-            pillText: pillText,
             overlayOpacityTop: darkForeground ? 0.06 : 0.18,
             overlayOpacityBottom: darkForeground ? 0.10 : 0.30
         )
-    }
-
-    @ViewBuilder
-    private func couponIconView(_ row: MerchantActiveIssuedCoupon, tone: CouponCardTone) -> some View {
-        ZStack {
-            Circle().fill(tone.qrBackground)
-            if let icon = row.iconUrl, let u = URL(string: icon) {
-                AsyncImage(url: u) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image.resizable().scaledToFill()
-                    default:
-                        Image(systemName: "ticket.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(tone.primaryText.opacity(0.9))
-                    }
-                }
-            } else {
-                Image(systemName: "ticket.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tone.primaryText.opacity(0.9))
-            }
-        }
-        .frame(width: 56, height: 56)
-        .overlay(Circle().stroke(tone.borderColor.opacity(0.95), lineWidth: 1))
-        .clipShape(Circle())
     }
 
     private func canShareOpenClaim(_ row: MerchantActiveIssuedCoupon) -> Bool {
@@ -7514,48 +7688,122 @@ private struct ReadBalanceView: View {
         }
     }
 
-    private func readBalanceCouponOwnedCard(_ row: MerchantCouponBalanceItem) -> some View {
-        let tone = readBalanceCouponTone(
-            seed: row.couponId,
-            backgroundColorHex: readBalanceCouponBackgroundHex(
-                couponId: row.couponId,
-                tokenId: row.tokenId,
-                cardAddress: row.cardAddress
-            )
+    private func readBalanceMatchedActiveCoupon(cardAddress: String, couponId: String, tokenId: String) -> MerchantActiveIssuedCoupon? {
+        guard let list = activeCoupons, !list.isEmpty else { return nil }
+        let ws = CharacterSet.whitespacesAndNewlines
+        let c = cardAddress.trimmingCharacters(in: ws).lowercased()
+        let id = couponId.trimmingCharacters(in: ws).lowercased()
+        let t = tokenId.trimmingCharacters(in: ws)
+        if !id.isEmpty, !t.isEmpty, !c.isEmpty {
+            for item in list {
+                let ic = item.cardAddress.trimmingCharacters(in: ws).lowercased()
+                let iid = (item.couponId ?? "").trimmingCharacters(in: ws).lowercased()
+                let it = item.tokenId.trimmingCharacters(in: ws)
+                if ic == c, iid == id, it == t { return item }
+            }
+        }
+        if !t.isEmpty, !c.isEmpty {
+            for item in list {
+                let ic = item.cardAddress.trimmingCharacters(in: ws).lowercased()
+                let it = item.tokenId.trimmingCharacters(in: ws)
+                if ic == c, it == t { return item }
+            }
+        }
+        return nil
+    }
+
+    private struct ReadBalanceBizCouponTicketTonePack {
+        var gradientStart: Color
+        var gradientEnd: Color
+        var overlayTopOpacity: Double
+        var overlayBottomOpacity: Double
+        var primaryText: Color
+        var secondaryText: Color
+        var borderColor: Color
+        var iconBackdrop: Color
+    }
+
+    private func readBalanceBizCouponTicketTonePack(
+        activeMatch: MerchantActiveIssuedCoupon?,
+        seed: String,
+        backgroundColorHex: String?
+    ) -> ReadBalanceBizCouponTicketTonePack {
+        let start: Color
+        let end: Color
+        if let m = activeMatch {
+            start = readBalanceParseHexColor(m.backgroundColorHex) ?? Color(red: 0x2B / 255, green: 0x2E / 255, blue: 0x3A / 255)
+            end = readBalanceSameFamilyGradientEnd(start: start)
+        } else {
+            let t = readBalanceCouponTone(seed: seed, backgroundColorHex: backgroundColorHex)
+            start = t.start
+            end = t.end
+        }
+        let darkForeground = readBalanceUseDarkForegroundWcagPreferRightSmallTextZone(
+            gradientStart: start,
+            gradientEnd: end
         )
+        let primary = darkForeground ? Color.black.opacity(0.84) : Color.white
+        let secondary = darkForeground ? Color.black.opacity(0.72) : Color.white.opacity(0.9)
+        let border = darkForeground ? Color.black.opacity(0.12) : Color.white.opacity(0.14)
+        let qrBg = darkForeground ? Color.white.opacity(0.35) : Color.black.opacity(0.25)
+        return ReadBalanceBizCouponTicketTonePack(
+            gradientStart: start,
+            gradientEnd: end,
+            overlayTopOpacity: darkForeground ? 0.06 : 0.18,
+            overlayBottomOpacity: darkForeground ? 0.10 : 0.30,
+            primaryText: primary,
+            secondaryText: secondary,
+            borderColor: border,
+            iconBackdrop: qrBg
+        )
+    }
+
+    private func readBalanceCouponOwnedCard(_ row: MerchantCouponBalanceItem) -> some View {
+        let bgHex = readBalanceCouponBackgroundHex(
+            couponId: row.couponId,
+            tokenId: row.tokenId,
+            cardAddress: row.cardAddress
+        )
+        let match = readBalanceMatchedActiveCoupon(
+            cardAddress: row.cardAddress,
+            couponId: row.couponId,
+            tokenId: row.tokenId
+        )
+        let tone = readBalanceBizCouponTicketTonePack(activeMatch: match, seed: row.couponId, backgroundColorHex: bgHex)
+        let exp = posCouponExpiryPresentation(validBeforeSec: match?.issuedNftValidBeforeSec)
+        let rawSub = (match?.subtitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
+        let rawTitle = row.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
         let canConsume = consumeInFlightCouponId == nil || consumeInFlightCouponId == row.id
         let isConsuming = consumeInFlightCouponId == row.id
         let showClaimedSuccess = claimSucceededCouponId == row.id && !isConsuming
-        return ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(colors: [tone.start, tone.end], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            Circle()
-                .fill(tone.deco)
-                .frame(width: 120, height: 120)
-                .offset(x: 78, y: -40)
-            HStack(spacing: 10) {
-                Image(systemName: "ticket.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(tone.primary.opacity(0.92))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(row.title)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(tone.primary)
-                        .lineLimit(1)
-                    Text("Owned coupon")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(tone.secondary)
-                }
-                Spacer(minLength: 8)
+        return VStack(alignment: .leading, spacing: 6) {
+            POSBizCouponPreviewTicket(
+                notchParentColor: readBalanceDetailsSurface,
+                title: row.title,
+                subtitle: sub,
+                iconUrl: match?.iconUrl,
+                fallbackLetter: letter,
+                backgroundImageUrl: match?.backgroundImageUrl,
+                gradientStart: tone.gradientStart,
+                gradientEnd: tone.gradientEnd,
+                overlayTopOpacity: tone.overlayTopOpacity,
+                overlayBottomOpacity: tone.overlayBottomOpacity,
+                primaryText: tone.primaryText,
+                secondaryText: tone.secondaryText,
+                borderColor: tone.borderColor,
+                iconBackdrop: tone.iconBackdrop,
+                iconStroke: Color.white.opacity(0.4),
+                expiry: exp
+            ) {
                 HStack(spacing: 8) {
                     Text("x\(row.balance)")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundStyle(tone.primary)
+                        .foregroundStyle(tone.primaryText)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(tone.badgeBg))
+                        .background(Capsule().fill(tone.iconBackdrop))
                     if showClaimedSuccess {
                         Image(systemName: "checkmark")
                             .font(.system(size: 12, weight: .bold))
@@ -7591,99 +7839,79 @@ private struct ReadBalanceView: View {
                     }
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-        .frame(height: 78)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(tone.border, lineWidth: 1))
-        .overlay(alignment: .leading) {
-            Circle().fill(readBalanceDetailsSurface).frame(width: 18, height: 18).offset(x: -9)
-        }
-        .overlay(alignment: .trailing) {
-            Circle().fill(readBalanceDetailsSurface).frame(width: 18, height: 18).offset(x: 9)
         }
     }
 
     private func readBalanceCouponClaimableCard(_ row: MerchantClaimableCouponItem, hasNfcSignerContext: Bool) -> some View {
-        let tone = readBalanceCouponTone(
-            seed: row.couponId,
-            backgroundColorHex: readBalanceCouponBackgroundHex(
-                couponId: row.couponId,
-                tokenId: row.tokenId,
-                cardAddress: row.cardAddress
-            )
+        let bgHex = readBalanceCouponBackgroundHex(
+            couponId: row.couponId,
+            tokenId: row.tokenId,
+            cardAddress: row.cardAddress
         )
+        let match = readBalanceMatchedActiveCoupon(
+            cardAddress: row.cardAddress,
+            couponId: row.couponId,
+            tokenId: row.tokenId
+        )
+        let tone = readBalanceBizCouponTicketTonePack(activeMatch: match, seed: row.couponId, backgroundColorHex: bgHex)
+        let exp = posCouponExpiryPresentation(validBeforeSec: match?.issuedNftValidBeforeSec)
+        let rawSub = (match?.subtitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
+        let rawTitle = row.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
         let canTap = (claimInFlightCouponId == nil || claimInFlightCouponId == row.id) && hasNfcSignerContext
-        return ZStack {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    LinearGradient(colors: [tone.start, tone.end], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-            Circle()
-                .fill(tone.deco)
-                .frame(width: 120, height: 120)
-                .offset(x: 78, y: -40)
-            HStack(spacing: 10) {
-                Image(systemName: "tag.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(tone.primary.opacity(0.92))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(row.title)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(tone.primary)
-                        .lineLimit(1)
-                    Text("Open claim available")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(tone.secondary)
+        return POSBizCouponPreviewTicket(
+            notchParentColor: readBalanceDetailsSurface,
+            title: row.title,
+            subtitle: sub,
+            iconUrl: match?.iconUrl,
+            fallbackLetter: letter,
+            backgroundImageUrl: match?.backgroundImageUrl,
+            gradientStart: tone.gradientStart,
+            gradientEnd: tone.gradientEnd,
+            overlayTopOpacity: tone.overlayTopOpacity,
+            overlayBottomOpacity: tone.overlayBottomOpacity,
+            primaryText: tone.primaryText,
+            secondaryText: tone.secondaryText,
+            borderColor: tone.borderColor,
+            iconBackdrop: tone.iconBackdrop,
+            iconStroke: Color.white.opacity(0.4),
+            expiry: exp
+        ) {
+            Button {
+                Task { _ = await onClaimCoupon(row) }
+            } label: {
+                if claimInFlightCouponId == row.id {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .tint(.white)
+                        .frame(width: 16, height: 16)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                } else {
+                    Image(systemName: "gift.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
                 }
-                Spacer(minLength: 8)
-                Button {
-                    Task { _ = await onClaimCoupon(row) }
-                } label: {
-                    if claimInFlightCouponId == row.id {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .tint(.white)
-                            .frame(width: 16, height: 16)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 6)
-                    } else {
-                        Image(systemName: "gift.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 6)
-                    }
-                }
-                .buttonStyle(BeamioHapticPlainButtonStyle())
-                .disabled(!canTap)
-                .background(
-                    Capsule().fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 1, green: 0.52, blue: 0.14),
-                                Color(red: 1, green: 0.28, blue: 0.34),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+            }
+            .buttonStyle(BeamioHapticPlainButtonStyle())
+            .disabled(!canTap)
+            .background(
+                Capsule().fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 1, green: 0.52, blue: 0.14),
+                            Color(red: 1, green: 0.28, blue: 0.34),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
                 )
-                .clipShape(Capsule())
-                .opacity(canTap ? 1 : 0.55)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-        .frame(height: 78)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(tone.border, lineWidth: 1))
-        .overlay(alignment: .leading) {
-            Circle().fill(readBalanceDetailsSurface).frame(width: 18, height: 18).offset(x: -9)
-        }
-        .overlay(alignment: .trailing) {
-            Circle().fill(readBalanceDetailsSurface).frame(width: 18, height: 18).offset(x: 9)
+            )
+            .clipShape(Capsule())
+            .opacity(canTap ? 1 : 0.55)
         }
     }
 
