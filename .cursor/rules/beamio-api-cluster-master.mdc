@@ -1,6 +1,6 @@
 ---
-description: Beamio API 服务器必须遵循 cluster/master 协议
-globs: src/x402sdk/**/endpoint/**/*.ts
+description: Beamio API 服务器必须遵循 cluster/master 协议与链上 pool 队列原则
+globs: src/x402sdk/src/{MemberCard.ts,endpoint/**}
 alwaysApply: true
 ---
 
@@ -12,24 +12,108 @@ Beamio 的 API 服务器**必须**遵守 cluster/master 协议。**请勿违反�
 
 为减少 Master 负荷，**Master 不对任何入站数据再次进行校验**。所有校验必须在 Cluster 阶段完成。
 
-- **Cluster**：负责**所有**预检（格式、必填项、业务校验如 requestHash 过期/已支付、验签等）。预检通过后才转发。
-- **Master**：收到数据时**默认已合格**。Master **不重复做**任何校验，直接执行业务逻辑、队列、链上操作。
-- 若将校验逻辑放在 Master，属于**违反协议**，需迁移到 Cluster。
+- **Cluster**：负责**所有**预检（格式、必填项、业务校验如 requestHash 过期/已支付、验签、链上 view 只读预检等）。预检通过后才转发。
+- **Master**：收到数据时**默认已合格**。Master **不重复做**任何校验，直接入队、执行业务逻辑与链上操作。
+- 若将校验逻辑放在 Master（如 `ethers.isAddress`、链上 `getRedeemStatus`、验签），属于**违反协议**，需迁移到 Cluster。
 
 ## 架构
 
 - **Cluster (beamioServer, port 2222)**：对外入口，接收请求，做预检
 - **Master (beamioMaster, port 1111)**：后端，处理队列、链上操作、DB 写入
 
+## 链上写操作：Pool 队列 + 多钱包并行（nonce 原则）
+
+凡 Master 侧**发送链上交易**的写操作，必须遵守下列执行模型（与 `createCardPoolPress`、`cardRedeemPoolPress` 一致）。
+
+### 两层队列
+
+| 队列 | 含义 | 语义 |
+|------|------|------|
+| **业务 pool**（如 `cardRedeemPool`、`executeForOwnerPool`） | 待处理 HTTP 请求 | **FIFO**：`shift` 取一条任务 |
+| **`Settle_ContractPool`** | factory 登记的 admin 钱包（含 `walletBase`、`baseFactoryPaymaster` 等） | **每任务 shift 一个钱包**上链；用完 `finally` 中 `unshift` 归还 |
+
+### 并行 vs 串行
+
+- **多钱包并行**：每个入队请求可 `kickXxxPoolPress()` 启动 worker；不同 worker 占用 **不同 admin 钱包**，可同时送链上 tx。
+- **单钱包串行**：同一 admin 钱包的 nonce 必须递增；同一钱包在同一时刻只应有一个 worker 持有（通过 `shift`/`unshift` 保证，不得并发双持同一 `SC`）。
+- **业务 pool 串行 dequeue**：每个 worker 每次只 `shift` 一条任务；任务完成后再 `scheduleXxxPoolPress()` 拉下一条。
+
+### 标准实现模板（Master + MemberCard）
+
+**Master handler（只入队，不预检）：**
+
+```typescript
+router.post('/cardRedeem', (req, res) => {
+  const { cardAddress, redeemCode, toUserEOA } = req.body as { ... }
+  cardRedeemPool.push({ cardAddress, redeemCode, toUserEOA, res })
+  kickCardRedeemPoolPress()
+})
+```
+
+**Cluster handler（完整预检 + 转发规范化 body）：**
+
+```typescript
+const preCheck = await cardRedeemPreCheck({ cardAddress, redeemCode, toUserEOA })
+if (!preCheck.success) return res.status(403).json({ success: false, error: preCheck.error })
+postLocalhost('/api/cardRedeem', {
+  cardAddress: resolvedCard,
+  redeemCode: String(redeemCode).trim(),
+  toUserEOA: ethers.getAddress(toUserEOA),
+}, res)
+```
+
+**Pool worker（MemberCard.ts）：**
+
+```typescript
+export function kickCardRedeemPoolPress(): void {
+  cardRedeemPoolPress().catch(/* log */)
+}
+
+function scheduleCardRedeemPoolPress(): void {
+  if (cardRedeemPool.length === 0) return
+  if (Settle_ContractPool.length > 0) kickCardRedeemPoolPress()
+  else setTimeout(() => kickCardRedeemPoolPress(), 3000)
+}
+
+export const cardRedeemPoolPress = async () => {
+  const obj = cardRedeemPool.shift()
+  if (!obj) return
+  const SC = Settle_ContractPool.shift()
+  if (!SC) {
+    cardRedeemPool.unshift(obj)
+    return setTimeout(() => kickCardRedeemPoolPress(), 3000)
+  }
+  try {
+    // 链上写：factory.redeemForUser / executeForOwner / …
+  } finally {
+    Settle_ContractPool.unshift(SC) // 仅 finally 归还钱包，禁止 early-return 路径重复 unshift
+    scheduleCardRedeemPoolPress()
+  }
+}
+```
+
+### 参考实现
+
+- **多钱包并行 + pool 调度**：`createCardPoolPress`、`cardRedeemPoolPress`（`MemberCard.ts`）
+- **Cluster 预检 + Master 只 push**：`/api/cardRedeem`、`/api/cardRedeemPreCheck`（`beamioServer.ts` + `beamioMaster.ts`）
+
+### 严禁（链上写路径）
+
+- ❌ Master 路由内 `ethers.isAddress`、链上 view 预检、验签、业务 reject（应已在 Cluster 完成）
+- ❌ Cluster 内直接 `factory.redeemForUser` / `executeForOwner` 等**发链上 tx**
+- ❌ 无 pool 队列、在 Master handler 内同步 `await tx.wait()` 阻塞 HTTP（除只读或 webhook 等例外）
+- ❌ 同一 `SC` 在 `try` 与 `finally` **重复** `Settle_ContractPool.unshift(SC)`
+- ❌ 用 `setInterval` 轮询 pool（须 `kick` + `schedule` + `setTimeout` 链，见 `beamio-no-setinterval.mdc`）
+
 ## 写操作
 
 所有**写区块链的 process**必须：
 
 1. Cluster 做**完整预检**（格式、必填项、业务校验）
-2. 预检通过后通过 `postLocalhost('/api/xxx', body, res)` **转发到 Master**
-3. Master 实现实际逻辑，**假定数据已合格**，使用 **admin array** 进行**并行**区块链写入（Settle_ContractPool 等）
+2. 预检通过后通过 `postLocalhost('/api/xxx', body, res)` **转发到 Master**（body 为规范化字段，勿透传未校验原始 body）
+3. Master **只入队**，由 `*PoolPress` worker 通过 **`Settle_ContractPool` 多钱包并行**送链
 
-示例：createCard、purchasingCard、registerSeries、registerMintMetadata、executeForOwner、AAtoEOA、beamioTransferIndexerAccounting 等。
+示例：createCard、purchasingCard、registerSeries、registerMintMetadata、executeForOwner、AAtoEOA、beamioTransferIndexerAccounting、**cardRedeem** 等。
 
 ## requestHash 相关预检（Cluster 必须做）
 
@@ -43,13 +127,15 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 
 **读操作**由 Cluster 直接处理，减轻 Master 负担。Master 可选择性实现相同读端点（如 latestCards 两端都有）。
 
+链上 **只读预检**（如 `cardRedeemPreCheck`、`redeemStatusBatch`、`getRedeemStatus`）属于 Cluster 读路径，**不得**在 Master 写路径重复。
+
 ## 职责边界（读写分离）
 
 | 类型 | 处理方 | 说明 |
 |------|--------|------|
 | **读取** | Cluster 直接返回 | 查 DB、查链上 view、RPC 只读等，Cluster 处理并立即返回 |
 | **系统写入** | Master 排队处理 | DB 写入（如 registerNfcCardToDb、upsert 等）必须交由 Master，放入 pool 排队 |
-| **区块链交易** | Master 排队处理 | 链上写操作（createAccountFor、executeForOwner 等）必须交由 Master，使用 Settle_ContractPool 等 |
+| **区块链交易** | Master 排队处理 | 链上写操作必须交由 Master `*Pool` + `Settle_ContractPool` 执行 |
 
 ## 需创建钱包时的流程
 
@@ -70,8 +156,10 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 
 新增 API 时：
 
-- [ ] 若是**写操作**：在 Master 添加 handler，在 Cluster 添加**完整预检** + `postLocalhost` 转发
+- [ ] 若是**写操作**：Master 添加 **只 push pool + kick worker** 的 handler；Cluster 添加**完整预检** + `postLocalhost` 转发规范化 body
 - [ ] 若是**读操作**：在 Cluster 添加 handler，Master 建议同步实现（便于直连 Master 或容错）
-- [ ] **不要**仅在 Cluster 实现写操作的完整逻辑
-- [ ] **不要**在 Master 做任何入站数据校验（格式、业务、验签等），全部在 Cluster 完成
+- [ ] **不要**仅在 Cluster 实现写操作的完整链上逻辑
+- [ ] **不要**在 Master 做任何入站数据校验（格式、业务、验签、链上 view 预检），全部在 Cluster 完成
+- [ ] 链上写是否使用 `xxxPool` + `*PoolPress` + `Settle_ContractPool` shift/unshift？
+- [ ] worker 结束是否 `scheduleXxxPoolPress()`（有空闲钱包立即续跑，否则 delayed kick）？
 - [ ] 若读操作中**可能需创建钱包**（DB 写入 + AA 链上创建）：Cluster 仅预检，需创建时转发 Master 排队处理，**不得**在 Cluster 内执行 provision/registerNfcCardToDb

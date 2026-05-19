@@ -8,13 +8,14 @@ import "./RedeemStorage.sol";
 import "./FaucetStorage.sol";
 import "./IssuedNftStorage.sol";
 import "./GovernanceStorage.sol";
-import "./MembershipStatsStorage.sol";
 import "./TotalSupplyStorage.sol";
 import "./AdminStatsStorage.sol";
 import "./BeamioUserCardInterfaces.sol";
 import "./BeamioUserCardTypes.sol";
 import "./BeamioUserCardFormattingLib.sol";
+import "./BeamioUserCardModuleKinds.sol";
 import "./BeamioUserCardTransferLib.sol";
+import "./ChargeRewardStorage.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -31,21 +32,23 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 20;
+    uint256 public constant VERSION = 21;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
     uint8 public constant POINTS_DECIMALS = BeamioERC1155Logic.POINTS_DECIMALS;
     uint256 private constant POINTS_ONE = 10 ** uint256(POINTS_DECIMALS);
+    uint256 private constant DEFAULT_CHARGE_REWARD_RATIO_E6 = 1_000_000;
 
     uint256 public constant NFT_START_ID = BeamioERC1155Logic.NFT_START_ID;
     uint256 public constant ISSUED_NFT_START_ID = BeamioERC1155Logic.ISSUED_NFT_START_ID;
-    uint8 private constant MODULE_REDEEM = 0;
-    uint8 private constant MODULE_FAUCET = 1;
-    uint8 private constant MODULE_ISSUED_NFT = 2;
-    uint8 private constant MODULE_GOVERNANCE = 3;
-    uint8 private constant MODULE_MEMBERSHIP_STATS = 4;
-    uint8 private constant ROUTE_STATS_QUERY = type(uint8).max - 1;
+    uint8 private constant MODULE_REDEEM = BeamioUserCardModuleKinds.REDEEM;
+    uint8 private constant MODULE_FAUCET = BeamioUserCardModuleKinds.FAUCET;
+    uint8 private constant MODULE_ISSUED_NFT = BeamioUserCardModuleKinds.ISSUED_NFT;
+    uint8 private constant MODULE_GOVERNANCE = BeamioUserCardModuleKinds.GOVERNANCE;
+    uint8 private constant MODULE_MEMBERSHIP_STATS = BeamioUserCardModuleKinds.MEMBERSHIP_STATS;
+    uint8 private constant MODULE_CHARGE_REWARD = BeamioUserCardModuleKinds.CHARGE_REWARD;
+    uint8 private constant ROUTE_STATS_QUERY = BeamioUserCardModuleKinds.STATS_QUERY;
 
     // ===== Immutable / gateway =====
     address public immutable deployer;
@@ -195,6 +198,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
         currency = currency_;
         pointsUnitPriceInCurrencyE6 = pointsUnitPriceInCurrencyE6_;
+        ChargeRewardStorage.layout().chargeRewardRatioE6 = DEFAULT_CHARGE_REWARD_RATIO_E6;
         upgradeType = upgradeType_;
 
         GovernanceStorage.Layout storage g = GovernanceStorage.layout();
@@ -517,15 +521,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     function _module(uint8 moduleKind) internal view returns (address module) {
         address gw = factoryGateway();
         if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-        IBeamioUserCardFactoryPaymasterV07 f = IBeamioUserCardFactoryPaymasterV07(gw);
-        if (moduleKind == MODULE_REDEEM) module = f.defaultRedeemModule();
-        else if (moduleKind == MODULE_FAUCET) module = f.defaultFaucetModule();
-        else if (moduleKind == MODULE_ISSUED_NFT) module = f.defaultIssuedNftModule();
-        else if (moduleKind == MODULE_GOVERNANCE) module = f.defaultGovernanceModule();
-        else module = f.defaultMembershipStatsModule();
+        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultModule(moduleKind);
         if (module != address(0)) return module;
-        if (moduleKind == MODULE_MEMBERSHIP_STATS) revert UC_StatsModuleZero();
-        revert UC_RedeemModuleZero();
+        revert UC_ModuleZero(moduleKind);
     }
 
     function _callModule(uint8 moduleKind, bytes memory data) internal returns (bytes memory ret) {
@@ -537,7 +535,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     function _statsQueryModule() internal view returns (address module) {
         address gw = factoryGateway();
         if (gw == address(0) || gw.code.length == 0) revert UC_GlobalMisconfigured();
-        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultAdminStatsQueryModule();
+        module = IBeamioUserCardFactoryPaymasterV07(gw).defaultModule(ROUTE_STATS_QUERY);
         if (module == address(0) || module.code.length == 0) revert UC_GlobalMisconfigured();
     }
 
@@ -550,6 +548,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         else if (route == MODULE_GOVERNANCE) module = _module(MODULE_GOVERNANCE);
         else if (route == MODULE_FAUCET) module = _module(MODULE_FAUCET);
         else if (route == MODULE_ISSUED_NFT) module = _module(MODULE_ISSUED_NFT);
+        else if (route == MODULE_MEMBERSHIP_STATS) module = _module(MODULE_MEMBERSHIP_STATS);
+        else if (route == MODULE_CHARGE_REWARD) module = _module(MODULE_CHARGE_REWARD);
         else revert BM_CallFailed();
         assembly {
             calldatacopy(0, 0, calldatasize())
@@ -697,36 +697,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         AdminStatsStorage.recordMint(admin, amount);
     }
 
-    /// @notice 查询 admin 累计 mint 计数（从上次 clear 起）
-    function getAdminMintCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminMintCounter[admin];
-    }
-
-    /// @notice 查询 admin 累计 burn 计数（从上次 clear 起）
-    function getAdminBurnCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminBurnCounter[admin];
-    }
-
-    /// @notice 查询 admin 累计 transfer 次数（从上次 clear 起）
-    function getAdminTransferCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminTransferCounter[admin];
-    }
-
-    /// @notice 查询 admin 累计 transfer 金额（从上次 clear 起）
-    function getAdminTransferAmountCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminTransferAmountCounter[admin];
-    }
-
-    /// @notice 查询 admin redeem 完成后单独累计的 mint 计数（从上次 clear 起）
-    function getAdminRedeemMintCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminRedeemMintCounter[admin];
-    }
-
-    /// @notice 查询 admin USDC topup 完成后单独累计的 mint 计数（从上次 clear 起）
-    function getAdminUSDCMintCounter(address admin) external view returns (uint256) {
-        return AdminStatsStorage.layout().adminUSDCMintCounter[admin];
-    }
-
     /// @notice parent admin 清零 subordinate 的 mint/burn/transfer 计数（仅 gateway 调用，Factory executeForAdmin 支持）
     /// @param subordinate 被清零的 admin
     /// @param authorizer 必须等于 adminParent[subordinate]，即 parent；Factory 验签后传入 signer
@@ -849,12 +819,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         emit IssuedNftMinted(tokenId, acct, 1);
     }
 
-    /// @notice Whether `userEOA` has consumed the EIP-712 free claim slot for `tokenId`.
-    function issuedNftUserSigClaimUsed(address userEOA, uint256 tokenId) external view returns (bool) {
-        bytes32 key = keccak256(abi.encode(userEOA, tokenId));
-        return IssuedNftStorage.layout().issuedNftUserSigClaimUsed[key];
-    }
-
     /// @notice Gateway 为用户 mint（Factory 收 USDC 后调用）
     function mintIssuedNftByGateway(address userEOA, uint256 tokenId, uint256 amount) external onlyAuthorizedGateway nonReentrant {
         if (userEOA == address(0)) revert BM_ZeroAddress();
@@ -870,18 +834,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         );
         _mint(acct, tokenId, amount, "");
         emit IssuedNftMinted(tokenId, acct, amount);
-    }
-
-    /// @notice 检查 issued NFT 是否在有效期内
-    function isIssuedNftValid(uint256 tokenId) external view returns (bool) {
-        if (tokenId < ISSUED_NFT_START_ID) return false;
-        IssuedNftStorage.Layout storage l = IssuedNftStorage.layout();
-        uint64 va = l.issuedNftValidAfter[tokenId];
-        uint64 vb = l.issuedNftValidBefore[tokenId];
-        uint256 ts = block.timestamp;
-        if (va != 0 && ts < va) return false;
-        if (vb != 0 && ts > vb) return false;
-        return true;
     }
 
     function _mintMemberCardInternal(address user, uint256 tierIndex) internal {
@@ -1051,58 +1003,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     function getOwnershipByEOA(address userEOA) external view returns (uint256 pt, NFTDetail[] memory nfts) {
         address acct = _resolveAccount(userEOA);
         return getOwnership(acct);
-    }
-
-    function membershipFlowBucketAtHour(uint64 hourIndex)
-        external
-        view
-        returns (
-            uint256 issuedCount,
-            uint256 upgradedCount,
-            uint256 expiredDiscoveredCount,
-            uint256 activeSwitchCount,
-            uint256 activatedCount,
-            uint256 deactivatedCount,
-            bool hasData
-        )
-    {
-        MembershipStatsStorage.FlowBucket storage b = MembershipStatsStorage.layout().hourlyGlobal[hourIndex];
-        return (
-            b.issuedCount,
-            b.upgradedCount,
-            b.expiredDiscoveredCount,
-            b.activeSwitchCount,
-            b.activatedCount,
-            b.deactivatedCount,
-            b.hasData
-        );
-    }
-
-    function membershipScopedFlowBucketAtHour(uint8 scopeType, uint256 scopeKey, uint64 hourIndex)
-        external
-        view
-        returns (
-            uint256 issuedCount,
-            uint256 upgradedCount,
-            uint256 expiredDiscoveredCount,
-            uint256 activeSwitchCount,
-            uint256 activatedCount,
-            uint256 deactivatedCount,
-            bool hasData
-        )
-    {
-        MembershipStatsStorage.Layout storage s = MembershipStatsStorage.layout();
-        MembershipStatsStorage.FlowBucket storage b =
-            scopeType == 1 ? s.hourlyByTokenId[scopeKey][hourIndex] : s.hourlyByTierIndex[scopeKey][hourIndex];
-        return (
-            b.issuedCount,
-            b.upgradedCount,
-            b.expiredDiscoveredCount,
-            b.activeSwitchCount,
-            b.activatedCount,
-            b.deactivatedCount,
-            b.hasData
-        );
     }
 
     // ==========================================================

@@ -128,4 +128,22 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
 
         emit IssuedNftMinted(tokenId, recipientAcct, amount);
     }
+
+    /// @notice 检查 issued NFT 是否在有效期内
+    function isIssuedNftValid(uint256 tokenId) external view returns (bool) {
+        if (tokenId < ISSUED_NFT_START_ID) return false;
+        IssuedNftStorage.Layout storage l = IssuedNftStorage.layout();
+        uint64 va = l.issuedNftValidAfter[tokenId];
+        uint64 vb = l.issuedNftValidBefore[tokenId];
+        uint256 ts = block.timestamp;
+        if (va != 0 && ts < va) return false;
+        if (vb != 0 && ts > vb) return false;
+        return true;
+    }
+
+    /// @notice Whether `userEOA` has consumed the EIP-712 free claim slot for `tokenId`.
+    function issuedNftUserSigClaimUsed(address userEOA, uint256 tokenId) external view returns (bool) {
+        bytes32 key = keccak256(abi.encode(userEOA, tokenId));
+        return IssuedNftStorage.layout().issuedNftUserSigClaimUsed[key];
+    }
 }

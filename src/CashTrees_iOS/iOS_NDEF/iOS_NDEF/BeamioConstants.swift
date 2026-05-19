@@ -25,7 +25,7 @@ enum BeamioConstants {
     static let defaultBeamioUserCard = "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14"
 
     /// 与 `chainAddresses.BASE_CARD_FACTORY` / Android `BeamioWeb3Wallet` 一致（EIP-712 verifyingContract）
-    static let baseCardFactory = "0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B"
+    static let baseCardFactory = "0x0f8273773Ba91348B308198723BE0402230A8019"
     static let baseChainId: UInt64 = 8453
 
     static let deprecatedCardAddress = "0xEcC5bDFF6716847e45363befD3506B1D539c02D5"

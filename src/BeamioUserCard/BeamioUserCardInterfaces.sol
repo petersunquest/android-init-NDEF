@@ -23,12 +23,14 @@ interface IBeamioFactoryOpenRelayViews {
 }
 
 interface IBeamioUserCardFactoryPaymasterV07 {
+    function defaultModule(uint8 kind) external view returns (address);
     function defaultRedeemModule() external view returns (address);
     function defaultFaucetModule() external view returns (address);
     function defaultIssuedNftModule() external view returns (address);
     function defaultGovernanceModule() external view returns (address);
     function defaultMembershipStatsModule() external view returns (address);
     function defaultAdminStatsQueryModule() external view returns (address);
+    function defaultChargeRewardModule() external view returns (address);
     function metadataBaseURI() external view returns (string memory);
 }
 
@@ -110,10 +112,22 @@ interface IBeamioIssuedNftModuleV1 {
     function issuedNftMaxSupply(uint256 tokenId) external view returns (uint256);
     function issuedNftMintedCount(uint256 tokenId) external view returns (uint256);
     function burnIssuedNftByGateway(address holder, uint256 tokenId, uint256 amount) external;
+    function isIssuedNftValid(uint256 tokenId) external view returns (bool);
+    function issuedNftUserSigClaimUsed(address userEOA, uint256 tokenId) external view returns (bool);
     function createIssuedNft(bytes32 title, uint64 validAfter, uint64 validBefore, uint256 maxSupply, uint256 priceInCurrency6, bytes32 sharedMetadataHash) external returns (uint256 tokenId);
     function validateAndRecordMintIssuedNft(address acct, uint256 tokenId, uint256 amount) external;
     /// @notice Exactly 1 NFT; per userEOA per tokenId at most once; maxSupply enforced
     function validateAndRecordMintIssuedNftUserSigClaim(address userEOA, address recipientAcct, uint256 tokenId) external;
+}
+
+interface IBeamioChargeRewardModuleV1 {
+    function CHARGE_REWARD_TOKEN_ID() external view returns (uint256);
+    function chargeRewardRatioE6() external view returns (uint256);
+    function setChargeRewardRatio(uint256 ratioE6) external;
+    function setChargeRewardRatioByAdmin(uint256 ratioE6) external;
+    function previewChargeRewardAmount(uint256 amountFiat6) external view returns (uint256);
+    function mintChargeRewardByGateway(address userEOA, uint256 amountFiat6, uint8 chargeCurrency) external;
+    function burnChargeRewardByAdmin(address target, uint256 amount) external;
 }
 
 interface IBeamioGovernanceModuleV1 {

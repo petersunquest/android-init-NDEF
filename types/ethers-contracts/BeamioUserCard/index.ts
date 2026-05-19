@@ -13,6 +13,8 @@ import type * as beamioUserCardFactoryPaymasterV07Sol from './BeamioUserCardFact
 export type { beamioUserCardFactoryPaymasterV07Sol };
 import type * as beamioUserCardInterfacesSol from './BeamioUserCardInterfaces.sol/index.js';
 export type { beamioUserCardInterfacesSol };
+import type * as chargeRewardModuleSol from './ChargeRewardModule.sol/index.js';
+export type { chargeRewardModuleSol };
 import type * as faucetModuleSol from './FaucetModule.sol/index.js';
 export type { faucetModuleSol };
 import type * as governanceModuleSol from './GovernanceModule.sol/index.js';

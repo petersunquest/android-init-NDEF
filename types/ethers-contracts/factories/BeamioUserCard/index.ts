@@ -7,6 +7,7 @@ export * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
 export * as beamioUserCardBaseSol from './BeamioUserCardBase.sol/index.js';
 export * as beamioUserCardFactoryPaymasterV07Sol from './BeamioUserCardFactoryPaymasterV07.sol/index.js';
 export * as beamioUserCardInterfacesSol from './BeamioUserCardInterfaces.sol/index.js';
+export * as chargeRewardModuleSol from './ChargeRewardModule.sol/index.js';
 export * as faucetModuleSol from './FaucetModule.sol/index.js';
 export * as governanceModuleSol from './GovernanceModule.sol/index.js';
 export * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';

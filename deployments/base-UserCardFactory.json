@@ -2,23 +2,52 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-05-07T01:05:58.789Z",
+  "timestamp": "2026-05-19T22:05:05.528Z",
+  "previous": {
+    "factory": "0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B",
+    "issuedNftModule": "0x6563d3A8c876469946b42B8d57Ac01577a5534A2",
+    "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
+    "adminStatsQueryModule": "0xe34C33B4d0daC52E3853d721d058Db84df218976"
+  },
   "contracts": {
+    "beamioUserCardDeployer": {
+      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "reused": true
+    },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B",
+      "address": "0x0f8273773Ba91348B308198723BE0402230A8019",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
       "deployer": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
       "aaFactory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
-      "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
-      "issuedNftModule": "0x6563d3A8c876469946b42B8d57Ac01577a5534A2",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
-      "membershipStatsModule": "0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0",
-      "adminStatsQueryModule": "0xe34C33B4d0daC52E3853d721d058Db84df218976",
+      "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
+      "issuedNftModule": "0x4d62e67b0CeCFa909A863d6BAE1152E462fFe8d1",
+      "membershipStatsModule": "0xEB1986F5320753B2bb1E64a24E96b6E42B11F516",
+      "adminStatsQueryModule": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
+      "chargeRewardModule": "0xAD47DDE5dE24Bd830CbE9D78AAAa4abDa614D69E",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0xb8641b1f1adafce183364fde42c336b9ae7ab23aa60a73eb65848ee2bb340feb"
+      "transactionHash": "0x39cfc2f6d49a77e159e6fdf3d09011025ceff5b9597da47700307631273f4364"
+    },
+    "changedModules": {
+      "issuedNftModule": {
+        "address": "0x4d62e67b0CeCFa909A863d6BAE1152E462fFe8d1",
+        "reused": true
+      },
+      "membershipStatsModule": {
+        "address": "0xEB1986F5320753B2bb1E64a24E96b6E42B11F516",
+        "reused": true
+      },
+      "adminStatsQueryModule": {
+        "address": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
+        "reused": true
+      },
+      "chargeRewardModule": {
+        "address": "0xAD47DDE5dE24Bd830CbE9D78AAAa4abDa614D69E",
+        "txHash": "0x9c34387a57f7939adac1b8bed71851760299df6a39f5267d05f0dbfa0e5d97ed"
+      }
     }
   }
 }

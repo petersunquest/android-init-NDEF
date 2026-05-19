@@ -10,9 +10,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "CLAIM_ISSUED_NFT_TYPEHASH" | "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "claimIssuedNftWithUserSig" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedIssuedNftClaimSigNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
+    getFunction(nameOrSignature: "CLAIM_ISSUED_NFT_TYPEHASH" | "CLEAR_ADMIN_MINT_COUNTER_TYPEHASH" | "DOMAIN_SEPARATOR" | "EXECUTE_FOR_ADMIN_TYPEHASH" | "EXECUTE_FOR_OWNER_TYPEHASH" | "USDC" | "USDC_TOKEN" | "_aaFactory" | "aaFactory" | "appendTierForCard" | "appendTierForCardWithOwnerSignature" | "beamioUserCardOwner" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256)" | "buyPointsForUser(address,address,uint256,uint256,uint256,bytes32,bytes,uint256,address)" | "cardsOfOwner" | "changePaymasterStatus" | "claimIssuedNftWithUserSig" | "createCardCollectionWithInitCode" | "createCardCollectionWithInitCodeAndTiers" | "defaultAdminStatsQueryModule" | "defaultChargeRewardModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultModule" | "defaultRedeemModule" | "deployer" | "executeClearAdminMintCounter" | "executeForAdmin" | "executeForOwner" | "isBeamioUserCard" | "isCardOfOwner" | "isPaymaster" | "isTokenIdIssued" | "issueTokenId" | "latestCardOfOwner" | "metadataBaseURI" | "nextFungibleId" | "nextNftId" | "owner" | "purchaseFaucetForUser" | "purchaseIssuedNftForUser" | "quoteCurrencyAmountInUSDC6" | "quoteHelper" | "quoteUnitPointInUSDC6" | "redeemAdminForUser" | "redeemBatchForUser" | "redeemForUser" | "redeemPoolForUser" | "registerExistingCard" | "setAAFactory" | "setAdminStatsQueryModule" | "setChargeRewardModule" | "setDefaultModule" | "setDefaultModules" | "setDeployer" | "setFaucetModule" | "setGovernanceModule" | "setIssuedNftModule" | "setMembershipStatsModule" | "setMetadataBaseURI" | "setQuoteHelper" | "setRedeemModule" | "tokenIdIssued" | "transferOwner" | "usedAdminExecuteNonces" | "usedClearAdminMintCounterNonces" | "usedIssuedNftClaimSigNonces" | "usedOwnerExecuteNonces"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultAdminStatsQueryModuleUpdated" | "DefaultFaucetModuleUpdated" | "DefaultGovernanceModuleUpdated" | "DefaultIssuedNftModuleUpdated" | "DefaultMembershipStatsModuleUpdated" | "DefaultRedeemModuleUpdated" | "DeployFailedCreateDebug" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftClaimedWithUserSig" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AAFactoryChanged" | "AdminExecuteExecuted" | "CardDeployed" | "CardRegistered" | "DefaultModuleUpdated" | "DeployFailedCreateDebug" | "DeployFailedStep" | "DeployerChanged" | "IssuedNftClaimedWithUserSig" | "IssuedNftPurchasedForUser" | "MetadataBaseURIUpdated" | "OwnerChanged" | "PaymasterStatusChanged" | "PointsPurchasedForUser" | "QuoteHelperChanged" | "RedeemExecuted" | "TokenIdIssued"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CLAIM_ISSUED_NFT_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'CLEAR_ADMIN_MINT_COUNTER_TYPEHASH', values?: undefined): string;
@@ -34,10 +34,12 @@ encodeFunctionData(functionFragment: 'claimIssuedNftWithUserSig', values: [Addre
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCode', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createCardCollectionWithInitCodeAndTiers', values: [AddressLike, BigNumberish, BigNumberish, BytesLike, TierStruct[]]): string;
 encodeFunctionData(functionFragment: 'defaultAdminStatsQueryModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultChargeRewardModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultMembershipStatsModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultModule', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executeClearAdminMintCounter', values: [AddressLike, AddressLike, BigNumberish, BytesLike, BytesLike]): string;
@@ -65,6 +67,9 @@ encodeFunctionData(functionFragment: 'redeemPoolForUser', values: [AddressLike, 
 encodeFunctionData(functionFragment: 'registerExistingCard', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAAFactory', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAdminStatsQueryModule', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setChargeRewardModule', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setDefaultModule', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'setDefaultModules', values: [BigNumberish[], AddressLike[]]): string;
 encodeFunctionData(functionFragment: 'setDeployer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setFaucetModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setGovernanceModule', values: [AddressLike]): string;
@@ -100,10 +105,12 @@ decodeFunctionResult(functionFragment: 'claimIssuedNftWithUserSig', data: BytesL
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createCardCollectionWithInitCodeAndTiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultAdminStatsQueryModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultChargeRewardModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultMembershipStatsModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultRedeemModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeClearAdminMintCounter', data: BytesLike): Result;
@@ -131,6 +138,9 @@ decodeFunctionResult(functionFragment: 'redeemPoolForUser', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'registerExistingCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAAFactory', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAdminStatsQueryModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setChargeRewardModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setDefaultModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setDefaultModules', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDeployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setGovernanceModule', data: BytesLike): Result;
@@ -196,70 +206,10 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
 
   
 
-    export namespace DefaultAdminStatsQueryModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace DefaultFaucetModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace DefaultGovernanceModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace DefaultIssuedNftModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace DefaultMembershipStatsModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
-    export namespace DefaultRedeemModuleUpdatedEvent {
-      export type InputTuple = [oldM: AddressLike, newM: AddressLike];
-      export type OutputTuple = [oldM: string, newM: string];
-      export interface OutputObject {oldM: string, newM: string };
+    export namespace DefaultModuleUpdatedEvent {
+      export type InputTuple = [kind: BigNumberish, oldModule: AddressLike, newModule: AddressLike];
+      export type OutputTuple = [kind: bigint, oldModule: string, newModule: string];
+      export interface OutputObject {kind: bigint, oldModule: string, newModule: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -606,6 +556,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    defaultChargeRewardModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     defaultFaucetModule: TypedContractMethod<
       [],
       [string],
@@ -632,6 +590,14 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
     defaultMembershipStatsModule: TypedContractMethod<
       [],
+      [string],
+      'view'
+    >
+    
+
+    
+    defaultModule: TypedContractMethod<
+      [kind: BigNumberish, ],
       [string],
       'view'
     >
@@ -854,6 +820,30 @@ decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike
     
 
     
+    setChargeRewardModule: TypedContractMethod<
+      [m: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setDefaultModule: TypedContractMethod<
+      [kind: BigNumberish, module: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setDefaultModules: TypedContractMethod<
+      [kinds: BigNumberish[], modules: AddressLike[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setDeployer: TypedContractMethod<
       [d: AddressLike, ],
       [void],
@@ -1068,6 +1058,11 @@ getFunction(nameOrSignature: 'defaultAdminStatsQueryModule'): TypedContractMetho
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'defaultChargeRewardModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'defaultFaucetModule'): TypedContractMethod<
       [],
       [string],
@@ -1085,6 +1080,11 @@ getFunction(nameOrSignature: 'defaultIssuedNftModule'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'defaultMembershipStatsModule'): TypedContractMethod<
       [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'defaultModule'): TypedContractMethod<
+      [kind: BigNumberish, ],
       [string],
       'view'
     >;
@@ -1223,6 +1223,21 @@ getFunction(nameOrSignature: 'setAdminStatsQueryModule'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setChargeRewardModule'): TypedContractMethod<
+      [m: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setDefaultModule'): TypedContractMethod<
+      [kind: BigNumberish, module: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setDefaultModules'): TypedContractMethod<
+      [kinds: BigNumberish[], modules: AddressLike[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setDeployer'): TypedContractMethod<
       [d: AddressLike, ],
       [void],
@@ -1298,12 +1313,7 @@ getFunction(nameOrSignature: 'usedOwnerExecuteNonces'): TypedContractMethod<
 getEvent(key: 'AdminExecuteExecuted'): TypedContractEvent<AdminExecuteExecutedEvent.InputTuple, AdminExecuteExecutedEvent.OutputTuple, AdminExecuteExecutedEvent.OutputObject>;
 getEvent(key: 'CardDeployed'): TypedContractEvent<CardDeployedEvent.InputTuple, CardDeployedEvent.OutputTuple, CardDeployedEvent.OutputObject>;
 getEvent(key: 'CardRegistered'): TypedContractEvent<CardRegisteredEvent.InputTuple, CardRegisteredEvent.OutputTuple, CardRegisteredEvent.OutputObject>;
-getEvent(key: 'DefaultAdminStatsQueryModuleUpdated'): TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
-getEvent(key: 'DefaultFaucetModuleUpdated'): TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;
-getEvent(key: 'DefaultGovernanceModuleUpdated'): TypedContractEvent<DefaultGovernanceModuleUpdatedEvent.InputTuple, DefaultGovernanceModuleUpdatedEvent.OutputTuple, DefaultGovernanceModuleUpdatedEvent.OutputObject>;
-getEvent(key: 'DefaultIssuedNftModuleUpdated'): TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
-getEvent(key: 'DefaultMembershipStatsModuleUpdated'): TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
-getEvent(key: 'DefaultRedeemModuleUpdated'): TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
+getEvent(key: 'DefaultModuleUpdated'): TypedContractEvent<DefaultModuleUpdatedEvent.InputTuple, DefaultModuleUpdatedEvent.OutputTuple, DefaultModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'DeployFailedCreateDebug'): TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;
 getEvent(key: 'DeployFailedStep'): TypedContractEvent<DeployFailedStepEvent.InputTuple, DeployFailedStepEvent.OutputTuple, DeployFailedStepEvent.OutputObject>;
 getEvent(key: 'DeployerChanged'): TypedContractEvent<DeployerChangedEvent.InputTuple, DeployerChangedEvent.OutputTuple, DeployerChangedEvent.OutputObject>;
@@ -1335,28 +1345,8 @@ getEvent(key: 'TokenIdIssued'): TypedContractEvent<TokenIdIssuedEvent.InputTuple
       CardRegistered: TypedContractEvent<CardRegisteredEvent.InputTuple, CardRegisteredEvent.OutputTuple, CardRegisteredEvent.OutputObject>;
     
 
-      'DefaultAdminStatsQueryModuleUpdated(address,address)': TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
-      DefaultAdminStatsQueryModuleUpdated: TypedContractEvent<DefaultAdminStatsQueryModuleUpdatedEvent.InputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputTuple, DefaultAdminStatsQueryModuleUpdatedEvent.OutputObject>;
-    
-
-      'DefaultFaucetModuleUpdated(address,address)': TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;
-      DefaultFaucetModuleUpdated: TypedContractEvent<DefaultFaucetModuleUpdatedEvent.InputTuple, DefaultFaucetModuleUpdatedEvent.OutputTuple, DefaultFaucetModuleUpdatedEvent.OutputObject>;
-    
-
-      'DefaultGovernanceModuleUpdated(address,address)': TypedContractEvent<DefaultGovernanceModuleUpdatedEvent.InputTuple, DefaultGovernanceModuleUpdatedEvent.OutputTuple, DefaultGovernanceModuleUpdatedEvent.OutputObject>;
-      DefaultGovernanceModuleUpdated: TypedContractEvent<DefaultGovernanceModuleUpdatedEvent.InputTuple, DefaultGovernanceModuleUpdatedEvent.OutputTuple, DefaultGovernanceModuleUpdatedEvent.OutputObject>;
-    
-
-      'DefaultIssuedNftModuleUpdated(address,address)': TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
-      DefaultIssuedNftModuleUpdated: TypedContractEvent<DefaultIssuedNftModuleUpdatedEvent.InputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputTuple, DefaultIssuedNftModuleUpdatedEvent.OutputObject>;
-    
-
-      'DefaultMembershipStatsModuleUpdated(address,address)': TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
-      DefaultMembershipStatsModuleUpdated: TypedContractEvent<DefaultMembershipStatsModuleUpdatedEvent.InputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputTuple, DefaultMembershipStatsModuleUpdatedEvent.OutputObject>;
-    
-
-      'DefaultRedeemModuleUpdated(address,address)': TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
-      DefaultRedeemModuleUpdated: TypedContractEvent<DefaultRedeemModuleUpdatedEvent.InputTuple, DefaultRedeemModuleUpdatedEvent.OutputTuple, DefaultRedeemModuleUpdatedEvent.OutputObject>;
+      'DefaultModuleUpdated(uint8,address,address)': TypedContractEvent<DefaultModuleUpdatedEvent.InputTuple, DefaultModuleUpdatedEvent.OutputTuple, DefaultModuleUpdatedEvent.OutputObject>;
+      DefaultModuleUpdated: TypedContractEvent<DefaultModuleUpdatedEvent.InputTuple, DefaultModuleUpdatedEvent.OutputTuple, DefaultModuleUpdatedEvent.OutputObject>;
     
 
       'DeployFailedCreateDebug(uint256,bytes32)': TypedContractEvent<DeployFailedCreateDebugEvent.InputTuple, DeployFailedCreateDebugEvent.OutputTuple, DeployFailedCreateDebugEvent.OutputObject>;

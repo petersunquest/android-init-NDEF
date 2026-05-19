@@ -297,4 +297,56 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         if (!b.hasData) b.hasData = true;
         b.deactivatedCount += 1;
     }
+
+    function membershipFlowBucketAtHour(uint64 hourIndex)
+        external
+        view
+        returns (
+            uint256 issuedCount,
+            uint256 upgradedCount,
+            uint256 expiredDiscoveredCount,
+            uint256 activeSwitchCount,
+            uint256 activatedCount,
+            uint256 deactivatedCount,
+            bool hasData
+        )
+    {
+        MembershipStatsStorage.FlowBucket storage b = MembershipStatsStorage.layout().hourlyGlobal[hourIndex];
+        return (
+            b.issuedCount,
+            b.upgradedCount,
+            b.expiredDiscoveredCount,
+            b.activeSwitchCount,
+            b.activatedCount,
+            b.deactivatedCount,
+            b.hasData
+        );
+    }
+
+    function membershipScopedFlowBucketAtHour(uint8 scopeType, uint256 scopeKey, uint64 hourIndex)
+        external
+        view
+        returns (
+            uint256 issuedCount,
+            uint256 upgradedCount,
+            uint256 expiredDiscoveredCount,
+            uint256 activeSwitchCount,
+            uint256 activatedCount,
+            uint256 deactivatedCount,
+            bool hasData
+        )
+    {
+        MembershipStatsStorage.Layout storage s = MembershipStatsStorage.layout();
+        MembershipStatsStorage.FlowBucket storage b =
+            scopeType == 1 ? s.hourlyByTokenId[scopeKey][hourIndex] : s.hourlyByTierIndex[scopeKey][hourIndex];
+        return (
+            b.issuedCount,
+            b.upgradedCount,
+            b.expiredDiscoveredCount,
+            b.activeSwitchCount,
+            b.activatedCount,
+            b.deactivatedCount,
+            b.hasData
+        );
+    }
 }

@@ -1,0 +1,48 @@
+Base UserCard registry/generic execute deployment verification meta
+Timestamp: 2026-05-19T22:05:05.528Z
+Network: Base mainnet (chainId 8453)
+
+Standard JSON files:
+- deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json
+- deployments/base-BeamioUserCardIssuedNftModuleV1-standard-input-FULL.json
+- deployments/base-MembershipStatsModule-standard-input-FULL.json
+- deployments/base-AdminStatsQueryModule-standard-input-FULL.json
+- deployments/base-ChargeRewardModule-standard-input-FULL.json
+- deployments/base-BeamioUserCard-standard-input-FULL.json
+
+BeamioUserCardFactoryPaymasterV07
+- Address: 0x0f8273773Ba91348B308198723BE0402230A8019
+- Contract Name: project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+- Constructor args:
+  1. usdcToken_: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+  2. redeemModule_: 0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6
+  3. quoteHelper_: 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF
+  4. deployer_: 0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32
+  5. aaFactory_: 0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
+  6. initialOwner: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+
+BeamioUserCardIssuedNftModuleV1
+- Address: 0x4d62e67b0CeCFa909A863d6BAE1152E462fFe8d1
+- Contract Name: project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+- Constructor args: none
+
+BeamioUserCardMembershipStatsModuleV1
+- Address: 0xEB1986F5320753B2bb1E64a24E96b6E42B11F516
+- Contract Name: project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1
+- Constructor args: none
+
+BeamioUserCardAdminStatsQueryModuleV1
+- Address: 0xb3068122b8f50DF60796bDf751cf8136Aed50FDf
+- Contract Name: project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1
+- Constructor args: none
+
+BeamioUserCardChargeRewardModuleV1
+- Address: 0xAD47DDE5dE24Bd830CbE9D78AAAa4abDa614D69E
+- Contract Name: project/src/BeamioUserCard/ChargeRewardModule.sol:BeamioUserCardChargeRewardModuleV1
+- Constructor args: none
+- Linked library:
+  - project/src/BeamioUserCard/BeamioUserCardTransferLib.sol:BeamioUserCardTransferLib = 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F
+
+BeamioUserCard
+- No singleton address was deployed in this run. The Standard JSON is exported for newly created card verification because new cards use this source/artifact through initCode.
+- Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard

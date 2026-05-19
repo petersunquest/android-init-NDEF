@@ -16,6 +16,7 @@ interface IBeamioGatewayAAFactoryGetter {
 }
 
 interface IBeamioUserCardFactoryPaymasterV07 {
+    function defaultModule(uint8 kind) external view returns (address);
     function defaultRedeemModule() external view returns (address);
     function defaultFaucetModule() external view returns (address);
     function defaultIssuedNftModule() external view returns (address);

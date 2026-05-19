@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardIssuedNftModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "balanceOf" | "balanceOfBatch" | "burnIssuedNftByGateway" | "createIssuedNft" | "isApprovedForAll" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftSharedMetadataHash" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
+    getFunction(nameOrSignature: "balanceOf" | "balanceOfBatch" | "burnIssuedNftByGateway" | "createIssuedNft" | "isApprovedForAll" | "isIssuedNftValid" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftSharedMetadataHash" | "issuedNftUserSigClaimUsed" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "IssuedNftBurned" | "IssuedNftCreated" | "IssuedNftMinted" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -15,9 +15,11 @@ encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], B
 encodeFunctionData(functionFragment: 'burnIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'isIssuedNftValid', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftMaxSupply', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftMintedCount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftUserSigClaimUsed', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'safeBatchTransferFrom', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[], BytesLike]): string;
 encodeFunctionData(functionFragment: 'safeTransferFrom', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
@@ -31,9 +33,11 @@ decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'burnIssuedNftByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isIssuedNftValid', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftMaxSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftMintedCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftUserSigClaimUsed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeBatchTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
@@ -202,6 +206,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     
 
     
+    isIssuedNftValid: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     issuedNftMaxSupply: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
@@ -221,6 +233,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     issuedNftSharedMetadataHash: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
+      'view'
+    >
+    
+
+    
+    issuedNftUserSigClaimUsed: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
+      [boolean],
       'view'
     >
     
@@ -309,6 +329,11 @@ getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'isIssuedNftValid'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'issuedNftMaxSupply'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
@@ -322,6 +347,11 @@ getFunction(nameOrSignature: 'issuedNftMintedCount'): TypedContractMethod<
 getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftUserSigClaimUsed'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
+      [boolean],
       'view'
     >;
 getFunction(nameOrSignature: 'safeBatchTransferFrom'): TypedContractMethod<

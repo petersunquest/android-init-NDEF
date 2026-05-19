@@ -26,7 +26,7 @@ export declare namespace BeamioUserCard {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getAdminBurnCounter" | "getAdminMintCounter" | "getAdminRedeemMintCounter" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isIssuedNftValid" | "isPointsTransferRecipientAllowed" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "issuedNftUserSigClaimUsed" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -60,23 +60,13 @@ encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): stri
 encodeFunctionData(functionFragment: 'faucetByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'faucetConfig', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'gateway', values?: undefined): string;
-encodeFunctionData(functionFragment: 'getAdminBurnCounter', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getAdminMintCounter', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getAdminRedeemMintCounter', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getAdminTransferAmountCounter', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getAdminTransferCounter', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getAdminUSDCMintCounter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnershipByEOA', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
-encodeFunctionData(functionFragment: 'isIssuedNftValid', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isPointsTransferRecipientAllowed', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftPriceInCurrency6', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issuedNftUserSigClaimUsed', values: [AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'membershipFlowBucketAtHour', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'membershipScopedFlowBucketAtHour', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'metadataBaseURI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mintFaucetByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
@@ -153,23 +143,13 @@ decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'faucetByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetConfig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'gateway', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminBurnCounter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminMintCounter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminRedeemMintCounter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminTransferAmountCounter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminTransferCounter', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getAdminUSDCMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnershipByEOA', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'isIssuedNftValid', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isPointsTransferRecipientAllowed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftPriceInCurrency6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issuedNftUserSigClaimUsed', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'membershipFlowBucketAtHour', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'membershipScopedFlowBucketAtHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintFaucetByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintIssuedNftByGateway', data: BytesLike): Result;
@@ -816,54 +796,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    getAdminBurnCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    getAdminMintCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    getAdminRedeemMintCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    getAdminTransferAmountCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    getAdminTransferCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
-    getAdminUSDCMintCounter: TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >
-    
-
-    
     getOwnership: TypedContractMethod<
       [user: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
@@ -896,14 +828,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    isIssuedNftValid: TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [boolean],
-      'view'
-    >
-    
-
-    
     isPointsTransferRecipientAllowed: TypedContractMethod<
       [effectiveTo: AddressLike, ],
       [boolean],
@@ -923,30 +847,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     issuedNftSharedMetadataHash: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
-      'view'
-    >
-    
-
-    
-    issuedNftUserSigClaimUsed: TypedContractMethod<
-      [userEOA: AddressLike, tokenId: BigNumberish, ],
-      [boolean],
-      'view'
-    >
-    
-
-    
-    membershipFlowBucketAtHour: TypedContractMethod<
-      [hourIndex: BigNumberish, ],
-      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
-      'view'
-    >
-    
-
-    
-    membershipScopedFlowBucketAtHour: TypedContractMethod<
-      [scopeType: BigNumberish, scopeKey: BigNumberish, hourIndex: BigNumberish, ],
-      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
       'view'
     >
     
@@ -1464,36 +1364,6 @@ getFunction(nameOrSignature: 'gateway'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'getAdminBurnCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getAdminMintCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getAdminRedeemMintCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getAdminTransferAmountCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getAdminTransferCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getAdminUSDCMintCounter'): TypedContractMethod<
-      [admin: AddressLike, ],
-      [bigint],
-      'view'
-    >;
 getFunction(nameOrSignature: 'getOwnership'): TypedContractMethod<
       [user: AddressLike, ],
       [[bigint, BeamioUserCard.NFTDetailStructOutput[]] & {pt: bigint, nfts: BeamioUserCard.NFTDetailStructOutput[] }],
@@ -1514,11 +1384,6 @@ getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
       [boolean],
       'view'
     >;
-getFunction(nameOrSignature: 'isIssuedNftValid'): TypedContractMethod<
-      [tokenId: BigNumberish, ],
-      [boolean],
-      'view'
-    >;
 getFunction(nameOrSignature: 'isPointsTransferRecipientAllowed'): TypedContractMethod<
       [effectiveTo: AddressLike, ],
       [boolean],
@@ -1532,21 +1397,6 @@ getFunction(nameOrSignature: 'issuedNftPriceInCurrency6'): TypedContractMethod<
 getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'issuedNftUserSigClaimUsed'): TypedContractMethod<
-      [userEOA: AddressLike, tokenId: BigNumberish, ],
-      [boolean],
-      'view'
-    >;
-getFunction(nameOrSignature: 'membershipFlowBucketAtHour'): TypedContractMethod<
-      [hourIndex: BigNumberish, ],
-      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'membershipScopedFlowBucketAtHour'): TypedContractMethod<
-      [scopeType: BigNumberish, scopeKey: BigNumberish, hourIndex: BigNumberish, ],
-      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'metadataBaseURI'): TypedContractMethod<

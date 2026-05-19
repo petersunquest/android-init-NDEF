@@ -21,6 +21,19 @@
   },
   {
     "inputs": [],
+    "name": "defaultChargeRewardModule",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "defaultFaucetModule",
     "outputs": [
       {
@@ -61,6 +74,25 @@
   {
     "inputs": [],
     "name": "defaultMembershipStatsModule",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint8",
+        "name": "kind",
+        "type": "uint8"
+      }
+    ],
+    "name": "defaultModule",
     "outputs": [
       {
         "internalType": "address",

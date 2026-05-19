@@ -100,6 +100,8 @@ export type { BeamioUserCardFormattingLib } from './BeamioUserCard/BeamioUserCar
 export { BeamioUserCardFormattingLib__factory } from './factories/BeamioUserCard/BeamioUserCardFormattingLib__factory.js';
 export type { IBeamioAccountViewForOpenRelay } from './BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioAccountViewForOpenRelay.js';
 export { IBeamioAccountViewForOpenRelay__factory } from './factories/BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioAccountViewForOpenRelay__factory.js';
+export type { IBeamioChargeRewardModuleV1 } from './BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioChargeRewardModuleV1.js';
+export { IBeamioChargeRewardModuleV1__factory } from './factories/BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioChargeRewardModuleV1__factory.js';
 export type { IBeamioFactoryOpenRelayViews } from './BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioFactoryOpenRelayViews.js';
 export { IBeamioFactoryOpenRelayViews__factory } from './factories/BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioFactoryOpenRelayViews__factory.js';
 export type { IBeamioFaucetModuleV1 } from './BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioFaucetModuleV1.js';
@@ -118,6 +120,10 @@ export type { BeamioUserCardPlaceholder } from './BeamioUserCard/BeamioUserCardP
 export { BeamioUserCardPlaceholder__factory } from './factories/BeamioUserCard/BeamioUserCardPlaceholder__factory.js';
 export type { BeamioUserCardTransferLib } from './BeamioUserCard/BeamioUserCardTransferLib.js';
 export { BeamioUserCardTransferLib__factory } from './factories/BeamioUserCard/BeamioUserCardTransferLib__factory.js';
+export type { BeamioUserCardChargeRewardModuleV1 } from './BeamioUserCard/ChargeRewardModule.sol/BeamioUserCardChargeRewardModuleV1.js';
+export { BeamioUserCardChargeRewardModuleV1__factory } from './factories/BeamioUserCard/ChargeRewardModule.sol/BeamioUserCardChargeRewardModuleV1__factory.js';
+export type { IUserCardCurrency } from './BeamioUserCard/ChargeRewardModule.sol/IUserCardCurrency.js';
+export { IUserCardCurrency__factory } from './factories/BeamioUserCard/ChargeRewardModule.sol/IUserCardCurrency__factory.js';
 export type { BeamioUserCardFaucetModuleV1 } from './BeamioUserCard/FaucetModule.sol/BeamioUserCardFaucetModuleV1.js';
 export { BeamioUserCardFaucetModuleV1__factory } from './factories/BeamioUserCard/FaucetModule.sol/BeamioUserCardFaucetModuleV1__factory.js';
 export type { BeamioUserCardGovernanceModuleV1 } from './BeamioUserCard/GovernanceModule.sol/BeamioUserCardGovernanceModuleV1.js';
