@@ -8,5 +8,5 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <!-- Adaptive icon background only (no template grid); tune to match your PNG edges if needed -->
-    <color name="ic_launcher_adaptive_background">#FFFFFFFF</color>
+    <color name="ic_launcher_adaptive_background">#0A1018</color>
 </resources>

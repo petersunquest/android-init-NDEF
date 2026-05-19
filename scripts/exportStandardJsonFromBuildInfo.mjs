@@ -70,6 +70,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/MembershipStatsModule.sol",
     contractName: "BeamioUserCardMembershipStatsModuleV1",
   },
+  RedeemModule: {
+    sourceKey: "project/src/BeamioUserCard/RedeemModule.sol",
+    contractName: "BeamioUserCardRedeemModuleVNext",
+  },
   BeamioAccount: {
     sourceKey: "project/src/BeamioAccount/BeamioAccount.sol",
     contractName: "BeamioAccount",

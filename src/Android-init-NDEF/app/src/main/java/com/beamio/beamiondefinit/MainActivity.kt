@@ -105,6 +105,8 @@ private fun performButtonHaptic(context: Context) {
     }
 }
 
+// com.Beamio.nfcinit 
+
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {
     private var showKeyInitScreen by mutableStateOf(true)

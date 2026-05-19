@@ -2450,7 +2450,8 @@ final class BeamioAPIClient: @unchecked Sendable {
         userEOA: String,
         uid: String?,
         tagIdHex: String?,
-        tokenId: String?
+        tokenId: String?,
+        signerEOA: String? = nil
     ) async -> CouponClaimResult {
         let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let coupon = couponId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2471,6 +2472,9 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
         if let tokenId, !tokenId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             body["tokenId"] = tokenId.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if let signerEOA, Self.isPlausibleEvmAddress(signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)) {
+            body["signerEOA"] = signerEOA.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         do {
             let (code, obj) = try await postJsonAllowErrorBody(path: "/api/cardCouponPosClaim", body: body, timeout: 45)

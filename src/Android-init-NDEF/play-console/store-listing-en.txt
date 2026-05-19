@@ -1,0 +1,52 @@
+# Google Play — Beamio NDEF init (com.Beamio.nfcinit)
+# Copy each block into Play Console → Main store listing (English)
+
+## App name (max 30 characters)
+Beamio NDEF init
+
+## Short description (max 80 characters)
+Provision and verify NTAG 424 DNA cards for Beamio SUN tap-to-pay.
+
+## Full description (max 4000 characters)
+
+Beamio NDEF init is a field tool for Beamio partners and technicians who set up NTAG 424 DNA NFC cards used with the Beamio platform.
+
+Use your Android phone’s NFC radio to initialize new cards, repair cards that were partially configured, and confirm that every tap produces a valid Secure Unique NFC (SUN) URL on beamio.app.
+
+WHAT YOU CAN DO
+
+• Initialize fresh NTAG 424 DNA tags with Beamio keys and NDEF layout
+• Repair rewritten or partially configured cards back to a working state
+• Write dynamic SUN URLs under https://beamio.app/api/sun
+• Decode tap payloads on-device (UID, counter, tag ID)
+• Verify each card against the Beamio server and compare local vs server results
+• Run a dedicated Check flow after provisioning to confirm valid and MAC-valid SUN data
+
+TWO MAIN WORKFLOWS
+
+Initialization — Provision or repair a card. Supports fresh tags (factory keys) and rewritten tags (existing Beamio keys). Applies secure messaging, rotates keys where required, and configures SDM so taps return live encrypted SUN parameters.
+
+Check — Read a card (stored URL or live tap), decode the SUN payload locally, call the Beamio debug endpoint, and confirm that local and server verification match.
+
+REQUIREMENTS
+
+• Android device with NFC (NTAG 424 DNA)
+• Internet connection for server verification
+• Beamio platform access and keys configured in the app
+
+PERMISSIONS
+
+• NFC — read and write NFC tags during init and check
+• Internet — verify SUN payloads with Beamio servers
+
+This app is intended for authorized Beamio deployment and support workflows, not for end-customer payments. For merchant POS and customer-facing Beamio apps, use Beamio POS or Beamio on the store.
+
+Questions or deployment support: contact your Beamio administrator.
+
+## Release notes — version 1.0.2 (example for first Play upload)
+
+Initial Play Store release of Beamio NDEF init.
+
+• Provision and repair NTAG 424 DNA cards for Beamio SUN URLs
+• Init and Check workflows with on-device decode and server verification
+• Beamio POS–aligned launcher icon and package ID com.Beamio.nfcinit

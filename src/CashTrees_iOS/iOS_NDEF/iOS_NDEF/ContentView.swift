@@ -7501,6 +7501,23 @@ private func readBalancePrettyJsonString(_ raw: String) -> String {
     return s
 }
 
+/// NFC: cluster signs with card `uid` / `tagIdHex`. QR / wallet link: claim via member `userEOA` only.
+private func readBalanceHasCouponClaimContext(assets: UIDAssets) -> Bool {
+    let ws = CharacterSet.whitespacesAndNewlines
+    if !((assets.uid ?? "").trimmingCharacters(in: ws).isEmpty) { return true }
+    if !((assets.tagIdHex ?? "").trimmingCharacters(in: ws).isEmpty) { return true }
+    return readBalanceLooksLikeEvmAddress(assets.address)
+}
+
+private func readBalanceLooksLikeEvmAddress(_ raw: String?) -> Bool {
+    let t = (raw ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    guard t.hasPrefix("0x"), t.count == 42 else { return false }
+    let hex = t.dropFirst(2)
+    return hex.allSatisfy { ch in
+        ch.isASCII && ((ch >= "0" && ch <= "9") || (ch >= "a" && ch <= "f") || (ch >= "A" && ch <= "F"))
+    }
+}
+
 /// Align Android `ReadScreen` success / error layout (`MainActivity.kt` ReadScreen).
 private struct ReadBalanceView: View {
     let assets: UIDAssets?
@@ -7659,9 +7676,7 @@ private struct ReadBalanceView: View {
     private func readBalanceMerchantCouponsSection(assets: UIDAssets) -> some View {
         let owned = assets.merchantCouponBalances ?? []
         let claimable = assets.merchantClaimableCoupons ?? []
-        let hasNfcSignerContext =
-            !((assets.uid ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            || !((assets.tagIdHex ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        let hasClaimContext = readBalanceHasCouponClaimContext(assets: assets)
         if !owned.isEmpty || !claimable.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 if !owned.isEmpty {
@@ -7674,11 +7689,11 @@ private struct ReadBalanceView: View {
                         ForEach(claimable.prefix(6)) { row in
                             readBalanceCouponClaimableCard(
                                 row,
-                                hasNfcSignerContext: hasNfcSignerContext
+                                hasClaimContext: hasClaimContext
                             )
                         }
-                        if !hasNfcSignerContext {
-                            Text("Claim requires NFC card context.")
+                        if !hasClaimContext {
+                            Text("Claim requires member wallet or NFC card.")
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundStyle(readBalanceDetailsOutline)
                         }
@@ -7842,7 +7857,7 @@ private struct ReadBalanceView: View {
         }
     }
 
-    private func readBalanceCouponClaimableCard(_ row: MerchantClaimableCouponItem, hasNfcSignerContext: Bool) -> some View {
+    private func readBalanceCouponClaimableCard(_ row: MerchantClaimableCouponItem, hasClaimContext: Bool) -> some View {
         let bgHex = readBalanceCouponBackgroundHex(
             couponId: row.couponId,
             tokenId: row.tokenId,
@@ -7859,7 +7874,7 @@ private struct ReadBalanceView: View {
         let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
         let rawTitle = row.title.trimmingCharacters(in: .whitespacesAndNewlines)
         let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
-        let canTap = (claimInFlightCouponId == nil || claimInFlightCouponId == row.id) && hasNfcSignerContext
+        let canTap = (claimInFlightCouponId == nil || claimInFlightCouponId == row.id) && hasClaimContext
         return POSBizCouponPreviewTicket(
             notchParentColor: readBalanceDetailsSurface,
             title: row.title,

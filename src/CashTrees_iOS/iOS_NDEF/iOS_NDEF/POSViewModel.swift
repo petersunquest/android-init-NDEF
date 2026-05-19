@@ -5542,7 +5542,8 @@ private extension POSViewModel {
             userEOA: user,
             uid: assets.uid,
             tagIdHex: assets.tagIdHex,
-            tokenId: coupon.tokenId
+            tokenId: coupon.tokenId,
+            signerEOA: walletAddress
         )
         if !result.success {
             homeToast = result.error ?? "Coupon claim failed."
