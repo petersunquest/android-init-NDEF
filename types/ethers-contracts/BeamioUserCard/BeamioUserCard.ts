@@ -26,11 +26,12 @@ export declare namespace BeamioUserCard {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "clearAdminMintCounterForSubordinate" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "owner" | "pointsUnitPriceInCurrencyE6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "ChargeRewardAirdropped" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'ISSUED_NFT_START_ID', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'ISSUED_NFT_START_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NFT_START_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'POINTS_DECIMALS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'POINTS_ID', values?: undefined): string;
@@ -113,7 +114,8 @@ encodeFunctionData(functionFragment: 'transferWhitelistEnabled', values?: undefi
 encodeFunctionData(functionFragment: 'upgradeType', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'ISSUED_NFT_START_ID', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'ISSUED_NFT_START_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'NFT_START_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'POINTS_DECIMALS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'POINTS_ID', data: BytesLike): Result;
@@ -238,6 +240,18 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       export type InputTuple = [account: AddressLike, operator: AddressLike, approved: boolean];
       export type OutputTuple = [account: string, operator: string, approved: boolean];
       export interface OutputObject {account: string, operator: string, approved: boolean };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ChargeRewardAirdroppedEvent {
+      export type InputTuple = [userEOA: AddressLike, acct: AddressLike, chargeCurrency: BigNumberish, amountFiat6: BigNumberish, rewardMinted: BigNumberish];
+      export type OutputTuple = [userEOA: string, acct: string, chargeCurrency: bigint, amountFiat6: bigint, rewardMinted: bigint];
+      export interface OutputObject {userEOA: string, acct: string, chargeCurrency: bigint, amountFiat6: bigint, rewardMinted: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -555,6 +569,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
 
     
+    
+    CHARGE_REWARD_TOKEN_ID: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
     
     ISSUED_NFT_START_ID: TypedContractMethod<
       [],
@@ -1214,7 +1236,12 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'ISSUED_NFT_START_ID'): TypedContractMethod<
+    getFunction(nameOrSignature: 'CHARGE_REWARD_TOKEN_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'ISSUED_NFT_START_ID'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -1629,6 +1656,7 @@ getFunction(nameOrSignature: 'uri'): TypedContractMethod<
 getEvent(key: 'AdminPointsBurned'): TypedContractEvent<AdminPointsBurnedEvent.InputTuple, AdminPointsBurnedEvent.OutputTuple, AdminPointsBurnedEvent.OutputObject>;
 getEvent(key: 'AdminPointsMinted'): TypedContractEvent<AdminPointsMintedEvent.InputTuple, AdminPointsMintedEvent.OutputTuple, AdminPointsMintedEvent.OutputObject>;
 getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+getEvent(key: 'ChargeRewardAirdropped'): TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
 getEvent(key: 'DefaultAttrUpdated'): TypedContractEvent<DefaultAttrUpdatedEvent.InputTuple, DefaultAttrUpdatedEvent.OutputTuple, DefaultAttrUpdatedEvent.OutputObject>;
 getEvent(key: 'ExpirySecondsUpdated'): TypedContractEvent<ExpirySecondsUpdatedEvent.InputTuple, ExpirySecondsUpdatedEvent.OutputTuple, ExpirySecondsUpdatedEvent.OutputObject>;
 getEvent(key: 'FaucetClaimed'): TypedContractEvent<FaucetClaimedEvent.InputTuple, FaucetClaimedEvent.OutputTuple, FaucetClaimedEvent.OutputObject>;
@@ -1669,6 +1697,10 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'ApprovalForAll(address,address,bool)': TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
       ApprovalForAll: TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+    
+
+      'ChargeRewardAirdropped(address,address,uint8,uint256,uint256)': TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
+      ChargeRewardAirdropped: TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
     
 
       'DefaultAttrUpdated(uint256)': TypedContractEvent<DefaultAttrUpdatedEvent.InputTuple, DefaultAttrUpdatedEvent.OutputTuple, DefaultAttrUpdatedEvent.OutputObject>;

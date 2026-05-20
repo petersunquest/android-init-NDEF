@@ -16,6 +16,8 @@ struct CardItem: Identifiable, Equatable {
     let cardType: String
     let points: String
     let points6: String
+    let chargeRewardPoints: String
+    let chargeRewardPoints6: String
     let cardCurrency: String
     var nfts: [NftItem]
     var cardBackground: String?
@@ -25,6 +27,40 @@ struct CardItem: Identifiable, Equatable {
     var primaryMemberTokenId: String?
     /// Program tier discount % (metadata/API); falls back to parsing [tierDescription] in UI when nil.
     var tierDiscountPercent: Double? = nil
+
+    init(
+        cardAddress: String,
+        cardName: String,
+        cardType: String,
+        points: String,
+        points6: String,
+        chargeRewardPoints: String = "0",
+        chargeRewardPoints6: String = "0",
+        cardCurrency: String,
+        nfts: [NftItem],
+        cardBackground: String? = nil,
+        cardImage: String? = nil,
+        tierName: String? = nil,
+        tierDescription: String? = nil,
+        primaryMemberTokenId: String? = nil,
+        tierDiscountPercent: Double? = nil
+    ) {
+        self.cardAddress = cardAddress
+        self.cardName = cardName
+        self.cardType = cardType
+        self.points = points
+        self.points6 = points6
+        self.chargeRewardPoints = chargeRewardPoints
+        self.chargeRewardPoints6 = chargeRewardPoints6
+        self.cardCurrency = cardCurrency
+        self.nfts = nfts
+        self.cardBackground = cardBackground
+        self.cardImage = cardImage
+        self.tierName = tierName
+        self.tierDescription = tierDescription
+        self.primaryMemberTokenId = primaryMemberTokenId
+        self.tierDiscountPercent = tierDiscountPercent
+    }
 
     /// Android `memberNoFromCardItem` / iOS `readBalanceMemberNo`.
     func formattedMemberNumber() -> String {
@@ -273,6 +309,8 @@ struct UIDAssets: Equatable {
     var cardAddress: String?
     var points: String?
     var points6: String?
+    var chargeRewardPoints: String?
+    var chargeRewardPoints6: String?
     var usdcBalance: String?
     var caddBalance: String?
     var cardCurrency: String?
@@ -316,6 +354,8 @@ struct UIDAssets: Equatable {
         cardAddress: String? = nil,
         points: String? = nil,
         points6: String? = nil,
+        chargeRewardPoints: String? = nil,
+        chargeRewardPoints6: String? = nil,
         usdcBalance: String? = nil,
         caddBalance: String? = nil,
         cardCurrency: String? = nil,
@@ -342,6 +382,8 @@ struct UIDAssets: Equatable {
         self.cardAddress = cardAddress
         self.points = points
         self.points6 = points6
+        self.chargeRewardPoints = chargeRewardPoints
+        self.chargeRewardPoints6 = chargeRewardPoints6
         self.usdcBalance = usdcBalance
         self.caddBalance = caddBalance
         self.cardCurrency = cardCurrency

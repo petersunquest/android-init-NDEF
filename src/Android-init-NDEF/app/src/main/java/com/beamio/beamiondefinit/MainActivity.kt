@@ -105,7 +105,7 @@ private fun performButtonHaptic(context: Context) {
     }
 }
 
-// com.Beamio.nfcinit 
+// Play package: com.Beamio.nfcinit; Activity class: com.beamio.beamiondefinit.MainActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 class MainActivity : ComponentActivity(), NfcAdapter.ReaderCallback {

@@ -32,13 +32,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 21;
+    uint256 public constant VERSION = 22;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
     uint8 public constant POINTS_DECIMALS = BeamioERC1155Logic.POINTS_DECIMALS;
     uint256 private constant POINTS_ONE = 10 ** uint256(POINTS_DECIMALS);
+    uint256 public constant CHARGE_REWARD_TOKEN_ID = 2;
     uint256 private constant DEFAULT_CHARGE_REWARD_RATIO_E6 = 1_000_000;
+    uint256 private constant REWARD_RATIO_ONE_E6 = 1_000_000;
 
     uint256 public constant NFT_START_ID = BeamioERC1155Logic.NFT_START_ID;
     uint256 public constant ISSUED_NFT_START_ID = BeamioERC1155Logic.ISSUED_NFT_START_ID;
@@ -74,6 +76,13 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     uint256 public expirySeconds; // 0 = never expire
     event ExpirySecondsUpdated(uint256 oldSecs, uint256 newSecs);
     event PointsUnitPriceUpdated(uint256 priceInCurrencyE6);
+    event ChargeRewardAirdropped(
+        address indexed userEOA,
+        address indexed acct,
+        uint8 chargeCurrency,
+        uint256 amountFiat6,
+        uint256 rewardMinted
+    );
 
     // ===== multisig governance (storage in GovernanceStorage; views below) =====
     event ProposalCreated(uint256 indexed id, bytes4 indexed selector, address indexed proposer);
@@ -901,6 +910,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             if (syncReceiverMembership) _syncActiveToBestValid(r.effectiveTo);
         }
         if (isRealTransfer && (r.pointTransferCount > 0 || r.pointTransferAmount > 0)) {
+            _mintChargeRewardForPointsDebit(from, r.pointTransferAmount);
             _recordPointTransferStats(
                 from, to, r.beneficiaryAdmin, r.upperAdmin, r.pointTransferCount, r.pointTransferAmount
             );
@@ -960,6 +970,28 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
                 _alignMembershipTierToPointsBalance(from, false);
             }
         }
+    }
+
+    function _mintChargeRewardForPointsDebit(address payerAcct, uint256 pointsDebited6) internal {
+        if (payerAcct == address(0) || pointsDebited6 == 0) return;
+        uint256 ratio = ChargeRewardStorage.layout().chargeRewardRatioE6;
+        if (ratio == 0) return;
+
+        uint256 amountFiat6 = (pointsDebited6 * pointsUnitPriceInCurrencyE6) / POINTS_ONE;
+        if (amountFiat6 == 0) return;
+        uint256 reward = (amountFiat6 * ratio) / REWARD_RATIO_ONE_E6;
+        if (reward == 0) return;
+
+        _mint(payerAcct, CHARGE_REWARD_TOKEN_ID, reward, "");
+        emit ChargeRewardAirdropped(_ownerOfAccountOrSelf(payerAcct), payerAcct, uint8(currency), amountFiat6, reward);
+    }
+
+    function _ownerOfAccountOrSelf(address acct) internal view returns (address) {
+        if (acct.code.length == 0) return acct;
+        (bool ok, bytes memory ret) = acct.staticcall(abi.encodeWithSignature("owner()"));
+        if (!ok || ret.length < 32) return acct;
+        address eoa = abi.decode(ret, (address));
+        return eoa == address(0) ? acct : eoa;
     }
 
     function _removeNft(address user, uint256 id) internal {

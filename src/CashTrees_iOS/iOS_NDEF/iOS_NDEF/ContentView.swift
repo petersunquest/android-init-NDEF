@@ -7155,6 +7155,7 @@ private struct ReadBalanceStandardPassHeroCard: View {
     let balancePrefix: String
     let balanceAmount: String
     let balanceSuffix: String
+    let balanceSubtitle: String?
 
     var body: some View {
         let tone = readBalancePassHeroPalette(tierCardBackgroundHex: tierCardBackgroundHex)
@@ -7219,6 +7220,12 @@ private struct ReadBalanceStandardPassHeroCard: View {
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundStyle(tone.primaryText)
                         }
+                    }
+                    if let sub = balanceSubtitle?.trimmingCharacters(in: .whitespacesAndNewlines), !sub.isEmpty {
+                        Text(sub)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(tone.secondaryText)
+                            .lineLimit(1)
                     }
                 }
             }
@@ -7591,6 +7598,8 @@ private struct ReadBalanceView: View {
                         let balNum = readBalanceHeroBalanceAmount(primaryPass: primaryPass, assets: a)
                         let balCurrency = primaryPass?.cardCurrency ?? a.cardCurrency ?? "CAD"
                         let balParts = readBalanceFormatMoney(balNum, currency: balCurrency)
+                        let reward6 = Int64((primaryPass?.chargeRewardPoints6 ?? a.chargeRewardPoints6)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+                        let rewardSubtitle = "\(readBalanceFormatUsdcThousands(Double(reward6) / 1_000_000.0)) point"
                         let usdcBal = Double(a.usdcBalance ?? "0") ?? 0
                         let caddApiBal = Double(a.caddBalance ?? "")
                         VStack(spacing: 0) {
@@ -7606,7 +7615,8 @@ private struct ReadBalanceView: View {
                                         cardMetadataImageUrl: primaryPass?.cardImage,
                                         balancePrefix: balParts.prefix,
                                         balanceAmount: balParts.mid,
-                                        balanceSuffix: balParts.suffix
+                                        balanceSuffix: balParts.suffix,
+                                        balanceSubtitle: rewardSubtitle
                                     )
                                     ReadBalanceLastTopUpUsdcStatsCard(
                                         assets: a,
@@ -8042,6 +8052,8 @@ private func readBalanceCardList(from assets: UIDAssets?) -> [CardItem]? {
             cardType: "",
             points: assets.points ?? "0",
             points6: assets.points6 ?? "0",
+            chargeRewardPoints: assets.chargeRewardPoints ?? "0",
+            chargeRewardPoints6: assets.chargeRewardPoints6 ?? "0",
             cardCurrency: assets.cardCurrency ?? "CAD",
             nfts: assets.nfts ?? [],
             cardBackground: nil,
@@ -8102,6 +8114,8 @@ private func readBalancePosAdminCards(from assets: UIDAssets?, merchantInfraCard
             cardType: "",
             points: assets.points ?? "0",
             points6: assets.points6 ?? "0",
+            chargeRewardPoints: assets.chargeRewardPoints ?? "0",
+            chargeRewardPoints6: assets.chargeRewardPoints6 ?? "0",
             cardCurrency: assets.cardCurrency ?? "CAD",
             nfts: assets.nfts ?? [],
             cardBackground: nil,
@@ -8808,7 +8822,8 @@ private func paymentSuccessStandardPassHero(
                     cardMetadataImageUrl: imgUrl,
                     balancePrefix: balP,
                     balanceAmount: balM,
-                    balanceSuffix: balS
+                    balanceSuffix: balS,
+                    balanceSubtitle: nil
                 )
             }
             VStack(spacing: 8) {
@@ -9792,7 +9807,8 @@ private func topupSuccessStandardPassHero(
         cardMetadataImageUrl: imgUrl,
         balancePrefix: balP,
         balanceAmount: balM,
-        balanceSuffix: balS
+        balanceSuffix: balS,
+        balanceSubtitle: nil
     )
 }
 

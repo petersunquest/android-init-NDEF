@@ -94,12 +94,16 @@ enum BeamioUIDAssetsParser {
                 guard !addr.isEmpty else { return nil }
                 let pointsStr = coerceOptionalString(c["points"]) ?? "0"
                 let points6Str = coerceOptionalString(c["points6"]) ?? "0"
+                let chargeRewardPointsStr = coerceOptionalString(c["chargeRewardPoints"]) ?? "0"
+                let chargeRewardPoints6Str = coerceOptionalString(c["chargeRewardPoints6"]) ?? "0"
                 return CardItem(
                     cardAddress: addr,
                     cardName: nonEmpty(c["cardName"]) ?? "Card",
                     cardType: (c["cardType"] as? String) ?? "",
                     points: pointsStr,
                     points6: points6Str,
+                    chargeRewardPoints: chargeRewardPointsStr,
+                    chargeRewardPoints6: chargeRewardPoints6Str,
                     cardCurrency: nonEmpty(c["cardCurrency"]) ?? "CAD",
                     nfts: nftList,
                     cardBackground: nonEmpty(c["cardBackground"]),
@@ -181,6 +185,8 @@ enum BeamioUIDAssetsParser {
                 cardAddress: first.cardAddress,
                 points: first.points,
                 points6: first.points6,
+                chargeRewardPoints: first.chargeRewardPoints,
+                chargeRewardPoints6: first.chargeRewardPoints6,
                 usdcBalance: s("usdcBalance"),
                 caddBalance: caddBalance,
                 cardCurrency: first.cardCurrency,
@@ -202,6 +208,8 @@ enum BeamioUIDAssetsParser {
         let legacyNfts = nfts
         let legacyPoints = isDep ? nil : coerceOptionalString(root["points"])
         let legacyPoints6 = isDep ? nil : coerceOptionalString(root["points6"])
+        let legacyChargeRewardPoints = isDep ? nil : coerceOptionalString(root["chargeRewardPoints"])
+        let legacyChargeRewardPoints6 = isDep ? nil : coerceOptionalString(root["chargeRewardPoints6"])
 
         return UIDAssets(
             ok: (root["ok"] as? Bool) ?? false,
@@ -216,6 +224,8 @@ enum BeamioUIDAssetsParser {
             cardAddress: isDep ? nil : legacyAddr,
             points: legacyPoints,
             points6: legacyPoints6,
+            chargeRewardPoints: legacyChargeRewardPoints,
+            chargeRewardPoints6: legacyChargeRewardPoints6,
             usdcBalance: s("usdcBalance"),
             caddBalance: caddBalance,
             cardCurrency: isDep ? nil : s("cardCurrency"),
