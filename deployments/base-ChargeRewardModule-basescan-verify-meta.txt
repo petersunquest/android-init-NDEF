@@ -1,0 +1,9 @@
+Contract Name: project/src/BeamioUserCard/ChargeRewardModule.sol:BeamioUserCardChargeRewardModuleV1
+Address: 0xba46891C36ed6e79Ce883dDe515810CD4a7276e4
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-ChargeRewardModule-standard-input-FULL.json
+Network: base (chainId 8453)
+Linked Libraries:
+- BeamioUserCardReferrerLib: 0x981E3ca5160C3147673Eb984FED979778eed7B68
+- BeamioUserCardTransferLib: 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F
+Generated: 2026-05-22T18:28:22.301Z

@@ -1,0 +1,64 @@
+# App Store Connect — Beamio consumer app (com.beamio.beamio)
+# Copy each block into App Store Connect → English (U.S.) → App Information / Version
+
+## App name (max 30 characters)
+Beamio
+
+## Subtitle (max 30 characters)
+Loyalty & stored value
+
+## Promotional Text (max 170 characters)
+Your Beamio wallet on iPhone—balances, programs, and membership in one app. Link your NFC card, open shared redeem links instantly, and skip the browser.
+
+## Description (max 4000 characters)
+
+Beamio is a smart loyalty and stored-value wallet built for modern local commerce. Our pilot launches at Vancouver's Old Alley—we've rebuilt traditional loyalty with secure, seamless technology that keeps every visit simple and your assets under your control.
+
+KEY FEATURES
+
+Static QR for Easy Top-ups
+When you reload at the counter, show your unique static identity code. The merchant scans it and your balance updates right away.
+
+Dynamic QR for Secure Payments
+Security is our priority. Powered by Smart Account technology, Beamio creates a time-sensitive, one-time dynamic QR code for each checkout—helping prevent screenshot fraud and protect your stored value.
+
+Unified Asset Dashboard
+Ditch the cluttered physical wallet. View balances, vouchers, and membership tiers across participating local merchants in one unified interface.
+
+Physical Card Integration
+Prefer a physical touch? Link a Beamio Generic NFC Pass to your account. Use QR on your phone or tap with your card—balances stay in sync in real time.
+
+Privacy First
+Your transaction history and personal data stay between you and the merchant you choose to shop with.
+
+OPEN BEAMIO LINKS IN THE APP
+Shared redeem and program links from beamio.app open directly in the app when installed—no extra browser tab required.
+
+WHO IT'S FOR
+
+• Beamio members and local shoppers
+• Anyone using stored value, vouchers, or merchant loyalty programs
+• Users who want a home-screen shortcut to their Beamio wallet on iPhone
+
+REQUIREMENTS
+
+• Internet connection
+• NFC optional — required only when linking a physical NFC pass
+• Camera optional — used only when a flow in the app requires scanning
+
+Beamio is a consumer wallet for account holders. For in-store merchant checkout, businesses use the separate Beamio SoftPOS app.
+
+Questions? Contact Beamio support through beamio.app.
+
+## Keywords (max 100 characters, comma-separated, no spaces after commas)
+loyalty,rewards,wallet,QR,Vancouver,local,smartpass,stablecoin,NFC,voucher
+
+## What's New in This Version (version 1.1)
+
+Open shared Beamio links directly in the app—redeem codes, program pages, and beamio.app URLs launch in Beamio instead of Safari.
+
+• Universal Links: tap https://beamio.app/app/… links to open the app when installed
+• Custom app links (beamio://) for faster open from web install pages
+• Improved deep link handling for redeem and program query parameters
+• NFC physical card linking and recovery QR scan refinements
+• Performance and stability improvements

@@ -1,0 +1,8 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol:BeamioUserCardReferrerLib
+Address: 0x981E3ca5160C3147673Eb984FED979778eed7B68
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardReferrerLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Linked Libraries:
+- ReferrerRegistryLib: 0x34d19e87342afF9Fda6337163D01FFfD6EAa5e4f
+Generated: 2026-05-22T18:28:22.299Z

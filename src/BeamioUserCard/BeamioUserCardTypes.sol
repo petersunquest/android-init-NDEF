@@ -20,3 +20,12 @@ struct UpdatePreResult {
     uint256[] burnedIds;
     uint256 burnedCount;
 }
+
+/// @dev 用户 NFT 明细（主合约 getOwnership 与 ViewsLib 共用）
+struct NFTDetail {
+    uint256 tokenId;
+    uint256 attribute;
+    uint256 tierIndexOrMax;
+    uint256 expiry;
+    bool isExpired;
+}

@@ -1,0 +1,9 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardRedeemGatewayLib.sol:BeamioUserCardRedeemGatewayLib
+Address: 0x6f4dE4941F4b7f2Fbc179A4697E9A04F0F916732
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardRedeemGatewayLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Linked Libraries:
+- BeamioUserCardIssuedNftGatewayLib: 0x090Fb47c70412dE61B15771EF75797e36616B4ad
+- BeamioUserCardTransferLib: 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F
+Generated: 2026-05-22T18:28:22.300Z

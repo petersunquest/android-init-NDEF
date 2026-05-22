@@ -54,6 +54,10 @@ final class POSViewModel: ObservableObject {
     /// While the parent-permission full-screen gate is up: wake every 6s and call `refreshHomeProfiles` if idle (no overlap).
     private var parentPermissionGatePollTask: Task<Void, Never>?
     private static let parentPermissionGatePollIntervalNs: UInt64 = 6_000_000_000
+    /// Program card metadata (`pointSystem.enabled`) — serial poll; no overlap with itself or home refresh.
+    private var programMetadataPollTask: Task<Void, Never>?
+    @Published private(set) var programMetadataRefreshInFlight = false
+    private static let programMetadataPollIntervalNs: UInt64 = 6_000_000_000
     /// After a **trusted** `getCardAdminInfo` (`ok: true`): whether this wallet may use POS (owner, `upperAdmin`, or any `admins[]` entry). `nil` = never persisted / reset.
     private var lastTrustedInfraPosHomeAccess: Bool?
     /// Filled in `reconcileParentPermissionGateWithServer` when access is **trusted allowed** for `merchantInfraCard`; consumed once by `refreshHomeProfiles` for upper-admin capsule (avoids a second `getCardAdminInfo` on the same tick).
@@ -68,6 +72,8 @@ final class POSViewModel: ObservableObject {
     @Published var homeMerchantProgramCardCurrency: String?
     /// Card Issuance recharge tiers (`metadata` or `metadata.shareTokenMetadata` bonus fields) for `merchantInfraCard`; home row + top-up bump.
     @Published var programRechargeBonusRules: [BeamioRechargeBonusRule] = []
+    /// Program card `metadata.pointSystem.enabled` (NFT #2 charge-reward points). Default `true` for legacy cards; refreshed on startup + every 6s.
+    @Published var merchantProgramPointSystemEnabled: Bool = true
     /// GET `/api/cardActiveIssuedCouponSeries` for `merchantInfraCard`. `nil` = never loaded or last fetch untrusted — do not hide a prior trusted badge; `[]` = trusted empty.
     @Published var merchantActiveIssuedCoupons: [MerchantActiveIssuedCoupon]?
 
@@ -168,6 +174,13 @@ final class POSViewModel: ObservableObject {
     @Published var topupQrExecuteError: String?
     /// Top-up + NFC: tag read / card prep failures — same pattern as `readQrExecuteError` (tap center to retry NFC).
     @Published var topupNfcReadError: String?
+    /// Deduct Points + Scan QR: central loading / error card.
+    @Published var deductPointsQrExecuting = false
+    @Published var deductPointsQrExecuteError: String?
+    /// Deduct Points + NFC: tag read / execute failures.
+    @Published var deductPointsNfcReadError: String?
+    @Published var deductPointsQrResetId = 0
+    @Published var deductPointsSuccess: DeductPointsSuccessState?
     /// Rebuild QR preview after error / flow reset.
     @Published var topupQrResetId = 0
     /// Shown under "Sign & execute" (Android `topupExecuteUidDisplay`): `@beamioTag` or short wallet.
@@ -428,8 +441,14 @@ final class POSViewModel: ObservableObject {
             await refreshInfraCardFromDbIfPossible()
             if walletAddress != nil, !showWelcome, !showOnboarding {
                 await refreshHomeProfiles()
+                syncProgramMetadataPolling()
             }
         }
+    }
+
+    deinit {
+        programMetadataPollTask?.cancel()
+        programMetadataPollTask = nil
     }
 
     /// Beamio trusted-cache / local-first: load profile JSON written only after successful profile search.
@@ -465,6 +484,7 @@ final class POSViewModel: ObservableObject {
             homeMerchantProgramCardCurrency = nil
             programRechargeBonusRules = prog.bonusRules ?? []
             merchantActiveIssuedCoupons = prog.activeCoupons
+            if let pointOn = prog.pointSystemEnabled { merchantProgramPointSystemEnabled = pointOn }
         } else {
             if let c { cardChargeAmount = c }
             if let t { cardTopUpAmount = t }
@@ -479,6 +499,7 @@ final class POSViewModel: ObservableObject {
             if let name = prog.programCardName { homeMerchantProgramCardName = name }
             if let rules = prog.bonusRules { programRechargeBonusRules = rules }
             if let coupons = prog.activeCoupons { merchantActiveIssuedCoupons = coupons }
+            if let pointOn = prog.pointSystemEnabled { merchantProgramPointSystemEnabled = pointOn }
         }
     }
 
@@ -585,6 +606,7 @@ final class POSViewModel: ObservableObject {
             Task { @MainActor in
                 await refreshInfraCardFromDbIfPossible()
                 await refreshHomeProfiles()
+                syncProgramMetadataPolling()
                 await maybeRunTerminalParentCoNetPermissionFlowAfterOnboarding()
             }
         } catch {
@@ -869,6 +891,67 @@ final class POSViewModel: ObservableObject {
         }
     }
 
+    /// Start/stop the 6s program-card metadata poll (pointSystem) when POS home is active.
+    func syncProgramMetadataPolling() {
+        guard walletAddress != nil, !showWelcome, !showOnboarding else {
+            stopProgramMetadataPolling()
+            return
+        }
+        startProgramMetadataPollingIfNeeded()
+    }
+
+    private func startProgramMetadataPollingIfNeeded() {
+        guard programMetadataPollTask == nil else { return }
+        programMetadataPollTask = Task { [weak self] in
+            guard let self else { return }
+            await self.runProgramMetadataPollLoop()
+        }
+    }
+
+    private func stopProgramMetadataPolling() {
+        programMetadataPollTask?.cancel()
+        programMetadataPollTask = nil
+    }
+
+    /// Lightweight metadata tick: only `pointSystem.enabled` for the terminal program card.
+    private func refreshProgramPointSystemMetadata() async {
+        guard !programMetadataRefreshInFlight else { return }
+        guard let w = walletAddress else { return }
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard looksLikeAddress(infra) else { return }
+        programMetadataRefreshInFlight = true
+        defer { programMetadataRefreshInFlight = false }
+        if let enabled = await api.fetchProgramPointSystemEnabled(cardAddress: infra) {
+            merchantProgramPointSystemEnabled = enabled
+            POSHomeScreenTrustedCache.mergeAndSaveProgram(
+                wallet: w,
+                infraCard: infra,
+                programCardName: nil,
+                bonusRules: nil,
+                activeCoupons: nil,
+                pointSystemEnabled: enabled
+            )
+        }
+    }
+
+    private func runProgramMetadataPollLoop() async {
+        defer { programMetadataPollTask = nil }
+        await refreshProgramPointSystemMetadata()
+        while !Task.isCancelled {
+            do {
+                try await Task.sleep(nanoseconds: Self.programMetadataPollIntervalNs)
+            } catch {
+                break
+            }
+            guard !Task.isCancelled else { break }
+            guard walletAddress != nil, !showWelcome, !showOnboarding else { break }
+            if programMetadataRefreshInFlight || homeRefreshInFlight {
+                continue
+            }
+            await refreshProgramPointSystemMetadata()
+        }
+    }
+
     func clearSplashParentForTerminalSetup() {
         splashParentBeamioTagForPermission = ""
     }
@@ -977,6 +1060,7 @@ final class POSViewModel: ObservableObject {
             Task { @MainActor in
                 await refreshInfraCardFromDbIfPossible()
                 await refreshHomeProfiles()
+                syncProgramMetadataPolling()
             }
             return nil
         } catch {
@@ -1044,6 +1128,7 @@ final class POSViewModel: ObservableObject {
             Task { @MainActor in
                 await refreshInfraCardFromDbIfPossible()
                 await refreshHomeProfiles()
+                syncProgramMetadataPolling()
             }
             return nil
         } catch {
@@ -1271,6 +1356,7 @@ final class POSViewModel: ObservableObject {
                     activeCoupons: nil
                 )
             }
+            await refreshProgramPointSystemMetadata()
         } else {
             // infra 显然不是合法地址 → 此为「可信空」语义（没有 program 卡可查），按 [] 入缓存。
             programRechargeBonusRules = []
@@ -1560,6 +1646,194 @@ final class POSViewModel: ObservableObject {
         startNfcIfNeeded()
     }
 
+    func beginDeductPoints(amount: String) {
+        amountString = amount
+        pendingScanAction = .deductPoints
+        scanQrCameraArmed = false
+        scanAwaitingNfcTap = true
+        resetDeductPointsQrChrome()
+        deductPointsQrResetId += 1
+        scanMethod = .nfc
+        sheet = .scan(.deductPoints)
+        startNfcIfNeeded()
+    }
+
+    func dismissDeductPointsSuccess() {
+        deductPointsSuccess = nil
+    }
+
+    private func resetDeductPointsQrChrome() {
+        deductPointsQrExecuting = false
+        deductPointsQrExecuteError = nil
+        deductPointsNfcReadError = nil
+    }
+
+    private func infraCardChargeRewardPoints6(from assets: UIDAssets) -> Int64 {
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !infra.isEmpty else { return 0 }
+        let card = assets.cards?.first(where: { $0.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == infra })
+        return Int64(card?.chargeRewardPoints6.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+    }
+
+    private func infraCardItem(from assets: UIDAssets) -> CardItem? {
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !infra.isEmpty else { return nil }
+        return assets.cards?.first(where: { $0.cardAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == infra })
+    }
+
+    private func deductPointsAmount6String() -> String? {
+        let raw = amountString.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        guard let v = Double(raw), v > 0, v.isFinite else { return nil }
+        return BeamioPaymentRouting.currencyToFiat6(amount: v)
+    }
+
+    private func runDeductPoints(uid: String?, wallet: String?, sun: SunParams?, viaQr: Bool) async {
+        deductPointsNfcReadError = nil
+        deductPointsQrExecuteError = nil
+        guard let pkHex = walletPrivateKeyHex?.trimmingCharacters(in: .whitespacesAndNewlines), !pkHex.isEmpty else {
+            let msg = "Wallet not initialized."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let infra = merchantInfraCard.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !infra.isEmpty, looksLikeAddress(infra) else {
+            let msg = "Merchant program card is unavailable."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        guard let points6Str = deductPointsAmount6String(), (Int64(points6Str) ?? 0) > 0 else {
+            let msg = "Enter a valid point amount."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        if viaQr { deductPointsQrExecuting = true } else { isNfcBusy = true; scanBanner = "Deducting points..." }
+        defer {
+            if viaQr { deductPointsQrExecuting = false } else { isNfcBusy = false; scanBanner = "" }
+        }
+        await refreshInfraCardFromDbIfPossible()
+        let assets: UIDAssets
+        if let uid, !uid.isEmpty {
+            (assets, _) = await api.getUIDAssetsWithRawJson(uid: uid, sun: sun, merchantInfraCard: merchantInfraCard, merchantInfraOnly: false)
+        } else if let wallet, looksLikeAddress(wallet) {
+            (assets, _) = await api.getWalletAssetsWithRawJson(wallet: wallet, merchantInfraCard: merchantInfraCard, merchantInfraOnly: false, forPostPayment: false)
+        } else {
+            let msg = "Missing customer identifier."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        guard assets.ok else {
+            let msg = assets.error ?? "Could not load customer balance."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let balance6 = infraCardChargeRewardPoints6(from: assets)
+        let deduct6 = Int64(points6Str) ?? 0
+        guard balance6 > 0 else {
+            let msg = "Customer has no point balance."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        guard deduct6 <= balance6 else {
+            let msg = "Insufficient point balance."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let target = assets.aaAddress?.nilIfEmpty ?? assets.address?.nilIfEmpty
+        guard let target, looksLikeAddress(target) else {
+            let msg = "Customer account is unavailable."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let prep = await api.burnChargeRewardByAdminPrepare(cardAddress: infra, target: target, amount: points6Str)
+        guard prep.success,
+              let cardAddr = prep.cardAddr,
+              let data = prep.data,
+              let deadline = prep.deadline,
+              let nonce = prep.nonce
+        else {
+            let msg = prep.error ?? "Deduct prepare failed."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let adminSig: String
+        do {
+            adminSig = try BeamioEthWallet.signExecuteForAdmin(
+                privateKeyHex: pkHex,
+                cardAddr: cardAddr,
+                dataHex: data,
+                deadline: deadline,
+                nonceHex: nonce,
+                verifyingContractHex: prep.factoryGateway
+            )
+        } catch {
+            let msg = "Merchant signature failed."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let pay = await api.nfcTopup(
+            uid: uid?.nilIfEmpty,
+            wallet: wallet?.nilIfEmpty,
+            cardAddr: cardAddr,
+            data: data,
+            deadline: deadline,
+            nonce: nonce,
+            adminSignature: adminSig,
+            sun: sun
+        )
+        guard pay.success else {
+            let msg = pay.error ?? "Deduct points failed."
+            if viaQr { deductPointsQrExecuteError = msg } else { deductPointsNfcReadError = msg }
+            return
+        }
+        let post6 = max(0, balance6 - deduct6)
+        let passCard = infraCardItem(from: assets)
+        var updatedPass = passCard
+        if let pc = updatedPass {
+            updatedPass = CardItem(
+                cardAddress: pc.cardAddress,
+                cardName: pc.cardName,
+                cardType: pc.cardType,
+                points: pc.points,
+                points6: pc.points6,
+                chargeRewardPoints: String(format: "%.6f", Double(post6) / 1_000_000.0),
+                chargeRewardPoints6: String(post6),
+                cardCurrency: pc.cardCurrency,
+                nfts: pc.nfts,
+                cardBackground: pc.cardBackground,
+                cardImage: pc.cardImage,
+                tierName: pc.tierName,
+                tierDescription: pc.tierDescription,
+                primaryMemberTokenId: pc.primaryMemberTokenId,
+                tierDiscountPercent: pc.tierDiscountPercent
+            )
+        }
+        closeScanSheet()
+        deductPointsSuccess = DeductPointsSuccessState(
+            amount: amountString,
+            txHash: pay.txHash ?? "",
+            postPointBalance6: String(post6),
+            passCard: updatedPass,
+            customerBeamioTag: assets.beamioTag?.nilIfEmpty,
+            settlementViaQr: viaQr
+        )
+    }
+
+    func retryDeductPointsQrAfterError() {
+        guard deductPointsQrExecuteError != nil, !(deductPointsQrExecuteError ?? "").isEmpty else { return }
+        deductPointsQrExecuteError = nil
+        deductPointsQrResetId += 1
+    }
+
+    func retryDeductPointsNfcAfterError() {
+        guard pendingScanAction == .deductPoints else { return }
+        deductPointsNfcReadError = nil
+        deductPointsQrResetId += 1
+        scanQrCameraArmed = false
+        scanMethod = .nfc
+        scanAwaitingNfcTap = true
+        nfc.begin()
+    }
+
     private func startNfcIfNeeded() {
         guard scanMethod == .nfc else { return }
         scanBanner = "Hold the customer's NTAG 424 DNA card near the NFC sensor."
@@ -1594,6 +1868,8 @@ final class POSViewModel: ObservableObject {
             await handleReadOrTopupQr(text, mode: .read)
         case .topup:
             await handleReadOrTopupQr(text, mode: .topup)
+        case .deductPoints:
+            await handleDeductPointsQr(text)
         case .linkApp:
             scanBanner = "Link App works with NFC only."
         }
@@ -1601,38 +1877,33 @@ final class POSViewModel: ObservableObject {
 
     enum QrReadMode { case read, topup }
 
-    /// Android `Uri.parse` + QR payloads: trim BOM/whitespace; if bare string fails, detect first http(s) link.
-    private static func beamioCustomerLinkURL(from raw: String) -> URL? {
-        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("\u{FEFF}") { trimmed = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) }
-        if let u = URL(string: trimmed), u.scheme == "http" || u.scheme == "https" { return u }
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        let ns = trimmed as NSString
-        let range = NSRange(location: 0, length: ns.length)
-        guard let detector, let m = detector.firstMatch(in: trimmed, options: [], range: range),
-              m.resultType == .link,
-              let u = m.url,
-              u.scheme == "http" || u.scheme == "https"
-        else { return nil }
-        return u
+    private func handleDeductPointsQr(_ text: String) async {
+        guard let identity = BeamioOpenContainerQR.parseCustomerIdentity(from: text), identity.hasIdentity else {
+            deductPointsQrExecuteError = "Cannot parse QR. Scan a beamio.app link or Scan to Pay code."
+            deductPointsQrResetId += 1
+            return
+        }
+        deductPointsQrExecuteError = nil
+        await runDeductPoints(uid: identity.beamioTag, wallet: identity.wallet, sun: nil, viaQr: true)
+        if deductPointsQrExecuteError != nil {
+            deductPointsQrResetId += 1
+        }
     }
 
     private func handleReadOrTopupQr(_ text: String, mode: QrReadMode) async {
-        let url = Self.beamioCustomerLinkURL(from: text)
-        let beamio = url.flatMap { BeamioOpenContainerQR.parseBeamioTab(from: $0) }
-        let wallet = url.flatMap { BeamioOpenContainerQR.parseBeamioWallet(from: $0) }
-        guard beamio != nil || wallet != nil else {
+        guard let identity = BeamioOpenContainerQR.parseCustomerIdentity(from: text), identity.hasIdentity else {
             if mode == .topup {
-                // Android `handleQrScanResult`: both nil → `Cannot parse URL. Please scan a beamio.app link` (same for topup/read before branch)
-                topupQrExecuteError = "Cannot parse URL. Please scan a beamio.app link"
+                topupQrExecuteError = "Cannot parse QR. Scan a beamio.app link or Scan to Pay code."
                 topupQrSigningInProgress = false
                 topupQrResetId += 1
             } else {
-                readQrExecuteError = "Cannot parse URL. Please scan a beamio.app link"
+                readQrExecuteError = "Cannot parse QR. Scan a beamio.app link or Scan to Pay code."
                 readQrResetId += 1
             }
             return
         }
+        let beamio = identity.beamioTag
+        let wallet = identity.wallet
         if mode == .read {
             readQrExecuteError = nil
             readQrFetchingInProgress = true
@@ -2166,6 +2437,8 @@ final class POSViewModel: ObservableObject {
             if let e = topupNfcReadError, !e.isEmpty { return }
         case .read:
             if let e = readQrExecuteError, !e.isEmpty { return }
+        case .deductPoints:
+            if let e = deductPointsNfcReadError, !e.isEmpty { return }
         case .linkApp:
             return
         }
@@ -2278,6 +2551,9 @@ final class POSViewModel: ObservableObject {
             case .payment:
                 chargeNfcReadError = msg
                 qrPaymentResetId += 1
+            case .deductPoints:
+                deductPointsNfcReadError = msg
+                deductPointsQrResetId += 1
             case .linkApp:
                 scanBanner = msg
             }
@@ -2291,10 +2567,31 @@ final class POSViewModel: ObservableObject {
                 await handleNfcTopup(url: url)
             case .payment:
                 await handleNfcPayment(url: url)
+            case .deductPoints:
+                await handleNfcDeductPoints(url: url)
             case .linkApp:
                 await handleNfcLinkApp(url: url)
             }
         }
+    }
+
+    private func handleNfcDeductPoints(url: URL) async {
+        scanAwaitingNfcTap = false
+        deductPointsNfcReadError = nil
+        let sun = BeamioSunParser.sunParams(from: url)
+        let uid =
+            sun?.uid
+            ?? BeamioSunParser.uidHexPreview(from: url)
+            ?? ""
+        guard let sun else {
+            deductPointsNfcReadError = nfcFlowErrorMessage(detail: "Card does not support SUN.")
+            return
+        }
+        guard !uid.isEmpty else {
+            deductPointsNfcReadError = nfcFlowErrorMessage(detail: "Cannot read UID from this card.")
+            return
+        }
+        await runDeductPoints(uid: uid, wallet: nil, sun: sun, viaQr: false)
     }
 
     private func handleNfcRead(url: URL) async {
@@ -4998,6 +5295,12 @@ final class POSViewModel: ObservableObject {
             isNfcBusy = false
             scanBanner = ""
             readQrResetId += 1
+        }
+        if pendingScanAction == .deductPoints, m != scanMethod {
+            resetDeductPointsQrChrome()
+            isNfcBusy = false
+            scanBanner = ""
+            deductPointsQrResetId += 1
         }
         scanMethod = m
         if m == .nfc {

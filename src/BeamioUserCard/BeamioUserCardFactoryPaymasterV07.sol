@@ -65,6 +65,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes32 public constant CLAIM_ISSUED_NFT_TYPEHASH = keccak256(
         "ClaimIssuedNft(address cardAddress,uint256 tokenId,uint256 deadline,bytes32 nonce)"
     );
+    bytes32 private constant PURCHASE_ISSUED_NFT_WITH_POINTS_TYPEHASH = keccak256(
+        "PurchaseIssuedNftWithPoints(address cardAddress,uint256 tokenId,uint256 amount,address payeeEOA,uint256 deadline,bytes32 nonce)"
+    );
 
     // ===== immutable chain config =====
     address public immutable USDC_TOKEN;
@@ -100,6 +103,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
     /// @dev User signed ClaimIssuedNft replay protection (scoped by userEOA + nonce bytes32)
     mapping(bytes32 => bool) public usedIssuedNftClaimSigNonces;
+    mapping(bytes32 => bool) private usedIssuedNftPointsPurchaseSigNonces;
 
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event PaymasterStatusChanged(address indexed account, bool allowed);
@@ -714,6 +718,51 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
 
         emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
+    }
+
+    /// @notice User EIP-712 signed purchase: charge token0 (points) on card then mint issued NFT(s).
+    /// @dev `payeeEOA==address(0)` defaults to card `owner()` (merchant).
+    function purchaseIssuedNftWithPointsForUser(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        uint256 amount,
+        address payeeEOA,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external onlyPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (amount == 0) revert UC_AmountZero();
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        address payee = payeeEOA == address(0) ? card.owner() : payeeEOA;
+        if (payee == address(0)) revert BM_ZeroAddress();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (usedIssuedNftPointsPurchaseSigNonces[nonceKey]) revert UC_NonceUsed();
+        usedIssuedNftPointsPurchaseSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PURCHASE_ISSUED_NFT_WITH_POINTS_TYPEHASH,
+                cardAddr,
+                tokenId,
+                amount,
+                payee,
+                deadline,
+                nonce
+            )
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        card.purchaseIssuedNftWithPointsCharge(userEOA, tokenId, amount, payee);
     }
 
     bytes32 public constant EXECUTE_FOR_OWNER_TYPEHASH = keccak256(

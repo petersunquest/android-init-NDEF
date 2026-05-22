@@ -133,6 +133,35 @@ struct TopupSuccessState: Identifiable, Equatable {
     }
 }
 
+/// Full-screen deduct charge-reward points success.
+struct DeductPointsSuccessState: Identifiable, Equatable {
+    let id: UUID
+    let amount: String
+    let txHash: String
+    let postPointBalance6: String?
+    let passCard: CardItem?
+    let customerBeamioTag: String?
+    let settlementViaQr: Bool
+
+    init(
+        id: UUID = UUID(),
+        amount: String,
+        txHash: String,
+        postPointBalance6: String?,
+        passCard: CardItem?,
+        customerBeamioTag: String? = nil,
+        settlementViaQr: Bool
+    ) {
+        self.id = id
+        self.amount = amount
+        self.txHash = txHash
+        self.postPointBalance6 = postPointBalance6
+        self.passCard = passCard
+        self.customerBeamioTag = customerBeamioTag
+        self.settlementViaQr = settlementViaQr
+    }
+}
+
 /// Full-screen charge / payment success (Android `PaymentSuccessContent`).
 struct ChargeSuccessState: Identifiable, Equatable {
     let id: UUID
@@ -440,6 +469,7 @@ enum ScanPendingAction: String {
     case topup
     case payment
     case linkApp
+    case deductPoints
 }
 
 enum ScanMethod: String {

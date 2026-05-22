@@ -11,6 +11,9 @@
 -keep class com.beamio.caehtrees.MainActivity$CashTreesJsBridge {
     *;
 }
+-keep class com.beamio.caehtrees.GeneralQRScannerActivity {
+    *;
+}
 
 # Kotlin 元数据（反射/协程等由依赖自带 consumer rules；此处兜底）
 -dontwarn kotlin.**

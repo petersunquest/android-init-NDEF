@@ -1,24 +1,19 @@
-BeamioUserCard BaseScan 合约验证
-================================
-
-Compiler Version: 0.8.33+commit.64118f21
-Optimization: Enabled, Runs: 0
-viaIR: true, evmVersion: cancun
-
 Contract Name: project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard
-
-Standard JSON 文件:
-  - base-BeamioUserCard-standard-input-FULL.json（via-IR 全量 build-info，与链上一致；推荐）
-  - base-BeamioUserCard-basescan-standard-input.json（精简依赖）
-  - base-BeamioUserCard-basescan-minimal.json（备份）
-
-链接库（须先单独验证链上库地址，或在验证器填写 Library 地址）:
-  - BeamioUserCardFormattingLib → 见 base-BeamioUserCardFormattingLib-basescan-verify-meta.txt
-  - BeamioUserCardTransferLib → 见 base-BeamioUserCardTransferLib-basescan-verify-meta.txt
-
-生成 FULL:
-  npm run clean && npm run compile
-  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCard --full
-
-重要：BaseScan 新版 STANDARD_JSON_INPUT 页面不会手动选择 Contract Name，
-它会从上传 JSON 自动匹配；若失败，请先确认 Constructor Arguments ABI-encoded 未留空。
+Address: NOT_DEPLOYED_BY_THIS_PLAN
+Constructor Args ABI-encoded: see future card deployment constructor args
+Standard JSON: deployments/base-BeamioUserCard-standard-input-FULL.json
+Network: base (chainId 8453)
+Linked Libraries:
+- BeamioUserCardAdminGatewayLib: 0x4d0Af8Aa67C78C81F3860497a9082A3B70b9a467
+- BeamioUserCardFaucetGatewayLib: 0x11D99A1d0B3C6985abE2E82B2065fCC5506e99A8
+- BeamioUserCardFormattingLib: 0xe56dca3aF78a12164dC6546e6CD0E9Fe9d9Cc4b3
+- BeamioUserCardGatewayMintLib: 0xEE6309a46DBCaDD98398758fD0032A12A0a2D696
+- BeamioUserCardGovernanceLib: 0x4564b36B44A0B689F35973A67EF19d0b46cCfc73
+- BeamioUserCardIssuedNftGatewayLib: 0x090Fb47c70412dE61B15771EF75797e36616B4ad
+- BeamioUserCardModuleRouterLib: 0x55154E4eb8f86Fb6E6520993Ec38E230bBf925fD
+- BeamioUserCardRedeemGatewayLib: 0x6f4dE4941F4b7f2Fbc179A4697E9A04F0F916732
+- BeamioUserCardReferrerLib: 0x981E3ca5160C3147673Eb984FED979778eed7B68
+- BeamioUserCardTransferLib: 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F
+- BeamioUserCardUpdateLib: 0xD021f61d70e1B72ec1ED49950F7F581139d6879A
+- BeamioUserCardViewsLib: 0x2e3a136733e400f579DcB71fAf78922563d8D7EC
+Generated: 2026-05-22T18:28:22.301Z

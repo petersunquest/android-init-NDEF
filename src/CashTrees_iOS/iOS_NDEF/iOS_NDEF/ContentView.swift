@@ -201,6 +201,18 @@ struct ContentView: View {
                 .zIndex(2)
             }
 
+            if case .some(.deductPoints) = amountFlow {
+                DeductPointsAmountPadFullPage(
+                    onCancel: { amountFlow = nil },
+                    onContinue: { amount in
+                        amountFlow = nil
+                        vm.beginDeductPoints(amount: amount)
+                    }
+                )
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
+
             if case .some(.transactions) = amountFlow {
                 POSTransactionsScreen(
                     vm: vm,
@@ -223,8 +235,19 @@ struct ContentView: View {
             get: { vm.topupSuccess },
             set: { vm.topupSuccess = $0 }
         )) { state in
-            TopupSuccessView(state: state) {
+            TopupSuccessView(state: state, pointSystemEnabled: vm.merchantProgramPointSystemEnabled) {
                 vm.dismissTopupSuccess()
+                Task { @MainActor in
+                    await vm.refreshHomeProfiles()
+                }
+            }
+        }
+        .fullScreenCover(item: Binding(
+            get: { vm.deductPointsSuccess },
+            set: { vm.deductPointsSuccess = $0 }
+        )) { state in
+            DeductPointsSuccessView(state: state, pointSystemEnabled: vm.merchantProgramPointSystemEnabled) {
+                vm.dismissDeductPointsSuccess()
                 Task { @MainActor in
                     await vm.refreshHomeProfiles()
                 }
@@ -236,6 +259,7 @@ struct ContentView: View {
         )) { state in
             PaymentSuccessView(
                 state: state,
+                pointSystemEnabled: vm.merchantProgramPointSystemEnabled,
                 onDone: {
                     vm.dismissChargeSuccess()
                     Task { @MainActor in
@@ -922,6 +946,7 @@ private struct SheetCircularBackButton: View {
 enum AmountFlow: String, Identifiable {
     case charge
     case topup
+    case deductPoints
     case transactions
     case activeCoupons
     var id: String { rawValue }
@@ -3201,13 +3226,32 @@ private struct HomeRootView: View {
                             homeWelcomeNoAA
                         }
 
-                        homeChargeHeroButton(compact: compact, tight: tight) { amountFlow = .charge }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: tight ? 120 : compact ? 138 : 156)
-                            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                        GeometryReader { flexGeo in
+                            let actionRowGap: CGFloat = tight ? 10 : 14
+                            let actionRowCount = vm.merchantProgramPointSystemEnabled ? 3 : 2
+                            let heights = homeButtonAreaHeights(
+                                usableHeight: flexGeo.size.height,
+                                chargeToActionGap: sectionGap,
+                                actionRowGap: actionRowGap,
+                                actionRowCount: actionRowCount
+                            )
 
-                        homeActionArea(compact: compact, tight: tight, gap: tight ? 10 : 14)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                            VStack(spacing: sectionGap) {
+                                homeChargeHeroButton(compact: compact, tight: tight) { amountFlow = .charge }
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: heights.charge)
+                                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+
+                                homeActionArea(
+                                    compact: compact,
+                                    tight: tight,
+                                    gap: actionRowGap,
+                                    rowHeight: heights.actionRow
+                                )
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .padding(.horizontal, outerPadding)
                     .padding(.top, tight ? 14 : 22)
@@ -3220,42 +3264,97 @@ private struct HomeRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func homeActionArea(compact: Bool, tight: Bool, gap: CGFloat) -> some View {
-        let tileHeight: CGFloat = tight ? 92 : compact ? 108 : 122
-        return VStack(spacing: gap) {
+    /// Charge height = 1.5× each action row; rows share the remaining button-area height equally.
+    private func homeButtonAreaHeights(
+        usableHeight: CGFloat,
+        chargeToActionGap: CGFloat,
+        actionRowGap: CGFloat,
+        actionRowCount: Int
+    ) -> (charge: CGFloat, actionRow: CGFloat) {
+        let rows = CGFloat(max(1, actionRowCount))
+        let interRowGaps = max(0, rows - 1) * actionRowGap
+        let rowH = max(0, (usableHeight - chargeToActionGap - interRowGaps) / (1.5 + rows))
+        return (rowH * 1.5, rowH)
+    }
+
+    private func homeActionArea(compact: Bool, tight: Bool, gap: CGFloat, rowHeight: CGFloat) -> some View {
+        VStack(spacing: gap) {
             HStack(spacing: gap) {
                 homeActionGridButton(
                     title: "Check Balance",
                     systemImage: "magnifyingglass",
-                    iconTint: brandBlue
+                    iconTint: brandBlue,
+                    compact: compact,
+                    tight: tight
                 ) { vm.beginReadBalance() }
-                .frame(height: tileHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 homeActionGridButton(
                     title: "Top-up",
                     systemImage: "plus",
-                    iconTint: linkPurple
+                    iconTint: linkPurple,
+                    compact: compact,
+                    tight: tight
                 ) { amountFlow = .topup }
-                .frame(height: tileHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: rowHeight)
 
             HStack(spacing: gap) {
+                if vm.merchantProgramPointSystemEnabled {
+                    homeActionGridButton(
+                        title: "Deduct Points",
+                        systemImage: "minus.circle",
+                        iconTint: Color(red: 0xEA / 255, green: 0x58 / 255, blue: 0x0C / 255),
+                        compact: compact,
+                        tight: tight
+                    ) { amountFlow = .deductPoints }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+
                 homeActionGridButton(
                     title: "History",
                     systemImage: "list.bullet.rectangle",
-                    iconTint: brandBlue
+                    iconTint: brandBlue,
+                    compact: compact,
+                    tight: tight
                 ) {
                     amountFlow = .transactions
                     Task { @MainActor in await vm.openPosTransactionsScreen() }
                 }
-                .frame(height: tileHeight)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                homeActionGridButton(
-                    title: "Link App",
-                    systemImage: "link",
-                    iconTint: brandBlue
-                ) { vm.beginLinkApp() }
-                .frame(height: tileHeight)
+                if !vm.merchantProgramPointSystemEnabled {
+                    homeActionGridButton(
+                        title: "Link App",
+                        systemImage: "link",
+                        iconTint: brandBlue,
+                        compact: compact,
+                        tight: tight
+                    ) { vm.beginLinkApp() }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: rowHeight)
+
+            if vm.merchantProgramPointSystemEnabled {
+                HStack(spacing: gap) {
+                    homeActionGridButton(
+                        title: "Link App",
+                        systemImage: "link",
+                        iconTint: brandBlue,
+                        compact: compact,
+                        tight: tight
+                    ) { vm.beginLinkApp() }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    Color.clear
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: rowHeight)
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -3998,24 +4097,32 @@ private struct HomeRootView: View {
         title: String,
         systemImage: String,
         iconTint: Color,
+        compact: Bool,
+        tight: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            VStack(spacing: 12) {
+        let iconBox: CGFloat = tight ? 36 : compact ? 42 : 48
+        let iconFont: CGFloat = tight ? 18 : compact ? 20 : 22
+        let titleFont: CGFloat = tight ? 12 : compact ? 13 : 14
+        let spacing: CGFloat = tight ? 6 : compact ? 8 : 12
+        return Button(action: action) {
+            VStack(spacing: spacing) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .semibold))
+                    .font(.system(size: iconFont, weight: .semibold))
                     .foregroundStyle(iconTint)
-                    .frame(width: 48, height: 48)
+                    .frame(width: iconBox, height: iconBox)
                     .background(iconTint.opacity(0.12))
                     .clipShape(Circle())
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: titleFont, weight: .bold))
                     .foregroundStyle(Color(uiColor: .label))
                     .multilineTextAlignment(.center)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.72)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, tight ? 4 : 6)
+            .padding(.vertical, tight ? 6 : 8)
             .background(
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .fill(Color.white)
@@ -6002,6 +6109,84 @@ private struct ChargeAmountTipNavigationSheet: View {
     }
 }
 
+/// Deduct charge-reward points: amount keypad only (no payment method).
+private struct DeductPointsAmountPadFullPage: View {
+    var onCancel: () -> Void
+    var onContinue: (String) -> Void
+
+    @State private var amount = "0"
+    private let accent = Color(red: 0xEA / 255, green: 0x58 / 255, blue: 0x0C / 255)
+
+    var body: some View {
+        BoxWithConstraintsLikeChargeAmountPad(
+            amount: $amount,
+            accent: accent,
+            title: "Deduct Points",
+            continueTitle: "Continue",
+            onCancel: onCancel,
+            onContinue: { onContinue(amount) }
+        )
+    }
+}
+
+/// Shared compact amount pad shell for deduct-points entry.
+private struct BoxWithConstraintsLikeChargeAmountPad: View {
+    @Binding var amount: String
+    let accent: Color
+    let title: String
+    let continueTitle: String
+    let onCancel: () -> Void
+    let onContinue: () -> Void
+
+    private var canContinue: Bool {
+        guard let v = Double(amount) else { return false }
+        return v > 0
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let compact = geo.size.height < 640
+            let sidePad: CGFloat = compact ? 16 : 20
+            let gap: CGFloat = compact ? 8 : 10
+            VStack(spacing: 0) {
+                HStack {
+                    SheetCircularBackButton(action: onCancel)
+                    Spacer()
+                    Text(title)
+                        .font(.system(size: 17, weight: .semibold))
+                    Spacer()
+                    Color.clear.frame(width: 36, height: 36)
+                }
+                .padding(.horizontal, sidePad)
+                .padding(.top, 6)
+                .padding(.bottom, gap)
+                Text(beamioAmountPadFormattedDisplay(amount))
+                    .font(.system(size: compact ? 52 : 64, weight: .heavy))
+                    .foregroundStyle(accent)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, gap)
+                BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
+                    .padding(.horizontal, sidePad)
+                Spacer(minLength: 8)
+                Button(action: onContinue) {
+                    Text(continueTitle)
+                        .font(.system(size: 16, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .foregroundStyle(.white)
+                        .background(accent, in: Capsule())
+                }
+                .disabled(!canContinue)
+                .opacity(canContinue ? 1 : 0.45)
+                .padding(.horizontal, sidePad)
+                .padding(.bottom, compact ? 12 : 20)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(posChargeAmountPageBackground.ignoresSafeArea())
+        }
+    }
+}
+
 /// Charge amount entry: same chrome as `TopupAmountPadFullPage` (surface, circular back, expandable keypad).
 /// 右侧 method 按钮风格对齐 Top-up（单按钮循环切换）：Credit / USDC / CADD。
 private struct ChargeAmountPadRoot: View {
@@ -7279,6 +7464,17 @@ private func readBalanceFormatUsdcThousands(_ amount: Double) -> String {
     return fmt.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
 }
 
+/// NFT #2 charge-reward point subtitle (Check Balance / Charge / Top-up success hero).
+private func readBalancePointRewardSubtitle(
+    passCard: CardItem?,
+    chargeRewardPoints6: String? = nil,
+    pointSystemEnabled: Bool
+) -> String? {
+    guard pointSystemEnabled else { return nil }
+    let reward6 = Int64((passCard?.chargeRewardPoints6 ?? chargeRewardPoints6)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+    return "\(readBalanceFormatUsdcThousands(Double(reward6) / 1_000_000.0)) point"
+}
+
 private struct ReadBalanceLastTopUpUsdcStatsCard: View {
     let assets: UIDAssets?
     let cardCurrency: String
@@ -7402,7 +7598,7 @@ private struct SheetHost: View {
                         consumeInFlightCouponId: vm.readBalanceConsumingCouponId,
                         claimSucceededCouponId: vm.readBalanceClaimSucceededCouponId,
                         merchantInfraCard: vm.merchantInfraCard,
-                        amountFlow: $amountFlow,
+                        pointSystemEnabled: vm.merchantProgramPointSystemEnabled,
                         onClaimCoupon: { coupon in
                             await vm.claimMerchantCouponFromLastRead(coupon)
                         },
@@ -7538,7 +7734,8 @@ private struct ReadBalanceView: View {
     let claimSucceededCouponId: String?
     /// Terminal-registered merchant / infrastructure card; Balance Details only lists this card’s pass row.
     let merchantInfraCard: String
-    @Binding var amountFlow: AmountFlow?
+    /// Program card `metadata.pointSystem.enabled` — when false, hide NFT #2 point balance subtitle.
+    let pointSystemEnabled: Bool
     let onClaimCoupon: (MerchantClaimableCouponItem) async -> Bool
     let onConsumeCoupon: (MerchantCouponBalanceItem) async -> Bool
     var onDismissSheet: () -> Void
@@ -7546,13 +7743,6 @@ private struct ReadBalanceView: View {
     private let topUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xf0 / 255)
 
     @State private var responseExpanded = false
-    @State private var topupButtonEnabled = true
-
-    private var balanceLoadIdentity: String {
-        guard let a = assets else { return "" }
-        let c = a.counter.map { String($0) } ?? ""
-        return [a.uid ?? "", a.beamioTag ?? "", a.tagIdHex ?? "", c].joined(separator: "|")
-    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -7598,64 +7788,41 @@ private struct ReadBalanceView: View {
                         let balNum = readBalanceHeroBalanceAmount(primaryPass: primaryPass, assets: a)
                         let balCurrency = primaryPass?.cardCurrency ?? a.cardCurrency ?? "CAD"
                         let balParts = readBalanceFormatMoney(balNum, currency: balCurrency)
-                        let reward6 = Int64((primaryPass?.chargeRewardPoints6 ?? a.chargeRewardPoints6)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
-                        let rewardSubtitle = "\(readBalanceFormatUsdcThousands(Double(reward6) / 1_000_000.0)) point"
+                        let rewardSubtitle = readBalancePointRewardSubtitle(
+                            passCard: primaryPass,
+                            chargeRewardPoints6: a.chargeRewardPoints6,
+                            pointSystemEnabled: pointSystemEnabled
+                        )
                         let usdcBal = Double(a.usdcBalance ?? "0") ?? 0
                         let caddApiBal = Double(a.caddBalance ?? "")
-                        VStack(spacing: 0) {
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: gapSm + 4) {
-                                    ReadBalanceStandardPassHeroCard(
-                                        memberDisplayName: memberDisplay,
-                                        memberNo: memberNoLine,
-                                        tierDisplayName: tierNameLine,
-                                        tierDiscountPercent: disc,
-                                        programCardDisplayName: programLine,
-                                        tierCardBackgroundHex: bgHex,
-                                        cardMetadataImageUrl: primaryPass?.cardImage,
-                                        balancePrefix: balParts.prefix,
-                                        balanceAmount: balParts.mid,
-                                        balanceSuffix: balParts.suffix,
-                                        balanceSubtitle: rewardSubtitle
-                                    )
-                                    ReadBalanceLastTopUpUsdcStatsCard(
-                                        assets: a,
-                                        cardCurrency: balCurrency,
-                                        usdcBalance: usdcBal,
-                                        caddBalance: caddApiBal ?? caddBalance,
-                                        caddLoading: caddLoading
-                                    )
-                                    readBalanceMerchantCouponsSection(assets: a)
-                                    readBalanceResponseSection(compact: compact, gapSm: gapSm)
-                                }
-                                .padding(.horizontal, sidePad)
-                                .padding(.top, 56)
-                                .padding(.bottom, gapSm)
-                            }
-                            VStack(spacing: compact ? 8 : 10) {
-                                Button {
-                                    onDismissSheet()
-                                    amountFlow = .topup
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "plus")
-                                            .font(.system(size: 14, weight: .semibold))
-                                        Text("Top-Up Card Now")
-                                            .font(.system(size: compact ? 13 : 14, weight: .semibold))
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, compact ? 12 : 14)
-                                    .background(RoundedRectangle(cornerRadius: 12).fill(topUpBlue))
-                                    .foregroundStyle(.white)
-                                }
-                                .buttonStyle(BeamioHapticPlainButtonStyle())
-                                .disabled(!topupButtonEnabled)
-                                .opacity(topupButtonEnabled ? 1 : 0.45)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: gapSm + 4) {
+                                ReadBalanceStandardPassHeroCard(
+                                    memberDisplayName: memberDisplay,
+                                    memberNo: memberNoLine,
+                                    tierDisplayName: tierNameLine,
+                                    tierDiscountPercent: disc,
+                                    programCardDisplayName: programLine,
+                                    tierCardBackgroundHex: bgHex,
+                                    cardMetadataImageUrl: primaryPass?.cardImage,
+                                    balancePrefix: balParts.prefix,
+                                    balanceAmount: balParts.mid,
+                                    balanceSuffix: balParts.suffix,
+                                    balanceSubtitle: rewardSubtitle
+                                )
+                                ReadBalanceLastTopUpUsdcStatsCard(
+                                    assets: a,
+                                    cardCurrency: balCurrency,
+                                    usdcBalance: usdcBal,
+                                    caddBalance: caddApiBal ?? caddBalance,
+                                    caddLoading: caddLoading
+                                )
+                                readBalanceMerchantCouponsSection(assets: a)
+                                readBalanceResponseSection(compact: compact, gapSm: gapSm)
                             }
                             .padding(.horizontal, sidePad)
-                            .padding(.top, gapSm)
-                            .padding(.bottom, compact ? 12 : 16)
-                            .background(readBalanceDetailsSurface)
+                            .padding(.top, 56)
+                            .padding(.bottom, compact ? 16 : 24)
                         }
                     } else {
                         VStack {
@@ -7675,11 +7842,6 @@ private struct ReadBalanceView: View {
         }
         .background(readBalanceDetailsSurface.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .task(id: balanceLoadIdentity) {
-            topupButtonEnabled = true
-            try? await Task.sleep(nanoseconds: 60_000_000_000)
-            if !Task.isCancelled { topupButtonEnabled = false }
-        }
     }
 
     @ViewBuilder
@@ -8762,7 +8924,8 @@ private func paymentSuccessRoutingAmountParts(
 private func paymentSuccessStandardPassHero(
     state: ChargeSuccessState,
     displayMemberNo: String,
-    balanceParts: (prefix: String, mid: String, suffix: String)?
+    balanceParts: (prefix: String, mid: String, suffix: String)?,
+    pointSystemEnabled: Bool
 ) -> some View {
     let pass = state.passCard
     let memberTitle = paymentSuccessMemberTitle(state)
@@ -8803,6 +8966,10 @@ private func paymentSuccessStandardPassHero(
     let balP = balanceParts?.prefix ?? ""
     let balM = balanceParts?.mid ?? "—"
     let balS = balanceParts?.suffix ?? ""
+    let rewardSubtitle = readBalancePointRewardSubtitle(
+        passCard: pass,
+        pointSystemEnabled: pointSystemEnabled
+    )
 
     let pageBg = Color(red: 249 / 255, green: 249 / 255, blue: 254 / 255)
     let primaryContainer = Color(red: 0, green: 75 / 255, blue: 195 / 255)
@@ -8823,7 +8990,7 @@ private func paymentSuccessStandardPassHero(
                     balancePrefix: balP,
                     balanceAmount: balM,
                     balanceSuffix: balS,
-                    balanceSubtitle: nil
+                    balanceSubtitle: rewardSubtitle
                 )
             }
             VStack(spacing: 8) {
@@ -8862,6 +9029,7 @@ private func paymentSuccessStandardPassHero(
 /// Full-screen charge success (`verra-home` `ndef1.html` — Transaction Receipt or Partial Charge Approved).
 private struct PaymentSuccessView: View {
     let state: ChargeSuccessState
+    let pointSystemEnabled: Bool
     var onDone: () -> Void
     var onContinueRemainingCharge: (() -> Void)? = nil
 
@@ -8927,7 +9095,8 @@ private struct PaymentSuccessView: View {
                                 paymentSuccessStandardPassHero(
                                     state: state,
                                     displayMemberNo: displayMemberNo,
-                                    balanceParts: balanceParts
+                                    balanceParts: balanceParts,
+                                    pointSystemEnabled: pointSystemEnabled
                                 )
                                 if let sub = subtotalNum {
                                     paymentSuccessReceiptRoutingCard(
@@ -9751,7 +9920,8 @@ private func topupSuccessStandardPassHero(
     state: TopupSuccessState,
     displayMemberNo: String,
     postBalance: Double?,
-    currency: String
+    currency: String,
+    pointSystemEnabled: Bool
 ) -> some View {
     let pass = state.passCard
     let heroTitle = readBalancePassHeroMemberDisplayName(
@@ -9797,6 +9967,10 @@ private func topupSuccessStandardPassHero(
         balM = "—"
         balS = ""
     }
+    let rewardSubtitle = readBalancePointRewardSubtitle(
+        passCard: pass,
+        pointSystemEnabled: pointSystemEnabled
+    )
     return ReadBalanceStandardPassHeroCard(
         memberDisplayName: heroTitle,
         memberNo: heroMemberNo.isEmpty ? "—" : heroMemberNo,
@@ -9808,12 +9982,72 @@ private func topupSuccessStandardPassHero(
         balancePrefix: balP,
         balanceAmount: balM,
         balanceSuffix: balS,
-        balanceSubtitle: nil
+        balanceSubtitle: rewardSubtitle
     )
+}
+
+private struct DeductPointsSuccessView: View {
+    let state: DeductPointsSuccessState
+    let pointSystemEnabled: Bool
+    var onDone: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button("Done", action: onDone)
+                    .font(.system(size: 17, weight: .semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
+            }
+            ScrollView {
+                VStack(spacing: 20) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundStyle(Color(red: 0x16 / 255, green: 0xA3 / 255, blue: 0x4A / 255))
+                    Text("Points Deducted")
+                        .font(.system(size: 28, weight: .bold))
+                    Text("\(state.amount) point deducted")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    if let pass = state.passCard {
+                        let post6 = Int64(state.postPointBalance6 ?? pass.chargeRewardPoints6) ?? 0
+                        let subtitle = pointSystemEnabled
+                            ? "\(readBalanceFormatUsdcThousands(Double(post6) / 1_000_000.0)) point"
+                            : nil
+                        ReadBalanceStandardPassHeroCard(
+                            memberDisplayName: state.customerBeamioTag.map { "@\($0)" } ?? "Customer",
+                            memberNo: pass.formattedMemberNumber(),
+                            tierDisplayName: pass.tierName,
+                            tierDiscountPercent: readBalanceTierDiscountPercent(for: pass),
+                            programCardDisplayName: readBalanceBalanceDetailsCardNameLine(card: pass),
+                            tierCardBackgroundHex: pass.cardBackground,
+                            cardMetadataImageUrl: pass.cardImage,
+                            balancePrefix: "",
+                            balanceAmount: pass.points,
+                            balanceSuffix: "",
+                            balanceSubtitle: subtitle
+                        )
+                    }
+                    if !state.txHash.isEmpty {
+                        Text("Tx: \(state.txHash)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                }
+                .padding(24)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+    }
 }
 
 private struct TopupSuccessView: View {
     let state: TopupSuccessState
+    let pointSystemEnabled: Bool
     var onDone: () -> Void
 
     private let pageBg = Color(red: 245 / 255, green: 245 / 255, blue: 247 / 255)
@@ -9875,7 +10109,8 @@ private struct TopupSuccessView: View {
                                     state: state,
                                     displayMemberNo: displayMemberNo,
                                     postBalance: postNum,
-                                    currency: currency
+                                    currency: currency,
+                                    pointSystemEnabled: pointSystemEnabled
                                 )
                                 .padding(.horizontal, 20)
 
@@ -10247,8 +10482,17 @@ private struct ScanSheet: View {
         return false
     }
 
+    private var deductPointsQrChromeHidden: Bool {
+        guard action == .deductPoints else { return false }
+        if let e = vm.deductPointsNfcReadError, !e.isEmpty, vm.scanMethod == .nfc { return true }
+        guard vm.scanMethod == .qr else { return false }
+        if vm.deductPointsQrExecuting { return true }
+        if let e = vm.deductPointsQrExecuteError, !e.isEmpty { return true }
+        return false
+    }
+
     private var scanBottomCaptionHidden: Bool {
-        chargeChromeHidden || topupQrChromeHidden || readQrChromeHidden
+        chargeChromeHidden || topupQrChromeHidden || readQrChromeHidden || deductPointsQrChromeHidden
     }
 
     private static let scanOverlayTopUpBlue = Color(red: 0x15 / 255, green: 0x62 / 255, blue: 0xF0 / 255)
@@ -10271,13 +10515,15 @@ private struct ScanSheet: View {
         case .topup:
             if let t = vm.topupExecuteDisplayTotal, t > 0 { return t }
             return subtot
+        case .deductPoints:
+            return subtot
         default:
             return 0
         }
     }
 
     private var scanBottomShowsAmountChrome: Bool {
-        !scanBottomCaptionHidden && (action == .payment || action == .topup)
+        !scanBottomCaptionHidden && (action == .payment || action == .topup || action == .deductPoints)
     }
 
     var body: some View {
@@ -10303,6 +10549,7 @@ private struct ScanSheet: View {
                     if showChargeQrApproved, let state = vm.chargeApprovedInline {
                         PaymentSuccessView(
                             state: state,
+                            pointSystemEnabled: vm.merchantProgramPointSystemEnabled,
                             onDone: { vm.dismissChargeApprovedInline() },
                             onContinueRemainingCharge: nil
                         )
@@ -10315,12 +10562,12 @@ private struct ScanSheet: View {
 
                 if scanBottomShowsAmountChrome {
                     VStack(spacing: 4) {
-                        Text(action == .payment ? "Total Amount" : "Top-Up Amount")
+                        Text(action == .payment ? "Total Amount" : action == .deductPoints ? "Points to Deduct" : "Top-Up Amount")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : Self.scanOverlayLabelGray)
-                        Text("$\(formatUsdAmountScanOverlay(scanBottomMoneyValue))")
+                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : action == .deductPoints ? Color(red: 0xEA / 255, green: 0x58 / 255, blue: 0x0C / 255) : Self.scanOverlayLabelGray)
+                        Text(action == .deductPoints ? "\(formatUsdAmountScanOverlay(scanBottomMoneyValue)) pt" : "$\(formatUsdAmountScanOverlay(scanBottomMoneyValue))")
                             .font(.system(size: 52, weight: .semibold))
-                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : Color.black)
+                            .foregroundStyle(action == .topup ? Self.scanOverlayTopUpBlue : action == .deductPoints ? Color(red: 0xEA / 255, green: 0x58 / 255, blue: 0x0C / 255) : Color.black)
                         if action == .topup, let b = vm.topupExecuteDisplayBonus, b > 1e-6 {
                             Text("Bonus $\(formatUsdAmountScanOverlay(b))")
                                 .font(.system(size: 15, weight: .semibold))
@@ -10376,6 +10623,8 @@ private struct ScanSheet: View {
             topupScanCenterContent
         } else if action == .read {
             readBalanceCenterContent
+        } else if action == .deductPoints {
+            deductPointsScanCenterContent
         } else {
             defaultScanCenterContent
         }
@@ -10670,6 +10919,105 @@ private struct ScanSheet: View {
                 }
                 .padding(.horizontal)
         }
+    }
+
+    /// Deduct Points: NFC wait → loading → QR / errors (align Check Balance scan chrome).
+    @ViewBuilder
+    private var deductPointsScanCenterContent: some View {
+        let nfcLoading = vm.pendingScanAction == .deductPoints && vm.isNfcBusy
+        if vm.scanAwaitingNfcTap && vm.pendingScanAction == .deductPoints && !vm.deductPointsQrExecuting && !nfcLoading {
+            ScanNfcWaitingPanel(subtitle: "Hold the customer's card near the top of your iPhone.")
+                .padding(.horizontal)
+        } else if nfcLoading || vm.deductPointsQrExecuting {
+            RoundedRectangle(cornerRadius: 32)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(height: 280)
+                .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+                .overlay {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(Color(red: 0xEA / 255, green: 0x58 / 255, blue: 0x0C / 255))
+                            .padding(.bottom, 16)
+                        VStack(spacing: 4) {
+                            Text(vm.deductPointsQrExecuting ? "Sign & execute" : "Loading...")
+                                .font(.system(size: 18, weight: .semibold))
+                            Text(vm.scanBanner.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Deducting points…" : vm.scanBanner)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 4)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(24)
+                }
+                .padding(.horizontal)
+        } else if let err = vm.deductPointsQrExecuteError, !err.isEmpty, vm.scanMethod == .qr {
+            deductPointsErrorCard(message: err) { vm.retryDeductPointsQrAfterError() }
+        } else if let err = vm.deductPointsNfcReadError, !err.isEmpty, vm.scanMethod == .nfc {
+            deductPointsErrorCard(message: err) { vm.retryDeductPointsNfcAfterError() }
+        } else if vm.scanMethod == .qr, vm.scanQrCameraArmed {
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(height: 280)
+                .background(RoundedRectangle(cornerRadius: 24).fill(Color.white))
+                .overlay {
+                    BeamioQRScannerView { text in
+                        Task { await vm.onQrScanned(text) }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 22))
+                    .padding(6)
+                    .frame(height: 268)
+                }
+                .padding(.horizontal)
+                .id(vm.deductPointsQrResetId)
+        } else {
+            RoundedRectangle(cornerRadius: 24)
+                .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+                .frame(height: 280)
+                .background(RoundedRectangle(cornerRadius: 24).fill(Color.white))
+                .overlay {
+                    VStack(spacing: 12) {
+                        Image(systemName: "qrcode")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary.opacity(0.25))
+                        Text("Open camera to scan customer link")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.horizontal)
+        }
+    }
+
+    private func deductPointsErrorCard(message: String, retry: @escaping () -> Void) -> some View {
+        RoundedRectangle(cornerRadius: 32)
+            .strokeBorder(Color.black.opacity(0.1), lineWidth: 2)
+            .frame(height: 280)
+            .background(RoundedRectangle(cornerRadius: 32).fill(Color.white))
+            .overlay {
+                VStack(spacing: 8) {
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(Color(red: 0xef / 255, green: 0x44 / 255, blue: 0x44 / 255))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                    Spacer()
+                    Text("Tap the center area to retry")
+                        .font(.subheadline)
+                        .foregroundStyle(Color(red: 0x86 / 255, green: 0x86 / 255, blue: 0x8b / 255))
+                        .padding(.bottom, 8)
+                }
+                .padding(16)
+            }
+            .padding(.horizontal)
+            .onTapGesture {
+                BeamioHaptic.medium()
+                retry()
+            }
     }
 
     /// Charge (NFC + QR): NFC wait panel matches Check Balance (`ScanNfcWaitingPanel`); then QR / routing / errors.
@@ -11310,6 +11658,7 @@ private struct ScanSheet: View {
         case .topup: return "Top-Up"
         case .payment: return "Charge"
         case .linkApp: return "Link App"
+        case .deductPoints: return "Deduct Points"
         }
     }
 
@@ -11319,6 +11668,7 @@ private struct ScanSheet: View {
         case .topup: return "Hold the customer's card near the top of your iPhone."
         case .payment: return "Hold the customer's card near the top of your iPhone."
         case .linkApp: return "Hold the customer's card to create a link."
+        case .deductPoints: return "Hold the customer's card near the top of your iPhone."
         }
     }
 }

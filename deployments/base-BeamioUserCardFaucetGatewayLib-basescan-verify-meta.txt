@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardFaucetGatewayLib.sol:BeamioUserCardFaucetGatewayLib
+Address: 0x11D99A1d0B3C6985abE2E82B2065fCC5506e99A8
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardFaucetGatewayLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.299Z

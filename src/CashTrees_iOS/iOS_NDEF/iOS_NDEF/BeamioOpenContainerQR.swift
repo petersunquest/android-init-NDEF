@@ -105,6 +105,49 @@ enum BeamioOpenContainerQR {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .nilIfEmpty
     }
+
+    struct CustomerIdentity {
+        var beamioTag: String?
+        var wallet: String?
+
+        var hasIdentity: Bool {
+            beamioTag?.nilIfEmpty != nil || wallet?.nilIfEthAddress != nil
+        }
+    }
+
+    /// beamio.app link (`beamio` / `wallet` query) or Scan to Pay OpenContainer JSON (`account` + `signature`).
+    static func parseCustomerIdentity(from text: String) -> CustomerIdentity? {
+        if let url = customerLinkURL(from: text) {
+            let beamio = parseBeamioTab(from: url)
+            let wallet = parseBeamioWallet(from: url)
+            if beamio != nil || wallet != nil {
+                return CustomerIdentity(beamioTag: beamio, wallet: wallet)
+            }
+        }
+        let parsed = parse(text)
+        guard parsed.payload != nil else { return nil }
+        let account = optString(parsed.payload?["account"])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEthAddress
+        guard account != nil else { return nil }
+        return CustomerIdentity(beamioTag: nil, wallet: account)
+    }
+
+    /// Android `Uri.parse` + QR payloads: trim BOM/whitespace; if bare string fails, detect first http(s) link.
+    static func customerLinkURL(from raw: String) -> URL? {
+        var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("\u{FEFF}") { trimmed = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines) }
+        if let u = URL(string: trimmed), u.scheme == "http" || u.scheme == "https" { return u }
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let ns = trimmed as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        guard let detector, let m = detector.firstMatch(in: trimmed, options: [], range: range),
+              m.resultType == .link,
+              let u = m.url,
+              u.scheme == "http" || u.scheme == "https"
+        else { return nil }
+        return u
+    }
 }
 
 private extension String {

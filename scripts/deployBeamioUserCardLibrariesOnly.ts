@@ -21,7 +21,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
-import { deployBeamioUserCardLibraries } from "./beamioUserCardLibraries.js";
+import { BEAMIO_USER_CARD_LIBRARY_NAMES, deployBeamioUserCardLibraries } from "./beamioUserCardLibraries.js";
 import { execSync } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,26 +78,26 @@ async function main() {
 
   const libs = await deployBeamioUserCardLibraries(ethers, deployer);
 
-  console.log("BeamioUserCardFormattingLib:", libs.BeamioUserCardFormattingLib);
-  console.log("BeamioUserCardTransferLib:", libs.BeamioUserCardTransferLib);
-  if (libs.formattingDeployTxHash) console.log("  Formatting tx:", libs.formattingDeployTxHash);
-  if (libs.transferDeployTxHash) console.log("  Transfer tx:", libs.transferDeployTxHash);
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    console.log(`${name}:`, libs[name]);
+    const tx = libs.deployTxHashes[name];
+    if (tx) console.log(`  ${name} tx:`, tx);
+  }
 
   const outPath = path.join(ROOT, "deployments", `${chainSlug}-BeamioUserCardLibraries.json`);
   const record = {
     network: net.name,
     chainId: net.chainId.toString(),
     deployer: deployer.address,
-    contracts: {
-      beamioUserCardFormattingLib: {
-        address: libs.BeamioUserCardFormattingLib,
-        txHash: libs.formattingDeployTxHash ?? null,
-      },
-      beamioUserCardTransferLib: {
-        address: libs.BeamioUserCardTransferLib,
-        txHash: libs.transferDeployTxHash ?? null,
-      },
-    },
+    contracts: Object.fromEntries(
+      BEAMIO_USER_CARD_LIBRARY_NAMES.map((name) => [
+        name,
+        {
+          address: libs[name],
+          txHash: libs.deployTxHashes[name] ?? null,
+        },
+      ])
+    ),
   };
   fs.writeFileSync(outPath, JSON.stringify(record, null, 2), "utf-8");
   console.log("Wrote:", outPath);
@@ -105,8 +105,10 @@ async function main() {
   const baseJsonPath = path.join(ROOT, "config", "base-addresses.json");
   if (net.chainId === 8453n && fs.existsSync(baseJsonPath)) {
     const j = JSON.parse(fs.readFileSync(baseJsonPath, "utf-8")) as Record<string, unknown>;
-    j.BEAMIO_USER_CARD_FORMATTING_LIB = libs.BeamioUserCardFormattingLib;
-    j.BEAMIO_USER_CARD_TRANSFER_LIB = libs.BeamioUserCardTransferLib;
+    for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+      j[`BEAMIO_USER_CARD_${name.replace(/^BeamioUserCard/, "").replace(/Lib$/, "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase()}_LIB`] =
+        libs[name];
+    }
     fs.writeFileSync(baseJsonPath, JSON.stringify(j, null, 2) + "\n", "utf-8");
     console.log("Updated config/base-addresses.json (Formatting + Transfer lib addresses)");
 

@@ -145,6 +145,7 @@ enum POSHomeScreenTrustedCache {
         var programCardName: String?
         var bonusRules: [BeamioRechargeBonusRule]?
         var activeCoupons: [MerchantActiveIssuedCoupon]?
+        var pointSystemEnabled: Bool?
     }
 
     static func loadProgram(
@@ -153,13 +154,14 @@ enum POSHomeScreenTrustedCache {
     ) -> (
         programCardName: String?,
         bonusRules: [BeamioRechargeBonusRule]?,
-        activeCoupons: [MerchantActiveIssuedCoupon]?
+        activeCoupons: [MerchantActiveIssuedCoupon]?,
+        pointSystemEnabled: Bool?
     ) {
         let key = programKey(wallet, infraCard: infraCard)
         guard let data = ud.data(forKey: key),
               let p = try? JSONDecoder().decode(ProgramPayload.self, from: data)
-        else { return (nil, nil, nil) }
-        return (p.programCardName, p.bonusRules, p.activeCoupons)
+        else { return (nil, nil, nil, nil) }
+        return (p.programCardName, p.bonusRules, p.activeCoupons, p.pointSystemEnabled)
     }
 
     /// Merge with on-disk record so a one-sided trusted update (e.g. only bonusRules came back this round) does not erase the other.
@@ -169,9 +171,10 @@ enum POSHomeScreenTrustedCache {
         infraCard: String,
         programCardName: String?,
         bonusRules: [BeamioRechargeBonusRule]?,
-        activeCoupons: [MerchantActiveIssuedCoupon]?
+        activeCoupons: [MerchantActiveIssuedCoupon]?,
+        pointSystemEnabled: Bool? = nil
     ) {
-        var p = ProgramPayload(programCardName: nil, bonusRules: nil, activeCoupons: nil)
+        var p = ProgramPayload(programCardName: nil, bonusRules: nil, activeCoupons: nil, pointSystemEnabled: nil)
         if let data = ud.data(forKey: programKey(wallet, infraCard: infraCard)),
            let decoded = try? JSONDecoder().decode(ProgramPayload.self, from: data)
         {
@@ -180,6 +183,7 @@ enum POSHomeScreenTrustedCache {
         if let programCardName { p.programCardName = programCardName }
         if let bonusRules { p.bonusRules = bonusRules }
         if let activeCoupons { p.activeCoupons = activeCoupons }
+        if let pointSystemEnabled { p.pointSystemEnabled = pointSystemEnabled }
         guard let data = try? JSONEncoder().encode(p) else { return }
         ud.set(data, forKey: programKey(wallet, infraCard: infraCard))
     }

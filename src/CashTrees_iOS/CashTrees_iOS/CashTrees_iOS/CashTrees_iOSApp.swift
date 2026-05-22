@@ -20,10 +20,22 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct CashTrees_iOSApp: App {
     @UIApplicationDelegateAdaptor(CashTreesAppDelegate.self) private var appDelegate
+    @StateObject private var deepLinkStore = CashTreesDeepLinkStore()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(deepLinkStore: deepLinkStore)
+                .onOpenURL { url in
+                    Task { @MainActor in
+                        deepLinkStore.handleIncomingURL(url)
+                    }
+                }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    guard let url = activity.webpageURL else { return }
+                    Task { @MainActor in
+                        deepLinkStore.handleIncomingURL(url)
+                    }
+                }
         }
     }
 }

@@ -42,6 +42,50 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardTransferLib.sol",
     contractName: "BeamioUserCardTransferLib",
   },
+  BeamioUserCardAdminGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardAdminGatewayLib.sol",
+    contractName: "BeamioUserCardAdminGatewayLib",
+  },
+  BeamioUserCardFaucetGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFaucetGatewayLib.sol",
+    contractName: "BeamioUserCardFaucetGatewayLib",
+  },
+  BeamioUserCardGatewayMintLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardGatewayMintLib.sol",
+    contractName: "BeamioUserCardGatewayMintLib",
+  },
+  BeamioUserCardGovernanceLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardGovernanceLib.sol",
+    contractName: "BeamioUserCardGovernanceLib",
+  },
+  BeamioUserCardIssuedNftGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardIssuedNftGatewayLib.sol",
+    contractName: "BeamioUserCardIssuedNftGatewayLib",
+  },
+  BeamioUserCardModuleRouterLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol",
+    contractName: "BeamioUserCardModuleRouterLib",
+  },
+  BeamioUserCardRedeemGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardRedeemGatewayLib.sol",
+    contractName: "BeamioUserCardRedeemGatewayLib",
+  },
+  BeamioUserCardReferrerLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol",
+    contractName: "BeamioUserCardReferrerLib",
+  },
+  ReferrerRegistryLib: {
+    sourceKey: "project/src/BeamioUserCard/ReferrerRegistryLib.sol",
+    contractName: "ReferrerRegistryLib",
+  },
+  BeamioUserCardUpdateLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol",
+    contractName: "BeamioUserCardUpdateLib",
+  },
+  BeamioUserCardViewsLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol",
+    contractName: "BeamioUserCardViewsLib",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
@@ -161,8 +205,45 @@ if (!fullInput.sources[cfg.sourceKey]) {
   process.exit(1);
 }
 
-const input = fullInput;
+const input = JSON.parse(JSON.stringify(fullInput));
 console.log("使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）");
+
+function artifactPathForConfig(config) {
+  const artifactSourcePath = config.sourceKey.replace(/^project\//, "");
+  return path.join(__dirname, "../artifacts", artifactSourcePath, `${config.contractName}.json`);
+}
+
+function readUserCardLibraryAddresses() {
+  const p = path.join(__dirname, "../deployments/base-BeamioUserCardLibraries.json");
+  if (!fs.existsSync(p)) return {};
+  const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+  const contracts = j.contracts ?? {};
+  return Object.fromEntries(
+    Object.entries(contracts)
+      .filter(([, value]) => value?.address)
+      .map(([name, value]) => [name, value.address])
+  );
+}
+
+const artifactPath = artifactPathForConfig(cfg);
+if (fs.existsSync(artifactPath)) {
+  const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf-8"));
+  const linkReferences = artifact.deployedLinkReferences ?? artifact.linkReferences ?? {};
+  const libraryAddresses = readUserCardLibraryAddresses();
+  for (const [sourceName, libs] of Object.entries(linkReferences)) {
+    for (const libName of Object.keys(libs)) {
+      const addr = libraryAddresses[libName];
+      if (!addr) {
+        console.error(`缺少 ${contractArg} 验证所需 library 地址: ${libName}`);
+        process.exit(1);
+      }
+      input.settings ??= {};
+      input.settings.libraries ??= {};
+      input.settings.libraries[sourceName] ??= {};
+      input.settings.libraries[sourceName][libName] = addr;
+    }
+  }
+}
 
 const json = JSON.stringify(input, null, 2);
 fs.writeFileSync(outPath, json, "utf-8");

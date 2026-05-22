@@ -5,6 +5,8 @@ import "./Errors.sol";
 import "./ChargeRewardStorage.sol";
 import "./GovernanceStorage.sol";
 import "./BeamioUserCardTransferLib.sol";
+import "./BeamioUserCardReferrerLib.sol";
+import "./IBeamioUserCardSelfDelegate.sol";
 import "../contracts/token/ERC1155/ERC1155.sol";
 
 interface IUserCardCtx {
@@ -85,6 +87,9 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
         _mint(acct, CHARGE_REWARD_TOKEN_ID, reward, "");
         emit ChargeRewardAirdropped(userEOA, acct, chargeCurrency, amountFiat6, reward);
+        BeamioUserCardReferrerLib.mintReferrerRewardIfConfigured(
+            IBeamioUserCardSelfDelegate(address(this)), acct, reward
+        );
     }
 
     function burnChargeRewardByAdmin(address target, uint256 amount) external onlyGateway {

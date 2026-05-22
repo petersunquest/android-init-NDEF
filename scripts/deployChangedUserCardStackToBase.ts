@@ -13,6 +13,11 @@ import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { ethers as ethersJs } from "ethers";
+import {
+  BEAMIO_USER_CARD_LIBRARY_NAMES,
+  deployBeamioUserCardLibraries,
+  type BeamioUserCardLibraryAddresses,
+} from "./beamioUserCardLibraries.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -165,7 +170,6 @@ async function main() {
   );
 
   const baseAddresses = fs.existsSync(baseAddressesFile) ? readJson<Record<string, unknown>>(baseAddressesFile) : {};
-  const transferLib = mustAddress(baseAddresses.BEAMIO_USER_CARD_TRANSFER_LIB, "BEAMIO_USER_CARD_TRANSFER_LIB");
   const aaFactory = mustAddress(
     process.env.AA_FACTORY_ADDRESS || previousFactory.aaFactory || baseAddresses.AA_FACTORY,
     "AA_FACTORY"
@@ -177,7 +181,17 @@ async function main() {
   await ensureCode(provider, quoteHelper, "QuoteHelper");
   await ensureCode(provider, existingDeployer, "BeamioUserCardDeployerV07");
   await ensureCode(provider, aaFactory, "AA_FACTORY");
-  await ensureCode(provider, transferLib, "BeamioUserCardTransferLib");
+
+  const existingLibraries: Partial<BeamioUserCardLibraryAddresses> = {};
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    const key = `BEAMIO_USER_CARD_${name.replace(/^BeamioUserCard/, "").replace(/Lib$/, "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase()}_LIB`;
+    const raw = process.env[key] || baseAddresses[key];
+    if (typeof raw === "string" && raw.trim()) {
+      const address = ethersJs.getAddress(raw.trim());
+      await ensureCode(provider, address, name);
+      existingLibraries[name] = address;
+    }
+  }
 
   const deployerAbi = [
     "function owner() view returns (address)",
@@ -201,11 +215,16 @@ async function main() {
   console.log("QuoteHelper:", quoteHelper);
   console.log("AA_FACTORY:", aaFactory);
 
+  const cardLibraries = await deployBeamioUserCardLibraries(ethers, signer, existingLibraries);
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    console.log(`${name}:`, cardLibraries[name], cardLibraries.deployTxHashes[name] ? "(deployed)" : "(reused)");
+  }
+
   const issued = await useExistingOrDeploy(
     provider,
     ethers,
     signer,
-    process.env.ISSUED_NFT_MODULE_ADDRESS,
+    process.env.ISSUED_NFT_MODULE_ADDRESS || previousFactory.issuedNftModule,
     "BeamioUserCardIssuedNftModuleV1",
     txOverrides
   );
@@ -213,7 +232,7 @@ async function main() {
     provider,
     ethers,
     signer,
-    process.env.MEMBERSHIP_STATS_MODULE_ADDRESS,
+    process.env.MEMBERSHIP_STATS_MODULE_ADDRESS || previousFactory.membershipStatsModule,
     "BeamioUserCardMembershipStatsModuleV1",
     txOverrides
   );
@@ -221,7 +240,7 @@ async function main() {
     provider,
     ethers,
     signer,
-    process.env.ADMIN_STATS_QUERY_MODULE_ADDRESS,
+    process.env.ADMIN_STATS_QUERY_MODULE_ADDRESS || previousFactory.adminStatsQueryModule,
     "BeamioUserCardAdminStatsQueryModuleV1",
     txOverrides
   );
@@ -232,7 +251,10 @@ async function main() {
     process.env.CHARGE_REWARD_MODULE_ADDRESS,
     "BeamioUserCardChargeRewardModuleV1",
     txOverrides,
-    { BeamioUserCardTransferLib: transferLib }
+    {
+      BeamioUserCardReferrerLib: cardLibraries.BeamioUserCardReferrerLib,
+      BeamioUserCardTransferLib: cardLibraries.BeamioUserCardTransferLib,
+    }
   );
 
   const Factory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
@@ -314,6 +336,16 @@ async function main() {
       chargeRewardModule: previousFactory.chargeRewardModule,
     },
     contracts: {
+      beamioUserCardLibraries: Object.fromEntries(
+        BEAMIO_USER_CARD_LIBRARY_NAMES.map((name) => [
+          name,
+          {
+            address: cardLibraries[name],
+            txHash: cardLibraries.deployTxHashes[name] ?? null,
+            reused: !cardLibraries.deployTxHashes[name],
+          },
+        ])
+      ),
       beamioUserCardDeployer: {
         address: existingDeployer,
         reused: true,
@@ -345,6 +377,22 @@ async function main() {
   };
 
   writeJson(factoryFile, deploymentInfo);
+  writeJson(path.join(deploymentsDir, "base-BeamioUserCardLibraries.json"), {
+    network: "base",
+    chainId: networkInfo.chainId.toString(),
+    deployer: signerAddress,
+    timestamp: deploymentInfo.timestamp,
+    contracts: Object.fromEntries(
+      BEAMIO_USER_CARD_LIBRARY_NAMES.map((name) => [
+        name,
+        {
+          address: cardLibraries[name],
+          txHash: cardLibraries.deployTxHashes[name] ?? null,
+          reused: !cardLibraries.deployTxHashes[name],
+        },
+      ])
+    ),
+  });
   writeJson(modulesFile, {
     network: "base",
     chainId: networkInfo.chainId.toString(),
@@ -370,7 +418,20 @@ async function main() {
   baseAddresses.BASE_MAINNET_CHAIN_ID = baseAddresses.BASE_MAINNET_CHAIN_ID ?? 8453;
   baseAddresses.AA_FACTORY = aaFactory;
   baseAddresses.CARD_FACTORY = factoryAddress;
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    const key = `BEAMIO_USER_CARD_${name.replace(/^BeamioUserCard/, "").replace(/Lib$/, "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toUpperCase()}_LIB`;
+    baseAddresses[key] = cardLibraries[name];
+  }
   writeJson(baseAddressesFile, baseAddresses);
+
+  try {
+    execSync("node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+  } catch (error) {
+    console.warn("Skipping x402sdk chainAddresses sync:", error instanceof Error ? error.message : String(error));
+  }
 
   try {
     execSync("node scripts/writeBaseMainnetFactoriesMd.mjs", {

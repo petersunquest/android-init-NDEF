@@ -2388,6 +2388,14 @@ final class BeamioAPIClient: @unchecked Sendable {
         return Self.parseRechargeBonusRules(fromMetadata: meta)
     }
 
+    /// `metadata.pointSystem.enabled` (NFT #2 charge-reward points). `nil` = untrusted fetch — keep last trusted value.
+    func fetchProgramPointSystemEnabled(cardAddress: String) async -> Bool? {
+        guard let root = await fetchCardMetadataRoot(cardAddress: cardAddress),
+              let meta = root["metadata"] as? [String: Any]
+        else { return nil }
+        return Self.parsePointSystemEnabled(fromMetadata: meta)
+    }
+
     /// Active program coupons on the merchant **program** BeamioUserCard (`/api/cardActiveIssuedCouponSeries`).
     /// - Returns: `nil` if the response is untrusted (network / non-JSON / malformed); caller must not clear cached rows.
     /// - Returns: `[]` only when HTTP 200 and `items` is a valid empty array.
@@ -2492,6 +2500,55 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    /// Burn charge-reward points (token #2) prepare for POS product redemption.
+    struct BurnChargeRewardPrepareResult {
+        var success: Bool
+        var cardAddr: String?
+        var data: String?
+        var deadline: UInt64?
+        var nonce: String?
+        var factoryGateway: String?
+        var error: String?
+    }
+
+    func burnChargeRewardByAdminPrepare(
+        cardAddress: String,
+        target: String,
+        amount: String
+    ) async -> BurnChargeRewardPrepareResult {
+        let card = cardAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tgt = target.trimmingCharacters(in: .whitespacesAndNewlines)
+        let amt = amount.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.isPlausibleEvmAddress(card), Self.isPlausibleEvmAddress(tgt), !amt.isEmpty else {
+            return BurnChargeRewardPrepareResult(success: false, cardAddr: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, error: "Invalid burn payload.")
+        }
+        let body: [String: Any] = [
+            "cardAddress": card,
+            "target": tgt,
+            "amount": amt,
+        ]
+        do {
+            let (code, obj) = try await postJsonAllowErrorBody(path: "/api/burnChargeRewardByAdminPrepare", body: body, timeout: 20)
+            guard let obj else {
+                return BurnChargeRewardPrepareResult(success: false, cardAddr: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, error: "HTTP \(code)")
+            }
+            if let err = (obj["error"] as? String)?.nilIfEmpty, !(200 ... 299).contains(code) {
+                return BurnChargeRewardPrepareResult(success: false, cardAddr: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, error: err)
+            }
+            let cardAddr = (obj["cardAddr"] as? String)?.nilIfEmpty ?? card
+            let dataHex = (obj["data"] as? String)?.nilIfEmpty
+            let nonce = (obj["nonce"] as? String)?.nilIfEmpty
+            let dl = (obj["deadline"] as? NSNumber)?.uint64Value
+            let gw = (obj["factoryGateway"] as? String)?.nilIfEmpty
+            guard let dataHex, let nonce, let dl, dl > 0 else {
+                return BurnChargeRewardPrepareResult(success: false, cardAddr: cardAddr, data: dataHex, deadline: dl, nonce: nonce, factoryGateway: gw, error: (obj["error"] as? String)?.nilIfEmpty ?? "Prepare failed.")
+            }
+            return BurnChargeRewardPrepareResult(success: true, cardAddr: cardAddr, data: dataHex, deadline: dl, nonce: nonce, factoryGateway: gw, error: nil)
+        } catch {
+            return BurnChargeRewardPrepareResult(success: false, cardAddr: nil, data: nil, deadline: nil, nonce: nil, factoryGateway: nil, error: error.localizedDescription)
+        }
+    }
+
     /// POS balance coupon consume prepare: cluster pre-checks balance and returns executeForAdmin payload.
     func cardCouponPosConsumePrepare(
         cardAddress: String,
@@ -2585,6 +2642,62 @@ final class BeamioAPIClient: @unchecked Sendable {
         } catch {
             return CouponConsumeResult(success: false, txHash: nil, error: error.localizedDescription)
         }
+    }
+
+    /// Card Issuance `shareTokenMetadata.pointSystem.enabled` — default reward token id 2; legacy cards without block default to enabled.
+    private static func parsePointSystemEnabled(fromMetadata meta: [String: Any]) -> Bool {
+        let share = recordDictionary(meta["shareTokenMetadata"])
+        let pointSystem = recordDictionary(meta["pointSystem"]) ?? recordDictionary(share?["pointSystem"])
+        if let ps = pointSystem {
+            let enabledRaw = ps["enabled"] ?? ps["pointSystemEnabled"] ?? ps["pointsEnabled"]
+            if let parsed = parseMetadataBooleanLike(enabledRaw) { return parsed }
+            let ratioRaw = ps["chargeRewardRatioE6"]
+                ?? ps["pointRewardRatioE6"]
+                ?? ps["consumptionRewardRatioE6"]
+            if let ratioStr = parseMetadataRatioE6String(ratioRaw), let ratio = Int64(ratioStr) {
+                return ratio > 0
+            }
+            return true
+        }
+        let flatEnabled = share?["pointSystemEnabled"]
+            ?? share?["pointsEnabled"]
+            ?? meta["pointSystemEnabled"]
+            ?? meta["pointsEnabled"]
+        if let parsed = parseMetadataBooleanLike(flatEnabled) { return parsed }
+        return true
+    }
+
+    private static func recordDictionary(_ raw: Any?) -> [String: Any]? {
+        if let d = raw as? [String: Any] { return d }
+        if let s = raw as? String,
+           let data = s.data(using: .utf8),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        {
+            return obj
+        }
+        return nil
+    }
+
+    private static func parseMetadataBooleanLike(_ raw: Any?) -> Bool? {
+        switch raw {
+        case let b as Bool: return b
+        case let n as NSNumber: return n.boolValue
+        case let s as String:
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if ["true", "1", "yes", "on", "enabled"].contains(t) { return true }
+            if ["false", "0", "no", "off", "disabled"].contains(t) { return false }
+            return nil
+        default: return nil
+        }
+    }
+
+    private static func parseMetadataRatioE6String(_ raw: Any?) -> String? {
+        if let n = raw as? NSNumber { return n.intValue >= 0 ? n.stringValue : nil }
+        if let s = raw as? String {
+            let t = s.replacingOccurrences(of: ",", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty, t.range(of: "^\\d+$", options: .regularExpression) != nil { return t }
+        }
+        return nil
     }
 
     /// Card issuance stores recharge tiers under `metadata.shareTokenMetadata` (biz `createBeamioCard`); some responses also duplicate at `metadata` root.

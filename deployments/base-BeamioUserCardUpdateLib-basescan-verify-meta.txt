@@ -1,0 +1,9 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol:BeamioUserCardUpdateLib
+Address: 0xD021f61d70e1B72ec1ED49950F7F581139d6879A
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardUpdateLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Linked Libraries:
+- BeamioUserCardReferrerLib: 0x981E3ca5160C3147673Eb984FED979778eed7B68
+- BeamioUserCardTransferLib: 0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F
+Generated: 2026-05-22T18:28:22.300Z

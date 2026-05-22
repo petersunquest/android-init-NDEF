@@ -7,13 +7,23 @@
 import type { Signer } from "ethers";
 
 export type BeamioUserCardLibraryAddresses = {
+  ReferrerRegistryLib: string;
+  BeamioUserCardAdminGatewayLib: string;
+  BeamioUserCardFaucetGatewayLib: string;
   BeamioUserCardFormattingLib: string;
+  BeamioUserCardGatewayMintLib: string;
+  BeamioUserCardGovernanceLib: string;
+  BeamioUserCardIssuedNftGatewayLib: string;
+  BeamioUserCardModuleRouterLib: string;
+  BeamioUserCardRedeemGatewayLib: string;
+  BeamioUserCardReferrerLib: string;
   BeamioUserCardTransferLib: string;
+  BeamioUserCardUpdateLib: string;
+  BeamioUserCardViewsLib: string;
 };
 
 export type BeamioUserCardLibraryDeployResult = BeamioUserCardLibraryAddresses & {
-  formattingDeployTxHash?: string;
-  transferDeployTxHash?: string;
+  deployTxHashes: Partial<Record<keyof BeamioUserCardLibraryAddresses, string>>;
 };
 
 type LibFactory = {
@@ -27,26 +37,58 @@ type LibFactory = {
 };
 
 type EthersLike = {
-  getContractFactory(name: string): Promise<LibFactory>;
+  getContractFactory(name: string, options?: { libraries?: Record<string, string> }): Promise<LibFactory>;
+};
+
+export const BEAMIO_USER_CARD_LIBRARY_NAMES = [
+  "BeamioUserCardFormattingLib",
+  "BeamioUserCardTransferLib",
+  "BeamioUserCardIssuedNftGatewayLib",
+  "ReferrerRegistryLib",
+  "BeamioUserCardReferrerLib",
+  "BeamioUserCardAdminGatewayLib",
+  "BeamioUserCardFaucetGatewayLib",
+  "BeamioUserCardGatewayMintLib",
+  "BeamioUserCardGovernanceLib",
+  "BeamioUserCardModuleRouterLib",
+  "BeamioUserCardRedeemGatewayLib",
+  "BeamioUserCardUpdateLib",
+  "BeamioUserCardViewsLib",
+] as const satisfies readonly (keyof BeamioUserCardLibraryAddresses)[];
+
+const LIBRARY_LINK_DEPENDENCIES: Partial<
+  Record<keyof BeamioUserCardLibraryAddresses, (keyof BeamioUserCardLibraryAddresses)[]>
+> = {
+  BeamioUserCardReferrerLib: ["ReferrerRegistryLib"],
+  BeamioUserCardRedeemGatewayLib: ["BeamioUserCardIssuedNftGatewayLib", "BeamioUserCardTransferLib"],
+  BeamioUserCardUpdateLib: ["BeamioUserCardReferrerLib", "BeamioUserCardTransferLib"],
 };
 
 export async function deployBeamioUserCardLibraries(
   ethers: EthersLike,
-  deployer: Signer
+  deployer: Signer,
+  existing: Partial<BeamioUserCardLibraryAddresses> = {}
 ): Promise<BeamioUserCardLibraryDeployResult> {
-  const Formatting = await ethers.getContractFactory("BeamioUserCardFormattingLib");
-  const f = await Formatting.connect(deployer).deploy();
-  await f.waitForDeployment();
-
-  const Transfer = await ethers.getContractFactory("BeamioUserCardTransferLib");
-  const t = await Transfer.connect(deployer).deploy();
-  await t.waitForDeployment();
+  const addresses: Partial<BeamioUserCardLibraryAddresses> = {};
+  const deployTxHashes: Partial<Record<keyof BeamioUserCardLibraryAddresses, string>> = {};
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    const reused = existing[name];
+    if (reused) {
+      addresses[name] = reused;
+      continue;
+    }
+    const deps = LIBRARY_LINK_DEPENDENCIES[name] ?? [];
+    const libraries = Object.fromEntries(deps.map((dep) => [dep, addresses[dep] as string]));
+    const Factory = await ethers.getContractFactory(name, deps.length > 0 ? { libraries } : undefined);
+    const c = await Factory.connect(deployer).deploy();
+    await c.waitForDeployment();
+    addresses[name] = await c.getAddress();
+    deployTxHashes[name] = c.deploymentTransaction()?.hash;
+  }
 
   return {
-    BeamioUserCardFormattingLib: await f.getAddress(),
-    BeamioUserCardTransferLib: await t.getAddress(),
-    formattingDeployTxHash: f.deploymentTransaction()?.hash,
-    transferDeployTxHash: t.deploymentTransaction()?.hash,
+    ...(addresses as BeamioUserCardLibraryAddresses),
+    deployTxHashes,
   };
 }
 

@@ -10,12 +10,12 @@ import AVFoundation
 import CoreImage
 import CoreNFC
 import Photos
-import PhotosUI
 import SwiftUI
 import UIKit
 import WebKit
 
-private let cashTreesAppURL = URL(string: "https://verra.network/app/")!
+/// 1.1 默认冷启动入口与 Universal Link 解析后的 PWA base 一致（`BeamioDeepLink.defaultWebAppURL`）。
+private let cashTreesAppURL = BeamioDeepLink.defaultWebAppURL
 
 /// 与注入脚本 `window.webkit.messageHandlers.CashTreesIOS` 一致
 private let cashTreesIOSWKHandlerName = "CashTreesIOS"
@@ -155,165 +155,29 @@ private func queryIosNfcStatusString() -> String {
     return NfcStatusString.ready
 }
 
-private func isBase62RecoveryCode(_ raw: String) -> Bool {
-    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard (16...64).contains(trimmed.count) else { return false }
-    let allowed = CharacterSet(charactersIn: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-    return trimmed.unicodeScalars.allSatisfy { allowed.contains($0) }
+/// 与 Android `MainActivity.shouldBlockBeamioNdefTopLevelNavigation` 一致：拦截 NDEF 写入的 SUN URL，避免 WebView 拾取后跳出。
+private func shouldBlockBeamioNdefTopLevelNavigation(_ url: URL, isMainFrame: Bool) -> Bool {
+    guard isMainFrame else { return false }
+    guard let host = url.host?.lowercased(), host.contains("beamio.app") else { return false }
+    if host.contains("cashtrees.beamio.app") { return false }
+    let path = url.path.lowercased()
+    if path.contains("/api/sun") || path.contains("/sun") { return true }
+    guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
+    let names = Set((components.queryItems ?? []).map(\.name))
+    return names.contains("uid") && names.contains("e") && names.contains("c") && names.contains("m")
 }
 
-private func recoveryCodeCandidate(from raw: String) -> String? {
-    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { return nil }
-    if isBase62RecoveryCode(trimmed) { return trimmed }
-
-    let queryKeys = ["MasterKey", "masterKey", "masterkey", "recoveryCode", "recoverCode", "code"]
-    if let comp = URLComponents(string: trimmed) {
-        for key in queryKeys {
-            if let value = comp.queryItems?.first(where: { $0.name == key })?.value,
-               isBase62RecoveryCode(value) {
-                return value
-            }
-        }
-        if let fragment = comp.fragment {
-            var fragComp = URLComponents()
-            fragComp.query = fragment
-            for key in queryKeys {
-                if let value = fragComp.queryItems?.first(where: { $0.name == key })?.value,
-                   isBase62RecoveryCode(value) {
-                    return value
-                }
-            }
-        }
+private enum MicrophonePermissionHelper {
+    static var isGranted: Bool {
+        AVAudioApplication.shared.recordPermission == .granted
     }
 
-    guard let regex = try? NSRegularExpression(pattern: "\\b[0-9A-Za-z]{16,64}\\b") else { return nil }
-    let range = NSRange(trimmed.startIndex..<trimmed.endIndex, in: trimmed)
-    for match in regex.matches(in: trimmed, range: range) {
-        guard let r = Range(match.range, in: trimmed) else { continue }
-        let token = String(trimmed[r])
-        if isBase62RecoveryCode(token) { return token }
-    }
-    return nil
-}
-
-private func recoveryCodeFromQRCode(in image: UIImage) -> String? {
-    guard let ciImage = CIImage(image: image) else { return nil }
-    let detector = CIDetector(
-        ofType: CIDetectorTypeQRCode,
-        context: nil,
-        options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]
-    )
-    let features = detector?.features(in: ciImage) as? [CIQRCodeFeature] ?? []
-    for feature in features {
-        if let raw = feature.messageString,
-           let code = recoveryCodeCandidate(from: raw) {
-            return code
-        }
-    }
-    return nil
-}
-
-final class RecoveryQRScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
-    var onCode: ((String) -> Void)?
-    var onCancel: (() -> Void)?
-    var onError: ((String) -> Void)?
-
-    private let session = AVCaptureSession()
-    private var preview: AVCaptureVideoPreviewLayer?
-    private var didFinish = false
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = .black
-        configureCamera()
-        configureCloseButton()
+    static var isUndetermined: Bool {
+        AVAudioApplication.shared.recordPermission == .undetermined
     }
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        preview?.frame = view.bounds
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        if session.isRunning {
-            session.stopRunning()
-        }
-        if !didFinish, isBeingDismissed || navigationController?.isBeingDismissed == true {
-            didFinish = true
-            onCancel?()
-        }
-    }
-
-    private func configureCamera() {
-        guard let device = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: device),
-              session.canAddInput(input)
-        else {
-            onError?("camera_unavailable")
-            return
-        }
-        session.addInput(input)
-
-        let output = AVCaptureMetadataOutput()
-        guard session.canAddOutput(output) else {
-            onError?("camera_unavailable")
-            return
-        }
-        session.addOutput(output)
-        output.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
-        output.metadataObjectTypes = [.qr]
-
-        let layer = AVCaptureVideoPreviewLayer(session: session)
-        layer.videoGravity = .resizeAspectFill
-        layer.frame = view.bounds
-        view.layer.addSublayer(layer)
-        preview = layer
-
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.startRunning()
-        }
-    }
-
-    private func configureCloseButton() {
-        let button = UIButton(type: .system)
-        button.setTitle("Cancel", for: .normal)
-        button.setTitleColor(.white, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
-        button.backgroundColor = UIColor.black.withAlphaComponent(0.45)
-        button.layer.cornerRadius = 18
-        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 14, bottom: 8, right: 14)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
-        view.addSubview(button)
-        NSLayoutConstraint.activate([
-            button.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-            button.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
-        ])
-    }
-
-    @objc private func cancelTapped() {
-        didFinish = true
-        onCancel?()
-        dismiss(animated: true)
-    }
-
-    func metadataOutput(
-        _ output: AVCaptureMetadataOutput,
-        didOutput metadataObjects: [AVMetadataObject],
-        from connection: AVCaptureConnection
-    ) {
-        guard !didFinish,
-              let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              object.type == .qr,
-              let raw = object.stringValue,
-              let code = recoveryCodeCandidate(from: raw)
-        else { return }
-        didFinish = true
-        session.stopRunning()
-        onCode?(code)
-        dismiss(animated: true)
+    static func request(_ completion: @escaping (Bool) -> Void) {
+        AVAudioApplication.requestRecordPermission(completionHandler: completion)
     }
 }
 
@@ -323,27 +187,64 @@ final class CashTreesWebLoadState: ObservableObject {
     @Published var isSplashVisible = true
     @Published var shouldAnimateOut = false
 
+    private var splashFallbackWorkItem: DispatchWorkItem?
+
+    /// Safety net when WebView never reports ready (network / JS bridge failure).
+    func scheduleSplashFallback(after seconds: TimeInterval = 10) {
+        splashFallbackWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.beginSplashHandoff()
+        }
+        splashFallbackWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    private func cancelSplashFallback() {
+        splashFallbackWorkItem?.cancel()
+        splashFallbackWorkItem = nil
+    }
+
     func beginSplashHandoff() {
         guard isSplashVisible, !shouldAnimateOut else { return }
-        shouldAnimateOut = true
+        cancelSplashFallback()
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isSplashVisible, !self.shouldAnimateOut else { return }
+            self.shouldAnimateOut = true
+        }
     }
 
     func finishSplashHandoff() {
-        isSplashVisible = false
-        shouldAnimateOut = false
+        cancelSplashFallback()
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.isSplashVisible = false
+            self.shouldAnimateOut = false
+        }
     }
 }
 
 // MARK: - WK Coordinator
 
-final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, PHPickerViewControllerDelegate {
+final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate {
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
 
     private var nfcSession: NFCTagReaderSession?
     private var bindSessionActive = false
-    private var recoveryQrRequestId = ""
     private var initialWebRenderReadySignaled = false
+    private var lastLoadedWebURLString: String?
+    var lastHandledDeepLinkNonce = 0
+
+    func loadWebAppURL(_ url: URL, in webView: WKWebView, bypassDedup: Bool = false) {
+        let key = url.absoluteString
+        if !bypassDedup, lastLoadedWebURLString == key { return }
+        lastLoadedWebURLString = key
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        webView.load(request)
+    }
 
     /// Start the splash handoff only after the page reports that it has
     /// completed an actual render pass, so the splash fades into ready content
@@ -357,6 +258,22 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
     }
 
     // MARK: WKNavigationDelegate
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.allow)
+            return
+        }
+        if shouldBlockBeamioNdefTopLevelNavigation(url, isMainFrame: navigationAction.targetFrame?.isMainFrame ?? false) {
+            decisionHandler(.cancel)
+            return
+        }
+        decisionHandler(.allow)
+    }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
@@ -374,6 +291,78 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         beginInitialWebHandoffIfNeeded()
+    }
+
+    // MARK: WKUIDelegate — PWA getUserMedia 预授权（对齐 Android WebChromeClient.onPermissionRequest）
+
+    @available(iOS 15.0, *)
+    func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping (WKPermissionDecision) -> Void
+    ) {
+        switch type {
+        case .camera:
+            switch AVCaptureDevice.authorizationStatus(for: .video) {
+            case .authorized:
+                decisionHandler(.grant)
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .video) { granted in
+                    DispatchQueue.main.async {
+                        decisionHandler(granted ? .grant : .deny)
+                    }
+                }
+            default:
+                decisionHandler(.deny)
+            }
+        case .microphone:
+            if MicrophonePermissionHelper.isGranted {
+                decisionHandler(.grant)
+            } else if MicrophonePermissionHelper.isUndetermined {
+                MicrophonePermissionHelper.request { granted in
+                    DispatchQueue.main.async {
+                        decisionHandler(granted ? .grant : .deny)
+                    }
+                }
+            } else {
+                decisionHandler(.deny)
+            }
+        case .cameraAndMicrophone:
+            let videoStatus = AVCaptureDevice.authorizationStatus(for: .video)
+            let grantVideo = videoStatus == .authorized
+            let grantMic = MicrophonePermissionHelper.isGranted
+            if grantVideo && grantMic {
+                decisionHandler(.grant)
+                return
+            }
+            if videoStatus == .notDetermined {
+                AVCaptureDevice.requestAccess(for: .video) { videoGranted in
+                    if MicrophonePermissionHelper.isUndetermined {
+                        MicrophonePermissionHelper.request { micGranted in
+                            DispatchQueue.main.async {
+                                decisionHandler(videoGranted && micGranted ? .grant : .deny)
+                            }
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            decisionHandler(videoGranted && grantMic ? .grant : .deny)
+                        }
+                    }
+                }
+            } else if MicrophonePermissionHelper.isUndetermined {
+                MicrophonePermissionHelper.request { micGranted in
+                    DispatchQueue.main.async {
+                        decisionHandler(grantVideo && micGranted ? .grant : .deny)
+                    }
+                }
+            } else {
+                decisionHandler(.deny)
+            }
+        @unknown default:
+            decisionHandler(.deny)
+        }
     }
 
     /// document start 注入用：与 Android `CashTreesAndroid.getNfcStatus()` 字符串一致
@@ -407,6 +396,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
                 action:'scanRecoveryQr',
+                requestId:payload.requestId||''
+              });
+            },
+            scanQr:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'scanQr',
                 requestId:payload.requestId||''
               });
             }
@@ -466,7 +462,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
             saveRecoveryQrToPhotos(dataUrl: dataUrl, filename: filename, requestId: requestId)
         case "scanRecoveryQr":
             let requestId = body["requestId"] as? String
-            DispatchQueue.main.async { [weak self] in self?.presentRecoveryQrOptions(requestId: requestId) }
+            DispatchQueue.main.async { [weak self] in
+                self?.presentGeneralQRScanner(requestId: requestId, filter: .recoveryCodeOnly, bridgeAction: "scanRecoveryQr")
+            }
+        case "scanQr":
+            let requestId = body["requestId"] as? String
+            DispatchQueue.main.async { [weak self] in
+                self?.presentGeneralQRScanner(requestId: requestId, filter: .anyText, bridgeAction: "scanQr")
+            }
         case "webContentReady":
             DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }
         default:
@@ -474,115 +477,57 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
         }
     }
 
-    private func presentRecoveryQrOptions(requestId: String?) {
+    private func presentGeneralQRScanner(requestId: String?, filter: GeneralQRScanFilter, bridgeAction: String) {
         let rid = requestId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard let presenter = topViewController() else {
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "no_presenter", requestId: rid)
+            dispatchQRBridgeResult(
+                bridgeAction: bridgeAction,
+                ok: false,
+                text: nil,
+                recoveryCode: nil,
+                error: "no_presenter",
+                requestId: rid
+            )
             return
         }
-        recoveryQrRequestId = rid
-        let sheet = UIAlertController(title: "Scan Recovery QR", message: nil, preferredStyle: .actionSheet)
-        sheet.addAction(UIAlertAction(title: "Camera", style: .default) { [weak self] _ in
-            self?.presentRecoveryQrCamera(requestId: rid)
-        })
-        sheet.addAction(UIAlertAction(title: "Photos", style: .default) { [weak self] _ in
-            self?.presentRecoveryQrPhotoPicker(requestId: rid)
-        })
-        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel) { [weak self] _ in
-            self?.dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "cancelled", requestId: rid)
-        })
-        if let popover = sheet.popoverPresentationController {
-            popover.sourceView = presenter.view
-            popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
-            popover.permittedArrowDirections = []
-        }
-        presenter.present(sheet, animated: true)
-    }
-
-    private func presentRecoveryQrCamera(requestId: String) {
-        let status = AVCaptureDevice.authorizationStatus(for: .video)
-        switch status {
-        case .authorized:
-            showRecoveryQrCamera(requestId: requestId)
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self?.showRecoveryQrCamera(requestId: requestId)
-                    } else {
-                        self?.dispatchRecoveryQrScanResult(
-                            ok: false,
-                            recoveryCode: nil,
-                            error: "camera_permission_denied",
-                            requestId: requestId
-                        )
-                    }
-                }
-            }
-        default:
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "camera_permission_denied", requestId: requestId)
-        }
-    }
-
-    private func showRecoveryQrCamera(requestId: String) {
-        guard let presenter = topViewController() else {
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "no_presenter", requestId: requestId)
-            return
-        }
-        let scanner = RecoveryQRScannerViewController()
+        let scanner = GeneralQRScannerViewController()
+        scanner.filter = filter
         scanner.modalPresentationStyle = .fullScreen
-        scanner.onCode = { [weak self] code in
-            self?.dispatchRecoveryQrScanResult(ok: true, recoveryCode: code, error: nil, requestId: requestId)
+        scanner.onSuccess = { [weak self] text in
+            // Native scanner is fully dismissed before this runs; hand control back to the PWA.
+            self?.dispatchQRBridgeResult(
+                bridgeAction: bridgeAction,
+                ok: true,
+                text: bridgeAction == "scanQr" ? text : nil,
+                recoveryCode: bridgeAction == "scanRecoveryQr" ? text : nil,
+                error: nil,
+                requestId: rid
+            )
         }
-        scanner.onCancel = { [weak self] in
-            self?.dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "cancelled", requestId: requestId)
-        }
-        scanner.onError = { [weak self] error in
-            self?.dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: error, requestId: requestId)
+        scanner.onFailure = { [weak self] failure in
+            let error: String
+            switch failure {
+            case .cancelled:
+                error = "cancelled"
+            case .cameraUnavailable:
+                error = "camera_unavailable"
+            case .cameraPermissionDenied:
+                error = "camera_permission_denied"
+            case .qrNotFound:
+                error = bridgeAction == "scanRecoveryQr" ? "recovery_qr_not_found" : "qr_not_found"
+            case .unsupportedFile:
+                error = "unsupported_file"
+            }
+            self?.dispatchQRBridgeResult(
+                bridgeAction: bridgeAction,
+                ok: false,
+                text: nil,
+                recoveryCode: nil,
+                error: error,
+                requestId: rid
+            )
         }
         presenter.present(scanner, animated: true)
-    }
-
-    private func presentRecoveryQrPhotoPicker(requestId: String) {
-        guard let presenter = topViewController() else {
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "no_presenter", requestId: requestId)
-            return
-        }
-        recoveryQrRequestId = requestId
-        var config = PHPickerConfiguration(photoLibrary: .shared())
-        config.filter = .images
-        config.selectionLimit = 1
-        let picker = PHPickerViewController(configuration: config)
-        picker.delegate = self
-        presenter.present(picker, animated: true)
-    }
-
-    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-        let requestId = recoveryQrRequestId
-        picker.dismiss(animated: true)
-        guard let provider = results.first?.itemProvider else {
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "cancelled", requestId: requestId)
-            return
-        }
-        guard provider.canLoadObject(ofClass: UIImage.self) else {
-            dispatchRecoveryQrScanResult(ok: false, recoveryCode: nil, error: "unsupported_photo", requestId: requestId)
-            return
-        }
-        provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
-            let code = (object as? UIImage).flatMap { recoveryCodeFromQRCode(in: $0) }
-            DispatchQueue.main.async {
-                if let code = code {
-                    self?.dispatchRecoveryQrScanResult(ok: true, recoveryCode: code, error: nil, requestId: requestId)
-                } else {
-                    self?.dispatchRecoveryQrScanResult(
-                        ok: false,
-                        recoveryCode: nil,
-                        error: "recovery_qr_not_found",
-                        requestId: requestId
-                    )
-                }
-            }
-        }
     }
 
     private func saveRecoveryQrToPhotos(dataUrl: String?, filename: String?, requestId: String?) {
@@ -668,12 +613,22 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
         dispatchIOSBridgeJsonToWeb(dict)
     }
 
-    private func dispatchRecoveryQrScanResult(ok: Bool, recoveryCode: String?, error: String?, requestId: String) {
+    private func dispatchQRBridgeResult(
+        bridgeAction: String,
+        ok: Bool,
+        text: String?,
+        recoveryCode: String?,
+        error: String?,
+        requestId: String
+    ) {
         var dict: [String: Any] = [
-            "action": "scanRecoveryQr",
+            "action": bridgeAction,
             "ok": ok,
             "requestId": requestId,
         ]
+        if let text = text, !text.isEmpty {
+            dict["text"] = text
+        }
         if let recoveryCode = recoveryCode, !recoveryCode.isEmpty {
             dict["recoveryCode"] = recoveryCode
         }
@@ -711,6 +666,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
         let js = """
         (function(){try{var d=\(payload);\
         window.dispatchEvent(new CustomEvent('cashtreesios',{detail:d}));\
+        if(d&&d.ok&&(d.action==='scanQr'||d.action==='scanRecoveryQr')){try{window.focus&&window.focus();}catch(_){}}\
         }catch(e){}})();
         """
         DispatchQueue.main.async {
@@ -834,6 +790,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKScriptMes
 
 struct CashTreesWebView: UIViewRepresentable {
     @ObservedObject var loadState: CashTreesWebLoadState
+    @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
 
     func makeCoordinator() -> CashTreesWebCoordinator {
         CashTreesWebCoordinator()
@@ -886,6 +843,7 @@ struct CashTreesWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         coord.webView = webView
         webView.navigationDelegate = coord
+        webView.uiDelegate = coord
         webView.isOpaque = false
         webView.backgroundColor = .clear
         let sv = webView.scrollView
@@ -901,14 +859,16 @@ struct CashTreesWebView: UIViewRepresentable {
         sv.showsHorizontalScrollIndicator = false
         sv.bounces = false
 
-        var request = URLRequest(url: cashTreesAppURL)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
-        webView.load(request)
+        let initialURL = deepLinkStore.takePendingWebURL() ?? cashTreesAppURL
+        coord.lastHandledDeepLinkNonce = deepLinkStore.deepLinkNonce
+        coord.loadWebAppURL(initialURL, in: webView)
+        loadState.scheduleSplashFallback()
         return webView
     }
 
     static func dismantleUIView(_ uiView: WKWebView, coordinator: CashTreesWebCoordinator) {
         uiView.navigationDelegate = nil
+        uiView.uiDelegate = nil
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: cashTreesIOSWKHandlerName)
         coordinator.webView = nil
         coordinator.loadState = nil
@@ -916,6 +876,14 @@ struct CashTreesWebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
         context.coordinator.loadState = loadState
+        let nonce = deepLinkStore.deepLinkNonce
+        guard nonce != context.coordinator.lastHandledDeepLinkNonce else { return }
+        DispatchQueue.main.async {
+            guard nonce == deepLinkStore.deepLinkNonce else { return }
+            context.coordinator.lastHandledDeepLinkNonce = nonce
+            guard let url = deepLinkStore.takePendingWebURL() else { return }
+            context.coordinator.loadWebAppURL(url, in: uiView, bypassDedup: true)
+        }
     }
 }
 
@@ -1002,6 +970,7 @@ private struct CashTreesSplashOverlay: View {
 }
 
 struct ContentView: View {
+    @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
     @StateObject private var webLoadState = CashTreesWebLoadState()
     @State private var webContentVisible = false
 
@@ -1009,7 +978,7 @@ struct ContentView: View {
         ZStack {
             Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
                 .ignoresSafeArea()
-            CashTreesWebView(loadState: webLoadState)
+            CashTreesWebView(loadState: webLoadState, deepLinkStore: deepLinkStore)
                 .opacity(webContentVisible ? 1 : 0)
                 .ignoresSafeArea()
             if webLoadState.isSplashVisible {
@@ -1022,23 +991,22 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            webContentVisible = !webLoadState.isSplashVisible
+            webLoadState.scheduleSplashFallback()
         }
         .onChange(of: webLoadState.shouldAnimateOut) { _, newValue in
-            if newValue {
+            guard newValue else { return }
+            DispatchQueue.main.async {
                 webContentVisible = true
             }
         }
         .onChange(of: webLoadState.isSplashVisible) { _, newValue in
-            if newValue {
-                webContentVisible = false
-            } else {
-                webContentVisible = true
+            DispatchQueue.main.async {
+                webContentVisible = !newValue
             }
         }
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(deepLinkStore: CashTreesDeepLinkStore())
 }

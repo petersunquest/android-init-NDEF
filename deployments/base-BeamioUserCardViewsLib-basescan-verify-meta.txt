@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardViewsLib.sol:BeamioUserCardViewsLib
+Address: 0x2e3a136733e400f579DcB71fAf78922563d8D7EC
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardViewsLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.301Z

@@ -74,6 +74,12 @@ class MainActivity : ComponentActivity() {
     @Volatile
     private var nfcBindSessionActive: Boolean = false
 
+    @Volatile
+    private var pendingQrScanRequestId: String? = null
+
+    @Volatile
+    private var pendingQrScanAction: String = "scanQr"
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val enableNfcForegroundDispatchRunnable = Runnable { maybeEnableNfcForegroundDispatch() }
@@ -88,6 +94,39 @@ class MainActivity : ComponentActivity() {
             grantWebViewMediaRequest(req)
         } else {
             req.deny()
+        }
+    }
+
+    private val generalQrScannerLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val requestId = pendingQrScanRequestId.orEmpty()
+        val bridgeAction = pendingQrScanAction
+        pendingQrScanRequestId = null
+        pendingQrScanAction = "scanQr"
+
+        when {
+            result.resultCode == RESULT_OK -> {
+                val text = result.data?.getStringExtra(GeneralQRScannerActivity.RESULT_TEXT)?.trim().orEmpty()
+                if (text.isNotEmpty()) {
+                    dispatchAndroidBridgeJsonToWeb(
+                        JSONObject()
+                            .put("action", bridgeAction)
+                            .put("ok", true)
+                            .put("requestId", requestId)
+                            .apply {
+                                if (bridgeAction == "scanRecoveryQr") {
+                                    put("recoveryCode", text)
+                                } else {
+                                    put("text", text)
+                                }
+                            },
+                    )
+                } else {
+                    dispatchAndroidBridgeScanError(requestId, bridgeAction, "qr_not_found")
+                }
+            }
+            else -> dispatchAndroidBridgeScanError(requestId, bridgeAction, "cancelled")
         }
     }
 
@@ -341,6 +380,36 @@ class MainActivity : ComponentActivity() {
         webView.evaluateJavascript(js, null)
     }
 
+    private fun dispatchAndroidBridgeScanError(requestId: String, action: String, error: String) {
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject()
+                .put("action", action)
+                .put("ok", false)
+                .put("requestId", requestId)
+                .put("error", error),
+        )
+    }
+
+    /** PWA bridge results — same shape as iOS `cashtreesios` CustomEvent detail. */
+    private fun dispatchAndroidBridgeJsonToWeb(json: JSONObject) {
+        if (!::webView.isInitialized) return
+        val payload = json.toString()
+        val js =
+            "(function(){try{var d=" + payload + ";" +
+                "window.dispatchEvent(new CustomEvent('cashtreesandroid',{detail:d}));" +
+                "if(d&&d.ok&&(d.action==='scanQr'||d.action==='scanRecoveryQr')){try{window.focus&&window.focus();}catch(e){}}" +
+                "}catch(e){}})();"
+        webView.evaluateJavascript(js, null)
+    }
+
+    private fun launchGeneralQrScanner(requestId: String, bridgeAction: String, filter: String) {
+        pendingQrScanRequestId = requestId
+        pendingQrScanAction = bridgeAction
+        generalQrScannerLauncher.launch(
+            GeneralQRScannerActivity.launchIntent(this, filter),
+        )
+    }
+
     private inner class CashTreesJsBridge {
         @JavascriptInterface
         fun getNfcStatus(): String = queryNfcStatus()
@@ -353,6 +422,30 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun cancelPhysicalCardBind() {
             disarmNfcReader(true, "cancelled")
+        }
+
+        /** Raw QR payload for global search / deep links — mirrors iOS `CashTreesIOS.scanQr`. */
+        @JavascriptInterface
+        fun scanQr(requestId: String) {
+            runOnUiThread {
+                launchGeneralQrScanner(
+                    requestId = requestId.trim(),
+                    bridgeAction = "scanQr",
+                    filter = GeneralQRScannerActivity.FILTER_ANY,
+                )
+            }
+        }
+
+        /** Recovery-code-only filter — mirrors iOS `CashTreesIOS.scanRecoveryQr`. */
+        @JavascriptInterface
+        fun scanRecoveryQr(requestId: String) {
+            runOnUiThread {
+                launchGeneralQrScanner(
+                    requestId = requestId.trim(),
+                    bridgeAction = "scanRecoveryQr",
+                    filter = GeneralQRScannerActivity.FILTER_RECOVERY,
+                )
+            }
         }
     }
 

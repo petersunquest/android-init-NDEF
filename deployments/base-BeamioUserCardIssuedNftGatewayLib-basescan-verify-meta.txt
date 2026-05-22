@@ -1,0 +1,13 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardIssuedNftGatewayLib.sol:BeamioUserCardIssuedNftGatewayLib
+Address: 0x090Fb47c70412dE61B15771EF75797e36616B4ad
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardIssuedNftGatewayLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Verification Notes:
+- Use Compiler Type: Solidity (Standard-Json-Input)
+- Use Compiler Version: v0.8.33+commit.64118f21
+- Contract Name must be exactly: project/src/BeamioUserCard/BeamioUserCardIssuedNftGatewayLib.sol:BeamioUserCardIssuedNftGatewayLib
+- Constructor Args: empty
+- No linked libraries are required for this library.
+- Local check: Standard JSON creation bytecode matches deployment tx 0xca1a30e69bce98ecaeb0221cb7eebbec313c6bc98210012536d10e29f39538fc.
+Generated: 2026-05-22T18:28:22.294Z
