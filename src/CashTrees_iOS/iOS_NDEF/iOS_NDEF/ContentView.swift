@@ -128,6 +128,9 @@ struct ContentView: View {
                     Color(uiColor: .systemBackground)
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
+                        .onAppear {
+                            primarySurfaceDidAppear = true
+                        }
                 }
             }
             .opacity(launchContentVisible ? 1 : 0)

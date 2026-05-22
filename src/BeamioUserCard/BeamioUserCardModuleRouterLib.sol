@@ -5,7 +5,7 @@ import "./Errors.sol";
 import "./BeamioUserCardInterfaces.sol";
 import "./BeamioUserCardModuleKinds.sol";
 
-/// @dev Module resolution + fallback delegatecall routing (external runtime library).
+/// @dev Module resolution + fallback delegatecall routing.
 library BeamioUserCardModuleRouterLib {
     uint8 internal constant ROUTE_STATS_QUERY = BeamioUserCardModuleKinds.STATS_QUERY;
     uint8 internal constant MODULE_REDEEM = BeamioUserCardModuleKinds.REDEEM;
@@ -42,7 +42,7 @@ library BeamioUserCardModuleRouterLib {
         revert BM_CallFailed();
     }
 
-    function delegateFallback(address targetModule) external {
+    function delegateFallback(address targetModule) internal {
         assembly {
             calldatacopy(0, 0, calldatasize())
             let ok := delegatecall(gas(), targetModule, 0, calldatasize(), 0, 0)

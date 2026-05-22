@@ -20,7 +20,11 @@ contract BeamioUserCardGovernanceModuleV1 {
     event ProposalExecuted(uint256 indexed id);
 
     modifier onlyGateway() {
-        if (msg.sender != IUserCardCtx(address(this)).factoryGateway()) revert UC_UnauthorizedGateway();
+        // External routes enter through the factory gateway; card-internal flows
+        // call modules through cardSelfCallModule, where msg.sender is the card.
+        if (msg.sender != address(this) && msg.sender != IUserCardCtx(address(this)).factoryGateway()) {
+            revert UC_UnauthorizedGateway();
+        }
         _;
     }
 
