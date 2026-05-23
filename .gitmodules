@@ -5,3 +5,11 @@
 [submodule "src/CoNET-DL"]
 	path = src/CoNET-DL
 	url = https://github.com/CoNET-project/CoNET-DL.git
+[submodule "src/Dashboard"]
+	path = src/Dashboard
+	url = https://github.com/CoNET-project/SilentPassUI.git
+	branch = CoNET/Dashboard
+[submodule "src/homepage"]
+	path = src/homepage
+	url = git@github.com:beamio-APP/homepage.git
+	branch = main
