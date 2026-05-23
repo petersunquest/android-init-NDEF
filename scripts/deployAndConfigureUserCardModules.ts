@@ -116,13 +116,6 @@ async function main() {
     console.log("⚠️  跳过 owner() 预检查，继续尝试链上绑定:", msg);
   }
 
-  const RedeemFactory = await hhEthers.getContractFactory("BeamioUserCardRedeemModuleVNext");
-  const IssuedFactory = await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV1");
-  const FaucetFactory = await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
-  const GovernanceFactory = await hhEthers.getContractFactory("BeamioUserCardGovernanceModuleV1");
-  const MembershipStatsFactory = await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
-  const AdminStatsQueryFactory = await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
-  const ChargeRewardFactory = await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV1");
   const existingRedeem = await resolveModuleAddress(provider, process.env.REDEEM_MODULE_ADDRESS, "RedeemModule");
   const existingIssued = await resolveModuleAddress(provider, process.env.ISSUED_NFT_MODULE_ADDRESS, "IssuedNftModule");
   const existingFaucet = await resolveModuleAddress(provider, process.env.FAUCET_MODULE_ADDRESS, "FaucetModule");
@@ -133,22 +126,33 @@ async function main() {
   const existingChargeReward =
     await resolveModuleAddress(provider, process.env.CHARGE_REWARD_MODULE_ADDRESS, "ChargeRewardModule");
 
-  const redeem = existingRedeem ? undefined : await RedeemFactory.connect(signer).deploy(txOverrides);
+  const RedeemFactory = existingRedeem ? undefined : await hhEthers.getContractFactory("BeamioUserCardRedeemModuleVNext");
+  const IssuedFactory = existingIssued ? undefined : await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV1");
+  const FaucetFactory = existingFaucet ? undefined : await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
+  const GovernanceFactory = existingGovernance ? undefined : await hhEthers.getContractFactory("BeamioUserCardGovernanceModuleV1");
+  const MembershipStatsFactory =
+    existingMembershipStats ? undefined : await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
+  const AdminStatsQueryFactory =
+    existingAdminStatsQuery ? undefined : await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
+  const ChargeRewardFactory =
+    existingChargeReward ? undefined : await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV1");
+
+  const redeem = existingRedeem ? undefined : await RedeemFactory!.connect(signer).deploy(txOverrides);
   if (redeem) await redeem.waitForDeployment();
-  const issued = existingIssued ? undefined : await IssuedFactory.connect(signer).deploy(txOverrides);
+  const issued = existingIssued ? undefined : await IssuedFactory!.connect(signer).deploy(txOverrides);
   if (issued) await issued.waitForDeployment();
-  const faucet = existingFaucet ? undefined : await FaucetFactory.connect(signer).deploy(txOverrides);
+  const faucet = existingFaucet ? undefined : await FaucetFactory!.connect(signer).deploy(txOverrides);
   if (faucet) await faucet.waitForDeployment();
-  const governance = existingGovernance ? undefined : await GovernanceFactory.connect(signer).deploy(txOverrides);
+  const governance = existingGovernance ? undefined : await GovernanceFactory!.connect(signer).deploy(txOverrides);
   if (governance) await governance.waitForDeployment();
   const membershipStats =
-    existingMembershipStats ? undefined : await MembershipStatsFactory.connect(signer).deploy(txOverrides);
+    existingMembershipStats ? undefined : await MembershipStatsFactory!.connect(signer).deploy(txOverrides);
   if (membershipStats) await membershipStats.waitForDeployment();
   const adminStatsQuery =
-    existingAdminStatsQuery ? undefined : await AdminStatsQueryFactory.connect(signer).deploy(txOverrides);
+    existingAdminStatsQuery ? undefined : await AdminStatsQueryFactory!.connect(signer).deploy(txOverrides);
   if (adminStatsQuery) await adminStatsQuery.waitForDeployment();
   const chargeReward =
-    existingChargeReward ? undefined : await ChargeRewardFactory.connect(signer).deploy(txOverrides);
+    existingChargeReward ? undefined : await ChargeRewardFactory!.connect(signer).deploy(txOverrides);
   if (chargeReward) await chargeReward.waitForDeployment();
 
   const modules: ModuleAddresses = {

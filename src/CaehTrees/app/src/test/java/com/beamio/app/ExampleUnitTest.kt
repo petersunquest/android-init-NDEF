@@ -1,4 +1,4 @@
-package com.beamio.caehtrees
+package com.beamio.app
 
 import org.junit.Test
 

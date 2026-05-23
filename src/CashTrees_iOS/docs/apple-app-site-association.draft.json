@@ -12,14 +12,6 @@
           {
             "/": "/app/*",
             "comment": "Consumer PWA routes and query deep links"
-          },
-          {
-            "/": "/app-download",
-            "comment": "Smart app install / open landing"
-          },
-          {
-            "/": "/app-download/*",
-            "comment": "Smart app install / open with query"
           }
         ]
       }

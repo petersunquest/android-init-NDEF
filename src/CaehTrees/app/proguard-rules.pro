@@ -8,10 +8,10 @@
 -keepclassmembers class * {
     @android.webkit.JavascriptInterface <methods>;
 }
--keep class com.beamio.caehtrees.MainActivity$CashTreesJsBridge {
+-keep class com.beamio.app.MainActivity$CashTreesJsBridge {
     *;
 }
--keep class com.beamio.caehtrees.GeneralQRScannerActivity {
+-keep class com.beamio.app.GeneralQRScannerActivity {
     *;
 }
 

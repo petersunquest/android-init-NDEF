@@ -1,4 +1,4 @@
-package com.beamio.caehtrees
+package com.beamio.app
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
@@ -33,7 +34,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import org.json.JSONObject
 
-private const val HOME_URL = "https://verra.network/app/"
+private const val HOME_URL = "https://beamio.app/app/"
 
 /**
  * Main document only: forces revalidation so WebView does not reuse a stale index.html from disk
@@ -80,6 +81,12 @@ class MainActivity : ComponentActivity() {
     @Volatile
     private var pendingQrScanAction: String = "scanQr"
 
+    @Volatile
+    private var pendingQrScanFilter: String = GeneralQRScannerActivity.FILTER_ANY
+
+    private var pendingQrScanStartedAtMs: Long = 0L
+    private var pendingQrScanTransientRetryCount: Int = 0
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val enableNfcForegroundDispatchRunnable = Runnable { maybeEnableNfcForegroundDispatch() }
@@ -102,11 +109,16 @@ class MainActivity : ComponentActivity() {
     ) { result ->
         val requestId = pendingQrScanRequestId.orEmpty()
         val bridgeAction = pendingQrScanAction
+        val filter = pendingQrScanFilter
+        val elapsedMs = SystemClock.elapsedRealtime() - pendingQrScanStartedAtMs
+        val explicitError = result.data?.getStringExtra(GeneralQRScannerActivity.RESULT_ERROR)
         pendingQrScanRequestId = null
         pendingQrScanAction = "scanQr"
+        pendingQrScanFilter = GeneralQRScannerActivity.FILTER_ANY
 
         when {
             result.resultCode == RESULT_OK -> {
+                pendingQrScanTransientRetryCount = 0
                 val text = result.data?.getStringExtra(GeneralQRScannerActivity.RESULT_TEXT)?.trim().orEmpty()
                 if (text.isNotEmpty()) {
                     dispatchAndroidBridgeJsonToWeb(
@@ -126,7 +138,20 @@ class MainActivity : ComponentActivity() {
                     dispatchAndroidBridgeScanError(requestId, bridgeAction, "qr_not_found")
                 }
             }
-            else -> dispatchAndroidBridgeScanError(requestId, bridgeAction, "cancelled")
+            explicitError == null && elapsedMs in 0L..1200L && pendingQrScanTransientRetryCount < 1 -> {
+                pendingQrScanTransientRetryCount += 1
+                mainHandler.post {
+                    launchGeneralQrScanner(
+                        requestId = requestId,
+                        bridgeAction = bridgeAction,
+                        filter = filter,
+                    )
+                }
+            }
+            else -> {
+                pendingQrScanTransientRetryCount = 0
+                dispatchAndroidBridgeScanError(requestId, bridgeAction, explicitError ?: "cancelled")
+            }
         }
     }
 
@@ -405,6 +430,8 @@ class MainActivity : ComponentActivity() {
     private fun launchGeneralQrScanner(requestId: String, bridgeAction: String, filter: String) {
         pendingQrScanRequestId = requestId
         pendingQrScanAction = bridgeAction
+        pendingQrScanFilter = filter
+        pendingQrScanStartedAtMs = SystemClock.elapsedRealtime()
         generalQrScannerLauncher.launch(
             GeneralQRScannerActivity.launchIntent(this, filter),
         )

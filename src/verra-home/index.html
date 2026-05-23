@@ -21,6 +21,22 @@
 				min-height: 100dvh;
 			}
 		</style>
+		<script>
+			(() => {
+				const root = document.documentElement
+				const forceLightMode = () => {
+					root.classList.remove('dark')
+					root.classList.add('light')
+					root.style.colorScheme = 'light'
+				}
+
+				forceLightMode()
+				new MutationObserver(forceLightMode).observe(root, {
+					attributes: true,
+					attributeFilter: ['class', 'style'],
+				})
+			})()
+		</script>
 		<title>Verra | Official Home Page</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -1,4 +1,4 @@
-package com.beamio.caehtrees
+package com.beamio.app
 
 import android.Manifest
 import android.content.Context
@@ -42,6 +42,7 @@ class GeneralQRScannerActivity : ComponentActivity() {
         const val FILTER_ANY = "any"
         const val FILTER_RECOVERY = "recovery"
         const val RESULT_TEXT = "result_text"
+        const val RESULT_ERROR = "result_error"
 
         fun launchIntent(context: Context, filter: String): Intent =
             Intent(context, GeneralQRScannerActivity::class.java).putExtra(EXTRA_FILTER, filter)
@@ -50,7 +51,6 @@ class GeneralQRScannerActivity : ComponentActivity() {
     private lateinit var barcodeView: DecoratedBarcodeView
     private var didFinish = false
     private var pickingFromLibrary = false
-    private var filter: String = FILTER_ANY
     private var lastDecodedText: String? = null
 
     private val requestCameraPermission = registerForActivityResult(
@@ -59,7 +59,7 @@ class GeneralQRScannerActivity : ComponentActivity() {
         if (granted) {
             startCameraScan()
         } else {
-            finishCancelled()
+            finishCancelled("camera_permission_denied")
         }
     }
 
@@ -99,7 +99,6 @@ class GeneralQRScannerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        filter = intent.getStringExtra(EXTRA_FILTER) ?: FILTER_ANY
 
         val root = FrameLayout(this).apply {
             layoutParams = ViewGroup.LayoutParams(
@@ -128,7 +127,7 @@ class GeneralQRScannerActivity : ComponentActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    finishCancelled()
+                    finishCancelled("cancelled")
                 }
             },
         )
@@ -154,7 +153,7 @@ class GeneralQRScannerActivity : ComponentActivity() {
             text = "Cancel"
             setTextColor(Color.WHITE)
             setBackgroundColor(0x73000000)
-            setOnClickListener { finishCancelled() }
+            setOnClickListener { finishCancelled("cancelled") }
         }
         val cancelLp = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -287,22 +286,18 @@ class GeneralQRScannerActivity : ComponentActivity() {
         finish()
     }
 
-    private fun finishCancelled() {
+    private fun finishCancelled(error: String) {
         if (didFinish) return
         didFinish = true
         barcodeView.pause()
-        setResult(RESULT_CANCELED)
+        setResult(RESULT_CANCELED, Intent().putExtra(RESULT_ERROR, error))
         finish()
     }
 
     private fun resolvePayload(raw: String): String? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
-        return if (filter == FILTER_RECOVERY) {
-            recoveryCodeCandidate(trimmed)
-        } else {
-            trimmed
-        }
+        return trimmed
     }
 
     private fun decodeQrFromUri(uri: Uri): String? {
@@ -371,44 +366,4 @@ class GeneralQRScannerActivity : ComponentActivity() {
         private fun dp(context: Context, value: Int): Int =
             (value * context.resources.displayMetrics.density).toInt()
     }
-}
-
-private val BASE62 = Regex("^[0-9A-Za-z]+$")
-private val RECOVERY_QUERY_KEYS = listOf(
-    "MasterKey", "masterKey", "masterkey", "recoveryCode", "recoverCode", "code",
-)
-
-private fun isBase62RecoveryCode(raw: String): Boolean {
-    val trimmed = raw.trim()
-    if (trimmed.length !in 16..64) return false
-    return BASE62.matches(trimmed)
-}
-
-private fun recoveryCodeCandidate(raw: String): String? {
-    val trimmed = raw.trim()
-    if (trimmed.isEmpty()) return null
-    if (isBase62RecoveryCode(trimmed)) return trimmed
-
-    val uri = runCatching { Uri.parse(trimmed) }.getOrNull()
-    if (uri != null) {
-        for (key in RECOVERY_QUERY_KEYS) {
-            uri.getQueryParameter(key)?.let { value ->
-                if (isBase62RecoveryCode(value)) return value
-            }
-        }
-        uri.fragment?.let { fragment ->
-            Uri.parse("http://local/?$fragment").let { fragUri ->
-                for (key in RECOVERY_QUERY_KEYS) {
-                    fragUri.getQueryParameter(key)?.let { value ->
-                        if (isBase62RecoveryCode(value)) return value
-                    }
-                }
-            }
-        }
-    }
-
-    Regex("\\b[0-9A-Za-z]{16,64}\\b").findAll(trimmed).forEach { match ->
-        if (isBase62RecoveryCode(match.value)) return match.value
-    }
-    return null
 }

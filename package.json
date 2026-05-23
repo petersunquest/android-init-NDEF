@@ -1,7 +1,7 @@
 {
   "name": "beamiocontract",
   "version": "1.0.0",
-  "description": "",
+  "description": "[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Solidity](https://img.shields.io/badge/Solidity-%5E0.8.20-blue)](https://docs.soliditylang.org/) [![Status](https://img.shields.io/badge/Status-Beta-orange)]()",
   "license": "ISC",
   "author": "",
   "type": "module",
@@ -114,7 +114,9 @@
     "@settle402/sdk": "github:settleonbase/x402sdk#main",
     "colors": "^1.4.0",
     "ethers": "^6.13.4",
-    "express": "^4.21.0"
+    "express": "^4.21.0",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.5",
@@ -136,5 +138,17 @@
   "exports": {
     ".": "./config/base-addresses.ts",
     "./addresses": "./config/base-addresses.ts"
-  }
+  },
+  "directories": {
+    "doc": "docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/petersunquest/android-init-NDEF.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/petersunquest/android-init-NDEF/issues"
+  },
+  "homepage": "https://github.com/petersunquest/android-init-NDEF#readme"
 }

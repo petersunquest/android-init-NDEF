@@ -26,7 +26,7 @@
 | 项目 | 值 |
 |------|-----|
 | **合约** | BeamioUserCardFactoryPaymasterV07 |
-| **地址** | 见 config/base-addresses.json（当前为 `0xec00b58Df88006D2343D1ddDF52e090379043E25`） |
+| **地址** | 见 config/base-addresses.json（当前为 `0xF2864210577359AcaE448D2B116031a0c5EE1016`） |
 | **网络** | Base Mainnet (Chain ID: 8453) |
 
 **重部署 Card Factory：** `npm run redeploy:card-factory:base`。自动更新 config/base-addresses.json，各模块自动生效。
@@ -51,7 +51,7 @@
 ## 区块浏览器
 
 - AA Factory: https://basescan.org/address/0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
-- Card Factory: https://basescan.org/address/0xec00b58Df88006D2343D1ddDF52e090379043E25
+- Card Factory: https://basescan.org/address/0xF2864210577359AcaE448D2B116031a0c5EE1016
 
 ---
 

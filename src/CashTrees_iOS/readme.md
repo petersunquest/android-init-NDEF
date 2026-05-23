@@ -72,16 +72,14 @@ These paths on `beamio.app` are declared in AASA and handled in-app:
 |------|---------|
 | `/app` | PWA root |
 | `/app/*` | PWA routes + query deep links |
-| `/app-download` | Smart install / open landing |
-| `/app-download/*` | Same, with query |
 
-**Examples (preferred for sharing):**
+`/app-download` is intentionally **not** in AASA: install QR / download links should stay in the browser first, then the web page sends iOS directly to the App Store.
+
+**Examples (preferred for sharing deep links):**
 
 ```
 https://beamio.app/app/
 https://beamio.app/app/?beamiocard=0x…&redeemcode=…
-https://beamio.app/app-download
-https://beamio.app/app-download?campaign=qr
 ```
 
 If the app is **not installed**, iOS opens the link in Safari (normal HTTPS behaviour).
@@ -130,7 +128,7 @@ beamio://open?target=<urlencode(https://beamio.app/app/?beamiocard=0x…))>
 |----------|-----------------|
 | Share redeem / coupon / marketing | `https://beamio.app/app/?…` |
 | Email, SMS, QR code | `https://beamio.app/...` |
-| Homepage `/app-download` “try open installed app” | `beamio://open?…` (after HTTPS attempt) |
+| Install QR / download landing | `https://beamio.app/app-download` |
 | Internal tests / explicit app-only wake | `beamio://open?…` |
 
 **Rule:** Publish **HTTPS** externally; use **`beamio://`** only as a supplemental wake-up path.

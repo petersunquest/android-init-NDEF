@@ -25,8 +25,23 @@ enum BeamioConstants {
     static let defaultBeamioUserCard = "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14"
 
     /// 与 `chainAddresses.BASE_CARD_FACTORY` / Android `BeamioWeb3Wallet` 一致（EIP-712 verifyingContract）
-    static let baseCardFactory = "0xec00b58Df88006D2343D1ddDF52e090379043E25"
+    static let baseCardFactory = "0xF2864210577359AcaE448D2B116031a0c5EE1016"
     static let baseChainId: UInt64 = 8453
 
-    static let deprecatedCardAddress = "0xEcC5bDFF6716847e45363befD3506B1D539c02D5"
+    /// 与 x402sdk `apiExcludedUserCards.ts` 对齐：API/客户端不得展示或默认使用的废弃 BeamioUserCard。
+    static let apiExcludedUserCardAddresses: [String] = [
+        "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270",
+        "0x2032A363BB2cf331142391fC0DAd21D6504922C7",
+        "0xEcC5bDFF6716847e45363befD3506B1D539c02D5",
+        "0xA756F2E27a332d6Be2d399dA543E3Ce4C8455F14",
+    ]
+
+    static func isApiExcludedUserCard(_ address: String) -> Bool {
+        let lower = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !lower.isEmpty else { return false }
+        return apiExcludedUserCardAddresses.contains { $0.caseInsensitiveCompare(lower) == .orderedSame }
+    }
+
+    /// @deprecated 使用 `isApiExcludedUserCard`；保留旧字段名兼容。
+    static let deprecatedCardAddress = "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270"
 }

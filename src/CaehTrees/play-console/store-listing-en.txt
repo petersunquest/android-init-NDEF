@@ -49,6 +49,10 @@ Beamio for Android is a consumer app for account holders. For in-store merchant 
 
 Questions? Use in-app help or contact Beamio support.
 
+## Release notes — version 1.0.5 (en-CA, max 500 characters)
+
+Copy from play-console/release-notes-en-CA.txt (body only, skip comment lines).
+
 ## Release notes — version 1.0.4 (example)
 
 • Official Beamio consumer app for Android (com.beamio.app)

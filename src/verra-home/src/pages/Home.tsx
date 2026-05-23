@@ -18,10 +18,15 @@ export function Home() {
 				<section className="relative flex h-[751px] items-center justify-center overflow-hidden">
 					<div className="absolute inset-0 z-0">
 						<img
-							className="h-full w-full object-cover brightness-[0.4] contrast-125"
+							className="h-full w-full object-cover"
 							alt="Atmospheric city streetscape at dusk with golden bokeh lights"
 							src={HERO_IMAGE}
+							width={1920}
+							height={751}
+							decoding="async"
+							fetchPriority="high"
 						/>
+						<div className="absolute inset-0 bg-slate-950/55" />
 						<div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-950/20 to-slate-950/60" />
 					</div>
 					<div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
@@ -47,7 +52,7 @@ export function Home() {
 							</button>
 							<button
 								type="button"
-								className="rounded-full border border-white/20 bg-white/10 px-10 py-4 text-lg font-bold text-white backdrop-blur-md transition-all hover:bg-white hover:text-blue-900 active:scale-95"
+								className="rounded-full border border-white/20 bg-white/15 px-10 py-4 text-lg font-bold text-white transition-all hover:bg-white hover:text-blue-900 active:scale-95"
 								onClick={() =>
 									document
 										.getElementById('built-for-main-street')

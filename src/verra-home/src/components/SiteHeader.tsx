@@ -4,13 +4,13 @@ import { BrandLogo } from './BrandLogo'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
 	isActive
-		? "border-b-2 border-blue-600 font-['Inter'] font-semibold tracking-tight text-blue-600 dark:text-blue-400"
-		: "font-['Inter'] font-medium tracking-tight text-slate-600 transition-opacity duration-300 hover:text-blue-500 dark:text-slate-400"
+		? "border-b-2 border-blue-600 font-['Inter'] font-semibold tracking-tight text-blue-600"
+		: "font-['Inter'] font-medium tracking-tight text-slate-600 transition-opacity duration-300 hover:text-blue-500"
 
 const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
 	isActive
-		? "rounded-lg bg-primary-container/15 py-3 pl-4 font-['Inter'] font-semibold text-blue-600 dark:text-blue-400"
-		: "rounded-lg py-3 pl-4 font-['Inter'] font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+		? "rounded-lg bg-primary-container/15 py-3 pl-4 font-['Inter'] font-semibold text-blue-600"
+		: "rounded-lg py-3 pl-4 font-['Inter'] font-medium text-slate-700 transition-colors hover:bg-slate-100"
 
 type SiteHeaderProps = {
 	logoSrc?: string
@@ -24,7 +24,7 @@ export function SiteHeader({ logoSrc, logoRounded = false, wordmark }: SiteHeade
 	const logoProps = {
 		className: 'flex items-center gap-0',
 		imgClassName: `h-8 w-8 shrink-0 object-contain md:h-9 md:w-9 ${logoRounded ? 'rounded-full' : ''}`.trim(),
-		wordmarkClassName: 'text-2xl font-bold tracking-tight text-blue-600 dark:text-blue-500',
+		wordmarkClassName: 'text-2xl font-bold tracking-tight text-blue-600',
 		logoSrc,
 		wordmark,
 	} as const
@@ -55,12 +55,12 @@ export function SiteHeader({ logoSrc, logoRounded = false, wordmark }: SiteHeade
 		<>
 			{mobileMenuOpen ? (
 				<div
-					className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] md:hidden"
+					className="fixed inset-0 z-40 bg-black/40 md:hidden"
 					aria-hidden
 					onClick={() => setMobileMenuOpen(false)}
 				/>
 			) : null}
-			<header className="fixed top-0 left-0 right-0 z-50 w-full bg-white/80 shadow-sm backdrop-blur-xl dark:bg-slate-900/80 dark:shadow-none">
+			<header className="fixed top-0 left-0 right-0 z-50 w-full bg-white/95 shadow-sm">
 				<div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-8 py-4">
 					<div className="min-w-0 shrink">
 						<button
@@ -102,7 +102,7 @@ export function SiteHeader({ logoSrc, logoRounded = false, wordmark }: SiteHeade
 				{mobileMenuOpen ? (
 					<div
 						id="site-header-mobile-nav"
-						className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto border-t border-slate-200/80 bg-white/95 dark:border-slate-700/80 dark:bg-slate-900/95 md:hidden"
+						className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto border-t border-slate-200/80 bg-white/95 md:hidden"
 						role="dialog"
 						aria-modal="true"
 						aria-label="Site navigation"

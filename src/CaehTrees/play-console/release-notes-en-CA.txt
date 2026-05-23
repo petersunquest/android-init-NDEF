@@ -1,8 +1,11 @@
-Welcome to Beamio — your wallet and membership on Android.
+# Google Play — Release notes (en-CA)
+# Max 500 characters. Consumer app: com.beamio.app — Android, not iPhone.
 
-• Sign in and access your Beamio account in a dedicated app
-• Link your physical NFC card on supported phones
-• Camera used only when you scan a QR code or use an in-app camera flow
-• Updated Beamio branding and icon
+What's new in Beamio 1.0.5:
+
+• Home-screen wallet opens at beamio.app
+• Native QR scan from search and shared redeem links
+• NFC card linking on supported Android phones
+• Beamio branding, icon, and stability updates
 
 Thank you for using Beamio.

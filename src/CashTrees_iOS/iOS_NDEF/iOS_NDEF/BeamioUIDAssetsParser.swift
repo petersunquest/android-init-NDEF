@@ -117,7 +117,7 @@ enum BeamioUIDAssetsParser {
         }()
 
         let cardsFromArr = rawCards?
-            .filter { !$0.cardAddress.caseInsensitiveEquals(BeamioConstants.deprecatedCardAddress) }
+            .filter { !BeamioConstants.isApiExcludedUserCard($0.cardAddress) }
 
         let unitPriceUSDC6 = s("unitPriceUSDC6")
         let beamioUserCard = s("beamioUserCard")

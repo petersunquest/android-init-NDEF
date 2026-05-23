@@ -83,13 +83,15 @@ export function TheLocal() {
 											<p className="text-3xl font-bold tracking-tighter font-mono">$1,452.80</p>
 										</div>
 										<div className="relative group">
-											<div className="absolute -inset-4 rounded-3xl bg-primary/10 opacity-50 blur-xl" />
+											<div className="absolute -inset-4 rounded-3xl bg-primary/10 opacity-50" />
 											<div className="relative flex aspect-square items-center justify-center rounded-3xl border-2 border-primary/20 bg-white p-6">
 												<div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-slate-50">
 													<img
 														src={IMG_VAULT_QR}
 														alt="Dynamic pay QR code"
-														className="h-full w-full object-cover mix-blend-multiply opacity-80"
+														className="h-full w-full object-cover opacity-80"
+														decoding="async"
+														loading="lazy"
 													/>
 												</div>
 											</div>
@@ -273,8 +275,8 @@ export function TheLocal() {
 								Get Early Access
 							</button>
 						</div>
-						<div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
-						<div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-blue-400/20 blur-3xl" />
+						<div className="absolute -bottom-20 -right-20 h-80 w-80 rounded-full bg-white/10" />
+						<div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-blue-400/20" />
 					</div>
 				</section>
 			</main>

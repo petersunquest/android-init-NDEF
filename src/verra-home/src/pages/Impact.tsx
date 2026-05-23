@@ -30,10 +30,14 @@ export function Impact() {
 					<div className="absolute inset-0 z-0">
 						<img
 							alt="Warm artisan bakery: baker hands bread to a neighbor"
-							className="h-full w-full object-cover brightness-110 blur-sm"
+							className="h-full w-full object-cover"
 							src={HERO_IMAGE}
+							width={1920}
+							height={751}
+							decoding="async"
+							fetchPriority="high"
 						/>
-						<div className="absolute inset-0 bg-white/70 backdrop-blur-[2px]" />
+						<div className="absolute inset-0 bg-white/82" />
 					</div>
 					<div className="relative z-10 mx-auto w-full max-w-7xl px-8">
 						<div className="max-w-3xl">
@@ -190,7 +194,7 @@ export function Impact() {
 								</div>
 							</div>
 							<div className="group relative">
-								<div className="absolute -inset-4 rounded-xl bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/10" />
+								<div className="absolute -inset-4 rounded-xl bg-primary/5 transition-colors duration-700 group-hover:bg-primary/10" />
 								<div className="relative overflow-hidden rounded-lg shadow-[0_32px_64px_-12px_rgba(0,0,0,0.12)]">
 									<img
 										alt="Verra NFC card tapping a merchant phone"

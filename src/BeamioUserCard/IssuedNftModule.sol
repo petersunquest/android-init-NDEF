@@ -32,7 +32,11 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
     }
 
     modifier onlyGateway() {
-        if (msg.sender != IUserCardCtx(address(this)).factoryGateway()) revert UC_UnauthorizedGateway();
+        // External routes enter through the factory gateway; card-internal flows
+        // call modules through cardSelfCallModule, where msg.sender is the card.
+        if (msg.sender != address(this) && msg.sender != IUserCardCtx(address(this)).factoryGateway()) {
+            revert UC_UnauthorizedGateway();
+        }
         _;
     }
 

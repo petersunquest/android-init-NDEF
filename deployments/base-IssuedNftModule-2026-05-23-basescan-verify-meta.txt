@@ -1,0 +1,12 @@
+BeamioUserCardIssuedNftModuleV1
+- Address: 0xB0E6a76c926d49CD841ac7cDe349F8101D9Dae39
+- Deployment tx: 0x4e85bf4bc3b99360495a8f31bae65b83fa9eebef6140b49a8abeeb519bf84bc4
+- Contract Name: project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+- Constructor args: none
+- Standard JSON: deployments/base-BeamioUserCardIssuedNftModuleV1-standard-input-FULL.json
+- Compiler: v0.8.33+commit.64118f21
+- EVM version: cancun
+- Optimizer: enabled, runs=0
+- viaIR: true
+- metadata.bytecodeHash: none
+- revertStrings: strip

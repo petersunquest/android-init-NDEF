@@ -14,9 +14,14 @@ export function ForBusiness() {
 				<div className="absolute inset-0 z-0">
 					<img
 						alt="Warm sunlit interior of a local independent coffee shop"
-						className="h-full w-full object-cover blur-sm"
+						className="h-full w-full object-cover"
 						src={HERO_IMAGE}
+						width={1920}
+						height={795}
+						decoding="async"
+						fetchPriority="high"
 					/>
+					<div className="absolute inset-0 bg-background/90" />
 					<div className="hero-overlay absolute inset-0" />
 				</div>
 				<div className="relative z-10 mx-auto grid w-full max-w-7xl grid-cols-1 gap-12 px-8 lg:grid-cols-12">

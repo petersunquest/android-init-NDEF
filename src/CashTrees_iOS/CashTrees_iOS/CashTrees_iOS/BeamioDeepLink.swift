@@ -24,7 +24,11 @@ enum BeamioDeepLink {
     ]
 
     /// Universal Link path prefixes handled by this consumer shell.
-    static let universalLinkPathPrefixes = ["/app", "/app-download"]
+    ///
+    /// `/app-download` is intentionally excluded. It is an install QR / store
+    /// landing page; loading it inside the native WKWebView can strand the
+    /// launch splash while the page redirects to the App Store.
+    static let universalLinkPathPrefixes = ["/app"]
 
     /// Resolve an incoming Universal Link or `beamio://` URL to an allowed HTTPS URL for the WebView.
     static func resolveWebAppURL(from incoming: URL) -> URL? {

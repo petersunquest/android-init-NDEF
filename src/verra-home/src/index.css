@@ -3,10 +3,20 @@
 @tailwind utilities;
 
 @layer base {
+	html {
+		color-scheme: light;
+		background: #f9f9fe;
+	}
 	body {
 		@apply bg-background text-on-surface antialiased;
 		font-family: theme('fontFamily.body');
 		min-height: max(884px, 100dvh);
+		color-scheme: light;
+		background: #f9f9fe;
+	}
+	#root {
+		min-height: 100dvh;
+		background: #f9f9fe;
 	}
 	h1,
 	h2,
@@ -24,8 +34,7 @@
 }
 
 .glass-effect {
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
+	background: rgba(255, 255, 255, 0.9);
 }
 
 .primary-gradient {
@@ -42,8 +51,6 @@
 
 .glass-panel {
 	background: rgba(255, 255, 255, 0.7);
-	backdrop-filter: blur(20px);
-	-webkit-backdrop-filter: blur(20px);
 }
 
 .hero-overlay {

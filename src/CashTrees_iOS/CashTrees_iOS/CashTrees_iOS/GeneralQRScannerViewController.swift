@@ -242,13 +242,16 @@ final class GeneralQRScannerViewController: UIViewController,
         didOutput metadataObjects: [AVMetadataObject],
         from connection: AVCaptureConnection
     ) {
-        guard !didFinish, !pickingFromLibrary,
-              let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
-              object.type == .qr,
-              let raw = object.stringValue,
-              let resolved = resolveGeneralQRScanPayload(raw, filter: filter)
-        else { return }
-        finishSuccess(resolved)
+        guard !didFinish, !pickingFromLibrary else { return }
+        for object in metadataObjects {
+            guard let code = object as? AVMetadataMachineReadableCodeObject,
+                  code.type == .qr,
+                  let raw = code.stringValue,
+                  let resolved = resolveGeneralQRScanPayload(raw, filter: filter)
+            else { continue }
+            finishSuccess(resolved)
+            return
+        }
     }
 
     // MARK: Overlay chrome
@@ -384,7 +387,14 @@ final class GeneralQRScannerViewController: UIViewController,
         }
 
         if let output = metadataOutput, let preview = previewLayer {
-            output.rectOfInterest = preview.metadataOutputRectConverted(fromLayerRect: scanSquareFrame)
+            // General scanQr is a transport bridge: native only decodes the QR
+            // text and returns it to the PWA. Do not restrict URL/text QR scans
+            // to the visual square, because the PWA owns content validation.
+            if filter == .anyText {
+                output.rectOfInterest = CGRect(x: 0, y: 0, width: 1, height: 1)
+            } else {
+                output.rectOfInterest = preview.metadataOutputRectConverted(fromLayerRect: scanSquareFrame)
+            }
         }
     }
 
