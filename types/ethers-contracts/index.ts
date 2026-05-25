@@ -214,6 +214,8 @@ export type { IBeamioBUnitsMintReward } from './b-unit/BusinessStartKetRedeem.so
 export { IBeamioBUnitsMintReward__factory } from './factories/b-unit/BusinessStartKetRedeem.sol/IBeamioBUnitsMintReward__factory.js';
 export type { IBusinessStartKetMint } from './b-unit/BusinessStartKetRedeem.sol/IBusinessStartKetMint.js';
 export { IBusinessStartKetMint__factory } from './factories/b-unit/BusinessStartKetRedeem.sol/IBusinessStartKetMint__factory.js';
+export type { ConetGB1155 } from './b-unit/GB.sol/ConetGB1155.js';
+export { ConetGB1155__factory } from './factories/b-unit/GB.sol/ConetGB1155__factory.js';
 export type { GuardianNodesInfoV6 } from './b-unit/GuardianNodesInfoV6.js';
 export { GuardianNodesInfoV6__factory } from './factories/b-unit/GuardianNodesInfoV6__factory.js';
 export type { BaseTreasury } from './b-unit/baseTreasury.sol/BaseTreasury.js';
@@ -232,6 +234,12 @@ export type { IBurnableFactoryERC20 } from './b-unit/conetTreasury.sol/IBurnable
 export { IBurnableFactoryERC20__factory } from './factories/b-unit/conetTreasury.sol/IBurnableFactoryERC20__factory.js';
 export type { IMintableERC20 } from './b-unit/conetTreasury.sol/IMintableERC20.js';
 export { IMintableERC20__factory } from './factories/b-unit/conetTreasury.sol/IMintableERC20__factory.js';
+export type { ConetGB_total } from './b-unit/gbTotal.sol/ConetGB_total.js';
+export { ConetGB_total__factory } from './factories/b-unit/gbTotal.sol/ConetGB_total__factory.js';
+export type { ConetGB_userTotal } from './b-unit/gbUserTotal.sol/ConetGB_userTotal.js';
+export { ConetGB_userTotal__factory } from './factories/b-unit/gbUserTotal.sol/ConetGB_userTotal__factory.js';
+export type { Epoch_mining_info } from './b-unit/mining_info.sol/Epoch_mining_info.js';
+export { Epoch_mining_info__factory } from './factories/b-unit/mining_info.sol/Epoch_mining_info__factory.js';
 export type { USDC } from './b-unit/usdc.sol/USDC.js';
 export { USDC__factory } from './factories/b-unit/usdc.sol/USDC__factory.js';
 export type { AccessControl } from './contracts/access/AccessControl.js';

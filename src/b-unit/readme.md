@@ -144,9 +144,9 @@ Explorer: https://basescan.org/address/0x5c64a8b0935DA72d60933bBD8cD10579E1C40c5
 
 | 合约 | 地址 | 说明 |
 |------|------|------|
-| **ConetTreasury** | `0x540767C2a183871deb22333a271D5e65bF489F22` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
-| **USDC** (FactoryERC20) | `0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
-| **BUnitAirdrop** | `0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8` | B-Unit 空投与 USDC 购买入口 |
+| **ConetTreasury** | `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
+| **USDC** (FactoryERC20) | `0x34e437431cF8888261041C99e1D39DaA4526DeB9` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
+| **BUnitAirdrop** | `0x67d01e0E9c859A89def4098aC7803f04BF0d77af` | B-Unit 空投与 USDC 购买入口 |
 | **BUint** | `0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad` | B-Units 代币合约 |
 
 **关联地址**：

@@ -13,6 +13,8 @@
  * 8. 验证：`verifyConetDeployments.ts`、`verifyCoNETIndexerDiamond.ts`、各合约 verify 脚本
  * 9. 本脚本：`npx tsx scripts/updateConetReferences.ts`
  *
+ * 完整迁移说明见 `scripts/README-conet-contract-migration.md`
+ *
  * 运行: npx tsx scripts/updateConetReferences.ts
  */
 
@@ -24,6 +26,54 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
+
+/** 替换 `const name = '0x...'`（单引号，可选 .toLowerCase()） */
+function patchConstSingleQuoted(
+  content: string,
+  constName: string,
+  addr: string | undefined,
+  opts?: { toLowerCase?: boolean; toLocaleLowerCase?: boolean }
+): string {
+  if (!addr) return content;
+  if (opts?.toLocaleLowerCase) {
+    return content.replace(
+      new RegExp(`(const ${constName} = ')0x[a-fA-F0-9]{40}('\\.toLocaleLowerCase\\(\\))`, "g"),
+      `$1${addr}$2`
+    );
+  }
+  if (opts?.toLowerCase) {
+    return content.replace(
+      new RegExp(`(const ${constName} = ')0x[a-fA-F0-9]{40}('\\.toLowerCase\\(\\))`, "g"),
+      `$1${addr}$2`
+    );
+  }
+  return content.replace(
+    new RegExp(`(const ${constName} = ')0x[a-fA-F0-9]{40}(')`, "g"),
+    `$1${addr}$2`
+  );
+}
+
+function patchFileIfChanged(filePath: string, patcher: (content: string) => string, label: string): void {
+  if (!fs.existsSync(filePath)) return;
+  const prev = fs.readFileSync(filePath, "utf-8");
+  const next = patcher(prev);
+  if (next !== prev) {
+    fs.writeFileSync(filePath, next);
+    console.log(label);
+  }
+}
+
+function patchConetGB1155PointerInSol(content: string, addr: string): string {
+  return content.replace(/ConetGB1155\(0x[a-fA-F0-9]{40}\)/g, `ConetGB1155(${addr})`);
+}
+
+/** Dashboard contracts.ts：`CoNET_GB` / `CoNET_GBTotal` 块内 address */
+function patchDashboardContractsGbEntry(content: string, entryKey: string, addr: string): string {
+  return content.replace(
+    new RegExp(`(${entryKey}:\\s*\\{\\s*address:\\s*['"])0x[a-fA-F0-9]{40}(['"])`, "g"),
+    `$1${addr}$2`
+  );
+}
 
 /** 替换 `export const Name = '0x...'`（单引号） */
 function patchExportConstSingleQuoted(content: string, exportName: string, addr: string | undefined): string {
@@ -55,6 +105,13 @@ function main() {
   const bizKet = data.BusinessStartKet as string | undefined;
   const bizKetRedeem = data.BusinessStartKetRedeem as string | undefined;
   const accountRegistry = data.AccountRegistry as string | undefined;
+  const guardianNodesInfoV6 = data.GuardianNodesInfoV6 as string | undefined;
+  const addressPGP = data.AddressPGP as string | undefined;
+  const layerMinusNodeRestartV2 = data.LayerMinusNodeRestart_V2 as string | undefined;
+  const conetGB1155 = data.ConetGB1155 as string | undefined;
+  const conetGBTotal = data.ConetGB_total as string | undefined;
+  const conetGBUserTotal = data.ConetGB_userTotal as string | undefined;
+  const epochMiningInfo = data.EpochMiningInfo as string | undefined;
 
   if (!bunitAirdrop) {
     throw new Error("conet-addresses.json 缺少 BUnitAirdrop 地址");
@@ -72,6 +129,13 @@ function main() {
   console.log("ConetTreasury:", conetTreasury ?? "(未配置)");
   console.log("conetUsdc:", conetUsdc ?? "(未配置)");
   console.log("AccountRegistry:", accountRegistry ?? "(未配置)");
+  console.log("GuardianNodesInfoV6:", guardianNodesInfoV6 ?? "(未配置)");
+  console.log("AddressPGP:", addressPGP ?? "(未配置)");
+  console.log("LayerMinusNodeRestart_V2:", layerMinusNodeRestartV2 ?? "(未配置)");
+  console.log("ConetGB1155:", conetGB1155 ?? "(未配置)");
+  console.log("ConetGB_total:", conetGBTotal ?? "(未配置)");
+  console.log("ConetGB_userTotal:", conetGBUserTotal ?? "(未配置)");
+  console.log("EpochMiningInfo:", epochMiningInfo ?? "(未配置)");
 
   // 0. CoNET AccountRegistry（见 deployments/conet-FullAccountAndUserCard.json 的 contracts.accountRegistry，非 beamioAccount）
   if (accountRegistry) {
@@ -263,6 +327,126 @@ function main() {
       fs.writeFileSync(envExamplePath, content);
       console.log("[8b] 已更新 CoNET-SI env.example CONET_TREASURY_ADDRESS");
     }
+  }
+
+  // 8c. CoNET-SI Guardian / AddressPGP / LayerMinus + x402sdk Guardian + API server Guardian
+  const rootDir = path.join(__dirname, "..");
+  if (guardianNodesInfoV6) {
+    const patchGuardian = (content: string) => {
+      let c = content;
+      c = patchConstSingleQuoted(c, "GuardianNodeInfo_mainnet", guardianNodesInfoV6, { toLowerCase: true });
+      c = patchConstSingleQuoted(c, "GuardianNodeInfo_mainnet", guardianNodesInfoV6);
+      return c;
+    };
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "src", "util", "util.ts"),
+      patchGuardian,
+      "[8c] 已更新 CoNET-SI util.ts GuardianNodeInfo_mainnet"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "src", "util", "localNodeCommand.ts"),
+      patchGuardian,
+      "[8c] 已更新 CoNET-SI localNodeCommand.ts GuardianNodeInfo_mainnet"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "x402sdk", "src", "util.ts"),
+      patchGuardian,
+      "[8c] 已更新 x402sdk util.ts GuardianNodeInfo_mainnet"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "scripts", "API server", "util.ts"),
+      patchGuardian,
+      "[8c] 已更新 scripts/API server/util.ts GuardianNodeInfo_mainnet"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "scripts", "check-getAllNodes.mjs"),
+      (c) => patchConstSingleQuoted(c, "CONTRACT", guardianNodesInfoV6),
+      "[8c] 已更新 CoNET-SI scripts/check-getAllNodes.mjs CONTRACT"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-DL", "src", "util", "layerMinusClientV2.ts"),
+      patchGuardian,
+      "[8c] 已更新 CoNET-DL layerMinusClientV2.ts GuardianNodeInfo_mainnet"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-DL", "src", "endpoint", "serverV4forMinerTotal.ts"),
+      patchGuardian,
+      "[8c] 已更新 CoNET-DL serverV4forMinerTotal.ts GuardianNodeInfo_mainnet"
+    );
+  }
+  if (addressPGP) {
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "src", "util", "util.ts"),
+      (c) => patchConstSingleQuoted(c, "conet_PGP_address", addressPGP),
+      "[8d] 已更新 CoNET-SI util.ts conet_PGP_address"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "x402sdk", "src", "db.ts"),
+      (c) => patchConstSingleQuoted(c, "addressPGP", addressPGP),
+      "[8d] 已更新 x402sdk db.ts addressPGP"
+    );
+  }
+  if (layerMinusNodeRestartV2) {
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "src", "util", "localNodeCommand.ts"),
+      (c) => patchConstSingleQuoted(c, "nodeRestartEvent_addr", layerMinusNodeRestartV2),
+      "[8e] 已更新 CoNET-SI localNodeCommand.ts nodeRestartEvent_addr"
+    );
+  }
+
+  // 8f. ConetGB1155 / gbTotal / gbUserTotal（CoNET-DL 挖矿统计 + b-unit 子合约指针）
+  if (conetGB1155) {
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-DL", "src", "endpoint", "serverV4forMinerTotal.ts"),
+      (c) => patchConstSingleQuoted(c, "eGB_addr", conetGB1155),
+      "[8f] 已更新 CoNET-DL serverV4forMinerTotal.ts eGB_addr"
+    );
+    for (const rel of ["src/b-unit/gbTotal.sol", "src/b-unit/gbUserTotal.sol"]) {
+      patchFileIfChanged(
+        path.join(rootDir, rel),
+        (c) => patchConetGB1155PointerInSol(c, conetGB1155),
+        `[8f] 已更新 ${rel} ConetGB1155 指针`
+      );
+    }
+    const dashboardContractsPath = path.join(rootDir, "src", "Dashboard", "src", "utils", "contracts.ts");
+    patchFileIfChanged(
+      dashboardContractsPath,
+      (c) => patchDashboardContractsGbEntry(c, "CoNET_GB", conetGB1155),
+      "[8f] 已更新 Dashboard contracts.ts CoNET_GB"
+    );
+  }
+  if (conetGBTotal) {
+    const dashboardContractsPath = path.join(rootDir, "src", "Dashboard", "src", "utils", "contracts.ts");
+    patchFileIfChanged(
+      dashboardContractsPath,
+      (c) => patchDashboardContractsGbEntry(c, "CoNET_GBTotal", conetGBTotal),
+      "[8f] 已更新 Dashboard contracts.ts CoNET_GBTotal"
+    );
+    console.log("[8f] ConetGB_total 部署地址:", conetGBTotal);
+  }
+  if (conetGBUserTotal) {
+    console.log("[8f] ConetGB_userTotal 部署地址:", conetGBUserTotal, "（Dashboard 未引用）");
+  }
+
+  // 8g. epoch_mining_info（CoNET-DL / CoNET-SI / Dashboard 挖矿 epoch 统计）
+  if (epochMiningInfo) {
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-DL", "src", "endpoint", "serverV4forMinerTotal.ts"),
+      (c) => patchConstSingleQuoted(c, "epoch_mining_info_mainnet_addr", epochMiningInfo),
+      "[8g] 已更新 CoNET-DL serverV4forMinerTotal.ts epoch_mining_info_mainnet_addr"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-SI", "src", "util", "localNodeCommand.ts"),
+      (c) =>
+        patchConstSingleQuoted(c, "epoch_mining_info_cancun_addr", epochMiningInfo, { toLocaleLowerCase: true }),
+      "[8g] 已更新 CoNET-SI localNodeCommand.ts epoch_mining_info_cancun_addr"
+    );
+    patchFileIfChanged(
+      path.join(rootDir, "src", "Dashboard", "src", "services", "passportPurchase.ts"),
+      (c) =>
+        patchConstSingleQuoted(c, "epoch_mining_info_cancun_addr", epochMiningInfo, { toLocaleLowerCase: true }),
+      "[8g] 已更新 Dashboard passportPurchase.ts epoch_mining_info_cancun_addr"
+    );
   }
 
   // 9. BUnitAirdrop 回退地址（scripts）
