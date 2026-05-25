@@ -82,7 +82,7 @@ async function main() {
   mergeConetAddresses(address, deployer.address, txHash);
 
   console.log("\nExplorer: https://mainnet.conet.network/address/" + address);
-  console.log("CoNET-SI: 将 localNodeCommand.ts 中 nodeRestartEvent_addr 更新为上述地址后可读取 restartBlockNumber。");
+  console.log("CoNET-SI: updateConetReferences.ts 会同步 localNodeCommand.ts 中 nodeRestartEvent_addr。");
 }
 
 main().catch((e) => {

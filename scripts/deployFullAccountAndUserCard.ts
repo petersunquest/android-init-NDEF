@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
-import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries, BEAMIO_USER_CARD_LIBRARY_NAMES } from "./beamioUserCardLibraries.js";
 import { execSync } from "child_process";
 import { getAddress } from "ethers";
 
@@ -273,13 +273,10 @@ async function main() {
   const USER_CARD_CURRENCY = parseInt(process.env.USER_CARD_CURRENCY || "4"); // 4 = USDC
   const USER_CARD_PRICE = process.env.USER_CARD_PRICE || "1000000"; // pointsUnitPriceInCurrencyE6，1 USDC = 1e6
   const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
-  const userCardLibs = {
-    BeamioUserCardFormattingLib: cardLibs.BeamioUserCardFormattingLib,
-    BeamioUserCardTransferLib: cardLibs.BeamioUserCardTransferLib,
-  };
-  console.log("  BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
-  console.log("  BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(userCardLibs));
+  for (const name of BEAMIO_USER_CARD_LIBRARY_NAMES) {
+    console.log(`  ${name}:`, cardLibs[name]);
+  }
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
   const userCard = await BeamioUserCardFactory.deploy(
     USER_CARD_URI,
     USER_CARD_CURRENCY,
@@ -339,25 +336,45 @@ async function main() {
     }
   }
   fs.writeFileSync(outFile, JSON.stringify(out, null, 2));
-  const configDir = path.join(__dirname, "..", "config");
-  const baseJsonPath = path.join(configDir, "base-addresses.json");
-  let baseJson: Record<string, unknown> = {};
-  if (fs.existsSync(baseJsonPath)) {
-    baseJson = JSON.parse(fs.readFileSync(baseJsonPath, "utf-8"));
+  if (chainId === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    let ca: Record<string, unknown> = {};
+    if (fs.existsSync(conetAddrPath)) {
+      ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+    }
+    ca.AA_FACTORY = getAddress(aaFactoryAddress);
+    ca.CARD_FACTORY = getAddress(userCardFactoryAddress);
+    ca.BEAMIO_USER_CARD_DEFAULT = getAddress(userCardAddress);
+    ca.beamioAccountDeployer = getAddress(accountDeployerAddress);
+    ca.beamioAccount = getAddress(beamioAccountAddress);
+    ca.beamioContainerModule = getAddress(containerModuleAddress);
+    ca.redeemModule = getAddress(redeemModuleAddress);
+    ca.beamioUserCardDeployer = getAddress(userCardDeployerAddress);
+    fs.writeFileSync(conetAddrPath, JSON.stringify(ca, null, 2), "utf-8");
+    console.log("✅ 已更新 deployments/conet-addresses.json（AA_FACTORY / CARD_FACTORY / BEAMIO_USER_CARD_DEFAULT 等）");
+  } else {
+    const configDir = path.join(__dirname, "..", "config");
+    const baseJsonPath = path.join(configDir, "base-addresses.json");
+    let baseJson: Record<string, unknown> = {};
+    if (fs.existsSync(baseJsonPath)) {
+      baseJson = JSON.parse(fs.readFileSync(baseJsonPath, "utf-8"));
+    }
+    baseJson.AA_FACTORY = getAddress(aaFactoryAddress);
+    baseJson.CARD_FACTORY = getAddress(userCardFactoryAddress);
+    baseJson.BEAMIO_USER_CARD_ASSET_ADDRESS = getAddress(userCardAddress);
+    baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
+    baseJson.USDC_BASE = USDC_ADDRESS;
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(baseJsonPath, JSON.stringify(baseJson, null, 2), "utf-8");
+    console.log("✅ 已更新 config/base-addresses.json（AA_FACTORY / CARD_FACTORY / BEAMIO_USER_CARD_ASSET_ADDRESS 等）");
   }
-  baseJson.AA_FACTORY = getAddress(aaFactoryAddress);
-  baseJson.CARD_FACTORY = getAddress(userCardFactoryAddress);
-  baseJson.BEAMIO_USER_CARD_ASSET_ADDRESS = getAddress(userCardAddress);
-  baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
-  baseJson.USDC_BASE = USDC_ADDRESS;
-  fs.mkdirSync(configDir, { recursive: true });
-  fs.writeFileSync(baseJsonPath, JSON.stringify(baseJson, null, 2), "utf-8");
-  console.log("✅ 已更新 config/base-addresses.json（AA_FACTORY / CARD_FACTORY / BEAMIO_USER_CARD_ASSET_ADDRESS 等）");
   try {
-    execSync("node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs", {
-      cwd: path.join(__dirname, ".."),
-      stdio: "inherit",
-    });
+    if (chainId !== 224422) {
+      execSync("node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs", {
+        cwd: path.join(__dirname, ".."),
+        stdio: "inherit",
+      });
+    }
   } catch {
     console.warn("⚠️  同步 x402sdk chainAddresses 失败，请手动: npm run sync:base-aa-to-x402sdk-chain");
   }

@@ -9,7 +9,11 @@
 | Geth 当前 enode | `./dependencies/go-ethereum/build/bin/geth attach --exec "admin.nodeInfo.enode" "ipc:…/execution/geth.ipc"`，将 `@127.0.0.1` 或旧 IP 换为**公网 IP:端口**再写入对端。 |
 | Beacon 当前 P2P | `grep "Node started p2p" network/node-*/logs/beacon.log \| tail -1`，取行内 **multiAddr** 整段作为 Prysm `--peer=…`。 |
 
-**网络**：`networkid=224422`，与 `config.yml` 中 `chain-id=224422` 一致。  
+**网络**：`networkid=224422`，与 `config.yml` 中 `chain-id=224422` 一致。
+
+**只读旧链归档 RPC**（重 genesis 前状态，供迁移脚本 `eth_call` 只读，**非**线上写 RPC）：  
+`http://38.102.126.58:8880` — 详见 `scripts/README-conet-contract-migration.md`「双 RPC 架构」。
+
 **共识 bootnode（Geth 常用 Bootstrap，与 Static 并存时以你方部署为准）**  
 `enode://7ab828019e77f8ad89302b7a70096626cb7185bc992e96744349593787385f448713194f19a81a31f85b2e222cbe8c8165a5aa36a40cc87e90c06ae7598fd9b7@38.102.126.58:0?discport=30301`
 

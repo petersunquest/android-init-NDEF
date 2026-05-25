@@ -6,7 +6,7 @@ import { ethers } from "ethers";
 
 const BASE_RPC = process.env.BASE_RPC_URL || "https://base-rpc.conet.network";
 const CONET_RPC = process.env.CONET_RPC || "https://rpc1.conet.network";
-const ACCOUNT_REGISTRY = "0x4afaca09cf8307070a83836223Ae129073eC92e5";
+const ACCOUNT_REGISTRY = "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba";
 const CARD_FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 
 const CARD_ADDRESS = process.env.CARD || "0xf99018DfFdb0c5657C93ca14DB2900CEbe1168A7";

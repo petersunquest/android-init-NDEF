@@ -17,6 +17,7 @@
  *   GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID  若设置则必须与源 RPC chainId 一致，否则退出
  *   GUARDIAN_MIGRATE_DEST        目标合约；默认读 deployments/conet-GuardianNodesInfoV6.json
  *   GUARDIAN_MIGRATE_DUMP_PATH   若设置：拉取完成后将有效节点 JSON 写入该路径（DRY_RUN 或非 DRY_RUN 均可）
+ *   GUARDIAN_MIGRATE_DUMP_INPUT  若设置：从 JSON dump 读取节点（链上源不可用时的离线恢复），跳过源 RPC 拉取
  *   PAGE_SIZE                    分页 getAllNodes 长度，默认 80
  *   DRY_RUN=1                    只拉取并打印，不发交易
  *   TX_DELAY_MS                  两笔交易间隔毫秒，默认 0
@@ -91,15 +92,60 @@ async function fetchAllNodes(
   return out;
 }
 
+type DumpRow = {
+  id: string | number;
+  ip_addr: string;
+  regionName?: string;
+  owner: string;
+  PGP: string;
+  PGPKey: string;
+};
+
+function loadRowsFromDump(dumpPath: string): {
+  id: bigint;
+  PGP: string;
+  PGPKey: string;
+  ip_addr: string;
+  regionName: string;
+  owner: string;
+}[] {
+  const raw = JSON.parse(fs.readFileSync(dumpPath, "utf-8")) as DumpRow[];
+  if (!Array.isArray(raw)) throw new Error(`GUARDIAN_MIGRATE_DUMP_INPUT 须为 JSON 数组: ${dumpPath}`);
+  const rows: {
+    id: bigint;
+    PGP: string;
+    PGPKey: string;
+    ip_addr: string;
+    regionName: string;
+    owner: string;
+  }[] = [];
+  for (const r of raw) {
+    const ip_addr = String(r.ip_addr ?? "").trim();
+    if (!ip_addr) continue;
+    const owner = String(r.owner ?? "").trim();
+    if (!owner || owner.toLowerCase() === "0x0000000000000000000000000000000000000000") continue;
+    rows.push({
+      id: BigInt(String(r.id)),
+      PGP: String(r.PGP ?? ""),
+      PGPKey: String(r.PGPKey ?? ""),
+      ip_addr,
+      regionName: String(r.regionName ?? ""),
+      owner,
+    });
+  }
+  return rows;
+}
+
 async function main() {
   const dry = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
   const pageSize = Math.max(1, parseInt(process.env.PAGE_SIZE || "80", 10) || 80);
   const txDelay = Math.max(0, parseInt(process.env.TX_DELAY_MS || "0", 10) || 0);
 
   const sourceAddr = (process.env.GUARDIAN_MIGRATE_SOURCE || "").trim();
-  if (!sourceAddr) {
+  const dumpInput = (process.env.GUARDIAN_MIGRATE_DUMP_INPUT || "").trim();
+  if (!sourceAddr && !dumpInput) {
     throw new Error(
-      "请设置 GUARDIAN_MIGRATE_SOURCE 为源 RPC（默认 rpc1）上的 GuardianNodesInfoV6 地址。"
+      "请设置 GUARDIAN_MIGRATE_SOURCE（源链合约）或 GUARDIAN_MIGRATE_DUMP_INPUT（离线 JSON dump）。"
     );
   }
   const destAddr = (process.env.GUARDIAN_MIGRATE_DEST || loadDestGuardianDefault()).trim();
@@ -109,6 +155,26 @@ async function main() {
   const abi = loadAbi();
   const { ethers } = await hreNetwork.connect();
 
+  let rows: {
+    id: bigint;
+    PGP: string;
+    PGPKey: string;
+    ip_addr: string;
+    regionName: string;
+    owner: string;
+  }[] = [];
+
+  if (dumpInput) {
+    console.log("=".repeat(60));
+    console.log("GuardianNodesInfoV6 迁移: JSON dump → 224422 新合约");
+    console.log("=".repeat(60));
+    console.log("dump:", dumpInput);
+    console.log("目标合约:", destAddr);
+    console.log("DRY_RUN:", dry);
+    console.log();
+    rows = loadRowsFromDump(dumpInput);
+    console.log(`dump 有效节点: ${rows.length}`);
+  } else {
   const sourceRpc = process.env.GUARDIAN_MIGRATE_SOURCE_RPC?.trim() || SOURCE_RPC_DEFAULT;
   const sourceProvider = new ethers.JsonRpcProvider(sourceRpc);
   const srcNet = await sourceProvider.getNetwork();
@@ -136,15 +202,6 @@ async function main() {
   const nodes = await fetchAllNodes(src, pageSize);
   console.log(`源链 getAllNodes 共 ${nodes.length} 条记录`);
 
-  const rows: {
-    id: bigint;
-    PGP: string;
-    PGPKey: string;
-    ip_addr: string;
-    regionName: string;
-    owner: string;
-  }[] = [];
-
   for (const n of nodes) {
     if (!n.ip_addr) {
       console.warn("跳过空 ip:", n);
@@ -162,6 +219,8 @@ async function main() {
   }
 
   console.log(`有效节点（含非零 owner）: ${rows.length}`);
+  }
+
   if (rows.length === 0) {
     console.log("无数据可迁移");
     return;

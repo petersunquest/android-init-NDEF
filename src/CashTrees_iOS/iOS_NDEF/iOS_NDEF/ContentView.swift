@@ -5546,16 +5546,23 @@ private struct POSLedgerDisplayItem: Identifiable, Equatable {
     let tx: PosLedgerItem
     let tips: [PosLedgerItem]
     let embeddedTip: POSTransactionTipAmount?
+    let topupMergedTotal: POSTransactionTipAmount?
+    let topupBonus: POSTransactionTipAmount?
+    let topupLatestTimestamp: Int64?
 
     var id: String { tx.id }
+    var sortTimestamp: Int64 { topupLatestTimestamp ?? tx.timestamp }
 
     static func merged(from rawItems: [PosLedgerItem]) -> [POSLedgerDisplayItem] {
-        let visibleItems = rawItems.filter { !isHiddenInternalLedgerCategory($0.txCategory) }
-        let tips = visibleItems.filter { $0.type == .tip }
+        let visibleItems = mergeTopupRechargeBonusRows(
+            rawItems.filter { !isHiddenInternalLedgerCategory($0.txCategory) }
+        )
+        let tips = visibleItems.map(\.tx).filter { $0.type == .tip }
         var absorbedTipIds = Set<String>()
         var out: [POSLedgerDisplayItem] = []
 
-        for tx in visibleItems where tx.type != .tip {
+        for base in visibleItems where base.tx.type != .tip {
+            let tx = base.tx
             let matchedTips: [PosLedgerItem]
             if tx.type == .charge {
                 matchedTips = tips.filter { tipRowMatchesChargeParent(tip: $0, charge: tx) }
@@ -5566,20 +5573,118 @@ private struct POSLedgerDisplayItem: Identifiable, Equatable {
             out.append(POSLedgerDisplayItem(
                 tx: tx,
                 tips: matchedTips,
-                embeddedTip: tx.type == .charge && matchedTips.isEmpty ? parseEmbeddedTip(from: tx) : nil
+                embeddedTip: tx.type == .charge && matchedTips.isEmpty ? parseEmbeddedTip(from: tx) : nil,
+                topupMergedTotal: base.topupMergedTotal,
+                topupBonus: base.topupBonus,
+                topupLatestTimestamp: base.topupLatestTimestamp
             ))
         }
 
         // Keep unmatched tip rows visible rather than dropping ledger facts; matched tips never render standalone.
         for tip in tips where !absorbedTipIds.contains(tip.id.lowercased()) {
-            out.append(POSLedgerDisplayItem(tx: tip, tips: [], embeddedTip: nil))
+            out.append(POSLedgerDisplayItem(tx: tip, tips: [], embeddedTip: nil, topupMergedTotal: nil, topupBonus: nil, topupLatestTimestamp: nil))
         }
 
         out.sort {
-            if $0.tx.timestamp != $1.tx.timestamp { return $0.tx.timestamp > $1.tx.timestamp }
+            if $0.sortTimestamp != $1.sortTimestamp { return $0.sortTimestamp > $1.sortTimestamp }
             return $0.tx.id > $1.tx.id
         }
         return out
+    }
+
+    private static func mergeTopupRechargeBonusRows(_ items: [PosLedgerItem]) -> [POSLedgerDisplayItem] {
+        let topups = items.filter { $0.type == .topUp }
+        var groups: [String: [PosLedgerItem]] = [:]
+        for tx in topups {
+            guard let key = topupFinishedHash(tx), key != tx.id.lowercased() else { continue }
+            groups[key, default: []].append(tx)
+        }
+        var replacement: [String: POSLedgerDisplayItem] = [:]
+        var suppressed = Set<String>()
+        for group in groups.values where group.count >= 2 {
+            let bonusRows = group.filter { topupPaymentLeg($0) == "bonus" }
+            guard !bonusRows.isEmpty, let primary = group.first(where: { topupPaymentLeg($0) != "bonus" }) else { continue }
+            let note = group.compactMap(parseTopupRechargeBonusNote).first
+            let currency = preferredDisplayAmount(primary).currencyCode
+            let bonusValue = note?.bonus ?? bonusRows.reduce(0.0) { $0 + preferredDisplayAmount($1).value }
+            guard bonusValue > 0.000_001 else { continue }
+            let actualValue = note?.actual ?? preferredDisplayAmount(primary).value
+            let total = actualValue + bonusValue
+            replacement[primary.id.lowercased()] = POSLedgerDisplayItem(
+                tx: primary,
+                tips: [],
+                embeddedTip: nil,
+                topupMergedTotal: POSTransactionTipAmount(value: total, currencyCode: currency),
+                topupBonus: POSTransactionTipAmount(value: bonusValue, currencyCode: currency),
+                topupLatestTimestamp: group.map(\.timestamp).max()
+            )
+            for row in bonusRows where row.id.lowercased() != primary.id.lowercased() {
+                suppressed.insert(row.id.lowercased())
+            }
+        }
+        if replacement.isEmpty && suppressed.isEmpty {
+            return items.map {
+                POSLedgerDisplayItem(tx: $0, tips: [], embeddedTip: nil, topupMergedTotal: nil, topupBonus: nil, topupLatestTimestamp: nil)
+            }
+        }
+        return items.compactMap { tx in
+            let key = tx.id.lowercased()
+            if suppressed.contains(key) { return nil }
+            return replacement[key] ?? POSLedgerDisplayItem(tx: tx, tips: [], embeddedTip: nil, topupMergedTotal: nil, topupBonus: nil, topupLatestTimestamp: nil)
+        }
+    }
+
+    private static func topupFinishedHash(_ tx: PosLedgerItem) -> String? {
+        displayJsonHashes(tx.displayJson, keys: ["finishedHash", "baseRelayTxHash"]).first.flatMap(normalizeBytes32HexLower)
+    }
+
+    private static func topupPaymentLeg(_ tx: PosLedgerItem) -> String {
+        guard
+            let data = tx.displayJson.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return "" }
+        return (obj["topupPaymentLeg"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+    }
+
+    private static func parseTopupRechargeBonusNote(_ tx: PosLedgerItem) -> (actual: Double, bonus: Double)? {
+        guard
+            let note = tx.note?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !note.isEmpty,
+            let data = note.data(using: .utf8),
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        let actual6 = Double(String(describing: obj["actualPaymentCurrencyFiat6"] ?? "0")) ?? 0
+        let bonus6 = Double(String(describing: obj["rechargeBonusCurrencyFiat6"] ?? "0")) ?? 0
+        guard actual6 >= 0, bonus6 > 0 else { return nil }
+        return (actual6 / 1_000_000, bonus6 / 1_000_000)
+    }
+
+    private static func preferredDisplayAmount(_ tx: PosLedgerItem) -> POSTransactionTipAmount {
+        let fiat6 = Double(tx.amountFiat6) ?? 0
+        let usd6 = Double(tx.amountUSDC6) ?? 0
+        if fiat6 > 0 {
+            return POSTransactionTipAmount(
+                value: fiat6 / 1_000_000,
+                currencyCode: beamioCurrencyCodeForCurrencyFiat(tx.currencyFiat)
+            )
+        }
+        return POSTransactionTipAmount(value: usd6 / 1_000_000, currencyCode: "USDC")
+    }
+
+    private static func beamioCurrencyCodeForCurrencyFiat(_ id: Int) -> String {
+        switch id {
+        case 1: return "USD"
+        case 2: return "JPY"
+        case 3: return "CNY"
+        case 4: return "USDC"
+        case 5: return "HKD"
+        case 6: return "EUR"
+        case 7: return "SGD"
+        case 8: return "TWD"
+        default: return "CAD"
+        }
     }
 
     private static func isHiddenInternalLedgerCategory(_ raw: String) -> Bool {
@@ -5697,6 +5802,16 @@ private struct POSTransactionRowView: View {
                 Text(amountLine)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(amountTint)
+                if let topupBonusLine {
+                    HStack(spacing: 3) {
+                        Text("Incl")
+                        Image(systemName: "gift.fill")
+                            .font(.system(size: 8, weight: .bold))
+                        Text(topupBonusLine)
+                    }
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.orange)
+                }
                 if let tipLine {
                     Text(tipLine)
                         .font(.system(size: 10))
@@ -5741,11 +5856,17 @@ private struct POSTransactionRowView: View {
     /// for Charge rows include any merged tip that is denominated in the same currency.
     /// `currencyFiat == 4` (USDC) renders with the trailing " USDC" suffix.
     private var amountLine: String {
-        let base = preferredDisplayAmount(tx)
+        let base = item.topupMergedTotal ?? preferredDisplayAmount(tx)
         let total = base.value + tipTotal(in: base.currencyCode)
         let parts = readBalanceFormatMoney(total, currency: base.currencyCode)
         let sign = tx.type == .topUp ? "+" : "−"
         return "\(sign)\(parts.prefix)\(parts.mid)\(parts.suffix)"
+    }
+
+    private var topupBonusLine: String? {
+        guard tx.type == .topUp, let bonus = item.topupBonus, bonus.value > 0.000_001 else { return nil }
+        let parts = readBalanceFormatMoney(bonus.value, currency: bonus.currencyCode)
+        return "+\(parts.prefix)\(parts.mid)\(parts.suffix)"
     }
 
     private var tipLine: String? {
@@ -6776,14 +6897,12 @@ private enum TopupPaymentMethodOption: String, CaseIterable, Identifiable {
 private struct TopupAmountPadFullPage: View {
     var topupPolicy: PosTerminalPolicy
     var onCancel: () -> Void
-    /// Method, Activate Bonus expanded, selected bonus %, keypad principal string (same as pad `amount` at confirm).
+    /// Method, manual bonus flag, selected bonus %, keypad principal string (same as pad `amount` at confirm).
     var onContinue: (TopupPaymentMethodOption, Bool, Int, String) -> Void
 
     @AppStorage("pos.topup.lastPaymentMethod")
     private var persistedSelectedMethodRaw: String = TopupPaymentMethodOption.creditCard.rawValue
     @State private var amount = "0"
-    @State private var bonusExpanded = false
-    @State private var selectedBonusRate: Int = 20
 
     /// Same primary as Read Balance “Top-Up Card Now”.
     private let topUpPurple = Color(red: 0x7C / 255, green: 0x3A / 255, blue: 0xED / 255)
@@ -6799,18 +6918,10 @@ private struct TopupAmountPadFullPage: View {
 
     private func setSelectedMethod(_ method: TopupPaymentMethodOption) {
         persistedSelectedMethodRaw = method.rawValue
-        if method == .bonus {
-            bonusExpanded = false
-        }
-    }
-
-    private var bonusWorkflowEnabled: Bool {
-        selectedMethod != .bonus && topupPolicy.allowTopupAirdrop
     }
 
     private var nextSelectedMethod: TopupPaymentMethodOption {
-        let pool: [TopupPaymentMethodOption] =
-            bonusExpanded ? allowedMethods.filter { $0 != .bonus } : allowedMethods
+        let pool = allowedMethods
         guard !pool.isEmpty else { return selectedMethod }
         let idx = pool.firstIndex(of: selectedMethod) ?? 0
         return pool[(idx + 1) % pool.count]
@@ -6844,11 +6955,6 @@ private struct TopupAmountPadFullPage: View {
                             .padding(.horizontal, sidePad + 4)
                             .padding(.top, 6)
                     }
-                    if bonusWorkflowEnabled {
-                        bonusSection(compact: compact)
-                            .padding(.horizontal, sidePad)
-                            .padding(.top, bonusOuterGap)
-                    }
                     BeamioNumericAmountPadKeypad(amount: $amount, compact: compact)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding(.horizontal, sidePad)
@@ -6870,7 +6976,6 @@ private struct TopupAmountPadFullPage: View {
         .onChange(of: topupPolicy) { _, _ in
             if !allowedMethods.isEmpty, !selectedMethod.allowed(by: topupPolicy) {
                 setSelectedMethod(allowedMethods[0])
-                bonusExpanded = false
             }
         }
     }
@@ -6879,182 +6984,8 @@ private struct TopupAmountPadFullPage: View {
         Double(amount) ?? 0
     }
 
-    private var selectedBonusFraction: Double {
-        Double(selectedBonusRate) / 100.0
-    }
-
-    private var totalBonusValue: Double {
-        parsedAmountValue * selectedBonusFraction
-    }
-
-    private var totalWithBonusValue: Double {
-        parsedAmountValue + totalBonusValue
-    }
-
     private var amountDisplayAccentColor: Color {
         selectedMethod == .bonus ? bonusPink : topUpPurple
-    }
-
-    private func bonusSection(compact: Bool) -> some View {
-        ZStack(alignment: .topLeading) {
-            if !bonusExpanded {
-                collapsedBonusPanel(compact: compact)
-                    .transition(bonusPanelSlideTransition)
-                    .zIndex(0)
-            }
-            if bonusExpanded {
-                expandedBonusPanels(compact: compact)
-                    .transition(bonusPanelSlideTransition)
-                    .zIndex(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .clipped()
-        .animation(.easeInOut(duration: 0.28), value: bonusExpanded)
-    }
-
-    private var bonusPanelSlideTransition: AnyTransition {
-        .asymmetric(
-            insertion: .move(edge: .trailing).combined(with: .opacity),
-            removal: .move(edge: .leading).combined(with: .opacity)
-        )
-    }
-
-    private func expandedBonusPanels(compact: Bool) -> some View {
-        VStack(spacing: compact ? 8 : 10) {
-            bonusRatePickerPanel(compact: compact)
-            bonusBreakdownPanel(compact: compact)
-        }
-    }
-
-    private func toggleBonusExpanded(_ expanded: Bool) {
-        withAnimation(.easeInOut(duration: 0.28)) {
-            bonusExpanded = expanded
-        }
-    }
-
-    private func collapsedBonusPanel(compact: Bool) -> some View {
-        Button {
-            BeamioHaptic.light()
-            toggleBonusExpanded(true)
-        } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Activate Bonus")
-                        .font(.system(size: compact ? 15 : 16, weight: .semibold))
-                        .foregroundStyle(readBalanceDetailsOnSurface)
-                    Text("Get extra credits on your deposit")
-                        .font(.system(size: compact ? 12 : 13, weight: .medium))
-                        .foregroundStyle(readBalanceDetailsOutline)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: 0)
-                ZStack(alignment: .leading) {
-                    Capsule(style: .continuous)
-                        .fill(readBalanceDetailsOutline.opacity(0.28))
-                        .frame(width: compact ? 48 : 54, height: compact ? 28 : 32)
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: compact ? 22 : 26, height: compact ? 22 : 26)
-                        .padding(.leading, 3)
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, compact ? 14 : 16)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(readBalanceDetailsSurfaceContainerLowest)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.black.opacity(0.04), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Activate bonus")
-    }
-
-    private func bonusRatePickerPanel(compact: Bool) -> some View {
-        let buttonHeight: CGFloat = compact ? 34 : 36
-        return HStack(spacing: compact ? 6 : 8) {
-            ForEach([10, 20, 30], id: \.self) { rate in
-                let selected = selectedBonusRate == rate
-                Button {
-                    BeamioHaptic.light()
-                    selectedBonusRate = rate
-                } label: {
-                    Text("\(rate)%")
-                        .font(.system(size: compact ? 14 : 15, weight: .semibold))
-                        .foregroundStyle(selected ? Color.white : readBalanceDetailsOnSurface)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: buttonHeight)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(selected ? bonusPink : readBalanceDetailsSurfaceContainerLow)
-                        )
-                }
-                .buttonStyle(.plain)
-            }
-
-            Button {
-                BeamioHaptic.light()
-                toggleBonusExpanded(false)
-            } label: {
-                ZStack(alignment: .trailing) {
-                    Capsule(style: .continuous)
-                        .fill(topUpPurple)
-                        .frame(width: compact ? 38 : 42, height: compact ? 22 : 24)
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: compact ? 16 : 18, height: compact ? 16 : 18)
-                        .padding(.trailing, 3)
-                }
-                .frame(maxWidth: .infinity, minHeight: buttonHeight, maxHeight: buttonHeight)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Turn off bonus")
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 0)
-    }
-
-    private func bonusBreakdownPanel(compact: Bool) -> some View {
-        VStack(spacing: compact ? 6 : 8) {
-            bonusBreakdownRow(
-                label: "Total Bonus",
-                value: topupSummaryAmountString(totalBonusValue),
-                highlight: true,
-                compact: compact
-            )
-        }
-        .padding(.horizontal, compact ? 14 : 16)
-        .padding(.vertical, compact ? 8 : 10)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(readBalanceDetailsSurfaceContainerLowest)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.black.opacity(0.04), lineWidth: 1)
-        )
-    }
-
-    private func bonusBreakdownRow(label: String, value: String, highlight: Bool, compact: Bool) -> some View {
-        HStack(alignment: .lastTextBaseline) {
-            Text(label)
-                .font(.system(size: compact ? 12 : 13, weight: .medium))
-                .foregroundStyle(readBalanceDetailsOnSurface.opacity(0.8))
-            Spacer(minLength: 0)
-            Text(value)
-                .font(.system(size: compact ? 15 : 16, weight: .semibold, design: .monospaced))
-                .foregroundStyle(highlight ? bonusPink : readBalanceDetailsOnSurface)
-        }
-    }
-
-    private func topupSummaryAmountString(_ value: Double) -> String {
-        "$\(formatUsdAmountScanOverlay(value))"
     }
 
     private func amountWell(compact: Bool, amtDollar: CGFloat, amtMain: CGFloat, methodIconSize: CGFloat) -> some View {
@@ -7070,18 +7001,6 @@ private struct TopupAmountPadFullPage: View {
                         .foregroundStyle(amountDisplayAccentColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.35)
-                }
-                if bonusExpanded {
-                    HStack(alignment: .lastTextBaseline, spacing: 8) {
-                        Text("New Balance")
-                            .font(.system(size: compact ? 12 : 13, weight: .semibold))
-                            .foregroundStyle(readBalanceDetailsOnSurface.opacity(0.82))
-                        Text(topupSummaryAmountString(totalWithBonusValue))
-                            .font(.system(size: compact ? 14 : 15, weight: .bold, design: .monospaced))
-                            .foregroundStyle(topUpPurple)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -7140,10 +7059,10 @@ private struct TopupAmountPadFullPage: View {
             guard BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
                 keypadAmount: amount,
                 methodRaw: selectedMethod.rawValue,
-                bonusExpanded: bonusExpanded,
-                selectedBonusRate: selectedBonusRate
+                bonusExpanded: false,
+                selectedBonusRate: 20
             ) != nil else { return }
-            onContinue(selectedMethod, bonusExpanded, selectedBonusRate, amount)
+            onContinue(selectedMethod, false, 20, amount)
         } label: {
             Text("Confirm Top-Up")
                 .font(.system(size: compact ? 17 : 18, weight: .semibold))

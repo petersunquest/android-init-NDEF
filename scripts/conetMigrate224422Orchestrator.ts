@@ -13,6 +13,7 @@
  *
  * 部署后请执行:
  *   npx tsx scripts/updateConetReferences.ts
+ *   （Guardian / AddressPGP / LayerMinus 等见 scripts/README-conet-contract-migration.md）
  * 并把 BUnitAirdrop 链上 setBeamioIndexerDiamond / setQuoteHelper 等（若构造函数默认仍为 0 地址）。
  */
 
@@ -69,7 +70,9 @@ function main() {
     }
   }
 
-  console.log("\n✅ 顺序完成。请更新 deployments/conet-addresses.json 后运行: npx tsx scripts/updateConetReferences.ts");
+  console.log("\n✅ 顺序完成。请更新 deployments/conet-addresses.json 后运行:");
+  console.log("  npx tsx scripts/updateConetReferences.ts");
+  console.log("详见 scripts/README-conet-contract-migration.md（Guardian/PGP 迁移、服务重启）");
 }
 
 main();

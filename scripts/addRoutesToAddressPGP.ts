@@ -12,7 +12,14 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONET_RPC = "https://rpc1.conet.network";
-const GUARDIAN_NODES = process.env.GUARDIAN_NODES || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
+const GUARDIAN_NODES = process.env.GUARDIAN_NODES || (() => {
+  const p = path.join(__dirname, "..", "deployments", "conet-addresses.json");
+  if (fs.existsSync(p)) {
+    const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { GuardianNodesInfoV6?: string };
+    if (j.GuardianNodesInfoV6) return j.GuardianNodesInfoV6;
+  }
+  return "0x359F781A5eEb17630A44e15Bc2aC57b248b81790";
+})();
 const BATCH_SIZE = 50;
 
 const GuardianNodesABI = [
@@ -40,7 +47,7 @@ function loadAdminPk(): string {
   const masterPath = path.join(process.env.HOME || "", ".master.json");
   if (fs.existsSync(masterPath)) {
     const d = JSON.parse(fs.readFileSync(masterPath, "utf-8"));
-    const admins = d.beamio_Admins || d.settle_contractAdmin || [];
+    const admins = d.settle_contractAdmin || d.beamio_Admins || [];
     if (admins[0]) return admins[0].startsWith("0x") ? admins[0] : `0x${admins[0]}`;
   }
   throw new Error("需设置 ADDRESS_PGP_ADMIN_PK 或 ~/.master.json 中 beamio_Admins/settle_contractAdmin");

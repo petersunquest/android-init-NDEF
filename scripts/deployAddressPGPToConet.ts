@@ -14,7 +14,26 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const GUARDIAN_NODES_INFO_V6 = process.env.GUARDIAN_NODES || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
+const GUARDIAN_NODES_INFO_V6 =
+  process.env.GUARDIAN_NODES ||
+  (() => {
+    const p = path.join(__dirname, "..", "deployments", "conet-GuardianNodesInfoV6.json");
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8")) as {
+        GuardianNodesInfoV6?: string;
+        contracts?: { GuardianNodesInfoV6?: { address?: string } };
+      };
+      const fromContracts = j.contracts?.GuardianNodesInfoV6?.address;
+      if (fromContracts) return fromContracts;
+      if (j.GuardianNodesInfoV6) return j.GuardianNodesInfoV6;
+    }
+    const addrPath = path.join(__dirname, "..", "deployments", "conet-addresses.json");
+    if (fs.existsSync(addrPath)) {
+      const j = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as { GuardianNodesInfoV6?: string };
+      if (j.GuardianNodesInfoV6) return j.GuardianNodesInfoV6;
+    }
+    throw new Error("GuardianNodesInfoV6 未配置：先 deployGuardianNodesInfoV6ToConet 或设置 GUARDIAN_NODES");
+  })();
 
 async function main() {
   const { ethers } = await hreNetwork.connect();
@@ -55,6 +74,13 @@ async function main() {
     AddressPGP: addr,
   };
   fs.writeFileSync(outPath, JSON.stringify(result, null, 2));
+  const conetAddrPath = path.join(deployDir, "conet-addresses.json");
+  if (fs.existsSync(conetAddrPath)) {
+    const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+    ca.AddressPGP = addr;
+    fs.writeFileSync(conetAddrPath, JSON.stringify(ca, null, 2), "utf-8");
+    console.log("updated conet-addresses.json AddressPGP:", addr);
+  }
   console.log("\n部署结果已保存至:", outPath);
   console.log("\n✅ 部署完成!");
   console.log("  AddressPGP 地址:", addr);

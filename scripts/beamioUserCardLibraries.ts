@@ -92,6 +92,14 @@ export async function deployBeamioUserCardLibraries(
   };
 }
 
+/** Libraries linked directly by BeamioUserCard (excludes ReferrerRegistryLib — dependency of ReferrerLib only). */
+export const BEAMIO_USER_CARD_CONTRACT_LIBRARY_NAMES = BEAMIO_USER_CARD_LIBRARY_NAMES.filter(
+  (n) => n !== "ReferrerRegistryLib"
+) as Exclude<(typeof BEAMIO_USER_CARD_LIBRARY_NAMES)[number], "ReferrerRegistryLib">[];
+
 export function beamioUserCardFactoryLibraries(libs: BeamioUserCardLibraryAddresses) {
-  return { libraries: libs };
+  const libraries = Object.fromEntries(
+    BEAMIO_USER_CARD_CONTRACT_LIBRARY_NAMES.map((name) => [name, libs[name]])
+  ) as Omit<BeamioUserCardLibraryAddresses, "ReferrerRegistryLib">;
+  return { libraries };
 }

@@ -144,7 +144,7 @@ final class POSViewModel: ObservableObject {
     @Published var pendingTopupMethodRaw: String = ""
     @Published var pendingTopupBonusExpanded: Bool = false
     @Published var pendingTopupBonusRatePercent: Int = 20
-    /// Digits entered on the amount pad (principal). When Activate Bonus is on, this is the principal; `amountString` is total (principal + bonus).
+    /// Digits entered on the amount pad (principal). Program recharge bonus may turn the API amount into principal + bonus.
     @Published var pendingTopupKeypadAmount: String = ""
     @Published var chargeTipRateBps: Int = 0
 
@@ -226,7 +226,7 @@ final class POSViewModel: ObservableObject {
     /// Charge payment method selected on `ChargeAmountPadRoot` ("nfcCard" / "usdc"). Empty ⇒ default `nfcCard`.
     @Published var pendingChargeMethodRaw: String = ""
 
-    /// After NFC/QR customer identified: total credited (program recharge tier + keypad “Activate Bonus” + bonus-only split), for loading UI.
+    /// After NFC/QR customer identified: total credited (program recharge tier + bonus-only split), for loading UI.
     @Published var topupExecuteDisplayTotal: Double?
     /// Extra credits beyond principal (program `bonusValue` + split `bonusCurrencyAmount`). Shown below total on loading / bottom chrome.
     @Published var topupExecuteDisplayBonus: Double?
@@ -4241,7 +4241,7 @@ final class POSViewModel: ObservableObject {
         return qualifying.max(by: { $0.paymentAmount < $1.paymentAmount })
     }
 
-    /// When keypad principal qualifies for a recharge tier (`>= paymentAmount`), API total = principal + fixed `bonusValue` or proportional `principal * (bonusValue / paymentAmount)` (biz `bonusProportional`). Skips if “Activate Bonus” or Bonus-only method.
+    /// When keypad principal qualifies for a recharge tier (`>= paymentAmount`), API total = principal + fixed `bonusValue` or proportional `principal * (bonusValue / paymentAmount)` (biz `bonusProportional`). Skips manual bonus splits and bonus-only method.
     private func resolveTopupApiAmountAndSplit(keypadAmountString amt: String, methodRaw: String) -> (apiAmount: String, split: NfcTopupCurrencySplit?, programRechargeBonus: Double) {
         let defaultSplit = resolvedNfcTopupCurrencySplit(forApiTotalAmount: amt)
         if methodRaw == "bonus" || pendingTopupBonusExpanded {
@@ -4309,7 +4309,9 @@ final class POSViewModel: ObservableObject {
         let totalFromSplit = Self.parseTopupSplitAmountField(currencySplit?.currencyAmount)
         let apiParsed = Double(apiAmountString.replacingOccurrences(of: ",", with: "")) ?? 0
         let totalDisplay = totalFromSplit > 0 ? totalFromSplit : apiParsed
-        let bonusDisplay = programRechargeBonus + splitBonus
+        // Program recharge bonus is already encoded as `bonusCurrencyAmount` in the split.
+        // Use it as the display source to avoid showing the bonus twice.
+        let bonusDisplay = splitBonus > 1e-9 ? splitBonus : programRechargeBonus
         if totalDisplay > 0 {
             topupExecuteDisplayTotal = totalDisplay
         }

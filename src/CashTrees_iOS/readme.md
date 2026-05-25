@@ -24,6 +24,7 @@ window.addEventListener('cashtreesios', (event) => {
 | `scanQr({ requestId })` | `scanQr` | `text` — raw QR payload (URL, JSON, plain text) |
 | `scanRecoveryQr({ requestId })` | `scanRecoveryQr` | `recoveryCode` — parsed Base62 recovery code |
 | `saveRecoveryQrToPhotos({ dataUrl, filename, requestId })` | `saveRecoveryQrToPhotos` | — |
+| `openURL({ url })` | — (fire-and-forget) | Opens `http`/`https`/`mailto`/`tel` in system browser or handler |
 | NFC bind | (via `cashtreesnfc` event) | — |
 
 ### General QR scan UI
@@ -34,6 +35,29 @@ Both `scanQr` and `scanRecoveryQr` open the same full-screen scanner:
 - Dimmed + lightly blurred surround
 - **Choose Photo or File** stops the camera, then offers Photo Library or Browse Files (no time pressure while picking)
 - **Cancel** returns `error: "cancelled"`
+
+### Example — open external URL (BaseScan, store, mailto, …)
+
+PWA helper (recommended): `openExternalUrl` from `src/SilentPassUI/src/utils/cashTreesNativeNfc.ts`.
+
+```javascript
+import { openExternalUrl } from '@/utils/cashTreesNativeNfc'
+
+// Native shell → Safari / Chrome Custom Tab; browser → window.open
+openExternalUrl('https://basescan.org/address/0x…')
+```
+
+Direct bridge (iOS):
+
+```javascript
+window.CashTreesIOS?.openURL({ url: 'https://basescan.org/address/0x…' })
+```
+
+Direct bridge (Android):
+
+```javascript
+window.CashTreesAndroid?.openURL('https://basescan.org/address/0x…')
+```
 
 ### Example — arbitrary QR text
 

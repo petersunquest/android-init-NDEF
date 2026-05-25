@@ -12,7 +12,7 @@ import * as path from "path";
 import * as fs from "fs";
 
 const CONET_RPC = process.env.CONET_RPC || "https://rpc1.conet.network";
-const ACCOUNT_REGISTRY = "0x4afaca09cf8307070a83836223Ae129073eC92e5";
+const ACCOUNT_REGISTRY = "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba";
 
 const AccountRegistryABI = [
   "function getBase64ByAccountName(string) view returns (string)",

@@ -87,6 +87,14 @@ async function main() {
   };
   fs.writeFileSync(outPath, JSON.stringify(result, null, 2) + "\n", "utf-8");
 
+  const conetAddrPath = path.join(deployDir, "conet-addresses.json");
+  if (fs.existsSync(conetAddrPath)) {
+    const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+    ca.GuardianNodesInfoV6 = addr;
+    fs.writeFileSync(conetAddrPath, JSON.stringify(ca, null, 2), "utf-8");
+    console.log("updated conet-addresses.json GuardianNodesInfoV6:", addr);
+  }
+
   console.log("\n部署结果已保存至:", outPath);
   console.log("\n✅ 部署完成!");
   console.log("  GuardianNodesInfoV6 地址:", addr);

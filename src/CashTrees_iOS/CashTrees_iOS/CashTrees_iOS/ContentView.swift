@@ -411,6 +411,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 action:'scanQr',
                 requestId:payload.requestId||''
               });
+            },
+            openURL:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'openURL',
+                url:payload.url||''
+              });
             }
           };
         })();
@@ -478,9 +485,21 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             }
         case "webContentReady":
             DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }
+        case "openURL":
+            let url = body["url"] as? String
+            DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
         default:
             break
         }
+    }
+
+    /// PWA `CashTreesIOS.openURL({ url })` — open http(s)/mailto/tel in the system browser or handler.
+    private func openExternalURLFromBridge(_ raw: String?) {
+        let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty, let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() else { return }
+        let allowed: Set<String> = ["http", "https", "mailto", "tel"]
+        guard allowed.contains(scheme) else { return }
+        UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }
 
     private func presentGeneralQRScanner(requestId: String?, filter: GeneralQRScanFilter, bridgeAction: String) {

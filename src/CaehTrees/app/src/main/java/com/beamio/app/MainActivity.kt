@@ -474,6 +474,24 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+
+        /** Open http(s)/mailto/tel externally — mirrors iOS `CashTreesIOS.openURL({ url })`. */
+        @JavascriptInterface
+        fun openURL(url: String) {
+            runOnUiThread { openExternalUrlFromBridge(url) }
+        }
+    }
+
+    private fun openExternalUrlFromBridge(raw: String) {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return
+        try {
+            val uri = Uri.parse(trimmed)
+            val scheme = uri.scheme?.lowercase() ?: return
+            if (scheme !in setOf("http", "https", "mailto", "tel")) return
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+        } catch (_: Exception) {
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
