@@ -29,4 +29,8 @@ scripts/.base-sync-state
 # OS
 .DS_Store
 Thumbs.db
+
+# Local scratch / agent temp files (never commit)
+.tmp_*
+
 .cursor
