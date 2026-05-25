@@ -1,0 +1,19 @@
+BeamioUserCardMembershipStatsModuleV1 BaseScan Verification
+
+- Network: Base mainnet
+- Chain ID: 8453
+- Address: 0x9E72B939C0eF46BE556686Fc7e8598E215A66b25
+- Contract Name: project/src/BeamioUserCard/MembershipStatsModule.sol:BeamioUserCardMembershipStatsModuleV1
+- Standard JSON: deployments/base-MembershipStatsModule-standard-input-FULL.json
+- Constructor Arguments: none
+
+Factory binding:
+
+- Factory: 0xF2864210577359AcaE448D2B116031a0c5EE1016
+- defaultMembershipStatsModule: 0x9E72B939C0eF46BE556686Fc7e8598E215A66b25
+- defaultModule(4): 0x9E72B939C0eF46BE556686Fc7e8598E215A66b25
+
+Build notes:
+
+- Exported from full Hardhat build-info input because the project compiles with viaIR.
+- Run before export: npm run clean && npm run compile

@@ -4224,6 +4224,12 @@ final class POSViewModel: ObservableObject {
         return Double(base) ?? 0
     }
 
+    private func topupKeypadPrincipalAmountString(from amountStringVal: String) -> String {
+        let normalizedAmt = amountStringVal.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        let keypadStored = pendingTopupKeypadAmount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        return keypadStored.isEmpty ? normalizedAmt : keypadStored
+    }
+
     /// When `paymentPrincipal` is **≥** a rule’s `paymentAmount`, that tier qualifies; if several qualify, use the one with the **largest** `paymentAmount` (best tier). Same `bonusValue` is added to **actual** principal sent to the API.
     private func selectProgramRechargeBonusRule(forPaymentPrincipal paymentPrincipal: Double) -> BeamioRechargeBonusRule? {
         guard paymentPrincipal > 0, !programRechargeBonusRules.isEmpty else { return nil }
@@ -4261,12 +4267,19 @@ final class POSViewModel: ObservableObject {
             return (amt, defaultSplit, 0)
         }
         let api = String(format: "%.2f", (total * 100).rounded() / 100)
-        let split = BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
-            keypadAmount: api,
-            methodRaw: methodRaw,
-            bonusExpanded: false,
-            selectedBonusRate: 0
-        ) ?? BeamioAPIClient.nfcTopupCurrencySplitAllCard(amount: api)
+        let split =
+            BeamioAPIClient.nfcTopupCurrencySplitWithProgramRechargeBonus(
+                principalAmount: topupKeypadPrincipalAmountString(from: amt),
+                programBonus: programBonus,
+                methodRaw: methodRaw
+            )
+            ?? BeamioAPIClient.nfcTopupCurrencySplitFromPosKeypad(
+                keypadAmount: api,
+                methodRaw: methodRaw,
+                bonusExpanded: false,
+                selectedBonusRate: 0
+            )
+            ?? BeamioAPIClient.nfcTopupCurrencySplitAllCard(amount: api)
         return (api, split, programBonus)
     }
 

@@ -86,6 +86,8 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external {
         _syncActiveToBestValidInternal(acct);
         if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
+        // NFT-only redeem bundles pass pointsDelta6=0; skip auto-issue (same guard as maybeIssueOnlyIfNoneOrExpiredByPointsDelta).
+        if (tiers.length > 0 && pointsDelta6 == 0) return;
         _issueFromPointsDelta(acct, pointsDelta6);
     }
 

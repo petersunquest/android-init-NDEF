@@ -24,11 +24,28 @@ enum BeamioDeepLink {
     ]
 
     /// Universal Link path prefixes handled by this consumer shell.
-    ///
-    /// `/app-download` is intentionally excluded. It is an install QR / store
-    /// landing page; loading it inside the native WKWebView can strand the
-    /// launch splash while the page redirects to the App Store.
     static let universalLinkPathPrefixes = ["/app"]
+
+    /// Share / install landing: unwrap `?target=https://beamio.app/app/…` to the inner PWA URL.
+    ///
+    /// `/app-download` must never load inside the native WKWebView — it is the homepage SPA,
+    /// not SilentPassUI `/app/`, and can strand the launch splash on a loading interstitial.
+    static func unwrapAppDownloadLandingURL(_ url: URL) -> URL? {
+        let path = url.path
+        guard path == "/app-download" || path.hasPrefix("/app-download/") else { return nil }
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let targetRaw = components.queryItems?.first(where: { $0.name == "target" })?.value
+        else { return nil }
+        let decoded = targetRaw.removingPercentEncoding ?? targetRaw
+        guard let targetURL = URL(string: decoded),
+              let sanitized = sanitizeHTTPSWebURL(targetURL)
+        else { return nil }
+        let targetPath = sanitized.path
+        guard targetPath == "/app" || targetPath == "/app/" || targetPath.hasPrefix("/app/") else {
+            return nil
+        }
+        return sanitized
+    }
 
     /// Resolve an incoming Universal Link or `beamio://` URL to an allowed HTTPS URL for the WebView.
     static func resolveWebAppURL(from incoming: URL) -> URL? {
@@ -59,7 +76,7 @@ enum BeamioDeepLink {
         if let targetRaw = components.queryItems?.first(where: { $0.name == "target" })?.value {
             let decoded = targetRaw.removingPercentEncoding ?? targetRaw
             guard let targetURL = URL(string: decoded) else { return nil }
-            return sanitizeHTTPSWebURL(targetURL)
+            return resolveHTTPSWebTarget(targetURL)
         }
 
         let passthrough = (components.queryItems ?? []).filter { $0.name != "target" }
@@ -75,11 +92,19 @@ enum BeamioDeepLink {
 
     private static func resolveUniversalLinkURL(_ url: URL) -> URL? {
         guard sanitizeHTTPSWebURL(url) != nil else { return nil }
+        if let unwrapped = unwrapAppDownloadLandingURL(url) {
+            return unwrapped
+        }
         let path = url.path
         guard universalLinkPathPrefixes.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else {
             return nil
         }
         return url
+    }
+
+    private static func resolveHTTPSWebTarget(_ url: URL) -> URL? {
+        guard let sanitized = sanitizeHTTPSWebURL(url) else { return nil }
+        return unwrapAppDownloadLandingURL(sanitized) ?? sanitized
     }
 
     private static func sanitizeHTTPSWebURL(_ url: URL) -> URL? {

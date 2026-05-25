@@ -18,6 +18,23 @@ final class BeamioDeepLinkTests: XCTestCase {
         XCTAssertEqual(resolved?.absoluteString, target)
     }
 
+    func testUnwrapsAppDownloadTargetFromCustomScheme() throws {
+        let inner = "https://beamio.app/app/?beamiocard=0x86398FcFbf51Ed5fccA144FFE2155DAC6724587D&couponId=coupon-1&claim=open"
+        let outer = "https://beamio.app/app-download?target=\(inner.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!)"
+        let enc = outer.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
+        let url = URL(string: "beamio://open?target=\(enc)")!
+        let resolved = BeamioDeepLink.resolveWebAppURL(from: url)
+        XCTAssertEqual(resolved?.absoluteString, inner)
+    }
+
+    func testUnwrapsAppDownloadUniversalLink() {
+        let inner = "https://beamio.app/app/?beamiocard=0xabc&couponId=1&claim=open"
+        let enc = inner.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
+        let url = URL(string: "https://beamio.app/app-download?target=\(enc)")!
+        let resolved = BeamioDeepLink.resolveWebAppURL(from: url)
+        XCTAssertEqual(resolved?.absoluteString, inner)
+    }
+
     func testUniversalLinkAppPath() {
         let url = URL(string: "https://beamio.app/app/?redeemcode=abc")!
         let resolved = BeamioDeepLink.resolveWebAppURL(from: url)

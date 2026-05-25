@@ -107,7 +107,7 @@ struct TransactionMeta {
   uint16 discountRateBps;              // 折扣率 bps；NFC Container 时为 **tier 折扣率** bps。**小费**不写入本字段：小费单独 `TX_TIP` 交易，`finalRequestAmount*` 仅记小费金额
   uint256 taxAmountFiat6;              // 税金金额（法币 E6）
   uint16 taxRateBps;                   // 税率 bps，例如 500=5%
-  string afterNotePayer;               // 交易完成后支付方附加备注（JSON string）
+  string afterNotePayer;               // 交易完成后支付方附加备注（JSON string）；Charge 返点见 `afterNotePayer.point`；Top-up Recharge Bonus 见 `actualPaymentCurrencyFiat6` / `rechargeBonusCurrencyFiat6`
   string afterNotePayee;               // 交易完成后收款方附加备注（JSON string）
 }
 
@@ -223,7 +223,68 @@ struct Transaction {
 - 上述每一条路由拆分都视为“原子支付记录”，必须持久化到 `BeamioIndexerDiamond`（通过对应 Facet 写入并可追溯查询）。
 - `route[]` 是原始支付凭证，落链后不可被“事后小费”直接修改。
 - 小费作为独立原子交易记录，通过 `txCategory` 标识 tip 阶段，并用 `originalPaymentHash` 关联父支付。
-- 交易完成后，`meta.afterNotePayer` 与 `meta.afterNotePayee` 可记录双方扩展 JSON（用于记账扩张、对账注释、审计上下文）。
+- 交易完成后，`meta.afterNotePayer` 与 `meta.afterNotePayee` 可记录双方扩展 JSON（用于记账扩张、对账注释、审计上下文）。已定义字段包括 Charge 返点 `point` / `chargeRewardRatioE6`，以及 Top-up Recharge Bonus 的 `actualPaymentCurrencyFiat6` / `rechargeBonusCurrencyFiat6`。
+
+#### Charge 完成后 `meta.afterNotePayer.point`（消费返点 E6）
+
+**适用范围**：NFC `ContainerRelayProcess`、QR `OpenContainerRelayProcess` 等商户 Charge 在 `syncTokenAction` 写入 Indexer 时（含 **`TX_TIP` 小费独立行**）。
+
+**写入时机**：Master `beamioTransferIndexerAccountingProcess` 在 Charge 记账路径内，于 `syncTokenAction` 前写入；**须**在记账时链上读取该笔 route 对应 **BeamioUserCard** 的当前 `chargeRewardRatioE6()`（与 `ChargeRewardModule` / `previewChargeRewardAmount` 一致）。
+
+**JSON 形状**（UTF-8 string，仅可公开字段）：
+
+```json
+{
+  "point": "50000000",
+  "chargeRewardRatioE6": "1000000"
+}
+```
+
+| 字段 | 类型 | 含义 |
+|------|------|------|
+| `point` | string (uint E6) | 本 Diamond **行** 支付方获得的 **Charge Reward** 点数（ERC1155 **tokenId=2**，与 `getUIDAssets` / `chargeRewardPoints6` 同单位）；**不是** route 中扣减的 program points（tokenId=0） |
+| `chargeRewardRatioE6` | string (uint E6) | 记账时刻卡上 `chargeRewardRatioE6()` 快照，供 UI 展示比例与审计 |
+
+**计算公式**（与 `ChargeRewardModule._calcChargeRewardAmount` 对齐）：
+
+```
+point = floor(finalRequestAmountFiat6 × chargeRewardRatioE6 / 1_000_000)
+```
+
+- **主支付行**：`finalRequestAmountFiat6` = 小计 ± 税/会员折扣，**不含小费**（与根层 `Transaction.finalRequestAmountFiat6` 一致）。
+- **`TX_TIP` 小费行**：`finalRequestAmountFiat6` = **仅小费** fiat E6；小费单独一行、单独计算 `point`，UI 展示「本笔消费总返点」时可 **主单行 `point` + 小费行 `point` 相加**。
+- `chargeRewardRatioE6 = 0` 或 `point = 0` 时 **`afterNotePayer` 保持空字符串**（不写 JSON）。
+
+**UI 读取**：解析 `meta.afterNotePayer` JSON；缺字段或非 Charge 行视为无返点。勿用 `route[].amountE6`（tokenId=0 扣款）代替 `point`（tokenId=2 返点）。
+
+**实现参考**：`src/x402sdk/src/MemberCard.ts` — `calcChargeRewardPoints6FromFiat6`、`buildChargeAfterNotePayerJson`、`readCardChargeRewardRatioE6`；守则 `.cursor/rules/beamio-charge-after-note-payer-point.mdc`。
+
+#### Top-up 完成后 `meta.afterNotePayer` Recharge Bonus 明细（卡币种 E6）
+
+**适用范围**：POS NFC `/api/nfcTopup`（iOS `ContentView.swift` / `POSViewModel` 发起，x402sdk `executeForAdminPostBaseProcess` 记账）在存在 **Recharge Bonus**（`/api/nfcTopup` body 中 `bonusCurrencyAmount > 0`，且 `cardCurrencyAmount + cashCurrencyAmount + bonusCurrencyAmount == currencyAmount`）并完成 `syncTokenAction` 时。
+
+**写入时机**：Master 在 **split 记账的每一 leg**（`creditTopupCard` / `cashTopupCard` / `bonusCard`，以及 new/upgrade variants）写入**相同** JSON；无 bonus 时 `afterNotePayer` 保持空字符串。
+
+**JSON 形状**：
+
+```json
+{
+  "actualPaymentCurrencyFiat6": "100000000",
+  "rechargeBonusCurrencyFiat6": "10000000"
+}
+```
+
+| 字段 | 类型 | 含义 |
+|------|------|------|
+| `actualPaymentCurrencyFiat6` | string (uint E6) | 顾客**实付**卡币种金额 E6 = `cardCurrencyAmount + cashCurrencyAmount`（不含赠送 bonus） |
+| `rechargeBonusCurrencyFiat6` | string (uint E6) | 本笔 Top-up **Recharge Bonus** 赠送卡币种 E6 = `bonusCurrencyAmount` |
+
+**POS 来源**：iOS `ContentView.swift`（及 Android POS 等价实现）发送的 `nfcTopup` 请求体 `currencyAmount` / `cardCurrencyAmount` / `cashCurrencyAmount` / `bonusCurrencyAmount`（6 位小数整数字符串，与 `parseUnits(..., 6)` 一致）。Program tier bonus 须拆入 `bonusCurrencyAmount`，不可把 bonus 并入 card/cash 腿。
+
+**UI 读取**：解析 `meta.afterNotePayer`；缺字段、JSON 解析失败或非 Top-up 行视为无 bonus 明细。同一 Base `executeForAdmin` tx 的多条 split leg 携带**相同** JSON，UI 去重时以 `finishedHash` / `displayJson.finishedHash` 为准只展示一次。UI 不应从 `route[]` 或 `amountE6` 反推 bonus，应以 `afterNotePayer.rechargeBonusCurrencyFiat6` 作为显式记账来源。
+
+**实现参考**：`MemberCard.ts` — `buildTopupRechargeBonusAfterNotePayerJson`、`topupRechargeBonusAfterNotePayerFromSplit`；守则 `.cursor/rules/beamio-topup-after-note-payer-recharge-bonus.mdc`。
+
 - 前端 `route[]` 仅为展示视图，真实结算与审计以 `BeamioIndexerDiamond` 中的原子记录为准。
 - `isAAAccount=false` 时可忽略 `route[]`（普通 EOA 转账不要求容器资产拆分）。
 - `isAAAccount=true` 时必须提供 `route[]`。
@@ -335,6 +396,7 @@ Top Up 业务按入口使用以下 `txCategory`：
 - `meta.discountAmountFiat6`：记录 `beforePoint`（本次 Top Up 前用户 points 余额，E6）
 - `meta.requestAmountFiat6`：记录 `currentTopupPoint`（本次 Top Up 增加的 points，E6）
 - `meta.requestAmountUSDC6`：记录本次 Top Up 的 USDC 金额（E6）
+- `meta.afterNotePayer`：当本次 POS Top-up 存在 Recharge Bonus 时，写入 JSON `{ "actualPaymentCurrencyFiat6": "...", "rechargeBonusCurrencyFiat6": "..." }`；无 bonus 保持空字符串。该字段是后续 UI 展示「实付 / 赠送」明细的单一依据。
 
 **Top Up 专用 RouteItem 守则**（USDC 购点、OTC/NFT 卡 topup 均须遵守）：
 

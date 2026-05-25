@@ -92,7 +92,7 @@
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
       "governanceModule": "0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC",
       "issuedNftModule": "0xB0E6a76c926d49CD841ac7cDe349F8101D9Dae39",
-      "membershipStatsModule": "0xEB1986F5320753B2bb1E64a24E96b6E42B11F516",
+      "membershipStatsModule": "0x9E72B939C0eF46BE556686Fc7e8598E215A66b25",
       "adminStatsQueryModule": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
       "chargeRewardModule": "0xba46891C36ed6e79Ce883dDe515810CD4a7276e4",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
@@ -106,8 +106,8 @@
         "reused": false
       },
       "membershipStatsModule": {
-        "address": "0xEB1986F5320753B2bb1E64a24E96b6E42B11F516",
-        "reused": true
+        "address": "0x9E72B939C0eF46BE556686Fc7e8598E215A66b25",
+        "reused": false
       },
       "adminStatsQueryModule": {
         "address": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",

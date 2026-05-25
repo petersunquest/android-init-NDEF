@@ -734,6 +734,42 @@ extension BeamioAPIClient {
             selectedBonusRate: 0
         )
     }
+
+    /// Program **Recharge Bonus** tier (fixed or proportional): principal on card/cash leg, bonus on `bonusCurrencyAmount`.
+    /// Must satisfy `/api/nfcTopup`: `card + cash + bonus == currencyAmount`.
+    static func nfcTopupCurrencySplitWithProgramRechargeBonus(
+        principalAmount: String,
+        programBonus: Double,
+        methodRaw: String
+    ) -> NfcTopupCurrencySplit? {
+        let raw = principalAmount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: "")
+        guard let principal = Decimal(string: raw), principal > 0 else { return nil }
+        let bonusDec = Decimal(programBonus)
+        guard bonusDec > 0 else { return nil }
+        let total = decimalRound6(principal + bonusDec)
+        let pR = formatDecimalTopupApi6(decimalRound6(principal))
+        let bR = formatDecimalTopupApi6(decimalRound6(bonusDec))
+        let tR = formatDecimalTopupApi6(total)
+        let z = formatDecimalTopupApi6(0)
+        switch methodRaw {
+        case "creditCard", "usdc", "cadd":
+            return NfcTopupCurrencySplit(
+                currencyAmount: tR,
+                cardCurrencyAmount: pR,
+                cashCurrencyAmount: z,
+                bonusCurrencyAmount: bR
+            )
+        case "cash":
+            return NfcTopupCurrencySplit(
+                currencyAmount: tR,
+                cardCurrencyAmount: z,
+                cashCurrencyAmount: pR,
+                bonusCurrencyAmount: bR
+            )
+        default:
+            return nil
+        }
+    }
 }
 
 final class BeamioAPIClient: @unchecked Sendable {

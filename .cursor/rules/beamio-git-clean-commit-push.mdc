@@ -1,0 +1,44 @@
+---
+description: Git 提交须工作区干净，完成后推送远程（含子模块）
+alwaysApply: true
+---
+
+# Git：干净提交 + 推送远程
+
+## 核心规则
+
+**完成一次 commit 任务时，不得遗留未提交改动；提交完成后须推送到远程。** 适用于根仓及 `src/` 下所有独立 git 子项目/子模块。
+
+## 提交前（必须干净）
+
+1. **一次任务 = 一次完整提交**：与本次改动相关的文件须全部 `git add` 并 commit，**禁止**只提交部分文件而留下同任务未暂存改动。
+2. **提交前检查**：`git status` 不得仍有本次任务相关的 `M` / `D` / `??`；若有，一并纳入 commit 或明确还原（`git restore`）并说明原因。
+3. **子模块**：先在子模块内 commit 至 **working tree clean**，再在根仓更新子模块指针。
+4. **禁止默认提交**：`.tmp_*` 临时 scratch、未在任务范围内的 IDE 用户态（如 `xcuserdata/`、`UserInterfaceState.xcuserstate`）。
+
+## 提交后（必须推送）
+
+1. **子模块先推**：`cd <submodule> && git push`
+2. **根仓后推**：`git push`（当前分支）
+3. 推送前确认：`git status -sb` 无 `ahead` 且无应提交的 dirty 文件。
+
+## 子模块顺序（根仓 `src/`）
+
+```
+子模块内 commit → 子模块 push → 根仓 git add <submodule> → 根仓 commit → 根仓 push
+```
+
+常见子项目：`android-NDEF`、`SilentPassUI`、`Alliance`、`homepage`、`bizSite`、`x402sdk`、`beamio.app` 等。
+
+## AI 检查清单
+
+- [ ] 子模块 working tree 是否 clean？
+- [ ] 根仓 `git status` 是否无遗漏的本任务改动？
+- [ ] 子模块是否已 push？根仓是否已 push？
+- [ ] 是否误提交 `.tmp_*` 或 `xcuserdata`？
+
+## 严禁
+
+- ❌ 只 commit 根仓指针，子模块内仍有未提交源码
+- ❌ 告知用户「已 commit」但 working tree 仍有相关 `M`/`??`
+- ❌ commit 后不 push（除非用户明确要求仅本地提交）

@@ -272,6 +272,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             decisionHandler(.cancel)
             return
         }
+        if navigationAction.targetFrame?.isMainFrame ?? false,
+           let unwrapped = BeamioDeepLink.unwrapAppDownloadLandingURL(url) {
+            decisionHandler(.cancel)
+            loadWebAppURL(unwrapped, in: webView, bypassDedup: true)
+            return
+        }
         decisionHandler(.allow)
     }
 

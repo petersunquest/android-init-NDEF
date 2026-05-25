@@ -105,11 +105,11 @@ function main() {
     patchAr(path.join(rootDir, "src", "beamio.app", "src", "services", "beamio.ts"), "beamio.app beamio.ts");
     patchAr(path.join(rootDir, "src", "Alliance", "src", "services", "beamio.ts"), "Alliance beamio.ts");
     patchAr(
-      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "android_ntag", "BeamioOnboardingApi.kt"),
+      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "pos", "BeamioOnboardingApi.kt"),
       "BeamioOnboardingApi.kt"
     );
     patchAr(
-      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "android_ntag", "BeamioWalletService.kt"),
+      path.join(rootDir, "src", "android-NDEF", "app", "src", "main", "java", "com", "beamio", "pos", "BeamioWalletService.kt"),
       "BeamioWalletService.kt"
     );
     patchAr(

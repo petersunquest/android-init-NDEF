@@ -35,8 +35,8 @@ const REF_FILES_TO_PATCH = [
   "src/SilentPassUI/src/services/beamio.ts",
   "src/beamio.app/src/services/beamio.ts",
   "src/Alliance/src/services/beamio.ts",
-  "src/android-NDEF/app/src/main/java/com/beamio/android_ntag/BeamioOnboardingApi.kt",
-  "src/android-NDEF/app/src/main/java/com/beamio/android_ntag/BeamioWalletService.kt",
+  "src/android-NDEF/app/src/main/java/com/beamio/pos/BeamioOnboardingApi.kt",
+  "src/android-NDEF/app/src/main/java/com/beamio/pos/BeamioWalletService.kt",
   "src/CashTrees_iOS/iOS_NDEF/iOS_NDEF/BeamioConstants.swift",
 ];
 
