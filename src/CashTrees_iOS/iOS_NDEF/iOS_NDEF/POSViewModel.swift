@@ -1009,9 +1009,11 @@ final class POSViewModel: ObservableObject {
         guard tag.range(of: "^[a-zA-Z0-9_.]{3,20}$", options: .regularExpression) != nil else {
             return "Use 3–20 letters, numbers, dots, or underscores"
         }
-        guard let outer = await api.getRecoverBase64ByAccountName(tag)?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !outer.isEmpty
-        else {
+        guard let recoverHit = await api.fetchRecoverBase64WithLegacyFallback(tag) else {
+            return "Invalid Beamio Tag or Recovery Password, please try again"
+        }
+        let outer = recoverHit.outerBase64.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !outer.isEmpty else {
             return "Invalid Beamio Tag or Recovery Password, please try again"
         }
         guard let decoded = BeamioRecoverRestore.decodeStoragePayload(outerBase64: outer) else {
@@ -1042,6 +1044,15 @@ final class POSViewModel: ObservableObject {
         }
         do {
             let lower = try BeamioEthWallet.address(fromPrivateKeyHex: hex)
+            if recoverHit.fromLegacyRegistry {
+                let checksummed = (try? BeamioEIP55.checksumAddress(lowercaseHex40: String(lower.dropFirst(2)))) ?? lower
+                _ = await api.migrateLegacyRecoverToNewRegistry(
+                    accountName: tag,
+                    encodedRecover: outer,
+                    privateKeyHex: hex,
+                    walletAddress: checksummed
+                )
+            }
             try BeamioKeychain.savePrivateKeyHex(hex)
             walletPrivateKeyHex = hex
             walletAddress = lower

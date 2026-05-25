@@ -2,6 +2,8 @@
   "_comment": "CoNET mainnet 合约地址权威配置。部署/脚本必须从此文件读取，禁止硬编码旧地址。迁移流程见 scripts/README-conet-contract-migration.md；部署后运行 npx tsx scripts/updateConetReferences.ts",
   "network": "conet",
   "chainId": "224422",
+  "legacyArchiveRpc": "https://rpc-old.conet.network",
+  "legacyAccountRegistry": "0x4afaca09cf8307070a83836223Ae129073eC92e5",
   "BUint": "0x9149433F154C508d2a04454b8E527A479C6fd254",
   "BUnitAirdrop": "0x67d01e0E9c859A89def4098aC7803f04BF0d77af",
   "BeamioIndexerDiamond": "0xd764eBA64536cFF1bbE7e7c7Bbc90F35620f72a9",

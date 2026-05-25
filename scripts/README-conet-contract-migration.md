@@ -9,31 +9,32 @@
 | 角色 | RPC | 块高量级 | 用途 |
 |------|-----|----------|------|
 | **新链（权威）** | `https://rpc1.conet.network` | 低（重 genesis 后重新同步） | 读写：部署、交易、CoNET-SI / x402sdk / 应用 |
-| **旧链只读归档** | `http://38.102.126.58:8880` | 高（中断前旧 224422 状态） | **只读**：从旧合约 `eth_call` / 事件拉取，用于迁移与恢复 |
+| **旧链只读归档** | `https://rpc-old.conet.network` | 高（中断前旧 224422 状态） | **只读**：从旧合约 `eth_call` / 事件拉取，用于迁移与恢复 |
 
-两者 **chainId 均为 224422**，但 **不是同一条链历史**（新链新 genesis；8880 保留旧状态）。  
-**禁止**把 8880 当作写 RPC 或默认业务 RPC；**禁止**假设同一地址在新旧 RPC 上 bytecode 一致。
+两者 **chainId 均为 224422**，但 **不是同一条链历史**（新链新 genesis；`rpc-old` 保留旧状态）。  
+**禁止**把 `rpc-old` 当作写 RPC 或默认业务 RPC；**禁止**假设同一地址在新旧 RPC 上 bytecode 一致。  
+（运维：nginx 反代至 Geth `:8882`，见 `scripts/nginx-rpc-old-conet.conf`；**应用/脚本统一用 HTTPS 域名**，勿再写 `http://38.102.126.58:8880` / `:8001` 等直连 IP。）
 
-### 旧链只读归档上的典型合约（8880 可读）
+### 旧链只读归档上的典型合约（rpc-old 可读）
 
-| 合约 | 旧地址（8880 有代码） | 新地址（rpc1 有代码） |
+| 合约 | 旧地址（rpc-old 有代码） | 新地址（rpc1 有代码） |
 |------|------------------------|------------------------|
 | GuardianNodesInfoV6 | `0x6d7a526BFD03E90ea8D19eDB986577395a139872` | `0x359F781A5eEb17630A44e15Bc2aC57b248b81790` |
 | AddressPGP | `0xb2aABe52f476356AE638839A786EAE425A0c1b66` | `0xa5F64dd3c034442F5377c8F2Aa1A03ba378D685e` |
 | ConetTreasury | `0x540767C2a183871deb22333a271D5e65bF489F22` | `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1` |
 | LayerMinusNodeRestart_V2 | `0xf82a6362b9F23F2380C621B5A649987C5bc228B7` | `0x185b17bb66A28d1a86322Fc5c123361A324Bf3c3` |
 
-从 8880 拉 Guardian 示例（只读源 → 写入新链仍用 `--network conet` / rpc1）：
+从 rpc-old 拉 Guardian 示例（只读源 → 写入新链仍用 `--network conet` / rpc1）：
 
 ```bash
 GUARDIAN_MIGRATE_SOURCE=0x6d7a526BFD03E90ea8D19eDB986577395a139872 \
-GUARDIAN_MIGRATE_SOURCE_RPC=http://38.102.126.58:8880 \
+GUARDIAN_MIGRATE_SOURCE_RPC=https://rpc-old.conet.network \
 GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID=224422 \
-GUARDIAN_MIGRATE_DUMP_PATH=deployments/guardian-migrate-from-8880-dump.json \
+GUARDIAN_MIGRATE_DUMP_PATH=deployments/guardian-migrate-from-rpc-old-dump.json \
 DRY_RUN=1 npx hardhat run scripts/migrateGuardianNodesInfoV6FromLegacyTo224422.ts --network conet
 ```
 
-亦可使用已有 dump（如 `guardian-migrate-224400-to-6d7a-dump.json`）配合 `GUARDIAN_MIGRATE_DUMP_INPUT`，在 8880 不可达时离线恢复。
+亦可使用已有 dump（如 `guardian-migrate-224400-to-6d7a-dump.json`）配合 `GUARDIAN_MIGRATE_DUMP_INPUT`，在 rpc-old 不可达时离线恢复。
 
 ## 权威配置（单一真相来源）
 
@@ -49,8 +50,8 @@ DRY_RUN=1 npx hardhat run scripts/migrateGuardianNodesInfoV6FromLegacyTo224422.t
 
 ### 1. 前置
 
-- 确认 `hardhat.config.ts` 中 `conet` 网络：`url: https://rpc1.conet.network`，`chainId: 224422`（**非** 8880 只读归档）
-- 链上历史恢复只读源：`http://38.102.126.58:8880`（见上文「双 RPC 架构」）
+- 确认 `hardhat.config.ts` 中 `conet` 网络：`url: https://rpc1.conet.network`，`chainId: 224422`（**非** rpc-old 只读归档）
+- 链上历史恢复只读源：`https://rpc-old.conet.network`（见上文「双 RPC 架构」）
 - 确认 `~/.master.json` 含有效 deployer / `settle_contractAdmin` 私钥
 - 编译：`npm run clean && npm run compile`
 

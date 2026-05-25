@@ -11,6 +11,10 @@ enum BeamioConstants {
     static let conetAddressPgpManager = "0xa5F64dd3c034442F5377c8F2Aa1A03ba378D685e"
     /// `beamioAccountContract.address` in `bizSite/src/services/beamio.ts`
     static let beamioAccountRegistryAddress = "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba"
+    /// Pre-224422 AccountRegistry archive RPC (`deployments/conet-addresses.json` → `legacyArchiveRpc`).
+    static let legacyAccountRegistryRpcUrl = "https://rpc-old.conet.network"
+    /// Pre-224422 AccountRegistry (`deployments/conet-addresses.json` → `legacyAccountRegistry`).
+    static let legacyAccountRegistryAddress = "0x4afaca09cf8307070a83836223Ae129073eC92e5"
     static let usdcBase = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     /// Base CADD token (requested for POS balance completion view).
     static let caddBase = "0x16F93eBC5320C89EfC8701577efe49d14A276a06"

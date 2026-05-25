@@ -87,6 +87,14 @@ export default defineConfig({
       url: process.env.CONET_RPC_URL || "https://rpc1.conet.network",
       accounts: getConetAccounts(),
       chainId: 224422
+    },
+    /** 224422 重 genesis 前只读归档（eth_call / 事件拉取；禁止发写交易） */
+    conetLegacyArchive: {
+      type: "http",
+      chainType: "l1",
+      url: process.env.CONET_LEGACY_ARCHIVE_RPC || "https://rpc-old.conet.network",
+      accounts: [],
+      chainId: 224422
     }
   },
   verify: {

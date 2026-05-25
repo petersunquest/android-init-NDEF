@@ -113,6 +113,11 @@ function main() {
   const conetGBUserTotal = data.ConetGB_userTotal as string | undefined;
   const epochMiningInfo = data.EpochMiningInfo as string | undefined;
 
+  const legacyAccountRegistry = data.legacyAccountRegistry as string | undefined;
+  const legacyArchiveRpc = data.legacyArchiveRpc as string | undefined;
+
+  const rootDir = path.join(__dirname, "..");
+
   if (!bunitAirdrop) {
     throw new Error("conet-addresses.json 缺少 BUnitAirdrop 地址");
   }
@@ -157,7 +162,6 @@ function main() {
         console.log(`[0] 已更新 AccountRegistry → ${label}`);
       }
     };
-    const rootDir = path.join(__dirname, "..");
     patchAr(path.join(rootDir, "src", "x402sdk", "src", "util.ts"), "x402sdk util.ts");
     patchAr(path.join(rootDir, "src", "x402sdk", "src", "db.ts"), "x402sdk db.ts");
     patchAr(path.join(rootDir, "scripts", "API server", "util.ts"), "API server util.ts");
@@ -179,6 +183,135 @@ function main() {
     patchAr(
       path.join(rootDir, "src", "CashTrees_iOS", "iOS_NDEF", "iOS_NDEF", "BeamioConstants.swift"),
       "BeamioConstants.swift"
+    );
+    const conetAddressesKotlin = path.join(
+      rootDir,
+      "src",
+      "android-NDEF",
+      "app",
+      "src",
+      "main",
+      "java",
+      "com",
+      "beamio",
+      "pos",
+      "BeamioConetAddresses.kt"
+    );
+    patchAr(conetAddressesKotlin, "BeamioConetAddresses.kt");
+  }
+
+  // 0b. Legacy AccountRegistry archive RPC + address (Web restoreWithUserPin)
+  if (legacyAccountRegistry && legacyArchiveRpc) {
+    const patchLegacyAr = (filePath: string, label: string) => {
+      if (!fs.existsSync(filePath)) return;
+      let c = fs.readFileSync(filePath, "utf-8");
+      const prev = c;
+      c = c.replace(
+        /const LEGACY_ACCOUNT_REGISTRY_RPC = ['"]https?:\/\/[^'"]+['"]/,
+        `const LEGACY_ACCOUNT_REGISTRY_RPC = '${legacyArchiveRpc}'`
+      );
+      c = c.replace(
+        /const LEGACY_ACCOUNT_REGISTRY_ADDRESS = ['"]0x[a-fA-F0-9]{40}['"]/,
+        `const LEGACY_ACCOUNT_REGISTRY_ADDRESS = '${legacyAccountRegistry}'`
+      );
+      if (c !== prev) {
+        fs.writeFileSync(filePath, c);
+        console.log(`[0b] 已更新 legacy AccountRegistry → ${label}`);
+      }
+    };
+    patchLegacyAr(path.join(rootDir, "src", "SilentPassUI", "src", "services", "beamio.ts"), "SilentPassUI beamio.ts");
+    patchLegacyAr(path.join(rootDir, "src", "bizSite", "src", "services", "beamio.ts"), "bizSite beamio.ts");
+    patchLegacyAr(path.join(rootDir, "src", "beamio.app", "src", "services", "beamio.ts"), "beamio.app beamio.ts");
+    patchLegacyAr(path.join(rootDir, "src", "Alliance", "src", "services", "beamio.ts"), "Alliance beamio.ts");
+  }
+
+  // 0c. iOS BeamioConstants + Android BeamioConetAddresses（AddressPGP + legacy registry）
+  const iosConstantsPath = path.join(rootDir, "src", "CashTrees_iOS", "iOS_NDEF", "iOS_NDEF", "BeamioConstants.swift");
+  if (fs.existsSync(iosConstantsPath)) {
+    let c = fs.readFileSync(iosConstantsPath, "utf-8");
+    const prev = c;
+    if (addressPGP) {
+      c = c.replace(
+        /static let conetAddressPgpManager = "0x[a-fA-F0-9]{40}"/,
+        `static let conetAddressPgpManager = "${addressPGP}"`
+      );
+    }
+    if (legacyArchiveRpc) {
+      c = c.replace(
+        /static let legacyAccountRegistryRpcUrl = "https?:\/\/[^"]+"/,
+        `static let legacyAccountRegistryRpcUrl = "${legacyArchiveRpc}"`
+      );
+    }
+    if (legacyAccountRegistry) {
+      c = c.replace(
+        /static let legacyAccountRegistryAddress = "0x[a-fA-F0-9]{40}"/,
+        `static let legacyAccountRegistryAddress = "${legacyAccountRegistry}"`
+      );
+    }
+    if (c !== prev) {
+      fs.writeFileSync(iosConstantsPath, c);
+      console.log("[0c] 已更新 iOS BeamioConstants.swift（PGP + legacy AccountRegistry）");
+    }
+  }
+
+  const androidConetAddressesPath = path.join(
+    rootDir,
+    "src",
+    "android-NDEF",
+    "app",
+    "src",
+    "main",
+    "java",
+    "com",
+    "beamio",
+    "pos",
+    "BeamioConetAddresses.kt"
+  );
+  if (fs.existsSync(androidConetAddressesPath)) {
+    let c = fs.readFileSync(androidConetAddressesPath, "utf-8");
+    const prev = c;
+    if (addressPGP) {
+      c = c.replace(/const val CONET_PGP_MANAGER = "0x[a-fA-F0-9]{40}"/, `const val CONET_PGP_MANAGER = "${addressPGP}"`);
+    }
+    if (accountRegistry) {
+      c = c.replace(/const val ACCOUNT_REGISTRY = "0x[a-fA-F0-9]{40}"/, `const val ACCOUNT_REGISTRY = "${accountRegistry}"`);
+    }
+    if (legacyAccountRegistry) {
+      c = c.replace(
+        /const val LEGACY_ACCOUNT_REGISTRY = "0x[a-fA-F0-9]{40}"/,
+        `const val LEGACY_ACCOUNT_REGISTRY = "${legacyAccountRegistry}"`
+      );
+    }
+    if (legacyArchiveRpc) {
+      c = c.replace(/const val LEGACY_ARCHIVE_RPC = "https?:\/\/[^"]+"/, `const val LEGACY_ARCHIVE_RPC = "${legacyArchiveRpc}"`);
+    }
+    if (c !== prev) {
+      fs.writeFileSync(androidConetAddressesPath, c);
+      console.log("[0c] 已更新 Android BeamioConetAddresses.kt（PGP + AccountRegistry + legacy）");
+    }
+  }
+
+  const androidPgpMessagingPath = path.join(
+    rootDir,
+    "src",
+    "android-NDEF",
+    "app",
+    "src",
+    "main",
+    "java",
+    "com",
+    "beamio",
+    "pos",
+    "BeamioConetTerminalMessaging.kt"
+  );
+  if (addressPGP && fs.existsSync(androidPgpMessagingPath)) {
+    patchFileIfChanged(
+      androidPgpMessagingPath,
+      (c) =>
+        c.includes("0xb2aABe52f476356AE638839A786EAE425A0c1b66")
+          ? c.replace(/0xb2aABe52f476356AE638839A786EAE425A0c1b66/gi, addressPGP!)
+          : c,
+      "[0c] 已更新 Android BeamioConetTerminalMessaging.kt 遗留 PGP 硬编码"
     );
   }
 
@@ -213,7 +346,7 @@ function main() {
     console.log("[1b] 已更新 src/x402sdk/src/MemberCard.ts（BUint / claim domain chainId）");
   }
 
-  // 2. SilentPassUI chainAddresses
+  // 2. SilentPassUI chainAddresses.ts（完整 CoNET 常量，与 bizSite 对齐）
   const uiChainPath = path.join(__dirname, "..", "src", "SilentPassUI", "src", "config", "chainAddresses.ts");
   if (fs.existsSync(uiChainPath)) {
     let content = fs.readFileSync(uiChainPath, "utf-8");
@@ -221,9 +354,64 @@ function main() {
       content = patchExportConstSingleQuoted(content, "CONET_BUINT", buint);
     }
     content = patchExportConstSingleQuoted(content, "BEAMIO_INDEXER_DIAMOND", beamioIndexer);
+    content = patchExportConstSingleQuoted(content, "CONET_BUNIT_AIRDROP_ADDRESS", bunitAirdrop);
+    content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
+    content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
+    content = patchExportConstSingleQuoted(content, "BEAMIO_ORACLE_CONET", beamioOracle);
+    content = patchExportConstSingleQuoted(content, "CONET_GUARDIAN_NODES_INFO_V6", guardianNodesInfoV6);
+    content = patchExportConstSingleQuoted(content, "CONET_ADDRESS_PGP", addressPGP);
+    content = patchExportConstSingleQuoted(content, "CONET_ACCOUNT_REGISTRY", accountRegistry);
+    content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
+    content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
+    content = patchNumericConst(content, "CONET_MAINNET_CHAIN_ID", chainIdNum);
     content = content.replace(/conet:\s*\{[^}]*chainId:\s*\d+/, (block) => block.replace(/chainId:\s*\d+/, `chainId: ${chainIdNum}`));
     fs.writeFileSync(uiChainPath, content);
-    console.log("[2] 已更新 SilentPassUI chainAddresses.ts");
+    console.log("[2] 已更新 SilentPassUI chainAddresses.ts（完整 CoNET 常量）");
+  }
+
+  // 2b. SilentPassUI：旧 Indexer fallback → 当前 BEAMIO_INDEXER_DIAMOND
+  if (beamioIndexer) {
+    const silentPassSrc = path.join(rootDir, "src", "SilentPassUI", "src");
+    const walkTs = (dir: string): string[] => {
+      if (!fs.existsSync(dir)) return [];
+      const out: string[] = [];
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, ent.name);
+        if (ent.isDirectory()) out.push(...walkTs(p));
+        else if (/\.(tsx?|jsx?)$/.test(ent.name)) out.push(p);
+      }
+      return out;
+    };
+    const legacyIndexer = "0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612";
+    for (const filePath of walkTs(silentPassSrc)) {
+      patchFileIfChanged(
+        filePath,
+        (c) => (c.includes(legacyIndexer) ? c.replaceAll(legacyIndexer, beamioIndexer) : c),
+        `[2b] 已更新 ${path.relative(rootDir, filePath)} Indexer fallback`
+      );
+    }
+  }
+
+  // 2c. SilentPassUI：检测遗留硬编码 beamioConet Cashcode 地址（应使用 utils/deprecatedBeamioConet.ts）
+  const legacyBeamioConet = "0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd";
+  const silentPassRoot = path.join(rootDir, "src", "SilentPassUI", "src");
+  if (fs.existsSync(silentPassRoot)) {
+    const walkTsFiles = (dir: string): string[] => {
+      const out: string[] = [];
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, ent.name);
+        if (ent.isDirectory()) out.push(...walkTsFiles(p));
+        else if (/\.(tsx?|jsx?)$/.test(ent.name) && !/deprecatedBeamioConet\.ts$/.test(ent.name)) out.push(p);
+      }
+      return out;
+    };
+    for (const filePath of walkTsFiles(silentPassRoot)) {
+      const content = fs.readFileSync(filePath, "utf-8");
+      if (content.includes(legacyBeamioConet)) {
+        console.warn(`[2c] 仍含废弃 beamioConet 地址: ${path.relative(rootDir, filePath)}`);
+      }
+    }
   }
 
   // 3. bizSite chainAddresses.ts
@@ -330,7 +518,6 @@ function main() {
   }
 
   // 8c. CoNET-SI Guardian / AddressPGP / LayerMinus + x402sdk Guardian + API server Guardian
-  const rootDir = path.join(__dirname, "..");
   if (guardianNodesInfoV6) {
     const patchGuardian = (content: string) => {
       let c = content;
@@ -446,6 +633,15 @@ function main() {
       (c) =>
         patchConstSingleQuoted(c, "epoch_mining_info_cancun_addr", epochMiningInfo, { toLocaleLowerCase: true }),
       "[8g] 已更新 Dashboard passportPurchase.ts epoch_mining_info_cancun_addr"
+    );
+  }
+
+  // 8h. CoNET-DL GuardianOracle.ts（CoNET BeamioOracle 喂价地址）
+  if (beamioOracle) {
+    patchFileIfChanged(
+      path.join(rootDir, "src", "CoNET-DL", "src", "endpoint", "GuardianOracle.ts"),
+      (c) => patchConstSingleQuoted(c, "conetBeamioOracleAddr", beamioOracle),
+      "[8h] 已更新 CoNET-DL GuardianOracle.ts conetBeamioOracleAddr"
     );
   }
 

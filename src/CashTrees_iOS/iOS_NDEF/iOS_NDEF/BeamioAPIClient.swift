@@ -1541,12 +1541,191 @@ final class BeamioAPIClient: @unchecked Sendable {
         }
     }
 
+    struct RecoverBase64Hit {
+        var outerBase64: String
+        var fromLegacyRegistry: Bool
+    }
+
+    /// New AccountRegistry first, then legacy archive (`SilentPassUI` `restoreWithUserPin`).
+    func fetchRecoverBase64WithLegacyFallback(_ accountName: String) async -> RecoverBase64Hit? {
+        let trimmed = Self.normalizeBeamioAccountName(accountName)
+        guard Self.isValidBeamioAccountNameFormat(trimmed) else { return nil }
+        if let primary = await fetchRecoverBase64ByAccountName(
+            trimmed,
+            registryAddress: BeamioConstants.beamioAccountRegistryAddress,
+            rpcUrl: BeamioConstants.conetMainnetRpcUrl
+        ) {
+            return RecoverBase64Hit(outerBase64: primary, fromLegacyRegistry: false)
+        }
+        if let legacy = await fetchRecoverBase64ByAccountName(
+            trimmed,
+            registryAddress: BeamioConstants.legacyAccountRegistryAddress,
+            rpcUrl: BeamioConstants.legacyAccountRegistryRpcUrl
+        ) {
+            return RecoverBase64Hit(outerBase64: legacy, fromLegacyRegistry: true)
+        }
+        return nil
+    }
+
     /// `beamio.ts` `beamioAccountSC.getBase64ByAccountName(username)` — base64 of `{ stored, img }`.
     func getRecoverBase64ByAccountName(_ accountName: String) async -> String? {
         let trimmed = Self.normalizeBeamioAccountName(accountName)
         guard Self.isValidBeamioAccountNameFormat(trimmed) else { return nil }
-        let dataHex = Self.encodeGetBase64ByAccountNameCalldata(accountName: trimmed)
-        guard let url = URL(string: BeamioConstants.conetMainnetRpcUrl) else { return nil }
+        return await fetchRecoverBase64ByAccountName(
+            trimmed,
+            registryAddress: BeamioConstants.beamioAccountRegistryAddress,
+            rpcUrl: BeamioConstants.conetMainnetRpcUrl
+        )
+    }
+
+    private func fetchRecoverBase64ByAccountName(
+        _ accountName: String,
+        registryAddress: String,
+        rpcUrl: String
+    ) async -> String? {
+        let dataHex = Self.encodeGetBase64ByAccountNameCalldata(accountName: accountName)
+        guard let hex = await conetEthCallResultHex(to: registryAddress, dataHex: dataHex, rpcUrl: rpcUrl) else { return nil }
+        let decoded = Self.decodeAbiEncodedStringReturn(hex: hex)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return decoded.isEmpty ? nil : decoded
+    }
+
+    struct RegistryAccountProfile {
+        var accountName: String
+        var image: String
+        var darkTheme: Bool
+        var isUSDCFaucet: Bool
+        var isETHFaucet: Bool
+        var firstName: String
+        var lastName: String
+        var exists: Bool
+    }
+
+    /// `SilentPassUI` `migrateLegacyRecoverToNewRegistry` — enqueue recover on new registry via `/api/addUser`.
+    func migrateLegacyRecoverToNewRegistry(
+        accountName: String,
+        encodedRecover: String,
+        privateKeyHex: String,
+        walletAddress: String
+    ) async -> Bool {
+        let name = Self.normalizeBeamioAccountName(accountName)
+        guard Self.isValidBeamioAccountNameFormat(name),
+              walletAddress.hasPrefix("0x"),
+              let signMessage = Self.signPersonalMessage(walletAddress: walletAddress, privateKeyHex: privateKeyHex)
+        else { return false }
+
+        let nameHash = BeamioEthWallet.solidityPackedKeccak256(utf8Parts: [name])
+        let recover: [[String: String]] = [["hash": nameHash, "encrypto": encodedRecover]]
+
+        let legacyProfile = await fetchRegistryAccountProfile(
+            walletAddress: walletAddress,
+            registryAddress: BeamioConstants.legacyAccountRegistryAddress,
+            rpcUrl: BeamioConstants.legacyAccountRegistryRpcUrl
+        )
+
+        if let legacyProfile, legacyProfile.exists {
+            let lastName = "\(legacyProfile.lastName)\r\n{\"language\":\"en\",\"currency\":\"USD\"}"
+            let body: [String: Any] = [
+                "accountName": name,
+                "wallet": walletAddress,
+                "signMessage": signMessage,
+                "recover": recover,
+                "image": legacyProfile.image,
+                "isUSDCFaucet": legacyProfile.isUSDCFaucet,
+                "darkTheme": legacyProfile.darkTheme,
+                "isETHFaucet": legacyProfile.isETHFaucet,
+                "firstName": legacyProfile.firstName,
+                "lastName": lastName,
+                "pgpKeyID": "",
+                "pgpKey": "",
+            ]
+            do {
+                let (code, obj) = try await postJsonAllowErrorBody(path: "/api/addUser", body: body, timeout: 120)
+                return (200 ... 299).contains(code) && (obj?["ok"] as? Bool) != false
+            } catch {
+                return false
+            }
+        }
+
+        let reg = await registerBeamioAccount(
+            accountName: name,
+            walletAddress: walletAddress,
+            signMessage: signMessage,
+            recover: recover
+        )
+        return reg.ok
+    }
+
+    private func fetchRegistryAccountProfile(
+        walletAddress: String,
+        registryAddress: String,
+        rpcUrl: String
+    ) async -> RegistryAccountProfile? {
+        guard let dataHex = Self.encodeGetAccountCalldata(walletAddress: walletAddress),
+              let hex = await conetEthCallResultHex(to: registryAddress, dataHex: dataHex, rpcUrl: rpcUrl)
+        else { return nil }
+        return Self.decodeGetAccountReturn(hex: hex)
+    }
+
+    /// `getAccount(address)` selector `0xfbcbc0f1`.
+    private static func encodeGetAccountCalldata(walletAddress: String) -> String? {
+        var addr = walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if addr.hasPrefix("0x") { addr.removeFirst(2) }
+        guard addr.count == 40, let addrData = rpcHexToData("0x" + addr), addrData.count == 20 else { return nil }
+        let sel = Data([0xfb, 0xcb, 0xc0, 0xf1])
+        var padded = Data(repeating: 0, count: 12)
+        padded.append(addrData)
+        return "0x" + (sel + padded).map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func decodeGetAccountReturn(hex: String) -> RegistryAccountProfile? {
+        guard let data = rpcHexToData(hex), data.count >= 64 else { return nil }
+        guard let tupleRel = abiReadUint256BE(data, offset: 0) else { return nil }
+        let tupleStart = Int(tupleRel)
+        guard tupleStart + 320 <= data.count else { return nil }
+
+        func readStringAtHeadWord(_ wordIndex: Int) -> String {
+            guard let offRel = abiReadUint256BE(data, offset: tupleStart + wordIndex * 32) else { return "" }
+            let strAbs = tupleStart + Int(offRel)
+            guard strAbs + 32 <= data.count,
+                  let lenU = abiReadUint256BE(data, offset: strAbs)
+            else { return "" }
+            let n = Int(lenU)
+            guard n >= 0, strAbs + 32 + n <= data.count else { return "" }
+            return String(data: data[(strAbs + 32) ..< (strAbs + 32 + n)], encoding: .utf8) ?? ""
+        }
+
+        func readBoolHeadWord(_ wordIndex: Int) -> Bool {
+            let off = tupleStart + wordIndex * 32 + 31
+            guard off < data.count else { return false }
+            return (data[off] & 1) != 0
+        }
+
+        let exists = readBoolHeadWord(9)
+        return RegistryAccountProfile(
+            accountName: readStringAtHeadWord(0),
+            image: readStringAtHeadWord(1),
+            darkTheme: readBoolHeadWord(2),
+            isUSDCFaucet: readBoolHeadWord(3),
+            isETHFaucet: readBoolHeadWord(4),
+            firstName: readStringAtHeadWord(6),
+            lastName: readStringAtHeadWord(7),
+            exists: exists
+        )
+    }
+
+    private static func signPersonalMessage(walletAddress: String, privateKeyHex: String) -> String? {
+        var pk = privateKeyHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if pk.hasPrefix("0x") { pk.removeFirst(2) }
+        guard pk.count == 64 else { return nil }
+        var addrLower = walletAddress.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if addrLower.hasPrefix("0x") { addrLower.removeFirst(2) }
+        guard addrLower.count == 40 else { return nil }
+        let checksummed = (try? BeamioEIP55.checksumAddress(lowercaseHex40: addrLower)) ?? walletAddress
+        return try? BeamioEthWallet.signEthereumPersonalMessage(privateKeyHex: pk, message: checksummed)
+    }
+
+    private func conetEthCallResultHex(to: String, dataHex: String, rpcUrl: String) async -> String? {
+        guard let url = URL(string: rpcUrl) else { return nil }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1555,10 +1734,7 @@ final class BeamioAPIClient: @unchecked Sendable {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "eth_call",
-            "params": [[
-                "to": BeamioConstants.beamioAccountRegistryAddress,
-                "data": dataHex,
-            ], "latest"],
+            "params": [["to": to, "data": dataHex], "latest"],
         ]
         do {
             req.httpBody = try JSONSerialization.data(withJSONObject: payload)
@@ -1566,9 +1742,7 @@ final class BeamioAPIClient: @unchecked Sendable {
             guard let http = resp as? HTTPURLResponse, (200 ... 299).contains(http.statusCode) else { return nil }
             guard let root = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return nil }
             if root["error"] != nil { return nil }
-            guard let hex = root["result"] as? String else { return nil }
-            let decoded = Self.decodeAbiEncodedStringReturn(hex: hex)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return decoded.isEmpty ? nil : decoded
+            return root["result"] as? String
         } catch {
             return nil
         }
