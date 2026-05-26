@@ -1,0 +1,36 @@
+---
+description: Beamio homepage 静态站发布流程与 app/appTemp 保护
+globs: src/homepage/**,scripts/deployBeamioHomepage.sh
+alwaysApply: false
+---
+
+# Beamio Homepage Deploy Workflow
+
+修改 `src/homepage` 后，若变更影响 `https://beamio.app/`、`/app-download`、分享预览、OG 验证页或静态资源，必须按以下流程发布。
+
+## 本地提交
+
+1. `cd src/homepage`
+2. `npm run build`
+3. `git status -sb` 确认只包含本次 homepage 相关改动。
+4. `git add <changed-files> && git commit -m ... && git push`
+5. 回到根仓，`git add src/homepage` 更新 submodule 指针；若同时修改部署守则/脚本，一并提交并 `git push`。
+
+## 服务器部署
+
+在服务器上使用独立 homepage 工作目录：
+
+```bash
+ssh conet.network
+cd /var/www/beamio.app/homepage
+git pull --ff-only
+npm run build
+rsync -av --delete --exclude 'app/' --exclude 'appTemp/' build/ /var/www/beamio.app/
+```
+
+## 强制保护
+
+- `/var/www/beamio.app/app/` 和 `/var/www/beamio.app/appTemp/` 是 SilentPassUI PWA 目录，homepage 部署必须 `--exclude 'app/' --exclude 'appTemp/'`。
+- 禁止从 homepage build 对 `/var/www/beamio.app/` 做无 exclude 的 `rsync --delete`。
+- 部署后至少检查：`https://beamio.app/`、`https://beamio.app/app-download?...`、`https://beamio.app/asset-manifest.json`。
+- 若更新 app-download 分享预览，检查 manifest 指向的新 chunk，并用 cache-bust query 验证页面加载最新静态资源。
