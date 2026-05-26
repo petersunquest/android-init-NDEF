@@ -33,4 +33,7 @@ Thumbs.db
 # Local scratch / agent temp files (never commit)
 .tmp_*
 
-.cursor
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/beamio-coupon-ticket-render-protocol.mdc

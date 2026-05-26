@@ -4811,6 +4811,12 @@ private func posCouponExpiryPresentation(validBeforeSec: UInt64?) -> (label: Str
     return ("EXPIRES IN \(days)D", false, false)
 }
 
+private func posCouponExpiryShouldShow(label: String) -> Bool {
+    let normalized = label.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    if normalized.isEmpty { return false }
+    return normalized != "VALID NOW" && normalized != "NO EXPIRY"
+}
+
 private struct POSCouponTicketStripeOverlay: View {
     var body: some View {
         GeometryReader { _ in
@@ -4830,10 +4836,21 @@ private struct POSCouponTicketStripeOverlay: View {
     }
 }
 
-private func posCouponExpiryPill(label: String, urgent: Bool, expired: Bool) -> some View {
+private func posCouponExpiryPill(label: String, urgent: Bool, expired: Bool, external: Bool = false) -> some View {
     let red = Color(red: 0xE6 / 255, green: 0x4A / 255, blue: 0x4A / 255)
     let useRed = urgent || expired
-    let bg = useRed ? red : Color.white.opacity(0.18)
+    let bg: Color = {
+        if external {
+            return useRed ? red : Color(red: 0xEE / 255, green: 0xF1 / 255, blue: 0xF3 / 255)
+        }
+        return useRed ? red : Color.white.opacity(0.18)
+    }()
+    let fg: Color = {
+        if external {
+            return useRed ? Color.white : Color(red: 0x59 / 255, green: 0x5C / 255, blue: 0x5E / 255)
+        }
+        return Color.white
+    }()
     return HStack(spacing: 5) {
         Image(systemName: useRed ? "clock.fill" : "calendar")
             .font(.system(size: 11, weight: .bold))
@@ -4841,14 +4858,18 @@ private func posCouponExpiryPill(label: String, urgent: Bool, expired: Bool) -> 
             .font(.system(size: 10, weight: .heavy))
             .kerning(0.35)
     }
-    .foregroundStyle(Color.white)
+    .foregroundStyle(fg)
     .padding(.horizontal, 10)
     .padding(.vertical, 5)
     .background(
         Capsule()
             .fill(bg)
             .overlay {
-                if !useRed {
+                if external {
+                    if !useRed {
+                        Capsule().stroke(Color(red: 0xAB / 255, green: 0xAD / 255, blue: 0xAF / 255).opacity(0.35), lineWidth: 1)
+                    }
+                } else if !useRed {
                     Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1)
                 }
             }
@@ -4860,7 +4881,6 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
     let title: String
     let subtitle: String
     let iconUrl: String?
-    let fallbackLetter: String
     let backgroundImageUrl: String?
     let gradientStart: Color
     let gradientEnd: Color
@@ -4882,7 +4902,6 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
         title: String,
         subtitle: String,
         iconUrl: String?,
-        fallbackLetter: String,
         backgroundImageUrl: String?,
         gradientStart: Color,
         gradientEnd: Color,
@@ -4900,7 +4919,6 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
         self.title = title
         self.subtitle = subtitle
         self.iconUrl = iconUrl
-        self.fallbackLetter = fallbackLetter
         self.backgroundImageUrl = backgroundImageUrl
         self.gradientStart = gradientStart
         self.gradientEnd = gradientEnd
@@ -4915,24 +4933,51 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
         self.trailing = trailing()
     }
 
+    private var hasBanner: Bool {
+        !backgroundImageTrimmed.isEmpty
+    }
+
     var body: some View {
-        ZStack {
-            ticketFace
-                .clipShape(RoundedRectangle(cornerRadius: cornerR, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerR, style: .continuous)
-                        .stroke(borderColor, lineWidth: 1)
-                )
-            Circle()
-                .fill(notchParentColor)
-                .frame(width: notchD, height: notchD)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .offset(x: -notchD / 2)
-            Circle()
-                .fill(notchParentColor)
-                .frame(width: notchD, height: notchD)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
-                .offset(x: notchD / 2)
+        VStack(alignment: .leading, spacing: hasBanner ? 12 : 0) {
+            ZStack {
+                ticketFace
+                    .clipShape(RoundedRectangle(cornerRadius: cornerR, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerR, style: .continuous)
+                            .stroke(borderColor, lineWidth: 1)
+                    )
+                Circle()
+                    .fill(notchParentColor)
+                    .frame(width: notchD, height: notchD)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .offset(x: -notchD / 2)
+                Circle()
+                    .fill(notchParentColor)
+                    .frame(width: notchD, height: notchD)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                    .offset(x: notchD / 2)
+            }
+            .frame(maxWidth: .infinity)
+
+            if hasBanner {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 17, weight: .heavy))
+                        .foregroundStyle(Color(red: 0x2C / 255, green: 0x2F / 255, blue: 0x31 / 255))
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Color(red: 0x59 / 255, green: 0x5C / 255, blue: 0x5E / 255))
+                        .lineLimit(2)
+                    if posCouponExpiryShouldShow(label: expiry.label) {
+                        posCouponExpiryPill(label: expiry.label, urgent: expiry.urgent, expired: expiry.expired, external: true)
+                    }
+                    HStack {
+                        trailing
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -4952,28 +4997,38 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
                     endPoint: .bottomTrailing
                 )
             }
-            HStack(alignment: .center, spacing: 12) {
-                iconColumn
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(primaryText)
-                        .lineLimit(1)
-                    Text(subtitle)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(secondaryText)
-                        .lineLimit(2)
-                    posCouponExpiryPill(label: expiry.label, urgent: expiry.urgent, expired: expiry.expired)
+            if hasBanner {
+                HStack(alignment: .center, spacing: 12) {
+                    iconColumn
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Spacer(minLength: 4)
-                trailing
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    iconColumn
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(title)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundStyle(primaryText)
+                            .lineLimit(1)
+                        Text(subtitle)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(secondaryText)
+                            .lineLimit(2)
+                        if posCouponExpiryShouldShow(label: expiry.label) {
+                            posCouponExpiryPill(label: expiry.label, urgent: expiry.urgent, expired: expiry.expired)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer(minLength: 4)
+                    trailing
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
         }
         .frame(minHeight: 118)
-        // Align with biz coupon preview: max-w-md (448px) / min-h-[7.5rem] (120px) = 56:15 aspect ratio
         .aspectRatio(56 / 15, contentMode: .fit)
     }
 
@@ -4989,14 +5044,53 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
            let scheme = u.scheme?.lowercased(),
            scheme == "https" || scheme == "http"
         {
-            ZStack {
+            GeometryReader { proxy in
+                ZStack {
+                    HStack(spacing: 0) {
+                        AsyncImage(url: u) { phase in
+                            switch phase {
+                            case let .success(image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: proxy.size.width / 2, height: proxy.size.height)
+                                    .clipped()
+                                    .blur(radius: 12)
+                            default:
+                                LinearGradient(
+                                    colors: [gradientStart, gradientEnd],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            }
+                        }
+                        AsyncImage(url: u) { phase in
+                            switch phase {
+                            case let .success(image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: proxy.size.width / 2, height: proxy.size.height)
+                                    .clipped()
+                                    .blur(radius: 12)
+                            default:
+                                LinearGradient(
+                                    colors: [gradientStart, gradientEnd],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            }
+                        }
+                    }
                 AsyncImage(url: u) { phase in
                     switch phase {
                     case let .success(image):
                         image
                             .resizable()
-                            // Use 1:1 crop for coupon background image
-                            .aspectRatio(1, contentMode: .fill)
+                            .scaledToFit()
+                            .frame(height: proxy.size.height)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
                             .clipped()
                     default:
                         LinearGradient(
@@ -5006,11 +5100,7 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
                         )
                     }
                 }
-                LinearGradient(
-                    colors: [Color.black.opacity(0.72), Color.black.opacity(0.35)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                }
             }
         } else {
             LinearGradient(
@@ -5021,18 +5111,18 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
         }
     }
 
+    @ViewBuilder
     private var iconColumn: some View {
         let trimmed = (iconUrl ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let letter = String(fallbackLetter.prefix(1)).uppercased()
-        return ZStack {
-            Circle()
-                .fill(Color.white.opacity(0.95))
-                .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 2)
-            if !trimmed.isEmpty,
-               let u = URL(string: trimmed),
-               let scheme = u.scheme?.lowercased(),
-               scheme == "https" || scheme == "http"
-            {
+        if !trimmed.isEmpty,
+           let u = URL(string: trimmed),
+           let scheme = u.scheme?.lowercased(),
+           scheme == "https" || scheme == "http"
+        {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(0.95))
+                    .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 2)
                 AsyncImage(url: u) { phase in
                     switch phase {
                     case let .success(image):
@@ -5041,20 +5131,15 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
                             .scaledToFill()
                             .frame(width: 54, height: 54)
                     default:
-                        Text(letter.isEmpty ? "?" : letter)
-                            .font(.system(size: 20, weight: .heavy))
-                            .foregroundStyle(primaryText.opacity(0.82))
+                        Color.clear
+                            .frame(width: 54, height: 54)
                     }
                 }
-            } else {
-                Text(letter.isEmpty ? "?" : letter)
-                    .font(.system(size: 20, weight: .heavy))
-                    .foregroundStyle(primaryText.opacity(0.82))
             }
+            .frame(width: 54, height: 54)
+            .clipShape(Circle())
+            .overlay(Circle().stroke(iconStroke, lineWidth: 2))
         }
-        .frame(width: 54, height: 54)
-        .clipShape(Circle())
-        .overlay(Circle().stroke(iconStroke, lineWidth: 2))
     }
 }
 
@@ -5179,15 +5264,12 @@ private struct POSActiveCouponsScreen: View {
         let exp = posCouponExpiryPresentation(validBeforeSec: row.issuedNftValidBeforeSec)
         let rawSub = row.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
-        let rawTitle = row.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
         return VStack(alignment: .leading, spacing: 6) {
             POSBizCouponPreviewTicket(
                 notchParentColor: Color(uiColor: .systemGroupedBackground),
                 title: row.displayTitle,
                 subtitle: sub,
                 iconUrl: row.iconUrl,
-                fallbackLetter: letter,
                 backgroundImageUrl: row.backgroundImageUrl,
                 gradientStart: tone.gradientStart,
                 gradientEnd: tone.gradientEnd,
@@ -7882,8 +7964,6 @@ private struct ReadBalanceView: View {
         let exp = posCouponExpiryPresentation(validBeforeSec: match?.issuedNftValidBeforeSec)
         let rawSub = (match?.subtitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
-        let rawTitle = row.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
         let canConsume = consumeInFlightCouponId == nil || consumeInFlightCouponId == row.id
         let isConsuming = consumeInFlightCouponId == row.id
         let showClaimedSuccess = claimSucceededCouponId == row.id && !isConsuming
@@ -7893,7 +7973,6 @@ private struct ReadBalanceView: View {
                 title: row.title,
                 subtitle: sub,
                 iconUrl: match?.iconUrl,
-                fallbackLetter: letter,
                 backgroundImageUrl: match?.backgroundImageUrl,
                 gradientStart: tone.gradientStart,
                 gradientEnd: tone.gradientEnd,
@@ -7966,15 +8045,12 @@ private struct ReadBalanceView: View {
         let exp = posCouponExpiryPresentation(validBeforeSec: match?.issuedNftValidBeforeSec)
         let rawSub = (match?.subtitle ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let sub = rawSub.isEmpty ? "Add coupon details for members" : rawSub
-        let rawTitle = row.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let letter = rawTitle.isEmpty ? "?" : String(rawTitle.prefix(1)).uppercased()
         let canTap = (claimInFlightCouponId == nil || claimInFlightCouponId == row.id) && hasClaimContext
         return POSBizCouponPreviewTicket(
             notchParentColor: readBalanceDetailsSurface,
             title: row.title,
             subtitle: sub,
             iconUrl: match?.iconUrl,
-            fallbackLetter: letter,
             backgroundImageUrl: match?.backgroundImageUrl,
             gradientStart: tone.gradientStart,
             gradientEnd: tone.gradientEnd,
