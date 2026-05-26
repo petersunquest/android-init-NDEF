@@ -17,6 +17,10 @@ import WebKit
 /// 1.1 默认冷启动入口与 Universal Link 解析后的 PWA base 一致（`BeamioDeepLink.defaultWebAppURL`）。
 private let cashTreesAppURL = BeamioDeepLink.defaultWebAppURL
 
+/// Launch / splash / empty WebView surface — avoids a pure-black flash when content process dies.
+private let cashTreesWebSurfaceColor = UIColor(red: 0 / 255, green: 4 / 255, blue: 20 / 255, alpha: 1)
+private let cashTreesWebSurfaceSwiftUIColor = Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
+
 /// 与注入脚本 `window.webkit.messageHandlers.CashTreesIOS` 一致
 private let cashTreesIOSWKHandlerName = "CashTreesIOS"
 
@@ -232,8 +236,27 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var nfcSession: NFCTagReaderSession?
     private var bindSessionActive = false
     private var initialWebRenderReadySignaled = false
+    private var webContentProcessNeedsReload = false
     private var lastLoadedWebURLString: String?
+    private var becameActiveObserver: NSObjectProtocol?
     var lastHandledDeepLinkNonce = 0
+
+    override init() {
+        super.init()
+        becameActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.recoverWebContentIfNeeded()
+        }
+    }
+
+    deinit {
+        if let becameActiveObserver {
+            NotificationCenter.default.removeObserver(becameActiveObserver)
+        }
+    }
 
     func loadWebAppURL(_ url: URL, in webView: WKWebView, bypassDedup: Bool = false) {
         let key = url.absoluteString
@@ -295,8 +318,32 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         beginInitialWebHandoffIfNeeded()
     }
 
+    /// iOS often kills the WKWebView content process after long background; reload on terminate or next foreground.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        beginInitialWebHandoffIfNeeded()
+        webContentProcessNeedsReload = true
+        initialWebRenderReadySignaled = false
+        if UIApplication.shared.applicationState == .active {
+            performWebContentRecovery(on: webView)
+        }
+    }
+
+    private func recoverWebContentIfNeeded() {
+        guard webContentProcessNeedsReload, let webView else { return }
+        performWebContentRecovery(on: webView)
+    }
+
+    private func performWebContentRecovery(on webView: WKWebView) {
+        webContentProcessNeedsReload = false
+        initialWebRenderReadySignaled = false
+        if webView.url != nil {
+            webView.reload()
+            return
+        }
+        if let last = lastLoadedWebURLString, let url = URL(string: last) {
+            loadWebAppURL(url, in: webView, bypassDedup: true)
+            return
+        }
+        loadWebAppURL(cashTreesAppURL, in: webView, bypassDedup: true)
     }
 
     // MARK: WKUIDelegate — PWA getUserMedia 预授权（对齐 Android WebChromeClient.onPermissionRequest）
@@ -869,11 +916,11 @@ struct CashTreesWebView: UIViewRepresentable {
         coord.webView = webView
         webView.navigationDelegate = coord
         webView.uiDelegate = coord
-        webView.isOpaque = false
-        webView.backgroundColor = .clear
+        webView.isOpaque = true
+        webView.backgroundColor = cashTreesWebSurfaceColor
         let sv = webView.scrollView
         // 与 `viewport-fit=cover` + 页内 `env(safe-area-inset-*)` 配合：避免 UIScrollView 再自动加一套 safe area inset（叠双层或挤顶）。
-        sv.backgroundColor = .clear
+        sv.backgroundColor = cashTreesWebSurfaceColor
         sv.contentInsetAdjustmentBehavior = .never
         sv.minimumZoomScale = 1.0
         sv.maximumZoomScale = 1.0
@@ -920,7 +967,7 @@ private struct CashTreesSplashOverlay: View {
 
     /// Match the POS launch handoff background so the splash sits on the same
     /// deep navy surface during the full-screen phase and dismissal.
-    private let splashBackground = Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
+    private let splashBackground = cashTreesWebSurfaceSwiftUIColor
     private let burstTargetScale: CGFloat = 2.55
     private let burstDuration: Double = 0.52
 
@@ -996,12 +1043,13 @@ private struct CashTreesSplashOverlay: View {
 
 struct ContentView: View {
     @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var webLoadState = CashTreesWebLoadState()
     @State private var webContentVisible = false
 
     var body: some View {
         ZStack {
-            Color(red: 0 / 255, green: 4 / 255, blue: 20 / 255)
+            cashTreesWebSurfaceSwiftUIColor
                 .ignoresSafeArea()
             CashTreesWebView(loadState: webLoadState, deepLinkStore: deepLinkStore)
                 .opacity(webContentVisible ? 1 : 0)
@@ -1028,6 +1076,11 @@ struct ContentView: View {
             DispatchQueue.main.async {
                 webContentVisible = !newValue
             }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active, !webLoadState.isSplashVisible else { return }
+            // Safety net: never leave WebView at opacity 0 after splash is gone.
+            webContentVisible = true
         }
     }
 }
