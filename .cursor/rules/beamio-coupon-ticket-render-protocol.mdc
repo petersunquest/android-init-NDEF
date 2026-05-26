@@ -96,8 +96,9 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | `OG_IMAGE_PREP_SCALE = 2` | banner/icon 用 Sharp Lanczos3 2× 预裁剪后嵌入 1× SVG |
 | `OG_BANNER_CAPSULE_H = 258` | banner ticket 条高度（OG px）；对齐 homepage 下载页 ticket 比例（约 512 / 120 ≈ 4.27:1） |
 | `OG_BANNER_META_TOP_GAP = 26` | banner 底部到外置 title 顶部的间距；对齐 homepage 下载页 `mt-3` 按 ticket 宽度缩放后的距离 |
+| `OG_BANNER_BOTTOM_EXTRA_GAP = 44` | OG 底部额外留白；取顶部 headline 到画布顶部视觉间距的 2 倍 |
 | `OG_JPEG_QUALITY = 93` | mozjpeg + `4:4:4` 色度采样 |
-| `OG_LAYOUT_REV = 12` | 写入 `/og/s/` token JSON；改 OG 须 bump |
+| `OG_LAYOUT_REV = 13` | 写入 `/og/s/` token JSON；改 OG 须 bump |
 
 - Banner OG 必须忠实保留商户原图色彩：显式输出 sRGB，且有 banner 时不得叠加全局黑色 `photoShade` / `capsuleShade` 压暗层；仅允许边框、侧孔、外部文字等不改变 banner 像素色彩的装饰。
 
