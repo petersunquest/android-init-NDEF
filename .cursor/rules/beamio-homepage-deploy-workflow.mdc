@@ -28,9 +28,20 @@ npm run build
 rsync -av --delete --exclude 'app/' --exclude 'appTemp/' build/ /var/www/beamio.app/
 ```
 
+若服务器工作目录位于 `/var/www/beamio.app/homepage`，部署命令必须同时排除该目录：
+
+```bash
+rsync -av --delete \
+  --exclude 'app/' \
+  --exclude 'appTemp/' \
+  --exclude 'homepage/' \
+  build/ /var/www/beamio.app/
+```
+
 ## 强制保护
 
 - `/var/www/beamio.app/app/` 和 `/var/www/beamio.app/appTemp/` 是 SilentPassUI PWA 目录，homepage 部署必须 `--exclude 'app/' --exclude 'appTemp/'`。
+- `/var/www/beamio.app/homepage/` 是 homepage 的服务器 Git 工作目录；若该目录存在于站点根，homepage 部署也必须 `--exclude 'homepage/'`。
 - 禁止从 homepage build 对 `/var/www/beamio.app/` 做无 exclude 的 `rsync --delete`。
 - 部署后至少检查：`https://beamio.app/`、`https://beamio.app/app-download?...`、`https://beamio.app/asset-manifest.json`。
 - 若更新 app-download 分享预览，检查 manifest 指向的新 chunk，并用 cache-bust query 验证页面加载最新静态资源。
