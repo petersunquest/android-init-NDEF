@@ -152,6 +152,28 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 
 - **coinbase-hooks**：Webhook 需 raw body 验签，Cluster 与 Master 均可独立接收处理，不转发（转发会丢失 raw body）
 
+## x402sdk API 修改后的发布流程
+
+修改 `src/x402sdk` 中 API、OG、endpoint、服务端构建产物相关代码后，必须按独立子项目流程发布：
+
+1. **本地验证**：在 `src/x402sdk` 内执行该子项目自己的验证命令，至少 `npm run build`。
+2. **子项目提交与推送**：
+   - `cd src/x402sdk`
+   - `git status -sb` 确认只包含本次任务相关改动。
+   - `git add <changed-files> && git commit -m ... && git push`
+3. **根仓同步**：
+   - 回到根仓，`git add src/x402sdk` 更新 submodule 指针。
+   - 若本次同时更新 `.cursor/rules`、部署脚本或根仓配置，一并纳入根仓 commit。
+   - `git commit ... && git push`。
+4. **远程部署**：
+   - `ssh conet.network`
+   - 进入服务器上的 `x402sdk` 工作目录，执行 `git pull`。
+   - 执行 `npm run build`。
+   - 重启 Beamio API systemd 服务（按服务器实际服务名，如 `systemctl restart conet-beamio-api`）。
+   - 用 `systemctl status ...` 或接口 smoke test 确认 API 已运行。
+
+注意：只 `git pull` 不代表运行中的 `dist/server.js` 已更新；必须 build 并重启 API。
+
 ## 新增端点检查清单
 
 新增 API 时：
