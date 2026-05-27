@@ -38,3 +38,4 @@ Thumbs.db
 .cursor/rules/*
 !.cursor/rules/beamio-coupon-ticket-render-protocol.mdc
 !.cursor/rules/beamio-homepage-deploy-workflow.mdc
+!.cursor/rules/beamio-bizsite-deploy.mdc

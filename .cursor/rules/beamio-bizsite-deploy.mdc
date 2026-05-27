@@ -1,0 +1,63 @@
+---
+description: bizSite（Merchant OS）部署到 biz.beamio.app/biz/ 的标准流程
+alwaysApply: true
+---
+
+# Beamio bizSite 部署守则
+
+## 站点与目录
+
+| 项 | 值 |
+|---|---|
+| 公网 URL | `https://biz.beamio.app/biz/` |
+| nginx root | `/var/www/biz.beamio.app` |
+| 服务器源码 clone | `/var/www/biz.beamio.app/SilentPassUI`（与 `src/bizSite` 同仓库，分支 `cashtrees`） |
+| 线上产物 | `/var/www/biz.beamio.app/biz/` |
+| staging | `/var/www/biz.beamio.app/bizTemp/`（先写入，再 promote 到 `biz/`） |
+
+`package.json` 中 `homepage` 必须为 `"/biz"`。
+
+## 标准部署流程（推荐：服务器构建）
+
+1. **本地子项目**：`cd src/bizSite` → 提交并 `git push`（分支 `cashtrees`）。
+2. **根仓**：若更新了子模块指针或部署脚本，一并 commit + push。
+3. **远程构建与发布**（二选一）：
+   - 脚本：`./scripts/deployBeamioBizSite.sh`（默认 remote build）
+   - 或手动 SSH：
+
+```bash
+ssh conet.network
+cd /var/www/biz.beamio.app/SilentPassUI
+git pull
+npm run build
+rsync -a --delete build/ ../bizTemp/
+rsync -a --delete ../bizTemp/ ../biz/
+```
+
+4. **验收**：硬刷新 `https://biz.beamio.app/biz/`，抽查 Merchant OS 关键页（Overview、Terminals、Programs）。
+
+## 脚本选项
+
+`scripts/deployBeamioBizSite.sh`：
+
+| 模式 | 说明 |
+|---|---|
+| 默认 | SSH 到服务器，在 `SilentPassUI` 内 `git pull && npm run build`，再 promote 到 `biz/` |
+| `--local-build` | 本地 `src/bizSite` 构建后 rsync 到远程 `bizTemp/` + `biz/` |
+| `--skip-build` | 跳过构建，仅 promote 已有 `build/` |
+| `--skip-promote` | 只更新 `bizTemp/`，不写入 `biz/` |
+
+环境变量：`BEAMIO_DEPLOY_HOST`（默认 `conet.network`）、`BEAMIO_DEPLOY_USER`、`BEAMIO_BIZ_ROOT`（默认 `/var/www/biz.beamio.app`）。
+
+## 严禁
+
+- ❌ 把 bizSite build rsync 到 `/var/www/beamio.app/`（那是 homepage + PWA，见 `beamio-pwa-deploy-app-dirs.mdc`）
+- ❌ 删除或 `--delete` 覆盖 `/var/www/biz.beamio.app/` 下与 biz 无关的目录
+- ❌ 未 `git push` 就在服务器 `git pull`（会得到旧代码）
+- ❌ 修改 `homepage` 不为 `/biz` 却不同步 nginx `location ^~ /biz/`
+
+## 参考
+
+- nginx：`src/x402sdk/service/beamio.conf` — `server_name biz.beamio.app`
+- 部署脚本：`scripts/deployBeamioBizSite.sh`
+- 源码：`src/bizSite/`（`homepage: "/biz"`）
