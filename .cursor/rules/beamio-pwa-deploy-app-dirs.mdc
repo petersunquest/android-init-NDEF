@@ -1,0 +1,87 @@
+---
+description: Beamio PWA 部署目录 app / appTemp 不可删除；homepage 与 PWA 分目录发布
+alwaysApply: true
+---
+
+# Beamio PWA 部署目录：`app` 与 `appTemp`（禁止删除）
+
+## 核心规则
+
+**服务器站点根目录 `/var/www/beamio.app/` 下的 `app/` 与 `appTemp/` 是 Beamio PWA（SilentPassUI，`https://beamio.app/app/`）专用部署目录，任何 homepage / nginx / 运维脚本 / AI 自动化都不得删除、覆盖为空，或用 `rsync --delete` 整站同步时一并清掉。**
+
+| 目录 | 用途 |
+|------|------|
+| **`app/`** | **线上 PWA 产物**（SilentPassUI build，`package.json` `homepage: "/app"`）。nginx `location ^~ /app/` 直接服务此目录。 |
+| **`appTemp/`** | **PWA 发布 staging**（先写入临时目录，校验/原子切换后再替换 `app/`）。与 `app/` 结构相同，不可当作可清理缓存。 |
+
+站点根目录其余文件（`index.html`、`assets/`、`static/` 等）来自 **`src/homepage`**，与 **`app/` / `appTemp/` 是并列、独立的两套前端**，勿混为一次 `--delete` 全量覆盖。
+
+## nginx 约定（真相来源）
+
+`src/x402sdk/service/beamio.conf`：
+
+- `location ^~ /app/` → `try_files $uri $uri/ /app/index.html`
+- `location = /app/manifest.json` → Cluster API，静态回退到 `/app/manifest.json`
+
+修改 nginx 或部署流程时，须保证 **`/var/www/beamio.app/app/`** 始终存在且可服务。
+
+## 正确部署方式
+
+使用仓库脚本（推荐）：
+
+```bash
+# Homepage → 站点根（自动 exclude app/、appTemp/）
+./scripts/deployBeamioHomepage.sh
+
+# SilentPassUI PWA → conet.network remote build → old-conet app/
+./scripts/deployBeamioPwa.sh
+```
+
+环境变量（可选）：`REMOTE_BUILD_HOST`（默认 `conet.network`）、`REMOTE_BUILD_DIR`（默认 `/var/www/beamio.app/SilentPassUI`）、`REMOTE_DEPLOY_TARGET`（默认 `peter@old-conet:/var/www/beamio.app/app/`）。
+
+### Homepage（`src/homepage` → 站点根）
+
+只同步 homepage build 到 **`/var/www/beamio.app/` 根**，**必须排除** PWA 目录：
+
+```bash
+rsync -av --delete \
+  --exclude 'app/' \
+  --exclude 'appTemp/' \
+  build/ conet.network:/var/www/beamio.app/
+```
+
+或使用 staging + 仅合并根目录文件，**不得**对 `app/`、`appTemp/` 使用 `--delete`。
+
+### SilentPassUI PWA（独立部署路径）
+
+SilentPassUI 是 Beamio 主 PWA，部署流程与其它 PWA 不同，必须使用以下链路：
+
+1. 本地先在 `src/SilentPassUI` git commit + push。
+2. `ssh conet.network`。
+3. `cd /var/www/beamio.app/SilentPassUI && git pull --ff-only`。
+4. 在该远程目录执行 `npm run build`。
+5. 将远程 `build/` 发布到 **`peter@old-conet:/var/www/beamio.app/app/`**：
+   `rsync -av --delete build/ peter@old-conet:/var/www/beamio.app/app/`
+6. **禁止**用 homepage 的 `rsync --delete build/` 覆盖整个 `/var/www/beamio.app/`，也不要把其它 PWA 的部署目标套用到 SilentPassUI。
+
+## 严禁
+
+- ❌ `rsync -av --delete homepage/build/ /var/www/beamio.app/` 且未 `--exclude app/ --exclude appTemp/`（会删掉线上 PWA）
+- ❌ `rm -rf /var/www/beamio.app/app` 或 `appTemp`
+- ❌ 把 `app/`、`appTemp/` 当作临时目录、CI 缓存或「可重建即删」
+- ❌ 部署 homepage 后未确认 `https://beamio.app/app/` 仍可访问
+- ❌ 在仓库内删除服务器上的 `app` / `appTemp` 镜像目录（若存在）而未确认非 PWA 产物
+
+## 变更检查清单
+
+- [ ] 本次 rsync / scp / 清理脚本是否 **exclude** 了 `app/` 与 `appTemp/`？
+- [ ] 若更新 PWA，是否只动 `appTemp/` → `app/`，而不是整站 `--delete`？
+- [ ] 部署后是否 spot-check：`https://beamio.app/app/` 与 homepage 根路径均正常？
+
+## 参考
+
+- 部署脚本：`scripts/deployBeamioHomepage.sh`、`scripts/deployBeamioPwa.sh`
+- PWA 源码：`src/SilentPassUI/`（`homepage: "/app"`）
+- Homepage 源码：`src/homepage/`
+- nginx：`src/x402sdk/service/beamio.conf` — `/app/` 路由
+- iOS / 深链默认入口：`https://beamio.app/app/`（`BeamioDeepLink.defaultWebAppURL`）

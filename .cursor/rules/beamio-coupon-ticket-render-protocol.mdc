@@ -79,7 +79,7 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | 平台 / 场景 | 主文件 | 关键符号 |
 |---|---|---|
 | **SilentPassUI**（Discover / My Brands / Claim / Redeem 面板） | `src/SilentPassUI/src/pages/Home/ActiveCouponsScreen.tsx` | `ActiveCouponTicketItem`, `formatCouponExpiryPill`, `shouldShowCouponExpiryPill` |
-| SilentPassUI 包装 | `CouponClaimTicketPreview.tsx`, `RedeemClaimTicketPreview.tsx`, `Market.tsx`, `MyBrandsListSection.tsx` | 复用 `ActiveCouponTicketItem`，**勿**另写 ticket |
+| SilentPassUI 包装 | `CouponClaimTicketPreview.tsx`, `RedeemClaimTicketPreview.tsx`, `Market.tsx`, `MyBrandsListSection.tsx` | 复用 `ActiveCouponTicketItem`，**勿**另写 ticket；`App.tsx` 的 Coupon Claim / Redeem Claim overlay 必须通过这两个 preview 组件进入 canonical ticket |
 | **bizSite** | `src/bizSite/src/pages/Vouchers/example/biz.tsx` | `ProgramsCouponShareCardPreview`, `cardIssuanceCouponEditorLivePreview`, `programsCouponShareShouldShowExpiryPill` |
 | **homepage** app-download | `src/homepage/src/pages/AppDownloadPage.tsx` | `CouponSharePreview` |
 | homepage utils | `src/homepage/src/utils/couponClaimShare.ts` | `shouldShowCouponExpiryPill`, `couponExpiryUsesUrgentVariant` |
@@ -109,7 +109,7 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 
 ## 变更检查清单（改布局 / icon / expiry 任一项时）
 
-1. **SilentPassUI** — `ActiveCouponsScreen.tsx`（及仅透传的 preview 组件）。
+1. **SilentPassUI** — `ActiveCouponsScreen.tsx`、`CouponClaimTicketPreview.tsx`、`RedeemClaimTicketPreview.tsx`，以及 `App.tsx` 中的 Coupon Claim / Redeem Claim overlay 入口。
 2. **bizSite** — `ProgramsCouponShareCardPreview` + 编辑器 live preview块。
 3. **homepage** — `AppDownloadPage.tsx` + `utils/couponClaimShare.ts`。
 4. **x402sdk** — `couponClaimShare.ts` OG SVG/文字层；**递增 OG cache key 版本**（如 `wide:v7` → `v8`）。OG 画质参数：`OG_RENDER_SCALE`（2× 超采样）、`fetchImageCoverPngDataUrl`（Lanczos3 预裁剪）、`OG_BANNER_CAPSULE_H`、`OG_JPEG_QUALITY`。
