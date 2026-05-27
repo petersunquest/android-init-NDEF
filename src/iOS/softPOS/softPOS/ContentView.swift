@@ -14,8 +14,8 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// POS PWA test entry. Consumer SilentPassUI shell uses `BeamioDeepLink.defaultWebAppURL` (`/app/`).
-private let cashTreesAppURL = URL(string: "https://pos.conet.network/")!
+/// softPOS 默认冷启动入口 — posPWA (`BeamioDeepLink.defaultWebAppURL` → https://pos.conet.network/).
+private let cashTreesAppURL = BeamioDeepLink.defaultWebAppURL
 
 /// Launch / splash / empty WebView surface — avoids a pure-black flash when content process dies.
 private let cashTreesWebSurfaceColor = UIColor(red: 0 / 255, green: 4 / 255, blue: 20 / 255, alpha: 1)

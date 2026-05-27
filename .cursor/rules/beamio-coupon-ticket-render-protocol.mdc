@@ -86,6 +86,7 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | **x402sdk** 分享 meta + OG 图 | `src/x402sdk/src/endpoint/couponClaimShare.ts` | `formatCouponExpiryPill`, `shouldShowCouponExpiryPill`, `buildCouponClaimOgRasterParts` |
 | **iOS POS** | `src/CashTrees_iOS/iOS_NDEF/iOS_NDEF/ContentView.swift` | `POSBizCouponPreviewTicket`, `posCouponExpiryShouldShow` |
 | **Android POS** | `src/android-NDEF/.../MainActivity.kt` | `PosBizCouponPreviewTicket`, `posCouponExpiryShouldShow` |
+| **POS PWA**（Check Balance 完成页） | `src/posPwa/src/components/CouponPreviewTicket.tsx`, `CouponBannerImage.tsx`, `ReadBalanceCouponsSection.tsx` | banner 双层图像、外置 metadata、无 icon 不占位、隐藏无信息量 expiry pill |
 
 > `src/` 子项目**不得**跨项目 `import` 共享组件；改规则时须**同步更新上表每一行的逻辑**，保持视觉与语义一致。
 
@@ -115,7 +116,8 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 4. **x402sdk** — `couponClaimShare.ts` OG SVG/文字层；**递增 OG cache key 版本**（如 `wide:v7` → `v8`）。OG 画质参数：`OG_RENDER_SCALE`（2× 超采样）、`fetchImageCoverPngDataUrl`（Lanczos3 预裁剪）、`OG_BANNER_CAPSULE_H`、`OG_JPEG_QUALITY`。
 5. **iOS POS** — `ContentView.swift` coupon ticket 区块。
 6. **Android POS** — `MainActivity.kt` coupon ticket 区块。
-7. **部署**：homepage `deployBeamioHomepage.sh`；x402sdk build + API 重启；bizSite / SilentPassUI 各自 build；iOS/Android 各自编译。
+7. **POS PWA** — `CouponPreviewTicket.tsx` / `CouponBannerImage.tsx` / `ReadBalanceCouponsSection.tsx`，并运行 `cd src/posPwa && npm run build`。
+8. **部署**：homepage `deployBeamioHomepage.sh`；x402sdk build + API 重启；bizSite / SilentPassUI / posPwa 各自 build；iOS/Android 各自编译。
 
 ## 严禁
 

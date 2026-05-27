@@ -37,7 +37,7 @@ alwaysApply: true
 ./scripts/deployBeamioPwa.sh
 ```
 
-环境变量（可选）：`REMOTE_BUILD_HOST`（默认 `conet.network`）、`REMOTE_BUILD_DIR`（默认 `/var/www/beamio.app/SilentPassUI`）、`REMOTE_DEPLOY_TARGET`（默认 `peter@old-conet:/var/www/beamio.app/app/`）。
+环境变量（可选）：`REMOTE_BUILD_HOST`（默认 `conet.network`）、`REMOTE_BUILD_DIR`（默认 `/var/www/beamio.app/SilentPassUI`）、`REMOTE_APP_DIR`（默认 `/var/www/beamio.app/app/`）。脚本支持 `--skip-version-bump`（不推荐）。
 
 ### Homepage（`src/homepage` → 站点根）
 
@@ -56,12 +56,12 @@ rsync -av --delete \
 
 SilentPassUI 是 Beamio 主 PWA，部署流程与其它 PWA 不同，必须使用以下链路：
 
-1. 本地先在 `src/SilentPassUI` git commit + push。
-2. `ssh conet.network`。
-3. `cd /var/www/beamio.app/SilentPassUI && git pull --ff-only`。
-4. 在该远程目录执行 `npm run build`。
-5. 将远程 `build/` 发布到 **`peter@old-conet:/var/www/beamio.app/app/`**：
-   `rsync -av --delete build/ peter@old-conet:/var/www/beamio.app/app/`
+1. 本地 `src/SilentPassUI` **working tree clean**（业务改动已 commit）。
+2. **`./scripts/deployBeamioPwa.sh` 部署前自动 patch bump** `src/SilentPassUI/package.json` 的 `version`（`npm version patch --no-git-tag-version`），commit + push 后再远程构建。
+3. `ssh conet.network`。
+4. `cd /var/www/beamio.app/SilentPassUI && git fetch origin cashtree && git reset --hard origin/cashtree && npm install && npm run build`。
+5. 将远程 `build/` 发布到 **`/var/www/beamio.app/app/`**（同机本地 rsync；`old-conet` 为 `127.0.1.1` 别名，勿走 SSH 二次 hop）：
+   `rsync -av --delete build/ /var/www/beamio.app/app/`
 6. **禁止**用 homepage 的 `rsync --delete build/` 覆盖整个 `/var/www/beamio.app/`，也不要把其它 PWA 的部署目标套用到 SilentPassUI。
 
 ## 严禁
@@ -74,6 +74,7 @@ SilentPassUI 是 Beamio 主 PWA，部署流程与其它 PWA 不同，必须使�
 
 ## 变更检查清单
 
+- [ ] 部署前是否已通过脚本 **bump** `src/SilentPassUI/package.json` `version` 并 push？
 - [ ] 本次 rsync / scp / 清理脚本是否 **exclude** 了 `app/` 与 `appTemp/`？
 - [ ] 若更新 PWA，是否只动 `appTemp/` → `app/`，而不是整站 `--delete`？
 - [ ] 部署后是否 spot-check：`https://beamio.app/app/` 与 homepage 根路径均正常？
