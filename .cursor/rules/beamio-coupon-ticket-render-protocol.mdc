@@ -99,11 +99,12 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | `OG_BANNER_NOTCH_R = 39` | 左右侧孔半径；对齐 homepage 36px 侧孔在 120px ticket 高度下的比例 |
 | `OG_BANNER_META_TOP_GAP = 26` | banner 底部到外置 title 顶部的间距；对齐 homepage 下载页 `mt-3` 按 ticket 宽度缩放后的距离 |
 | `OG_BANNER_BOTTOM_EXTRA_GAP = 44` | OG 底部额外留白；取顶部 headline 到画布顶部视觉间距的 4 倍 |
-| `OG_BANNER_QR_TARGET_SIZE = 96` | banner 模式外置 QR 目标尺寸；避免被底部文案压缩成过小 QR |
+| `OG_BANNER_QR_TARGET_SIZE = 192` | banner 模式外置 QR 尺寸；较上一版 96px 放大一倍，且不再渲染 QR 下方说明文字挤压 QR |
 | `OG_JPEG_QUALITY = 93` | mozjpeg + `4:4:4` 色度采样 |
-| `OG_LAYOUT_REV = 14` | 写入 `/og/s/` token JSON；改 OG 须 bump |
+| `OG_LAYOUT_REV = 16` | 写入 `/og/s/` token JSON；改 OG 须 bump |
 
 - Banner OG 必须忠实保留商户原图色彩：显式输出 sRGB，且有 banner 时不得叠加全局黑色 `photoShade` / `capsuleShade` 压暗层；仅允许边框、侧孔、外部文字等不改变 banner 像素色彩的装饰。
+- Banner OG 的空白填充须与 biz Open Claim Distribution / app-download preview 的双层图像法一致：底层用同一 banner 做 `cover + blur` 填满 ticket，顶层再按高度完整显示原图并居中裁剪/叠加；任何左右或上下露出的区域都由同图模糊背景填满，不得出现透明/纯色空白。
 - WhatsApp 等社交平台缓存刷新时，cache-bust 必须同时进入 `og:url` 与 `/og/s/{token}.jpg` 图片 token；`v` 为规范参数，历史测试参数 `iiis` 可兼容读取并规范化为 `v`。
 
 ## 变更检查清单（改布局 / icon / expiry 任一项时）
