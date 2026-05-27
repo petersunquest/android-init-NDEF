@@ -1,4 +1,5 @@
 import { AlertTriangle, Printer, Share2 } from 'lucide-react'
+import { printPosReceipt } from '@/bridge/cashTreesPrintBridge'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosPaymentApprovedPassHero } from '@/components/PosPaymentApprovedPassHero'
 import { PosPaymentRoutingCard } from '@/components/PosPaymentRoutingCard'
@@ -7,6 +8,7 @@ import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { buildFallbackPassHero, type PosSuccessPassHeroProps } from '@/utils/posSuccessHero'
 import { readBalanceFormatMoney } from '@/utils/readBalanceDisplay'
 import { formatPosReceiptDate, shortWalletAddr } from '@/utils/posReceiptUtils'
+import { buildChargeReceiptPlainText } from '@/utils/posReceiptPlainText'
 import type { ChargeExecuteSuccess } from '@/utils/chargeExecute'
 
 function ReceiptRadialBackdrop() {
@@ -72,7 +74,22 @@ export function ChargeSuccessView({
 			: passHero.balanceParts
 
 	const onPrint = () => {
-		window.print()
+		const text = buildChargeReceiptPlainText({
+			amount: result.amount,
+			postBalance: result.postBalance,
+			cardCurrency: currency,
+			subtotal: result.subtotal,
+			tip: result.tip,
+			dateStr,
+			memberNo: displayMemberNo,
+			payee: result.payee,
+			customerWalletAddress: result.customerWalletAddress,
+			txHash: result.txHash,
+			settlementViaQr: result.settlementViaQr,
+		})
+		if (!printPosReceipt({ text, title: 'Payment Receipt' })) {
+			window.print()
+		}
 	}
 
 	const onShare = async () => {

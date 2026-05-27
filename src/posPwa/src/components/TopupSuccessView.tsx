@@ -1,4 +1,5 @@
 import { CheckCircle2, Printer, Share2 } from 'lucide-react'
+import { printPosReceipt } from '@/bridge/cashTreesPrintBridge'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosReceiptMetadataCard } from '@/components/PosReceiptMetadataCard'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
@@ -9,6 +10,7 @@ import {
 	formatPosReceiptDate,
 	shortWalletAddr,
 } from '@/utils/posReceiptUtils'
+import { buildTopupReceiptPlainText } from '@/utils/posReceiptPlainText'
 import type { TopupExecuteSuccess } from '@/utils/topupExecute'
 
 const PAGE_BG = '#f5f5f7'
@@ -52,7 +54,19 @@ export function TopupSuccessView({
 	const dateStr = formatPosReceiptDate()
 
 	const onPrint = () => {
-		window.print()
+		const text = buildTopupReceiptPlainText({
+			amount: result.amount,
+			postBalance: result.postBalance,
+			cardCurrency: currency,
+			dateStr,
+			memberNo: displayMemberNo,
+			address: result.address,
+			txHash: result.txHash,
+			settlementViaQr: result.settlementViaQr,
+		})
+		if (!printPosReceipt({ text, title: 'Top-Up Receipt' })) {
+			window.print()
+		}
 	}
 
 	const onShare = async () => {

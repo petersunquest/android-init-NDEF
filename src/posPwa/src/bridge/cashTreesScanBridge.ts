@@ -40,6 +40,7 @@ declare global {
 			cancelPhysicalCardBind?: () => void
 			scanQr?: (payload: { requestId?: string }) => void
 			openURL?: (payload: { url?: string }) => void
+			printReceipt?: (payload: { text?: string; title?: string }) => void
 		}
 		CashTreesAndroid?: {
 			getNfcStatus?: () => string

@@ -465,6 +465,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 action:'openURL',
                 url:payload.url||''
               });
+            },
+            printReceipt:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'printReceipt',
+                text:payload.text||'',
+                title:payload.title||'Receipt'
+              });
             }
           };
         })();
@@ -535,6 +543,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "openURL":
             let url = body["url"] as? String
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
+        case "printReceipt":
+            let text = body["text"] as? String
+            let title = body["title"] as? String
+            DispatchQueue.main.async { [weak self] in self?.printReceiptFromBridge(text: text, jobTitle: title) }
         default:
             break
         }
@@ -547,6 +559,26 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         let allowed: Set<String> = ["http", "https", "mailto", "tel"]
         guard allowed.contains(scheme) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    /// PWA `CashTreesIOS.printReceipt({ text, title })` — native AirPrint / printer picker (iOS POS parity).
+    private func printReceiptFromBridge(text raw: String?, jobTitle _: String?) {
+        let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else { return }
+        guard UIPrintInteractionController.isPrintingAvailable else { return }
+        let fmt = UISimpleTextPrintFormatter(text: text)
+        fmt.perPageContentInsets = UIEdgeInsets(top: 24, left: 18, bottom: 24, right: 18)
+        let pc = UIPrintInteractionController.shared
+        pc.printFormatter = fmt
+        guard let presenter = topViewController() else {
+            pc.present(animated: true, completionHandler: nil)
+            return
+        }
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            pc.present(from: presenter.view.bounds, in: presenter.view, animated: true, completionHandler: nil)
+        } else {
+            pc.present(animated: true, completionHandler: nil)
+        }
     }
 
     private func presentGeneralQRScanner(requestId: String?, filter: GeneralQRScanFilter, bridgeAction: String) {
