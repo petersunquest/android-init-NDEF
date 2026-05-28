@@ -48,6 +48,8 @@ done
 RSYNC_EXCLUDES=(
 	--exclude 'app/'
 	--exclude 'appTemp/'
+	--exclude 'homepage/'
+	--exclude 'SilentPassUI/'
 )
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -61,7 +63,7 @@ if [[ ! -f "$BUILD_DIR/index.html" ]]; then
 	exit 1
 fi
 
-echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/)"
+echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/, homepage/, SilentPassUI/)"
 if [[ "$DRY_RUN" -eq 1 ]]; then
 	rsync -av --delete "${RSYNC_EXCLUDES[@]}" --dry-run "$BUILD_DIR/" "$REMOTE"
 else
