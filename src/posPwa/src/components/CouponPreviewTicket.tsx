@@ -34,7 +34,7 @@ export function CouponPreviewTicket({
 }: CouponPreviewTicketProps) {
 	const banner = backgroundImageUrl?.trim() ?? ''
 	const hasBanner = banner.length > 0
-	const icon = iconUrl?.trim() ?? ''
+	const icon = hasBanner ? '' : iconUrl?.trim() ?? ''
 	const expiry = posCouponExpiryPresentation(validBeforeSec ?? null)
 	const showExpiryPill = shouldShowCouponExpiryPill(expiry.label)
 	const expiryUrgent = couponExpiryUsesUrgentVariant(expiry.label)
@@ -119,14 +119,6 @@ export function CouponPreviewTicket({
 							{subtitle}
 						</p>
 						{showExpiryPill ? <div className="mt-2">{renderExpiryPill('inner')}</div> : null}
-					</div>
-				) : null}
-
-				{hasBanner && icon ? (
-					<div
-						className="flex h-[3.35rem] w-[3.35rem] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white/40 bg-white/95 shadow-md ring-2 ring-black/10"
-					>
-						<img src={icon} alt="" className="h-full w-full object-cover" draggable={false} />
 					</div>
 				) : null}
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy src/posPwa to https://pos.conet.network (root base path, dedicated vhost).
+# Deploy src/posPwa to https://pos.beamio.app (root base path, dedicated vhost).
 # Staging: /var/www/pos.conet.network/posTemp/ → live: /var/www/pos.conet.network/
 
 set -euo pipefail
@@ -23,17 +23,17 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/deployPosConetNetwork.sh [options]
 
-Build posPwa (base /) and publish to https://pos.conet.network:
+Build posPwa (base /) and publish to https://pos.beamio.app:
   1) POS_PWA_BASE=/ npm run build
   2) rsync dist -> posTemp/ (staging)
   3) rsync posTemp/ -> web root (live)
-  4) install nginx vhost (if missing) + expand TLS cert for pos.conet.network
+  4) install nginx vhost (if missing) + expand TLS cert for pos.beamio.app
 
 Options:
   --skip-build      Use existing src/posPwa/dist without npm run build
   --skip-promote    Only update posTemp/, do not copy to live root
   --skip-nginx      Do not install or reload nginx config
-  --skip-cert       Do not run certbot expand for pos.conet.network
+  --skip-cert       Do not reissue shared cert for pos.beamio.app
   --dry-run         Pass --dry-run to rsync
   -h, --help        Show this help
 
@@ -63,7 +63,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 fi
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
-	echo "==> Building posPwa for pos.conet.network (POS_PWA_BASE=/)"
+	echo "==> Building posPwa for pos.beamio.app (POS_PWA_BASE=/)"
 	( cd "$POS_PWA_DIR" && npm ci && POS_PWA_BASE=/ npm run build )
 fi
 
@@ -73,7 +73,7 @@ if [[ ! -f "$BUILD_DIR/index.html" ]]; then
 	exit 1
 fi
 
-# Guard: pos.conet.network is served at / — assets must not use /pos/ prefix.
+# Guard: pos.beamio.app is served at / — assets must not use /pos/ prefix.
 if grep -qE 'src="/pos/|href="/pos/' "$BUILD_DIR/index.html"; then
 	echo "ERROR: dist/index.html still references /pos/ assets." >&2
 	echo "Rebuild with: cd src/posPwa && POS_PWA_BASE=/ npm run build" >&2
@@ -103,27 +103,27 @@ else
 fi
 
 if [[ "$SKIP_NGINX" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
-	echo "==> Install nginx vhost for pos.conet.network (if needed)"
+	echo "==> Install nginx vhost for pos.beamio.app (if needed)"
 	scp "$NGINX_CONF" "${SSH_TARGET}:/tmp/nginx-pos-conet.network.conf"
-	ssh "$SSH_TARGET" "sudo cp /tmp/nginx-pos-conet.network.conf /etc/nginx/sites-available/pos.conet.network.conf && sudo ln -sf /etc/nginx/sites-available/pos.conet.network.conf /etc/nginx/sites-enabled/pos.conet.network.conf"
+	ssh "$SSH_TARGET" "sudo cp /tmp/nginx-pos-conet.network.conf /etc/nginx/sites-available/pos.beamio.app.conf && sudo ln -sf /etc/nginx/sites-available/pos.beamio.app.conf /etc/nginx/sites-enabled/pos.beamio.app.conf && sudo rm -f /etc/nginx/sites-enabled/pos.conet.network.conf /etc/nginx/sites-available/pos.conet.network.conf"
 fi
 
 if [[ "$SKIP_CERT" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
-	echo "==> Ensure TLS cert covers pos.conet.network"
+	echo "==> Ensure TLS cert covers pos.beamio.app"
 	ssh "$SSH_TARGET" 'bash -s' <<'REMOTE_CERT'
 set -euo pipefail
-if sudo openssl x509 -in /etc/letsencrypt/live/api.settleonbase.xyz/fullchain.pem -noout -text 2>/dev/null | grep -q "DNS:pos.conet.network"; then
-	echo "Cert already includes pos.conet.network"
+if sudo openssl x509 -in /etc/letsencrypt/live/api.settleonbase.xyz/fullchain.pem -noout -text 2>/dev/null | grep -q "DNS:pos.beamio.app"; then
+	echo "Cert already includes pos.beamio.app"
 	exit 0
 fi
-# Expand shared multi-SAN cert (same cert name used by dashboard.conet.network / verra.network).
-sudo certbot certonly --cert-name api.settleonbase.xyz --expand \
+# Reissue shared multi-SAN cert (same cert name used by dashboard.conet.network / verra.network).
+sudo certbot certonly --cert-name api.settleonbase.xyz --force-renewal \
 	-d alliance.beamio.app -d api.settleonbase.xyz -d apiv4.conet.network -d apps.conet.network \
 	-d beamio.app -d beta.conet.network -d beta1.conet.network -d biz.beamio.app \
 	-d cashtrees.beamio.app -d conet.network -d conetlabs.org -d dashboard.conet.network \
 	-d download.silentpass.io -d frameworkminigame.conet.network -d fx168.silentpass.io \
 	-d hooks.conet.network -d ios-test.silentpass.io -d ios-vpn.silentpass.io \
-	-d platform.conet.network -d pos.conet.network -d silentpass.io \
+	-d platform.conet.network -d pos.beamio.app -d silentpass.io \
 	-d test.conet.network -d test.frameworkminigame.conet.network -d verra.network \
 	-d vpn-beta.conet.network -d vpn-beta.silentpass.io -d vpn9.conet.network \
 	-d www.conet.network -d www.conetlabs.org -d www.silentpass.io \
@@ -137,5 +137,5 @@ if [[ "$SKIP_NGINX" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 fi
 
 echo "==> Done. Spot-check:"
-echo "    https://pos.conet.network/"
-echo "    https://pos.conet.network/home"
+echo "    https://pos.beamio.app/"
+echo "    https://pos.beamio.app/home"

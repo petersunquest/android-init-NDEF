@@ -4997,14 +4997,7 @@ private struct POSBizCouponPreviewTicket<Trailing: View>: View {
                     endPoint: .bottomTrailing
                 )
             }
-            if hasBanner {
-                HStack(alignment: .center, spacing: 12) {
-                    iconColumn
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 18)
-                .padding(.vertical, 14)
-            } else {
+            if !hasBanner {
                 HStack(alignment: .center, spacing: 12) {
                     iconColumn
                     VStack(alignment: .leading, spacing: 4) {
