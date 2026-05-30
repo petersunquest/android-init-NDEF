@@ -127,8 +127,8 @@ export function CouponPreviewTicket({
 		</div>
 	)
 
-	return (
-		<div className="relative w-full">
+	const ticketShell = (
+		<div className="relative w-full rounded-[1.75rem]">
 			<div
 				className={`pointer-events-none absolute left-0 top-1/2 z-20 h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full ${punchBgClassName}`}
 				aria-hidden
@@ -138,18 +138,30 @@ export function CouponPreviewTicket({
 				aria-hidden
 			/>
 			{ticketFace}
-			{hasBanner ? (
-				<div className="mt-3 space-y-2">
-					<p className="truncate text-[17px] font-extrabold leading-tight text-[#2c2f31]">
-						{title}
-					</p>
-					<p className="truncate text-sm font-semibold text-[#595c5e]">{subtitle}</p>
-					{showExpiryPill ? renderExpiryPill('external') : null}
-					{trailing ? <div>{trailing}</div> : null}
-				</div>
-			) : null}
 		</div>
 	)
+
+	if (hasBanner) {
+		return (
+			<div className="relative w-full">
+				{ticketShell}
+				<div className="mt-3 space-y-2">
+					<div className="flex items-start gap-3">
+						<div className="min-w-0 flex-1 space-y-0.5">
+							<p className="truncate text-[17px] font-extrabold leading-tight text-[#2c2f31]">
+								{title}
+							</p>
+							<p className="truncate text-sm font-semibold text-[#595c5e]">{subtitle}</p>
+						</div>
+						{trailing ? <div className="shrink-0 self-center">{trailing}</div> : null}
+					</div>
+					{showExpiryPill ? renderExpiryPill('external') : null}
+				</div>
+			</div>
+		)
+	}
+
+	return ticketShell
 }
 
 export { READ_BALANCE_SURFACE }

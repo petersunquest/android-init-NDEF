@@ -31,7 +31,7 @@ export function BeamioCircularBackButton({
 				'border border-black/[0.06] bg-white/80 text-mkt-onSurface backdrop-blur-md',
 				'shadow-[0_1px_3px_rgba(0,0,0,0.12)]',
 				'transition active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40',
-				'hover:bg-white/95 dark:border-white/10 dark:bg-slate-900/75 dark:text-white dark:hover:bg-slate-900/90',
+				'hover:bg-white/95',
 				className,
 			].join(' ')}
 			{...rest}

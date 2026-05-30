@@ -1,4 +1,5 @@
 import type { PosHomeStats, TerminalProfile } from '@/types/pos'
+import type { MerchantActiveIssuedCoupon } from '@/utils/couponMetadata'
 import type { PosLedgerSnapshot } from '@/utils/posLedgerMetrics'
 
 const PREFIX = 'beamio:pos-pwa:v1'
@@ -113,6 +114,24 @@ export const posHomeTrustedCache = {
 		}
 	},
 
+	loadParentProfile(wallet: string): TerminalProfile | null {
+		try {
+			const raw = localStorage.getItem(key('parentProfile', normWallet(wallet)))
+			if (!raw) return null
+			return JSON.parse(raw) as TerminalProfile
+		} catch {
+			return null
+		}
+	},
+
+	saveParentProfile(profile: TerminalProfile, wallet: string): void {
+		try {
+			localStorage.setItem(key('parentProfile', normWallet(wallet)), JSON.stringify(profile))
+		} catch {
+			/* ignore quota */
+		}
+	},
+
 	loadInfraCard(wallet: string): string | null {
 		try {
 			return localStorage.getItem(key('infra', normWallet(wallet)))
@@ -166,6 +185,61 @@ export const posHomeTrustedCache = {
 			localStorage.setItem(key('perm', normWallet(wallet)), granted ? '1' : '0')
 		} catch {
 			/* ignore */
+		}
+	},
+
+	loadPointSystemEnabled(wallet: string, infraCard: string): boolean | null {
+		try {
+			const v = localStorage.getItem(
+				key('pointSystem', normWallet(wallet), normInfra(infraCard)),
+			)
+			if (v === '1') return true
+			if (v === '0') return false
+			return null
+		} catch {
+			return null
+		}
+	},
+
+	savePointSystemEnabled(wallet: string, infraCard: string, enabled: boolean): void {
+		try {
+			localStorage.setItem(
+				key('pointSystem', normWallet(wallet), normInfra(infraCard)),
+				enabled ? '1' : '0',
+			)
+		} catch {
+			/* ignore */
+		}
+	},
+
+	/** Last trusted `/api/cardActiveIssuedCouponSeries` list — `null` = never cached. */
+	loadActiveCoupons(wallet: string, infraCard: string): MerchantActiveIssuedCoupon[] | null {
+		try {
+			const raw = localStorage.getItem(
+				key('activeCoupons', normWallet(wallet), normInfra(infraCard)),
+			)
+			if (!raw) return null
+			const parsed = JSON.parse(raw) as unknown
+			if (!Array.isArray(parsed)) return null
+			return parsed as MerchantActiveIssuedCoupon[]
+		} catch {
+			return null
+		}
+	},
+
+	/** Only call after a trusted API success (including trusted-empty `[]`). */
+	saveActiveCoupons(
+		wallet: string,
+		infraCard: string,
+		coupons: MerchantActiveIssuedCoupon[],
+	): void {
+		try {
+			localStorage.setItem(
+				key('activeCoupons', normWallet(wallet), normInfra(infraCard)),
+				JSON.stringify(coupons),
+			)
+		} catch {
+			/* ignore quota */
 		}
 	},
 }

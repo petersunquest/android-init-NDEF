@@ -86,7 +86,7 @@ export function BeamioAmountPad({
 	return (
 		<div
 			ref={containerRef}
-			className="flex min-h-0 flex-1 flex-col"
+			className="flex h-full min-h-0 flex-1 flex-col"
 			style={{ gap: rowGap }}
 		>
 			{KEYPAD_ROWS.map((row) => (
@@ -100,7 +100,7 @@ export function BeamioAmountPad({
 							key={key}
 							type="button"
 							onClick={() => onKey(key)}
-							className="flex min-h-0 min-w-0 flex-1 items-center justify-center rounded-[14px] border border-black/[0.06] bg-white font-medium text-slate-900 active:bg-slate-50"
+							className="flex min-h-0 min-w-0 flex-1 touch-manipulation select-none items-center justify-center rounded-[14px] border border-black/[0.06] bg-white font-medium text-slate-900 active:opacity-75"
 							style={{
 								fontSize,
 								fontFamily:

@@ -1,6 +1,9 @@
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { lockPosAppColorScheme } from './boot/lockPosAppColorScheme'
 import './index.css'
+
+lockPosAppColorScheme()
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {

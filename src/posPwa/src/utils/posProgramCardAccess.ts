@@ -99,6 +99,72 @@ async function ethCallBase(to: string, data: string): Promise<string | null> {
 	}
 }
 
+const ETH_CALL_CURRENCY_SELECTOR = '0xe5a6b10f'
+const ETH_CALL_POINTS_UNIT_PRICE_SELECTOR = '0x4dda2215'
+
+function decodeAbiUInt256Word(hex: string): number | null {
+	const h = hex.startsWith('0x') ? hex.slice(2) : hex
+	if (h.length < 64) return null
+	try {
+		const n = BigInt(`0x${h.slice(-64)}`)
+		if (n > BigInt(Number.MAX_SAFE_INTEGER)) return null
+		return Number(n)
+	} catch {
+		return null
+	}
+}
+
+/** Positive uint256 ABI word — iOS `jsonRpcUInt256WordToUInt64` (price must be > 0). */
+function decodeAbiUInt256WordPositive(hex: string): number | null {
+	const n = decodeAbiUInt256Word(hex)
+	if (n == null || n <= 0) return null
+	return n
+}
+
+function beamioCurrencyTypeCode(id: number): string {
+	switch (id) {
+		case 0:
+			return 'CAD'
+		case 1:
+			return 'USD'
+		case 2:
+			return 'JPY'
+		case 3:
+			return 'CNY'
+		case 4:
+			return 'USDC'
+		case 5:
+			return 'HKD'
+		case 6:
+			return 'EUR'
+		case 7:
+			return 'SGD'
+		case 8:
+			return 'TWD'
+		default:
+			return 'CAD'
+	}
+}
+
+/** iOS `fetchBeamioUserCardCurrencyCodeAndPointsUnitPriceE6` — on-chain card currency + points price. */
+export async function fetchCardCurrencyAndPointsPriceE6(
+	cardAddress: string,
+): Promise<{ code: string; priceE6: number } | null> {
+	const card = cardAddress.trim().toLowerCase()
+	if (!card.startsWith('0x') || card.length !== 42) return null
+	const curHex = await ethCallBase(card, ETH_CALL_CURRENCY_SELECTOR)
+	if (!curHex) return null
+	const curNum = decodeAbiUInt256Word(curHex)
+	// iOS: currency enum 0 = CAD — must allow zero (was wrongly rejected as `n <= 0`).
+	if (curNum == null || curNum > 8) return null
+	const code = beamioCurrencyTypeCode(curNum)
+	const priceHex = await ethCallBase(card, ETH_CALL_POINTS_UNIT_PRICE_SELECTOR)
+	if (!priceHex) return null
+	const priceE6 = decodeAbiUInt256WordPositive(priceHex)
+	if (priceE6 == null) return null
+	return { code, priceE6 }
+}
+
 /**
  * Prefer on-chain owner/isAdmin; fall back to HTTP getCardAdminInfo (admins / upperAdmin).
  * `null` = both paths untrusted — caller must not treat as denied.

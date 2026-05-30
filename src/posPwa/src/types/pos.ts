@@ -117,7 +117,7 @@ export interface ReadBalanceCardItem {
 	nfts?: ReadBalanceNftItem[]
 }
 
-/** Trusted success from `/api/getUIDAssets` or `/api/getWalletAssets`. */
+/** From getWalletAssets / getUIDAssets — prepare oracle for charge split. */
 export interface UIDAssetsResult {
 	ok: boolean
 	error?: string
@@ -132,6 +132,7 @@ export interface UIDAssetsResult {
 	usdcBalance?: string
 	caddBalance?: string
 	cardCurrency?: string
+	unitPriceUSDC6?: string
 	primaryMemberTokenId?: string
 	chargeRewardPoints6?: string
 	posLastTopupAt?: string

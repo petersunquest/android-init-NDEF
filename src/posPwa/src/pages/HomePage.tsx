@@ -11,11 +11,12 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { BeamioCapsuleCompact, profileHasIdentity } from '@/components/BeamioCapsule'
+import { BeamioCapsuleCompact } from '@/components/BeamioCapsule'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
+import { pickHomeAdminCapsuleProfile } from '@/utils/posHomeAdminProfile'
 import {
 	formatBUnitDisplay,
 	formatDashboardCurrency,
@@ -62,6 +63,8 @@ export function HomePage() {
 	const {
 		terminalProfile,
 		adminProfile,
+		parentProfile,
+		parentBeamioTag,
 		registeredBeamioTag,
 		walletAddress,
 		currency,
@@ -104,6 +107,12 @@ export function HomePage() {
 		return 'Terminal'
 	})()
 
+	const homeAdminCapsule = pickHomeAdminCapsuleProfile(
+		adminProfile,
+		parentProfile,
+		parentBeamioTag,
+	)
+
 	return (
 		<PosScreenShell>
 			<PosScreenHeader className="border-b border-slate-200/60 bg-white/95 px-5 pb-3">
@@ -114,8 +123,8 @@ export function HomePage() {
 					<div className="min-w-0 flex-1">
 						<p className="truncate text-[15px] font-semibold text-slate-500">{headerLine}</p>
 					</div>
-					{adminProfile && profileHasIdentity(adminProfile) ? (
-						<BeamioCapsuleCompact profile={adminProfile} />
+					{homeAdminCapsule ? (
+						<BeamioCapsuleCompact profile={homeAdminCapsule} />
 					) : null}
 				</div>
 			</PosScreenHeader>
@@ -132,9 +141,9 @@ export function HomePage() {
 						{activeCoupons && activeCoupons.length > 0 ? (
 							<button
 								type="button"
-								onClick={() => navigate(POS_HOME_ROUTES.nativeAction('activeCoupons'))}
+								onClick={() => navigate(POS_HOME_ROUTES.activeCoupons)}
 								className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-[0_2px_8px_rgba(249,115,22,0.28)]"
-								aria-label="Active coupons"
+								aria-label="Bonus coupons"
 							>
 								<Gift className="h-5 w-5" />
 							</button>
@@ -243,7 +252,7 @@ export function HomePage() {
 									title="Deduct Points"
 									icon={MinusCircle}
 									iconTint={DEDUCT_ORANGE}
-									onClick={() => navigate(POS_HOME_ROUTES.nativeAction('deductPoints'))}
+									onClick={() => navigate(POS_HOME_ROUTES.deductPoints)}
 								/>
 							) : null}
 							<HomeActionGridButton

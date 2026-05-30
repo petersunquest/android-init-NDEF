@@ -14,6 +14,10 @@ import {
 import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
+export type TopupExecuteProgressPhase = 'preparing' | 'signing' | 'refreshing'
+
+export type TopupExecuteProgress = (phase: TopupExecuteProgressPhase) => void
+
 export interface TopupExecuteSuccess {
 	amount: string
 	txHash?: string
@@ -73,11 +77,14 @@ async function submitPreparedTopup(params: {
 	preTag?: string
 	usdcTopupSessionId?: string
 	pointSystemEnabled?: boolean
+	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
+	const onProgress = params.onProgress
 	const pk = await getPosPrivateKeyHex()
 	if (!pk) {
 		return { status: 'error', message: 'Wallet not initialized' }
 	}
+	onProgress?.('signing')
 	let signature: string
 	try {
 		signature = await signExecuteForAdmin({
@@ -113,6 +120,7 @@ async function submitPreparedTopup(params: {
 		return { status: 'error', message: pay.error ?? 'Top-up failed' }
 	}
 
+	onProgress?.('refreshing')
 	await sleepMs(3000)
 
 	let postBalance = '—'
@@ -180,7 +188,9 @@ export async function executeNfcTopup(params: {
 	posWallet: string
 	usdcTopupSessionId?: string
 	pointSystemEnabled?: boolean
+	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
+	const onProgress = params.onProgress
 	const infra = params.merchantInfraCard.trim()
 	if (!infra) {
 		return { status: 'error', message: 'Terminal program card is not configured.' }
@@ -198,6 +208,7 @@ export async function executeNfcTopup(params: {
 		sun: params.target.sun,
 	}
 
+	onProgress?.('preparing')
 	let prep = await nfcTopupPrepare(prepBody)
 	if (prep?.error && params.target.wallet) {
 		prep = await nfcTopupPrepare(prepBody)
@@ -278,5 +289,6 @@ export async function executeNfcTopup(params: {
 		preTag,
 		usdcTopupSessionId: params.usdcTopupSessionId,
 		pointSystemEnabled: params.pointSystemEnabled,
+		onProgress,
 	})
 }

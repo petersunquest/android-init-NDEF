@@ -1,0 +1,15 @@
+# App Store Connect — Beamio POS (com.beamio.app.pos)
+# Copy into App Store Connect → English → Version → What's New in This Version
+
+## What's New in This Version (version 1.1)
+
+Beamio POS now loads the merchant terminal at pos.beamio.app — Check Balance, Top-up, and Charge in one native app.
+
+• Opens pos.beamio.app for the full Beamio POS experience on iPhone and iPad
+• Native NFC prompt when waiting for a customer card (Check Balance and Top-up)
+• Native QR scanner if NFC is cancelled or unavailable
+• Print receipt from success screens via AirPrint
+• Universal Links support for pos.beamio.app
+• Stability and WebView performance improvements
+
+Thank you for using Beamio POS.

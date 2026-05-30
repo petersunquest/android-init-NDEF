@@ -14,7 +14,7 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// softPOS 默认冷启动入口 — posPWA (`BeamioDeepLink.defaultWebAppURL` → https://pos.conet.network/).
+/// softPOS 默认冷启动入口 — posPWA (`BeamioDeepLink.defaultWebAppURL` → https://pos.beamio.app/).
 private let cashTreesAppURL = BeamioDeepLink.defaultWebAppURL
 
 /// Launch / splash / empty WebView surface — avoids a pure-black flash when content process dies.

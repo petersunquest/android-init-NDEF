@@ -1,10 +1,12 @@
-import { CreditCard } from 'lucide-react'
+import { CreditCard, MinusCircle } from 'lucide-react'
 import { useState } from 'react'
 import {
 	beamioTierDiscountPercentLabel,
 	readBalancePassHeroPalette,
 	type ReadBalanceMoneyParts,
 } from '@/utils/readBalanceDisplay'
+
+const DEDUCT_ORANGE = '#ea580c'
 
 export interface ReadBalancePassHeroCardProps {
 	memberDisplayName: string
@@ -15,7 +17,11 @@ export interface ReadBalancePassHeroCardProps {
 	tierCardBackgroundHex: string | undefined
 	cardMetadataImageUrl: string | null
 	balanceParts: ReadBalanceMoneyParts
-	balanceSubtitle: string | null
+	/** Formatted pts amount only, e.g. `12.35` — shown as `{amount} pts`. */
+	pointRewardPts?: string | null
+	balanceSubtitle?: string | null
+	onDeductPoints?: () => void
+	deductPointsDisabled?: boolean
 }
 
 export function ReadBalancePassHeroCard({
@@ -27,7 +33,10 @@ export function ReadBalancePassHeroCard({
 	tierCardBackgroundHex,
 	cardMetadataImageUrl,
 	balanceParts,
-	balanceSubtitle,
+	pointRewardPts = null,
+	balanceSubtitle = null,
+	onDeductPoints,
+	deductPointsDisabled = false,
 }: ReadBalancePassHeroCardProps) {
 	const [imgFailed, setImgFailed] = useState(false)
 	const tone = readBalancePassHeroPalette(tierCardBackgroundHex)
@@ -93,7 +102,28 @@ export function ReadBalancePassHeroCard({
 							</span>
 						) : null}
 					</div>
-					{balanceSubtitle ? (
+					{pointRewardPts ? (
+						<div className="flex items-center gap-2">
+							<span
+								className="font-mono text-xs font-semibold"
+								style={{ color: tone.secondaryText }}
+							>
+								{pointRewardPts} pts
+							</span>
+							{onDeductPoints ? (
+								<button
+									type="button"
+									onClick={onDeductPoints}
+									disabled={deductPointsDisabled}
+									className="inline-flex items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-55"
+									style={{ color: DEDUCT_ORANGE }}
+									aria-label="Deduct points"
+								>
+									<MinusCircle className="h-[18px] w-[18px]" strokeWidth={2.25} aria-hidden />
+								</button>
+							) : null}
+						</div>
+					) : balanceSubtitle ? (
 						<p
 							className="font-mono text-xs font-semibold"
 							style={{ color: tone.secondaryText }}

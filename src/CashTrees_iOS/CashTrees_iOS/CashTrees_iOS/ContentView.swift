@@ -14,7 +14,8 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// POS PWA test entry. Consumer SilentPassUI shell uses `BeamioDeepLink.defaultWebAppURL` (`/app/`).
+/// POS terminal: WebView loads POS PWA only (`beamio-pos-pwa-native-webview-shell.mdc`).
+/// Deprecated: native POS UI in `iOS_NDEF/`. Consumer shell uses `BeamioDeepLink.defaultWebAppURL` (`/app/`).
 private let cashTreesAppURL = URL(string: "https://pos.conet.network/")!
 
 /// Launch / splash / empty WebView surface — avoids a pure-black flash when content process dies.

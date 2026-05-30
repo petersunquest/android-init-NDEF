@@ -15,6 +15,7 @@ SSH_TARGET="${BEAMIO_DEPLOY_USER:+${BEAMIO_DEPLOY_USER}@}${BEAMIO_DEPLOY_HOST}"
 SKIP_BUILD=0
 DRY_RUN=0
 SKIP_PROMOTE=0
+RSYNC_EXTRA=()
 
 usage() {
 	cat <<'EOF'
@@ -68,7 +69,11 @@ REMOTE_POS_TEMP="${SSH_TARGET}:${BEAMIO_WEB_ROOT}/posTemp/"
 REMOTE_POS="${SSH_TARGET}:${BEAMIO_WEB_ROOT}/pos/"
 
 echo "==> Rsync POS PWA build -> posTemp/"
-rsync -av "${RSYNC_DELETE[@]}" "${RSYNC_EXTRA[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
+if [[ ${#RSYNC_EXTRA[@]} -gt 0 ]]; then
+	rsync -av "${RSYNC_DELETE[@]}" "${RSYNC_EXTRA[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
+else
+	rsync -av "${RSYNC_DELETE[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
+fi
 
 if [[ "$SKIP_PROMOTE" -eq 1 ]]; then
 	echo "==> Skipped promote to pos/ (--skip-promote)"

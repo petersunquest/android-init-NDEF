@@ -7,7 +7,9 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
-		"preview": "vite preview"
+		"build:root": "POS_PWA_BASE=/ tsc -b && POS_PWA_BASE=/ vite build",
+		"preview": "vite preview",
+		"preview:pos": "npm run build && vite preview"
 	},
 	"dependencies": {
 		"@noble/hashes": "^1.8.0",

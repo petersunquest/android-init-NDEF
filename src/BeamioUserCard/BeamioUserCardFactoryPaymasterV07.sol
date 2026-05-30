@@ -140,6 +140,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         bytes32 nonce
     );
     event IssuedNftClaimedWithUserSig(address indexed card, address indexed userEOA, uint256 indexed tokenId, bytes32 nonce);
+    event IssuedNftClaimedForUserByPosAdmin(address indexed card, address indexed userEOA, uint256 indexed tokenId, address indexed posAdminEOA);
     event AdminExecuteExecuted(address indexed card, address indexed adminSigner, bytes32 nonce);
 
     modifier onlyOwner() {
@@ -718,6 +719,27 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
 
         emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
+    }
+
+    /// @notice POS admin assisted free open claim (QR / wallet balance flow): paymaster executes after Cluster verifies `posAdminEOA` is card admin.
+    function claimIssuedNftForUserByPosAdmin(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        address posAdminEOA
+    ) external onlyPaymaster {
+        if (userEOA == address(0) || posAdminEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (!card.isAdmin(posAdminEOA)) revert UC_NotAdmin();
+
+        if (!_isIssuedNftValid(cardAddr, tokenId)) revert UC_IssuedNftInactive(tokenId);
+
+        card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+
+        emit IssuedNftClaimedForUserByPosAdmin(cardAddr, userEOA, tokenId, posAdminEOA);
     }
 
     /// @notice User EIP-712 signed purchase: charge token0 (points) on card then mint issued NFT(s).

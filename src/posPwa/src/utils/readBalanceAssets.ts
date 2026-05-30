@@ -28,6 +28,20 @@ export function memberNoFromCard(card: ReadBalanceCardItem | undefined): string 
 	return ''
 }
 
+/** iOS `UIDAssets.memberNoPrimaryFromSortedCards` / Android `memberNoPrimaryFromSortedCardsItem`. */
+export function memberNoPrimaryFromSortedCards(assets: UIDAssetsResult): string {
+	for (const c of assets.cards ?? []) {
+		const m = memberNoFromCard(c)
+		if (m) return m
+	}
+	const legacy = (assets.nfts ?? [])
+		.map((n) => Number(n.tokenId))
+		.filter((n) => Number.isFinite(n) && n > 0)
+		.sort((a, b) => b - a)[0]
+	if (legacy != null) return `M-${padMemberNo(String(legacy))}`
+	return ''
+}
+
 export function readBalanceCardList(assets: UIDAssetsResult): ReadBalanceCardItem[] {
 	if (Array.isArray(assets.cards) && assets.cards.length > 0) return assets.cards
 	if (assets.cardAddress?.trim()) {
@@ -184,6 +198,7 @@ export function parseUIDAssetsResponse(json: unknown): UIDAssetsResult {
 		usdcBalance: o.usdcBalance != null ? String(o.usdcBalance) : undefined,
 		caddBalance: o.caddBalance != null ? String(o.caddBalance) : undefined,
 		cardCurrency: o.cardCurrency != null ? String(o.cardCurrency) : undefined,
+		unitPriceUSDC6: o.unitPriceUSDC6 != null ? String(o.unitPriceUSDC6) : undefined,
 		primaryMemberTokenId:
 			o.primaryMemberTokenId != null ? String(o.primaryMemberTokenId) : undefined,
 		chargeRewardPoints6:

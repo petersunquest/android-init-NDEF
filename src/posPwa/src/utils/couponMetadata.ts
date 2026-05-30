@@ -100,7 +100,17 @@ export interface MerchantActiveIssuedCoupon {
 	backgroundImageUrl?: string
 	backgroundColorHex?: string
 	issuedNftValidBeforeSec?: number
+	issuedNftMaxSupply?: string
+	issuedNftRemainingSupply?: string
 	requiresRedeemCode?: boolean
+}
+
+function readSupplyField(d: Record<string, unknown>, keys: string[]): string {
+	for (const k of keys) {
+		const v = d[k]
+		if (v != null && String(v).trim()) return String(v).trim()
+	}
+	return ''
 }
 
 export function parseMerchantActiveIssuedCouponRow(row: unknown): MerchantActiveIssuedCoupon | null {
@@ -124,6 +134,22 @@ export function parseMerchantActiveIssuedCouponRow(row: unknown): MerchantActive
 		backgroundColorHex: readMetadataBackgroundColor(meta) || undefined,
 		issuedNftValidBeforeSec:
 			Number.isFinite(beforeNum) && beforeNum > 0 ? beforeNum : undefined,
+		issuedNftMaxSupply:
+			readSupplyField(d, [
+				'issuedNftMaxSupply',
+				'maxSupply',
+				'issuedNftSupply',
+				'totalSupply',
+				'supply',
+			]) || undefined,
+		issuedNftRemainingSupply:
+			readSupplyField(d, [
+				'issuedNftRemainingSupply',
+				'remainingSupply',
+				'leftSupply',
+				'remaining',
+				'availableSupply',
+			]) || undefined,
 		requiresRedeemCode: readRequiresRedeemCode(meta),
 	}
 }

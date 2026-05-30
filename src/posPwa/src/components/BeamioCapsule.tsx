@@ -2,6 +2,11 @@ import type { TerminalProfile } from '@/types/pos'
 import { dicebearAvatarUrl, profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/display'
 import { AddressCapsule } from './AddressCapsule'
 
+function avatarSeedFromProfile(profile: TerminalProfile): string {
+	const tag = profileBeamioTag(profile)
+	return tag || 'Beamio'
+}
+
 export function BeamioCapsule({
 	profile,
 	fallbackAddress,
@@ -9,6 +14,7 @@ export function BeamioCapsule({
 	tone = 'onDark',
 	showAddressCapsule = false,
 	address: addressProp,
+	compact = false,
 }: {
 	profile: TerminalProfile
 	fallbackAddress?: string | null
@@ -17,15 +23,18 @@ export function BeamioCapsule({
 	/** When true, render address pill inside the capsule row (search / terminal setup). */
 	showAddressCapsule?: boolean
 	address?: string | null
+	compact?: boolean
 }) {
 	const tag = profileBeamioTag(profile)
 	const name = profileDisplayName(profile)
+	const hasName = name.length > 0
 	const resolvedAddress = (addressProp ?? profile.address ?? fallbackAddress ?? '').trim()
-	const seed = tag || name || resolvedAddress || 'Beamio'
-	const showFallback = !tag && !name && resolvedAddress
+	const showAddressFallback = !tag && !hasName && resolvedAddress.length >= 10
 	const isLight = tone === 'onLight'
+	const avatarSize = compact ? 'h-7 w-7' : 'h-9 w-9'
+
 	const addressCapsule =
-		showAddressCapsule && !showFallback && resolvedAddress.length >= 10 ? (
+		showAddressCapsule && !showAddressFallback && resolvedAddress.length >= 10 ? (
 			<AddressCapsule
 				address={resolvedAddress}
 				className={
@@ -36,18 +45,21 @@ export function BeamioCapsule({
 			/>
 		) : null
 
+	const primaryTextClass = isLight ? 'text-slate-900' : 'text-white'
+	const tagTextClass = isLight ? 'text-slate-900/70' : 'text-white/70'
+
 	return (
-		<div className={`flex min-w-0 items-center gap-2.5 ${className}`}>
+		<div className={`flex min-w-0 items-center gap-2 ${compact ? 'gap-2' : 'gap-2.5'} ${className}`}>
 			<img
-				src={profile.image || dicebearAvatarUrl(seed)}
+				src={profile.image?.trim() || dicebearAvatarUrl(avatarSeedFromProfile(profile))}
 				alt=""
-				className={`h-9 w-9 shrink-0 rounded-full border object-cover ${
-					isLight ? 'border-mkt-outlineVariant/50' : 'border-white/20'
+				className={`${avatarSize} shrink-0 rounded-full border object-cover ${
+					isLight ? 'border-slate-200/80' : 'border-white/20'
 				}`}
 			/>
 			<div className="flex min-w-0 flex-1 items-center gap-2">
-				<div className="min-w-0 flex-1 text-left">
-					{showFallback ? (
+				<div className="min-w-0 flex-1 text-left leading-tight">
+					{showAddressFallback ? (
 						<AddressCapsule
 							address={resolvedAddress}
 							className={
@@ -58,21 +70,19 @@ export function BeamioCapsule({
 						/>
 					) : (
 						<>
-							<p
-								className={`truncate text-sm font-semibold ${
-									isLight ? 'text-mkt-onSurface' : 'text-white'
-								}`}
-							>
-								{name || (tag ? `@${tag}` : '—')}
-							</p>
-							{tag && name ? (
+							{hasName ? (
+								<p className={`truncate text-xs font-semibold ${primaryTextClass}`}>{name}</p>
+							) : null}
+							{tag ? (
 								<p
-									className={`truncate text-xs ${
-										isLight ? 'font-medium text-mkt-primary' : 'text-white/70'
+									className={`truncate font-medium ${tagTextClass} ${
+										hasName ? 'text-[10px]' : 'text-xs font-semibold'
 									}`}
 								>
 									@{tag}
 								</p>
+							) : !hasName ? (
+								<p className={`truncate text-xs font-semibold ${primaryTextClass}`}>—</p>
 							) : null}
 						</>
 					)}
@@ -83,11 +93,25 @@ export function BeamioCapsule({
 	)
 }
 
+/** Home / header compact pill — avatar + displayName + @beamioTag (Android `BeamioCapsuleCompact`). */
 export function BeamioCapsuleCompact(props: {
 	profile: TerminalProfile
 	fallbackAddress?: string | null
+	className?: string
 }) {
-	return <BeamioCapsule {...props} className="max-w-[160px]" />
+	return (
+		<div
+			className={`inline-flex max-w-[min(180px,42vw)] shrink-0 rounded-full bg-black/[0.06] py-1.5 pl-1.5 pr-2.5 ${props.className ?? ''}`}
+		>
+			<BeamioCapsule
+				profile={props.profile}
+				fallbackAddress={props.fallbackAddress}
+				tone="onLight"
+				compact
+				className="min-w-0"
+			/>
+		</div>
+	)
 }
 
 export function profileHasIdentity(profile: TerminalProfile): boolean {

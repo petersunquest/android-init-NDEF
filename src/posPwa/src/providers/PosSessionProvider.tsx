@@ -28,6 +28,10 @@ import type { MerchantActiveIssuedCoupon } from '@/utils/couponMetadata'
 import type { TerminalProfile } from '@/types/pos'
 import { posHomeTrustedCache } from '@/utils/trustedCache'
 import {
+	resolveAdminProfileFromCardAdminInfo,
+	resolveParentWorkspaceProfile,
+} from '@/utils/posHomeAdminProfile'
+import {
 	parseMerchantInfraCardFromMyPos,
 	resolvePosTerminalAccessAllowed,
 } from '@/utils/posProgramCardAccess'
@@ -51,7 +55,9 @@ interface PosContextValue {
 	hasAAAccount: boolean | null
 	homeStatsLoaded: boolean
 	pointSystemEnabled: boolean
+	/** `null` = never loaded / last fetch untrusted; `[]` = trusted empty. */
 	activeCoupons: MerchantActiveIssuedCoupon[] | null
+	activeCouponsLoaded: boolean
 	showPermissionGate: boolean
 	/** SilentPassUI `isInitialLoading` — true until first `checkStorage` boot finishes. */
 	isBootLoading: boolean
@@ -83,7 +89,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [bUnitBalance, setBUnitBalance] = useState<number | null>(null)
 	const [hasAAAccount, setHasAAAccount] = useState<boolean | null>(null)
 	const [homeStatsLoaded, setHomeStatsLoaded] = useState(false)
-	const [pointSystemEnabled, setPointSystemEnabled] = useState(false)
+	const [pointSystemEnabled, setPointSystemEnabled] = useState(true)
 	const [activeCoupons, setActiveCoupons] = useState<MerchantActiveIssuedCoupon[] | null>(null)
 	const [showPermissionGate, setShowPermissionGate] = useState(false)
 	const [isBootLoading, setIsBootLoading] = useState(true)
@@ -128,6 +134,11 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		if (cachedStats.charge != null) setChargeAmount(cachedStats.charge)
 		if (cachedStats.topUp != null) setTopUpAmount(cachedStats.topUp)
 		if (cachedStats.tips != null) setTipsAmount(cachedStats.tips)
+		const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(wallet, infra)
+		if (cachedPoint === true || cachedPoint === false) setPointSystemEnabled(cachedPoint)
+
+		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, infra)
+		if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
 
 		const [ledger, adminInfo, assets, coupons, pointEnabled] = await Promise.all([
 			fetchPosLedger(wallet, infra),
@@ -161,16 +172,29 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				posHomeTrustedCache.savePermissionGranted(wallet, access)
 				setBootPhase(access ? 'home' : 'permission')
 			}
-			if (adminInfo?.upperAdmin) {
-				const upper = await searchUsers(adminInfo.upperAdmin)
+			if (adminInfo?.ok) {
+				const resolvedAdmin = await resolveAdminProfileFromCardAdminInfo(adminInfo)
 				if (gen !== refreshGen.current) return
-				if (upper?.[0]) {
-					setAdminProfile(upper[0])
-					posHomeTrustedCache.saveAdmin(upper[0], wallet)
+				if (resolvedAdmin !== undefined) {
+					if (resolvedAdmin) {
+						setAdminProfile(resolvedAdmin)
+						posHomeTrustedCache.saveAdmin(resolvedAdmin, wallet)
+					} else {
+						setAdminProfile(null)
+						posHomeTrustedCache.removeAdmin(wallet)
+					}
 				}
-			} else if (adminInfo?.ok) {
-				setAdminProfile(null)
-				posHomeTrustedCache.removeAdmin(wallet)
+			}
+
+			const parentTag =
+				parentBeamioTag.trim() || posHomeTrustedCache.loadParentTag(wallet) || ''
+			if (parentTag) {
+				const parentResolved = await resolveParentWorkspaceProfile(parentTag)
+				if (gen !== refreshGen.current) return
+				if (parentResolved !== undefined && parentResolved) {
+					setParentProfile(parentResolved)
+					posHomeTrustedCache.saveParentProfile(parentResolved, wallet)
+				}
 			}
 		}
 
@@ -178,8 +202,14 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			setHasAAAccount(assets.hasAAAccount)
 		}
 
-		if (coupons) setActiveCoupons(coupons)
-		if (pointEnabled === true || pointEnabled === false) setPointSystemEnabled(pointEnabled)
+		if (coupons !== null) {
+			setActiveCoupons(coupons)
+			posHomeTrustedCache.saveActiveCoupons(wallet, infra, coupons)
+		}
+		if (pointEnabled === true || pointEnabled === false) {
+			setPointSystemEnabled(pointEnabled)
+			posHomeTrustedCache.savePointSystemEnabled(wallet, infra, pointEnabled)
+		}
 
 		const bUnitTarget = adminInfo?.upperAdmin ?? adminInfo?.owner
 		if (bUnitTarget) {
@@ -199,7 +229,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		}
 
 		setHomeStatsLoaded(true)
-	}, [walletAddress, merchantInfraCard, registeredBeamioTag])
+	}, [walletAddress, merchantInfraCard, registeredBeamioTag, parentBeamioTag])
 
 	refreshHomeRef.current = refreshHome
 
@@ -211,6 +241,16 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			try {
 				const boot = await runPosBootWalletCheck()
 				if (cancelled) return
+
+				if (boot.needsWalletRecover && boot.recoverHint) {
+					const hint = boot.recoverHint
+					setWalletAddress(hint.walletAddress)
+					setRegisteredBeamioTag(hint.registeredTag)
+					if (hint.parentTag) setParentBeamioTagState(hint.parentTag)
+					setBootPhase('wallet_recover')
+					setIsBootLoading(false)
+					return
+				}
 
 				if (!boot.hasStoredWallet || !boot.walletAddress) {
 					setBootPhase('no_wallet')
@@ -233,6 +273,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				const cached = posHomeTrustedCache.loadProfiles(addr)
 				if (cached.terminal) setTerminalProfile(cached.terminal)
 				if (cached.admin) setAdminProfile(cached.admin)
+				const cachedParent = posHomeTrustedCache.loadParentProfile(addr)
+				if (cachedParent) setParentProfile(cachedParent)
 				const infra = posHomeTrustedCache.loadInfraCard(addr)
 				if (infra) setMerchantInfraCard(infra)
 				if (infra) {
@@ -240,6 +282,12 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					if (stats.charge != null) setChargeAmount(stats.charge)
 					if (stats.topUp != null) setTopUpAmount(stats.topUp)
 					if (stats.tips != null) setTipsAmount(stats.tips)
+					const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(addr, infra)
+					if (cachedPoint === true || cachedPoint === false) {
+						setPointSystemEnabled(cachedPoint)
+					}
+					const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(addr, infra)
+					if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
 				}
 
 				const permCached = posHomeTrustedCache.loadPermissionGranted(addr)
@@ -281,6 +329,13 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			setShowPermissionGate(true)
 			setBootPhase('permission')
 			posHomeTrustedCache.savePermissionGranted(params.wallet, false)
+			void (async () => {
+				const parentResolved = await resolveParentWorkspaceProfile(params.parentTag)
+				if (parentResolved) {
+					setParentProfile(parentResolved)
+					posHomeTrustedCache.saveParentProfile(parentResolved, params.wallet)
+				}
+			})()
 		},
 		[],
 	)
@@ -310,6 +365,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			homeStatsLoaded,
 			pointSystemEnabled,
 			activeCoupons,
+			activeCouponsLoaded: activeCoupons !== null,
 			showPermissionGate,
 			isBootLoading,
 			bootPhase,

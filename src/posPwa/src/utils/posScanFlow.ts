@@ -14,13 +14,21 @@ import {
 } from '@/bridge/cashTreesScanBridge'
 import {
 	customerIdentityHasTarget,
+	humanizeQrPaymentError,
 	parseCustomerIdentity,
+	parseOpenContainerPaymentQr,
 	type CustomerIdentity,
 } from '@/utils/beamioQrIdentity'
 
 export type PosScanFlowResult =
 	| { status: 'nfc'; detail: CashTreesNfcDetail }
 	| { status: 'qr'; identity: CustomerIdentity }
+	| { status: 'aborted' }
+	| { status: 'error'; message: string }
+
+export type PosChargeScanFlowResult =
+	| { status: 'nfc'; detail: CashTreesNfcDetail }
+	| { status: 'qr'; payload: Record<string, unknown> }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -138,6 +146,41 @@ export async function runPosCustomerScanFlow(): Promise<PosScanFlowResult> {
 		}
 	}
 	return { status: 'qr', identity }
+}
+
+/** NFC → QR for Charge; QR must be Scan to Pay OpenContainer JSON (iOS `handlePaymentQr`). */
+export async function runPosChargeScanFlow(): Promise<PosChargeScanFlowResult> {
+	if (!hasCashTreesScanBridge()) {
+		return {
+			status: 'error',
+			message: 'NFC and QR require the CashTrees native app WebView.',
+		}
+	}
+
+	const nfc = await waitForNfcEvent()
+	if (nfc.kind === 'success') {
+		return { status: 'nfc', detail: nfc.detail }
+	}
+	if (nfc.kind === 'error') {
+		return { status: 'error', message: nfc.message }
+	}
+
+	const qr = await waitForQrEvent()
+	if (qr.kind === 'cancelled') {
+		return { status: 'aborted' }
+	}
+	if (qr.kind === 'error') {
+		return { status: 'error', message: qr.message }
+	}
+
+	const parsed = parseOpenContainerPaymentQr(qr.text)
+	if (!parsed.payload) {
+		return {
+			status: 'error',
+			message: humanizeQrPaymentError(parsed.rejectReason),
+		}
+	}
+	return { status: 'qr', payload: parsed.payload }
 }
 
 export function cancelPosCustomerScan(): void {

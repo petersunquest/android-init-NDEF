@@ -102,8 +102,8 @@ export function readBalanceLastTopUpFallbackLine(assets: UIDAssetsResult): strin
 	return '—'
 }
 
-/** iOS `readBalancePointRewardSubtitle` */
-export function readBalancePointRewardSubtitle(
+/** NFT #2 charge-reward pts amount (Check Balance hero / success). */
+export function readBalancePointRewardPtsAmount(
 	primary: ReadBalanceCardItem | undefined,
 	assets: UIDAssetsResult,
 	pointSystemEnabled: boolean,
@@ -115,7 +115,17 @@ export function readBalancePointRewardSubtitle(
 		'0'
 	const reward6 = Number(raw)
 	const amount = Number.isFinite(reward6) ? reward6 / 1_000_000 : 0
-	return `${readBalanceFormatUsdcThousands(amount)} point`
+	return readBalanceFormatUsdcThousands(amount)
+}
+
+/** @deprecated Prefer `readBalancePointRewardPtsAmount` + pts row UI. */
+export function readBalancePointRewardSubtitle(
+	primary: ReadBalanceCardItem | undefined,
+	assets: UIDAssetsResult,
+	pointSystemEnabled: boolean,
+): string | null {
+	const pts = readBalancePointRewardPtsAmount(primary, assets, pointSystemEnabled)
+	return pts != null ? `${pts} pts` : null
 }
 
 export function parseHexColor(raw: string | undefined | null): string | null {
@@ -211,7 +221,8 @@ export function readBalanceResultViewModel(
 					? Number(assets.points6) / 1_000_000
 					: Number(assets.points ?? 0)
 	const balanceParts = readBalanceFormatMoney(balNum, balCurrency)
-	const rewardSubtitle = readBalancePointRewardSubtitle(primary, assets, pointSystemEnabled)
+	const rewardPtsAmount = readBalancePointRewardPtsAmount(primary, assets, pointSystemEnabled)
+	const rewardSubtitle = rewardPtsAmount != null ? `${rewardPtsAmount} pts` : null
 	const usdcBal = Number(assets.usdcBalance ?? '0')
 	const caddBalRaw = assets.caddBalance?.trim()
 	const caddBal = caddBalRaw != null && caddBalRaw !== '' ? Number(caddBalRaw) : null
@@ -228,6 +239,7 @@ export function readBalanceResultViewModel(
 		programLine,
 		bgHex,
 		balanceParts,
+		rewardPtsAmount,
 		rewardSubtitle,
 		balCurrency,
 		usdcBal: Number.isFinite(usdcBal) ? usdcBal : 0,

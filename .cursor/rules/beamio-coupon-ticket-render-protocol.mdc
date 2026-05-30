@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Beamio Coupon Ticket Render Protocol
 
-全项目凡展示 **Beamio 优惠券 ticket**（商户 Programs 预览、Open Claim / Redeem 分享、SilentPassUI Discover / My Brands / Claim&Redeem、app-download 分享页、社交 OG 图、iOS/Android POS）须遵守**同一套 Coupon Preview 布局语义**。各子项目独立实现 UI，但**不得**在某一端单独改布局或 pill 规则。
+全项目凡展示 **Beamio 优惠券 ticket**（商户 Programs 预览、Open Claim / Redeem 分享、SilentPassUI Discover / My Brands / Claim&Redeem、app-download 分享页、社交 OG 图、**POS PWA**）须遵守**同一套 Coupon Preview 布局语义**。各子项目独立实现 UI，但**不得**在某一端单独改布局或 pill 规则。
+
+> **POS**：活跃实现为 **`src/posPwa/`**（WebView 壳加载）。`src/CashTrees_iOS/iOS_NDEF/`、`src/android-NDEF/` 内原生 ticket **已弃用**，仅遗留对照，新改动以 POS PWA 为准。
 
 ## Ticket 布局（banner vs 无 banner）
 
@@ -85,9 +87,9 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | **homepage** app-download | `src/homepage/src/pages/AppDownloadPage.tsx` | `CouponSharePreview` |
 | homepage utils | `src/homepage/src/utils/couponClaimShare.ts` | `shouldShowCouponExpiryPill`, `couponExpiryUsesUrgentVariant` |
 | **x402sdk** 分享 meta + OG 图 | `src/x402sdk/src/endpoint/couponClaimShare.ts` | `formatCouponExpiryPill`, `shouldShowCouponExpiryPill`, `buildCouponClaimOgRasterParts` |
-| **iOS POS** | `src/CashTrees_iOS/iOS_NDEF/iOS_NDEF/ContentView.swift` | `POSBizCouponPreviewTicket`, `posCouponExpiryShouldShow` |
-| **Android POS** | `src/android-NDEF/.../MainActivity.kt` | `PosBizCouponPreviewTicket`, `posCouponExpiryShouldShow` |
-| **POS PWA**（Check Balance 完成页） | `src/posPwa/src/components/CouponPreviewTicket.tsx`, `CouponBannerImage.tsx`, `ReadBalanceCouponsSection.tsx` | banner 双层图像、外置 metadata、无 icon 不占位、隐藏无信息量 expiry pill |
+| **POS PWA**（活跃；Check Balance 等） | `src/posPwa/src/components/CouponPreviewTicket.tsx`, `CouponBannerImage.tsx`, `ReadBalanceCouponsSection.tsx` | banner 双层图像、外置 metadata、无 icon 不占位、隐藏无信息量 expiry pill |
+| ~~iOS 原生 POS~~（弃用） | `src/CashTrees_iOS/iOS_NDEF/...` | 勿改；以 POS PWA 为准 |
+| ~~Android 原生 POS~~（弃用） | `src/android-NDEF/...` | 勿改；以 POS PWA 为准 |
 
 > `src/` 子项目**不得**跨项目 `import` 共享组件；改规则时须**同步更新上表每一行的逻辑**，保持视觉与语义一致。
 
@@ -102,12 +104,13 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | `OG_BANNER_META_TOP_GAP = 26` | banner 底部到外置 title 顶部的间距；对齐 homepage 下载页 `mt-3` 按 ticket 宽度缩放后的距离 |
 | `OG_BANNER_BOTTOM_EXTRA_GAP = 44` | OG 底部额外留白；取顶部 headline 到画布顶部视觉间距的 4 倍 |
 | `OG_BANNER_QR_TARGET_SIZE = 192` | banner 模式外置 QR 尺寸；较上一版 96px 放大一倍，且不再渲染 QR 下方说明文字挤压 QR |
-| `OG_JPEG_QUALITY = 93` | mozjpeg + `4:4:4` 色度采样 |
-| `OG_LAYOUT_REV = 17` | 写入 `/og/s/` token JSON；改 OG 须 bump |
+| `OG_JPEG_QUALITY = 93` | libjpeg baseline（`progressive: false`, **`mozjpeg: false`**）；`4:4:4` 色度采样 |
+| `OG_LAYOUT_REV = 20` | 写入 `/og/s/` token JSON；改 OG 须 bump |
 
 - Banner OG 必须忠实保留商户原图色彩：显式输出 sRGB，且有 banner 时不得叠加全局黑色 `photoShade` / `capsuleShade` 压暗层；仅允许边框、侧孔、外部文字等不改变 banner 像素色彩的装饰。
 - Banner OG 的空白填充须与 biz Open Claim Distribution / app-download preview 的双层图像法一致：底层用同一 banner 做 `cover + blur` 填满 ticket，顶层再按高度完整显示原图并居中裁剪/叠加；任何左右或上下露出的区域都由同图模糊背景填满，不得出现透明/纯色空白。
 - WhatsApp 等社交平台缓存刷新时，cache-bust 必须同时进入 `og:url` 与 `/og/s/{token}.jpg` 图片 token；`v` 为规范参数，历史测试参数 `iiis` 可兼容读取并规范化为 `v`。
+- **WhatsApp 缩略图 / 超时 / 499 / Cluster 磁盘预渲染**：见 `beamio-whatsapp-og-link-preview.mdc`（与 ticket 布局正交，但改 `/og/s/` 或分享 HTML 时必须同时遵守）。
 
 ## 变更检查清单（改布局 / icon / expiry 任一项时）
 
@@ -115,10 +118,8 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 2. **bizSite** — `ProgramsCouponShareCardPreview` + 编辑器 live preview块。
 3. **homepage** — `AppDownloadPage.tsx` + `utils/couponClaimShare.ts`。
 4. **x402sdk** — `couponClaimShare.ts` OG SVG/文字层；**递增 OG cache key 版本**（如 `wide:v7` → `v8`）。OG 画质参数：`OG_RENDER_SCALE`（2× 超采样）、`fetchImageCoverPngDataUrl`（Lanczos3 预裁剪）、`OG_BANNER_CAPSULE_H`、`OG_JPEG_QUALITY`。
-5. **iOS POS** — `ContentView.swift` coupon ticket 区块。
-6. **Android POS** — `MainActivity.kt` coupon ticket 区块。
-7. **POS PWA** — `CouponPreviewTicket.tsx` / `CouponBannerImage.tsx` / `ReadBalanceCouponsSection.tsx`，并运行 `cd src/posPwa && npm run build`。
-8. **部署**：homepage `deployBeamioHomepage.sh`；x402sdk build + API 重启；bizSite / SilentPassUI / posPwa 各自 build；iOS/Android 各自编译。
+5. **POS PWA** — `CouponPreviewTicket.tsx` / `CouponBannerImage.tsx` / `ReadBalanceCouponsSection.tsx`，并运行 `cd src/posPwa && npm run build`。
+6. **部署**：homepage `deployBeamioHomepage.sh`；x402sdk build + API 重启；bizSite / SilentPassUI / posPwa 各自 build；POS **WebView 壳**按需发版（`android/softPOS`、CashTrees_iOS），**勿**以 `android-NDEF` / `iOS_NDEF` 为活跃 POS 发版目标。
 
 ## 严禁
 

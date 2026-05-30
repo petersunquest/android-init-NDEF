@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { bootPathForPhase } from '@/boot/posBootInit'
-import { PosScreenShell } from '@/components/PosScreenShell'
+import { PosAppBootSplash } from '@/components/PosAppBootSplash'
 import { PosDataDaemonProvider } from '@/providers/PosDataDaemonProvider'
 import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvider'
 import { isPosHomePhasePath } from '@/utils/posHomeActionRoutes'
@@ -11,6 +11,9 @@ const WelcomePage = lazy(() =>
 )
 const OnboardingPage = lazy(() =>
 	import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
+)
+const PosWalletRecoverPage = lazy(() =>
+	import('@/pages/PosWalletRecoverPage').then((m) => ({ default: m.PosWalletRecoverPage })),
 )
 const ParentPermissionGatePage = lazy(() =>
 	import('@/pages/ParentPermissionGatePage').then((m) => ({
@@ -23,8 +26,14 @@ const CheckBalancePage = lazy(() =>
 )
 const TopUpPage = lazy(() => import('@/pages/TopUpPage').then((m) => ({ default: m.TopUpPage })))
 const ChargePage = lazy(() => import('@/pages/ChargePage').then((m) => ({ default: m.ChargePage })))
+const DeductPointsPage = lazy(() =>
+	import('@/pages/DeductPointsPage').then((m) => ({ default: m.DeductPointsPage })),
+)
 const TransactionsPage = lazy(() =>
 	import('@/pages/TransactionsPage').then((m) => ({ default: m.TransactionsPage })),
+)
+const ActiveCouponsPage = lazy(() =>
+	import('@/pages/ActiveCouponsPage').then((m) => ({ default: m.ActiveCouponsPage })),
 )
 const NativeActionPage = lazy(() =>
 	import('@/pages/NativeActionPage').then((m) => ({ default: m.NativeActionPage })),
@@ -33,11 +42,7 @@ const NativeActionPage = lazy(() =>
 const SETUP_PATHS = new Set(['/', '/onboarding'])
 
 function RouteFallback() {
-	return (
-		<PosScreenShell bg="bg-mkt-bg" className="items-center justify-center">
-			<p className="text-sm font-medium text-mkt-onSurfaceVariant">Loading…</p>
-		</PosScreenShell>
-	)
+	return <PosAppBootSplash />
 }
 
 function BootRouter() {
@@ -55,6 +60,11 @@ function BootRouter() {
 
 		if (bootPhase === 'no_wallet') {
 			if (!SETUP_PATHS.has(path)) navigate('/', { replace: true })
+			return
+		}
+
+		if (bootPhase === 'wallet_recover') {
+			if (path !== '/recover') navigate('/recover', { replace: true })
 			return
 		}
 
@@ -85,12 +95,15 @@ function BootRouter() {
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />
 				<Route path="/onboarding" element={<OnboardingPage />} />
+				<Route path="/recover" element={<PosWalletRecoverPage />} />
 				<Route path="/permission" element={<ParentPermissionGatePage />} />
 				<Route path="/home" element={<HomePage />} />
 				<Route path="/check-balance" element={<CheckBalancePage />} />
 				<Route path="/topup" element={<TopUpPage />} />
 				<Route path="/charge" element={<ChargePage />} />
+				<Route path="/deduct-points" element={<DeductPointsPage />} />
 				<Route path="/transactions" element={<TransactionsPage />} />
+				<Route path="/active-coupons" element={<ActiveCouponsPage />} />
 				<Route path="/native/:action" element={<NativeActionPage />} />
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>

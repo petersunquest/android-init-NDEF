@@ -421,6 +421,30 @@ export function pickTierDiscountPercentFromAssets(
 	return normalizeTierDiscountPercent(best)
 }
 
+function normalizeMetadataBackgroundHex(raw?: string): string | undefined {
+	const t = (raw ?? '').trim()
+	if (!t) return undefined
+	return t.startsWith('#') ? t : `#${t.replace(/^#/, '')}`
+}
+
+/** iOS `BeamioPaymentRouting.mergePrimaryTierStyleFromCardMetadata`. */
+export function mergePrimaryTierStyleFromCardMetadata(
+	card: ReadBalanceCardItem,
+	tiers: MetadataTierRow[],
+): ReadBalanceCardItem {
+	if (!tiers.length) return card
+	const row = selectMetadataTierForPrimaryMembership(card, tiers)
+	if (!row) return card
+	const bg = normalizeMetadataBackgroundHex(row.backgroundColor)
+	const img = row.image?.trim() || undefined
+	let bgOut = card.cardBackground
+	let imgOut = card.cardImage
+	if (bg) bgOut = bg
+	if (img) imgOut = img
+	if (bgOut === card.cardBackground && imgOut === card.cardImage) return card
+	return { ...card, cardBackground: bgOut, cardImage: imgOut }
+}
+
 export function pickChargeTierDiscountPercent(params: {
 	paymentCard: ReadBalanceCardItem | undefined
 	assets: UIDAssetsResult

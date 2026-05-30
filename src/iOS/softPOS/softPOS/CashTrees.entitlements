@@ -4,7 +4,7 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:pos.conet.network</string>
+		<string>applinks:pos.beamio.app</string>
 		<string>applinks:beamio.app</string>
 		<string>applinks:www.beamio.app</string>
 	</array>

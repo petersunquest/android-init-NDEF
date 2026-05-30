@@ -2,7 +2,7 @@
 //  BeamioDeepLink.swift
 //  softPOS
 //
-//  Universal Links (https://pos.conet.network/...) + custom scheme (beamio://open?...).
+//  Universal Links (https://pos.beamio.app/...) + custom scheme (beamio://open?...).
 //
 
 import Combine
@@ -13,9 +13,9 @@ enum BeamioDeepLink {
     static let customOpenHost = "open"
 
     /// Default softPOS WebView entry — posPWA at root base path.
-    static let defaultWebAppURL = URL(string: "https://pos.conet.network/")!
+    static let defaultWebAppURL = URL(string: "https://pos.beamio.app/")!
 
-    private static let posWebHost = "pos.conet.network"
+    private static let posWebHost = "pos.beamio.app"
 
     /// HTTPS hosts the WebView may load from deep links (allowlist).
     static let allowedWebHosts: Set<String> = [

@@ -117,3 +117,63 @@ export function parseCustomerIdentity(text: string): CustomerIdentity | null {
 export function customerIdentityHasTarget(id: CustomerIdentity): boolean {
 	return Boolean(id.beamioTag?.trim() || isEthAddress(id.wallet))
 }
+
+export interface OpenContainerParseResult {
+	payload: Record<string, unknown> | null
+	rejectReason?: string
+}
+
+/** iOS `BeamioOpenContainerQR.parse` — Scan to Pay dynamic QR for Charge. */
+function normalizeReactOpenRelayPayload(o: Record<string, unknown>): void {
+	const vb = optString(o.validBefore).trim()
+	const dl = optString(o.deadline).trim()
+	if (!dl && vb) o.deadline = vb
+	if (!vb && dl) o.validBefore = dl
+	if (o.maxAmount == null) o.maxAmount = '0'
+	if (o.currencyType == null) o.currencyType = 4
+}
+
+export function parseOpenContainerPaymentQr(content: string): OpenContainerParseResult {
+	let root = parseJsonObject(content)
+	if (!root) {
+		return { payload: null, rejectReason: 'not a JSON object' }
+	}
+	const inner = root.openContainerPayload
+	if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+		root = inner as Record<string, unknown>
+	}
+	const account = optString(root.account).trim()
+	const signature = optString(root.signature).trim()
+	if (!account) {
+		return { payload: null, rejectReason: 'missing or empty account' }
+	}
+	if (!signature) {
+		return { payload: null, rejectReason: 'missing or empty signature' }
+	}
+	const to = optString(root.to).trim()
+	const items = root.items
+	const hasClosed = Boolean(to) && Array.isArray(items) && items.length > 0
+	const isOpen =
+		root.currencyType != null ||
+		(!hasClosed &&
+			root.nonce != null &&
+			(root.deadline != null || root.validBefore != null))
+	if (isOpen) {
+		normalizeReactOpenRelayPayload(root)
+		return { payload: root, rejectReason: undefined }
+	}
+	if (hasClosed) {
+		return { payload: root, rejectReason: undefined }
+	}
+	return { payload: null, rejectReason: 'neither open relay nor closed relay' }
+}
+
+/** iOS `humanizeQrError` for payment QR parse failures. */
+export function humanizeQrPaymentError(reason: string | undefined): string {
+	const r = reason?.trim() ?? ''
+	if (r.startsWith('not a JSON')) return 'Invalid QR: data is not valid JSON.'
+	if (r.includes('missing or empty account')) return 'Invalid QR: missing customer account.'
+	if (r.includes('missing or empty signature')) return 'Invalid QR: missing payment signature.'
+	if (r.includes('neither open relay')) return 'Invalid QR: unrecognized payment format.'
+	return 'Could not read payment code.'
+}

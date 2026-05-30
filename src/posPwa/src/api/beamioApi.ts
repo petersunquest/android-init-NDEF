@@ -13,6 +13,9 @@ import type {
 	UIDAssetsResult,
 } from '@/types/pos'
 import { parseUIDAssetsResponse } from '@/utils/readBalanceAssets'
+import { parseMetadataTierRows, type MetadataTierRow } from '@/utils/beamioPaymentRouting'
+import { isPlausibleEvmAddress } from '@/utils/evmAddress'
+import { parsePointSystemEnabledFromMetadata } from '@/utils/pointSystemMetadata'
 
 const registryIface = new Interface([
 	'function isAccountNameAvailable(string name) view returns (bool)',
@@ -60,7 +63,7 @@ export async function searchUsersByCardOwnerOrAdmin(
 }
 
 export async function searchUsers(keyword: string): Promise<TerminalProfile[] | null> {
-	const kw = keyword.trim()
+	const kw = keyword.trim().toLowerCase()
 	if (kw.length < 2) return []
 	try {
 		const params = new URLSearchParams({ keyward: kw })
@@ -238,14 +241,8 @@ export async function fetchActiveCoupons(
 export async function fetchCardMetadataPointSystem(cardAddress: string): Promise<boolean | null> {
 	try {
 		const root = await fetchCardMetadataRoot(cardAddress)
-		if (!root) return null
-		const meta = root.metadata
-		if (!meta || typeof meta !== 'object') return null
-		const enabled =
-			(meta as { pointSystem?: { enabled?: boolean } }).pointSystem?.enabled ??
-			(meta as { pointSystem?: { enabled?: boolean } }).pointSystem?.enabled
-		if (typeof enabled === 'boolean') return enabled
-		return null
+		if (!root?.metadata || typeof root.metadata !== 'object') return null
+		return parsePointSystemEnabledFromMetadata(root.metadata as Record<string, unknown>)
 	} catch {
 		return null
 	}
@@ -262,6 +259,19 @@ export async function fetchCardMetadataRoot(
 	} catch {
 		return null
 	}
+}
+
+/** iOS `fetchCardMetadataTiersBundle` — `/api/cardMetadata` → `metadata.tiers`. */
+export async function fetchCardMetadataTiersBundle(
+	cardAddress: string | undefined,
+): Promise<{ rows: MetadataTierRow[]; fromApi: boolean }> {
+	const addr = cardAddress?.trim() ?? ''
+	if (!addr) return { rows: [], fromApi: false }
+	const resp = await fetchCardMetadataRoot(addr)
+	const tiersArr = (resp?.metadata as { tiers?: unknown[] } | undefined)?.tiers
+	if (!Array.isArray(tiersArr) || tiersArr.length === 0) return { rows: [], fromApi: false }
+	const rows = parseMetadataTierRows(tiersArr)
+	return { rows, fromApi: rows.length > 0 }
 }
 
 export async function fetchCardCurrencyCode(cardAddress: string): Promise<string | null> {
@@ -581,6 +591,45 @@ export async function payByNfcUidSignContainer(body: {
 	}
 }
 
+export interface PostAAtoEOAResult {
+	success: boolean
+	txHash?: string
+	error?: string
+}
+
+/** iOS `postAAtoEOA` — Scan to Pay dynamic QR charge relay. */
+export async function postAAtoEOA(body: {
+	openContainerPayload: Record<string, unknown>
+	currency: string
+	currencyAmount: string
+	merchantInfraCard: string
+	chargeBill: Record<string, string | number>
+}): Promise<PostAAtoEOAResult | null> {
+	try {
+		const payload: Record<string, unknown> = {
+			openContainerPayload: body.openContainerPayload,
+			currency: body.currency.toUpperCase(),
+			currencyAmount: body.currencyAmount,
+			merchantCardAddress: body.merchantInfraCard.trim(),
+			...body.chargeBill,
+		}
+		const res = await fetch(`${BEAMIO_API}/api/AAtoEOA`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		return {
+			success: ok,
+			txHash: (json.USDC_tx as string | undefined)?.trim() || undefined,
+			error: json.error ? String(json.error) : !ok ? `HTTP ${res.status}` : undefined,
+		}
+	} catch {
+		return null
+	}
+}
+
 export interface UsdcChargePreCheckResult {
 	ok: boolean
 	error?: string
@@ -726,19 +775,361 @@ export async function fetchUIDAssets(params: {
 export async function fetchWalletAssetsForRead(params: {
 	wallet: string
 	merchantInfraCard: string
+	/** iOS `getWalletAssets(..., forPostPayment: true)` after QR charge. */
+	forPostPayment?: boolean
 }): Promise<UIDAssetsResult | null> {
 	const wallet = params.wallet.trim()
 	const merchantInfraCard = params.merchantInfraCard.trim()
 	if (!wallet || !merchantInfraCard) return null
 	try {
+		const body: Record<string, string> = { wallet, merchantInfraCard }
+		if (params.forPostPayment) body.for = 'postPaymentBalance'
 		const res = await fetch(`${BEAMIO_API}/api/getWalletAssets`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ wallet, merchantInfraCard }),
+			body: JSON.stringify(body),
 		})
 		if (!res.ok) return null
 		const json = await res.json()
 		return parseUIDAssetsResponse(json)
+	} catch {
+		return null
+	}
+}
+
+export interface CardCouponPosClaimResult {
+	success: boolean
+	txHash?: string
+	error?: string
+}
+
+export interface CardCouponPosClaimPrepareResult {
+	success: boolean
+	cardAddress?: string
+	couponId?: string
+	userEOA?: string
+	tokenId?: string
+	data?: string
+	deadline?: number
+	nonce?: string
+	factoryGateway?: string
+	error?: string
+}
+
+export interface CardCouponPosClaimSubmitResult {
+	success: boolean
+	txHash?: string
+	error?: string
+}
+
+export interface CardCouponPosConsumePrepareResult {
+	success: boolean
+	cardAddress?: string
+	data?: string
+	deadline?: number
+	nonce?: string
+	factoryGateway?: string
+	tokenId?: string
+	amount?: string
+	targetAddress?: string
+	error?: string
+}
+
+export interface CardCouponPosConsumeSubmitResult {
+	success: boolean
+	txHash?: string
+	error?: string
+}
+
+export interface BurnChargeRewardPrepareResult {
+	success: boolean
+	cardAddr?: string
+	data?: string
+	deadline?: number
+	nonce?: string
+	factoryGateway?: string
+	error?: string
+}
+
+/** Burn charge-reward points (token #2) — iOS `burnChargeRewardByAdminPrepare`. */
+export async function burnChargeRewardByAdminPrepare(params: {
+	cardAddress: string
+	target: string
+	amount: string
+}): Promise<BurnChargeRewardPrepareResult | null> {
+	const card = params.cardAddress.trim()
+	const target = params.target.trim()
+	const amount = params.amount.trim()
+	if (!card.startsWith('0x') || !target.startsWith('0x') || !amount) {
+		return { success: false, error: 'Invalid burn payload.' }
+	}
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/burnChargeRewardByAdminPrepare`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ cardAddress: card, target, amount }),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		if (!res.ok) {
+			return { success: false, error: String(json.error ?? `HTTP ${res.status}`) }
+		}
+		const data = String(json.data ?? '').trim() || undefined
+		const nonce = String(json.nonce ?? '').trim() || undefined
+		const deadlineRaw = json.deadline
+		const deadline =
+			typeof deadlineRaw === 'number'
+				? deadlineRaw
+				: Number(String(deadlineRaw ?? '')) || undefined
+		const cardAddr = String(json.cardAddr ?? card).trim() || card
+		const factoryGateway = String(json.factoryGateway ?? '').trim() || undefined
+		if (!data || !nonce || !deadline || deadline <= 0) {
+			return {
+				success: false,
+				cardAddr,
+				data,
+				deadline,
+				nonce,
+				factoryGateway,
+				error: String(json.error ?? 'Prepare failed.'),
+			}
+		}
+		return {
+			success: true,
+			cardAddr,
+			data,
+			deadline,
+			nonce,
+			factoryGateway,
+		}
+	} catch {
+		return null
+	}
+}
+
+/** POS one-tap open-coupon claim — NFC path only (uid/tagId present). QR/wallet uses prepare+submit. */
+export async function cardCouponPosClaim(params: {
+	cardAddress: string
+	couponId: string
+	userEOA: string
+	uid?: string
+	tagIdHex?: string
+	tokenId?: string
+	signerEOA?: string
+}): Promise<CardCouponPosClaimResult | null> {
+	const card = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
+	const userEOA = params.userEOA.trim()
+	if (!isPlausibleEvmAddress(card) || !isPlausibleEvmAddress(userEOA) || !couponId) {
+		return { success: false, error: 'Invalid claim payload.' }
+	}
+	const body: Record<string, string> = {
+		cardAddress: card,
+		couponId,
+		userEOA,
+	}
+	const uid = params.uid?.trim()
+	const tagIdHex = params.tagIdHex?.trim()
+	const tokenId = params.tokenId?.trim()
+	const signerEOA = params.signerEOA?.trim()
+	if (uid) body.uid = uid
+	if (tagIdHex) body.tagIdHex = tagIdHex
+	if (tokenId) body.tokenId = tokenId
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosClaim`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as { success?: boolean; tx?: string; error?: string }
+		const ok = res.ok && (json.success ?? true)
+		return {
+			success: ok,
+			txHash: json.tx?.trim() || undefined,
+			error: json.error?.trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
+	} catch {
+		return null
+	}
+}
+
+/** POS balance open-coupon claim prepare — aligns consume prepare pattern. */
+export async function cardCouponPosClaimPrepare(params: {
+	cardAddress: string
+	couponId: string
+	userEOA: string
+	signerEOA?: string
+	tokenId?: string
+}): Promise<CardCouponPosClaimPrepareResult | null> {
+	const card = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
+	const userEOA = params.userEOA.trim()
+	if (!isPlausibleEvmAddress(card) || !isPlausibleEvmAddress(userEOA) || !couponId) {
+		return { success: false, error: 'Invalid claim payload.' }
+	}
+	const body: Record<string, string> = {
+		cardAddress: card,
+		couponId,
+		userEOA,
+	}
+	const tokenId = params.tokenId?.trim()
+	const signerEOA = params.signerEOA?.trim()
+	if (tokenId) body.tokenId = tokenId
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosClaimPrepare`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as CardCouponPosClaimPrepareResult
+		if (!res.ok) {
+			return { success: false, error: json.error?.trim() || `HTTP ${res.status}` }
+		}
+		return json
+	} catch {
+		return null
+	}
+}
+
+/** Submit admin-signed ExecuteForAdmin for open-coupon claim. */
+export async function cardCouponPosClaimSubmit(params: {
+	cardAddress: string
+	data: string
+	deadline: number
+	nonce: string
+	adminSignature: string
+	signerEOA?: string
+}): Promise<CardCouponPosClaimSubmitResult | null> {
+	const cardAddress = params.cardAddress.trim()
+	const data = params.data.trim()
+	const nonce = params.nonce.trim()
+	const adminSignature = params.adminSignature.trim()
+	if (!isPlausibleEvmAddress(cardAddress) || !data || !nonce || !adminSignature) {
+		return { success: false, error: 'Invalid claim submit payload.' }
+	}
+	const body: Record<string, string | number> = {
+		cardAddress,
+		data,
+		deadline: params.deadline,
+		nonce,
+		adminSignature,
+	}
+	const signerEOA = params.signerEOA?.trim()
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosClaimSubmit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as CardCouponPosClaimSubmitResult & { tx?: string }
+		const ok = res.ok && (json.success ?? true)
+		return {
+			success: ok,
+			txHash: json.txHash?.trim() || json.tx?.trim() || undefined,
+			error: json.error?.trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
+	} catch {
+		return null
+	}
+}
+
+/** POS balance coupon consume prepare — aligns iOS `BeamioAPIClient.cardCouponPosConsumePrepare`. */
+export async function cardCouponPosConsumePrepare(params: {
+	cardAddress: string
+	couponId: string
+	userEOA: string
+	signerEOA?: string
+	tokenId?: string
+	amount?: string
+}): Promise<CardCouponPosConsumePrepareResult | null> {
+	const card = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
+	const userEOA = params.userEOA.trim()
+	const amount = (params.amount ?? '1').trim()
+	if (!isPlausibleEvmAddress(card) || !isPlausibleEvmAddress(userEOA) || !couponId || !amount) {
+		return { success: false, error: 'Invalid consume payload.' }
+	}
+	const body: Record<string, string> = {
+		cardAddress: card,
+		couponId,
+		userEOA,
+		amount,
+	}
+	const signerEOA = params.signerEOA?.trim()
+	const tokenId = params.tokenId?.trim()
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	if (tokenId) body.tokenId = tokenId
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumePrepare`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		const deadlineRaw = json.deadline
+		const deadline =
+			typeof deadlineRaw === 'number'
+				? deadlineRaw
+				: Number(String(deadlineRaw ?? '')) || undefined
+		return {
+			success: ok,
+			cardAddress: String(json.cardAddress ?? '').trim() || undefined,
+			data: String(json.data ?? '').trim() || undefined,
+			deadline: deadline && deadline > 0 ? deadline : undefined,
+			nonce: String(json.nonce ?? '').trim() || undefined,
+			factoryGateway: String(json.factoryGateway ?? '').trim() || undefined,
+			tokenId: String(json.tokenId ?? '').trim() || undefined,
+			amount: String(json.amount ?? '').trim() || undefined,
+			targetAddress: String(json.targetAddress ?? '').trim() || undefined,
+			error: String(json.error ?? '').trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
+	} catch {
+		return null
+	}
+}
+
+/** Submit admin-signed ExecuteForAdmin for coupon consume — aligns iOS `cardCouponPosConsumeSubmit`. */
+export async function cardCouponPosConsumeSubmit(params: {
+	cardAddress: string
+	data: string
+	deadline: number
+	nonce: string
+	adminSignature: string
+	signerEOA?: string
+}): Promise<CardCouponPosConsumeSubmitResult | null> {
+	const card = params.cardAddress.trim()
+	const data = params.data.trim()
+	const nonce = params.nonce.trim()
+	const adminSignature = params.adminSignature.trim()
+	if (!isPlausibleEvmAddress(card) || !data || !nonce || !adminSignature) {
+		return { success: false, error: 'Invalid consume submit payload.' }
+	}
+	const body: Record<string, string | number> = {
+		cardAddress: card,
+		data,
+		deadline: params.deadline,
+		nonce,
+		adminSignature,
+	}
+	const signerEOA = params.signerEOA?.trim()
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumeSubmit`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		const txHash = String(json.txHash ?? json.tx ?? '').trim() || undefined
+		return {
+			success: ok,
+			txHash,
+			error: String(json.error ?? '').trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
 	} catch {
 		return null
 	}

@@ -1,8 +1,11 @@
-import { posNativeBridge } from '@/bridge/nativeBridge'
 import { checkPosWalletStorage } from '@/wallet/posWalletService'
 import type { PosWalletInitRecord } from '@/wallet/posWalletStorage'
+import {
+	findPosTerminalSessionWithoutMnemonic,
+	hasLocalPlaintextMnemonicFromRecord,
+} from '@/utils/posConsumerWalletGate'
 
-export type PosBootPhase = 'no_wallet' | 'permission' | 'home'
+export type PosBootPhase = 'no_wallet' | 'wallet_recover' | 'permission' | 'home'
 
 export type PosBootInitResult = {
 	phase: PosBootPhase
@@ -18,15 +21,20 @@ export async function runPosBootWalletCheck(): Promise<{
 	hasStoredWallet: boolean
 	walletAddress: string | null
 	walletRecord: PosWalletInitRecord | null
+	needsWalletRecover: boolean
+	recoverHint: ReturnType<typeof findPosTerminalSessionWithoutMnemonic>
 }> {
-	await posNativeBridge.hasStoredWallet()
 	const record = await checkPosWalletStorage()
-	const walletAddress = (await posNativeBridge.getWalletAddress()) ?? record?.profiles[0]?.keyID ?? null
-	const hasStoredWallet = Boolean(record?.mnemonicPhrase?.trim()) || (await posNativeBridge.hasStoredWallet())
+	const hasStoredWallet = hasLocalPlaintextMnemonicFromRecord(record)
+	const recoverHint = hasStoredWallet ? null : findPosTerminalSessionWithoutMnemonic()
+	const walletAddress =
+		record?.profiles[0]?.keyID ?? recoverHint?.walletAddress ?? null
 	return {
 		hasStoredWallet,
 		walletAddress,
 		walletRecord: record,
+		needsWalletRecover: !hasStoredWallet && recoverHint != null,
+		recoverHint,
 	}
 }
 
@@ -48,6 +56,8 @@ export function bootPathForPhase(phase: PosBootPhase): string {
 	switch (phase) {
 		case 'no_wallet':
 			return '/'
+		case 'wallet_recover':
+			return '/recover'
 		case 'permission':
 			return '/permission'
 		case 'home':

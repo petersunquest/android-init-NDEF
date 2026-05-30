@@ -12,6 +12,9 @@ import { usePosSession } from '@/providers/PosSessionProvider'
 import { localValidateBeamioTag, normalizeBeamioTagInput, passwordRules } from '@/utils/beamioTagRules'
 import { resolveFirstAvailablePosTerminalTag } from '@/utils/posTerminalTag'
 
+const ONBOARDING_FIELD_CLASS =
+	'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-mkt-onSurface outline-none focus:border-brand-blue'
+
 type TagStatus = 'idle' | 'checking' | 'valid' | 'invalid'
 
 export function OnboardingPage() {
@@ -186,7 +189,7 @@ export function OnboardingPage() {
 				<input
 					value={restoreTag}
 					onChange={(e) => setRestoreTag(e.target.value.replace(/^@+/, ''))}
-					className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-blue"
+					className={ONBOARDING_FIELD_CLASS}
 					autoComplete="username"
 				/>
 				<label className="mt-4 block text-sm font-semibold">Access password</label>
@@ -194,7 +197,7 @@ export function OnboardingPage() {
 					type="password"
 					value={restorePassword}
 					onChange={(e) => setRestorePassword(e.target.value)}
-					className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-blue"
+					className={ONBOARDING_FIELD_CLASS}
 					autoComplete="current-password"
 				/>
 				{restoreError ? (
@@ -258,7 +261,7 @@ export function OnboardingPage() {
 							scheduleTagCheck(next)
 						}}
 						onBlur={() => void validateTagNow()}
-						className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-blue"
+						className={ONBOARDING_FIELD_CLASS}
 						autoComplete="off"
 					/>
 					{tagStatus === 'checking' ? (
@@ -281,7 +284,7 @@ export function OnboardingPage() {
 							type={showPassword ? 'text' : 'password'}
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
-							className="w-full rounded-2xl border border-slate-200 px-4 py-3 pr-12 outline-none focus:border-brand-blue"
+							className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pr-12 text-mkt-onSurface outline-none focus:border-brand-blue"
 							autoComplete="new-password"
 						/>
 						<button
@@ -310,7 +313,7 @@ export function OnboardingPage() {
 						type="password"
 						value={confirmPassword}
 						onChange={(e) => setConfirmPassword(e.target.value)}
-						className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-brand-blue"
+						className={ONBOARDING_FIELD_CLASS}
 						autoComplete="new-password"
 					/>
 					{confirmPassword && !passwordsMatch ? (

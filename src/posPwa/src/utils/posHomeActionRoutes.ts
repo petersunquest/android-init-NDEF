@@ -5,7 +5,9 @@ export const POS_HOME_ROUTES = {
 	checkBalance: '/check-balance',
 	topUp: '/topup',
 	charge: '/charge',
+	deductPoints: '/deduct-points',
 	transactions: '/transactions',
+	activeCoupons: '/active-coupons',
 	nativeAction: (action: PosNativeAction) => `/native/${action}`,
 } as const
 
@@ -16,7 +18,9 @@ export function isPosHomePhasePath(path: string): boolean {
 		path === POS_HOME_ROUTES.checkBalance ||
 		path === POS_HOME_ROUTES.topUp ||
 		path === POS_HOME_ROUTES.charge ||
-		path === POS_HOME_ROUTES.transactions
+		path === POS_HOME_ROUTES.deductPoints ||
+		path === POS_HOME_ROUTES.transactions ||
+		path === POS_HOME_ROUTES.activeCoupons
 	) {
 		return true
 	}

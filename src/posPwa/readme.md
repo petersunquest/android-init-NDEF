@@ -1,11 +1,16 @@
 # Beamio POS PWA
 
-POS onboarding + Home dashboard as a web app for **iOS / Android native shells** (WebView).
+**唯一活跃的 POS 终端 UI。** Merchant terminals run inside **native iOS/Android WebView shells** that load this PWA — not the deprecated native POS apps (`src/CashTrees_iOS/iOS_NDEF/`, `src/android-NDEF/`).
 
 Deployed at:
 
-- `https://pos.conet.network/` (primary — iOS/Android POS WebView)
+- `https://pos.conet.network/` (primary — POS WebView shells)
 - `https://beamio.app/pos/` (alternate path; build with default `POS_PWA_BASE=/pos/`)
+
+| Active shell | Path | Default URL |
+|--------------|------|-------------|
+| iOS WebView | `src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS/ContentView.swift` | `https://pos.conet.network/` |
+| Android WebView | `src/android/softPOS/.../MainActivity.kt` | `https://pos.beamio.app/` |
 
 ## Routes
 
@@ -62,28 +67,20 @@ Staging dirs: `posTemp/` on each host before atomic promote.
 
 ## Native bridge (`window.BeamioPOS`)
 
-Native POS apps should inject before the PWA loads:
+WebView shells inject **hardware / navigation** helpers — **wallet + mnemonic live in PWA IndexedDB** (`posWalletStorage.ts`), not native Keychain (see `.cursor/rules/beamio-consumer-wallet-signing-storage.mdc`).
 
 ```javascript
 window.BeamioPOS = {
   platform: 'ios', // or 'android'
-  async getWalletAddress() { /* Keychain / EncryptedSharedPreferences */ },
-  async hasStoredWallet() { /* boolean */ },
-  async createWallet({ accountName, password, parentBeamioTag }) {
-    // generate key, sign, POST /api/addUser, persist key natively
-    return { ok: true, address: '0x…' }
-  },
-  async restoreWallet({ accountName, password }) {
-    // AccountRegistry decrypt + native key persist
-    return { ok: true, address: '0x…' }
-  },
+  // Web mode: PWA uses IndexedDB + session memory; bridge optional for NFC/camera.
   navigateNative(action) {
-    // 'charge' | 'topup' | 'readBalance' | 'deductPoints' | 'history' | 'linkApp' | 'activeCoupons'
+    // legacy handoff — prefer PWA routes /charge, /topup, /check-balance
   },
-  async resendParentPermissionRequest() { /* optional native override; PWA uses src/conet/ */ },
-  async getWalletPrivateKeyHex() { /* 64-hex; session Keychain only */ },
+  async resendParentPermissionRequest() { /* optional; PWA uses src/conet/ */ },
 }
 ```
+
+Full bridge shape: `src/posPwa/src/bridge/nativeBridge.ts`. Shell rules: `.cursor/rules/beamio-pos-pwa-native-webview-shell.mdc`.
 
 ## CoNET Chat (terminal permission)
 

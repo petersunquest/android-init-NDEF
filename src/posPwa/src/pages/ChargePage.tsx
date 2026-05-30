@@ -8,12 +8,15 @@ import {
 } from '@/components/ChargeSuccessView'
 import { ChargeTipPage } from '@/components/ChargeTipPage'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
+import { PosPaymentRoutingMonitorCard } from '@/components/PosPaymentRoutingMonitorCard'
+import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import type { ChargePaymentMethodRaw } from '@/utils/chargePaymentMethod'
 import { POS_TERMINAL_CHARGE_POLICY_ALL } from '@/utils/chargePaymentMethod'
 import {
 	executeNfcCharge,
+	executeQrCharge,
 	type ChargeExecuteSuccess,
 } from '@/utils/chargeExecute'
 import {
@@ -24,7 +27,12 @@ import {
 import { chargeTipFromRequestAndBps } from '@/utils/beamioPaymentRouting'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
-import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
+import { cancelPosCustomerScan, runPosChargeScanFlow } from '@/utils/posScanFlow'
+import {
+	makeInitialPaymentRoutingSteps,
+	patchPaymentRoutingStep,
+	type PaymentRoutingStep,
+} from '@/utils/paymentRoutingSteps'
 import { isExternalWalletStablecoinMethod } from '@/utils/topupPaymentMethod'
 
 type ChargePhase =
@@ -69,6 +77,16 @@ export function ChargePage() {
 	} | null>(null)
 	const pollAbortRef = useRef<AbortController | null>(null)
 	const scanStartedRef = useRef(false)
+	const [routingSteps, setRoutingSteps] = useState<PaymentRoutingStep[]>(() =>
+		makeInitialPaymentRoutingSteps(),
+	)
+
+	const patchRoutingStep = useCallback(
+		(id: string, status: PaymentRoutingStep['status'], detail?: string) => {
+			setRoutingSteps((prev) => patchPaymentRoutingStep(prev, id, status, detail))
+		},
+		[],
+	)
 
 	useEffect(() => {
 		const infra = merchantInfraCard?.trim()
@@ -160,6 +178,7 @@ export function ChargePage() {
 				return
 			}
 			setPhase('executing')
+			setRoutingSteps(makeInitialPaymentRoutingSteps())
 			const outcome = await executeNfcCharge({
 				target: { uid, sun },
 				subtotal: Number(draft.subtotal) || 0,
@@ -168,6 +187,7 @@ export function ChargePage() {
 				posWallet: walletAddress,
 				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
 				pointSystemEnabled,
+				onRoutingStep: patchRoutingStep,
 			})
 			if (outcome.status === 'success') {
 				setSuccess(outcome.result)
@@ -186,7 +206,45 @@ export function ChargePage() {
 			}
 			goHome(outcome.message)
 		},
-		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled],
+		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled, patchRoutingStep],
+	)
+
+	const runQrCharge = useCallback(
+		async (openContainerPayload: Record<string, unknown>) => {
+			if (!draft || !walletAddress) {
+				goHome('Wallet not initialized')
+				return
+			}
+			setPhase('executing')
+			setRoutingSteps(makeInitialPaymentRoutingSteps())
+			const outcome = await executeQrCharge({
+				openContainerPayload,
+				subtotal: Number(draft.subtotal) || 0,
+				tipBps: draft.tipBps,
+				merchantInfraCard: merchantInfraCard?.trim() ?? '',
+				posWallet: walletAddress,
+				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
+				pointSystemEnabled,
+				onRoutingStep: patchRoutingStep,
+			})
+			if (outcome.status === 'success') {
+				setSuccess(outcome.result)
+				setPhase('success')
+				void refreshHome()
+				return
+			}
+			if (outcome.status === 'insufficient') {
+				setInsufficient({
+					message: outcome.message,
+					requiredLabel: outcome.requiredLabel,
+					availableLabel: outcome.availableLabel,
+				})
+				setPhase('insufficient')
+				return
+			}
+			goHome(outcome.message)
+		},
+		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled, patchRoutingStep],
 	)
 
 	useEffect(() => {
@@ -196,7 +254,7 @@ export function ChargePage() {
 
 		let cancelled = false
 		void (async () => {
-			const scan = await runPosCustomerScanFlow()
+			const scan = await runPosChargeScanFlow()
 			if (cancelled) return
 
 			if (scan.status === 'aborted') {
@@ -218,14 +276,14 @@ export function ChargePage() {
 				return
 			}
 
-			goHome('Charge requires NFC tap or a Beamio NFC card. QR wallet scan is not supported for program card charge.')
+			await runQrCharge(scan.payload)
 		})()
 
 		return () => {
 			cancelled = true
 			cancelPosCustomerScan()
 		}
-	}, [phase, goHome, runNfcCharge])
+	}, [phase, goHome, runNfcCharge, runQrCharge])
 
 	useEffect(() => {
 		if (phase !== 'usdc-qr' || !usdcSid) return
@@ -299,11 +357,30 @@ export function ChargePage() {
 		)
 	}
 
-	if (phase === 'scan-customer' || phase === 'executing') {
+	if (phase === 'scan-customer') {
 		return (
 			<PosFlowLoadingShell
 				title="Charge"
-				subtitle={phase === 'executing' ? 'Processing payment…' : 'Tap customer NFC card…'}
+				subtitle="Waiting for NFC or QR scan…"
+				bg="bg-[#f2f2f7]"
+			/>
+		)
+	}
+
+	if (phase === 'executing') {
+		if (draft && !isExternalWalletStablecoinMethod(draft.methodRaw)) {
+			return (
+				<PosScanExecutingShell
+					title="Charge"
+					center={<PosPaymentRoutingMonitorCard steps={routingSteps} />}
+				/>
+			)
+		}
+		return (
+			<PosFlowLoadingShell
+				title="Charge"
+				subtitle="Preparing USDC payment…"
+				bg="bg-[#f2f2f7]"
 			/>
 		)
 	}

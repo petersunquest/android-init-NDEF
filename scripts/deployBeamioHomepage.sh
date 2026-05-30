@@ -21,7 +21,7 @@ usage() {
 Usage: scripts/deployBeamioHomepage.sh [options]
 
 Deploy homepage (src/homepage) to the beamio.app site root.
-Preserves server directories app/ and appTemp/ (Beamio PWA).
+Preserves server directories app/, appTemp/, pos/, and posTemp/.
 
 Options:
   --skip-build   Use existing src/homepage/build without npm run build
@@ -48,6 +48,8 @@ done
 RSYNC_EXCLUDES=(
 	--exclude 'app/'
 	--exclude 'appTemp/'
+	--exclude 'pos/'
+	--exclude 'posTemp/'
 	--exclude 'homepage/'
 	--exclude 'SilentPassUI/'
 )
@@ -63,7 +65,7 @@ if [[ ! -f "$BUILD_DIR/index.html" ]]; then
 	exit 1
 fi
 
-echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/, homepage/, SilentPassUI/)"
+echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/, pos/, posTemp/, homepage/, SilentPassUI/)"
 if [[ "$DRY_RUN" -eq 1 ]]; then
 	rsync -av --delete "${RSYNC_EXCLUDES[@]}" --dry-run "$BUILD_DIR/" "$REMOTE"
 else

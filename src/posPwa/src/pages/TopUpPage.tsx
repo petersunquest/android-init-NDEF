@@ -6,6 +6,8 @@ import {
 	fetchCardOwner,
 } from '@/api/beamioApi'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
+import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
+import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
 import { TopupAmountPadPage } from '@/components/TopupAmountPadPage'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
@@ -20,6 +22,7 @@ import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
 import {
 	executeNfcTopup,
 	type TopupCustomerTarget,
+	type TopupExecuteProgressPhase,
 	type TopupExecuteSuccess,
 } from '@/utils/topupExecute'
 import {
@@ -87,6 +90,7 @@ export function TopUpPage() {
 	const [usdcSid, setUsdcSid] = useState('')
 	const pollAbortRef = useRef<AbortController | null>(null)
 	const scanStartedRef = useRef(false)
+	const [topupProgress, setTopupProgress] = useState<TopupExecuteProgressPhase>('preparing')
 
 	const goHome = useCallback(
 		(error?: string) => {
@@ -131,6 +135,7 @@ export function TopUpPage() {
 				goHome('Wallet not initialized')
 				return
 			}
+			setTopupProgress('preparing')
 			setPhase('executing')
 			const outcome = await executeNfcTopup({
 				target,
@@ -140,6 +145,7 @@ export function TopUpPage() {
 				posWallet: walletAddress,
 				usdcTopupSessionId: sid,
 				pointSystemEnabled,
+				onProgress: setTopupProgress,
 			})
 			if (outcome.status === 'success') {
 				setSuccess(outcome.result)
@@ -340,18 +346,42 @@ export function TopUpPage() {
 		)
 	}
 
-	if (phase === 'executing') {
-		return <PosFlowLoadingShell title="Top-up" subtitle="Sign & execute…" />
+	if (phase === 'executing' && draft) {
+		const totalCredit = Number(draft.split?.currencyAmount ?? draft.apiAmount) || 0
+		const bonusCredit = Number(draft.split?.bonusCurrencyAmount ?? 0) || 0
+		const keypadAmount = Number(draft.currencyAmount ?? draft.keypadAmount) || 0
+		return (
+			<PosScanExecutingShell
+				title="Top-up"
+				center={
+					<PosTopupExecutingCard
+						signingInProgress={topupProgress === 'signing'}
+						totalCredit={totalCredit > 0 ? totalCredit : undefined}
+						bonusCredit={bonusCredit > 1e-6 ? bonusCredit : undefined}
+					/>
+				}
+				bottomAmount={keypadAmount > 0 ? keypadAmount : totalCredit}
+				bottomBonus={bonusCredit > 1e-6 ? bonusCredit : undefined}
+				bottomTone="topup"
+			/>
+		)
+	}
+
+	if (phase === 'scan-customer' || phase === 'scan-nfc-after-usdc') {
+		return (
+			<PosFlowLoadingShell
+				title="Top-up"
+				subtitle={
+					phase === 'scan-nfc-after-usdc'
+						? 'USDC paid. Tap customer NFC card…'
+						: 'Waiting for NFC or QR scan…'
+				}
+				bg="bg-[#f2f2f7]"
+			/>
+		)
 	}
 
 	return (
-		<PosFlowLoadingShell
-			title="Top-up"
-			subtitle={
-				phase === 'scan-nfc-after-usdc'
-					? 'USDC paid. Tap customer NFC card…'
-					: 'Waiting for NFC or QR scan…'
-			}
-		/>
+		<PosFlowLoadingShell title="Top-up" subtitle="Loading…" bg="bg-[#f2f2f7]" />
 	)
 }

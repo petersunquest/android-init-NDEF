@@ -1,9 +1,15 @@
 import { fetchUIDAssets, fetchWalletAssetsForRead } from '@/api/beamioApi'
 import type { UIDAssetsResult } from '@/types/pos'
+import { isNfcUid14Hex, normalizeNfcUid14 } from '@/utils/nfcUid'
 import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
 
+export type CheckBalanceNfcScanContext = {
+	uid: string
+	sun: { e: string; c: string; m: string }
+}
+
 export type CheckBalanceFlowResult =
-	| { status: 'success'; assets: UIDAssetsResult }
+	| { status: 'success'; assets: UIDAssetsResult; nfcScan?: CheckBalanceNfcScanContext }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -26,7 +32,15 @@ async function queryAssetsFromNfc(
 	if (!result.ok) {
 		return { status: 'error', message: result.error?.trim() || 'Query failed.' }
 	}
-	return { status: 'success', assets: result }
+	const nfcScan =
+		detail.sun && isNfcUid14Hex(uid)
+			? { uid: normalizeNfcUid14(uid), sun: detail.sun }
+			: undefined
+	return {
+		status: 'success',
+		assets: result,
+		nfcScan,
+	}
 }
 
 async function queryAssetsFromQrIdentity(

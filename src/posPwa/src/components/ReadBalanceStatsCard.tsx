@@ -72,13 +72,7 @@ export function ReadBalanceStatsCard({
 					)}
 				</div>
 				<div className="min-w-0 flex-1 text-right">
-					<p
-						className="text-[11px] font-medium tracking-widest"
-						style={{ color: OUTLINE }}
-					>
-						USDC on Base
-					</p>
-					<div className="mt-1 flex items-baseline justify-end gap-1">
+					<div className="flex items-baseline justify-end gap-1">
 						<UsdcBaseCompositeIcon size={18} badgeSize={11} />
 						<span className="font-mono text-xl font-bold" style={{ color: ON_SURFACE }}>
 							{readBalanceFormatUsdcThousands(usdcBalance)}
@@ -87,13 +81,7 @@ export function ReadBalanceStatsCard({
 							{usdcParts.suffix.trim()}
 						</span>
 					</div>
-					<p
-						className="mt-3 text-[11px] font-medium tracking-widest"
-						style={{ color: OUTLINE }}
-					>
-						CADD on Base
-					</p>
-					<div className="mt-1 flex items-baseline justify-end gap-1">
+					<div className="mt-3 flex items-baseline justify-end gap-1">
 						<CaddBaseCompositeIcon size={18} badgeSize={11} />
 						{caddLoading ? (
 							<span className="text-sm font-semibold" style={{ color: OUTLINE }}>
