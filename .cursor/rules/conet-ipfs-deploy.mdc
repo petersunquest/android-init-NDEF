@@ -1,0 +1,94 @@
+---
+description: ipfs.conet.network（38.102.126.30）x402sdk fragment API 部署标准
+alwaysApply: true
+---
+
+# CoNET IPFS（ipfs.conet.network）部署守则
+
+## 核心规则
+
+**`https://ipfs.conet.network/api/*` 由 `38.102.126.30` 上 x402sdk `fragmentDaemon`（端口 8002）提供。部署 fragment / IPFS API 变更时，必须使用 `./scripts/deployConetIpfs.sh`，不得手工 scp 单个文件后遗忘重启。**
+
+## 站点与进程
+
+| 项 | 值 |
+|---|---|
+| 公网 URL | `https://ipfs.conet.network` |
+| 公网 IP | `38.102.126.30` |
+| SSH | `peter@38.102.126.30`（或 `CONET_IPFS_HOST`） |
+| 远程 x402sdk 根 | `/home/peter/x402sdk` |
+| 运行入口 | `dist/endpoint/fragmentDaemon.js` |
+| systemd | `conetIPFS.service` |
+| 监听 | `127.0.0.1:8002`（nginx 反代 `/api/`） |
+| 片段存储 | `~/.master.json` → `storagePATH`（当前 `/home/peter/.data/IPFS`） |
+| 源码真相 | `src/x402sdk/src/endpoint/fragmentClusterServer.ts` |
+
+nginx 模板：`src/x402sdk/service/ipfs.conf` → `/etc/nginx/sites-enabled/ipfs.conet.network.conf`
+
+**禁止**在 nginx `/api/` 上对 GET 强制 `proxy_set_header Accept/Content-Type`（会破坏 video Range 边下边播）。
+
+## 标准部署流程
+
+1. **本地 x402sdk**：修改 `src/x402sdk` → `npm run build` 验证 → `git commit` + **`git push`**（`main`）。
+2. **根仓**（若 bump 子模块）：更新 `src/x402sdk` 指针 → commit + push。
+3. **一键部署**：
+
+```bash
+./scripts/deployConetIpfs.sh
+```
+
+默认行为：本地 `npm run build` → rsync `dist/` → 重启 `conetIPFS.service` → smoke test `Accept-Ranges` / `206 Range`。
+
+4. **验收**：
+
+```bash
+curl -I "https://ipfs.conet.network/api/getFragment?hash=<hash>"
+curl -I -H "Range: bytes=0-99" "https://ipfs.conet.network/api/getFragment?hash=<hash>"
+# 期望：Accept-Ranges: bytes；Range 请求返回 206
+```
+
+## 脚本选项
+
+`scripts/deployConetIpfs.sh`：
+
+| 选项 | 说明 |
+|---|---|
+| 默认 | 本地 build + rsync `dist/` + restart + smoke |
+| `--remote-build` | 服务器 `git fetch` + checkout fragment TS + `npm run build`（远程 clone 须干净） |
+| `--skip-build` | 跳过编译，仅 rsync 已有 `dist/` |
+| `--skip-restart` | 不重启 systemd |
+| `--sync-nginx` | 安装 `service/ipfs.conf` 并 `nginx -t && reload` |
+| `--sync-systemd` | 安装 `service/systemd/conetIPFS.service` |
+| `--require-push` | 若 `src/x402sdk` 未 push 到 `origin/main` 则失败 |
+| `--dry-run` | rsync dry-run |
+
+环境变量：`CONET_IPFS_HOST`（默认 `38.102.126.30`）、`CONET_IPFS_USER`、`CONET_IPFS_ROOT`、`CONET_IPFS_SERVICE`、`CONET_IPFS_PUBLIC_URL`。
+
+## 与 Beamio API（conet.network）的区别
+
+| 服务 | 主机 | 端口 | 用途 |
+|---|---|---|---|
+| **IPFS fragment** | `38.102.126.30` | 8002 | `/api/storageFragment`、`/api/getFragment`（图片/视频/PDF 片段） |
+| **Beamio Cluster/Master** | `conet.network` | 2222 / 1111 | `beamio.app` 业务 API |
+
+修改 `fragmentClusterServer.ts` **不**自动更新 `conet.network` 上的 `conet-beamio-api`；仅部署 IPFS 主机。
+
+## 视频 / Range 语义
+
+- 新上传 `video/*` / `application/pdf`：服务端写 `{hash}.bin` + `{hash}.meta.json` sidecar。
+- `getFragment` 必须支持 `Accept-Ranges: bytes` 与 **206 Partial Content**（MP4 边下边播）。
+- 客户端 URL：`https://ipfs.conet.network/api/getFragment?hash=` + `keccak256(dataUrl)`（见 `bizSite` `ipfsCardImageUpload.ts`）。
+
+## 严禁
+
+- ❌ 只 push 源码不在 IPFS 主机更新 `dist/` 或忘记 `systemctl restart conetIPFS.service`
+- ❌ 在 IPFS 主机 `git pull` 整仓且 working tree 脏时强行 reset（优先用脚本默认 **local build + rsync dist**）
+- ❌ 把 fragment 部署到 `conet.network` 或误重启 CoNET L1 Geth/Prysm（见 `conet-no-restart-eth-nodes.mdc`）
+- ❌ nginx 对 `/api/` GET 覆盖 `Accept`/`Content-Type` 导致 Range 异常
+
+## 参考
+
+- 部署脚本：`scripts/deployConetIpfs.sh`
+- Fragment 服务：`src/x402sdk/src/endpoint/fragmentClusterServer.ts`、`fragmentDaemon.ts`
+- systemd 模板：`src/x402sdk/service/systemd/conetIPFS.service`
+- nginx：`src/x402sdk/service/ipfs.conf`
