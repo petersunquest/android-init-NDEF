@@ -28,10 +28,11 @@ export function BeamioCircularBackButton({
 			aria-label={ariaLabel}
 			className={[
 				'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-				'border border-black/[0.06] bg-white/80 text-mkt-onSurface backdrop-blur-md',
+				'border border-white/40 bg-white/20 text-white/80 backdrop-blur-md',
+				'dark:border-white/40 dark:bg-white/20',
 				'shadow-[0_1px_3px_rgba(0,0,0,0.12)]',
 				'transition active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40',
-				'hover:bg-white/95',
+				'hover:bg-white/30',
 				className,
 			].join(' ')}
 			{...rest}
