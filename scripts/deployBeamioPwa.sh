@@ -28,6 +28,8 @@ Deploy SilentPassUI PWA:
   3) cd /var/www/beamio.app/SilentPassUI
   4) git fetch origin cashtree && git reset --hard origin/cashtree && npm install && npm run build
   5) rsync build/ -> /var/www/beamio.app/app/
+  6) PUBLIC_URL=/ rebuild, pack SilentPassUI-{version}.zip + update.json -> /var/www/beamio.app/app/
+     (iOS CashTrees embedded PWA OTA; see CashTreesPWAUpdateDaemon)
 
 Options:
   --skip-version-bump  Skip local package.json patch bump (not recommended)
@@ -83,6 +85,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 	fi
 	echo "    2) ssh $REMOTE_BUILD_HOST 'cd $REMOTE_BUILD_DIR && git fetch origin cashtree && git reset --hard origin/cashtree && npm install && npm run build'"
 	echo "    3) rsync -av --delete build/ $REMOTE_APP_DIR"
+	echo "    4) PUBLIC_URL=/ npm run build; zip SilentPassUI-{ver}.zip; publish update.json to $REMOTE_APP_DIR"
 	exit 0
 fi
 
@@ -93,7 +96,31 @@ else
 fi
 
 echo "==> Remote build and deploy SilentPassUI"
-ssh "$REMOTE_BUILD_HOST" "set -euo pipefail; cd '$REMOTE_BUILD_DIR'; git fetch origin cashtree; git reset --hard origin/cashtree; npm install; npm run build; test -f build/index.html; rsync -av --delete build/ '$REMOTE_APP_DIR'"
+ssh "$REMOTE_BUILD_HOST" "set -euo pipefail
+cd '$REMOTE_BUILD_DIR'
+git fetch origin cashtree
+git reset --hard origin/cashtree
+npm install
+npm run build
+test -f build/index.html
+rsync -av --delete build/ '$REMOTE_APP_DIR'
+VERSION=\$(node -p \"require('./package.json').version\")
+ZIP_NAME=\"SilentPassUI-\${VERSION}.zip\"
+echo \"==> iOS embedded OTA pack (PUBLIC_URL=/): \${ZIP_NAME}\"
+PUBLIC_URL=/ npm run build
+test -f build/index.html
+printf '{\"ver\":\"%s\",\"filename\":\"%s\"}\\n' \"\$VERSION\" \"\$ZIP_NAME\" > build/update.json
+TMP_ZIP=\"\$(mktemp /tmp/silentpass-ota.XXXXXX.zip)\"
+(
+  cd build
+  zip -qr \"\$TMP_ZIP\" . -x '*.DS_Store' -x '__MACOSX/*' -x '**/__MACOSX/*'
+)
+cp \"\$TMP_ZIP\" '${REMOTE_APP_DIR}'\"\${ZIP_NAME}\"
+cp build/update.json '${REMOTE_APP_DIR}update.json'
+rm -f \"\$TMP_ZIP\"
+ls -lh '${REMOTE_APP_DIR}update.json' '${REMOTE_APP_DIR}'\"\${ZIP_NAME}\"
+"
 
 echo "==> Done. Spot-check:"
 echo "    https://beamio.app/app/"
+echo "    https://beamio.app/app/update.json"
