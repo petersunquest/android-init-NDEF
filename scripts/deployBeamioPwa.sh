@@ -97,6 +97,31 @@ fi
 
 echo "==> Remote build and deploy SilentPassUI"
 ssh "$REMOTE_BUILD_HOST" "set -euo pipefail
+pack_embedded_ota_zip() {
+  local src_dir=\"\$1\"
+  local out_zip=\"\$2\"
+  if command -v zip >/dev/null 2>&1; then
+    (
+      cd \"\$src_dir\"
+      zip -qr \"\$out_zip\" . -x '*.DS_Store' -x '__MACOSX/*' -x '**/__MACOSX/*'
+    )
+    return 0
+  fi
+  python3 - \"\$src_dir\" \"\$out_zip\" <<'PY'
+import sys, zipfile
+from pathlib import Path
+src = Path(sys.argv[1])
+out = Path(sys.argv[2])
+with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+    for path in src.rglob('*'):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(src).as_posix()
+        if rel.startswith('__MACOSX/') or path.name == '.DS_Store':
+            continue
+        zf.write(path, rel)
+PY
+}
 cd '$REMOTE_BUILD_DIR'
 git fetch origin cashtree
 git reset --hard origin/cashtree
@@ -111,12 +136,10 @@ PUBLIC_URL=/ npm run build
 test -f build/index.html
 printf '{\"ver\":\"%s\",\"filename\":\"%s\"}\\n' \"\$VERSION\" \"\$ZIP_NAME\" > build/update.json
 TMP_ZIP=\"\$(mktemp /tmp/silentpass-ota.XXXXXX.zip)\"
-(
-  cd build
-  zip -qr \"\$TMP_ZIP\" . -x '*.DS_Store' -x '__MACOSX/*' -x '**/__MACOSX/*'
-)
+pack_embedded_ota_zip build \"\$TMP_ZIP\"
 cp \"\$TMP_ZIP\" '${REMOTE_APP_DIR}'\"\${ZIP_NAME}\"
 cp build/update.json '${REMOTE_APP_DIR}update.json'
+chmod 644 '${REMOTE_APP_DIR}update.json' '${REMOTE_APP_DIR}'\"\${ZIP_NAME}\"
 rm -f \"\$TMP_ZIP\"
 ls -lh '${REMOTE_APP_DIR}update.json' '${REMOTE_APP_DIR}'\"\${ZIP_NAME}\"
 "
