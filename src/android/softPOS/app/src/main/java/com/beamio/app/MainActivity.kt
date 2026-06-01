@@ -545,6 +545,47 @@ class MainActivity : ComponentActivity() {
         fun openURL(url: String) {
             runOnUiThread { openExternalUrlFromBridge(url) }
         }
+
+        /** PWA → Native generic app state (footer badges, launcher badge). */
+        @JavascriptInterface
+        fun publishAppState(json: String) {
+            runOnUiThread { applyNativeAppStateFromWeb(json) }
+        }
+    }
+
+    private fun applyNativeAppStateFromWeb(raw: String) {
+        if (!::webView.isInitialized) return
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return
+        try {
+            val root = org.json.JSONObject(trimmed)
+            val state =
+                if (root.has("state") && root.opt("state") is org.json.JSONObject) {
+                    root.getJSONObject("state")
+                } else {
+                    root
+                }
+            var badge: Int? = null
+            if (state.has("appIconBadge")) {
+                badge = state.optInt("appIconBadge", 0)
+            }
+            if (badge == null && state.has("footerBadges")) {
+                val footer = state.optJSONObject("footerBadges")
+                if (footer != null && footer.has("chat")) {
+                    badge = footer.optInt("chat", 0)
+                }
+            }
+            applyLauncherBadge(badge ?: 0)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun applyLauncherBadge(count: Int) {
+        val safe = count.coerceIn(0, 999)
+        try {
+            me.leolin.shortcutbadger.ShortcutBadger.applyCount(applicationContext, safe)
+        } catch (_: Exception) {
+        }
     }
 
     private fun openExternalUrlFromBridge(raw: String) {

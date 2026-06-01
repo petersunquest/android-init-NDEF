@@ -45,4 +45,13 @@ final class BeamioDeepLinkTests: XCTestCase {
         let url = URL(string: "beamio://open?target=https%3A%2F%2Fevil.example%2F")!
         XCTAssertNil(BeamioDeepLink.resolveWebAppURL(from: url))
     }
+
+    func testMapResolvedWebAppURLToLocalStripsAppPrefix() {
+        let remote = URL(string: "https://beamio.app/app/?beamiocard=0xabc")!
+        let local = BeamioDeepLink.mapResolvedWebAppURLToLocal(remote)
+        XCTAssertEqual(local.scheme, CashTreesPWAScheme.scheme)
+        XCTAssertEqual(local.host, CashTreesPWAScheme.host)
+        XCTAssertEqual(local.path, "/")
+        XCTAssertEqual(local.query, "beamiocard=0xabc")
+    }
 }

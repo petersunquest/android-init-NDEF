@@ -14,9 +14,11 @@ import SwiftUI
 import UIKit
 import WebKit
 
-/// POS terminal: WebView loads POS PWA only (`beamio-pos-pwa-native-webview-shell.mdc`).
-/// Deprecated: native POS UI in `iOS_NDEF/`. Consumer shell uses `BeamioDeepLink.defaultWebAppURL` (`/app/`).
-private let cashTreesAppURL = URL(string: "https://pos.conet.network/")!
+/// Consumer shell loads embedded SilentPassUI via `cashtrees-local://` scheme handler.
+/// Remote `https://beamio.app/app/` deep links are mapped to the same path on localhost.
+private func defaultLocalWebAppURL(from host: CashTreesLocalPWAHost) -> URL {
+    host.entryURL
+}
 
 /// Launch / splash / empty WebView surface — avoids a pure-black flash when content process dies.
 private let cashTreesWebSurfaceColor = UIColor(red: 0 / 255, green: 4 / 255, blue: 20 / 255, alpha: 1)
@@ -240,6 +242,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var webContentProcessNeedsReload = false
     private var lastLoadedWebURLString: String?
     private var becameActiveObserver: NSObjectProtocol?
+    private var embeddedPwaUpdateObserver: NSObjectProtocol?
     var lastHandledDeepLinkNonce = 0
 
     override init() {
@@ -249,13 +252,36 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.recoverWebContentIfNeeded()
+            self?.handleAppBecameActive()
+        }
+        embeddedPwaUpdateObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesEmbeddedPwaUpdateAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            self?.dispatchEmbeddedPwaUpdateAvailable(from: note)
+        }
+    }
+
+    private func handleAppBecameActive() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await CashTreesLocalPWAHost.shared.refreshOnForeground()
+            if self.webContentProcessNeedsReload {
+                guard let webView = self.webView else { return }
+                self.performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
+            } else {
+                self.recoverWebContentIfNeeded()
+            }
         }
     }
 
     deinit {
         if let becameActiveObserver {
             NotificationCenter.default.removeObserver(becameActiveObserver)
+        }
+        if let embeddedPwaUpdateObserver {
+            NotificationCenter.default.removeObserver(embeddedPwaUpdateObserver)
         }
     }
 
@@ -299,7 +325,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         if navigationAction.targetFrame?.isMainFrame ?? false,
            let unwrapped = BeamioDeepLink.unwrapAppDownloadLandingURL(url) {
             decisionHandler(.cancel)
-            loadWebAppURL(unwrapped, in: webView, bypassDedup: true)
+            loadWebAppURL(BeamioDeepLink.mapResolvedWebAppURLToLocal(unwrapped), in: webView, bypassDedup: true)
             return
         }
         decisionHandler(.allow)
@@ -323,17 +349,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         webContentProcessNeedsReload = true
         initialWebRenderReadySignaled = false
-        if UIApplication.shared.applicationState == .active {
-            performWebContentRecovery(on: webView)
-        }
+        guard UIApplication.shared.applicationState == .active else { return }
+        performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
     }
 
     private func recoverWebContentIfNeeded() {
         guard webContentProcessNeedsReload, let webView else { return }
-        performWebContentRecovery(on: webView)
+        performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
     }
 
-    private func performWebContentRecovery(on webView: WKWebView) {
+    private func performWebContentRecovery(on webView: WKWebView, localBase: URL) {
         webContentProcessNeedsReload = false
         initialWebRenderReadySignaled = false
         if webView.url != nil {
@@ -344,7 +369,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             loadWebAppURL(url, in: webView, bypassDedup: true)
             return
         }
-        loadWebAppURL(cashTreesAppURL, in: webView, bypassDedup: true)
+        loadWebAppURL(localBase, in: webView, bypassDedup: true)
     }
 
     // MARK: WKUIDelegate — PWA getUserMedia 预授权（对齐 Android WebChromeClient.onPermissionRequest）
@@ -420,17 +445,33 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     /// document start 注入用：与 Android `CashTreesAndroid.getNfcStatus()` 字符串一致
-    static func bridgeInjectionScript(nfcStatus: String) -> String {
-        let esc = nfcStatus
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "'", with: "\\'")
+    static func bridgeInjectionScript(
+        nfcStatus: String,
+        embeddedVer: String,
+        pendingVer: String
+    ) -> String {
+        func esc(_ raw: String) -> String {
+            raw
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "'", with: "\\'")
+        }
+        let nfcEsc = esc(nfcStatus)
+        let verEsc = esc(embeddedVer)
+        let pendingEsc = esc(pendingVer)
         return """
-        window.__CT_IOS_NFC_STATUS__='\(esc)';
+        window.__CT_IOS_NFC_STATUS__='\(nfcEsc)';
+        window.__CT_EMBEDDED_PWA_VER__='\(verEsc)';
+        window.__CT_EMBEDDED_PWA_PENDING_VER__='\(pendingEsc)';
         (function(){
           var H='\(cashTreesIOSWKHandlerName)';
           if(!window.webkit||!window.webkit.messageHandlers||!window.webkit.messageHandlers[H])return;
           window.CashTreesIOS={
             getNfcStatus:function(){return window.__CT_IOS_NFC_STATUS__||'no_bridge';},
+            getEmbeddedPwaVersion:function(){return window.__CT_EMBEDDED_PWA_VER__||'';},
+            getEmbeddedPwaPendingVersion:function(){return window.__CT_EMBEDDED_PWA_PENDING_VER__||'';},
+            applyEmbeddedPwaUpdate:function(){
+              window.webkit.messageHandlers[H].postMessage({action:'applyEmbeddedPwaUpdate'});
+            },
             startPhysicalCardBind:function(){
               window.webkit.messageHandlers[H].postMessage({action:'startPhysicalCardBind'});
             },
@@ -465,6 +506,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               window.webkit.messageHandlers[H].postMessage({
                 action:'openURL',
                 url:payload.url||''
+              });
+            },
+            publishAppState:function(state){
+              window.webkit.messageHandlers[H].postMessage({
+                action:'publishAppState',
+                state:state||{}
               });
             }
           };
@@ -536,9 +583,59 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "openURL":
             let url = body["url"] as? String
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
+        case "applyEmbeddedPwaUpdate":
+            Task { @MainActor [weak self] in
+                guard let self, let webView = self.webView else { return }
+                let host = CashTreesLocalPWAHost.shared
+                let ok = await host.applyPendingUpdate()
+                var payload: [String: Any] = [
+                    "action": "applyEmbeddedPwaUpdate",
+                    "ok": ok,
+                    "ver": host.activeVersion(),
+                ]
+                if !ok, let err = host.lastError {
+                    payload["error"] = err
+                }
+                self.dispatchIOSBridgeJsonToWeb(payload)
+                if ok {
+                    self.syncEmbeddedPwaVersionGlobals(in: webView)
+                    webView.reload()
+                }
+            }
+        case "publishAppState":
+            let state = body["state"] as? [String: Any]
+            DispatchQueue.main.async {
+                CashTreesNativeAppStateBridge.applyFromWebPayload(state)
+            }
         default:
             break
         }
+    }
+
+    private func dispatchEmbeddedPwaUpdateAvailable(from note: Notification) {
+        guard let userInfo = note.userInfo,
+              let currentVer = userInfo["currentVer"] as? String,
+              let pendingVer = userInfo["pendingVer"] as? String
+        else { return }
+        dispatchIOSBridgeJsonToWeb([
+            "action": "embeddedPwaUpdateAvailable",
+            "currentVer": currentVer,
+            "pendingVer": pendingVer,
+        ])
+        if let webView {
+            syncEmbeddedPwaVersionGlobals(in: webView, pendingVer: pendingVer)
+        }
+    }
+
+    private func syncEmbeddedPwaVersionGlobals(in webView: WKWebView, pendingVer: String? = nil) {
+        let host = CashTreesLocalPWAHost.shared
+        let active = host.activeVersion()
+        let pending = pendingVer ?? host.pendingUpdateVersion() ?? ""
+        let js = """
+        window.__CT_EMBEDDED_PWA_VER__='\(active.replacingOccurrences(of: "'", with: "\\'"))';
+        window.__CT_EMBEDDED_PWA_PENDING_VER__='\(pending.replacingOccurrences(of: "'", with: "\\'"))';
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
     /// PWA `CashTreesIOS.openURL({ url })` — open http(s)/mailto/tel in the system browser or handler.
@@ -864,6 +961,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 struct CashTreesWebView: UIViewRepresentable {
     @ObservedObject var loadState: CashTreesWebLoadState
     @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
+    @ObservedObject var localPWAHost: CashTreesLocalPWAHost
 
     func makeCoordinator() -> CashTreesWebCoordinator {
         CashTreesWebCoordinator()
@@ -899,8 +997,14 @@ struct CashTreesWebView: UIViewRepresentable {
             WKUserScript(source: viewportJS, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         )
 
+        config.setURLSchemeHandler(localPWAHost.schemeHandler, forURLScheme: CashTreesPWAScheme.scheme)
+
         let status = queryIosNfcStatusString()
-        let bridge = CashTreesWebCoordinator.bridgeInjectionScript(nfcStatus: status)
+        let bridge = CashTreesWebCoordinator.bridgeInjectionScript(
+            nfcStatus: status,
+            embeddedVer: localPWAHost.activeVersion(),
+            pendingVer: localPWAHost.pendingUpdateVersion() ?? ""
+        )
         config.userContentController.addUserScript(
             WKUserScript(source: bridge, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         )
@@ -932,7 +1036,9 @@ struct CashTreesWebView: UIViewRepresentable {
         sv.showsHorizontalScrollIndicator = false
         sv.bounces = false
 
-        let initialURL = deepLinkStore.takePendingWebURL() ?? cashTreesAppURL
+        let localBase = localPWAHost.baseURL
+        let pendingRemote = deepLinkStore.takePendingWebURL()
+        let initialURL = pendingRemote ?? defaultLocalWebAppURL(from: localPWAHost)
         coord.lastHandledDeepLinkNonce = deepLinkStore.deepLinkNonce
         coord.loadWebAppURL(initialURL, in: webView)
         loadState.scheduleSplashFallback()
@@ -1044,6 +1150,7 @@ private struct CashTreesSplashOverlay: View {
 
 struct ContentView: View {
     @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
+    @ObservedObject private var localPWAHost = CashTreesLocalPWAHost.shared
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var webLoadState = CashTreesWebLoadState()
     @State private var webContentVisible = false
@@ -1052,9 +1159,15 @@ struct ContentView: View {
         ZStack {
             cashTreesWebSurfaceSwiftUIColor
                 .ignoresSafeArea()
-            CashTreesWebView(loadState: webLoadState, deepLinkStore: deepLinkStore)
+            if localPWAHost.isReady {
+                CashTreesWebView(
+                    loadState: webLoadState,
+                    deepLinkStore: deepLinkStore,
+                    localPWAHost: localPWAHost
+                )
                 .opacity(webContentVisible ? 1 : 0)
                 .ignoresSafeArea()
+            }
             if webLoadState.isSplashVisible {
                 CashTreesSplashOverlay(
                     animateOut: webLoadState.shouldAnimateOut,
@@ -1065,6 +1178,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            localPWAHost.startIfNeeded()
             webLoadState.scheduleSplashFallback()
         }
         .onChange(of: webLoadState.shouldAnimateOut) { _, newValue in
@@ -1079,8 +1193,19 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active, !webLoadState.isSplashVisible else { return }
-            // Safety net: never leave WebView at opacity 0 after splash is gone.
+            if newPhase == .background {
+                // Keep brand surface visible; server may be killed while WebView process survives.
+                webContentVisible = !webLoadState.isSplashVisible
+                return
+            }
+            guard newPhase == .active else { return }
+            Task { @MainActor in
+                await localPWAHost.refreshOnForeground()
+                if !webLoadState.isSplashVisible {
+                    webContentVisible = true
+                }
+            }
+            guard !webLoadState.isSplashVisible else { return }
             webContentVisible = true
         }
     }

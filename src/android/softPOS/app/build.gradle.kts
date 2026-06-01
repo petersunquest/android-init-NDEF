@@ -68,6 +68,7 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("me.leolin:shortcutbadger:1.1.22@aar")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

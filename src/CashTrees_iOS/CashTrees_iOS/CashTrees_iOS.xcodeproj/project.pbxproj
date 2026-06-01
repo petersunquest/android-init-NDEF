@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D0855E0A2FCD4EAC0049BD4C /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D0ZP0012FC10000100000002 /* ZIPFoundation */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D00281E12F767F0700C91DCF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -65,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0855E0A2FCD4EAC0049BD4C /* ZIPFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +130,7 @@
 			);
 			name = CashTrees_iOS;
 			packageProductDependencies = (
+				D0ZP0012FC10000100000002 /* ZIPFoundation */,
 			);
 			productName = CashTrees_iOS;
 			productReference = D00281D32F767F0500C91DCF /* CashTrees_iOS.app */;
@@ -208,6 +214,9 @@
 			);
 			mainGroup = D00281CA2F767F0500C91DCF;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00281D42F767F0500C91DCF /* Products */;
 			projectDirPath = "";
@@ -609,6 +618,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D0ZP0012FC10000100000002 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D00281CB2F767F0500C91DCF /* Project object */;
 }

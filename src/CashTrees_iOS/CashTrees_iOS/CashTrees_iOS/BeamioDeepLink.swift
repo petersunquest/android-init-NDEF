@@ -12,8 +12,11 @@ enum BeamioDeepLink {
     static let customScheme = "beamio"
     static let customOpenHost = "open"
 
-    /// Default in-app WebView entry when custom scheme carries query-only params.
+    /// Default in-app WebView entry when custom scheme carries query-only params (remote semantics).
     static let defaultWebAppURL = URL(string: "https://beamio.app/app/")!
+
+    /// Embedded SilentPassUI served by `WKURLSchemeHandler` on device (`cashtrees-local://localhost/`).
+    static let localWebAppBaseURL = URL(string: "\(CashTreesPWAScheme.scheme)://\(CashTreesPWAScheme.host)/")!
 
     /// HTTPS hosts the WebView may load from deep links (allowlist).
     static let allowedWebHosts: Set<String> = [
@@ -112,6 +115,31 @@ enum BeamioDeepLink {
         guard let host = url.host?.lowercased(), allowedWebHosts.contains(host) else { return nil }
         return url
     }
+
+    /// Map an allowed remote PWA URL to the on-device embedded scheme path.
+    /// `https://beamio.app/app/?x=1` → `cashtrees-local://localhost/?x=1` (bundle uses root `PUBLIC_URL=/`).
+    static func mapResolvedWebAppURLToLocal(_ remote: URL, localBase: URL = localWebAppBaseURL) -> URL {
+        guard var components = URLComponents(url: remote, resolvingAgainstBaseURL: false) else {
+            return localBase
+        }
+
+        var path = components.path
+        if path == "/app" {
+            path = "/"
+        } else if path.hasPrefix("/app/") {
+            path = String(path.dropFirst(4))
+            if path.isEmpty { path = "/" }
+        }
+
+        var local = URLComponents(url: localBase, resolvingAgainstBaseURL: false) ?? URLComponents()
+        local.scheme = localBase.scheme
+        local.host = localBase.host
+        local.port = localBase.port
+        local.path = path == "/" ? localBase.path : path
+        local.queryItems = components.queryItems
+        local.fragment = components.fragment
+        return local.url ?? localBase
+    }
 }
 
 /// Queues deep-link targets until the WKWebView can load them.
@@ -125,7 +153,7 @@ final class CashTreesDeepLinkStore: ObservableObject {
 
     func handleIncomingURL(_ url: URL) {
         guard let resolved = BeamioDeepLink.resolveWebAppURL(from: url) else { return }
-        pendingWebURLStorage = resolved
+        pendingWebURLStorage = BeamioDeepLink.mapResolvedWebAppURLToLocal(resolved)
         scheduleDeepLinkArrivalPublish()
     }
 
