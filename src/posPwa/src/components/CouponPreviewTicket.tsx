@@ -1,6 +1,7 @@
 import { Calendar, Clock } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { CouponBannerImage } from '@/components/CouponBannerImage'
+import { IpfsImg } from '@/components/IpfsImg'
 import {
 	couponExpiryUsesUrgentVariant,
 	posCouponExpiryPresentation,
@@ -100,7 +101,7 @@ export function CouponPreviewTicket({
 							backgroundColor: tone.iconBackdrop,
 						}}
 					>
-						<img src={icon} alt="" className="h-full w-full object-cover" draggable={false} />
+						<IpfsImg src={icon} alt="" className="h-full w-full object-cover" draggable={false} />
 					</div>
 				) : null}
 

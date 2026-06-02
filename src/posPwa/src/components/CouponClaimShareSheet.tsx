@@ -1,3 +1,4 @@
+import { IpfsImg } from '@/components/IpfsImg'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { Check, Copy, Share2, X } from 'lucide-react'
@@ -84,7 +85,7 @@ export function CouponClaimShareSheet({
 				<div className="overflow-y-auto px-4 py-4">
 					<div className="flex flex-col items-center gap-4">
 						{qrDataUrl ? (
-							<img
+							<IpfsImg
 								src={qrDataUrl}
 								alt="Claim QR code"
 								className="h-[210px] w-[210px] rounded-[18px] border border-slate-200 bg-white p-2.5"

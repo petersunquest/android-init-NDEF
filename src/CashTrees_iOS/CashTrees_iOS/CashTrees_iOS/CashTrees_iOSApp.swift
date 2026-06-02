@@ -25,6 +25,9 @@ struct CashTrees_iOSApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(deepLinkStore: deepLinkStore)
+                .onAppear {
+                    CashTreesWebConsoleRelay.logAppBoot()
+                }
                 .onOpenURL { url in
                     Task { @MainActor in
                         deepLinkStore.handleIncomingURL(url)

@@ -4,6 +4,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Launcher icon badge via silent notification (PWA publishAppState) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- API 34+ / 部分厂商：Foreground dispatch / ReaderMode 需在 manifest 声明，否则 onResume 内 NfcActivityManager 抛 SecurityException -->
     <uses-permission android:name="android.permission.NFC" />
     <!-- WebView QR / getUserMedia；无相机设备仍可安装 -->
@@ -26,8 +28,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.CaehTrees">
+        <!-- FQCN must match namespace com.beamio.app (Play package id: com.beamio.app). -->
         <activity
-            android:name=".MainActivity"
+            android:name="com.beamio.app.MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:exported="true"
             android:label="@string/app_name"
@@ -41,7 +44,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".GeneralQRScannerActivity"
+            android:name="com.beamio.app.GeneralQRScannerActivity"
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.CaehTrees" />

@@ -8,7 +8,7 @@ import Foundation
 /// Polls `https://beamio.app/app/update.json`, downloads newer bundles into `staging/`.
 @MainActor
 final class CashTreesPWAUpdateDaemon {
-    static let shared = CashTreesPWAUpdateDaemon()
+    static let shared = CashTreesPWAUpdateDaemon(bundleStore: CashTreesPWABundleStore.shared)
 
     static let checkIntervalSeconds: TimeInterval = 15 * 60
 
@@ -17,7 +17,7 @@ final class CashTreesPWAUpdateDaemon {
     private var scheduleTask: Task<Void, Never>?
     private var checkInFlight = false
 
-    private init(bundleStore: CashTreesPWABundleStore = .shared) {
+    private init(bundleStore: CashTreesPWABundleStore) {
         self.bundleStore = bundleStore
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30

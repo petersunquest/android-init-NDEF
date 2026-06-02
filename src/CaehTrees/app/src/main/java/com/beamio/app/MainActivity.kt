@@ -14,10 +14,11 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.view.ViewGroup
+import android.graphics.Color
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -32,9 +33,11 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
+import android.view.ViewGroup
+import com.beamio.app.embedded.EmbeddedPwaConstants
+import com.beamio.app.embedded.EmbeddedPwaHost
+import java.util.concurrent.Executors
 import org.json.JSONObject
-
-private const val HOME_URL = "https://pos.conet.network/"
 
 /**
  * Main document only: forces revalidation so WebView does not reuse a stale index.html from disk
@@ -63,6 +66,13 @@ private object NfcStatusStrings {
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var embeddedPwaHost: EmbeddedPwaHost
+    private lateinit var rootLayout: FrameLayout
+
+    @Volatile
+    private var useEmbeddedPwa = false
+
+    private val bootstrapExecutor = Executors.newSingleThreadExecutor()
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA 授权 */
     private var pendingWebPermissionRequest: PermissionRequest? = null
@@ -183,6 +193,18 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+
+        /** Fallback: Chromium-native console lines (subframes / pre-bridge). */
+        override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+            consoleMessage ?: return false
+            CashTreesWebConsoleRelay.handleWebViewConsoleMessage(
+                line = consoleMessage.message() ?: "",
+                level = consoleMessage.messageLevel(),
+                source = consoleMessage.sourceId(),
+                lineNumber = consoleMessage.lineNumber(),
+            )
+            return false
         }
     }
 
@@ -480,6 +502,43 @@ class MainActivity : ComponentActivity() {
         fun openURL(url: String) {
             runOnUiThread { openExternalUrlFromBridge(url) }
         }
+
+        /** Embedded PWA OTA — mirrors iOS `CashTreesIOS.getEmbeddedPwaVersion`. */
+        @JavascriptInterface
+        fun getEmbeddedPwaVersion(): String {
+            if (!useEmbeddedPwa || !::embeddedPwaHost.isInitialized) return ""
+            return embeddedPwaHost.bundleStore.activeVersion()
+        }
+
+        /** Embedded PWA OTA — mirrors iOS `CashTreesIOS.getEmbeddedPwaPendingVersion`. */
+        @JavascriptInterface
+        fun getEmbeddedPwaPendingVersion(): String {
+            if (!useEmbeddedPwa || !::embeddedPwaHost.isInitialized) return ""
+            return embeddedPwaHost.bundleStore.pendingUpdateVersion() ?: ""
+        }
+
+        /** Promote staged bundle and reload local PWA. */
+        @JavascriptInterface
+        fun applyEmbeddedPwaUpdate() {
+            runOnUiThread { applyEmbeddedPwaUpdateFromBridge() }
+        }
+
+        /**
+         * PWA → Native generic app state (footer badges, launcher icon badge).
+         * Payload: JSON string `{ action:'publishAppState', state:{...} }` — mirrors iOS bridge.
+         */
+        @JavascriptInterface
+        fun publishAppState(json: String) {
+            runOnUiThread {
+                CashTreesNativeAppStateBridge.applyFromJsonString(this@MainActivity, json)
+            }
+        }
+
+        /** PWA debug log → logcat (`PWA-JS` tag); mirrors iOS `CashTreesIOS.debugLog`. */
+        @JavascriptInterface
+        fun debugLog(level: String, message: String) {
+            CashTreesWebConsoleRelay.handleBridgeConsoleLog(level, message)
+        }
     }
 
     private fun openExternalUrlFromBridge(raw: String) {
@@ -491,6 +550,50 @@ class MainActivity : ComponentActivity() {
             if (scheme !in setOf("http", "https", "mailto", "tel")) return
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (_: Exception) {
+        }
+    }
+
+    private fun applyEmbeddedPwaUpdateFromBridge() {
+        if (!useEmbeddedPwa || !::webView.isInitialized || !::embeddedPwaHost.isInitialized) {
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject()
+                    .put("action", "applyEmbeddedPwaUpdate")
+                    .put("ok", false)
+                    .put("error", "embedded_pwa_unavailable"),
+            )
+            return
+        }
+        try {
+            embeddedPwaHost.bundleStore.promoteStagingToActive()
+            embeddedPwaHost.buildAssetLoaderIfNeeded()
+            val ver = embeddedPwaHost.bundleStore.activeVersion()
+            embeddedPwaHost.injectVersionGlobals(webView)
+            webView.loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject()
+                    .put("action", "applyEmbeddedPwaUpdate")
+                    .put("ok", true)
+                    .put("ver", ver),
+            )
+        } catch (e: Exception) {
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject()
+                    .put("action", "applyEmbeddedPwaUpdate")
+                    .put("ok", false)
+                    .put("error", e.message ?: "Update failed"),
+            )
+        }
+    }
+
+    private fun dispatchEmbeddedPwaUpdateAvailable(currentVer: String, pendingVer: String) {
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject()
+                .put("action", "embeddedPwaUpdateAvailable")
+                .put("currentVer", currentVer)
+                .put("pendingVer", pendingVer),
+        )
+        if (::webView.isInitialized && ::embeddedPwaHost.isInitialized) {
+            embeddedPwaHost.injectVersionGlobals(webView)
         }
     }
 
@@ -519,12 +622,40 @@ class MainActivity : ComponentActivity() {
         )
 
         val jsBridge = CashTreesJsBridge()
-        val wv = createMainWebView(jsBridge)
-        webView = wv
-        val root = FrameLayout(this)
-        root.addView(wv)
-        setContentView(root)
+        CashTreesWebConsoleRelay.logAppBoot()
+        embeddedPwaHost = EmbeddedPwaHost(this)
+        rootLayout = FrameLayout(this).apply {
+            setBackgroundColor(Color.parseColor("#000414"))
+        }
+        setContentView(rootLayout)
         hideBottomSystemBar()
+
+        bootstrapExecutor.execute {
+            try {
+                embeddedPwaHost.bootstrapIfNeeded()
+                runOnUiThread { mountEmbeddedWebView(jsBridge) }
+            } catch (_: Exception) {
+                runOnUiThread { mountRemoteFallbackWebView(jsBridge) }
+            }
+        }
+    }
+
+    private fun mountEmbeddedWebView(jsBridge: CashTreesJsBridge) {
+        useEmbeddedPwa = true
+        val wv = createEmbeddedWebView(jsBridge, embeddedPwaHost)
+        webView = wv
+        rootLayout.addView(wv)
+        embeddedPwaHost.startUpdateDaemon { currentVer, pendingVer ->
+            dispatchEmbeddedPwaUpdateAvailable(currentVer, pendingVer)
+        }
+        embeddedPwaHost.checkForUpdatesNow()
+    }
+
+    private fun mountRemoteFallbackWebView(jsBridge: CashTreesJsBridge) {
+        useEmbeddedPwa = false
+        val wv = createRemoteWebView(jsBridge, EmbeddedPwaConstants.REMOTE_FALLBACK_URL)
+        webView = wv
+        rootLayout.addView(wv)
     }
 
     /**
@@ -547,14 +678,87 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun createMainWebView(jsBridge: CashTreesJsBridge): WebView {
-        return WebView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
+    private fun createEmbeddedWebView(jsBridge: CashTreesJsBridge, host: EmbeddedPwaHost): WebView {
+        val loader = host.assetLoader
+            ?: throw IllegalStateException("Embedded PWA asset loader not ready")
+        return createBaseWebView(jsBridge).apply {
             webViewClient = object : WebViewClient() {
-                /** 避免标签 NDEF URI（SUN）进入 WebView / 系统浏览器；余额仅走 cashtreesnfc + API。 */
+                override fun shouldInterceptRequest(
+                    view: WebView,
+                    request: WebResourceRequest,
+                ): android.webkit.WebResourceResponse? {
+                    val u = request.url ?: return null
+                    if (host.shouldBypassEmbeddedAssetLoader(u)) {
+                        return null
+                    }
+                    host.mapBeamioAppUrlToLocal(u)?.let { local ->
+                        return loader.shouldInterceptRequest(local)
+                    }
+                    if (u.host?.lowercase() == EmbeddedPwaConstants.ASSET_LOADER_DOMAIN) {
+                        return loader.shouldInterceptRequest(u)
+                    }
+                    return null
+                }
+
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val u = request.url ?: return false
+                    if (shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)) return true
+                    if (request.isForMainFrame) {
+                        host.mapBeamioAppUrlToLocal(u)?.let { local ->
+                            view.loadUrl(local.toString())
+                            return true
+                        }
+                    }
+                    return false
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    if (url.isNullOrEmpty()) return false
+                    val u = Uri.parse(url)
+                    if (shouldBlockBeamioNdefTopLevelNavigation(u, true)) return true
+                    host.mapBeamioAppUrlToLocal(u)?.let { local ->
+                        view?.loadUrl(local.toString())
+                        return true
+                    }
+                    return false
+                }
+
+                override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                    injectWebBridgeScripts(view, "onPageStarted")
+                }
+
+                override fun onPageFinished(view: WebView, url: String?) {
+                    host.injectVersionGlobals(view)
+                    injectWebBridgeScripts(view, "onPageFinished")
+                }
+
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: android.webkit.WebResourceError,
+                ) {
+                    if (request.isForMainFrame) {
+                        CashTreesWebConsoleRelay.logNative(
+                            "embedded main frame error url=${request.url} code=${error.errorCode} ${error.description}",
+                        )
+                    }
+                }
+
+                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    view.loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+                    return true
+                }
+            }
+            CashTreesWebConsoleRelay.logNative("loading embedded PWA ${EmbeddedPwaConstants.entryUrl}")
+            loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createRemoteWebView(jsBridge: CashTreesJsBridge, startUrl: String): WebView {
+        return createBaseWebView(jsBridge).apply {
+            webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val u = request.url ?: return false
                     return shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)
@@ -565,8 +769,32 @@ class MainActivity : ComponentActivity() {
                     if (url.isNullOrEmpty()) return false
                     return shouldBlockBeamioNdefTopLevelNavigation(Uri.parse(url), true)
                 }
+
+                override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
+                    injectWebBridgeScripts(view, "remote-onPageStarted")
+                }
+
+                override fun onPageFinished(view: WebView, url: String?) {
+                    injectWebBridgeScripts(view, "remote-onPageFinished")
+                }
+
+                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    view.loadUrl(startUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+                    return true
+                }
             }
-            this.webChromeClient = webChromeClient
+            loadUrl(startUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun createBaseWebView(jsBridge: CashTreesJsBridge): WebView {
+        return WebView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            this.webChromeClient = this@MainActivity.webChromeClient
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false
@@ -577,14 +805,23 @@ class MainActivity : ComponentActivity() {
             settings.builtInZoomControls = false
             isVerticalScrollBarEnabled = true
             isHorizontalScrollBarEnabled = false
+            setBackgroundColor(Color.parseColor("#000414"))
             addJavascriptInterface(jsBridge, "CashTreesAndroid")
-            loadUrl(HOME_URL, HOME_DOCUMENT_REQUEST_HEADERS)
+            addJavascriptInterface(CashTreesWebConsoleRelay.JsRelay(), CashTreesWebConsoleRelay.BRIDGE_NAME)
+            CashTreesWebConsoleRelay.registerDocumentStartScript(this)
         }
+    }
+
+    private fun injectWebBridgeScripts(webView: WebView, reason: String) {
+        CashTreesWebConsoleRelay.reinject(webView, reason)
     }
 
     override fun onResume() {
         super.onResume()
         maybeEnableNfcForegroundDispatch()
+        if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
+            embeddedPwaHost.checkForUpdatesNow()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -616,6 +853,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
+        if (::embeddedPwaHost.isInitialized) {
+            embeddedPwaHost.stopUpdateDaemon()
+        }
+        bootstrapExecutor.shutdownNow()
         super.onDestroy()
     }
 

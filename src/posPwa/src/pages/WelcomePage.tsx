@@ -1,3 +1,4 @@
+import { IpfsImg } from '@/components/IpfsImg'
 import { ChevronRight, Search, Store, Terminal, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -89,7 +90,7 @@ export function WelcomePage() {
 				<div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pt-[max(1rem,env(safe-area-inset-top))]">
 					<div className="relative mb-4 shrink-0 overflow-hidden rounded-[14px] shadow-lg max-h-[38vh] min-h-[9rem]">
 						<div className="absolute inset-0 bg-gradient-to-br from-mkt-surfaceLow to-brand-blue/15" />
-						<img
+						<IpfsImg
 							src={TERMINAL_HERO_IMAGE_URL}
 							alt=""
 							className="relative h-full min-h-[9rem] w-full object-cover opacity-90 mix-blend-overlay"

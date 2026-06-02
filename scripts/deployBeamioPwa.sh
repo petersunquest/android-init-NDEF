@@ -26,7 +26,7 @@ Deploy SilentPassUI PWA:
   1) bump patch version in src/SilentPassUI/package.json (commit + push)
   2) ssh conet.network
   3) cd /var/www/beamio.app/SilentPassUI
-  4) git fetch origin cashtree && git reset --hard origin/cashtree && npm install && npm run build
+  4) git fetch origin cashtree && git reset --hard origin/cashtree && npm install --legacy-peer-deps && npm run build
   5) rsync build/ -> /var/www/beamio.app/app/
   6) PUBLIC_URL=/ rebuild, pack SilentPassUI-{version}.zip + update.json -> /var/www/beamio.app/app/
      (iOS CashTrees embedded PWA OTA; see CashTreesPWAUpdateDaemon)
@@ -83,7 +83,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 	if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
 		echo "    1) npm version patch in $PWA_DIR (commit + push)"
 	fi
-	echo "    2) ssh $REMOTE_BUILD_HOST 'cd $REMOTE_BUILD_DIR && git fetch origin cashtree && git reset --hard origin/cashtree && npm install && npm run build'"
+	echo "    2) ssh $REMOTE_BUILD_HOST 'cd $REMOTE_BUILD_DIR && git fetch origin cashtree && git reset --hard origin/cashtree && npm install --legacy-peer-deps && npm run build'"
 	echo "    3) rsync -av --delete build/ $REMOTE_APP_DIR"
 	echo "    4) PUBLIC_URL=/ npm run build; zip SilentPassUI-{ver}.zip; publish update.json to $REMOTE_APP_DIR"
 	exit 0
@@ -125,7 +125,7 @@ PY
 cd '$REMOTE_BUILD_DIR'
 git fetch origin cashtree
 git reset --hard origin/cashtree
-npm install
+npm install --legacy-peer-deps
 npm run build
 test -f build/index.html
 rsync -av --delete build/ '$REMOTE_APP_DIR'

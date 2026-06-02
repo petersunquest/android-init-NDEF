@@ -1,3 +1,4 @@
+import { IpfsImg } from '@/components/IpfsImg'
 import { CreditCard, MinusCircle } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -141,7 +142,7 @@ export function ReadBalancePassHeroCard({
 				}}
 			>
 				{showImage ? (
-					<img
+					<IpfsImg
 						src={cardMetadataImageUrl!}
 						alt=""
 						className="h-full w-full object-cover"

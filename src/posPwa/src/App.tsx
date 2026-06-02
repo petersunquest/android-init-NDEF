@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import { bootPathForPhase } from '@/boot/posBootInit'
 import { PosAppBootSplash } from '@/components/PosAppBootSplash'
 import { PosDataDaemonProvider } from '@/providers/PosDataDaemonProvider'
+import { IpfsImageLibraryProvider } from '@/providers/IpfsImageLibraryProvider'
 import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvider'
 import { isPosHomePhasePath } from '@/utils/posHomeActionRoutes'
 
@@ -117,9 +118,11 @@ export default function App() {
 	return (
 		<BrowserRouter basename={routerBasename || undefined}>
 			<PosSessionProvider>
-				<PosDataDaemonProvider>
-					<BootRouter />
-				</PosDataDaemonProvider>
+				<IpfsImageLibraryProvider>
+					<PosDataDaemonProvider>
+						<BootRouter />
+					</PosDataDaemonProvider>
+				</IpfsImageLibraryProvider>
 			</PosSessionProvider>
 		</BrowserRouter>
 	)

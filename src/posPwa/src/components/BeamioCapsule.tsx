@@ -1,6 +1,7 @@
 import type { TerminalProfile } from '@/types/pos'
 import { dicebearAvatarUrl, profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/display'
 import { AddressCapsule } from './AddressCapsule'
+import { IpfsImg } from './IpfsImg'
 
 function avatarSeedFromProfile(profile: TerminalProfile): string {
 	const tag = profileBeamioTag(profile)
@@ -50,7 +51,7 @@ export function BeamioCapsule({
 
 	return (
 		<div className={`flex min-w-0 items-center gap-2 ${compact ? 'gap-2' : 'gap-2.5'} ${className}`}>
-			<img
+			<IpfsImg
 				src={profile.image?.trim() || dicebearAvatarUrl(avatarSeedFromProfile(profile))}
 				alt=""
 				className={`${avatarSize} shrink-0 rounded-full border object-cover ${

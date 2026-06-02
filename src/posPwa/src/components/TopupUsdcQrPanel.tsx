@@ -1,3 +1,4 @@
+import { IpfsImg } from '@/components/IpfsImg'
 import QRCode from 'qrcode'
 import { useEffect, useState } from 'react'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
@@ -41,7 +42,7 @@ export function TopupUsdcQrPanel({
 					) : null}
 					<div className="mt-6 rounded-2xl bg-white p-4 shadow-md ring-1 ring-slate-200">
 						{qrDataUrl ? (
-							<img src={qrDataUrl} alt="Payment QR code" className="h-60 w-60" />
+							<IpfsImg src={qrDataUrl} alt="Payment QR code" className="h-60 w-60" />
 						) : (
 							<div className="flex h-60 w-60 items-center justify-center text-sm text-slate-500">
 								Generating QR…

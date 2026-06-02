@@ -236,6 +236,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
 
+    let webConsoleMessageHandler = CashTreesWebConsoleMessageHandler()
+
     private var nfcSession: NFCTagReaderSession?
     private var bindSessionActive = false
     private var initialWebRenderReadySignaled = false
@@ -331,7 +333,25 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         decisionHandler(.allow)
     }
 
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        CashTreesWebConsoleRelay.reinject(into: webView, reason: "didCommit")
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        (webView as? CashTreesWKWebView)?.stripInnerContentInputAccessoryView()
+        let activeVer = CashTreesLocalPWAHost.shared.activeVersion()
+        let pendingVer = CashTreesLocalPWAHost.shared.pendingUpdateVersion() ?? "none"
+        CashTreesWebConsoleRelay.logNative("PWA bundle active=\(activeVer) pending=\(pendingVer)")
+        CashTreesWebConsoleRelay.reinject(into: webView, reason: "didFinish")
+        webView.evaluateJavaScript(
+            "(function(){ return { ver: window.__CT_EMBEDDED_PWA_VER__||'', pending: window.__CT_EMBEDDED_PWA_PENDING_VER__||'' }; })();"
+        ) { result, _ in
+            if let dict = result as? [String: Any] {
+                let ver = dict["ver"] as? String ?? ""
+                let pending = dict["pending"] as? String ?? ""
+                CashTreesWebConsoleRelay.logNative("PWA JS globals ver=\(ver) pending=\(pending)")
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             self?.beginInitialWebHandoffIfNeeded()
         }
@@ -513,6 +533,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 action:'publishAppState',
                 state:state||{}
               });
+            },
+            debugLog:function(level,message){
+              window.webkit.messageHandlers[H].postMessage({
+                action:'consoleLog',
+                level:level||'log',
+                message:String(message||'')
+              });
             }
           };
         })();
@@ -554,11 +581,17 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == CashTreesWebConsoleRelay.handlerName {
+            CashTreesWebConsoleRelay.handle(message)
+            return
+        }
         guard message.name == cashTreesIOSWKHandlerName,
               let body = message.body as? [String: Any],
               let action = body["action"] as? String
         else { return }
         switch action {
+        case "consoleLog":
+            CashTreesWebConsoleRelay.handleBridgeConsoleLog(body)
         case "startPhysicalCardBind":
             DispatchQueue.main.async { [weak self] in self?.armNfcPhysicalCardRead() }
         case "cancelPhysicalCardBind":
@@ -999,6 +1032,22 @@ struct CashTreesWebView: UIViewRepresentable {
 
         config.setURLSchemeHandler(localPWAHost.schemeHandler, forURLScheme: CashTreesPWAScheme.scheme)
 
+        let consoleRelay = CashTreesWebConsoleRelay.injectionScript()
+        config.userContentController.addUserScript(
+            CashTreesWebConsoleRelay.pageUserScript(
+                source: consoleRelay,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: false
+            )
+        )
+        config.userContentController.addUserScript(
+            CashTreesWebConsoleRelay.pageUserScript(
+                source: consoleRelay,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: false
+            )
+        )
+
         let status = queryIosNfcStatusString()
         let bridge = CashTreesWebCoordinator.bridgeInjectionScript(
             nfcStatus: status,
@@ -1016,11 +1065,16 @@ struct CashTreesWebView: UIViewRepresentable {
         let coord = context.coordinator
         coord.loadState = loadState
         config.userContentController.add(coord, name: cashTreesIOSWKHandlerName)
+        config.userContentController.add(coord.webConsoleMessageHandler, name: CashTreesWebConsoleRelay.handlerName)
+        CashTreesWebConsoleRelay.logNative("registered handlers CashTreesIOS + \(CashTreesWebConsoleRelay.handlerName)")
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = CashTreesWKWebView(frame: .zero, configuration: config)
         coord.webView = webView
         webView.navigationDelegate = coord
         webView.uiDelegate = coord
+        if #available(iOS 16.4, *) {
+            webView.isInspectable = true
+        }
         webView.isOpaque = true
         webView.backgroundColor = cashTreesWebSurfaceColor
         let sv = webView.scrollView
@@ -1036,7 +1090,6 @@ struct CashTreesWebView: UIViewRepresentable {
         sv.showsHorizontalScrollIndicator = false
         sv.bounces = false
 
-        let localBase = localPWAHost.baseURL
         let pendingRemote = deepLinkStore.takePendingWebURL()
         let initialURL = pendingRemote ?? defaultLocalWebAppURL(from: localPWAHost)
         coord.lastHandledDeepLinkNonce = deepLinkStore.deepLinkNonce
@@ -1049,6 +1102,7 @@ struct CashTreesWebView: UIViewRepresentable {
         uiView.navigationDelegate = nil
         uiView.uiDelegate = nil
         uiView.configuration.userContentController.removeScriptMessageHandler(forName: cashTreesIOSWKHandlerName)
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: CashTreesWebConsoleRelay.handlerName)
         coordinator.webView = nil
         coordinator.loadState = nil
     }

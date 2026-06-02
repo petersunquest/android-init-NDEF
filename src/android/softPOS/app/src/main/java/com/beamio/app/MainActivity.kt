@@ -13,7 +13,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.ViewGroup
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
 import android.webkit.PermissionRequest
@@ -133,6 +135,20 @@ class MainActivity : ComponentActivity() {
     }
 
     private val webChromeClient: WebChromeClient = object : WebChromeClient() {
+        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+            consoleMessage?.let { msg ->
+                val tag = "PWA-JS"
+                val line = "${msg.message()} (${msg.sourceId()}:${msg.lineNumber()})"
+                when (msg.messageLevel()) {
+                    ConsoleMessage.MessageLevel.ERROR -> Log.e(tag, line)
+                    ConsoleMessage.MessageLevel.WARNING -> Log.w(tag, line)
+                    ConsoleMessage.MessageLevel.DEBUG -> Log.d(tag, line)
+                    else -> Log.i(tag, line)
+                }
+            }
+            return super.onConsoleMessage(consoleMessage)
+        }
+
         override fun onPermissionRequest(request: PermissionRequest) {
             runOnUiThread {
                 when {

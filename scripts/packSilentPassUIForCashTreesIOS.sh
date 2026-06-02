@@ -6,11 +6,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SPUI="$ROOT/src/SilentPassUI"
 IOS_DIR="$ROOT/src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS"
+ANDROID_ASSETS="$ROOT/src/CaehTrees/app/src/main/assets"
 OUT_ZIP="$IOS_DIR/SilentPassUI.zip"
+ANDROID_ZIP="$ANDROID_ASSETS/SilentPassUI.zip"
 
 echo "==> Building SilentPassUI with PUBLIC_URL=/ (root asset paths for embedded scheme handler)"
 cd "$SPUI"
-npm install
+npm install --legacy-peer-deps
 PUBLIC_URL=/ npm run build
 
 VERSION="$(node -p "require('./package.json').version")"
@@ -30,6 +32,9 @@ rm -f "$OUT_ZIP" "$OTA_ZIP"
     -x "**/__MACOSX/*"
 )
 cp "$OTA_ZIP" "$OUT_ZIP"
+mkdir -p "$ANDROID_ASSETS"
+cp "$OTA_ZIP" "$ANDROID_ZIP"
 
 echo "✅ Wrote $OUT_ZIP (copy of ${ZIP_NAME})"
-ls -lh "$OUT_ZIP" "$OTA_ZIP"
+echo "✅ Wrote $ANDROID_ZIP (Android assets bootstrap)"
+ls -lh "$OUT_ZIP" "$OTA_ZIP" "$ANDROID_ZIP"

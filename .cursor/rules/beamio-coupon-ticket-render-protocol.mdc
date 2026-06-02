@@ -11,10 +11,10 @@ alwaysApply: true
 
 ## Ticket 布局（banner vs 无 banner）
 
-| 场景 | Ticket **内** | Ticket **外**（banner 下方） |
+| 场景 | Ticket **内** | Ticket **外**（ticket 下方） |
 |---|---|---|
-| **有 banner**（`backgroundImage` / `couponImage`） | 仅背景图；**不**显示 icon，也不在 ticket 内放 title / subtitle / expiry | title、subtitle、expiry pill（若应显示）、QR / Claim 按钮 |
-| **无 banner** | icon（若有）+ title + subtitle + expiry pill（若应显示）+ 右侧 QR / trailing | — |
+| **有 banner**（`backgroundImage` / `couponImage`） | 仅背景图；**不**显示 icon，也不在 ticket 内放 title / subtitle / expiry | title、subtitle、expiry pill（若应显示）、**QR**（若有 `shareUrl`）/ Claim 按钮 |
+| **无 banner** | icon（若有）+ title + subtitle + expiry pill（若应显示）；**不**在 ticket 内放 QR | **QR**（若有 `shareUrl`），与有 banner 时相同，显示在 ticket **下方** |
 | **侧孔** | 左右各一圆形 notch（与父背景同色） | 同左 |
 
 - Ticket 圆角约 `1.75rem`；无 banner 时用 `backgroundColorHex` + 斜纹 + 渐变。
@@ -105,7 +105,7 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 | `OG_BANNER_BOTTOM_EXTRA_GAP = 44` | OG 底部额外留白；取顶部 headline 到画布顶部视觉间距的 4 倍 |
 | `OG_BANNER_QR_TARGET_SIZE = 192` | banner 模式外置 QR 尺寸；较上一版 96px 放大一倍，且不再渲染 QR 下方说明文字挤压 QR |
 | `OG_JPEG_QUALITY = 93` | libjpeg baseline（`progressive: false`, **`mozjpeg: false`**）；`4:4:4` 色度采样 |
-| `OG_LAYOUT_REV = 20` | 写入 `/og/s/` token JSON；改 OG 须 bump |
+| `OG_LAYOUT_REV = 26` | 写入 `/og/s/` token JSON；改 OG 须 bump |
 
 - Banner OG 必须忠实保留商户原图色彩：显式输出 sRGB，且有 banner 时不得叠加全局黑色 `photoShade` / `capsuleShade` 压暗层；仅允许边框、侧孔、外部文字等不改变 banner 像素色彩的装饰。
 - Banner OG 的空白填充须与 biz Open Claim Distribution / app-download preview 的双层图像法一致：底层用同一 banner 做 `cover + blur` 填满 ticket，顶层再按高度完整显示原图并居中裁剪/叠加；任何左右或上下露出的区域都由同图模糊背景填满，不得出现透明/纯色空白。
@@ -128,6 +128,7 @@ normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
 - ❌ 无 icon 时恢复首字母 / emoji 占位。
 - ❌ 无到期券显示 `VALID NOW` / `NO EXPIRY` pill。
 - ❌ banner 模式下在 ticket 内堆 title/subtitle/expiry（应外置）。
+- ❌ 无 banner 时在 ticket 内右侧叠加 QR（QR 须与有 banner 一致，显示在 ticket 下方）。
 - ❌ 修改 OG 布局却不 bump cache key（旧图会被 CDN/内存缓存复用）。
 - ❌ 在 Market / Claim 面板复制第二套 cutover 或 expiry 规则（须走 canonical renderer）。
 

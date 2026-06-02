@@ -1,3 +1,4 @@
+import { IpfsImg } from '@/components/IpfsImg'
 const USDC_ICON_URL = 'https://assets.coingecko.com/coins/images/6319/small/usdc.png'
 const BASE_ICON_URL = 'https://beamio.app/app/static/media/base-logo.275b67e94556e30ce59b.png'
 const CADD_ICON_URL = `${import.meta.env.BASE_URL}cadd-icon.png`
@@ -19,8 +20,8 @@ function CompositeIcon({
 			className="relative shrink-0"
 			style={{ width: size, height: size, minWidth: size, minHeight: size }}
 		>
-			<img src={src} alt={alt} className="block h-full w-full rounded-full object-contain" />
-			<img
+			<IpfsImg src={src} alt={alt} className="block h-full w-full rounded-full object-contain" />
+			<IpfsImg
 				src={BASE_ICON_URL}
 				alt="Base"
 				className="absolute -bottom-0.5 -right-0.5 block rounded-full border border-white bg-white"

@@ -117,6 +117,15 @@ done
 echo "==> Rsync dist/ -> ${SSH_TARGET}:${CONET_IPFS_ROOT}/dist/"
 rsync "${RSYNC_FLAGS[@]}" "$X402SDK_DIR/dist/" "${SSH_TARGET}:${CONET_IPFS_ROOT}/dist/"
 
+echo "==> Rsync package.json + npm install (runtime deps e.g. multer)"
+rsync "${RSYNC_FLAGS[@]}" \
+	"$X402SDK_DIR/package.json" \
+	"$X402SDK_DIR/package-lock.json" \
+	"${SSH_TARGET}:${CONET_IPFS_ROOT}/"
+if [[ "$DRY_RUN" -eq 0 ]]; then
+	ssh "$SSH_TARGET" "cd '${CONET_IPFS_ROOT}' && npm install --no-audit --no-fund"
+fi
+
 echo "==> Rsync fragment endpoint sources (traceability)"
 rsync "${RSYNC_FLAGS[@]}" \
 	"$X402SDK_DIR/src/endpoint/fragmentClusterServer.ts" \

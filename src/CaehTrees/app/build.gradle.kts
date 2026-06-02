@@ -22,8 +22,8 @@ android {
         applicationId = "com.beamio.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.0.5"
+        versionCode = 8
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -59,11 +59,27 @@ android {
     }
 }
 
+/** Same as run-debug.sh — bypasses stale IDE applicationId (com.beamio.caehtrees). */
+tasks.register<Exec>("launchDebug") {
+    group = "application"
+    description = "Install debug APK and start com.beamio.app.MainActivity"
+    dependsOn("installDebug")
+    commandLine(
+        "adb",
+        "shell",
+        "am",
+        "start",
+        "-n",
+        "com.beamio.app/com.beamio.app.MainActivity",
+    )
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity)
     implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.webkit:webkit:1.12.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

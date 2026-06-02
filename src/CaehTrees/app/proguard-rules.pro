@@ -11,6 +11,15 @@
 -keep class com.beamio.app.MainActivity$CashTreesJsBridge {
     *;
 }
+-keep class com.beamio.app.CashTreesWebConsoleRelay$JsRelay {
+    *;
+}
+-keep class com.beamio.app.CashTreesNativeAppStateBridge {
+    *;
+}
+-keep class com.beamio.app.embedded.** {
+    *;
+}
 -keep class com.beamio.app.GeneralQRScannerActivity {
     *;
 }

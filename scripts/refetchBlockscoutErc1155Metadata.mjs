@@ -12,11 +12,15 @@
  * Optional:
  *   BLOCKSCOUT_REFETCH_API_ROOT=https://base.blockscout.com
  *   TOKEN_ID=0   (default 0 — program card metadata)
+ *   TOKEN_IDS=100,101,102  (batch; overrides TOKEN_ID when set)
  */
 const apiKey = process.env.BLOCKSCOUT_API_KEY?.trim()
 const refetchRoot = (
 	process.env.BLOCKSCOUT_REFETCH_API_ROOT || 'https://base.blockscout.com'
 ).replace(/\/$/, '')
+const tokenIdsFromEnv = process.env.TOKEN_IDS?.trim()
+	? process.env.TOKEN_IDS.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
+	: null
 const tokenId = process.env.TOKEN_ID?.trim() || '0'
 const cards = process.argv.slice(2).filter((a) => /^0x[a-fA-F0-9]{40}$/.test(a))
 
@@ -31,23 +35,27 @@ if (cards.length === 0) {
 	process.exit(1)
 }
 
+const tokenIdsToRefetch = tokenIdsFromEnv?.length ? tokenIdsFromEnv : [tokenId]
+
 for (const card of cards) {
-	const url = `${refetchRoot}/api/v2/tokens/${card}/instances/${encodeURIComponent(tokenId)}/refetch-metadata`
-	try {
-		const res = await fetch(url, {
-			method: 'PATCH',
-			headers: {
-				accept: 'application/json',
-				authorization: `Bearer ${apiKey}`,
-				'content-type': 'application/json',
-			},
-			body: '{}',
-		})
-		const text = await res.text()
-		console.log(`${card}#${tokenId}: HTTP ${res.status} ${text.slice(0, 200)}`)
-		if (!res.ok && res.status !== 202) process.exitCode = 1
-	} catch (e) {
-		console.error(`${card}:`, e?.message ?? e)
-		process.exitCode = 1
+	for (const tid of tokenIdsToRefetch) {
+		const url = `${refetchRoot}/api/v2/tokens/${card}/instances/${encodeURIComponent(tid)}/refetch-metadata`
+		try {
+			const res = await fetch(url, {
+				method: 'PATCH',
+				headers: {
+					accept: 'application/json',
+					authorization: `Bearer ${apiKey}`,
+					'content-type': 'application/json',
+				},
+				body: '{}',
+			})
+			const text = await res.text()
+			console.log(`${card}#${tid}: HTTP ${res.status} ${text.slice(0, 200)}`)
+			if (!res.ok && res.status !== 202) process.exitCode = 1
+		} catch (e) {
+			console.error(`${card}#${tid}:`, e?.message ?? e)
+			process.exitCode = 1
+		}
 	}
 }

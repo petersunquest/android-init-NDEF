@@ -119,7 +119,7 @@ enum BeamioDeepLink {
     /// Map an allowed remote PWA URL to the on-device embedded scheme path.
     /// `https://beamio.app/app/?x=1` → `cashtrees-local://localhost/?x=1` (bundle uses root `PUBLIC_URL=/`).
     static func mapResolvedWebAppURLToLocal(_ remote: URL, localBase: URL = localWebAppBaseURL) -> URL {
-        guard var components = URLComponents(url: remote, resolvingAgainstBaseURL: false) else {
+        guard let components = URLComponents(url: remote, resolvingAgainstBaseURL: false) else {
             return localBase
         }
 
