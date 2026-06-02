@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Deploy src/homepage build to https://beamio.app/ (site root only).
-# NEVER sync with --delete over /var/www/beamio.app/ without excluding app/ and appTemp/.
+# NEVER sync with --delete over /var/www/beamio.app/ without ALL mandatory excludes
+# (app/, appTemp/, pos/, posTemp/, homepage/, SilentPassUI/, .well-known/).
 # See .cursor/rules/beamio-pwa-deploy-app-dirs.mdc
 
 set -euo pipefail
@@ -21,7 +22,7 @@ usage() {
 Usage: scripts/deployBeamioHomepage.sh [options]
 
 Deploy homepage (src/homepage) to the beamio.app site root.
-Preserves server directories app/, appTemp/, pos/, and posTemp/.
+Preserves server dirs: app/, appTemp/, pos/, posTemp/, homepage/, SilentPassUI/, .well-known/.
 
 Options:
   --skip-build   Use existing src/homepage/build without npm run build
@@ -44,7 +45,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-# Mandatory excludes — do not remove.
+# Mandatory excludes — do not remove or shorten (see beamio-pwa-deploy-app-dirs.mdc).
 RSYNC_EXCLUDES=(
 	--exclude 'app/'
 	--exclude 'appTemp/'
@@ -52,6 +53,7 @@ RSYNC_EXCLUDES=(
 	--exclude 'posTemp/'
 	--exclude 'homepage/'
 	--exclude 'SilentPassUI/'
+	--exclude '.well-known/'
 )
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -65,7 +67,7 @@ if [[ ! -f "$BUILD_DIR/index.html" ]]; then
 	exit 1
 fi
 
-echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/, pos/, posTemp/, homepage/, SilentPassUI/)"
+echo "==> Rsync homepage -> ${REMOTE} (excluding app/, appTemp/, pos/, posTemp/, homepage/, SilentPassUI/, .well-known/)"
 if [[ "$DRY_RUN" -eq 1 ]]; then
 	rsync -av --delete "${RSYNC_EXCLUDES[@]}" --dry-run "$BUILD_DIR/" "$REMOTE"
 else

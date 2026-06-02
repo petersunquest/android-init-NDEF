@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# Deploy the SilentPassUI PWA to https://beamio.app/app/.
-# Bumps src/SilentPassUI/package.json patch version locally before each deploy.
-# Builds on conet.network from /var/www/beamio.app/SilentPassUI,
-# then publishes to /var/www/beamio.app/app/ on the same host.
+# Deploy the SilentPassUI PWA to https://beamio.app/app/ ONLY (never rsync --delete to /var/www/beamio.app/ root).
+# Builds on conet.network from /var/www/beamio.app/SilentPassUI (server git clone; do not delete via homepage rsync).
 # See .cursor/rules/beamio-pwa-deploy-app-dirs.mdc
 
 set -euo pipefail
