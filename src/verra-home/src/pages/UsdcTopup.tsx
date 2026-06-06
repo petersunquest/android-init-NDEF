@@ -58,6 +58,9 @@ type TopupParams = {
 	sid: string
 	/** POS 终端 admin EOA（与 `sid` 成对）；后端据此走 POS 签 ExecuteForAdmin 闭环 */
 	pos: string
+	/** 非 admin 消费者 clientTopup：USDC 结算到此 EOA；卡内入账由客户端 App 完成 */
+	beneficiary: string
+	workflow: '' | 'clientTopup'
 	paymentToken: 'USDC' | 'CADD'
 }
 
@@ -96,13 +99,26 @@ function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | {
 	const paymentToken: 'USDC' | 'CADD' = tokenRaw === 'CADD' || currency === 'CADD' ? 'CADD' : 'USDC'
 	const sid = (sp.get('sid') ?? '').trim().toLowerCase()
 	const pos = (sp.get('pos') ?? '').trim()
+	const beneficiary = (sp.get('beneficiary') ?? '').trim()
+	const workflowRaw = queryGetCI('workflow').trim().toLowerCase()
+	const workflow: '' | 'clientTopup' = workflowRaw === 'clienttopup' ? 'clientTopup' : ''
 	if (!isEthAddress(cardAddress)) return { ok: false, error: 'Missing or invalid `card` (BeamioUserCard address)' }
 	if (!isEthAddress(cardOwner)) return { ok: false, error: 'Missing or invalid `owner` (card owner EOA)' }
-	if (sid && !isUuidV4(sid)) return { ok: false, error: 'Invalid `sid` (expect UUID v4)' }
-	if (sid && !isEthAddress(pos)) return { ok: false, error: 'Missing or invalid `pos` when `sid` is set (POS terminal EOA)' }
-	if (!sid && pos && !isEthAddress(pos)) return { ok: false, error: 'Invalid `pos` (expect checksummed EOA)' }
+	if (workflow === 'clientTopup') {
+		if (!isEthAddress(beneficiary)) {
+			return { ok: false, error: 'Missing or invalid `beneficiary` (consumer EOA) for clientTopup workflow' }
+		}
+		if (sid || pos) {
+			return { ok: false, error: 'clientTopup links must not include `sid` or `pos` (POS admin workflow)' }
+		}
+	} else {
+		if (sid && !isUuidV4(sid)) return { ok: false, error: 'Invalid `sid` (expect UUID v4)' }
+		if (sid && !isEthAddress(pos)) return { ok: false, error: 'Missing or invalid `pos` when `sid` is set (POS terminal EOA)' }
+		if (!sid && pos && !isEthAddress(pos)) return { ok: false, error: 'Invalid `pos` (expect checksummed EOA)' }
+	}
 	const hasSidPos = Boolean(sid && isEthAddress(pos))
-	if (!hasSidPos) {
+	const clientTopupPath = workflow === 'clientTopup' && isEthAddress(beneficiary)
+	if (!hasSidPos && !clientTopupPath) {
 		if (!uid || !isHex(uid, 14)) return { ok: false, error: 'Missing or invalid `uid` (NFC UID, 14 hex chars)' }
 		if (!isHex(e, 64)) return { ok: false, error: 'Missing or invalid SUN `e` (64 hex chars)' }
 		if (!isHex(c, 6)) return { ok: false, error: 'Missing or invalid SUN `c` (6 hex chars)' }
@@ -130,6 +146,8 @@ function parseParams(sp: URLSearchParams): { ok: true; params: TopupParams } | {
 			currency,
 			sid,
 			pos: pos && isEthAddress(pos) ? pos : '',
+			beneficiary: clientTopupPath ? beneficiary : '',
+			workflow: clientTopupPath ? 'clientTopup' : '',
 			paymentToken,
 		},
 	}
@@ -450,13 +468,18 @@ export function UsdcTopup() {
 					permitNonce,
 					signature,
 				}
-				if (p.sid) bodyObj.sid = p.sid
-				if (p.pos) bodyObj.pos = p.pos
-				if (p.uid) {
-					bodyObj.uid = p.uid
-					bodyObj.e = p.e
-					bodyObj.c = p.c
-					bodyObj.m = p.m
+				if (p.workflow === 'clientTopup' && p.beneficiary) {
+					bodyObj.beneficiary = p.beneficiary
+					bodyObj.workflow = 'clientTopup'
+				} else {
+					if (p.sid) bodyObj.sid = p.sid
+					if (p.pos) bodyObj.pos = p.pos
+					if (p.uid) {
+						bodyObj.uid = p.uid
+						bodyObj.e = p.e
+						bodyObj.c = p.c
+						bodyObj.m = p.m
+					}
 				}
 				const response = await fetch(`${BEAMIO_API}/api/nfcUsdcTopup`, {
 					method: 'POST',
@@ -500,13 +523,18 @@ export function UsdcTopup() {
 				amount: p.amount,
 				currency: p.currency,
 			}
-			if (p.sid) bodyObj.sid = p.sid
-			if (p.pos) bodyObj.pos = p.pos
-			if (p.uid) {
-				bodyObj.uid = p.uid
-				bodyObj.e = p.e
-				bodyObj.c = p.c
-				bodyObj.m = p.m
+			if (p.workflow === 'clientTopup' && p.beneficiary) {
+				bodyObj.beneficiary = p.beneficiary
+				bodyObj.workflow = 'clientTopup'
+			} else {
+				if (p.sid) bodyObj.sid = p.sid
+				if (p.pos) bodyObj.pos = p.pos
+				if (p.uid) {
+					bodyObj.uid = p.uid
+					bodyObj.e = p.e
+					bodyObj.c = p.c
+					bodyObj.m = p.m
+				}
 			}
 			const body = JSON.stringify(bodyObj)
 			const response = await fetchWithPay(`${BEAMIO_API}/api/nfcUsdcTopup`, {
@@ -555,10 +583,10 @@ export function UsdcTopup() {
 							<h2 className="mb-2 text-xl font-bold">Invalid topup link</h2>
 							<p className="text-sm leading-relaxed">{parsed.error}</p>
 							<p className="mt-4 text-xs opacity-80">
-								Expected: <code>card</code>, <code>owner</code>, <code>amount</code>, <code>currency</code>; with POS session{' '}
-								<code>sid</code> + <code>pos</code> the NFC <code>uid</code>/<code>e</code>/<code>c</code>/<code>m</code> may be
-								omitted (pay USDC first, then tap card on terminal). Without <code>sid</code>/<code>pos</code>, full NFC params are
-								required.
+								Expected: <code>card</code>, <code>owner</code>, <code>amount</code>, <code>currency</code>; POS session{' '}
+								<code>sid</code> + admin <code>pos</code>; or consumer <code>workflow=clientTopup</code> +{' '}
+								<code>beneficiary</code> (USDC transfer only — complete top-up in the Verra app). Legacy NFC links need full{' '}
+								<code>uid</code>/<code>e</code>/<code>c</code>/<code>m</code>.
 							</p>
 						</div>
 					</div>
@@ -567,7 +595,9 @@ export function UsdcTopup() {
 		)
 	}
 
-	const { cardAddress, cardOwner, uid, amount, currency, sid: topupSid } = parsed.params
+	const { cardAddress, cardOwner, uid, amount, currency, sid: topupSid, beneficiary: topupBeneficiary, workflow: topupWorkflow } =
+		parsed.params
+	const isClientTopup = topupWorkflow === 'clientTopup' && Boolean(topupBeneficiary)
 	const showNfcTagRow = Boolean(uid && uid.length >= 6)
 	const onBase = chainIdHex?.toLowerCase() === BASE_CHAIN_ID_HEX
 	const hasWallet = !!eth
@@ -584,9 +614,11 @@ export function UsdcTopup() {
 						<h1 className="text-3xl font-extrabold tracking-tight">Top up your card</h1>
 						<p className="mt-2 text-on-surface-variant">
 							Pay with {parsed.params.paymentToken} on Base from your own wallet.
-							{topupSid
-								? ' After payment, tap your Beamio card on the merchant terminal to receive the credit.'
-								: ' Your NFC card will be credited automatically.'}
+							{isClientTopup
+								? ' USDC is sent to the beneficiary wallet; complete the merchant top-up in the Verra app.'
+								: topupSid
+									? ' After payment, tap your Beamio card on the merchant terminal to receive the credit.'
+									: ' Your NFC card will be credited automatically.'}
 						</p>
 					</header>
 
@@ -597,7 +629,9 @@ export function UsdcTopup() {
 							<Divider />
 							<Row label="Merchant (card owner)" value={truncate(cardOwner, 8, 6)} mono />
 							<Row label="BeamioUserCard" value={truncate(cardAddress, 8, 6)} mono />
-							{showNfcTagRow ? (
+							{isClientTopup ? (
+								<Row label="Beneficiary wallet" value={truncate(topupBeneficiary, 8, 6)} mono />
+							) : showNfcTagRow ? (
 								<Row label="NFC tag" value={`…${uid.slice(-6).toUpperCase()}`} mono />
 							) : (
 								<Row label="NFC tag" value="After payment — tap card at terminal" mono={false} />
