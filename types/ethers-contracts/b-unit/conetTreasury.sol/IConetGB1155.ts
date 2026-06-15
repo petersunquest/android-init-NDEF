@@ -5,28 +5,26 @@ import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, I
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
   
 
-  export interface IBUnitAirdropInterface extends Interface {
-    getFunction(nameOrSignature: "claimFor" | "consumeFromUser" | "mintForUsdcPurchase"): FunctionFragment;
+  export interface IConetGB1155Interface extends Interface {
+    getFunction(nameOrSignature: "issueGB" | "revokeTotalOnly"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'claimFor', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'consumeFromUser', values: [AddressLike, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'mintForUsdcPurchase', values: [AddressLike, BigNumberish, BytesLike]): string;
+    encodeFunctionData(functionFragment: 'issueGB', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'revokeTotalOnly', values: [AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'claimFor', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'consumeFromUser', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'issueGB', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'revokeTotalOnly', data: BytesLike): Result;
   }
 
   
 
-  export interface IBUnitAirdrop extends BaseContract {
+  export interface IConetGB1155 extends BaseContract {
     
-    connect(runner?: ContractRunner | null): IBUnitAirdrop;
+    connect(runner?: ContractRunner | null): IConetGB1155;
     waitForDeployment(): Promise<this>;
 
-    interface: IBUnitAirdropInterface;
+    interface: IConetGB1155Interface;
 
     
   queryFilter<TCEvent extends TypedContractEvent>(
@@ -55,24 +53,16 @@ decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): 
 
     
     
-    claimFor: TypedContractMethod<
-      [claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+    issueGB: TypedContractMethod<
+      [to: AddressLike, amountGB18: BigNumberish, ],
       [void],
       'nonpayable'
     >
     
 
     
-    consumeFromUser: TypedContractMethod<
-      [user: AddressLike, amount: BigNumberish, baseHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
-    mintForUsdcPurchase: TypedContractMethod<
-      [to: AddressLike, usdcAmount: BigNumberish, baseTxHash: BytesLike, ],
+    revokeTotalOnly: TypedContractMethod<
+      [from: AddressLike, amountGB18: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -81,18 +71,13 @@ decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'claimFor'): TypedContractMethod<
-      [claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+    getFunction(nameOrSignature: 'issueGB'): TypedContractMethod<
+      [to: AddressLike, amountGB18: BigNumberish, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'consumeFromUser'): TypedContractMethod<
-      [user: AddressLike, amount: BigNumberish, baseHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
-      [void],
-      'nonpayable'
-    >;
-getFunction(nameOrSignature: 'mintForUsdcPurchase'): TypedContractMethod<
-      [to: AddressLike, usdcAmount: BigNumberish, baseTxHash: BytesLike, ],
+getFunction(nameOrSignature: 'revokeTotalOnly'): TypedContractMethod<
+      [from: AddressLike, amountGB18: BigNumberish, ],
       [void],
       'nonpayable'
     >;

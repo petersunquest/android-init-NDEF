@@ -5,4 +5,6 @@ export { ConetTreasury__factory } from './ConetTreasury__factory.js';
 export { FactoryERC20__factory } from './FactoryERC20__factory.js';
 export { IBUnitAirdrop__factory } from './IBUnitAirdrop__factory.js';
 export { IBurnableFactoryERC20__factory } from './IBurnableFactoryERC20__factory.js';
+export { IConetGB1155__factory } from './IConetGB1155__factory.js';
 export { IMintableERC20__factory } from './IMintableERC20__factory.js';
+export { INickCreate2__factory } from './INickCreate2__factory.js';

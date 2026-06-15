@@ -132,7 +132,9 @@ getContractFactory(name: 'ConetTreasury', signerOrOptions?: ethers.Signer | Fact
 getContractFactory(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.FactoryERC20__factory>
 getContractFactory(name: 'IBUnitAirdrop', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBUnitAirdrop__factory>
 getContractFactory(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBurnableFactoryERC20__factory>
+getContractFactory(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetGB1155__factory>
 getContractFactory(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IMintableERC20__factory>
+getContractFactory(name: 'INickCreate2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.INickCreate2__factory>
 getContractFactory(name: 'ConetGB_total', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB_total__factory>
 getContractFactory(name: 'ConetGB_userTotal', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB_userTotal__factory>
 getContractFactory(name: 'Epoch_mining_info', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.Epoch_mining_info__factory>
@@ -298,7 +300,9 @@ getContractAt(name: 'ConetTreasury', address: string | ethers.Addressable, signe
 getContractAt(name: 'FactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.FactoryERC20>
 getContractAt(name: 'IBUnitAirdrop', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBUnitAirdrop>
 getContractAt(name: 'IBurnableFactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBurnableFactoryERC20>
+getContractAt(name: 'IConetGB1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetGB1155>
 getContractAt(name: 'IMintableERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IMintableERC20>
+getContractAt(name: 'INickCreate2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.INickCreate2>
 getContractAt(name: 'ConetGB_total', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB_total>
 getContractAt(name: 'ConetGB_userTotal', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB_userTotal>
 getContractAt(name: 'Epoch_mining_info', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.Epoch_mining_info>
@@ -464,7 +468,9 @@ deployContract(name: 'ConetTreasury', signerOrOptions?: ethers.Signer | DeployCo
 deployContract(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'IBUnitAirdrop', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdrop>
 deployContract(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
+deployContract(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155>
 deployContract(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
+deployContract(name: 'INickCreate2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.INickCreate2>
 deployContract(name: 'ConetGB_total', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_total>
 deployContract(name: 'ConetGB_userTotal', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_userTotal>
 deployContract(name: 'Epoch_mining_info', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Epoch_mining_info>
@@ -630,7 +636,9 @@ deployContract(name: 'ConetTreasury', args: any[], signerOrOptions?: ethers.Sign
 deployContract(name: 'FactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'IBUnitAirdrop', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdrop>
 deployContract(name: 'IBurnableFactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
+deployContract(name: 'IConetGB1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155>
 deployContract(name: 'IMintableERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
+deployContract(name: 'INickCreate2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.INickCreate2>
 deployContract(name: 'ConetGB_total', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_total>
 deployContract(name: 'ConetGB_userTotal', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_userTotal>
 deployContract(name: 'Epoch_mining_info', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.Epoch_mining_info>

@@ -1,11 +1,12 @@
 /**
- * 部署 ConetTreasury 到 CoNET mainnet
+ * 部署 ConetTreasury 到 CoNET mainnet（legacy CREATE，地址各链不同）
  *
- * 与 BaseTreasury 对齐：无 owner/admin，自维护 miner 表，部署者为首个 miner。
+ * 跨链同址请优先: npx hardhat run scripts/deployConetTreasuryCreate2.ts --network conet
+ * 然后: npx hardhat run scripts/configureConetTreasuryOnConet.ts --network conet
  *
- * 1. 部署 ConetTreasury（无参数，deployer 为首个 miner）
+ * 1. 部署 ConetTreasury（initialMiner 固定，与 CREATE2 版 initCode 一致）
  * 2. ConetTreasury.createERC20 创建 conetUSDC（若新部署且无 USDC）
- * 3. BUnitAirdrop.addAdmin(conetTreasuryAddress) 使 ConetTreasury 可调用 mintForUsdcPurchase
+ * 3. BUnitAirdrop.addAdmin(conetTreasuryAddress)
  * 4. ConetTreasury.setBUnitAirdrop(bunitAirdropAddress)
  * 5. BUnitAirdrop.setConetTreasuryAndUsdc(conetTreasury, conet-USDC)
  *
@@ -17,6 +18,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { CONET_TREASURY_INITIAL_MINER } from "./conetTreasuryDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,9 +62,9 @@ async function main() {
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("balance:", ethers.formatEther(balance), "CNET\n");
 
-  // 1. Deploy ConetTreasury（无参数，deployer 为首个 miner）
+  // 1. Deploy ConetTreasury（initialMiner 与 CREATE2 版相同）
   const ConetTreasuryFactory = await ethers.getContractFactory("ConetTreasury");
-  const treasury = await ConetTreasuryFactory.deploy();
+  const treasury = await ConetTreasuryFactory.deploy(CONET_TREASURY_INITIAL_MINER);
   await treasury.waitForDeployment();
   const treasuryAddress = await treasury.getAddress();
   console.log("[1] ConetTreasury deployed:", treasuryAddress);

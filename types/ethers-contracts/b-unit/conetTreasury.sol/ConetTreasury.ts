@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ConetTreasuryInterface extends Interface {
-    getFunction(nameOrSignature: "AIRDROP_BUNIT_AMOUNT" | "DOMAIN_SEPARATOR" | "USDC_TO_BUNIT_RATE" | "addMiner" | "airdropBUnitForAdmin" | "airdropProposals" | "baseTokenOf" | "bunitAirdrop" | "burn" | "burnNonces" | "burnWithSignature" | "createERC20" | "createdTokenCount" | "execute" | "executeAirdropBUnit" | "getAirdropProposal" | "getBurnDigest" | "getCreatedTokens" | "getMiners" | "getProposal" | "getUsdc2BUnitProposal" | "getUsdc2BUnitReport" | "getVoteAirdropDigest" | "getVoteDigest" | "hasVoted" | "hasVotedAirdrop" | "hasVotedUsdc2BUnit" | "isCreatedToken" | "isMiner" | "minerCount" | "mintForAdmin" | "proposals" | "requiredVotes" | "setBUnitAirdrop" | "setBaseToken" | "totalUsdc2BUnit" | "usdc2BUnitProposals" | "vote" | "voteAirdropBUnit" | "voteAirdropBUnitFromBase" | "voteAirdropBUnitWithSignature" | "voteWithSignature"): FunctionFragment;
+    getFunction(nameOrSignature: "AIRDROP_BUNIT_AMOUNT" | "DOMAIN_SEPARATOR" | "USDC_TO_BUNIT_RATE" | "addMiner" | "airdropBUnitForAdmin" | "airdropProposals" | "baseTokenOf" | "bunitAirdrop" | "bunitBurnProposals" | "burn" | "burnNonces" | "burnWithSignature" | "conetGB" | "createERC20" | "createdTokenCount" | "deployWrappedToken" | "execute" | "executeAirdropBUnit" | "executeBUnitBurn" | "executeFactoryBurn" | "executeGBIssue" | "executeGBRevoke" | "executePeerDepositMint" | "factoryBurnProposals" | "gbIssueProposals" | "gbRevokeProposals" | "getAirdropProposal" | "getBUnitBurnProposal" | "getBridgeTargets" | "getBurnDigest" | "getCreatedTokens" | "getFactoryBurnProposal" | "getGBIssueProposal" | "getGBRevokeProposal" | "getMiners" | "getPeerDepositProposal" | "getPeerTokenMeta" | "getProposal" | "getUsdc2BUnitProposal" | "getUsdc2BUnitReport" | "getVoteAirdropDigest" | "getVoteDigest" | "hasVoted" | "hasVotedAirdrop" | "hasVotedBUnitBurn" | "hasVotedFactoryBurn" | "hasVotedGBIssue" | "hasVotedGBRevoke" | "hasVotedPeerDeposit" | "hasVotedUsdc2BUnit" | "isCreatedToken" | "isMiner" | "isPeerTokenRegistered" | "minerCount" | "mintForAdmin" | "peerChainIdOf" | "peerDepositProposals" | "peerTokenOf" | "predictWrappedToken" | "proposals" | "registerPeerToken" | "requiredVotes" | "setBUnitAirdrop" | "setBaseToken" | "setConetGB" | "totalUsdc2BUnit" | "usdc2BUnitProposals" | "vote" | "voteAirdropBUnit" | "voteAirdropBUnitFromBase" | "voteAirdropBUnitWithSignature" | "voteBUnitBurn" | "voteFactoryBurn" | "voteGBIssue" | "voteGBRevoke" | "voteMintFromPeerDeposit" | "voteWithSignature"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AirdropBUnitByMiner" | "AirdropBUnitFromUsdcByMiner" | "AirdropExecuted" | "AirdropProposalCreated" | "AirdropVoted" | "BUnitAirdropUpdated" | "BurnRequested" | "ERC20Created" | "MinerAdded" | "MintByMiner" | "MintExecuted" | "ProposalCreated" | "ProposalExecuted" | "Usdc2BUnitExecuted" | "Voted"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AirdropBUnitByMiner" | "AirdropBUnitFromUsdcByMiner" | "AirdropExecuted" | "AirdropProposalCreated" | "AirdropVoted" | "BUnitAirdropUpdated" | "BUnitBurnExecuted" | "BUnitBurnProposalCreated" | "BUnitBurnVoted" | "BurnRequested" | "ConetGBUpdated" | "ERC20Created" | "FactoryBurnExecuted" | "FactoryBurnProposalCreated" | "FactoryBurnVoted" | "GBIssueExecuted" | "GBIssueProposalCreated" | "GBIssueVoted" | "GBRevokeExecuted" | "GBRevokeProposalCreated" | "GBRevokeVoted" | "MinerAdded" | "MintByMiner" | "MintExecuted" | "PeerDepositExecuted" | "PeerDepositProposalCreated" | "PeerDepositVoted" | "PeerTokenRegistered" | "ProposalCreated" | "ProposalExecuted" | "Usdc2BUnitExecuted" | "Voted" | "WrappedTokenDeployed"): EventFragment;
 
     encodeFunctionData(functionFragment: 'AIRDROP_BUNIT_AMOUNT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
@@ -18,17 +18,35 @@ encodeFunctionData(functionFragment: 'airdropBUnitForAdmin', values: [AddressLik
 encodeFunctionData(functionFragment: 'airdropProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'baseTokenOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'bunitAirdrop', values?: undefined): string;
+encodeFunctionData(functionFragment: 'bunitBurnProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'burn', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'burnWithSignature', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'conetGB', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createERC20', values: [string, string, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'createdTokenCount', values?: undefined): string;
+encodeFunctionData(functionFragment: 'deployWrappedToken', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'execute', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'executeAirdropBUnit', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'executeBUnitBurn', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'executeFactoryBurn', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'executeGBIssue', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'executeGBRevoke', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'executePeerDepositMint', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'factoryBurnProposals', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'gbIssueProposals', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'gbRevokeProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getAirdropProposal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'getBUnitBurnProposal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'getBridgeTargets', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getBurnDigest', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getCreatedTokens', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getFactoryBurnProposal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'getGBIssueProposal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'getGBRevokeProposal', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getMiners', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getPeerDepositProposal', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'getPeerTokenMeta', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getProposal', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getUsdc2BUnitProposal', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getUsdc2BUnitReport', values?: undefined): string;
@@ -36,21 +54,38 @@ encodeFunctionData(functionFragment: 'getVoteAirdropDigest', values: [AddressLik
 encodeFunctionData(functionFragment: 'getVoteDigest', values: [AddressLike, BytesLike, AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'hasVoted', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'hasVotedAirdrop', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'hasVotedBUnitBurn', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'hasVotedFactoryBurn', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'hasVotedGBIssue', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'hasVotedGBRevoke', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'hasVotedPeerDeposit', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'hasVotedUsdc2BUnit', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isCreatedToken', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isMiner', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'isPeerTokenRegistered', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'minerCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mintForAdmin', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'peerChainIdOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'peerDepositProposals', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'peerTokenOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'predictWrappedToken', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'proposals', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'registerPeerToken', values: [BigNumberish, AddressLike, string, string, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'requiredVotes', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setBUnitAirdrop', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBaseToken', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'setConetGB', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'totalUsdc2BUnit', values?: undefined): string;
 encodeFunctionData(functionFragment: 'usdc2BUnitProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'vote', values: [BytesLike, AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'voteAirdropBUnit', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'voteAirdropBUnitFromBase', values: [BytesLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'voteAirdropBUnitWithSignature', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'voteBUnitBurn', values: [BytesLike, AddressLike, BigNumberish, BytesLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteFactoryBurn', values: [BytesLike, AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteGBIssue', values: [BytesLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteGBRevoke', values: [BytesLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteMintFromPeerDeposit', values: [BytesLike, BigNumberish, AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'voteWithSignature', values: [AddressLike, BytesLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'AIRDROP_BUNIT_AMOUNT', data: BytesLike): Result;
@@ -61,17 +96,35 @@ decodeFunctionResult(functionFragment: 'airdropBUnitForAdmin', data: BytesLike):
 decodeFunctionResult(functionFragment: 'airdropProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'baseTokenOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunitAirdrop', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bunitBurnProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burn', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnWithSignature', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'conetGB', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createERC20', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createdTokenCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'deployWrappedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'execute', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeAirdropBUnit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executeBUnitBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executeFactoryBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executeGBIssue', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executeGBRevoke', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'executePeerDepositMint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'factoryBurnProposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'gbIssueProposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'gbRevokeProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAirdropProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBUnitBurnProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getBridgeTargets', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBurnDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getCreatedTokens', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getFactoryBurnProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getGBIssueProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getGBRevokeProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getMiners', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getPeerDepositProposal', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getPeerTokenMeta', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getUsdc2BUnitProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getUsdc2BUnitReport', data: BytesLike): Result;
@@ -79,21 +132,38 @@ decodeFunctionResult(functionFragment: 'getVoteAirdropDigest', data: BytesLike):
 decodeFunctionResult(functionFragment: 'getVoteDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasVoted', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasVotedAirdrop', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasVotedBUnitBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasVotedFactoryBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasVotedGBIssue', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasVotedGBRevoke', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'hasVotedPeerDeposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasVotedUsdc2BUnit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isCreatedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isMiner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isPeerTokenRegistered', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'minerCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintForAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'peerChainIdOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'peerDepositProposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'peerTokenOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'predictWrappedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'proposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'registerPeerToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requiredVotes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBUnitAirdrop', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBaseToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConetGB', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalUsdc2BUnit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdc2BUnitProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'vote', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteAirdropBUnit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteAirdropBUnitFromBase', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteAirdropBUnitWithSignature', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteBUnitBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteFactoryBurn', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteGBIssue', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteGBRevoke', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteMintFromPeerDeposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Result;
   }
 
@@ -170,6 +240,42 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
 
   
 
+    export namespace BUnitBurnExecutedEvent {
+      export type InputTuple = [txHash: BytesLike, user: AddressLike, amount: BigNumberish, peerTxHash: BytesLike];
+      export type OutputTuple = [txHash: string, user: string, amount: bigint, peerTxHash: string];
+      export interface OutputObject {txHash: string, user: string, amount: bigint, peerTxHash: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace BUnitBurnProposalCreatedEvent {
+      export type InputTuple = [txHash: BytesLike, user: AddressLike, amount: BigNumberish, peerTxHash: BytesLike, firstVoter: AddressLike];
+      export type OutputTuple = [txHash: string, user: string, amount: bigint, peerTxHash: string, firstVoter: string];
+      export interface OutputObject {txHash: string, user: string, amount: bigint, peerTxHash: string, firstVoter: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace BUnitBurnVotedEvent {
+      export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
+      export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
+      export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace BurnRequestedEvent {
       export type InputTuple = [user: AddressLike, token: AddressLike, amount: BigNumberish, baseToken: AddressLike];
       export type OutputTuple = [user: string, token: string, amount: bigint, baseToken: string];
@@ -182,10 +288,130 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
 
   
 
+    export namespace ConetGBUpdatedEvent {
+      export type InputTuple = [oldGb: AddressLike, newGb: AddressLike];
+      export type OutputTuple = [oldGb: string, newGb: string];
+      export interface OutputObject {oldGb: string, newGb: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ERC20CreatedEvent {
       export type InputTuple = [token: AddressLike, name: string, symbol: string, decimals: BigNumberish, baseToken: AddressLike];
       export type OutputTuple = [token: string, name: string, symbol: string, decimals: bigint, baseToken: string];
       export interface OutputObject {token: string, name: string, symbol: string, decimals: bigint, baseToken: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FactoryBurnExecutedEvent {
+      export type InputTuple = [txHash: BytesLike, token: AddressLike, account: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [txHash: string, token: string, account: string, amount: bigint];
+      export interface OutputObject {txHash: string, token: string, account: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FactoryBurnProposalCreatedEvent {
+      export type InputTuple = [txHash: BytesLike, token: AddressLike, account: AddressLike, amount: BigNumberish, firstVoter: AddressLike];
+      export type OutputTuple = [txHash: string, token: string, account: string, amount: bigint, firstVoter: string];
+      export interface OutputObject {txHash: string, token: string, account: string, amount: bigint, firstVoter: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FactoryBurnVotedEvent {
+      export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
+      export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
+      export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBIssueExecutedEvent {
+      export type InputTuple = [txHash: BytesLike, to: AddressLike, amountGB18: BigNumberish];
+      export type OutputTuple = [txHash: string, to: string, amountGB18: bigint];
+      export interface OutputObject {txHash: string, to: string, amountGB18: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBIssueProposalCreatedEvent {
+      export type InputTuple = [txHash: BytesLike, to: AddressLike, amountGB18: BigNumberish, firstVoter: AddressLike];
+      export type OutputTuple = [txHash: string, to: string, amountGB18: bigint, firstVoter: string];
+      export interface OutputObject {txHash: string, to: string, amountGB18: bigint, firstVoter: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBIssueVotedEvent {
+      export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
+      export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
+      export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBRevokeExecutedEvent {
+      export type InputTuple = [txHash: BytesLike, from: AddressLike, amountGB18: BigNumberish];
+      export type OutputTuple = [txHash: string, from: string, amountGB18: bigint];
+      export interface OutputObject {txHash: string, from: string, amountGB18: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBRevokeProposalCreatedEvent {
+      export type InputTuple = [txHash: BytesLike, from: AddressLike, amountGB18: BigNumberish, firstVoter: AddressLike];
+      export type OutputTuple = [txHash: string, from: string, amountGB18: bigint, firstVoter: string];
+      export interface OutputObject {txHash: string, from: string, amountGB18: bigint, firstVoter: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace GBRevokeVotedEvent {
+      export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
+      export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
+      export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -222,6 +448,54 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       export type InputTuple = [token: AddressLike, to: AddressLike, amount: BigNumberish];
       export type OutputTuple = [token: string, to: string, amount: bigint];
       export interface OutputObject {token: string, to: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PeerDepositExecutedEvent {
+      export type InputTuple = [depositTxHash: BytesLike, wrappedToken: AddressLike, recipient: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [depositTxHash: string, wrappedToken: string, recipient: string, amount: bigint];
+      export interface OutputObject {depositTxHash: string, wrappedToken: string, recipient: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PeerDepositProposalCreatedEvent {
+      export type InputTuple = [depositTxHash: BytesLike, peerChainId: BigNumberish, peerToken: AddressLike, recipient: AddressLike, amount: BigNumberish, firstVoter: AddressLike];
+      export type OutputTuple = [depositTxHash: string, peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, firstVoter: string];
+      export interface OutputObject {depositTxHash: string, peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, firstVoter: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PeerDepositVotedEvent {
+      export type InputTuple = [depositTxHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
+      export type OutputTuple = [depositTxHash: string, miner: string, voteCount: bigint];
+      export interface OutputObject {depositTxHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PeerTokenRegisteredEvent {
+      export type InputTuple = [peerChainId: BigNumberish, peerToken: AddressLike, name: string, symbol: string, decimals: BigNumberish, predictedWrapped: AddressLike];
+      export type OutputTuple = [peerChainId: bigint, peerToken: string, name: string, symbol: string, decimals: bigint, predictedWrapped: string];
+      export interface OutputObject {peerChainId: bigint, peerToken: string, name: string, symbol: string, decimals: bigint, predictedWrapped: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -270,6 +544,18 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
       export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
       export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace WrappedTokenDeployedEvent {
+      export type InputTuple = [peerChainId: BigNumberish, peerToken: AddressLike, wrappedToken: AddressLike];
+      export type OutputTuple = [peerChainId: bigint, peerToken: string, wrappedToken: string];
+      export interface OutputObject {peerChainId: bigint, peerToken: string, wrappedToken: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -376,6 +662,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    bunitBurnProposals: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, string, bigint, bigint, bigint, boolean] & {user: string, amount: bigint, peerTxHash: string, baseGas: bigint, kind: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
     burn: TypedContractMethod<
       [token: AddressLike, amount: BigNumberish, ],
       [void],
@@ -400,6 +694,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    conetGB: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     createERC20: TypedContractMethod<
       [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, ],
       [string],
@@ -412,6 +714,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       [],
       [bigint],
       'view'
+    >
+    
+
+    
+    deployWrappedToken: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [string],
+      'nonpayable'
     >
     
 
@@ -432,9 +742,89 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    executeBUnitBurn: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    executeFactoryBurn: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    executeGBIssue: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    executeGBRevoke: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    executePeerDepositMint: TypedContractMethod<
+      [depositTxHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    factoryBurnProposals: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, string, bigint, bigint, boolean] & {token: string, account: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    gbIssueProposals: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {to: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    gbRevokeProposals: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {from: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
     getAirdropProposal: TypedContractMethod<
       [proposalId: BytesLike, ],
       [[string, bigint, bigint, bigint, boolean] & {claimant: string, nonce: bigint, deadline: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    getBUnitBurnProposal: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, string, bigint, bigint, bigint, boolean] & {user: string, amount: bigint, peerTxHash: string, baseGas: bigint, kind: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    getBridgeTargets: TypedContractMethod<
+      [],
+      [[string, string, bigint] & {airdrop: string, gb: string, factoryTokenCount: bigint }],
       'view'
     >
     
@@ -456,9 +846,49 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    getFactoryBurnProposal: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, string, bigint, bigint, boolean] & {token: string, account: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    getGBIssueProposal: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {to: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    getGBRevokeProposal: TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {from: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
     getMiners: TypedContractMethod<
       [],
       [string[]],
+      'view'
+    >
+    
+
+    
+    getPeerDepositProposal: TypedContractMethod<
+      [depositTxHash: BytesLike, ],
+      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    getPeerTokenMeta: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [[string, string, bigint, boolean] & {name_: string, symbol_: string, decimals_: bigint, registered: boolean }],
       'view'
     >
     
@@ -520,6 +950,46 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    hasVotedBUnitBurn: TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    hasVotedFactoryBurn: TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    hasVotedGBIssue: TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    hasVotedGBRevoke: TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    hasVotedPeerDeposit: TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     hasVotedUsdc2BUnit: TypedContractMethod<
       [arg0: BytesLike, arg1: AddressLike, ],
       [boolean],
@@ -544,6 +1014,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    isPeerTokenRegistered: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     minerCount: TypedContractMethod<
       [],
       [bigint],
@@ -560,10 +1038,50 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    peerChainIdOf: TypedContractMethod<
+      [wrappedToken: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    peerDepositProposals: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >
+    
+
+    
+    peerTokenOf: TypedContractMethod<
+      [wrappedToken: AddressLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    predictWrappedToken: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
     proposals: TypedContractMethod<
       [arg0: BytesLike, ],
       [[string, string, bigint, bigint, boolean] & {token: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
       'view'
+    >
+    
+
+    
+    registerPeerToken: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, name_: string, symbol_: string, decimals_: BigNumberish, ],
+      [string],
+      'nonpayable'
     >
     
 
@@ -586,6 +1104,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
     setBaseToken: TypedContractMethod<
       [token: AddressLike, baseToken: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setConetGB: TypedContractMethod<
+      [_conetGB: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -634,6 +1160,46 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
     voteAirdropBUnitWithSignature: TypedContractMethod<
       [miner: AddressLike, claimant: AddressLike, nonce: BigNumberish, deadline: BigNumberish, voteDeadline: BigNumberish, claimSignature: BytesLike, voteSignature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    voteBUnitBurn: TypedContractMethod<
+      [txHash: BytesLike, user: AddressLike, amount: BigNumberish, peerTxHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    voteFactoryBurn: TypedContractMethod<
+      [txHash: BytesLike, token: AddressLike, account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    voteGBIssue: TypedContractMethod<
+      [txHash: BytesLike, to: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    voteGBRevoke: TypedContractMethod<
+      [txHash: BytesLike, from: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    voteMintFromPeerDeposit: TypedContractMethod<
+      [depositTxHash: BytesLike, peerChainId: BigNumberish, peerToken: AddressLike, recipient: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -690,6 +1256,11 @@ getFunction(nameOrSignature: 'bunitAirdrop'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'bunitBurnProposals'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, string, bigint, bigint, bigint, boolean] & {user: string, amount: bigint, peerTxHash: string, baseGas: bigint, kind: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'burn'): TypedContractMethod<
       [token: AddressLike, amount: BigNumberish, ],
       [void],
@@ -705,6 +1276,11 @@ getFunction(nameOrSignature: 'burnWithSignature'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'conetGB'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'createERC20'): TypedContractMethod<
       [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, ],
       [string],
@@ -714,6 +1290,11 @@ getFunction(nameOrSignature: 'createdTokenCount'): TypedContractMethod<
       [],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'deployWrappedToken'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [string],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'execute'): TypedContractMethod<
       [txHash: BytesLike, ],
@@ -725,9 +1306,59 @@ getFunction(nameOrSignature: 'executeAirdropBUnit'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'executeBUnitBurn'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'executeFactoryBurn'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'executeGBIssue'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'executeGBRevoke'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'executePeerDepositMint'): TypedContractMethod<
+      [depositTxHash: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'factoryBurnProposals'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, string, bigint, bigint, boolean] & {token: string, account: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'gbIssueProposals'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {to: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'gbRevokeProposals'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {from: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getAirdropProposal'): TypedContractMethod<
       [proposalId: BytesLike, ],
       [[string, bigint, bigint, bigint, boolean] & {claimant: string, nonce: bigint, deadline: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBUnitBurnProposal'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, string, bigint, bigint, bigint, boolean] & {user: string, amount: bigint, peerTxHash: string, baseGas: bigint, kind: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getBridgeTargets'): TypedContractMethod<
+      [],
+      [[string, string, bigint] & {airdrop: string, gb: string, factoryTokenCount: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'getBurnDigest'): TypedContractMethod<
@@ -740,9 +1371,34 @@ getFunction(nameOrSignature: 'getCreatedTokens'): TypedContractMethod<
       [string[]],
       'view'
     >;
+getFunction(nameOrSignature: 'getFactoryBurnProposal'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, string, bigint, bigint, boolean] & {token: string, account: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getGBIssueProposal'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {to: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getGBRevokeProposal'): TypedContractMethod<
+      [txHash: BytesLike, ],
+      [[string, bigint, bigint, boolean] & {from: string, amountGB18: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getMiners'): TypedContractMethod<
       [],
       [string[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getPeerDepositProposal'): TypedContractMethod<
+      [depositTxHash: BytesLike, ],
+      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getPeerTokenMeta'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [[string, string, bigint, boolean] & {name_: string, symbol_: string, decimals_: bigint, registered: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'getProposal'): TypedContractMethod<
@@ -780,6 +1436,31 @@ getFunction(nameOrSignature: 'hasVotedAirdrop'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'hasVotedBUnitBurn'): TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'hasVotedFactoryBurn'): TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'hasVotedGBIssue'): TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'hasVotedGBRevoke'): TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'hasVotedPeerDeposit'): TypedContractMethod<
+      [arg0: BytesLike, arg1: AddressLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'hasVotedUsdc2BUnit'): TypedContractMethod<
       [arg0: BytesLike, arg1: AddressLike, ],
       [boolean],
@@ -795,6 +1476,11 @@ getFunction(nameOrSignature: 'isMiner'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'isPeerTokenRegistered'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'minerCount'): TypedContractMethod<
       [],
       [bigint],
@@ -805,10 +1491,35 @@ getFunction(nameOrSignature: 'mintForAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'peerChainIdOf'): TypedContractMethod<
+      [wrappedToken: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'peerDepositProposals'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'peerTokenOf'): TypedContractMethod<
+      [wrappedToken: AddressLike, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'predictWrappedToken'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'proposals'): TypedContractMethod<
       [arg0: BytesLike, ],
       [[string, string, bigint, bigint, boolean] & {token: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
       'view'
+    >;
+getFunction(nameOrSignature: 'registerPeerToken'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, name_: string, symbol_: string, decimals_: BigNumberish, ],
+      [string],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'requiredVotes'): TypedContractMethod<
       [],
@@ -822,6 +1533,11 @@ getFunction(nameOrSignature: 'setBUnitAirdrop'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'setBaseToken'): TypedContractMethod<
       [token: AddressLike, baseToken: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setConetGB'): TypedContractMethod<
+      [_conetGB: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -855,6 +1571,31 @@ getFunction(nameOrSignature: 'voteAirdropBUnitWithSignature'): TypedContractMeth
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'voteBUnitBurn'): TypedContractMethod<
+      [txHash: BytesLike, user: AddressLike, amount: BigNumberish, peerTxHash: BytesLike, baseGas: BigNumberish, kind: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'voteFactoryBurn'): TypedContractMethod<
+      [txHash: BytesLike, token: AddressLike, account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'voteGBIssue'): TypedContractMethod<
+      [txHash: BytesLike, to: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'voteGBRevoke'): TypedContractMethod<
+      [txHash: BytesLike, from: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'voteMintFromPeerDeposit'): TypedContractMethod<
+      [depositTxHash: BytesLike, peerChainId: BigNumberish, peerToken: AddressLike, recipient: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'voteWithSignature'): TypedContractMethod<
       [miner: AddressLike, txHash: BytesLike, token: AddressLike, recipient: AddressLike, amount: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
@@ -867,15 +1608,33 @@ getEvent(key: 'AirdropExecuted'): TypedContractEvent<AirdropExecutedEvent.InputT
 getEvent(key: 'AirdropProposalCreated'): TypedContractEvent<AirdropProposalCreatedEvent.InputTuple, AirdropProposalCreatedEvent.OutputTuple, AirdropProposalCreatedEvent.OutputObject>;
 getEvent(key: 'AirdropVoted'): TypedContractEvent<AirdropVotedEvent.InputTuple, AirdropVotedEvent.OutputTuple, AirdropVotedEvent.OutputObject>;
 getEvent(key: 'BUnitAirdropUpdated'): TypedContractEvent<BUnitAirdropUpdatedEvent.InputTuple, BUnitAirdropUpdatedEvent.OutputTuple, BUnitAirdropUpdatedEvent.OutputObject>;
+getEvent(key: 'BUnitBurnExecuted'): TypedContractEvent<BUnitBurnExecutedEvent.InputTuple, BUnitBurnExecutedEvent.OutputTuple, BUnitBurnExecutedEvent.OutputObject>;
+getEvent(key: 'BUnitBurnProposalCreated'): TypedContractEvent<BUnitBurnProposalCreatedEvent.InputTuple, BUnitBurnProposalCreatedEvent.OutputTuple, BUnitBurnProposalCreatedEvent.OutputObject>;
+getEvent(key: 'BUnitBurnVoted'): TypedContractEvent<BUnitBurnVotedEvent.InputTuple, BUnitBurnVotedEvent.OutputTuple, BUnitBurnVotedEvent.OutputObject>;
 getEvent(key: 'BurnRequested'): TypedContractEvent<BurnRequestedEvent.InputTuple, BurnRequestedEvent.OutputTuple, BurnRequestedEvent.OutputObject>;
+getEvent(key: 'ConetGBUpdated'): TypedContractEvent<ConetGBUpdatedEvent.InputTuple, ConetGBUpdatedEvent.OutputTuple, ConetGBUpdatedEvent.OutputObject>;
 getEvent(key: 'ERC20Created'): TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
+getEvent(key: 'FactoryBurnExecuted'): TypedContractEvent<FactoryBurnExecutedEvent.InputTuple, FactoryBurnExecutedEvent.OutputTuple, FactoryBurnExecutedEvent.OutputObject>;
+getEvent(key: 'FactoryBurnProposalCreated'): TypedContractEvent<FactoryBurnProposalCreatedEvent.InputTuple, FactoryBurnProposalCreatedEvent.OutputTuple, FactoryBurnProposalCreatedEvent.OutputObject>;
+getEvent(key: 'FactoryBurnVoted'): TypedContractEvent<FactoryBurnVotedEvent.InputTuple, FactoryBurnVotedEvent.OutputTuple, FactoryBurnVotedEvent.OutputObject>;
+getEvent(key: 'GBIssueExecuted'): TypedContractEvent<GBIssueExecutedEvent.InputTuple, GBIssueExecutedEvent.OutputTuple, GBIssueExecutedEvent.OutputObject>;
+getEvent(key: 'GBIssueProposalCreated'): TypedContractEvent<GBIssueProposalCreatedEvent.InputTuple, GBIssueProposalCreatedEvent.OutputTuple, GBIssueProposalCreatedEvent.OutputObject>;
+getEvent(key: 'GBIssueVoted'): TypedContractEvent<GBIssueVotedEvent.InputTuple, GBIssueVotedEvent.OutputTuple, GBIssueVotedEvent.OutputObject>;
+getEvent(key: 'GBRevokeExecuted'): TypedContractEvent<GBRevokeExecutedEvent.InputTuple, GBRevokeExecutedEvent.OutputTuple, GBRevokeExecutedEvent.OutputObject>;
+getEvent(key: 'GBRevokeProposalCreated'): TypedContractEvent<GBRevokeProposalCreatedEvent.InputTuple, GBRevokeProposalCreatedEvent.OutputTuple, GBRevokeProposalCreatedEvent.OutputObject>;
+getEvent(key: 'GBRevokeVoted'): TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
 getEvent(key: 'MinerAdded'): TypedContractEvent<MinerAddedEvent.InputTuple, MinerAddedEvent.OutputTuple, MinerAddedEvent.OutputObject>;
 getEvent(key: 'MintByMiner'): TypedContractEvent<MintByMinerEvent.InputTuple, MintByMinerEvent.OutputTuple, MintByMinerEvent.OutputObject>;
 getEvent(key: 'MintExecuted'): TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
+getEvent(key: 'PeerDepositExecuted'): TypedContractEvent<PeerDepositExecutedEvent.InputTuple, PeerDepositExecutedEvent.OutputTuple, PeerDepositExecutedEvent.OutputObject>;
+getEvent(key: 'PeerDepositProposalCreated'): TypedContractEvent<PeerDepositProposalCreatedEvent.InputTuple, PeerDepositProposalCreatedEvent.OutputTuple, PeerDepositProposalCreatedEvent.OutputObject>;
+getEvent(key: 'PeerDepositVoted'): TypedContractEvent<PeerDepositVotedEvent.InputTuple, PeerDepositVotedEvent.OutputTuple, PeerDepositVotedEvent.OutputObject>;
+getEvent(key: 'PeerTokenRegistered'): TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
 getEvent(key: 'ProposalCreated'): TypedContractEvent<ProposalCreatedEvent.InputTuple, ProposalCreatedEvent.OutputTuple, ProposalCreatedEvent.OutputObject>;
 getEvent(key: 'ProposalExecuted'): TypedContractEvent<ProposalExecutedEvent.InputTuple, ProposalExecutedEvent.OutputTuple, ProposalExecutedEvent.OutputObject>;
 getEvent(key: 'Usdc2BUnitExecuted'): TypedContractEvent<Usdc2BUnitExecutedEvent.InputTuple, Usdc2BUnitExecutedEvent.OutputTuple, Usdc2BUnitExecutedEvent.OutputObject>;
 getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.OutputTuple, VotedEvent.OutputObject>;
+getEvent(key: 'WrappedTokenDeployed'): TypedContractEvent<WrappedTokenDeployedEvent.InputTuple, WrappedTokenDeployedEvent.OutputTuple, WrappedTokenDeployedEvent.OutputObject>;
 
     filters: {
       
@@ -903,12 +1662,64 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
       BUnitAirdropUpdated: TypedContractEvent<BUnitAirdropUpdatedEvent.InputTuple, BUnitAirdropUpdatedEvent.OutputTuple, BUnitAirdropUpdatedEvent.OutputObject>;
     
 
+      'BUnitBurnExecuted(bytes32,address,uint256,bytes32)': TypedContractEvent<BUnitBurnExecutedEvent.InputTuple, BUnitBurnExecutedEvent.OutputTuple, BUnitBurnExecutedEvent.OutputObject>;
+      BUnitBurnExecuted: TypedContractEvent<BUnitBurnExecutedEvent.InputTuple, BUnitBurnExecutedEvent.OutputTuple, BUnitBurnExecutedEvent.OutputObject>;
+    
+
+      'BUnitBurnProposalCreated(bytes32,address,uint256,bytes32,address)': TypedContractEvent<BUnitBurnProposalCreatedEvent.InputTuple, BUnitBurnProposalCreatedEvent.OutputTuple, BUnitBurnProposalCreatedEvent.OutputObject>;
+      BUnitBurnProposalCreated: TypedContractEvent<BUnitBurnProposalCreatedEvent.InputTuple, BUnitBurnProposalCreatedEvent.OutputTuple, BUnitBurnProposalCreatedEvent.OutputObject>;
+    
+
+      'BUnitBurnVoted(bytes32,address,uint256)': TypedContractEvent<BUnitBurnVotedEvent.InputTuple, BUnitBurnVotedEvent.OutputTuple, BUnitBurnVotedEvent.OutputObject>;
+      BUnitBurnVoted: TypedContractEvent<BUnitBurnVotedEvent.InputTuple, BUnitBurnVotedEvent.OutputTuple, BUnitBurnVotedEvent.OutputObject>;
+    
+
       'BurnRequested(address,address,uint256,address)': TypedContractEvent<BurnRequestedEvent.InputTuple, BurnRequestedEvent.OutputTuple, BurnRequestedEvent.OutputObject>;
       BurnRequested: TypedContractEvent<BurnRequestedEvent.InputTuple, BurnRequestedEvent.OutputTuple, BurnRequestedEvent.OutputObject>;
     
 
+      'ConetGBUpdated(address,address)': TypedContractEvent<ConetGBUpdatedEvent.InputTuple, ConetGBUpdatedEvent.OutputTuple, ConetGBUpdatedEvent.OutputObject>;
+      ConetGBUpdated: TypedContractEvent<ConetGBUpdatedEvent.InputTuple, ConetGBUpdatedEvent.OutputTuple, ConetGBUpdatedEvent.OutputObject>;
+    
+
       'ERC20Created(address,string,string,uint8,address)': TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
       ERC20Created: TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
+    
+
+      'FactoryBurnExecuted(bytes32,address,address,uint256)': TypedContractEvent<FactoryBurnExecutedEvent.InputTuple, FactoryBurnExecutedEvent.OutputTuple, FactoryBurnExecutedEvent.OutputObject>;
+      FactoryBurnExecuted: TypedContractEvent<FactoryBurnExecutedEvent.InputTuple, FactoryBurnExecutedEvent.OutputTuple, FactoryBurnExecutedEvent.OutputObject>;
+    
+
+      'FactoryBurnProposalCreated(bytes32,address,address,uint256,address)': TypedContractEvent<FactoryBurnProposalCreatedEvent.InputTuple, FactoryBurnProposalCreatedEvent.OutputTuple, FactoryBurnProposalCreatedEvent.OutputObject>;
+      FactoryBurnProposalCreated: TypedContractEvent<FactoryBurnProposalCreatedEvent.InputTuple, FactoryBurnProposalCreatedEvent.OutputTuple, FactoryBurnProposalCreatedEvent.OutputObject>;
+    
+
+      'FactoryBurnVoted(bytes32,address,uint256)': TypedContractEvent<FactoryBurnVotedEvent.InputTuple, FactoryBurnVotedEvent.OutputTuple, FactoryBurnVotedEvent.OutputObject>;
+      FactoryBurnVoted: TypedContractEvent<FactoryBurnVotedEvent.InputTuple, FactoryBurnVotedEvent.OutputTuple, FactoryBurnVotedEvent.OutputObject>;
+    
+
+      'GBIssueExecuted(bytes32,address,uint256)': TypedContractEvent<GBIssueExecutedEvent.InputTuple, GBIssueExecutedEvent.OutputTuple, GBIssueExecutedEvent.OutputObject>;
+      GBIssueExecuted: TypedContractEvent<GBIssueExecutedEvent.InputTuple, GBIssueExecutedEvent.OutputTuple, GBIssueExecutedEvent.OutputObject>;
+    
+
+      'GBIssueProposalCreated(bytes32,address,uint256,address)': TypedContractEvent<GBIssueProposalCreatedEvent.InputTuple, GBIssueProposalCreatedEvent.OutputTuple, GBIssueProposalCreatedEvent.OutputObject>;
+      GBIssueProposalCreated: TypedContractEvent<GBIssueProposalCreatedEvent.InputTuple, GBIssueProposalCreatedEvent.OutputTuple, GBIssueProposalCreatedEvent.OutputObject>;
+    
+
+      'GBIssueVoted(bytes32,address,uint256)': TypedContractEvent<GBIssueVotedEvent.InputTuple, GBIssueVotedEvent.OutputTuple, GBIssueVotedEvent.OutputObject>;
+      GBIssueVoted: TypedContractEvent<GBIssueVotedEvent.InputTuple, GBIssueVotedEvent.OutputTuple, GBIssueVotedEvent.OutputObject>;
+    
+
+      'GBRevokeExecuted(bytes32,address,uint256)': TypedContractEvent<GBRevokeExecutedEvent.InputTuple, GBRevokeExecutedEvent.OutputTuple, GBRevokeExecutedEvent.OutputObject>;
+      GBRevokeExecuted: TypedContractEvent<GBRevokeExecutedEvent.InputTuple, GBRevokeExecutedEvent.OutputTuple, GBRevokeExecutedEvent.OutputObject>;
+    
+
+      'GBRevokeProposalCreated(bytes32,address,uint256,address)': TypedContractEvent<GBRevokeProposalCreatedEvent.InputTuple, GBRevokeProposalCreatedEvent.OutputTuple, GBRevokeProposalCreatedEvent.OutputObject>;
+      GBRevokeProposalCreated: TypedContractEvent<GBRevokeProposalCreatedEvent.InputTuple, GBRevokeProposalCreatedEvent.OutputTuple, GBRevokeProposalCreatedEvent.OutputObject>;
+    
+
+      'GBRevokeVoted(bytes32,address,uint256)': TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
+      GBRevokeVoted: TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
     
 
       'MinerAdded(address)': TypedContractEvent<MinerAddedEvent.InputTuple, MinerAddedEvent.OutputTuple, MinerAddedEvent.OutputObject>;
@@ -921,6 +1732,22 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
 
       'MintExecuted(address,address,uint256)': TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
       MintExecuted: TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
+    
+
+      'PeerDepositExecuted(bytes32,address,address,uint256)': TypedContractEvent<PeerDepositExecutedEvent.InputTuple, PeerDepositExecutedEvent.OutputTuple, PeerDepositExecutedEvent.OutputObject>;
+      PeerDepositExecuted: TypedContractEvent<PeerDepositExecutedEvent.InputTuple, PeerDepositExecutedEvent.OutputTuple, PeerDepositExecutedEvent.OutputObject>;
+    
+
+      'PeerDepositProposalCreated(bytes32,uint256,address,address,uint256,address)': TypedContractEvent<PeerDepositProposalCreatedEvent.InputTuple, PeerDepositProposalCreatedEvent.OutputTuple, PeerDepositProposalCreatedEvent.OutputObject>;
+      PeerDepositProposalCreated: TypedContractEvent<PeerDepositProposalCreatedEvent.InputTuple, PeerDepositProposalCreatedEvent.OutputTuple, PeerDepositProposalCreatedEvent.OutputObject>;
+    
+
+      'PeerDepositVoted(bytes32,address,uint256)': TypedContractEvent<PeerDepositVotedEvent.InputTuple, PeerDepositVotedEvent.OutputTuple, PeerDepositVotedEvent.OutputObject>;
+      PeerDepositVoted: TypedContractEvent<PeerDepositVotedEvent.InputTuple, PeerDepositVotedEvent.OutputTuple, PeerDepositVotedEvent.OutputObject>;
+    
+
+      'PeerTokenRegistered(uint256,address,string,string,uint8,address)': TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
+      PeerTokenRegistered: TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
     
 
       'ProposalCreated(bytes32,address,address,uint256,address)': TypedContractEvent<ProposalCreatedEvent.InputTuple, ProposalCreatedEvent.OutputTuple, ProposalCreatedEvent.OutputObject>;
@@ -937,6 +1764,10 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
 
       'Voted(bytes32,address,uint256)': TypedContractEvent<VotedEvent.InputTuple, VotedEvent.OutputTuple, VotedEvent.OutputObject>;
       Voted: TypedContractEvent<VotedEvent.InputTuple, VotedEvent.OutputTuple, VotedEvent.OutputObject>;
+    
+
+      'WrappedTokenDeployed(uint256,address,address)': TypedContractEvent<WrappedTokenDeployedEvent.InputTuple, WrappedTokenDeployedEvent.OutputTuple, WrappedTokenDeployedEvent.OutputObject>;
+      WrappedTokenDeployed: TypedContractEvent<WrappedTokenDeployedEvent.InputTuple, WrappedTokenDeployedEvent.OutputTuple, WrappedTokenDeployedEvent.OutputObject>;
     
     };
   }

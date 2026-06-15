@@ -4,9 +4,10 @@ pragma solidity ^0.8.20;
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 
 /**
- * @title ConetTreasury (CoNET L1)
- * @dev CoNET 链上的国库合约，与 BaseTreasury 对齐：无 owner/admin，自维护 miner 表，部署者默认为首个 miner。
- *      提供 ERC20 工厂（miner 可创建）与 miner 2/3 投票 mint 机制。
+ * @title ConetTreasury
+ * @dev 跨链去中心化国库（各链 Nick CREATE2 同址）。miner 2/3 投票后执行 mint/burn/airdrop。
+ *      桥接目标：工厂 ERC20、BUnitAirdrop（B-Units）、ConetGB1155（GB）。
+ *      对端链 txHash 作 proposal 键；miner 监听事件后在本链 vote* → execute*。
  */
 
 // --- 工厂创建的 ERC20 模板 ---
@@ -24,6 +25,17 @@ interface IBurnableFactoryERC20 {
 interface IBUnitAirdrop {
     function claimFor(address claimant, uint256 nonce, uint256 deadline, bytes calldata signature) external;
     function mintForUsdcPurchase(address to, uint256 usdcAmount, bytes32 baseTxHash) external;
+    function consumeFromUser(address user, uint256 amount, bytes32 baseHash, uint256 baseGas, uint256 kind) external;
+}
+
+interface IConetGB1155 {
+    function issueGB(address to, uint256 amountGB18) external;
+    function revokeTotalOnly(address from, uint256 amountGB18) external;
+}
+
+/// @dev Nick CREATE2 factory（各链同址），用于 FactoryERC20 包装币确定性部署
+interface INickCreate2 {
+    function deploy(bytes memory initCode, bytes32 salt) external returns (address);
 }
 
 contract FactoryERC20 {
@@ -120,6 +132,21 @@ contract ConetTreasury {
     mapping(address => bool) private _isCreatedToken;
     /// @dev CoNET token => Base 链上对应 ERC20 地址（出金时 miner 在 BaseTreasury 转账用）
     mapping(address => address) private _baseTokenOf;
+    /// @dev 包装 token => 源链 chainId / 源链 ERC20（CREATE2 跨链映射）
+    mapping(address => uint256) private _peerChainIdOf;
+    mapping(address => address) private _peerTokenOf;
+
+    /// @dev 源链 (chainId, token) 元数据注册表（miner 登记后可 predict/deploy）
+    struct PeerTokenMeta {
+        string name;
+        string symbol;
+        uint8 decimals;
+        bool registered;
+    }
+    mapping(bytes32 => PeerTokenMeta) private _peerTokens;
+
+    /// @dev Nick CREATE2 factory（与 BUint/GB/Treasury 部署一致）
+    address private constant NICK_CREATE2_FACTORY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     // --- 提案与投票：以 txHash 为键，仅支持 mint ---
     struct Proposal {
@@ -149,6 +176,41 @@ contract ConetTreasury {
     event MintByMiner(address indexed token, address indexed to, uint256 amount);
     event AirdropBUnitByMiner(address indexed claimant, uint256 amount);
     event AirdropBUnitFromUsdcByMiner(address indexed user, uint256 usdcAmount, uint256 bunitAmount);
+    event ConetGBUpdated(address indexed oldGb, address indexed newGb);
+    /// @dev 跨链桥：miner 投票通过后工厂 ERC20 burnFrom（account 须 approve 本合约）
+    event FactoryBurnProposalCreated(bytes32 indexed txHash, address token, address account, uint256 amount, address indexed firstVoter);
+    event FactoryBurnVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
+    event FactoryBurnExecuted(bytes32 indexed txHash, address token, address account, uint256 amount);
+    /// @dev 跨链桥：B-Unit 消耗（经 BUnitAirdrop.consumeFromUser）
+    event BUnitBurnProposalCreated(bytes32 indexed txHash, address user, uint256 amount, bytes32 peerTxHash, address indexed firstVoter);
+    event BUnitBurnVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
+    event BUnitBurnExecuted(bytes32 indexed txHash, address user, uint256 amount, bytes32 peerTxHash);
+    /// @dev 跨链桥：GB 发行 / 撤销总量
+    event GBIssueProposalCreated(bytes32 indexed txHash, address to, uint256 amountGB18, address indexed firstVoter);
+    event GBIssueVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
+    event GBIssueExecuted(bytes32 indexed txHash, address to, uint256 amountGB18);
+    event GBRevokeProposalCreated(bytes32 indexed txHash, address from, uint256 amountGB18, address indexed firstVoter);
+    event GBRevokeVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
+    event GBRevokeExecuted(bytes32 indexed txHash, address from, uint256 amountGB18);
+    event PeerTokenRegistered(
+        uint256 indexed peerChainId,
+        address indexed peerToken,
+        string name,
+        string symbol,
+        uint8 decimals,
+        address predictedWrapped
+    );
+    event WrappedTokenDeployed(uint256 indexed peerChainId, address indexed peerToken, address indexed wrappedToken);
+    event PeerDepositProposalCreated(
+        bytes32 indexed depositTxHash,
+        uint256 peerChainId,
+        address peerToken,
+        address recipient,
+        uint256 amount,
+        address indexed firstVoter
+    );
+    event PeerDepositVoted(bytes32 indexed depositTxHash, address indexed miner, uint256 voteCount);
+    event PeerDepositExecuted(bytes32 indexed depositTxHash, address indexed wrappedToken, address recipient, uint256 amount);
 
     error NotMiner();
     error AlreadyVoted();
@@ -161,8 +223,13 @@ contract ConetTreasury {
     error SignatureExpired();
     error InvalidSignature();
     error BUnitAirdropNotSet();
+    error ConetGBNotSet();
+    error PeerTokenNotRegistered();
+    error WrappedDeployFailed();
+    error WrappedAddressMismatch();
 
     address public bunitAirdrop;
+    address public conetGB;
 
     // --- B-Unit Airdrop 投票：2/3 通过后 call BUnitAirdrop.claimFor ---
     struct AirdropProposal {
@@ -187,6 +254,62 @@ contract ConetTreasury {
     mapping(bytes32 => Usdc2BUnitProposal) public usdc2BUnitProposals;
     mapping(bytes32 => mapping(address => bool)) public hasVotedUsdc2BUnit;
 
+    /// @dev 跨链桥：工厂 ERC20 burn（对端链事件 → 本链 txHash 投票 → burnFrom）
+    struct FactoryBurnProposal {
+        address token;
+        address account;
+        uint256 amount;
+        uint256 voteCount;
+        bool executed;
+    }
+    mapping(bytes32 => FactoryBurnProposal) public factoryBurnProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedFactoryBurn;
+
+    /// @dev 跨链桥：B-Unit 业务 burn（consumeFromUser）
+    struct BUnitBurnProposal {
+        address user;
+        uint256 amount;
+        bytes32 peerTxHash;
+        uint256 baseGas;
+        uint256 kind;
+        uint256 voteCount;
+        bool executed;
+    }
+    mapping(bytes32 => BUnitBurnProposal) public bunitBurnProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedBUnitBurn;
+
+    /// @dev 跨链桥：GB 发行
+    struct GBIssueProposal {
+        address to;
+        uint256 amountGB18;
+        uint256 voteCount;
+        bool executed;
+    }
+    mapping(bytes32 => GBIssueProposal) public gbIssueProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedGBIssue;
+
+    /// @dev 跨链桥：GB 撤销总量
+    struct GBRevokeProposal {
+        address from;
+        uint256 amountGB18;
+        uint256 voteCount;
+        bool executed;
+    }
+    mapping(bytes32 => GBRevokeProposal) public gbRevokeProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedGBRevoke;
+
+    /// @dev 跨链 deposit：源链 txHash → 本链 CREATE2 包装 ERC20 mint
+    struct PeerDepositProposal {
+        uint256 peerChainId;
+        address peerToken;
+        address recipient;
+        uint256 amount;
+        uint256 voteCount;
+        bool executed;
+    }
+    mapping(bytes32 => PeerDepositProposal) public peerDepositProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedPeerDeposit;
+
     /// @dev USDC 兑换 B-Unit 统计：经 miner 投票执行的 airdrop 累计 B-Unit 总量 (6 位精度)
     uint256 public totalUsdc2BUnit;
 
@@ -210,10 +333,11 @@ contract ConetTreasury {
         _;
     }
 
-    constructor() {
-        _miners.push(msg.sender);
-        _isMiner[msg.sender] = true;
-        emit MinerAdded(msg.sender);
+    constructor(address initialMiner) {
+        if (initialMiner == address(0)) revert InvalidTarget();
+        _miners.push(initialMiner);
+        _isMiner[initialMiner] = true;
+        emit MinerAdded(initialMiner);
         DOMAIN_SEPARATOR = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
             keccak256(bytes("ConetTreasury")),
@@ -285,6 +409,222 @@ contract ConetTreasury {
         _baseTokenOf[token] = baseToken;
     }
 
+    // ==========================================
+    // 跨链包装 ERC20：CREATE2 按 (peerChainId, peerToken) 确定性部署
+    // ==========================================
+
+    function _peerKey(uint256 peerChainId, address peerToken) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(peerChainId, peerToken));
+    }
+
+    function _wrappedSalt(uint256 peerChainId, address peerToken) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("beamio.wrapped.erc20.v1", peerChainId, peerToken));
+    }
+
+    function _factoryInitCode(string memory name_, string memory symbol_, uint8 decimals_)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(type(FactoryERC20).creationCode, abi.encode(name_, symbol_, decimals_, address(this)));
+    }
+
+    function _computeWrappedAddress(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint256 peerChainId,
+        address peerToken
+    ) internal view returns (address) {
+        bytes memory initCode = _factoryInitCode(name_, symbol_, decimals_);
+        bytes32 salt = _wrappedSalt(peerChainId, peerToken);
+        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), NICK_CREATE2_FACTORY, salt, keccak256(initCode)));
+        return address(uint160(uint256(hash)));
+    }
+
+    /**
+     * @dev Miner 登记源链 ERC20 元数据。登记后可 predictWrappedToken / deployWrappedToken。
+     *      包装合约地址由 (peerChainId, peerToken, name, symbol, decimals, Treasury 同址) 确定性推导。
+     */
+    function registerPeerToken(
+        uint256 peerChainId,
+        address peerToken,
+        string calldata name_,
+        string calldata symbol_,
+        uint8 decimals_
+    ) external onlyMiner returns (address predicted) {
+        if (peerToken == address(0)) revert InvalidTarget();
+        bytes32 key = _peerKey(peerChainId, peerToken);
+        PeerTokenMeta storage meta = _peerTokens[key];
+        meta.name = name_;
+        meta.symbol = symbol_;
+        meta.decimals = decimals_;
+        meta.registered = true;
+        predicted = _computeWrappedAddress(name_, symbol_, decimals_, peerChainId, peerToken);
+        emit PeerTokenRegistered(peerChainId, peerToken, name_, symbol_, decimals_, predicted);
+    }
+
+    function isPeerTokenRegistered(uint256 peerChainId, address peerToken) external view returns (bool) {
+        return _peerTokens[_peerKey(peerChainId, peerToken)].registered;
+    }
+
+    function getPeerTokenMeta(uint256 peerChainId, address peerToken)
+        external
+        view
+        returns (string memory name_, string memory symbol_, uint8 decimals_, bool registered)
+    {
+        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
+        return (meta.name, meta.symbol, meta.decimals, meta.registered);
+    }
+
+    function peerChainIdOf(address wrappedToken) external view returns (uint256) {
+        return _peerChainIdOf[wrappedToken];
+    }
+
+    function peerTokenOf(address wrappedToken) external view returns (address) {
+        return _peerTokenOf[wrappedToken];
+    }
+
+    /**
+     * @dev 预测 CREATE2 包装 ERC20 地址（须已 registerPeerToken）。
+     */
+    function predictWrappedToken(uint256 peerChainId, address peerToken) external view returns (address) {
+        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
+        if (!meta.registered) revert PeerTokenNotRegistered();
+        return _computeWrappedAddress(meta.name, meta.symbol, meta.decimals, peerChainId, peerToken);
+    }
+
+    function _trackWrappedToken(address wrapped, uint256 peerChainId, address peerToken) internal {
+        if (!_isCreatedToken[wrapped]) {
+            _createdTokens.push(wrapped);
+            _isCreatedToken[wrapped] = true;
+        }
+        _peerChainIdOf[wrapped] = peerChainId;
+        _peerTokenOf[wrapped] = peerToken;
+        if (peerChainId == 8453) {
+            _baseTokenOf[wrapped] = peerToken;
+        }
+    }
+
+    function _ensureWrappedToken(uint256 peerChainId, address peerToken) internal returns (address wrapped) {
+        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
+        if (!meta.registered) revert PeerTokenNotRegistered();
+
+        wrapped = _computeWrappedAddress(meta.name, meta.symbol, meta.decimals, peerChainId, peerToken);
+        uint256 size;
+        assembly {
+            size := extcodesize(wrapped)
+        }
+        if (size > 0) {
+            _trackWrappedToken(wrapped, peerChainId, peerToken);
+            return wrapped;
+        }
+
+        bytes memory initCode = _factoryInitCode(meta.name, meta.symbol, meta.decimals);
+        bytes32 salt = _wrappedSalt(peerChainId, peerToken);
+        address deployed = INickCreate2(NICK_CREATE2_FACTORY).deploy(initCode, salt);
+        if (deployed != wrapped) revert WrappedAddressMismatch();
+
+        assembly {
+            size := extcodesize(wrapped)
+        }
+        if (size == 0) revert WrappedDeployFailed();
+
+        _trackWrappedToken(wrapped, peerChainId, peerToken);
+        emit WrappedTokenDeployed(peerChainId, peerToken, wrapped);
+    }
+
+    /**
+     * @dev 部署（或返回已存在的）CREATE2 包装 ERC20。任何人可调用（地址确定性，无特权）。
+     */
+    function deployWrappedToken(uint256 peerChainId, address peerToken) external returns (address wrapped) {
+        return _ensureWrappedToken(peerChainId, peerToken);
+    }
+
+    /**
+     * @dev Miner 对源链 Treasury deposit 的 txHash 投票；2/3 通过后部署包装币（若未部署）并 mint。
+     *      源链须为 lock/deposit 模式（原生 ERC20 无需 burn）。
+     */
+    function voteMintFromPeerDeposit(
+        bytes32 depositTxHash,
+        uint256 peerChainId,
+        address peerToken,
+        address recipient,
+        uint256 amount
+    ) external onlyMiner {
+        if (hasVotedPeerDeposit[depositTxHash][msg.sender]) revert AlreadyVoted();
+        _applyPeerDepositVote(msg.sender, depositTxHash, peerChainId, peerToken, recipient, amount);
+    }
+
+    function executePeerDepositMint(bytes32 depositTxHash) external {
+        _executePeerDepositMint(depositTxHash);
+    }
+
+    function _applyPeerDepositVote(
+        address miner,
+        bytes32 depositTxHash,
+        uint256 peerChainId,
+        address peerToken,
+        address recipient,
+        uint256 amount
+    ) internal {
+        if (peerToken == address(0) || recipient == address(0)) revert InvalidTarget();
+        if (amount == 0) revert InvalidAmount();
+        if (!_peerTokens[_peerKey(peerChainId, peerToken)].registered) revert PeerTokenNotRegistered();
+
+        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.voteCount == 0) {
+            p.peerChainId = peerChainId;
+            p.peerToken = peerToken;
+            p.recipient = recipient;
+            p.amount = amount;
+            p.voteCount = 1;
+            emit PeerDepositProposalCreated(depositTxHash, peerChainId, peerToken, recipient, amount, miner);
+        } else {
+            if (
+                p.peerChainId != peerChainId || p.peerToken != peerToken || p.recipient != recipient || p.amount != amount
+            ) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedPeerDeposit[depositTxHash][miner] = true;
+        emit PeerDepositVoted(depositTxHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executePeerDepositMint(depositTxHash);
+        }
+    }
+
+    function _executePeerDepositMint(bytes32 depositTxHash) internal {
+        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+
+        address wrapped = _ensureWrappedToken(p.peerChainId, p.peerToken);
+        p.executed = true;
+        IMintableERC20(wrapped).mint(p.recipient, p.amount);
+        emit PeerDepositExecuted(depositTxHash, wrapped, p.recipient, p.amount);
+        emit MintExecuted(wrapped, p.recipient, p.amount);
+    }
+
+    function getPeerDepositProposal(bytes32 depositTxHash)
+        external
+        view
+        returns (
+            uint256 peerChainId,
+            address peerToken,
+            address recipient,
+            uint256 amount,
+            uint256 voteCount,
+            bool executed
+        )
+    {
+        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
+        return (p.peerChainId, p.peerToken, p.recipient, p.amount, p.voteCount, p.executed);
+    }
+
     /**
      * @dev Miner 设置 BUnitAirdrop 合约地址。ConetTreasury 需为 BUnitAirdrop 的 admin。
      */
@@ -292,6 +632,22 @@ contract ConetTreasury {
         address oldAirdrop = bunitAirdrop;
         bunitAirdrop = _bunitAirdrop;
         emit BUnitAirdropUpdated(oldAirdrop, _bunitAirdrop);
+    }
+
+    /**
+     * @dev Miner 设置 ConetGB1155 地址。ConetTreasury 须持有 GB 的 ISSUER_ROLE 方可 issue/revoke。
+     */
+    function setConetGB(address _conetGB) external onlyMiner {
+        address oldGb = conetGB;
+        conetGB = _conetGB;
+        emit ConetGBUpdated(oldGb, _conetGB);
+    }
+
+    /**
+     * @dev 跨链桥已配置目标一览（各链 post-deploy 写入；CREATE2 同址后地址一致）。
+     */
+    function getBridgeTargets() external view returns (address airdrop, address gb, uint256 factoryTokenCount) {
+        return (bunitAirdrop, conetGB, _createdTokens.length);
     }
 
     /**
@@ -736,5 +1092,266 @@ contract ConetTreasury {
     ) {
         AirdropProposal storage p = airdropProposals[proposalId];
         return (p.claimant, p.nonce, p.deadline, p.voteCount, p.executed);
+    }
+
+    // ==========================================
+    // 跨链桥：工厂 ERC20 burn（miner 2/3 → burnFrom，account 须 approve 本合约）
+    // ==========================================
+
+    function voteFactoryBurn(bytes32 txHash, address token, address account, uint256 amount) external onlyMiner {
+        if (hasVotedFactoryBurn[txHash][msg.sender]) revert AlreadyVoted();
+        _applyFactoryBurnVote(msg.sender, txHash, token, account, amount);
+    }
+
+    function _applyFactoryBurnVote(
+        address miner,
+        bytes32 txHash,
+        address token,
+        address account,
+        uint256 amount
+    ) internal {
+        if (amount == 0) revert InvalidAmount();
+        if (account == address(0)) revert InvalidTarget();
+        if (!_isCreatedToken[token]) revert TokenNotInList();
+
+        FactoryBurnProposal storage p = factoryBurnProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.amount == 0) {
+            p.token = token;
+            p.account = account;
+            p.amount = amount;
+            p.voteCount = 1;
+            emit FactoryBurnProposalCreated(txHash, token, account, amount, miner);
+        } else {
+            if (p.token != token || p.account != account || p.amount != amount) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedFactoryBurn[txHash][miner] = true;
+        emit FactoryBurnVoted(txHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executeFactoryBurn(txHash);
+        }
+    }
+
+    function executeFactoryBurn(bytes32 txHash) external {
+        _executeFactoryBurn(txHash);
+    }
+
+    function _executeFactoryBurn(bytes32 txHash) internal {
+        FactoryBurnProposal storage p = factoryBurnProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.amount == 0) revert ProposalNotExecutable();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+        if (!_isCreatedToken[p.token]) revert TokenNotInList();
+
+        p.executed = true;
+        IBurnableFactoryERC20(p.token).burnFrom(p.account, p.amount);
+        emit FactoryBurnExecuted(txHash, p.token, p.account, p.amount);
+    }
+
+    function getFactoryBurnProposal(bytes32 txHash)
+        external
+        view
+        returns (address token, address account, uint256 amount, uint256 voteCount, bool executed)
+    {
+        FactoryBurnProposal storage p = factoryBurnProposals[txHash];
+        return (p.token, p.account, p.amount, p.voteCount, p.executed);
+    }
+
+    // ==========================================
+    // 跨链桥：B-Unit burn（miner 2/3 → BUnitAirdrop.consumeFromUser）
+    // ==========================================
+
+    function voteBUnitBurn(
+        bytes32 txHash,
+        address user,
+        uint256 amount,
+        bytes32 peerTxHash,
+        uint256 baseGas,
+        uint256 kind
+    ) external onlyMiner {
+        if (hasVotedBUnitBurn[txHash][msg.sender]) revert AlreadyVoted();
+        _applyBUnitBurnVote(msg.sender, txHash, user, amount, peerTxHash, baseGas, kind);
+    }
+
+    function _applyBUnitBurnVote(
+        address miner,
+        bytes32 txHash,
+        address user,
+        uint256 amount,
+        bytes32 peerTxHash,
+        uint256 baseGas,
+        uint256 kind
+    ) internal {
+        if (user == address(0)) revert InvalidTarget();
+        if (amount == 0) revert InvalidAmount();
+        if (bunitAirdrop == address(0)) revert BUnitAirdropNotSet();
+
+        BUnitBurnProposal storage p = bunitBurnProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.voteCount == 0) {
+            p.user = user;
+            p.amount = amount;
+            p.peerTxHash = peerTxHash;
+            p.baseGas = baseGas;
+            p.kind = kind;
+            p.voteCount = 1;
+            emit BUnitBurnProposalCreated(txHash, user, amount, peerTxHash, miner);
+        } else {
+            if (
+                p.user != user || p.amount != amount || p.peerTxHash != peerTxHash || p.baseGas != baseGas
+                    || p.kind != kind
+            ) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedBUnitBurn[txHash][miner] = true;
+        emit BUnitBurnVoted(txHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executeBUnitBurn(txHash);
+        }
+    }
+
+    function executeBUnitBurn(bytes32 txHash) external {
+        _executeBUnitBurn(txHash);
+    }
+
+    function _executeBUnitBurn(bytes32 txHash) internal {
+        BUnitBurnProposal storage p = bunitBurnProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+        if (bunitAirdrop == address(0)) revert BUnitAirdropNotSet();
+
+        p.executed = true;
+        IBUnitAirdrop(bunitAirdrop).consumeFromUser(p.user, p.amount, p.peerTxHash, p.baseGas, p.kind);
+        emit BUnitBurnExecuted(txHash, p.user, p.amount, p.peerTxHash);
+    }
+
+    function getBUnitBurnProposal(bytes32 txHash)
+        external
+        view
+        returns (address user, uint256 amount, bytes32 peerTxHash, uint256 baseGas, uint256 kind, uint256 voteCount, bool executed)
+    {
+        BUnitBurnProposal storage p = bunitBurnProposals[txHash];
+        return (p.user, p.amount, p.peerTxHash, p.baseGas, p.kind, p.voteCount, p.executed);
+    }
+
+    // ==========================================
+    // 跨链桥：GB issue / revoke（miner 2/3 → ConetGB1155）
+    // ==========================================
+
+    function voteGBIssue(bytes32 txHash, address to, uint256 amountGB18) external onlyMiner {
+        if (hasVotedGBIssue[txHash][msg.sender]) revert AlreadyVoted();
+        _applyGBIssueVote(msg.sender, txHash, to, amountGB18);
+    }
+
+    function _applyGBIssueVote(address miner, bytes32 txHash, address to, uint256 amountGB18) internal {
+        if (to == address(0)) revert InvalidTarget();
+        if (amountGB18 == 0) revert InvalidAmount();
+        if (conetGB == address(0)) revert ConetGBNotSet();
+
+        GBIssueProposal storage p = gbIssueProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.voteCount == 0) {
+            p.to = to;
+            p.amountGB18 = amountGB18;
+            p.voteCount = 1;
+            emit GBIssueProposalCreated(txHash, to, amountGB18, miner);
+        } else {
+            if (p.to != to || p.amountGB18 != amountGB18) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedGBIssue[txHash][miner] = true;
+        emit GBIssueVoted(txHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executeGBIssue(txHash);
+        }
+    }
+
+    function executeGBIssue(bytes32 txHash) external {
+        _executeGBIssue(txHash);
+    }
+
+    function _executeGBIssue(bytes32 txHash) internal {
+        GBIssueProposal storage p = gbIssueProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+        if (conetGB == address(0)) revert ConetGBNotSet();
+
+        p.executed = true;
+        IConetGB1155(conetGB).issueGB(p.to, p.amountGB18);
+        emit GBIssueExecuted(txHash, p.to, p.amountGB18);
+    }
+
+    function getGBIssueProposal(bytes32 txHash)
+        external
+        view
+        returns (address to, uint256 amountGB18, uint256 voteCount, bool executed)
+    {
+        GBIssueProposal storage p = gbIssueProposals[txHash];
+        return (p.to, p.amountGB18, p.voteCount, p.executed);
+    }
+
+    function voteGBRevoke(bytes32 txHash, address from, uint256 amountGB18) external onlyMiner {
+        if (hasVotedGBRevoke[txHash][msg.sender]) revert AlreadyVoted();
+        _applyGBRevokeVote(msg.sender, txHash, from, amountGB18);
+    }
+
+    function _applyGBRevokeVote(address miner, bytes32 txHash, address from, uint256 amountGB18) internal {
+        if (from == address(0)) revert InvalidTarget();
+        if (amountGB18 == 0) revert InvalidAmount();
+        if (conetGB == address(0)) revert ConetGBNotSet();
+
+        GBRevokeProposal storage p = gbRevokeProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.voteCount == 0) {
+            p.from = from;
+            p.amountGB18 = amountGB18;
+            p.voteCount = 1;
+            emit GBRevokeProposalCreated(txHash, from, amountGB18, miner);
+        } else {
+            if (p.from != from || p.amountGB18 != amountGB18) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedGBRevoke[txHash][miner] = true;
+        emit GBRevokeVoted(txHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executeGBRevoke(txHash);
+        }
+    }
+
+    function executeGBRevoke(bytes32 txHash) external {
+        _executeGBRevoke(txHash);
+    }
+
+    function _executeGBRevoke(bytes32 txHash) internal {
+        GBRevokeProposal storage p = gbRevokeProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+        if (conetGB == address(0)) revert ConetGBNotSet();
+
+        p.executed = true;
+        IConetGB1155(conetGB).revokeTotalOnly(p.from, p.amountGB18);
+        emit GBRevokeExecuted(txHash, p.from, p.amountGB18);
+    }
+
+    function getGBRevokeProposal(bytes32 txHash)
+        external
+        view
+        returns (address from, uint256 amountGB18, uint256 voteCount, bool executed)
+    {
+        GBRevokeProposal storage p = gbRevokeProposals[txHash];
+        return (p.from, p.amountGB18, p.voteCount, p.executed);
     }
 }

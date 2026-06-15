@@ -140,7 +140,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         bytes32 nonce
     );
     event IssuedNftClaimedWithUserSig(address indexed card, address indexed userEOA, uint256 indexed tokenId, bytes32 nonce);
-    event IssuedNftClaimedForUserByPosAdmin(address indexed card, address indexed userEOA, uint256 indexed tokenId, address indexed posAdminEOA);
+    event IssuedNftClaimedForUserByPosAdmin(address indexed card, address indexed userEOA, uint256 indexed tokenId, address posAdminEOA);
     event AdminExecuteExecuted(address indexed card, address indexed adminSigner, bytes32 nonce);
 
     modifier onlyOwner() {

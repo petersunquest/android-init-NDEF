@@ -232,8 +232,12 @@ export type { IBUnitAirdrop } from './b-unit/conetTreasury.sol/IBUnitAirdrop.js'
 export { IBUnitAirdrop__factory } from './factories/b-unit/conetTreasury.sol/IBUnitAirdrop__factory.js';
 export type { IBurnableFactoryERC20 } from './b-unit/conetTreasury.sol/IBurnableFactoryERC20.js';
 export { IBurnableFactoryERC20__factory } from './factories/b-unit/conetTreasury.sol/IBurnableFactoryERC20__factory.js';
+export type { IConetGB1155 } from './b-unit/conetTreasury.sol/IConetGB1155.js';
+export { IConetGB1155__factory } from './factories/b-unit/conetTreasury.sol/IConetGB1155__factory.js';
 export type { IMintableERC20 } from './b-unit/conetTreasury.sol/IMintableERC20.js';
 export { IMintableERC20__factory } from './factories/b-unit/conetTreasury.sol/IMintableERC20__factory.js';
+export type { INickCreate2 } from './b-unit/conetTreasury.sol/INickCreate2.js';
+export { INickCreate2__factory } from './factories/b-unit/conetTreasury.sol/INickCreate2__factory.js';
 export type { ConetGB_total } from './b-unit/gbTotal.sol/ConetGB_total.js';
 export { ConetGB_total__factory } from './factories/b-unit/gbTotal.sol/ConetGB_total__factory.js';
 export type { ConetGB_userTotal } from './b-unit/gbUserTotal.sol/ConetGB_userTotal.js';
