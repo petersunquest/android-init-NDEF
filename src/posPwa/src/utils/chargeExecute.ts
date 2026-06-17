@@ -232,6 +232,7 @@ export async function executeNfcCharge(params: {
 		payee,
 		amountFiat6: amountFiat6Str,
 		currency: payCurrency,
+		merchantInfraCard: infra,
 		sun: params.target.sun,
 	})
 	if (!prep?.ok) {

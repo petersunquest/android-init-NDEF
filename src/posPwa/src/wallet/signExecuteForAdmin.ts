@@ -1,4 +1,5 @@
 import { keccak256, Wallet } from 'ethers'
+import { MERCHANT_USER_CARD_CHAIN_ID } from '@/constants'
 
 /** EIP-712 ExecuteForAdmin — aligned with iOS `BeamioEthWallet.signExecuteForAdmin`. */
 export async function signExecuteForAdmin(params: {
@@ -18,7 +19,7 @@ export async function signExecuteForAdmin(params: {
 	const domain = {
 		name: 'BeamioUserCardFactory',
 		version: '1',
-		chainId: 8453,
+		chainId: MERCHANT_USER_CARD_CHAIN_ID,
 		verifyingContract,
 	}
 	const types = {

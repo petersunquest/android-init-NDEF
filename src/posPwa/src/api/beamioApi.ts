@@ -508,6 +508,7 @@ export async function payByNfcUidPrepare(body: {
 	payee: string
 	amountFiat6: string
 	currency: string
+	merchantInfraCard?: string
 	sun?: { e: string; c: string; m: string }
 }): Promise<PayByNfcUidPrepareResult | null> {
 	try {
@@ -516,6 +517,9 @@ export async function payByNfcUidPrepare(body: {
 			payee: body.payee,
 			amountFiat6: body.amountFiat6,
 			currency: body.currency.toUpperCase(),
+		}
+		if (body.merchantInfraCard?.trim()) {
+			payload.merchantInfraCard = body.merchantInfraCard.trim()
 		}
 		if (body.sun) {
 			payload.e = body.sun.e

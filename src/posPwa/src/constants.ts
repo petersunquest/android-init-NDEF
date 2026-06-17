@@ -1,4 +1,9 @@
 export const BEAMIO_API = 'https://beamio.app'
+export const CONET_MAINNET_CHAIN_ID = 224422
+
+/** Default merchant UserCard EIP-712 chain (CoNET). */
+export const MERCHANT_USER_CARD_CHAIN_ID = CONET_MAINNET_CHAIN_ID
+
 export const CONET_RPC = 'https://publicrpc.conet.network'
 export const BASE_RPC = 'https://base-rpc.conet.network'
 export const ACCOUNT_REGISTRY = '0xfFDc8d2021A41F4638Cb3eCf58B5155383EE9f6d'
