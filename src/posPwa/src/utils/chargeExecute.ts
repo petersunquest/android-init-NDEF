@@ -490,6 +490,15 @@ function firstUsdcAmount6(items: Array<Record<string, unknown>>): number {
 	return 0
 }
 
+function qrChargePaymentErrorMessage(raw?: string): string {
+	const msg = (raw ?? '').trim()
+	if (!msg) return 'Payment failed'
+	if (/nonce|already used|refresh(?:ed)? pay qr|payment code was already used/i.test(msg)) {
+		return 'This Pay QR was already used. Ask the customer to refresh Pay QR, then scan the new code.'
+	}
+	return msg
+}
+
 /** iOS `handlePaymentQr` — dynamic Scan to Pay QR → `/api/AAtoEOA`. */
 export async function executeQrCharge(params: {
 	openContainerPayload: Record<string, unknown>
@@ -690,9 +699,10 @@ export async function executeQrCharge(params: {
 		chargeBill: bill,
 	})
 	if (!pay?.success) {
-		patch?.('sendTx', 'error', pay?.error ?? 'Payment failed')
+		const paymentError = qrChargePaymentErrorMessage(pay?.error)
+		patch?.('sendTx', 'error', paymentError)
 		patch?.('waitTx', 'error')
-		return { status: 'error', message: pay?.error ?? 'Payment failed' }
+		return { status: 'error', message: paymentError }
 	}
 	patch?.('sendTx', 'success', 'Sent')
 	patch?.('waitTx', 'success', 'Transaction complete')
