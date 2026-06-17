@@ -1,0 +1,37 @@
+# BaseScan: BeamioFactoryPaymasterV07 (CREATE2 AA Factory) @ 0xe58F457Cd5674516400013E8d338054be556A730
+
+## Regenerate Standard JSON
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+node scripts/exportBeamioStackBaseScanFormJson.mjs
+```
+
+Upload (BaseScan UI 推荐):
+  deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL-FORM.json
+
+Full build-info (备用):
+  deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL.json
+
+## Compiler
+
+- Version: v0.8.33+commit.64118f21
+- viaIR: true
+- optimizer.runs: 200
+- evmVersion: cancun
+
+## Contract name (exact)
+
+project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07
+
+If UI fails, try short name only:
+BeamioFactoryPaymasterV07
+
+## Constructor Args ABI-encoded:
+
+000000000000000000000000000000000000000000000000000000000000006400000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## Deploy note
+
+Nick CREATE2 @ predicted address; constructor only (chainConfig via initializeChainConfig)

@@ -1,47 +1,45 @@
 /**
- * 部署 CoNET GB 栈：ConetGB1155 → 更新 gbTotal / gbUserTotal 引用 → 部署二者。
+ * 部署 CoNET GB 栈：ConetGB1155 → ConetGB_total / ConetGB_userTotal。
  *
  * 运行: npx hardhat run scripts/deployConetGBStackToCoet.ts --network conet
  *
  * 环境变量（可选）:
- *   CONET_GB_START_TIME   uint64 秒，须整点对齐；默认当前 UTC 整点
- *   CONET_GB_START_HOUR_ID  默认 1
+ *   CONET_GB_START_TIME   uint64 秒，须整点对齐；默认 GB_START_TIME（见 gbDeployConstants.ts）
+ *   CONET_GB_START_HOUR_ID  默认 GB_START_HOUR_ID
  *   SKIP_GB_TOTAL=1 / SKIP_GB_USER_TOTAL=1  跳过子合约
+ *
+ * 跨链 CREATE2 同址部署见 PR-2: scripts/deployGBStackCreate2.ts
  */
 
-import { execSync } from "child_process";
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import {
+  GB_INITIAL_ADMIN,
+  GB_START_HOUR_ID,
+  GB_START_TIME,
+} from "./gbDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
 
-const GB_TOTAL_PATH = path.join(root, "src", "b-unit", "gbTotal.sol");
-const GB_USER_TOTAL_PATH = path.join(root, "src", "b-unit", "gbUserTotal.sol");
 const ADDR_JSON = path.join(root, "deployments", "conet-addresses.json");
 
-function hourAlignedStartTimeSec(): bigint {
+function resolveStartTimeSec(): bigint {
   const env = process.env.CONET_GB_START_TIME?.trim();
   if (env) {
     const n = BigInt(env);
     if (n % 3600n !== 0n) throw new Error("CONET_GB_START_TIME 须为整点对齐（% 3600 == 0）");
     return n;
   }
-  const now = Math.floor(Date.now() / 1000);
-  return BigInt(now - (now % 3600));
+  return GB_START_TIME;
 }
 
-function patchGbPointerInSol(filePath: string, gbAddr: string): void {
-  let c = fs.readFileSync(filePath, "utf-8");
-  const next = c.replace(
-    /ConetGB1155\(0x[a-fA-F0-9]{40}\)/,
-    `ConetGB1155(${gbAddr})`
-  );
-  if (next === c) throw new Error(`未找到 GB 地址占位: ${filePath}`);
-  fs.writeFileSync(filePath, next);
+function resolveStartHourId(): bigint {
+  const env = process.env.CONET_GB_START_HOUR_ID?.trim();
+  return env ? BigInt(env) : GB_START_HOUR_ID;
 }
 
 function mergeConetAddresses(patch: Record<string, string>): void {
@@ -67,13 +65,14 @@ async function main() {
   const net = await ethers.provider.getNetwork();
   if (net.chainId !== 224422n) throw new Error(`期望 chainId 224422，当前 ${net.chainId}`);
 
-  const startTime = hourAlignedStartTimeSec();
-  const startHourId = BigInt(process.env.CONET_GB_START_HOUR_ID?.trim() || "1");
+  const startTime = resolveStartTimeSec();
+  const startHourId = resolveStartHourId();
 
   console.log("=".repeat(60));
   console.log("Deploy ConetGB1155 + gbTotal + gbUserTotal on CoNET");
   console.log("=".repeat(60));
   console.log("deployer:", deployer.address);
+  console.log("initialAdmin:", GB_INITIAL_ADMIN);
   console.log(
     "balance:",
     ethers.formatEther(await ethers.provider.getBalance(deployer.address)),
@@ -83,7 +82,7 @@ async function main() {
   console.log("startHourId:", startHourId.toString());
 
   const GBFactory = await ethers.getContractFactory("ConetGB1155");
-  const gb = await GBFactory.deploy(startTime, startHourId);
+  const gb = await GBFactory.deploy(startTime, startHourId, GB_INITIAL_ADMIN);
   await gb.waitForDeployment();
   const gbAddr = await gb.getAddress();
   const gbTx = gb.deploymentTransaction()?.hash ?? "";
@@ -97,25 +96,19 @@ async function main() {
     source: "src/b-unit/GB.sol",
     address: gbAddr,
     deployer: deployer.address,
-    constructorArgs: [startTime.toString(), startHourId.toString()],
+    initialAdmin: GB_INITIAL_ADMIN,
+    constructorArgs: [startTime.toString(), startHourId.toString(), GB_INITIAL_ADMIN],
     timestamp: new Date().toISOString(),
     transactionHash: gbTx,
   });
   mergeConetAddresses({ ConetGB1155: gbAddr });
-
-  patchGbPointerInSol(GB_TOTAL_PATH, gbAddr);
-  patchGbPointerInSol(GB_USER_TOTAL_PATH, gbAddr);
-  console.log("\n已更新 gbTotal.sol / gbUserTotal.sol 内 ConetGB1155 地址");
-
-  console.log("\n重新 compile（嵌入新 GB 地址）…");
-  execSync("npm run compile", { cwd: root, stdio: "inherit" });
 
   let gbTotalAddr = "";
   let gbUserTotalAddr = "";
 
   if (process.env.SKIP_GB_TOTAL !== "1") {
     const TotalFactory = await ethers.getContractFactory("ConetGB_total");
-    const total = await TotalFactory.deploy();
+    const total = await TotalFactory.deploy(gbAddr);
     await total.waitForDeployment();
     gbTotalAddr = await total.getAddress();
     const tx = total.deploymentTransaction()?.hash ?? "";
@@ -129,7 +122,7 @@ async function main() {
       address: gbTotalAddr,
       conetgb: gbAddr,
       deployer: deployer.address,
-      constructorArgs: [],
+      constructorArgs: [gbAddr],
       timestamp: new Date().toISOString(),
       transactionHash: tx,
     });
@@ -138,7 +131,7 @@ async function main() {
 
   if (process.env.SKIP_GB_USER_TOTAL !== "1") {
     const UserTotalFactory = await ethers.getContractFactory("ConetGB_userTotal");
-    const userTotal = await UserTotalFactory.deploy();
+    const userTotal = await UserTotalFactory.deploy(gbAddr);
     await userTotal.waitForDeployment();
     gbUserTotalAddr = await userTotal.getAddress();
     const tx = userTotal.deploymentTransaction()?.hash ?? "";
@@ -152,7 +145,7 @@ async function main() {
       address: gbUserTotalAddr,
       conetgb: gbAddr,
       deployer: deployer.address,
-      constructorArgs: [],
+      constructorArgs: [gbAddr],
       timestamp: new Date().toISOString(),
       transactionHash: tx,
     });

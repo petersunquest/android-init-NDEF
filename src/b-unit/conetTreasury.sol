@@ -2,12 +2,12 @@
 pragma solidity ^0.8.20;
 
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
+import {FactoryERC20} from "./FactoryERC20.sol";
 
 /**
  * @title ConetTreasury
  * @dev 跨链去中心化国库（各链 Nick CREATE2 同址）。miner 2/3 投票后执行 mint/burn/airdrop。
- *      桥接目标：工厂 ERC20、BUnitAirdrop（B-Units）、ConetGB1155（GB）。
- *      对端链 txHash 作 proposal 键；miner 监听事件后在本链 vote* → execute*。
+ *      跨链 peer 桥（wCNET / BUint / GB / wrapped ERC20）见 ConetTreasuryPeer（CREATE2 同址）。
  */
 
 // --- 工厂创建的 ERC20 模板 ---
@@ -33,92 +33,8 @@ interface IConetGB1155 {
     function revokeTotalOnly(address from, uint256 amountGB18) external;
 }
 
-/// @dev Nick CREATE2 factory（各链同址），用于 FactoryERC20 包装币确定性部署
-interface INickCreate2 {
-    function deploy(bytes memory initCode, bytes32 salt) external returns (address);
-}
-
-contract FactoryERC20 {
-    string private _name;
-    string private _symbol;
-    uint8 private _decimals;
-    uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-    address public immutable minter;
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    constructor(string memory name_, string memory symbol_, uint8 decimals_, address minter_) {
-        _name = name_;
-        _symbol = symbol_;
-        _decimals = decimals_;
-        minter = minter_;
-    }
-
-    modifier onlyMinter() {
-        require(msg.sender == minter, "FactoryERC20: caller is not minter");
-        _;
-    }
-
-    function name() public view returns (string memory) { return _name; }
-    function symbol() public view returns (string memory) { return _symbol; }
-    function decimals() public view returns (uint8) { return _decimals; }
-    function totalSupply() public view returns (uint256) { return _totalSupply; }
-    function balanceOf(address account) public view returns (uint256) { return _balances[account]; }
-    function allowance(address owner, address spender) public view returns (uint256) { return _allowances[owner][spender]; }
-
-    function mint(address to, uint256 amount) external onlyMinter {
-        require(to != address(0), "FactoryERC20: mint to zero");
-        _totalSupply += amount;
-        _balances[to] += amount;
-        emit Transfer(address(0), to, amount);
-    }
-
-    function transfer(address to, uint256 value) public returns (bool) {
-        _transfer(msg.sender, to, value);
-        return true;
-    }
-
-    function approve(address spender, uint256 value) public returns (bool) {
-        _allowances[msg.sender][spender] = value;
-        emit Approval(msg.sender, spender, value);
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 value) public returns (bool) {
-        uint256 currentAllowance = _allowances[from][msg.sender];
-        require(currentAllowance >= value, "FactoryERC20: insufficient allowance");
-        unchecked { _allowances[from][msg.sender] = currentAllowance - value; }
-        _transfer(from, to, value);
-        return true;
-    }
-
-    function _transfer(address from, address to, uint256 value) internal {
-        require(from != address(0) && to != address(0), "FactoryERC20: zero address");
-        require(_balances[from] >= value, "FactoryERC20: insufficient balance");
-        unchecked {
-            _balances[from] -= value;
-            _balances[to] += value;
-        }
-        emit Transfer(from, to, value);
-    }
-
-    /// @dev 仅 minter 可调用，burn 指定账户的代币。调用前 account 需 approve minter。
-    function burnFrom(address account, uint256 amount) external onlyMinter {
-        uint256 currentAllowance = _allowances[account][msg.sender];
-        require(currentAllowance >= amount, "FactoryERC20: insufficient allowance");
-        unchecked { _allowances[account][msg.sender] = currentAllowance - amount; }
-        require(account != address(0), "FactoryERC20: burn from zero");
-        uint256 balance = _balances[account];
-        require(balance >= amount, "FactoryERC20: insufficient balance");
-        unchecked {
-            _balances[account] = balance - amount;
-            _totalSupply -= amount;
-        }
-        emit Transfer(account, address(0), amount);
-    }
+interface IConetTreasuryPeerView {
+    function buint() external view returns (address);
 }
 
 // --- 国库合约 ---
@@ -132,21 +48,9 @@ contract ConetTreasury {
     mapping(address => bool) private _isCreatedToken;
     /// @dev CoNET token => Base 链上对应 ERC20 地址（出金时 miner 在 BaseTreasury 转账用）
     mapping(address => address) private _baseTokenOf;
-    /// @dev 包装 token => 源链 chainId / 源链 ERC20（CREATE2 跨链映射）
+    /// @dev 包装 token => 源链 chainId / 源链 ERC20（Peer 模块登记后镜像，供 burn 路由）
     mapping(address => uint256) private _peerChainIdOf;
     mapping(address => address) private _peerTokenOf;
-
-    /// @dev 源链 (chainId, token) 元数据注册表（miner 登记后可 predict/deploy）
-    struct PeerTokenMeta {
-        string name;
-        string symbol;
-        uint8 decimals;
-        bool registered;
-    }
-    mapping(bytes32 => PeerTokenMeta) private _peerTokens;
-
-    /// @dev Nick CREATE2 factory（与 BUint/GB/Treasury 部署一致）
-    address private constant NICK_CREATE2_FACTORY = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     // --- 提案与投票：以 txHash 为键，仅支持 mint ---
     struct Proposal {
@@ -192,25 +96,7 @@ contract ConetTreasury {
     event GBRevokeProposalCreated(bytes32 indexed txHash, address from, uint256 amountGB18, address indexed firstVoter);
     event GBRevokeVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
     event GBRevokeExecuted(bytes32 indexed txHash, address from, uint256 amountGB18);
-    event PeerTokenRegistered(
-        uint256 indexed peerChainId,
-        address indexed peerToken,
-        string name,
-        string symbol,
-        uint8 decimals,
-        address predictedWrapped
-    );
-    event WrappedTokenDeployed(uint256 indexed peerChainId, address indexed peerToken, address indexed wrappedToken);
-    event PeerDepositProposalCreated(
-        bytes32 indexed depositTxHash,
-        uint256 peerChainId,
-        address peerToken,
-        address recipient,
-        uint256 amount,
-        address indexed firstVoter
-    );
-    event PeerDepositVoted(bytes32 indexed depositTxHash, address indexed miner, uint256 voteCount);
-    event PeerDepositExecuted(bytes32 indexed depositTxHash, address indexed wrappedToken, address recipient, uint256 amount);
+    event PeerModuleUpdated(address indexed oldPeer, address indexed newPeer);
 
     error NotMiner();
     error AlreadyVoted();
@@ -224,10 +110,8 @@ contract ConetTreasury {
     error InvalidSignature();
     error BUnitAirdropNotSet();
     error ConetGBNotSet();
-    error PeerTokenNotRegistered();
-    error WrappedDeployFailed();
-    error WrappedAddressMismatch();
 
+    address public peerModule;
     address public bunitAirdrop;
     address public conetGB;
 
@@ -297,18 +181,6 @@ contract ConetTreasury {
     }
     mapping(bytes32 => GBRevokeProposal) public gbRevokeProposals;
     mapping(bytes32 => mapping(address => bool)) public hasVotedGBRevoke;
-
-    /// @dev 跨链 deposit：源链 txHash → 本链 CREATE2 包装 ERC20 mint
-    struct PeerDepositProposal {
-        uint256 peerChainId;
-        address peerToken;
-        address recipient;
-        uint256 amount;
-        uint256 voteCount;
-        bool executed;
-    }
-    mapping(bytes32 => PeerDepositProposal) public peerDepositProposals;
-    mapping(bytes32 => mapping(address => bool)) public hasVotedPeerDeposit;
 
     /// @dev USDC 兑换 B-Unit 统计：经 miner 投票执行的 airdrop 累计 B-Unit 总量 (6 位精度)
     uint256 public totalUsdc2BUnit;
@@ -410,91 +282,30 @@ contract ConetTreasury {
     }
 
     // ==========================================
-    // 跨链包装 ERC20：CREATE2 按 (peerChainId, peerToken) 确定性部署
+    // ConetTreasuryPeer 链接（跨链桥在 Peer 模块；包装 ERC20 minter 仍为本合约）
     // ==========================================
 
-    function _peerKey(uint256 peerChainId, address peerToken) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(peerChainId, peerToken));
+    function setPeerModule(address _peer) external onlyMiner {
+        if (_peer == address(0)) revert InvalidTarget();
+        address old = peerModule;
+        peerModule = _peer;
+        emit PeerModuleUpdated(old, _peer);
     }
 
-    function _wrappedSalt(uint256 peerChainId, address peerToken) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked("beamio.wrapped.erc20.v1", peerChainId, peerToken));
+    function mintFactoryToken(address token, address to, uint256 amount) external {
+        if (msg.sender != peerModule) revert NotMiner();
+        IMintableERC20(token).mint(to, amount);
     }
 
-    function _factoryInitCode(string memory name_, string memory symbol_, uint8 decimals_)
-        internal
-        view
-        returns (bytes memory)
-    {
-        return abi.encodePacked(type(FactoryERC20).creationCode, abi.encode(name_, symbol_, decimals_, address(this)));
+    function burnFactoryFrom(address token, address account, uint256 amount) external {
+        if (msg.sender != peerModule) revert NotMiner();
+        IBurnableFactoryERC20(token).burnFrom(account, amount);
     }
 
-    function _computeWrappedAddress(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        uint256 peerChainId,
-        address peerToken
-    ) internal view returns (address) {
-        bytes memory initCode = _factoryInitCode(name_, symbol_, decimals_);
-        bytes32 salt = _wrappedSalt(peerChainId, peerToken);
-        bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), NICK_CREATE2_FACTORY, salt, keccak256(initCode)));
-        return address(uint160(uint256(hash)));
-    }
-
-    /**
-     * @dev Miner 登记源链 ERC20 元数据。登记后可 predictWrappedToken / deployWrappedToken。
-     *      包装合约地址由 (peerChainId, peerToken, name, symbol, decimals, Treasury 同址) 确定性推导。
-     */
-    function registerPeerToken(
-        uint256 peerChainId,
-        address peerToken,
-        string calldata name_,
-        string calldata symbol_,
-        uint8 decimals_
-    ) external onlyMiner returns (address predicted) {
-        if (peerToken == address(0)) revert InvalidTarget();
-        bytes32 key = _peerKey(peerChainId, peerToken);
-        PeerTokenMeta storage meta = _peerTokens[key];
-        meta.name = name_;
-        meta.symbol = symbol_;
-        meta.decimals = decimals_;
-        meta.registered = true;
-        predicted = _computeWrappedAddress(name_, symbol_, decimals_, peerChainId, peerToken);
-        emit PeerTokenRegistered(peerChainId, peerToken, name_, symbol_, decimals_, predicted);
-    }
-
-    function isPeerTokenRegistered(uint256 peerChainId, address peerToken) external view returns (bool) {
-        return _peerTokens[_peerKey(peerChainId, peerToken)].registered;
-    }
-
-    function getPeerTokenMeta(uint256 peerChainId, address peerToken)
-        external
-        view
-        returns (string memory name_, string memory symbol_, uint8 decimals_, bool registered)
-    {
-        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
-        return (meta.name, meta.symbol, meta.decimals, meta.registered);
-    }
-
-    function peerChainIdOf(address wrappedToken) external view returns (uint256) {
-        return _peerChainIdOf[wrappedToken];
-    }
-
-    function peerTokenOf(address wrappedToken) external view returns (address) {
-        return _peerTokenOf[wrappedToken];
-    }
-
-    /**
-     * @dev 预测 CREATE2 包装 ERC20 地址（须已 registerPeerToken）。
-     */
-    function predictWrappedToken(uint256 peerChainId, address peerToken) external view returns (address) {
-        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
-        if (!meta.registered) revert PeerTokenNotRegistered();
-        return _computeWrappedAddress(meta.name, meta.symbol, meta.decimals, peerChainId, peerToken);
-    }
-
-    function _trackWrappedToken(address wrapped, uint256 peerChainId, address peerToken) internal {
+    /// @dev Peer 部署包装 ERC20 后登记，供 factoryBurn / baseTokenOf 使用
+    function registerPeerWrappedToken(address wrapped, uint256 peerChainId, address peerToken) external {
+        if (msg.sender != peerModule) revert NotMiner();
+        if (wrapped == address(0)) revert InvalidTarget();
         if (!_isCreatedToken[wrapped]) {
             _createdTokens.push(wrapped);
             _isCreatedToken[wrapped] = true;
@@ -506,123 +317,12 @@ contract ConetTreasury {
         }
     }
 
-    function _ensureWrappedToken(uint256 peerChainId, address peerToken) internal returns (address wrapped) {
-        PeerTokenMeta storage meta = _peerTokens[_peerKey(peerChainId, peerToken)];
-        if (!meta.registered) revert PeerTokenNotRegistered();
-
-        wrapped = _computeWrappedAddress(meta.name, meta.symbol, meta.decimals, peerChainId, peerToken);
-        uint256 size;
-        assembly {
-            size := extcodesize(wrapped)
-        }
-        if (size > 0) {
-            _trackWrappedToken(wrapped, peerChainId, peerToken);
-            return wrapped;
-        }
-
-        bytes memory initCode = _factoryInitCode(meta.name, meta.symbol, meta.decimals);
-        bytes32 salt = _wrappedSalt(peerChainId, peerToken);
-        address deployed = INickCreate2(NICK_CREATE2_FACTORY).deploy(initCode, salt);
-        if (deployed != wrapped) revert WrappedAddressMismatch();
-
-        assembly {
-            size := extcodesize(wrapped)
-        }
-        if (size == 0) revert WrappedDeployFailed();
-
-        _trackWrappedToken(wrapped, peerChainId, peerToken);
-        emit WrappedTokenDeployed(peerChainId, peerToken, wrapped);
+    function peerChainIdOf(address wrappedToken) external view returns (uint256) {
+        return _peerChainIdOf[wrappedToken];
     }
 
-    /**
-     * @dev 部署（或返回已存在的）CREATE2 包装 ERC20。任何人可调用（地址确定性，无特权）。
-     */
-    function deployWrappedToken(uint256 peerChainId, address peerToken) external returns (address wrapped) {
-        return _ensureWrappedToken(peerChainId, peerToken);
-    }
-
-    /**
-     * @dev Miner 对源链 Treasury deposit 的 txHash 投票；2/3 通过后部署包装币（若未部署）并 mint。
-     *      源链须为 lock/deposit 模式（原生 ERC20 无需 burn）。
-     */
-    function voteMintFromPeerDeposit(
-        bytes32 depositTxHash,
-        uint256 peerChainId,
-        address peerToken,
-        address recipient,
-        uint256 amount
-    ) external onlyMiner {
-        if (hasVotedPeerDeposit[depositTxHash][msg.sender]) revert AlreadyVoted();
-        _applyPeerDepositVote(msg.sender, depositTxHash, peerChainId, peerToken, recipient, amount);
-    }
-
-    function executePeerDepositMint(bytes32 depositTxHash) external {
-        _executePeerDepositMint(depositTxHash);
-    }
-
-    function _applyPeerDepositVote(
-        address miner,
-        bytes32 depositTxHash,
-        uint256 peerChainId,
-        address peerToken,
-        address recipient,
-        uint256 amount
-    ) internal {
-        if (peerToken == address(0) || recipient == address(0)) revert InvalidTarget();
-        if (amount == 0) revert InvalidAmount();
-        if (!_peerTokens[_peerKey(peerChainId, peerToken)].registered) revert PeerTokenNotRegistered();
-
-        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
-        if (p.executed) revert ProposalAlreadyExecuted();
-
-        if (p.voteCount == 0) {
-            p.peerChainId = peerChainId;
-            p.peerToken = peerToken;
-            p.recipient = recipient;
-            p.amount = amount;
-            p.voteCount = 1;
-            emit PeerDepositProposalCreated(depositTxHash, peerChainId, peerToken, recipient, amount, miner);
-        } else {
-            if (
-                p.peerChainId != peerChainId || p.peerToken != peerToken || p.recipient != recipient || p.amount != amount
-            ) revert ProposalMismatch();
-            p.voteCount++;
-        }
-
-        hasVotedPeerDeposit[depositTxHash][miner] = true;
-        emit PeerDepositVoted(depositTxHash, miner, p.voteCount);
-
-        if (p.voteCount >= requiredVotes()) {
-            _executePeerDepositMint(depositTxHash);
-        }
-    }
-
-    function _executePeerDepositMint(bytes32 depositTxHash) internal {
-        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
-        if (p.executed) revert ProposalAlreadyExecuted();
-        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
-
-        address wrapped = _ensureWrappedToken(p.peerChainId, p.peerToken);
-        p.executed = true;
-        IMintableERC20(wrapped).mint(p.recipient, p.amount);
-        emit PeerDepositExecuted(depositTxHash, wrapped, p.recipient, p.amount);
-        emit MintExecuted(wrapped, p.recipient, p.amount);
-    }
-
-    function getPeerDepositProposal(bytes32 depositTxHash)
-        external
-        view
-        returns (
-            uint256 peerChainId,
-            address peerToken,
-            address recipient,
-            uint256 amount,
-            uint256 voteCount,
-            bool executed
-        )
-    {
-        PeerDepositProposal storage p = peerDepositProposals[depositTxHash];
-        return (p.peerChainId, p.peerToken, p.recipient, p.amount, p.voteCount, p.executed);
+    function peerTokenOf(address wrappedToken) external view returns (address) {
+        return _peerTokenOf[wrappedToken];
     }
 
     /**
@@ -646,8 +346,16 @@ contract ConetTreasury {
     /**
      * @dev 跨链桥已配置目标一览（各链 post-deploy 写入；CREATE2 同址后地址一致）。
      */
-    function getBridgeTargets() external view returns (address airdrop, address gb, uint256 factoryTokenCount) {
-        return (bunitAirdrop, conetGB, _createdTokens.length);
+    function getBridgeTargets()
+        external
+        view
+        returns (address airdrop, address gb, address bUnit, uint256 factoryTokenCount)
+    {
+        address bu = address(0);
+        if (peerModule != address(0)) {
+            bu = IConetTreasuryPeerView(peerModule).buint();
+        }
+        return (bunitAirdrop, conetGB, bu, _createdTokens.length);
     }
 
     /**

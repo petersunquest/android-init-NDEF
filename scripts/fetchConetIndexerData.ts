@@ -35,6 +35,7 @@ const TX_CATEGORY_LABELS: Record<string, string> = {
   [ethers.keccak256(ethers.toUtf8Bytes("buintClaim"))]: "buintClaim",
   [ethers.keccak256(ethers.toUtf8Bytes("buintUSDC"))]: "buintUSDC",
   [ethers.keccak256(ethers.toUtf8Bytes("buintBurn"))]: "buintBurn",
+  [ethers.keccak256(ethers.toUtf8Bytes("gift:confirmed"))]: "gift:confirmed",
 };
 
 function txCategoryLabel(cat: string): string {

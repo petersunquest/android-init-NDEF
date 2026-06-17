@@ -8,10 +8,27 @@
 - Explorer: [https://basescan.org/](https://basescan.org/)
 - Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 
-### Base Reused Existing Dependencies
+### Cross-Chain CREATE2 Oracle Stack (2026-06)
 
-- `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
+Nick CREATE2 同址（Base `8453` + CoNET `224422`）：
+
+| 合约 | 地址 |
+|---|---|
+| **BeamioOracle** | `0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008` |
+| **BeamioQuoteHelperV07** | `0xD3f275774831810006d744d32E6b024507C0d374` |
+
+- Owner：`0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
+- 部署：`npx hardhat run scripts/deployBeamioOracleStackCreate2.ts --network base|conet`
+- 预测：`npx hardhat run scripts/predictBeamioOracleCreate2.ts`
+- Meta：`deployments/beamioOracle-create2-meta.json`
+- 引用同步：`npx tsx scripts/updateOracleStackReferences.ts`
+
+**Legacy Base Oracle（已弃用，勿新接入）：** `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
+
+### Base Reused Existing Dependencies (legacy note)
+
+- `BeamioOracle` (legacy): `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
+- `BeamioQuoteHelperV07` (legacy AA Factory): `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `BeamioQuoteHelperV07` used by current `Card Factory`: `0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 

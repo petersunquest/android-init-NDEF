@@ -84,7 +84,7 @@ export default defineConfig({
     conet: {
       type: "http",
       chainType: "l1",
-      url: process.env.CONET_RPC_URL || "https://rpc1.conet.network",
+      url: process.env.CONET_RPC_URL || "https://publicrpc.conet.network",
       accounts: getConetAccounts(),
       chainId: 224422
     },
@@ -128,13 +128,13 @@ export default defineConfig({
       blockExplorers: {
         etherscan: {
           name: "CoNET Explorer",
-          url: "https://mainnet.conet.network",
-          apiUrl: "https://mainnet.conet.network/api",
+          url: "https://scan.conet.network",
+          apiUrl: "https://scan.conet.network/api",
         },
         blockscout: {
           name: "CoNET Explorer",
-          url: "https://mainnet.conet.network",
-          apiUrl: "https://mainnet.conet.network/api",
+          url: "https://scan.conet.network",
+          apiUrl: "https://scan.conet.network/api",
         },
       },
     },

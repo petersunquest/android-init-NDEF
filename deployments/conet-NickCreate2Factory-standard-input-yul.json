@@ -1,0 +1,16 @@
+{
+  "language": "Yul",
+  "sources": {
+    "deterministic-deployment-proxy.yul": {
+      "content": "object \"Proxy\" {\n    code {\n        let size := datasize(\"runtime\")\n        datacopy(0, dataoffset(\"runtime\"), size)\n        return(0, size)\n    }\n    object \"runtime\" {\n        code {\n            calldatacopy(0, 32, sub(calldatasize(), 32))\n            let result := create2(callvalue(), 0, sub(calldatasize(), 32), calldataload(0))\n            if iszero(result) { revert(0, 0) }\n            mstore(0, result)\n            return(12, 20)\n        }\n    }\n}\n"
+    }
+  },
+  "settings": {
+    "outputSelection": {
+      "*": {
+        "": ["ast"],
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"]
+      }
+    }
+  }
+}

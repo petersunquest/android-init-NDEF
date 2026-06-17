@@ -1,6 +1,69 @@
 # BeamioAccount Deployment Notes
 
-## Base Mainnet Deployment
+## Cross-chain same address (Nick CREATE2)
+
+**Factory + per-EOA AA addresses are identical on Base (8453) and CoNET (224422)** when deployed via Nick CREATE2 with fixed initCode.
+
+| Contract | CREATE2 salt | Predicted (current bytecode) |
+|---|---|---|
+| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | [`0xe58F457Cd5674516400013E8d338054be556A730`](https://basescan.org/address/0xe58F457Cd5674516400013E8d338054be556A730) |
+| **BeamioAccount** (per EOA, index=0) | `keccak256(abi.encode(creator, index))` | Nick factory + `BeamioAccount` initCode(`EntryPoint v0.7`) |
+
+**Same address ≠ shared state.** Container nonce, ERC1155 balances, and registry counters remain **per chain**.
+
+### Constructor / post-deploy (per chain)
+
+**Factory constructor** (chain-independent initCode):
+
+```solidity
+constructor(uint256 initialAccountLimit, address admin_)
+// default: accountLimit=100, admin=0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+```
+
+**One-time chain wiring** (admin):
+
+```solidity
+initializeChainConfig(module_, quoteHelper_, userCard_, usdc_)
+```
+
+Module / QuoteHelper / default UserCard / USDC stay **per-chain**; only Factory + AA CREATE2 addresses are cross-chain constant.
+
+### Deploy workflow
+
+```bash
+npm run clean && npm run compile
+npx hardhat run scripts/predictBeamioAAStackCreate2.ts
+
+# Nick deploy Factory (Base + CoNET; same predicted address)
+npx hardhat run scripts/deployBeamioAAFactoryCreate2.ts --network base
+npx hardhat run scripts/deployBeamioAAFactoryCreate2.ts --network conet
+
+# Per-chain initializeChainConfig (+ optional Card Factory setAAFactory)
+npx hardhat run scripts/configureBeamioAAFactoryOnChain.ts --network base
+npx hardhat run scripts/configureBeamioAAFactoryOnChain.ts --network conet
+
+# Card Factory owner: point _aaFactory to cross-chain Factory
+CARD_FACTORY_OWNER_PK=0x... npx hardhat run scripts/setCardFactoryAAFactory.ts --network base
+```
+
+Constants: `scripts/aaDeployConstants.ts`  
+Meta: `deployments/beamioAAFactory-create2-meta.json`
+
+### Application constants
+
+- **Canonical:** `BEAMIO_AA_FACTORY` = `0xe58F457Cd5674516400013E8d338054be556A730` (x402sdk / clients)
+- **Deprecated:** `BeamioAccountDeployer` per-chain addresses — AA creation uses Nick CREATE2 in Factory
+
+After Solidity changes: re-run predict, redeploy **all** chains, sync artifacts:
+
+```bash
+node scripts/syncBeamioAccountToX402sdk.mjs
+cd src/x402sdk && npm run build
+```
+
+---
+
+## Base Mainnet Deployment (legacy reference)
 
 - Network: `base`
 - Chain ID: `8453`
@@ -11,58 +74,27 @@
 ### Base Reused Existing Dependencies
 
 - `BeamioOracle`: `0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B`
-- `BeamioQuoteHelperV07` used by current `AA Factory`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
+- `BeamioQuoteHelperV07` (configure script default): `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
 - `Base USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 - `EntryPoint v0.7`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
 
-### Base Current Active Contracts
+### Legacy Factory (pre–cross-chain redesign)
 
-From `config/base-addresses.ts` and on-chain reads:
+- Old `BeamioFactoryPaymasterV07`: `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122` (per-chain deployer model)
+- Old `BeamioAccountDeployer` (Base): `0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`
 
-- Current `BeamioFactoryPaymasterV07`: [`0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`](https://basescan.org/address/0x4b31D6a05Cdc817CAc1B06369555b37a5b182122)
-- Current `BeamioFactoryPaymasterV07.beamioUserCard()`: [`0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`](https://basescan.org/address/0xBCcfA50d2a5917C7A8662177F5F4B7A175787270)
+Historical combined deployment: `deployments/base-FullAccountAndUserCard.json`
 
-### Base Historical Combined Deployment Record
-
-From `deployments/base-FullAccountAndUserCard.json` (`2026-02-13T23:36:00.000Z`):
-
-- `BeamioAccountDeployer`: [`0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`](https://basescan.org/address/0xC51858BcF81D0Ce05D51fAd080fCF034B187E753)
-- `BeamioAccount`: [`0x7FA89BEf84D5047AD9883d6f4A53dE7A0D2815f2`](https://basescan.org/address/0x7FA89BEf84D5047AD9883d6f4A53dE7A0D2815f2)
-- `BeamioContainerModuleV07`: [`0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8`](https://basescan.org/address/0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8)
-- `BeamioUserCardPlaceholder`: [`0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`](https://basescan.org/address/0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D)
-- Current `BeamioFactoryPaymasterV07`: [`0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`](https://basescan.org/address/0x4b31D6a05Cdc817CAc1B06369555b37a5b182122)
-
-For reference, an earlier base account-only deployment also exists in `deployments/base-FullSystem.json` (`2026-02-05T08:45:14.576Z`):
-
-- Earlier `BeamioAccountDeployer`: [`0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87`](https://basescan.org/address/0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87)
-- Earlier `BeamioAccount`: [`0x0e640C7af0b8D69551dd6f9F362C21942d381802`](https://basescan.org/address/0x0e640C7af0b8D69551dd6f9F362C21942d381802)
-
-### Base AA Factory On-Chain Registered References
-
-Current on-chain values inside `BeamioFactoryPaymasterV07`:
+### Base post-deploy defaults (`configureBeamioAAFactoryOnChain.ts`)
 
 - `containerModule`: `0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8`
 - `quoteHelper`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
-- `beamioUserCard`: `0xBCcfA50d2a5917C7A8662177F5F4B7A175787270`
-- `deployer`: `0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`
+- `beamioUserCard`: from `config/base-addresses.json` `BEAMIO_USER_CARD_ASSET_ADDRESS`
 - `USDC`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
-### Base BeamioFactoryPaymasterV07 Constructor Record
+### BeamioAccount initCode
 
-Using the current active factory address `0x4b31D6a05Cdc817CAc1B06369555b37a5b182122`, the recorded constructor dependencies from the combined deployment are:
-
-- `initialAccountLimit`: `100`
-- `deployer_`: `0xC51858BcF81D0Ce05D51fAd080fCF034B187E753`
-- `module_`: `0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8`
-- `quoteHelper_`: `0xfa30c2086ff9a3D74576d55c2027586797A52F29`
-- `userCard_`: `0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D`
-- `usdc_`: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
-
-### Base BeamioAccount Constructor Record
-
-From the deployed account artifacts:
-
-- `entryPoint_`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
+- `entryPoint_`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032` only (cross-chain constant)
 
 ## CoNET Mainnet Deployment
 
@@ -70,75 +102,31 @@ From the deployed account artifacts:
 - Chain ID: `224422`
 - RPC: `https://rpc1.conet.network`
 - Explorer: [https://mainnet.conet.network/](https://mainnet.conet.network/)
-- Deployment time: `2026-03-12`
-- Deployer: `0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
 
-## Reused Existing Dependencies
+### CoNET post-deploy defaults (`configureBeamioAAFactoryOnChain.ts`)
 
-- `BeamioOracle`: `0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
-- `BeamioQuoteHelperV07`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
-- `conetUsdc`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
-- `EntryPoint v0.7`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
+From `deployments/conet-addresses.json`:
 
-## Deployed Contracts
+- `beamioContainerModule`: `0xC0bd357A12100C47FB19E1a489B4375F44D63b8F`
+- `beamioQuoteHelperV07`: `0x052e34ed096875D0F1ce58eEFb88Ed676Fd1305f`
+- `BEAMIO_USER_CARD_DEFAULT`: `0x5237e3A10e26bE616A02b49cbDf38d413d4d847F`
+- `conetUsdc`: `0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa`
 
-- `BeamioAccountDeployer`: [`0x466691E5499834c8695b37A4C868cEe79Ebc5526`](https://mainnet.conet.network/address/0x466691E5499834c8695b37A4C868cEe79Ebc5526)
-- `BeamioAccount`: [`0x720e7abcD51D0A0f1f8488574c7868B9600d24e0`](https://mainnet.conet.network/address/0x720e7abcD51D0A0f1f8488574c7868B9600d24e0)
-- `BeamioContainerModuleV07`: [`0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD`](https://mainnet.conet.network/address/0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD)
-- `BeamioFactoryPaymasterV07`: [`0x16B868162963C6E540d4F2fdC8BE503c19fe6E71`](https://mainnet.conet.network/address/0x16B868162963C6E540d4F2fdC8BE503c19fe6E71)
+Legacy per-chain AA Factory: `0x0c916C09393898D87854f340e467846cc2EAc83E` (replaced by cross-chain `BEAMIO_AA_FACTORY`).
 
-## BeamioFactoryPaymasterV07 Constructor Arguments
+## BaseScan verification
 
-- `initialAccountLimit`: `100`
-- `deployer_`: `0x466691E5499834c8695b37A4C868cEe79Ebc5526`
-- `module_`: `0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD`
-- `quoteHelper_`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
-- `userCard_`: `0x0026e5ea3000f2c030f730b13C12f774A1939e1D`
-- `usdc_`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+# Prefer pruned FORM JSON if UI times out (see beamio-base-basescan-verify.mdc)
+```
 
-## On-Chain Registered References
+Constructor args (ABI-encoded):
 
-The following values are already registered on-chain inside `BeamioFactoryPaymasterV07`:
+```
+(uint256 initialAccountLimit, address admin_)
+= (100, 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1)
+```
 
-- `containerModule`: `0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD`
-- `quoteHelper`: `0x2c700841f61373FB4eDBD6710ab075c84051731d`
-- `beamioUserCard`: `0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e`
-- `deployer`: `0x466691E5499834c8695b37A4C868cEe79Ebc5526`
-- `USDC`: `0x28fBBb6C5C06A4736B00A540b66378091c224456`
-
-## BeamioAccount Constructor Arguments
-
-- `entryPoint_`: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
-
-## Notes
-
-- `BeamioFactoryPaymasterV07` was first deployed against `BeamioUserCardPlaceholder`.
-- After the live `BeamioUserCard` was deployed, `BeamioFactoryPaymasterV07.setUserCard(0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e)` was executed, so the AA system now points at the live card contract instead of the placeholder.
-- `BeamioAccountDeployer` and all newly deployed account-side contracts were verified on CoNET Explorer.
-- Deployment records are stored in `deployments/conet-FullAccountAndUserCard.json`.
-
-## How To Recheck On-Chain Configuration
-
-- Check `BeamioFactoryPaymasterV07` on-chain getters:
-  - `containerModule()`
-  - `quoteHelper()`
-  - `beamioUserCard()`
-  - `deployer()`
-  - `USDC()`
-- Confirm `beamioUserCard()` now points to the live card `0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e`, not the placeholder.
-- Check `BeamioAccount.entryPoint()` and confirm it equals `0x0000000071727De22E5E9d8BAf0edAc6f37da032`.
-- Confirm all account-side contracts show verified source code on [CoNET Explorer](https://mainnet.conet.network/).
-
-## How To Redeploy Or Reverify
-
-- Reuse the current CoNET dependencies:
-  - `EXISTING_ORACLE_ADDRESS=0x32aa4fC3D3506850b27F767Bf582f4ec449de224`
-  - `EXISTING_QUOTE_HELPER_ADDRESS=0x2c700841f61373FB4eDBD6710ab075c84051731d`
-  - `USDC_ADDRESS=0x28fBBb6C5C06A4736B00A540b66378091c224456`
-- Redeploy the combined account + usercard stack with:
-  - `npx hardhat run scripts/deployFullAccountAndUserCard.ts --network conet`
-- If only account-side contracts need redeploy, make sure the new `BeamioFactoryPaymasterV07` still points at:
-  - the correct `BeamioContainerModuleV07`
-  - the correct `BeamioQuoteHelperV07`
-  - the intended `BeamioUserCard` or placeholder during staged deployment
-- For CoNET Explorer verification, prefer the minimal `standard-input` API flow when plain `hardhat verify` falls back to oversized payloads.
+Contract name: `project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07`

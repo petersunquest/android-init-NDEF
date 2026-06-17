@@ -11,6 +11,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import type { TerminalProfile } from '@/types/pos'
 import { BeamioCapsuleCompact } from '@/components/BeamioCapsule'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosSession } from '@/providers/PosSessionProvider'
@@ -20,8 +21,6 @@ import { pickHomeAdminCapsuleProfile } from '@/utils/posHomeAdminProfile'
 import {
 	formatBUnitDisplay,
 	formatDashboardCurrency,
-	profileBeamioTag,
-	walletShortLine,
 } from '@/utils/display'
 
 const BRAND_BLUE = '#1562f0'
@@ -65,6 +64,7 @@ export function HomePage() {
 		adminProfile,
 		parentProfile,
 		parentBeamioTag,
+		programCardBusinessName,
 		registeredBeamioTag,
 		walletAddress,
 		currency,
@@ -100,31 +100,35 @@ export function HomePage() {
 	const subtotalDue =
 		chargeAmount != null ? Math.max(0, chargeAmount - (tipsAmount ?? 0)) : null
 
-	const headerLine = (() => {
-		const tag = profileBeamioTag(terminalProfile ?? {}) || registeredBeamioTag
-		if (tag) return `@${tag}`
-		if (walletAddress) return walletShortLine(walletAddress)
-		return 'Terminal'
-	})()
-
 	const homeAdminCapsule = pickHomeAdminCapsuleProfile(
 		adminProfile,
 		parentProfile,
 		parentBeamioTag,
 	)
 
+	const posSelfProfile: TerminalProfile =
+		terminalProfile ??
+		(registeredBeamioTag
+			? {
+					accountName: registeredBeamioTag,
+					username: registeredBeamioTag,
+					address: walletAddress ?? undefined,
+				}
+			: { address: walletAddress ?? undefined })
+
 	return (
 		<PosScreenShell>
 			<PosScreenHeader className="border-b border-slate-200/60 bg-white/95 px-5 pb-3">
 				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-blue text-sm font-black text-white">
-						P
-					</div>
 					<div className="min-w-0 flex-1">
-						<p className="truncate text-[15px] font-semibold text-slate-500">{headerLine}</p>
+						<BeamioCapsuleCompact profile={posSelfProfile} showSubtitle={false} />
 					</div>
 					{homeAdminCapsule ? (
-						<BeamioCapsuleCompact profile={homeAdminCapsule} />
+						<BeamioCapsuleCompact
+							profile={homeAdminCapsule}
+							primaryTitle={programCardBusinessName}
+							showSubtitle={false}
+						/>
 					) : null}
 				</div>
 			</PosScreenHeader>

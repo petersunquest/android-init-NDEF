@@ -132,7 +132,7 @@ async function main() {
   const blob = new Blob([json], { type: "application/json" });
   const form = new FormData();
   form.set("compiler_version", compilerVersion);
-  form.set("contract_name", "AddressPGP");
+  form.set("contract_name", "project/src/mainnet/AddressPGP.sol:AddressPGP");
   form.set("autodetect_constructor_args", "true");
   form.set("constructor_args", "");
   form.set("license_type", "mit");

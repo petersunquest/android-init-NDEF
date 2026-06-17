@@ -27,11 +27,15 @@
  *   npx tsx scripts/topupCoNETDLAdminEth.ts
  *   # 一次性给所有相关钱包各打 1 ETH（不看余额）：
  *   FORCE_TOPUP=1 TOPUP_ETH=1 npx tsx scripts/topupCoNETDLAdminEth.ts
+ *   # 仅 initManager 各 1 ETH（publicrpc）：
+ *   NEW_RPC=https://publicrpc.conet.network TOPUP_SOURCES=initManager TOPUP_ETH=1 FORCE_TOPUP=1 \
+ *     npx tsx scripts/topupCoNETDLAdminEth.ts
  *
  * 环境变量:
  *   MIN_BALANCE_ETH — 低于此值视为不足（默认 5）
  *   TOPUP_ETH — 每笔转账数量（默认 5）
  *   FORCE_TOPUP — 1/true 时跳过阈值，无条件给所有地址各转 TOPUP_ETH
+ *   TOPUP_SOURCES — 逗号分隔，仅处理这些 bucket（如 initManager）；默认全部
  *   MASTER_JSON / DEPLOYMENT_JSON / NEW_RPC — 与 addCoNETDLRouterAdminsToAddressPGP.ts 相同
  */
 
@@ -54,6 +58,10 @@ const SLEEP_MS = Number(process.env.SLEEP_MS || "2000");
 const MIN_BALANCE_ETH = process.env.MIN_BALANCE_ETH || "5";
 const TOPUP_ETH = process.env.TOPUP_ETH || "5";
 const FORCE_TOPUP = process.env.FORCE_TOPUP === "1" || process.env.FORCE_TOPUP === "true";
+const TOPUP_SOURCES = (process.env.TOPUP_SOURCES || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 type MasterJson = {
   initManager?: string[];
@@ -120,6 +128,7 @@ type ManagerEntry = { source: string; address: string };
 function loadCoNETDLManagerAddresses(): ManagerEntry[] {
   if (!fs.existsSync(MASTER_JSON)) throw new Error(`未找到 ${MASTER_JSON}`);
   const raw = JSON.parse(fs.readFileSync(MASTER_JSON, "utf-8")) as MasterJson;
+  const sourceFilter = TOPUP_SOURCES.length ? new Set(TOPUP_SOURCES) : null;
 
   const buckets: { source: string; pks: string[] }[] = [
     { source: "initManager", pks: Array.isArray(raw.initManager) ? raw.initManager : [] },
@@ -142,6 +151,7 @@ function loadCoNETDLManagerAddresses(): ManagerEntry[] {
 
   const seen = new Map<string, ManagerEntry>();
   for (const { source, pks } of buckets) {
+    if (sourceFilter && !sourceFilter.has(source)) continue;
     for (const pk of pks) {
       if (!pk || typeof pk !== "string") continue;
       try {
@@ -185,6 +195,7 @@ async function main() {
   console.log("不足阈值: <", MIN_BALANCE_ETH, "ETH");
   console.log("单笔转账:", TOPUP_ETH, "ETH");
   console.log("FORCE_TOPUP:", FORCE_TOPUP);
+  console.log("TOPUP_SOURCES:", TOPUP_SOURCES.length ? TOPUP_SOURCES.join(", ") : "(all)");
   console.log("DRY_RUN:", DRY_RUN);
   console.log();
 

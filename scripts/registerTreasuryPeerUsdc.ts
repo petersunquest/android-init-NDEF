@@ -26,12 +26,9 @@ function resolveTreasuryAddress(): string {
     const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
     if (meta.predictedAddress) return meta.predictedAddress;
   }
-  const legacy = path.join(__dirname, "..", "deployments", "conet-ConetTreasury.json");
-  if (fs.existsSync(legacy)) {
-    const d = JSON.parse(fs.readFileSync(legacy, "utf-8"));
-    if (d?.contracts?.ConetTreasury?.address) return d.contracts.ConetTreasury.address;
-  }
-  throw new Error("未找到 ConetTreasury 地址");
+  throw new Error(
+    "未找到 ConetTreasury CREATE2 地址；先 deployConetTreasuryCreate2.ts 或设置 CONET_TREASURY"
+  );
 }
 
 async function main() {

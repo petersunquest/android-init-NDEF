@@ -18,6 +18,7 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { concat } from "ethers";
 import {
   CONET_TREASURY_CREATE2_SALT,
   CONET_TREASURY_INITIAL_MINER,
@@ -27,9 +28,10 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const NICK_FACTORY_ABI = [
-  "function deploy(bytes initCode, bytes32 salt) external returns (address)",
-] as const;
+/** Nick deterministic deployment proxy：tx.data = salt (32 bytes) || initCode */
+function nickCreate2DeployCalldata(salt: string, initCode: string): string {
+  return concat([salt, initCode]);
+}
 
 async function main() {
   const { ethers } = await networkModule.connect();
@@ -85,6 +87,9 @@ async function main() {
         "需先部署 Nick factory 或设置 CONET_TREASURY_CREATE2_FACTORY。"
     );
   }
+  if (factoryCode.length < 200) {
+    console.log("Nick proxy runtime bytes:", (factoryCode.length - 2) / 2);
+  }
 
   if (dryRun) {
     console.log("\nDRY_RUN=1，不发 deploy 交易");
@@ -92,8 +97,14 @@ async function main() {
     return;
   }
 
-  const nick = new ethers.Contract(factoryAddress, NICK_FACTORY_ABI, deployer);
-  const tx = await nick.deploy(initCode, CONET_TREASURY_CREATE2_SALT);
+  const deployData = nickCreate2DeployCalldata(CONET_TREASURY_CREATE2_SALT, initCode);
+  let gasLimit = 15_000_000n;
+  try {
+    gasLimit = (await deployer.estimateGas({ to: factoryAddress, data: deployData })) * 120n / 100n;
+  } catch {
+    console.warn("estimateGas 失败，使用 gasLimit=15000000");
+  }
+  const tx = await deployer.sendTransaction({ to: factoryAddress, data: deployData, gasLimit });
   console.log("\ndeploy tx:", tx.hash);
   const receipt = await tx.wait();
   console.log("mined block:", receipt?.blockNumber);

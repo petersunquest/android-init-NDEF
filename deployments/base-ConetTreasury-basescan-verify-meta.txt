@@ -1,0 +1,31 @@
+Contract Name: project/src/b-unit/conetTreasury.sol:ConetTreasury
+Address: 0xc6e615431BC0c0c65E09e04877a08AC927A30242
+Constructor Args ABI-encoded: 0x00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+Standard JSON: deployments/base-ConetTreasury-standard-input-FULL.json (1.44 MB — build-info FULL，与 BeamioUserCard 同款)
+Network: base (chainId 8453)
+Generated: 2026-06-15T19:37:17.713Z
+Compiler: v0.8.33+commit.64118f21
+Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
+
+Regenerate (与 BeamioUserCard 相同流程):
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasury --full
+  或: node scripts/exportConetTreasuryStackStandardJson.mjs
+
+BaseScan UI（无需 API key，自动匹配，与 BeamioUserCard 同款流程）:
+  1) Solidity (Standard-Json-Input)
+  2) Compiler v0.8.33+commit.64118f21
+  3) Upload base-ConetTreasury-standard-input-FULL.json（须 ~1.45 MB，已归一化）
+  4) Constructor Arguments (no 0x):
+     00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+  5) 提交即可；BaseScan 会自动匹配 JSON 中与链上 runtime 一致的合约（ConetTreasury）。
+
+关键修复（2026-06-15）:
+  - 之前 JSON 含 Hardhat 3 的 `npm/@openzeppelin/contracts@5.4.0/...` source key
+    + `project/:@openzeppelin/contracts/=npm/...` 上下文 remapping，BaseScan 解析失败
+    → 报 "Compiled Contract Bytecode for ''"。
+  - 现已归一化为 `@openzeppelin/contracts/...` key + remappings:[]（与 BeamioUserCard 一致）。
+  - 本地 solc 实测: 0 错误, initCodeHash 0xe38bb595…47ba0 与链上一致。
+
+禁止: settings.compilationTarget（BaseScan Unknown key）；勿用未 --full 的子集；
+      勿上传含 npm/…@version/ key + 上下文 remapping 的未归一化 JSON。

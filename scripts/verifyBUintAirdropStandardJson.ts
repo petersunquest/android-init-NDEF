@@ -10,6 +10,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const BASE_URL = "https://mainnet.conet.network";
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";
 
-// BUint 无依赖，仅需自身
+// BUint 无依赖，仅需自身；constructor(initialAdmin)
 const BUINT_SOURCES = ["project/src/b-unit/BUint.sol"];
 
 // BUnitAirdrop：使用 build-info 中所有 b-unit 与 contracts 源（确保 bytecode 完全匹配）
@@ -126,7 +127,17 @@ async function main() {
   // 1. 验证 BeamioBUnits (--airdrop-only 时跳过)
   if (!airdropOnly) {
     console.log("\n[1] 验证 BeamioBUnits...");
-    const r1 = await verifyViaStandardJson(buintAddr, "project/src/b-unit/BUint.sol:BeamioBUnits", BUINT_SOURCES, fullInput, "");
+    const { AbiCoder } = await import("ethers");
+    const coder = AbiCoder.defaultAbiCoder();
+    const buintCtorHex = coder.encode(["address"], [BUINT_INITIAL_ADMIN]);
+    const buintCtorArgs = buintCtorHex.startsWith("0x") ? buintCtorHex.slice(2) : buintCtorHex;
+    const r1 = await verifyViaStandardJson(
+      buintAddr,
+      "project/src/b-unit/BUint.sol:BeamioBUnits",
+      BUINT_SOURCES,
+      fullInput,
+      buintCtorArgs
+    );
     if (r1.ok) {
       console.log("  ✅ BeamioBUnits 验证成功");
     } else {

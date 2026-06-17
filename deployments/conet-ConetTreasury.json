@@ -1,14 +1,14 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-05-25T06:15:57.073Z",
+  "deployedAt": "2026-06-14T00:00:00.000Z",
   "contracts": {
     "ConetTreasury": {
-      "address": "0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1",
-      "minerCount": "1",
-      "conetUsdc": "0x34e437431cF8888261041C99e1D39DaA4526DeB9",
-      "bUnitAirdrop": "0x67d01e0E9c859A89def4098aC7803f04BF0d77af"
+      "address": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
+      "conetUsdc": "0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa"
+    },
+    "ConetTreasuryPeer": {
+      "address": "0xCF26c1686aC5E01e37B72017E575511C42cad29f"
     }
   }
 }

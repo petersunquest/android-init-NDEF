@@ -1,7 +1,7 @@
 /**
  * 部署 BUint + BUnitAirdrop 到 CoNET mainnet，并完成权限配置
  *
- * 1. 部署 BUint（initialOwner = settle_contractAdmin[0]）
+ * 1. 部署 BUint（initialAdmin = BUINT_INITIAL_ADMIN，见 bunitDeployConstants.ts）
  * 2. 部署 BUnitAirdrop（initialOwner = settle_contractAdmin[0]）
  * 3. BUint.addAdmin(airdropAddress)
  * 4. BUnitAirdrop.addAdmin(settle_contractAdmin[i]) 对每个 settle_contractAdmin 地址
@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +52,7 @@ async function main() {
   console.log("Deploy BUint + BUnitAirdrop on CoNET mainnet");
   console.log("=".repeat(60));
   console.log("deployer:", deployer.address);
+  console.log("BUint initialAdmin:", BUINT_INITIAL_ADMIN);
   console.log("settle_contractAdmin 数量:", settleAddresses.length);
   console.log("chainId:", net.chainId.toString());
   const balance = await ethers.provider.getBalance(deployer.address);
@@ -58,10 +60,23 @@ async function main() {
 
   // 1. Deploy BeamioBUnits (BUint)
   const BUintFactory = await ethers.getContractFactory("BeamioBUnits");
-  const buint = await BUintFactory.deploy();
+  const buint = await BUintFactory.deploy(BUINT_INITIAL_ADMIN);
   await buint.waitForDeployment();
   const buintAddress = await buint.getAddress();
   console.log("[1] BUint deployed:", buintAddress);
+
+  const buintAdminSigner =
+    deployer.address.toLowerCase() === BUINT_INITIAL_ADMIN.toLowerCase()
+      ? deployer
+      : process.env.BUINT_INITIAL_ADMIN_PRIVATE_KEY
+        ? new ethers.Wallet(process.env.BUINT_INITIAL_ADMIN_PRIVATE_KEY, ethers.provider)
+        : null;
+  if (!buintAdminSigner) {
+    throw new Error(
+      `BUint.addAdmin 须由 initialAdmin ${BUINT_INITIAL_ADMIN} 签名；` +
+        "请用该 EOA 作 deployer，或设置 BUINT_INITIAL_ADMIN_PRIVATE_KEY"
+    );
+  }
 
   // 2. Deploy BUnitAirdrop
   const AirdropFactory = await ethers.getContractFactory("BUnitAirdrop");
@@ -71,7 +86,7 @@ async function main() {
   console.log("[2] BUnitAirdrop deployed:", airdropAddress);
 
   // 3. BUint.addAdmin(airdropAddress)
-  const tx1 = await buint.addAdmin(airdropAddress);
+  const tx1 = await buint.connect(buintAdminSigner).addAdmin(airdropAddress);
   await tx1.wait();
   console.log("[3] BUint.addAdmin(airdrop) ok");
 
@@ -91,12 +106,13 @@ async function main() {
     network: "conet",
     chainId: net.chainId.toString(),
     deployer: deployer.address,
+    initialAdmin: BUINT_INITIAL_ADMIN,
     settle_contractAdmin: settleAddresses,
     timestamp: new Date().toISOString(),
     contracts: {
       BUint: {
         address: buintAddress,
-        admins: [airdropAddress],
+        admins: [BUINT_INITIAL_ADMIN, airdropAddress],
       },
       BUnitAirdrop: {
         address: airdropAddress,

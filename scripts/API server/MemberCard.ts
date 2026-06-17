@@ -56,7 +56,7 @@ try {
 	}
 }
 if (!BeamioAAAccountFactoryPaymaster) BeamioAAAccountFactoryPaymaster = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
-const BeamioOracle = '0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B'
+const BeamioOracle = '0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008'
 const beamioConetAddress = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 /** UserCard gateway = AA Factory（与 config/base-addresses AA_FACTORY 一致） */
 const BeamioUserCardGatewayAddress = BeamioAAAccountFactoryPaymaster

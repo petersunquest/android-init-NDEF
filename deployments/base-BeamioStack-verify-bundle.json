@@ -1,0 +1,44 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "updatedAt": "2026-06-15T22:36:58.645Z",
+  "compiler": "v0.8.33+commit.64118f21",
+  "contracts": [
+    {
+      "exportKey": "BeamioFactoryPaymasterV07",
+      "label": "BeamioFactoryPaymasterV07 (CREATE2 AA Factory)",
+      "address": "0xe58F457Cd5674516400013E8d338054be556A730",
+      "contractName": "project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07",
+      "jsonRel": "deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL.json",
+      "formJsonRel": "deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL-FORM.json",
+      "constructorArgs": "000000000000000000000000000000000000000000000000000000000000006400000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1"
+    },
+    {
+      "exportKey": "BeamioOracle",
+      "label": "BeamioOracle (CREATE2)",
+      "address": "0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008",
+      "contractName": "project/src/BeamioUserCard/BeamioOracle.sol:BeamioOracle",
+      "jsonRel": "deployments/base-BeamioOracle-standard-input-FULL.json",
+      "formJsonRel": "deployments/base-BeamioOracle-standard-input-FULL-FORM.json",
+      "constructorArgs": "00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1"
+    },
+    {
+      "exportKey": "BeamioQuoteHelperV07",
+      "label": "BeamioQuoteHelperV07 (CREATE2)",
+      "address": "0xD3f275774831810006d744d32E6b024507C0d374",
+      "contractName": "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol:BeamioQuoteHelperV07",
+      "jsonRel": "deployments/base-BeamioQuoteHelperV07-standard-input-FULL.json",
+      "formJsonRel": "deployments/base-BeamioQuoteHelperV07-standard-input-FULL-FORM.json",
+      "constructorArgs": "00000000000000000000000077cb8358c5a37ab7190b0a2c7eaa7feedcf1100800000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1"
+    },
+    {
+      "exportKey": "BeamioAccount",
+      "label": "BeamioAccount (CREATE2 instance, admin index=0)",
+      "address": "0xaAE26581B0126cDEE36602413FFc94c4436F310C",
+      "contractName": "project/src/BeamioAccount/BeamioAccount.sol:BeamioAccount",
+      "jsonRel": "deployments/base-BeamioAccount-standard-input-FULL.json",
+      "formJsonRel": "deployments/base-BeamioAccount-standard-input-FULL-FORM.json",
+      "constructorArgs": "0000000000000000000000000000000071727de22e5e9d8baf0edac6f37da032"
+    }
+  ]
+}

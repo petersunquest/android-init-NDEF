@@ -76,8 +76,10 @@ contract BeamioBUnits is IERC20 {
         _;
     }
 
-    constructor() {
-        admins[msg.sender] = true;
+    constructor(address initialAdmin) {
+        require(initialAdmin != address(0), "B-Units: Invalid admin address");
+        admins[initialAdmin] = true;
+        emit AdminAdded(initialAdmin);
     }
 
     function _recordMint(uint256 amount) internal {

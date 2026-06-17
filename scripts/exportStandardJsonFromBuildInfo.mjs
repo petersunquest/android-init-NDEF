@@ -94,6 +94,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol",
     contractName: "BeamioUserCardFactoryPaymasterV07",
   },
+  BeamioUserCardFactoryExecuteLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFactoryExecuteLib.sol",
+    contractName: "BeamioUserCardFactoryExecuteLib",
+  },
   BeamioUserCardIssuedNftModuleV1: {
     sourceKey: "project/src/BeamioUserCard/IssuedNftModule.sol",
     contractName: "BeamioUserCardIssuedNftModuleV1",
@@ -101,6 +105,10 @@ const CONFIG = {
   BeamioQuoteHelperV07: {
     sourceKey: "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol",
     contractName: "BeamioQuoteHelperV07",
+  },
+  BeamioOracle: {
+    sourceKey: "project/src/BeamioUserCard/BeamioOracle.sol",
+    contractName: "BeamioOracle",
   },
   AdminStatsQueryModule: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
@@ -146,6 +154,34 @@ const CONFIG = {
     sourceKey: "project/src/BeamioAccount/BeamioAccountDeployer.sol",
     contractName: "BeamioAccountDeployer",
   },
+  ConetTreasury: {
+    sourceKey: "project/src/b-unit/conetTreasury.sol",
+    contractName: "ConetTreasury",
+  },
+  ConetTreasuryPeer: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeer.sol",
+    contractName: "ConetTreasuryPeer",
+  },
+  FactoryERC20: {
+    sourceKey: "project/src/b-unit/FactoryERC20.sol",
+    contractName: "FactoryERC20",
+  },
+  BeamioBUnits: {
+    sourceKey: "project/src/b-unit/BUint.sol",
+    contractName: "BeamioBUnits",
+  },
+  ConetGB1155: {
+    sourceKey: "project/src/b-unit/GB.sol",
+    contractName: "ConetGB1155",
+  },
+  ConetGB_total: {
+    sourceKey: "project/src/b-unit/gbTotal.sol",
+    contractName: "ConetGB_total",
+  },
+  ConetGB_userTotal: {
+    sourceKey: "project/src/b-unit/gbUserTotal.sol",
+    contractName: "ConetGB_userTotal",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
@@ -155,18 +191,26 @@ if (buildInfoFiles.length === 0) {
   process.exit(1);
 }
 
-/** 多份 build-info 时，选用包含目标源文件的那份 */
+/** 多份 build-info 时，选用 **sources 最多** 的那份（via-IR 须完整编译单元，禁止小子集） */
 function resolveBuildInfoPath(sourceKey) {
+  let bestPath = null;
+  let bestCount = -1;
   for (const f of buildInfoFiles) {
     const p = path.join(buildInfoDir, f);
     try {
       const j = JSON.parse(fs.readFileSync(p, "utf-8"));
-      if (j.input?.sources?.[sourceKey]) return p;
+      const sources = j.input?.sources;
+      if (!sources?.[sourceKey]) continue;
+      const count = Object.keys(sources).length;
+      if (count > bestCount) {
+        bestCount = count;
+        bestPath = p;
+      }
     } catch {
       /* skip */
     }
   }
-  return null;
+  return bestPath;
 }
 
 const contractArg = process.argv[2];
@@ -199,6 +243,7 @@ console.log("使用 build-info:", path.basename(buildInfoPath));
 
 const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
 const fullInput = buildInfo.input;
+console.log("  sources:", Object.keys(fullInput.sources).length);
 
 if (!fullInput.sources[cfg.sourceKey]) {
   console.error(`build-info 中未找到 ${cfg.sourceKey}`);
@@ -207,6 +252,69 @@ if (!fullInput.sources[cfg.sourceKey]) {
 
 const input = JSON.parse(JSON.stringify(fullInput));
 console.log("使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）");
+// Hardhat build-info 可能含 compilationTarget；BaseScan solc 报 Unknown key，须删除。
+if (input.settings?.compilationTarget) {
+  delete input.settings.compilationTarget;
+}
+
+/**
+ * Hardhat 3 npm 依赖会以 `npm/@scope/pkg@version/...` 作为 source key，并配 `context:prefix=target`
+ * 上下文重映射。原生 solc 能解析，但 BaseScan 验证管线处理不了这种 key/上下文重映射，
+ * 会导致 import 解析失败、编译产出为空（"Compiled Contract Bytecode for ''"）。
+ *
+ * 这里把 npm key 还原成它们的标准导入路径（如 `@openzeppelin/contracts/...`），并清空 remappings，
+ * 使 JSON 形状与已成功 UI 验证的 BeamioUserCard（remappings=[]、key 全为可直接 import 的路径）一致。
+ * 对无 npm 依赖的合约为 no-op。
+ */
+function normalizeNpmSourceKeysForBaseScan(stdInput) {
+  const rawRemappings = Array.isArray(stdInput.settings?.remappings) ? stdInput.settings.remappings : [];
+  // 解析 remappings: 形如 `context:prefix=target` 或 `prefix=target`
+  const npmPrefixMap = []; // { prefix, target }
+  for (const r of rawRemappings) {
+    const eq = r.indexOf("=");
+    if (eq < 0) continue;
+    const left = r.slice(0, eq);
+    const target = r.slice(eq + 1);
+    if (!target.startsWith("npm/")) continue;
+    const colon = left.indexOf(":");
+    const prefix = colon >= 0 ? left.slice(colon + 1) : left;
+    npmPrefixMap.push({ prefix, target });
+  }
+  // 最长 target 优先，避免前缀互相覆盖
+  npmPrefixMap.sort((a, b) => b.target.length - a.target.length);
+
+  function remapKey(key) {
+    if (!key.startsWith("npm/")) return key;
+    for (const { prefix, target } of npmPrefixMap) {
+      if (key.startsWith(target)) return prefix + key.slice(target.length);
+    }
+    return key; // 未被 remapping 覆盖的 npm key（保留并在下方告警）
+  }
+
+  const newSources = {};
+  for (const [k, v] of Object.entries(stdInput.sources)) {
+    newSources[remapKey(k)] = v;
+  }
+  stdInput.sources = newSources;
+
+  if (stdInput.settings?.libraries && typeof stdInput.settings.libraries === "object") {
+    const newLibs = {};
+    for (const [k, v] of Object.entries(stdInput.settings.libraries)) {
+      newLibs[remapKey(k)] = v;
+    }
+    stdInput.settings.libraries = newLibs;
+  }
+
+  // 归一化后不再需要 remappings（导入路径已是 key 本身）
+  if (stdInput.settings) stdInput.settings.remappings = [];
+
+  const leftoverNpm = Object.keys(stdInput.sources).filter((k) => k.startsWith("npm/"));
+  if (leftoverNpm.length > 0) {
+    console.warn("警告: 仍有未被 remapping 覆盖的 npm/ source key:", leftoverNpm.slice(0, 5));
+  }
+}
+
+normalizeNpmSourceKeysForBaseScan(input);
 
 function artifactPathForConfig(config) {
   const artifactSourcePath = config.sourceKey.replace(/^project\//, "");

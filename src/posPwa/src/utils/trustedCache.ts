@@ -242,6 +242,30 @@ export const posHomeTrustedCache = {
 			/* ignore quota */
 		}
 	},
+
+	loadProgramCardBusinessName(wallet: string, infraCard: string): string | null {
+		try {
+			return localStorage.getItem(
+				key('programBizName', normWallet(wallet), normInfra(infraCard)),
+			)
+		} catch {
+			return null
+		}
+	},
+
+	saveProgramCardBusinessName(
+		wallet: string,
+		infraCard: string,
+		name: string | null,
+	): void {
+		try {
+			const k = key('programBizName', normWallet(wallet), normInfra(infraCard))
+			if (name?.trim()) localStorage.setItem(k, name.trim())
+			else localStorage.removeItem(k)
+		} catch {
+			/* ignore quota */
+		}
+	},
 }
 
 function pickDefined<T extends Record<string, unknown>>(obj: T): Partial<T> {

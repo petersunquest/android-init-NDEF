@@ -63,6 +63,8 @@
     "export:usercard-basescan-json": "npx tsx scripts/exportBeamioUserCardBasescanStandardJson.ts",
     "export:standard-json:full:beamio-account-stack": "node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccount --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLibV07 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLib2V07 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccountDeployer --full",
     "export:standard-json:full:usercard-stack": "node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardTransferLib --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCard --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV1 --full && node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full && node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full && node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule --full && node scripts/exportStandardJsonFromBuildInfo.mjs ChargeRewardModule --full",
+    "export:standard-json:full:conet-treasury-stack": "node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasury --full && node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasuryPeer --full && node scripts/exportStandardJsonFromBuildInfo.mjs FactoryERC20 --full && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioBUnits --full && node scripts/exportStandardJsonFromBuildInfo.mjs GB --full && node scripts/exportStandardJsonFromBuildInfo.mjs GBFactory --full && node scripts/exportStandardJsonFromBuildInfo.mjs GBToken --full",
+    "export:standard-json:form:conet-treasury-stack": "node scripts/exportConetTreasuryStackBaseScanFormJson.mjs",
     "export:standard-json:full:verify-bundle": "npm run clean && npm run compile && npm run export:standard-json:full:usercard-stack && npm run export:standard-json:full:beamio-account-stack",
     "export:basescan:beamio-oracle-base": "node scripts/buildBeamioOracleBaseOnchainVerifyStandardJson.mjs",
     "verify:usercard:base": "hardhat run scripts/verifyBeamioUserCard.ts --network base",
@@ -114,7 +116,7 @@
     "@openzeppelin/contracts": "^5.4.0",
     "@settle402/sdk": "github:settleonbase/x402sdk#main",
     "colors": "^1.4.0",
-    "ethers": "^6.13.4",
+    "ethers": "^6.16.0",
     "express": "^4.21.0",
     "jsqr": "^1.4.0",
     "pngjs": "^7.0.0"

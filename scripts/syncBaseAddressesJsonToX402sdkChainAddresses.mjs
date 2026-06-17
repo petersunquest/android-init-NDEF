@@ -127,17 +127,21 @@ const OPTIONAL = [
 ];
 
 let ts = fs.readFileSync(CHAIN_TS, "utf-8");
-const aaLineRe = /export const BASE_AA_FACTORY = '0x[a-fA-F0-9]{40}'/;
+const aaLineRe = /export const BEAMIO_AA_FACTORY = '0x[a-fA-F0-9]{40}'/;
 if (!aaLineRe.test(ts)) {
-  console.error("chainAddresses.ts: could not find BASE_AA_FACTORY line to replace");
+  console.error("chainAddresses.ts: could not find BEAMIO_AA_FACTORY line to replace");
   process.exit(1);
 }
-ts = ts.replace(aaLineRe, `export const BASE_AA_FACTORY = '${aaChecksum}'`);
+ts = ts.replace(aaLineRe, `export const BEAMIO_AA_FACTORY = '${aaChecksum}'`);
 
-const depLineRe = /export const BASE_BEAMIO_ACCOUNT_DEPLOYER = '0x[a-fA-F0-9]{40}'/;
-const depAddr = maybeAddr(base.BEAMIO_ACCOUNT_DEPLOYER);
-if (depAddr && depLineRe.test(ts)) {
-  ts = ts.replace(depLineRe, `export const BASE_BEAMIO_ACCOUNT_DEPLOYER = '${depAddr}'`);
+const legacyAaLineRe = /export const BASE_AA_FACTORY = BEAMIO_AA_FACTORY/;
+if (legacyAaLineRe.test(ts)) {
+  // keep alias in sync (same line references BEAMIO_AA_FACTORY)
+} else {
+  const oldAaLineRe = /export const BASE_AA_FACTORY = '0x[a-fA-F0-9]{40}'/;
+  if (oldAaLineRe.test(ts)) {
+    ts = ts.replace(oldAaLineRe, `export const BASE_AA_FACTORY = '${aaChecksum}'`);
+  }
 }
 
 for (const [exportName, jsonKey, lineRe] of OPTIONAL) {
@@ -152,4 +156,4 @@ for (const [exportName, jsonKey, lineRe] of OPTIONAL) {
 
 fs.writeFileSync(CHAIN_TS, ts, "utf-8");
 console.log("Synced config/base-addresses.json -> src/x402sdk/src/chainAddresses.ts");
-console.log("  BASE_AA_FACTORY:", aaChecksum);
+console.log("  BEAMIO_AA_FACTORY:", aaChecksum);

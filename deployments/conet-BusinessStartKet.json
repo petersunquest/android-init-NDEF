@@ -23,14 +23,14 @@
     "name": "Business Start Ket",
     "symbol": "BSK"
   },
-  "timestamp": "2026-05-25T06:46:07.613Z",
+  "timestamp": "2026-06-17T11:13:55.743Z",
   "contracts": {
     "BusinessStartKet": {
-      "address": "0x61A206aD8fFdBA847fCB92eB8EE4bfAa2546249D",
+      "address": "0xe747faB957eD29ec07B81Edab546AF5C6724fCf2",
       "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
       "name": "Business Start Ket",
       "symbol": "BSK",
-      "transactionHash": "0x728650dc8c301ff38c9fd6c3d2307c4e6ae72bced2fab3c1553108ef5422ba94"
+      "transactionHash": "0x28fe05b476d2c4aef4df7644455a60d608d1eb22bd334d96604f5f4c8b5fab5f"
     }
   }
 }

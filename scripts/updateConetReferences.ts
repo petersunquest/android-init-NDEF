@@ -2,7 +2,7 @@
  * 从 deployments/conet-addresses.json 读取 CoNET 权威地址，同步到各子项目。
  *
  * 新链迁移建议顺序（依赖关系）：
- * 1. 确认 RPC / chainId：hardhat.config.ts `conet`（默认 https://rpc1.conet.network、224422）等
+ * 1. 确认 RPC / chainId：hardhat.config.ts `conet`（默认 https://mainnet-rpc1.conet.network、224422）等
  * 2. BUint + BUnitAirdrop：`deployBUintAndAirdropToConet.ts` 或 `deployBUnitAirdropToConet.ts`
  * 3. ConetTreasury + conetUSDC：`deployConetTreasuryToConet.ts` / `createConetTreasuryUSDC.ts`
  * 4. BeamioIndexerDiamond：`deployCoNETIndexerDiamond.ts`，并完成 AdminFacet 与 BUnitAirdrop 登记
@@ -323,6 +323,9 @@ function main() {
       /CONET_BUNIT_AIRDROP_ADDRESS\s*=\s*['"](0x[a-fA-F0-9]{40})['"]/,
       `CONET_BUNIT_AIRDROP_ADDRESS = '${bunitAirdrop}'`
     );
+    if (buint) {
+      content = patchExportConstSingleQuoted(content, "CONET_BUINT", buint);
+    }
     content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
     content = patchExportConstSingleQuoted(content, "BEAMIO_INDEXER_DIAMOND", beamioIndexer);
     content = patchExportConstSingleQuoted(content, "MERCHANT_POS_MANAGEMENT_CONET", merchantPos);
@@ -418,7 +421,11 @@ function main() {
   const bizChainPath = path.join(__dirname, "..", "src", "bizSite", "src", "config", "chainAddresses.ts");
   if (fs.existsSync(bizChainPath)) {
     let content = fs.readFileSync(bizChainPath, "utf-8");
+    if (buint) {
+      content = patchExportConstSingleQuoted(content, "CONET_BUINT", buint);
+    }
     content = patchExportConstSingleQuoted(content, "BEAMIO_INDEXER_DIAMOND", beamioIndexer);
+    content = patchExportConstSingleQuoted(content, "CONET_BUNIT_AIRDROP_ADDRESS", bunitAirdrop);
     content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);

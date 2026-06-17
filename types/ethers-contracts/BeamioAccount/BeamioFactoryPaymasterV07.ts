@@ -15,9 +15,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "deployer" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "openContainerMintExecutor" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayContainerMainRelayedOpenUsdcTopupThenPoints" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setOpenContainerMintExecutor" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "simulateRelayOpenUsdcTopupThenPoints" | "transferAdmin" | "updateDeployer" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "chainConfigInitialized" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "initializeChainConfig" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "openContainerMintExecutor" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayContainerMainRelayedOpenUsdcTopupThenPoints" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setOpenContainerMintExecutor" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "simulateRelayOpenUsdcTopupThenPoints" | "transferAdmin" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AccountCreated" | "DeployerUpdated" | "ModuleUpdated" | "OpenContainerMintExecutorUpdated" | "QuoteHelperUpdated" | "USDCUpdated" | "UserCardUpdated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AccountCreated" | "ChainConfigInitialized" | "ModuleUpdated" | "OpenContainerMintExecutorUpdated" | "QuoteHelperUpdated" | "USDCUpdated" | "UserCardUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ENTRY_POINT', values?: undefined): string;
@@ -29,16 +29,17 @@ encodeFunctionData(functionFragment: 'addPayMaster', values: [AddressLike]): str
 encodeFunctionData(functionFragment: 'admin', values?: undefined): string;
 encodeFunctionData(functionFragment: 'beamioAccountOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'beamioUserCard', values?: undefined): string;
+encodeFunctionData(functionFragment: 'chainConfigInitialized', values?: undefined): string;
 encodeFunctionData(functionFragment: 'computeSalt', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'containerModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createAccount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createAccountFor', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deposit', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executeForOwner', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'executeForRedeemer', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'getAddress', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getPayMasters', values?: undefined): string;
+encodeFunctionData(functionFragment: 'initializeChainConfig', values: [AddressLike, AddressLike, AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isBeamioAccount', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isPayMaster', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'myBeamioAccounts', values?: undefined): string;
@@ -67,7 +68,6 @@ encodeFunctionData(functionFragment: 'setUserCard', values: [AddressLike]): stri
 encodeFunctionData(functionFragment: 'simulateRelayOpen', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'simulateRelayOpenUsdcTopupThenPoints', values: [AddressLike, AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'transferAdmin', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'updateDeployer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'usedOwnerExecuteNonces', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'usedRedeemerExecuteNonces', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'validatePaymasterUserOp', values: [PackedUserOperationStruct, BytesLike, BigNumberish]): string;
@@ -83,16 +83,17 @@ decodeFunctionResult(functionFragment: 'addPayMaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beamioAccountOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beamioUserCard', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'chainConfigInitialized', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'computeSalt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createAccount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createAccountFor', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForRedeemer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAddress', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getPayMasters', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'initializeChainConfig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isBeamioAccount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isPayMaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'myBeamioAccounts', data: BytesLike): Result;
@@ -121,7 +122,6 @@ decodeFunctionResult(functionFragment: 'setUserCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'simulateRelayOpen', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'simulateRelayOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferAdmin', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'updateDeployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedOwnerExecuteNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usedRedeemerExecuteNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validatePaymasterUserOp', data: BytesLike): Result;
@@ -141,10 +141,10 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
 
   
 
-    export namespace DeployerUpdatedEvent {
-      export type InputTuple = [oldDeployer: AddressLike, newDeployer: AddressLike];
-      export type OutputTuple = [oldDeployer: string, newDeployer: string];
-      export interface OutputObject {oldDeployer: string, newDeployer: string };
+    export namespace ChainConfigInitializedEvent {
+      export type InputTuple = [module: AddressLike, quoteHelper: AddressLike, userCard: AddressLike, usdc: AddressLike];
+      export type OutputTuple = [module: string, quoteHelper: string, userCard: string, usdc: string];
+      export interface OutputObject {module: string, quoteHelper: string, userCard: string, usdc: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -327,6 +327,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
+    chainConfigInitialized: TypedContractMethod<
+      [],
+      [boolean],
+      'view'
+    >
+    
+
+    
     computeSalt: TypedContractMethod<
       [creator: AddressLike, index: BigNumberish, ],
       [string],
@@ -355,14 +363,6 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
       [creator: AddressLike, ],
       [string],
       'nonpayable'
-    >
-    
-
-    
-    deployer: TypedContractMethod<
-      [],
-      [string],
-      'view'
     >
     
 
@@ -403,6 +403,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
       [],
       [string[]],
       'view'
+    >
+    
+
+    
+    initializeChainConfig: TypedContractMethod<
+      [module_: AddressLike, quoteHelper_: AddressLike, userCard_: AddressLike, usdc_: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -631,14 +639,6 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
-    updateDeployer: TypedContractMethod<
-      [newDeployer: AddressLike, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
     usedOwnerExecuteNonces: TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -723,6 +723,11 @@ getFunction(nameOrSignature: 'beamioUserCard'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'chainConfigInitialized'): TypedContractMethod<
+      [],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'computeSalt'): TypedContractMethod<
       [creator: AddressLike, index: BigNumberish, ],
       [string],
@@ -742,11 +747,6 @@ getFunction(nameOrSignature: 'createAccountFor'): TypedContractMethod<
       [creator: AddressLike, ],
       [string],
       'nonpayable'
-    >;
-getFunction(nameOrSignature: 'deployer'): TypedContractMethod<
-      [],
-      [string],
-      'view'
     >;
 getFunction(nameOrSignature: 'deposit'): TypedContractMethod<
       [],
@@ -772,6 +772,11 @@ getFunction(nameOrSignature: 'getPayMasters'): TypedContractMethod<
       [],
       [string[]],
       'view'
+    >;
+getFunction(nameOrSignature: 'initializeChainConfig'): TypedContractMethod<
+      [module_: AddressLike, quoteHelper_: AddressLike, userCard_: AddressLike, usdc_: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'isBeamioAccount'): TypedContractMethod<
       [arg0: AddressLike, ],
@@ -913,11 +918,6 @@ getFunction(nameOrSignature: 'transferAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'updateDeployer'): TypedContractMethod<
-      [newDeployer: AddressLike, ],
-      [void],
-      'nonpayable'
-    >;
 getFunction(nameOrSignature: 'usedOwnerExecuteNonces'): TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -940,7 +940,7 @@ getFunction(nameOrSignature: 'withdrawTo'): TypedContractMethod<
     >;
 
     getEvent(key: 'AccountCreated'): TypedContractEvent<AccountCreatedEvent.InputTuple, AccountCreatedEvent.OutputTuple, AccountCreatedEvent.OutputObject>;
-getEvent(key: 'DeployerUpdated'): TypedContractEvent<DeployerUpdatedEvent.InputTuple, DeployerUpdatedEvent.OutputTuple, DeployerUpdatedEvent.OutputObject>;
+getEvent(key: 'ChainConfigInitialized'): TypedContractEvent<ChainConfigInitializedEvent.InputTuple, ChainConfigInitializedEvent.OutputTuple, ChainConfigInitializedEvent.OutputObject>;
 getEvent(key: 'ModuleUpdated'): TypedContractEvent<ModuleUpdatedEvent.InputTuple, ModuleUpdatedEvent.OutputTuple, ModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'OpenContainerMintExecutorUpdated'): TypedContractEvent<OpenContainerMintExecutorUpdatedEvent.InputTuple, OpenContainerMintExecutorUpdatedEvent.OutputTuple, OpenContainerMintExecutorUpdatedEvent.OutputObject>;
 getEvent(key: 'QuoteHelperUpdated'): TypedContractEvent<QuoteHelperUpdatedEvent.InputTuple, QuoteHelperUpdatedEvent.OutputTuple, QuoteHelperUpdatedEvent.OutputObject>;
@@ -953,8 +953,8 @@ getEvent(key: 'UserCardUpdated'): TypedContractEvent<UserCardUpdatedEvent.InputT
       AccountCreated: TypedContractEvent<AccountCreatedEvent.InputTuple, AccountCreatedEvent.OutputTuple, AccountCreatedEvent.OutputObject>;
     
 
-      'DeployerUpdated(address,address)': TypedContractEvent<DeployerUpdatedEvent.InputTuple, DeployerUpdatedEvent.OutputTuple, DeployerUpdatedEvent.OutputObject>;
-      DeployerUpdated: TypedContractEvent<DeployerUpdatedEvent.InputTuple, DeployerUpdatedEvent.OutputTuple, DeployerUpdatedEvent.OutputObject>;
+      'ChainConfigInitialized(address,address,address,address)': TypedContractEvent<ChainConfigInitializedEvent.InputTuple, ChainConfigInitializedEvent.OutputTuple, ChainConfigInitializedEvent.OutputObject>;
+      ChainConfigInitialized: TypedContractEvent<ChainConfigInitializedEvent.InputTuple, ChainConfigInitializedEvent.OutputTuple, ChainConfigInitializedEvent.OutputObject>;
     
 
       'ModuleUpdated(address,address)': TypedContractEvent<ModuleUpdatedEvent.InputTuple, ModuleUpdatedEvent.OutputTuple, ModuleUpdatedEvent.OutputObject>;

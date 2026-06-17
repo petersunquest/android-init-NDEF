@@ -1,5 +1,5 @@
 /**
- * 从源 RPC 上的 GuardianNodesInfoV6 读取节点，在 224422（默认 https://rpc1.conet.network）目标合约上依次 addNode。
+ * 从源 RPC 上的 GuardianNodesInfoV6 读取节点，在 224422（默认 https://publicrpc.conet.network）目标合约上依次 addNode。
  *
  * 典型：旧链 224400 合约 0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D → 新链 224422 合约
  * 0x920E09a09591587501D8bd34F15F807F6b2Dba90（以 deployments/conet-GuardianNodesInfoV6.json 为准）。
@@ -13,7 +13,7 @@
  *
  * 环境变量:
  *   GUARDIAN_MIGRATE_SOURCE      必填：源链 GuardianNodesInfoV6 地址
- *   GUARDIAN_MIGRATE_SOURCE_RPC  默认 https://rpc1.conet.network（跨链时请设为 224400 的 RPC，如 mainnet-rpc）
+ *   GUARDIAN_MIGRATE_SOURCE_RPC  默认 https://publicrpc.conet.network（跨链时请设为 224400 的 RPC，如 mainnet-rpc）
  *   GUARDIAN_MIGRATE_EXPECT_SOURCE_CHAIN_ID  若设置则必须与源 RPC chainId 一致，否则退出
  *   GUARDIAN_MIGRATE_DEST        目标合约；默认读 deployments/conet-GuardianNodesInfoV6.json
  *   GUARDIAN_MIGRATE_DUMP_PATH   若设置：拉取完成后将有效节点 JSON 写入该路径（DRY_RUN 或非 DRY_RUN 均可）
@@ -30,7 +30,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const SOURCE_RPC_DEFAULT = "https://rpc1.conet.network";
+const SOURCE_RPC_DEFAULT = "https://publicrpc.conet.network";
 const DEPLOYMENT_GUARDIAN_PATH = path.join(
   __dirname,
   "..",

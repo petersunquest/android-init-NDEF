@@ -1,0 +1,21 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "rpcUrl": "https://publicrpc.conet.network",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-06-15T22:30:00.000Z",
+  "contracts": {
+    "BeamioContainerExtLibV07": {
+      "address": "0xA0DCCF449D166a81530E8622e29eA171a5a3D9c7"
+    },
+    "BeamioContainerExtLib2V07": {
+      "address": "0xaA76d435a8040Af53085c7c2992e37A98EBba74F"
+    },
+    "BeamioContainerModuleV07": {
+      "address": "0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2"
+    },
+    "BeamioUserCardPlaceholder": {
+      "address": "0x5478FABCc76bc1044286764A0115719Ce94F4572"
+    }
+  }
+}

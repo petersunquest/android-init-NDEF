@@ -10,8 +10,18 @@
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
+import { concat, keccak256, solidityPacked } from "ethers";
 import { fileURLToPath } from "url";
-import { BASE_MAINNET_CHAIN_ID, BASE_USDC } from "./conetTreasuryDeployConstants.js";
+import {
+  BASE_MAINNET_CHAIN_ID,
+  BASE_USDC,
+  NICK_CREATE2_FACTORY,
+  WRAPPED_ERC20_SALT_PREFIX,
+} from "./conetTreasuryDeployConstants.js";
+
+function nickCreate2DeployCalldata(salt: string, initCode: string): string {
+  return concat([salt, initCode]);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,9 +55,45 @@ async function main() {
     return;
   }
 
-  const tx = await treasury.deployWrappedToken(peerChainId, peerToken);
-  console.log("deployWrappedToken tx:", tx.hash);
-  await tx.wait();
+  try {
+    const tx = await treasury.deployWrappedToken(peerChainId, peerToken, { gasLimit: 2_000_000n });
+    console.log("deployWrappedToken tx:", tx.hash);
+    await tx.wait();
+  } catch (e) {
+    const codeMid = await ethers.provider.getCode(predicted);
+    if (codeMid !== "0x" && codeMid.length > 2) {
+      console.log("包装合约已存在（Treasury.deployWrappedToken 可能已部分成功），跳过 Nick deploy");
+    } else {
+      console.warn("Treasury.deployWrappedToken revert（Nick 无 return data），改 EOA 直 deploy Nick…");
+      const [name, symbol, decimals] = await treasury.getPeerTokenMeta(peerChainId, peerToken);
+      const factory = await ethers.getContractFactory("FactoryERC20");
+      const deployTx = await factory.getDeployTransaction(name, symbol, decimals, treasuryAddress);
+      const initCode = deployTx.data;
+      if (!initCode) throw new Error("无法生成 FactoryERC20 initCode");
+      const salt = keccak256(
+        solidityPacked(["string", "uint256", "address"], [WRAPPED_ERC20_SALT_PREFIX, peerChainId, peerToken])
+      );
+      const deployData = nickCreate2DeployCalldata(salt, initCode);
+      const nickTx = await signer.sendTransaction({
+        to: NICK_CREATE2_FACTORY,
+        data: deployData,
+        gasLimit: 2_000_000n,
+      });
+      console.log("Nick direct deploy tx:", nickTx.hash);
+      await nickTx.wait();
+      const codeAfter = await ethers.provider.getCode(predicted);
+      if (codeAfter === "0x" || codeAfter.length <= 2) {
+        throw e;
+      }
+    }
+    try {
+      const trackTx = await treasury.deployWrappedToken(peerChainId, peerToken, { gasLimit: 500_000n });
+      console.log("Treasury track deployWrappedToken tx:", trackTx.hash);
+      await trackTx.wait();
+    } catch (trackErr) {
+      console.warn("Treasury track 跳过（包装已存在且可能已 tracking）:", (trackErr as Error).message);
+    }
+  }
 
   const wrapped = await treasury.predictWrappedToken(peerChainId, peerToken);
   const token = await ethers.getContractAt(

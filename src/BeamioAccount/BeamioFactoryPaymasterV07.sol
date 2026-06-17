@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 // BeamioFactoryPaymasterV07.sol
-// - Deploy + init BeamioAccount (Route A)
+// - Deploy + init BeamioAccount via Nick CREATE2 (cross-chain same address per EOA)
 // - Paymaster v0.7 (simple allow-list for BeamioAccount senders)
 // - Relay entrypoints to BeamioAccount (paymaster pays gas)
 // - Provides GLOBAL config views for module logic: containerModule / quoteHelper / beamioUserCard / USDC
 
 import "./BeamioTypesV07.sol";
 import "./BeamioContainerItemTypesV07.sol";
-import "./BeamioAccountDeployer.sol";
+import "./BeamioAccountCreate2Lib.sol";
 import "./BeamioAccount.sol"; // provides IBeamioAccountFactoryConfigV2
 import "../contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/utils/cryptography/MessageHashUtils.sol";
@@ -17,8 +17,6 @@ import "../contracts/utils/cryptography/MessageHashUtils.sol";
 contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfigV2 {
 	IEntryPointV07 public constant ENTRY_POINT =
 		IEntryPointV07(0x0000000071727De22E5E9d8BAf0edAc6f37da032);
-
-	BeamioAccountDeployer public deployer;
 
 	// ========= registry =========
 	mapping(address => bool) public isBeamioAccount;
@@ -33,6 +31,8 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	mapping(address => bool) public isPayMaster;
 
 	uint256 public accountLimit;
+
+	bool public chainConfigInitialized;
 
 	// Owner-signed execute: nonce replay protection（通用 executeForOwner）
 	mapping(bytes32 => bool) public usedOwnerExecuteNonces;
@@ -52,10 +52,16 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	// ========= errors =========
 	error RedeemerSignerMismatch(address signer, address expected);
 	error RedeemerToMustEqualClaimer();
+	error ChainConfigAlreadyInitialized();
 
 	// ========= events =========
 	event AccountCreated(address indexed creator, address indexed account, uint256 index, bytes32 salt);
-	event DeployerUpdated(address indexed oldDeployer, address indexed newDeployer);
+	event ChainConfigInitialized(
+		address indexed module,
+		address indexed quoteHelper,
+		address indexed userCard,
+		address usdc
+	);
 
 	event ModuleUpdated(address indexed oldModule, address indexed newModule);
 	event QuoteHelperUpdated(address indexed oldHelper, address indexed newHelper);
@@ -78,39 +84,15 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		_;
 	}
 
-	constructor(
-		uint256 initialAccountLimit,
-		address deployer_,
-		address module_,
-		address quoteHelper_,
-		address userCard_,
-		address usdc_
-	) {
+	constructor(uint256 initialAccountLimit, address admin_) {
 		require(initialAccountLimit > 0, "limit=0");
-		require(deployer_ != address(0) && deployer_.code.length > 0, "bad deployer");
-		require(module_ != address(0) && module_.code.length > 0, "bad module");
-		require(quoteHelper_ != address(0) && quoteHelper_.code.length > 0, "bad helper");
-		require(userCard_ != address(0) && userCard_.code.length > 0, "bad userCard");
-		require(usdc_ != address(0), "bad usdc");
+		require(admin_ != address(0), "zero admin");
 
-		admin = msg.sender;
+		admin = admin_;
 		accountLimit = initialAccountLimit;
 
-		isPayMaster[msg.sender] = true;
-		payMasters.push(msg.sender);
-
-		deployer = BeamioAccountDeployer(deployer_);
-		emit DeployerUpdated(address(0), deployer_);
-		try deployer.setFactory(address(this)) {} catch {}
-
-		containerModule = module_;
-		quoteHelper = quoteHelper_;
-		beamioUserCard = userCard_;
-		USDC = usdc_;
-		emit ModuleUpdated(address(0), module_);
-		emit QuoteHelperUpdated(address(0), quoteHelper_);
-		emit UserCardUpdated(address(0), userCard_);
-		emit USDCUpdated(address(0), usdc_);
+		isPayMaster[admin_] = true;
+		payMasters.push(admin_);
 
 		DOMAIN_SEPARATOR = keccak256(abi.encode(
 			keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
@@ -144,11 +126,30 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		accountLimit = newLimit;
 	}
 
-	function updateDeployer(address newDeployer) external onlyAdmin {
-		require(newDeployer != address(0) && newDeployer.code.length > 0, "bad deployer");
-		emit DeployerUpdated(address(deployer), newDeployer);
-		deployer = BeamioAccountDeployer(newDeployer);
-		try deployer.setFactory(address(this)) {} catch {}
+	/// @notice One-time per-chain wiring (module / oracle helper / default user card / USDC).
+	function initializeChainConfig(
+		address module_,
+		address quoteHelper_,
+		address userCard_,
+		address usdc_
+	) external onlyAdmin {
+		if (chainConfigInitialized) revert ChainConfigAlreadyInitialized();
+		require(module_ != address(0) && module_.code.length > 0, "bad module");
+		require(quoteHelper_ != address(0) && quoteHelper_.code.length > 0, "bad helper");
+		require(userCard_ != address(0) && userCard_.code.length > 0, "bad userCard");
+		require(usdc_ != address(0), "bad usdc");
+
+		containerModule = module_;
+		quoteHelper = quoteHelper_;
+		beamioUserCard = userCard_;
+		USDC = usdc_;
+		chainConfigInitialized = true;
+
+		emit ChainConfigInitialized(module_, quoteHelper_, userCard_, usdc_);
+		emit ModuleUpdated(address(0), module_);
+		emit QuoteHelperUpdated(address(0), quoteHelper_);
+		emit UserCardUpdated(address(0), userCard_);
+		emit USDCUpdated(address(0), usdc_);
 	}
 
 	function setModule(address newModule) external onlyAdmin {
@@ -223,7 +224,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	}
 
 	// =========================================================
-	// Deterministic address
+	// Deterministic address (Nick CREATE2)
 	// =========================================================
 	function computeSalt(address creator, uint256 index) public pure returns (bytes32) {
 		return keccak256(abi.encode(creator, index));
@@ -233,11 +234,10 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		return abi.encodePacked(type(BeamioAccount).creationCode, abi.encode(ENTRY_POINT));
 	}
 
-	function getAddress(address creator, uint256 index) public view returns (address) {
+	function getAddress(address creator, uint256 index) public pure returns (address) {
 		bytes32 salt = computeSalt(creator, index);
 		bytes32 initCodeHash = keccak256(_initCode());
-		bytes32 hash = keccak256(abi.encodePacked(bytes1(0xff), address(deployer), salt, initCodeHash));
-		return address(uint160(uint256(hash)));
+		return BeamioAccountCreate2Lib.predict(salt, initCodeHash);
 	}
 
 	function beamioAccountOf(address creator) external view returns (address) {
@@ -269,12 +269,12 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		}
 
 		bytes32 salt = computeSalt(creator, index);
-		account = deployer.deploy(salt, _initCode());
+		bytes memory initCode = _initCode();
+		account = BeamioAccountCreate2Lib.nickDeploy(salt, initCode);
 
 		address[] memory managers = new address[](1);
 		managers[0] = creator;
 
-		// ⚠️ 这里假设你已把 BeamioAccount.initialize 改成不再接收 module
 		BeamioAccount(payable(account)).initialize(creator, managers, 1, address(this));
 
 		isBeamioAccount[account] = true;
@@ -307,7 +307,8 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		}
 
 		bytes32 salt = computeSalt(creator, index);
-		account = deployer.deploy(salt, _initCode());
+		bytes memory initCode = _initCode();
+		account = BeamioAccountCreate2Lib.nickDeploy(salt, initCode);
 
 		address[] memory managers = new address[](1);
 		managers[0] = creator;
@@ -354,7 +355,6 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		BeamioAccount(payable(account)).containerMainRelayed(to, items, nonce_, deadline_, sig);
 	}
 
-	// ✅ token 参数已移除（与你最新 containerMainRelayedOpen 对齐）
 	function relayContainerMainRelayedOpen(
 		address account,
 		address to,
@@ -387,7 +387,6 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		);
 	}
 
-	// ✅ token 参数已移除
 	function simulateRelayOpen(
 		address account,
 		address to,
@@ -470,7 +469,6 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		BeamioAccount(payable(account)).faucetRedeemPool(password, claimer, to, items);
 	}
 
-	/// @notice 通用：owner 离线签名授权对 account 的 Container module 任意调用，由 paymaster 代付 gas。支持 createRedeem、cancelRedeem、createFaucetPool、cancelFaucetPool 等。
 	function executeForOwner(
 		address account,
 		bytes calldata data,
@@ -503,7 +501,6 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		BeamioAccount(payable(account)).executeFromFactory(data);
 	}
 
-	/// @notice redeemer/claimer 离线签名授权执行 redeem 或 faucetRedeemPool，由 paymaster 代付 gas。发起人签名后由后端调用此入口。
 	function executeForRedeemer(
 		address account,
 		bytes calldata data,
@@ -542,13 +539,12 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 			(, address to) = abi.decode(data[4:], (string, address));
 			expectedSigner = to;
 		} else {
-			// faucetRedeemPool(string, address claimer, address to, ContainerItem[])
 			(, address claimer, address to,) = abi.decode(
 				data[4:],
 				(string, address, address, ContainerItem[])
 			);
 			expectedSigner = claimer;
-			if (to != claimer) revert RedeemerToMustEqualClaimer(); // 禁止代领到第三方
+			if (to != claimer) revert RedeemerToMustEqualClaimer();
 		}
 		if (signer != expectedSigner) revert RedeemerSignerMismatch(signer, expectedSigner);
 

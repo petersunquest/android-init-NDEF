@@ -1,0 +1,43 @@
+{
+  "language": "Solidity",
+  "settings": {
+    "debug": {
+      "revertStrings": "strip"
+    },
+    "evmVersion": "cancun",
+    "metadata": {
+      "bytecodeHash": "none"
+    },
+    "optimizer": {
+      "enabled": true,
+      "runs": 0
+    },
+    "outputSelection": {
+      "*": {
+        "": [
+          "ast"
+        ],
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata"
+        ]
+      }
+    },
+    "remappings": [
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/"
+    ],
+    "viaIR": true
+  },
+  "sources": {
+    "project/src/b-unit/mining_info.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.29;\n\nstruct epoch_mining{\n    uint256 epoch;\n    uint256 totalMiners;\n    uint256 minerRate;\n    uint256 totalUsrs;\n}\n\ncontract epoch_mining_info {\n    mapping(address => bool) public adminList;\n    modifier requireAddressInAdminlist {\n        require(adminList[msg.sender] == true);             //          check sender in whiteList\n        _;\n    }\n    \n    mapping(uint256 => epoch_mining) public epochInfo;\n    epoch_mining public currentInfo;\n\n    function changeAddressInAdminlist (address addr, bool status) requireAddressInAdminlist public {\n        adminList[addr] = status;\n    }\n\n    constructor() {\n        adminList[msg.sender] = true;\n    }\n\n    function updateInfo (uint256 totalMiners, uint256 minerRate, uint256 totalUsrs) requireAddressInAdminlist public {\n       currentInfo = epoch_mining(block.number, totalMiners, minerRate, totalUsrs);\n       epochInfo[block.number] = currentInfo;\n    }\n}"
+    }
+  }
+}

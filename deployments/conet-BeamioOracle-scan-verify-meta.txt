@@ -1,0 +1,43 @@
+# CoNET Blockscout: BeamioOracle (CREATE2) @ 0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008
+
+## Regenerate Standard JSON（与 Base 同一份源码 / 同 initCode）
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioOracle --full
+node scripts/exportBeamioStackBaseScanFormJson.mjs
+```
+
+上传 JSON（CoNET scan UI 与 Base BaseScan 共用剪枝版）:
+  deployments/base-BeamioOracle-standard-input-FULL-FORM.json
+
+完整 build-info（备用，体积大易超时）:
+  deployments/base-BeamioOracle-standard-input-FULL.json
+
+## API 验证
+
+```bash
+npx tsx scripts/verifyBeamioOracleOnConetScan.ts
+```
+
+Explorer UI: https://scan.conet.network/address/0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008#code
+
+## Compiler
+
+- Version: v0.8.33+commit.64118f21
+- viaIR: true
+- optimizer.runs: 200（以 hardhat.config.ts 为准；FORM 内 settings 须与编译一致）
+- evmVersion: cancun
+
+## Contract name（Blockscout / BaseScan）
+
+project/src/BeamioUserCard/BeamioOracle.sol:BeamioOracle
+
+若 UI 失败，可试短名:
+BeamioOracle
+
+## Constructor Args ABI-encoded（无 0x 前缀）:
+
+00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+(initialOwner = 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1)

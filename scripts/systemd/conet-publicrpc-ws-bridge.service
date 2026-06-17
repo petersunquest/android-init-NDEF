@@ -1,0 +1,18 @@
+[Unit]
+Description=CoNET publicrpc WebSocket bridge (geth IPC -> ws://127.0.0.1:8890)
+After=network.target
+
+[Service]
+Type=simple
+User=peter
+Group=peter
+WorkingDirectory=/home/peter/conet-publicrpc-ws-bridge
+Environment=GETH_IPC=/home/peter/ethereum-pos-mainnet/network/node-0/execution/geth.ipc
+Environment=WS_HOST=127.0.0.1
+Environment=WS_PORT=8890
+ExecStart=/usr/bin/node /home/peter/conet-publicrpc-ws-bridge/bridge.mjs
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

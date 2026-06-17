@@ -100,14 +100,19 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
     event IssuerAdded(address indexed account);
     event IssuerRemoved(address indexed account);
 
-    constructor(uint64 _startTimeAlignedToHour, uint64 _startHourId) ERC1155("") {
+    constructor(
+        uint64 _startTimeAlignedToHour,
+        uint64 _startHourId,
+        address initialAdmin
+    ) ERC1155("") {
         require(_startTimeAlignedToHour % 3600 == 0, "start not hour-aligned");
+        require(initialAdmin != address(0), "zero admin");
         startTime   = _startTimeAlignedToHour;
         startHourId = _startHourId;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ISSUER_ROLE, msg.sender);
-        _grantRole(OPERATOR_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
+        _grantRole(ISSUER_ROLE, initialAdmin);
+        _grantRole(OPERATOR_ROLE, initialAdmin);
     }
 
     /* ---------------- Issuer whitelist management ---------------- */

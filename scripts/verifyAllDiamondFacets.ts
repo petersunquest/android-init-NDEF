@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";
-const BASE_URL = "https://mainnet.conet.network";
+const BASE_URL = (process.env.CONET_BLOCKSCOUT_UI || process.env.CONET_BLOCKSCOUT_API || "https://scan.conet.network").replace(/\/api\/?$/, "").replace(/\/$/, "");
 
 const DEPLOY_PATH = path.join(__dirname, "..", "deployments", "conet-IndexerDiamond.json");
 

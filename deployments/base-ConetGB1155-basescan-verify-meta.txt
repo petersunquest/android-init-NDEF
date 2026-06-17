@@ -1,0 +1,27 @@
+Contract Name: project/src/b-unit/GB.sol:ConetGB1155
+Address: 0xcA423EEBC09d09834dC9CA28861798B3321893ab
+Constructor Args ABI-encoded: 0x000000000000000000000000000000000000000000000000000000006a141da0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+Standard JSON: deployments/base-ConetGB1155-standard-input-FULL.json (1.44 MB — build-info FULL，与 BeamioUserCard 同款)
+Network: base (chainId 8453)
+Generated: 2026-06-15T19:37:17.957Z
+Compiler: v0.8.33+commit.64118f21
+Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
+
+Regenerate (与 BeamioUserCard 相同流程):
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs ConetGB1155 --full
+  或: node scripts/exportConetTreasuryStackStandardJson.mjs
+
+BaseScan UI:
+  1) Solidity (Standard-Json-Input)
+  2) Compiler v0.8.33+commit.64118f21
+  3) Upload base-ConetGB1155-standard-input-FULL.json（须 ~1 MB+，勿用 ~79 KB 旧子集）
+  4) Contract Name（若 UI 有该字段）:
+     project/src/b-unit/GB.sol:ConetGB1155
+  5) Constructor Arguments (no 0x):
+     000000000000000000000000000000000000000000000000000000006a141da0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+CLI（推荐 — 显式 contractname）:
+  BASESCAN_API_KEY=... npx tsx scripts/verifyConetTreasuryStackBaseScan.ts ConetGB1155
+
+禁止: settings.compilationTarget（BaseScan Unknown key）；勿用未 --full 的 build-info 子集。

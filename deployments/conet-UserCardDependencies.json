@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-06-16T06:32:36.944Z",
+  "contracts": {
+    "redeemModule": {
+      "address": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
+      "transactionHash": "0x8a65050ff1897f8c864b58897aa5ad0f43301070c1eacc6d67d0c8a037d124b4"
+    },
+    "beamioUserCardDeployer": {
+      "address": "0xD85220e6a9de24f97f79041D07c292ec3B591891",
+      "transactionHash": "0x078791f7b3f728a853c98be0bcb3aaf1db118c03d966a2f8d002f991497ed487"
+    }
+  }
+}

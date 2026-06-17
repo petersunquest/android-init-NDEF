@@ -13,7 +13,8 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = "https://mainnet.conet.network";
+const BASE_URL = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
+const API_BASE = (process.env.CONET_BLOCKSCOUT_API || `${BASE_URL}/api`).replace(/\/$/, "");
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";
 const CONTRACT_NAME = "project/src/b-unit/BuintRedeemAirdrop.sol:BuintRedeemAirdrop";
 
@@ -42,7 +43,7 @@ async function main() {
   const constructorArgsHex = encoded.startsWith("0x") ? encoded.slice(2) : encoded;
   console.log("constructor_args (no 0x):", constructorArgsHex);
 
-  const v2Url = `${BASE_URL}/api/v2/smart-contracts/${address}/verification/via/standard-input`;
+  const v2Url = `${API_BASE}/v2/smart-contracts/${address}/verification/via/standard-input`;
   const formData = new FormData();
   formData.append("compiler_version", COMPILER_VERSION);
   formData.append("contract_name", CONTRACT_NAME);

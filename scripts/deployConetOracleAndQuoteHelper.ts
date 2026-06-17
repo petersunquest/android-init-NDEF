@@ -1,61 +1,20 @@
-import { network as networkModule } from "hardhat";
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
+/**
+ * CoNET 部署 BeamioOracle + BeamioQuoteHelperV07（Nick CREATE2 同址栈）。
+ * 已废弃直接 `new BeamioOracle()`；请使用 deployBeamioOracleStackCreate2.ts。
+ *
+ * 运行:
+ *   CONET_RPC_URL=https://publicrpc.conet.network npx hardhat run scripts/deployConetOracleAndQuoteHelper.ts --network conet
+ */
+import { execSync } from "node:child_process";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.join(__dirname, "..");
 
-async function main() {
-  const { ethers } = await networkModule.connect();
-  const [deployer] = await ethers.getSigners();
-  const net = await ethers.provider.getNetwork();
-
-  console.log("=".repeat(60));
-  console.log("Deploy BeamioOracle + BeamioQuoteHelperV07 on conet");
-  console.log("=".repeat(60));
-  console.log("deployer:", deployer.address);
-  console.log("chainId:", net.chainId.toString());
-
-  const OracleFactory = await ethers.getContractFactory("BeamioOracle");
-  const oracle = await OracleFactory.deploy();
-  await oracle.waitForDeployment();
-  const oracleAddress = await oracle.getAddress();
-  console.log("BeamioOracle:", oracleAddress);
-
-  const QuoteHelperFactory = await ethers.getContractFactory("BeamioQuoteHelperV07");
-  const quoteHelper = await QuoteHelperFactory.deploy(oracleAddress, deployer.address);
-  await quoteHelper.waitForDeployment();
-  const quoteHelperAddress = await quoteHelper.getAddress();
-  console.log("BeamioQuoteHelperV07:", quoteHelperAddress);
-
-  const out = {
-    network: "conet",
-    chainId: net.chainId.toString(),
-    deployer: deployer.address,
-    timestamp: new Date().toISOString(),
-    contracts: {
-      beamioOracle: {
-        address: oracleAddress,
-        transactionHash: oracle.deploymentTransaction()?.hash ?? "",
-      },
-      beamioQuoteHelperV07: {
-        address: quoteHelperAddress,
-        oracle: oracleAddress,
-        transactionHash: quoteHelper.deploymentTransaction()?.hash ?? "",
-      },
-    },
-  };
-
-  const deploymentsDir = path.join(__dirname, "..", "deployments");
-  if (!fs.existsSync(deploymentsDir)) fs.mkdirSync(deploymentsDir, { recursive: true });
-  const outPath = path.join(deploymentsDir, "conet-OracleQuoteHelper.json");
-  fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
-  console.log("saved:", outPath);
-}
-
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
+console.log("→ 转发至 deployBeamioOracleStackCreate2.ts（CREATE2 同址）");
+execSync("npx hardhat run scripts/deployBeamioOracleStackCreate2.ts --network conet", {
+  cwd: ROOT,
+  stdio: "inherit",
+  env: process.env,
 });
-

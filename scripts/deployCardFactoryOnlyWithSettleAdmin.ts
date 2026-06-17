@@ -96,10 +96,22 @@ async function main() {
   await checkCode(DEPLOYER_ADDRESS, "Deployer");
   await checkCode(AA_FACTORY_ADDRESS, "AA_FACTORY");
 
+  // 部署 ExecuteLib（Factory calldata 变换逻辑）
+  console.log("部署 BeamioUserCardFactoryExecuteLib...");
+  const ExecuteLibFactory = await ethers.getContractFactory("BeamioUserCardFactoryExecuteLib");
+  const executeLib = await ExecuteLibFactory.connect(deployerWallet).deploy();
+  await executeLib.waitForDeployment();
+  const executeLibAddress = await executeLib.getAddress();
+  console.log("  BeamioUserCardFactoryExecuteLib:", executeLibAddress);
+
   // ---------- 部署 BeamioUserCardFactoryPaymasterV07 ----------
   console.log("部署 BeamioUserCardFactoryPaymasterV07...");
   const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
-  const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
+  const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07", {
+    libraries: {
+      BeamioUserCardFactoryExecuteLib: executeLibAddress,
+    },
+  });
   const factory = await FactoryFactory.connect(deployerWallet).deploy(
     USDC_ADDRESS,
     REDEEM_MODULE_ADDRESS,
@@ -242,7 +254,7 @@ export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
     if (m) BASE_CCSA_CARD = m[1];
   }
 
-  let CONET_BUNIT_AIRDROP = "0x67d01e0E9c859A89def4098aC7803f04BF0d77af";
+  let CONET_BUNIT_AIRDROP = "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8";
   const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
   if (fs.existsSync(conetAddrPath)) {
     const conetData = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));

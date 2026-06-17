@@ -1,0 +1,14 @@
+{
+  "predictedAddress": "0xe58F457Cd5674516400013E8d338054be556A730",
+  "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "accountLimit": 100,
+  "create2Salt": "0xbdf24719f8a3b74d59dbcd3b1566c99e05d922a6a6bd2ff56c6b9a9da0f66d26",
+  "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "sampleAaForAdminEoaIndex0": "0xDE72163F1f75C90c4CeDeE11b9E5a17eFc128CB7",
+  "deployments": {
+    "8453": "0xe58F457Cd5674516400013E8d338054be556A730",
+    "224422": "0xe58F457Cd5674516400013E8d338054be556A730"
+  },
+  "updatedAt": "2026-06-15T22:22:59.817Z",
+  "initCodeHash": "0x7c6a8f4ea0b914211f405e1f4303da509739540a8fa0dde56c5699990f55f4c4"
+}

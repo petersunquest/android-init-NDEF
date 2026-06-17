@@ -4,16 +4,16 @@
 
 ## 双 RPC 架构（新链 vs 旧链只读归档）
 
-224422 **已从零重新启动**；线上业务、Hardhat `--network conet`、各客户端默认 RPC 均指向 **新链**。
+224422 **已从零重新启动**（含后续 genesis 重建）；线上业务、Hardhat `--network conet`、各客户端默认 RPC 均指向 **新链**。**新链上尚无已部署 ConetTreasury**（须 CREATE2 首次部署）。
 
 | 角色 | RPC | 块高量级 | 用途 |
 |------|-----|----------|------|
-| **新链（权威）** | `https://rpc1.conet.network` 或 `https://rpc.conet.network`（同机同 Geth `:8888`） | 低（重 genesis 后重新同步） | 读写：部署、交易、CoNET-SI / x402sdk / 应用 |
+| **新链（权威）** | `https://mainnet-rpc1.conet.network`（`rpc1.conet.network` / `rpc.conet.network` 若仍反代同 Geth 亦可） | 低（重 genesis 后重新同步） | 读写：部署、交易、CoNET-SI / x402sdk / 应用 |
 | **旧链只读归档** | `https://rpc-old.conet.network` | 高（中断前旧 224422 状态） | **只读**：从旧合约 `eth_call` / 事件拉取，用于迁移与恢复 |
 
 两者 **chainId 均为 224422**，但 **不是同一条链历史**（新链新 genesis；`rpc-old` 保留旧状态）。  
 **禁止**把 `rpc-old` 当作写 RPC 或默认业务 RPC；**禁止**假设同一地址在新旧 RPC 上 bytecode 一致。  
-（运维：新链 RPC nginx 见 `scripts/nginx-rpc-conet-224422.conf`（`rpc1` + `rpc` → `:8888`）；旧链归档见 `scripts/nginx-rpc-old-conet.conf`（→ `:8882`）。**应用/脚本统一用 HTTPS 域名**，勿再写 `http://38.102.126.58:8880` / `:8001` 等直连 IP。）
+（运维：新链 RPC nginx 见 `scripts/nginx-rpc-conet-224422.conf`（`mainnet-rpc1` / `rpc1` / `rpc` → `:8888`）；旧链归档见 `scripts/nginx-rpc-old-conet.conf`（→ `:8882`）。**应用/脚本统一用 HTTPS 域名**，勿再写 `http://38.102.126.58:8880` / `:8001` 等直连 IP。）
 
 ### 旧链只读归档上的典型合约（rpc-old 可读）
 
@@ -21,7 +21,7 @@
 |------|------------------------|------------------------|
 | GuardianNodesInfoV6 | `0x6d7a526BFD03E90ea8D19eDB986577395a139872` | `0x359F781A5eEb17630A44e15Bc2aC57b248b81790` |
 | AddressPGP | `0xb2aABe52f476356AE638839A786EAE425A0c1b66` | `0xa5F64dd3c034442F5377c8F2Aa1A03ba378D685e` |
-| ConetTreasury | `0x540767C2a183871deb22333a271D5e65bF489F22` | `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1` |
+| ConetTreasury | `0x540767C2a183871deb22333a271D5e65bF489F22` | （rpc-old / 上一 genesis）无有效实例；**新链 CREATE2** `0x0Fa8213c0e7f749B68107900338f3a767086f351`（已部署） |
 | LayerMinusNodeRestart_V2 | `0xf82a6362b9F23F2380C621B5A649987C5bc228B7` | `0x185b17bb66A28d1a86322Fc5c123361A324Bf3c3` |
 
 从 rpc-old 拉 Guardian 示例（只读源 → 写入新链仍用 `--network conet` / rpc1）：
@@ -50,7 +50,7 @@ DRY_RUN=1 npx hardhat run scripts/migrateGuardianNodesInfoV6FromLegacyTo224422.t
 
 ### 1. 前置
 
-- 确认 `hardhat.config.ts` 中 `conet` 网络：`url: https://rpc1.conet.network`，`chainId: 224422`（**非** rpc-old 只读归档）
+- 确认 `hardhat.config.ts` 中 `conet` 网络：`url: https://mainnet-rpc1.conet.network`，`chainId: 224422`（**非** rpc-old 只读归档）
 - 链上历史恢复只读源：`https://rpc-old.conet.network`（见上文「双 RPC 架构」）
 - 确认 `~/.master.json` 含有效 deployer / `settle_contractAdmin` 私钥
 - 编译：`npm run clean && npm run compile`
@@ -178,27 +178,54 @@ node src/CoNET-SI/scripts/check-getAllNodes.mjs
 - [ ] x402sdk 已 build + 线上 restart
 - [ ] CoNET-SI 已部署新代码并 restart
 
-## ConetTreasury CREATE2 + Peer Wrapped ERC20（Wrap 桥）
+## ConetTreasury CREATE2 + ConetTreasuryPeer（Wrap 桥）
 
-跨链同址 Treasury（Nick CREATE2）与源链 **deposit/lock → CoNET 包装 mint** 路径。
+跨链同址 Treasury + **Peer 桥模块**（Nick CREATE2）。burn / `voteMintFromPeerDeposit` 在 **ConetTreasuryPeer**；包装 mint 经 Treasury `mintFactoryToken`。
 
 | 项 | 值 / 脚本 |
 |---|---|
-| CREATE2 预测同址 | `0x798Cd15B34703E229a5854De31Ce33e6d651a2D0`（见 `deployments/conetTreasury-create2-meta.json`） |
-| 预测脚本 | `npx hardhat run scripts/predictConetTreasuryCreate2Address.ts` |
-| 各链部署 | `npx hardhat run scripts/deployConetTreasuryCreate2.ts --network <conet\|base\|…>` |
-| CoNET 后置配置 | `configureConetTreasuryOnConet.ts`、`configureConetTreasuryBridge.ts` |
-| Base USDC peer 登记 | `registerTreasuryPeerUsdc.ts`（miner 调用 `registerPeerToken(8453, 0x833589…, "USD Coin", "USDC", 6)`） |
-| 包装 USDC 预测 | `predictTreasuryWrappedToken.ts` → `0x0B0f6fDb07b2e5eD75DeFF90cb154a5CaD449Ad3`（见 `deployments/conetTreasury-wrapped-base-usdc-meta.json`） |
-| 部署包装币 | `deployTreasuryWrappedToken.ts` |
+| 全栈同址预测 | `npx hardhat run scripts/predictCrossChainAssets.ts` |
+| Treasury 预测 | `0xc6e615431BC0c0c65E09e04877a08AC927A30242` |
+| Peer 预测 | `0xCF26c1686aC5E01e37B72017E575511C42cad29f` |
+| 一键部署 + link | `deployConetTreasuryStackCreate2.ts` |
+| 各链单独 | `deployConetTreasuryCreate2.ts`、`deployConetTreasuryPeerCreate2.ts` |
+| Peer 角色授权 | `configureConetTreasuryPeerBridge.ts`（BUint admin / GB ISSUER → Peer） |
+| CoNET 后置 | `configureConetTreasuryOnConet.ts` |
+| wCNET + BUint + GB peer 登记 | `registerPeerBridgeAssets.ts`、`registerWrappedConetNative.ts`（**Peer** 合约） |
+| Relayer 编程 | **`conetTreasury-relayer-validator.md`** |
+| Blockscout 验证 | `npx tsx scripts/verifyConetTreasuryStackOnScan.ts` |
 
-**Relayer / miner 字段对照（Base → CoNET mint）：**
+> **已拆分**：`ConetTreasury` ~18KB + `ConetTreasuryPeer` ~15KB，均可 EIP-170 部署。旧单合约 `0x0Fa8213c…` 无 Peer 模块，跨链须迁新 CREATE2 栈。
 
-1. 监听 Base `ConetTreasury` / `BaseTreasury` 的 `ERC20Deposited(user, token, amount)`（或等价 deposit 事件），记录 `depositTxHash`。
-2. 各 miner 对 CoNET Treasury 调用 `voteMintFromPeerDeposit(depositTxHash, 8453, peerToken, recipient, amount)`；首票建提案，2/3 通过后 `_ensureWrappedToken` + `FactoryERC20.mint`。
-3. 回程：CoNET 上 burn 包装币 + miner 对 Base 源链 `vote` transfer（不可 burn 的原生 ERC20 勿调 `burn`）。
+**Relayer 要点（详见 `conetTreasury-relayer-validator.md`）：**
 
-现网旧 CREATE Treasury `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1` 需迁移至 CREATE2 同址实例后再 register / mint。
+1. **源链**监听 **ConetTreasuryPeer** 的 `WrappedConetBridgeOut` / `BUintBridgeOut` / `GBBridgeOut`，`depositTxHash` = burn 交易 hash。
+2. **目标链**各 miner 对 **ConetTreasuryPeer** 调用 `voteMintFromPeerDeposit(depositTxHash, sourceChainId, peerToken, recipient, amount)`；2/3 `requiredVotes()` 后自动 mint。
+3. wCNET：`peerChainId=224422`，`peerToken=NATIVE_PEER_TOKEN`。BUint/GB：`peerChainId`=源链 chainId，`peerToken`=B001/B002。
+
+**Wrapped CoNET（wCNET）对称桥：**
+
+| 方向 | 用户动作 | Relayer（对端 ConetTreasury） |
+|------|----------|-------------------------------|
+| **CoNET → 他链** | CoNET：`burnWrappedConetForBridge`（**Peer**） | 他链 Peer：`voteMintFromPeerDeposit(burnTxHash, 224422, NATIVE_PEER_TOKEN, recipient, amount)` |
+| **他链 → CoNET** | 他链：`burnWrappedConetForBridge` | CoNET Peer：`voteMintFromPeerDeposit(...)` |
+| **本链 peg** | CoNET：`depositNative()` / `withdrawNative(amount)` | 无跨链 |
+
+- 各链先 `registerWrappedConetNative.ts`（miner）部署同 CREATE2 键的 wCNET。
+- `NATIVE_PEER_TOKEN` = `0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE`；`CONET_CHAIN_ID` = `224422`。
+- 入/出 CoNET 的 `voteMintFromPeerDeposit` 第三参 `peerChainId` 均为 **224422**，第四参 `peerToken` 均为 **NATIVE_PEER_TOKEN**（表示锚定 CoNET 原生）。
+
+**B-Units / GB 对称桥（CREATE2 同址 + canonical peer 键）：**
+
+| 资产 | 各链同址 | peerToken 键 | 跨链出（源链用户） | 跨链入（对端 miner） |
+|------|----------|--------------|-------------------|----------------------|
+| **B-Units** | `deployBUintCreate2.ts` → `0xf548…` | `0x…B001` | `burnBUintForBridge`（**Peer**；Peer 须 BUint admin） | 对端 **Peer**：`voteMintFromPeerDeposit(..., BUINT_PEER_TOKEN, ...)` |
+| **GB** | `deployGBStackCreate2.ts` → `0xcA42…` | `0x…B002` | `burnGBForBridge`（**Peer**；Peer 须 GB ISSUER） | 对端 **Peer**：`voteMintFromPeerDeposit(..., GB_PEER_TOKEN, ...)` |
+
+- 各链 miner：`registerPeerBridgeAssets.ts`（登记对端 chainId + `setBUint` / `setConetGB` 指向 CREATE2 址）。
+- CoNET ↔ Base 默认对端：`PEER_CHAIN_IDS` 未设时 CoNET 登记 `8453`，Base 登记 `224422`。
+
+**新 genesis 链**：`deployConetTreasuryStackCreate2.ts` → `deployBUintCreate2.ts` / `deployGBStackCreate2.ts` → `configureConetTreasuryPeerBridge.ts` → `configureConetTreasuryOnConet.ts` → `registerPeerBridgeAssets.ts` → `registerTreasuryPeerUsdc.ts` → `verifyConetTreasuryStackOnScan.ts`。
 
 ## 相关脚本
 

@@ -1,0 +1,23 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-06-16T06:44:25.218Z",
+  "contracts": {
+    "beamioUserCardFactoryExecuteLib": {
+      "address": "0xbc6f3926691d2306c96357ac08aadB5F50Ab0784",
+      "transactionHash": "0x3b826573d7393dfc5d3b4b7869b14313b9581ff93ef5e92f3442052edf82dfb3"
+    },
+    "beamioUserCardFactoryPaymaster": {
+      "address": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+      "usdc": "0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa",
+      "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
+      "quoteHelper": "0xD3f275774831810006d744d32E6b024507C0d374",
+      "deployer": "0xD85220e6a9de24f97f79041D07c292ec3B591891",
+      "aaFactory": "0xe58F457Cd5674516400013E8d338054be556A730",
+      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
+      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "transactionHash": "0x9cff6713825e2d6a1b38429ccdc498c8e517473339df1c910f27fd5757f7ef06"
+    }
+  }
+}

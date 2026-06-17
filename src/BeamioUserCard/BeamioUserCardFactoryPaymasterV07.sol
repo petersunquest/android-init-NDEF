@@ -3,7 +3,8 @@
 pragma solidity ^0.8.20;
 
 import "./BeamioUserCardModuleKinds.sol";
-import "./BeamioUserCard.sol";
+import "./IBeamioUserCardForFactory.sol";
+import "./BeamioUserCardFactoryExecuteLib.sol";
 import "./BeamioUserCardTypes.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
@@ -36,31 +37,9 @@ interface IBeamioDeployerV07 {
  *  - aaFactory: injected & upgradable by owner
  */
 contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
-    bytes4 private constant MINT_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("mintPointsByAdmin(address,uint256)"));
     bytes4 private constant BURN_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("burnPointsByAdmin(address,uint256)"));
-    bytes4 private constant SET_CHARGE_REWARD_RATIO_SELECTOR = bytes4(keccak256("setChargeRewardRatio(uint256)"));
     bytes4 private constant IS_ISSUED_NFT_VALID_SELECTOR = bytes4(keccak256("isIssuedNftValid(uint256)"));
-    bytes4 private constant BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR = bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"));
-    bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
-    bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
-    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
-    bytes4 private constant ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"));
-    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_SELECTOR = bytes4(keccak256("setAdminAirdropLimit(address,uint256)"));
-    bytes4 private constant SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR = bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
-    bytes4 private constant CLEAR_ADMIN_MINT_COUNTER_SELECTOR = bytes4(keccak256("clearAdminMintCounterForSubordinate(address,address)"));
-    bytes4 private constant RESET_ADMIN_LIMIT_SELECTOR = bytes4(keccak256("resetAdminLimit(address)"));
-    bytes4 private constant CREATE_REDEEM_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[])"));
-    bytes4 private constant CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeem(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemWithCreator(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemWithCreatorAndRecommender(bytes32,uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[])"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreator(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"));
-    bytes4 private constant CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemBatchWithCreatorAndRecommender(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"));
-    bytes4 private constant CREATE_REDEEM_POOL_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[])"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPool(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
-    bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
+    bytes4 private constant APPEND_TIER_SELECTOR = bytes4(keccak256("appendTier(uint256,uint256,uint256)"));
 
     bytes32 public constant CLAIM_ISSUED_NFT_TYPEHASH = keccak256(
         "ClaimIssuedNft(address cardAddress,uint256 tokenId,uint256 deadline,bytes32 nonce)"
@@ -203,7 +182,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     }
 
     function quoteUnitPointInUSDC6(address card) external view returns (uint256) {
-        BeamioUserCard c = BeamioUserCard(card);
+        IBeamioUserCardForFactory c = IBeamioUserCardForFactory(card);
         return IBeamioQuoteHelper(quoteHelper).quoteUnitPointInUSDC6(uint8(c.currency()), c.pointsUnitPriceInCurrencyE6());
     }
 
@@ -354,7 +333,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     // ===== id issuance =====
     function issueTokenId(address card, bool isNft) external onlyPaymaster returns (uint256 id) {
         if (card == address(0) || card.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(card).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(card).factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         id = isNft ? nextNftId++ : nextFungibleId++;
         tokenIdIssued[card][id] = true;
@@ -383,7 +362,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         }
 
         // validate
-        BeamioUserCard c = BeamioUserCard(card);
+        IBeamioUserCardForFactory c = IBeamioUserCardForFactory(card);
         if (c.factoryGateway() != address(this)) {
             emit DeployFailedStep(1);
             revert BM_DeployFailedAtStep(1);
@@ -426,7 +405,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         Tier[] calldata tiers
     ) external onlyPaymaster returns (address card) {
         card = _deployAndRegisterCard(cardOwner, currency, priceInCurrencyE6, initCode);
-        BeamioUserCard c = BeamioUserCard(card);
+        IBeamioUserCardForFactory c = IBeamioUserCardForFactory(card);
         for (uint256 i = 0; i < tiers.length; i++) {
             Tier memory t = tiers[i];
             if (t.minUsdc6 == 0) revert UC_TierMinZero();
@@ -442,7 +421,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (cardOwner == address(0) || card == address(0)) revert BM_ZeroAddress();
         if (isCardOfOwner[cardOwner][card]) revert F_AlreadyRegistered();
 
-        BeamioUserCard c = BeamioUserCard(card);
+        IBeamioUserCardForFactory c = IBeamioUserCardForFactory(card);
         if (c.factoryGateway() != address(this)) revert F_BadDeployedCard();
         if (c.owner() != cardOwner) revert F_BadDeployedCard();
 
@@ -470,11 +449,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function redeemForUser(address cardAddr, string calldata code, address userEOA) external onlyPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         if (bytes(code).length == 0) revert F_InvalidRedeemHash();
 
-        BeamioUserCard(cardAddr).redeemByGateway(code, userEOA);
+        IBeamioUserCardForFactory(cardAddr).redeemByGateway(code, userEOA);
         emit RedeemExecuted(cardAddr, userEOA, keccak256(bytes(code)));
     }
 
@@ -482,10 +461,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function redeemBatchForUser(address cardAddr, string[] calldata codes, address userEOA) external onlyPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (codes.length == 0) revert F_InvalidRedeemHash();
 
-        BeamioUserCard(cardAddr).redeemBatchByGateway(codes, userEOA);
+        IBeamioUserCardForFactory(cardAddr).redeemBatchByGateway(codes, userEOA);
         for (uint256 i = 0; i < codes.length; i++) {
             emit RedeemExecuted(cardAddr, userEOA, keccak256(bytes(codes[i])));
         }
@@ -494,11 +473,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function redeemPoolForUser(address cardAddr, string calldata code, address userEOA) external onlyPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         if (bytes(code).length == 0) revert F_InvalidRedeemHash();
 
-        BeamioUserCard(cardAddr).redeemPoolByGateway(code, userEOA);
+        IBeamioUserCardForFactory(cardAddr).redeemPoolByGateway(code, userEOA);
         emit RedeemExecuted(cardAddr, userEOA, keccak256(bytes(code)));
     }
 
@@ -506,10 +485,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     function redeemAdminForUser(address cardAddr, string calldata code, address to) external onlyPaymaster {
         if (to == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (bytes(code).length == 0) revert F_InvalidRedeemHash();
 
-        BeamioUserCard(cardAddr).redeemAdminByGateway(code, to);
+        IBeamioUserCardForFactory(cardAddr).redeemAdminByGateway(code, to);
         emit RedeemExecuted(cardAddr, to, keccak256(bytes(code)));
     }
 
@@ -522,8 +501,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 tierExpirySeconds
     ) external onlyPaymaster {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
-        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds);
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        IBeamioUserCardForFactory(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds);
     }
 
     /// @notice Owner 离线签名授权 appendTier，由 paymaster 代付 gas 执行。复用 executeForOwner 的 EIP-712 验签。
@@ -538,12 +517,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         bytes32 nonce,
         bytes calldata ownerSignature
     ) external onlyPaymaster {
-        bytes memory data = abi.encodeWithSelector(
-            BeamioUserCard.appendTier.selector,
-            minUsdc6,
-            attr,
-            tierExpirySeconds
-        );
+        bytes memory data = abi.encodeWithSelector(APPEND_TIER_SELECTOR, minUsdc6, attr, tierExpirySeconds);
         _executeForOwner(cardAddr, data, deadline, nonce, ownerSignature);
     }
 
@@ -579,10 +553,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     ) public onlyPaymaster returns (uint256 pointsOut6) {
         if (fromEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (usdcAmount6 == 0) revert UC_AmountZero();
 
-        address cardOwner = BeamioUserCard(cardAddr).owner();
+        address cardOwner = IBeamioUserCardForFactory(cardAddr).owner();
         if (cardOwner == address(0)) revert BM_ZeroAddress();
 
         uint256 unitPriceUsdc6 = this.quoteUnitPointInUSDC6(cardAddr);
@@ -600,10 +574,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         // 2) Card: mint points to user's AA account
         address operator = cardOwner;
         if (recommender != address(0)) {
-            if (!BeamioUserCard(cardAddr).isAdmin(recommender)) revert UC_NotAdmin();
+            if (!IBeamioUserCardForFactory(cardAddr).isAdmin(recommender)) revert UC_NotAdmin();
             operator = recommender;
         }
-        BeamioUserCard(cardAddr).mintPointsByGatewayWithOperator(fromEOA, pointsOut6, operator);
+        IBeamioUserCardForFactory(cardAddr).mintPointsByGatewayWithOperator(fromEOA, pointsOut6, operator);
 
         emit PointsPurchasedForUser(cardAddr, fromEOA, cardOwner, usdcAmount6, pointsOut6, nonce);
         return pointsOut6;
@@ -624,10 +598,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     ) external onlyPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (amount6 == 0) revert UC_AmountZero();
 
-        BeamioUserCard card = BeamioUserCard(cardAddr);
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
         address cardOwner = card.owner();
         if (cardOwner == address(0)) revert BM_ZeroAddress();
 
@@ -662,10 +636,10 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     ) external onlyPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (amount == 0) revert UC_AmountZero();
 
-        BeamioUserCard card = BeamioUserCard(cardAddr);
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
         address cardOwner = card.owner();
         if (cardOwner == address(0)) revert BM_ZeroAddress();
 
@@ -700,7 +674,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
 
-        BeamioUserCard card = BeamioUserCard(cardAddr);
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
         if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
@@ -731,7 +705,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (userEOA == address(0) || posAdminEOA == address(0)) revert BM_ZeroAddress();
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
 
-        BeamioUserCard card = BeamioUserCard(cardAddr);
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
         if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
         if (!card.isAdmin(posAdminEOA)) revert UC_NotAdmin();
 
@@ -759,7 +733,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
         if (amount == 0) revert UC_AmountZero();
 
-        BeamioUserCard card = BeamioUserCard(cardAddr);
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
         if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         address payee = payeeEOA == address(0) ? card.owner() : payeeEOA;
@@ -812,9 +786,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (data.length == 0) revert F_InvalidRedeemHash();
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
 
-        address cardOwner = BeamioUserCard(cardAddr).owner();
+        address cardOwner = IBeamioUserCardForFactory(cardAddr).owner();
 
         bytes32 structHash = keccak256(abi.encode(
             EXECUTE_FOR_OWNER_TYPEHASH,
@@ -831,68 +805,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (usedOwnerExecuteNonces[nonceKey]) revert UC_NonceUsed();
         usedOwnerExecuteNonces[nonceKey] = true;
 
-        bytes memory callData = data;
-        if (data.length >= 4) {
-            bytes4 sel;
-            assembly {
-                sel := shr(224, mload(add(data, 32)))
-            }
-            if (sel == CREATE_REDEEM_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32 hash, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] memory tokenIds, uint256[] memory amounts) =
-                    abi.decode(tail, (bytes32, uint256, uint256, uint64, uint64, uint256[], uint256[]));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_WITH_CREATOR_SELECTOR,
-                    hash, points6, attr, validAfter, validBefore, tokenIds, amounts, signer
-                );
-            } else if (sel == CREATE_REDEEM_WITH_RECOMMENDER_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32 hash, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] memory tokenIds, uint256[] memory amounts, address recommender) =
-                    abi.decode(tail, (bytes32, uint256, uint256, uint64, uint64, uint256[], uint256[], address));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_WITH_CREATOR_AND_RECOMMENDER_SELECTOR,
-                    hash, points6, attr, validAfter, validBefore, tokenIds, amounts, signer, recommender
-                );
-            } else if (sel == CREATE_REDEEM_BATCH_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32[] memory hashes, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] memory tokenIds, uint256[] memory amounts) =
-                    abi.decode(tail, (bytes32[], uint256, uint256, uint64, uint64, uint256[], uint256[]));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_BATCH_WITH_CREATOR_SELECTOR,
-                    hashes, points6, attr, validAfter, validBefore, tokenIds, amounts, signer
-                );
-            } else if (sel == CREATE_REDEEM_BATCH_WITH_RECOMMENDER_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32[] memory hashes, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256[] memory tokenIds, uint256[] memory amounts, address recommender) =
-                    abi.decode(tail, (bytes32[], uint256, uint256, uint64, uint64, uint256[], uint256[], address));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_BATCH_WITH_CREATOR_AND_RECOMMENDER_SELECTOR,
-                    hashes, points6, attr, validAfter, validBefore, tokenIds, amounts, signer, recommender
-                );
-            } else if (sel == CREATE_REDEEM_POOL_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32 poolHash, uint64 validAfter, uint64 validBefore, uint256[][] memory tokenIdsList, uint256[][] memory amountsList, uint32[] memory counts) =
-                    abi.decode(tail, (bytes32, uint64, uint64, uint256[][], uint256[][], uint32[]));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR,
-                    poolHash, validAfter, validBefore, tokenIdsList, amountsList, counts, signer
-                );
-            } else if (sel == CREATE_REDEEM_POOL_WITH_RECOMMENDER_SELECTOR) {
-                bytes memory tail = new bytes(data.length - 4);
-                for (uint256 i = 0; i < tail.length; i++) tail[i] = data[i + 4];
-                (bytes32 poolHash, uint64 validAfter, uint64 validBefore, uint256[][] memory tokenIdsList, uint256[][] memory amountsList, uint32[] memory counts, address recommender) =
-                    abi.decode(tail, (bytes32, uint64, uint64, uint256[][], uint256[][], uint32[], address));
-                callData = abi.encodeWithSelector(
-                    CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR,
-                    poolHash, validAfter, validBefore, tokenIdsList, amountsList, counts, signer, recommender
-                );
-            }
-        }
+        bytes memory callData = BeamioUserCardFactoryExecuteLib.transformOwnerExecuteCalldata(data, signer);
 
         (bool ok, bytes memory revertData) = cardAddr.call(callData);
         if (!ok) {
@@ -915,80 +828,6 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         _executeForOwner(cardAddr, bytes(data), deadline, nonce, ownerSignature);
     }
 
-    /// @dev Legacy admin calldata shims; unknown selectors pass through unchanged (generic forward).
-    function _transformAdminExecuteCalldata(
-        bytes4 selector,
-        bytes calldata data,
-        address cardAddr,
-        address signer
-    ) internal view returns (bytes memory callData) {
-        if (selector == ADMIN_MANAGER_SELECTOR) {
-            (address to, bool admin, uint256 newThreshold, string memory metadata) =
-                abi.decode(data[4:], (address, bool, uint256, string));
-            return abi.encodeWithSelector(
-                ADMIN_MANAGER_BY_ADMIN_SELECTOR,
-                to,
-                admin,
-                newThreshold,
-                metadata,
-                signer
-            );
-        }
-        if (selector == ADMIN_MANAGER_WITH_LIMIT_SELECTOR) {
-            (address to, bool admin, uint256 newThreshold, string memory metadata, uint256 mintLimit) =
-                abi.decode(data[4:], (address, bool, uint256, string, uint256));
-            return abi.encodeWithSelector(
-                ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR,
-                to,
-                admin,
-                newThreshold,
-                metadata,
-                signer,
-                mintLimit
-            );
-        }
-        if (selector == SET_ADMIN_AIRDROP_LIMIT_SELECTOR) {
-            (address subordinate, uint256 mintLimit) = abi.decode(data[4:], (address, uint256));
-            if (BeamioUserCard(cardAddr).adminParent(subordinate) != signer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
-            return abi.encodeWithSelector(
-                SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR,
-                subordinate,
-                mintLimit,
-                signer
-            );
-        }
-        if (selector == CLEAR_ADMIN_MINT_COUNTER_SELECTOR) {
-            (address subordinate, address authorizer) = abi.decode(data[4:], (address, address));
-            if (authorizer != signer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(subordinate) != authorizer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
-            return abi.encodeWithSelector(
-                BeamioUserCard.clearAdminMintCounterForSubordinate.selector,
-                subordinate,
-                authorizer
-            );
-        }
-        if (selector == RESET_ADMIN_LIMIT_SELECTOR) {
-            (address adminAddr) = abi.decode(data[4:], (address));
-            return abi.encodeWithSelector(
-                BeamioUserCard.resetAdminLimitByAdmin.selector,
-                adminAddr,
-                signer
-            );
-        }
-        if (selector == MINT_POINTS_BY_ADMIN_SELECTOR) {
-            (address user, uint256 points6) = abi.decode(data[4:], (address, uint256));
-            return abi.encodeWithSelector(
-                BeamioUserCard.mintPointsByAdminWithOperator.selector,
-                user,
-                points6,
-                signer
-            );
-        }
-        return bytes(data);
-    }
-
     /// @notice 通用：Card Admin 离线签名授权对 card 的调用，由 paymaster 代付 gas 执行。
     /// @param data abi.encodeWithSelector(selector, ...args)；新 selector 无需改 Factory bytecode
     /// @dev 验签在 Factory 内完成；恢复的 signer 必须为 card.isAdmin(signer)
@@ -1002,7 +841,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (data.length < 4) revert F_InvalidRedeemHash();
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         bytes4 selector = bytes4(data[:4]);
 
         bytes32 structHash = keccak256(abi.encode(
@@ -1014,13 +853,13 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         ));
         bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
         address signer = ECDSA.recover(digest, adminSignature);
-        if (!BeamioUserCard(cardAddr).isAdmin(signer)) revert UC_NotAdmin();
+        if (!IBeamioUserCardForFactory(cardAddr).isAdmin(signer)) revert UC_NotAdmin();
 
         bytes32 nonceKey = keccak256(abi.encode(cardAddr, signer, nonce));
         if (usedAdminExecuteNonces[nonceKey]) revert UC_NonceUsed();
         usedAdminExecuteNonces[nonceKey] = true;
 
-        bytes memory callData = _transformAdminExecuteCalldata(selector, data, cardAddr, signer);
+        bytes memory callData = BeamioUserCardFactoryExecuteLib.transformAdminExecuteCalldata(selector, data, cardAddr, signer);
 
         (bool ok, bytes memory revertData) = cardAddr.call(callData);
         if (!ok) {
@@ -1032,7 +871,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
         if (selector == BURN_POINTS_BY_ADMIN_SELECTOR) {
             (, uint256 amount) = abi.decode(data[4:], (address, uint256));
-            BeamioUserCard(cardAddr).recordAdminBurnForStats(signer, amount);
+            IBeamioUserCardForFactory(cardAddr).recordAdminBurnForStats(signer, amount);
         }
 
         emit AdminExecuteExecuted(cardAddr, signer, nonce);
@@ -1050,7 +889,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (subordinate == address(0)) revert BM_ZeroAddress();
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
-        if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
 
         bytes32 structHash = keccak256(abi.encode(
             CLEAR_ADMIN_MINT_COUNTER_TYPEHASH,
@@ -1061,15 +900,15 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         ));
         bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
         address signer = ECDSA.recover(digest, adminSignature);
-        address parent = BeamioUserCard(cardAddr).adminParent(subordinate);
+        address parent = IBeamioUserCardForFactory(cardAddr).adminParent(subordinate);
         if (parent == address(0)) revert UC_NotAdmin();
         if (signer != parent) revert UC_NotAdmin();
-        if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
+        if (IBeamioUserCardForFactory(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
 
         bytes32 nonceKey = keccak256(abi.encode(cardAddr, subordinate, nonce));
         if (usedClearAdminMintCounterNonces[nonceKey]) revert UC_NonceUsed();
         usedClearAdminMintCounterNonces[nonceKey] = true;
 
-        BeamioUserCard(cardAddr).clearAdminMintCounterForSubordinate(subordinate, signer);
+        IBeamioUserCardForFactory(cardAddr).clearAdminMintCounterForSubordinate(subordinate, signer);
     }
 }

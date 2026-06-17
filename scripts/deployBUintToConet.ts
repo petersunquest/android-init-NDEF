@@ -12,6 +12,7 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,12 +26,13 @@ async function main() {
   console.log("Deploy BUint (B-Units) on CoNET mainnet");
   console.log("=".repeat(60));
   console.log("deployer:", deployer.address);
+  console.log("initialAdmin:", BUINT_INITIAL_ADMIN);
   console.log("chainId:", net.chainId.toString());
   const balance = await ethers.provider.getBalance(deployer.address);
   console.log("balance:", ethers.formatEther(balance), "CNET");
 
   const BUintFactory = await ethers.getContractFactory("BeamioBUnits");
-  const buint = await BUintFactory.deploy();
+  const buint = await BUintFactory.deploy(BUINT_INITIAL_ADMIN);
   await buint.waitForDeployment();
   const buintAddress = await buint.getAddress();
   console.log("BUint deployed:", buintAddress);
@@ -39,7 +41,7 @@ async function main() {
     network: "conet",
     chainId: net.chainId.toString(),
     deployer: deployer.address,
-    initialOwner: deployer.address,
+    initialAdmin: BUINT_INITIAL_ADMIN,
     timestamp: new Date().toISOString(),
     contracts: {
       BUint: {

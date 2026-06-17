@@ -11,7 +11,17 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONET_RPC = "https://rpc1.conet.network";
+const CONET_RPC =
+  process.env.CONET_RPC ||
+  process.env.NEW_RPC ||
+  (() => {
+    const p = path.join(__dirname, "..", "deployments", "conet-addresses.json");
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { rpcUrl?: string };
+      if (j.rpcUrl) return j.rpcUrl;
+    }
+    return "https://publicrpc.conet.network";
+  })();
 const GUARDIAN_NODES = process.env.GUARDIAN_NODES || (() => {
   const p = path.join(__dirname, "..", "deployments", "conet-addresses.json");
   if (fs.existsSync(p)) {

@@ -42,10 +42,13 @@ const conet = conetAddrs as ConetAddrs
 
 // --- Base Mainnet ---
 export const BASE_MAINNET_CHAIN_ID = base.BASE_MAINNET_CHAIN_ID ?? 8453
-export const BASE_AA_FACTORY = base.AA_FACTORY ?? '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
-/** BeamioAccountDeployer（CREATE2）；与 deployments/base-FactoryAndModule.json beamioFactoryPaymaster.deployer 一致 */
-export const BASE_BEAMIO_ACCOUNT_DEPLOYER =
-  base.BEAMIO_ACCOUNT_DEPLOYER ?? '0x139D55591A03550259AF32097A9848ECE9869C90'
+
+/** 跨链同址 BeamioFactoryPaymasterV07（Nick CREATE2；Base + CoNET 同值） */
+export const BEAMIO_AA_FACTORY =
+  base.AA_FACTORY ?? '0xe58F457Cd5674516400013E8d338054be556A730'
+
+/** @deprecated 使用 BEAMIO_AA_FACTORY */
+export const BASE_AA_FACTORY = BEAMIO_AA_FACTORY
 export const BASE_CARD_FACTORY = base.CARD_FACTORY ?? '0xF2864210577359AcaE448D2B116031a0c5EE1016'
 export const BASE_CCSA_CARD_ADDRESS = base.CCSA_CARD_ADDRESS ?? '0x2032A363BB2cf331142391fC0DAd21D6504922C7'
 /** Base 主网（8453）BaseTreasury；勿与 CoNET L1 的 {@link CONET_TREASURY} 混淆 */
@@ -74,8 +77,7 @@ export const MERCHANT_POS_MANAGEMENT_CONET = '0xB7Fb42A67100C6e0C26D21A2d75ffed4
 
 /** 兼容旧版 BASE_MAINNET_FACTORIES 结构 */
 export const BASE_MAINNET_FACTORIES = {
-  AA_FACTORY: BASE_AA_FACTORY,
-  BEAMIO_ACCOUNT_DEPLOYER: BASE_BEAMIO_ACCOUNT_DEPLOYER,
+  AA_FACTORY: BEAMIO_AA_FACTORY,
   CARD_FACTORY: BASE_CARD_FACTORY,
   BeamioCardCCSA_ADDRESS: BASE_CCSA_CARD_ADDRESS,
   ...(BASE_BEAMIO_USER_CARD_FORMATTING_LIB && BASE_BEAMIO_USER_CARD_TRANSFER_LIB
@@ -90,8 +92,7 @@ export const BASE_MAINNET_FACTORIES = {
 export const CONTRACT_ADDRESSES = {
   base: {
     chainId: BASE_MAINNET_CHAIN_ID,
-    aaFactory: BASE_AA_FACTORY,
-    beamioAccountDeployer: BASE_BEAMIO_ACCOUNT_DEPLOYER,
+    aaFactory: BEAMIO_AA_FACTORY,
     cardFactory: BASE_CARD_FACTORY,
     ccsaCard: BASE_CCSA_CARD_ADDRESS,
     baseTreasury: BASE_TREASURY,
@@ -105,6 +106,7 @@ export const CONTRACT_ADDRESSES = {
   },
   conet: {
     chainId: 224422,
+    aaFactory: BEAMIO_AA_FACTORY,
     buint: CONET_BUINT,
     bUnitAirdrop: CONET_BUNIT_AIRDROP_ADDRESS,
     buintRedeemAirdrop: CONET_BUINT_REDEEM_AIRDROP,

@@ -3,10 +3,10 @@
   "chainId": "224422",
   "contract": "epoch_mining_info",
   "source": "src/b-unit/mining_info.sol",
-  "address": "0x9163937cBBacf2F12C069eeEbD7c6A8b91b0e9BD",
+  "address": "0x648f1a17269627C3d465fEa40b3C229f7CacE5cA",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "epochManager": "0x4A3AAd1Ddf82aFF2B3969D45B157D34c72B2Efc8",
   "constructorArgs": [],
-  "timestamp": "2026-05-25T10:24:19.828Z",
-  "transactionHash": "0x8b91cfe5d46f974483fa4ff16ea3c403342ff0bb87501cdc892e9aff10d9ff75"
+  "timestamp": "2026-06-16T01:58:25.395Z",
+  "transactionHash": "0x169be67954df8671c74b4679dcc929b89ee49406b948b4c455ad1e188ba91d01"
 }

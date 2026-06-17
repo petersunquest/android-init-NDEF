@@ -11,6 +11,7 @@ import { execSync } from "child_process";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
+import { BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,10 +67,10 @@ async function main() {
   console.log("BUint:", buintAddr);
   console.log("BUnitAirdrop:", airdropAddr);
 
-  // 1. 验证 BeamioBUnits (BUint) - 无 constructor 参数
+  // 1. 验证 BeamioBUnits (BUint) - constructor(initialAdmin)
   console.log("\n[1/2] 验证 BeamioBUnits...");
   try {
-    runVerify(buintAddr, "src/b-unit/BUint.sol:BeamioBUnits");
+    runVerify(buintAddr, "src/b-unit/BUint.sol:BeamioBUnits", [BUINT_INITIAL_ADMIN]);
     console.log("  ✅ BeamioBUnits 验证成功");
   } catch (e) {
     const msg = (e as Error)?.message ?? "";

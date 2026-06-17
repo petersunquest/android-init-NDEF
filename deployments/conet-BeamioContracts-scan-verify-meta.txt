@@ -1,0 +1,44 @@
+# CoNET Blockscout 验证 — Beamio AA Factory / Container Module / Nick CREATE2
+
+## 一键 API 验证
+
+```bash
+CONET_RPC_URL=https://publicrpc.conet.network npx tsx scripts/verifyConetBeamioContractsOnScan.ts
+```
+
+## 已验证（2026-06-15）
+
+| 合约 | 地址 | Explorer |
+|------|------|----------|
+| **BeamioFactoryPaymasterV07** | `0xe58F457Cd5674516400013E8d338054be556A730` | https://scan.conet.network/address/0xe58F457Cd5674516400013E8d338054be556A730#code |
+| **BeamioContainerModuleV07** | `0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2` | https://scan.conet.network/address/0xad19800aFF164C7Be9158C56589d6Ee8bb404eB2#code |
+
+依赖库（Module 验证前已验证）:
+- Lib1 `0xA0DCCF449D166a81530E8622e29eA171a5a3D9c7`
+- Lib2 `0xaA76d435a8040Af53085c7c2992e37A98EBba74F`
+
+## BeamioFactoryPaymasterV07 构造参数
+
+```
+000000000000000000000000000000000000000000000000000000000000006400000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+```
+
+- `initialAccountLimit = 100`
+- `admin = 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1`
+
+Standard JSON（与 Base 同 initCode）:
+  `deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL-FORM.json`
+
+Contract Name:
+  `project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07`
+
+## Nick CREATE2 Factory `0x4e59b44847b379578588920cA78FbF26c0B4956C`
+
+Arachnid **Deterministic Deployment Proxy**（各链同址、无 constructor 的标准 CREATE2 工厂）。
+
+链上 runtime bytecode（69 bytes）为预签名部署交易的裸 EVM 字节码，**与常规 Solidity/Yul 编译产物不一致**，Blockscout Standard JSON 验证目前无法通过（已尝试 Proxy / runtime Yul）。
+
+该地址在各 EVM 链上为同一 canonical 工厂；用途为 `salt || initCode` calldata 触发 CREATE2。可参考:
+https://github.com/Arachnid/deterministic-deployment-proxy
+
+链上已部署且可用；scan 页可能仅显示 bytecode 而无源码标签。

@@ -140,23 +140,21 @@ function consumeFuel(address user, uint256 amount) external onlyAdmin {
 
 Explorer: https://basescan.org/address/0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58
 
-### 6.2 CoNET 主网 (mainnet.conet.network)
+### 6.2 CoNET 主网 (chainId 224422)
+
+**RPC：** `https://mainnet-rpc1.conet.network`  
+**说明：** 链已重 genesis；下列 Treasury 为 **CREATE2 预测同址**，须 `deployConetTreasuryCreate2.ts` 首次部署后才有链上代码。
 
 | 合约 | 地址 | 说明 |
 |------|------|------|
-| **ConetTreasury** | `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1` | CoNET 国库，ERC20 工厂，miner 2/3 投票 mint |
-| **USDC** (FactoryERC20) | `0x34e437431cF8888261041C99e1D39DaA4526DeB9` | 工厂发行的 USDC，baseToken 对应 Base 主网 USDC |
-| **BUnitAirdrop** | `0x67d01e0E9c859A89def4098aC7803f04BF0d77af` | B-Unit 空投与 USDC 购买入口 |
-| **BUint** | `0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad` | B-Units 代币合约 |
+| **ConetTreasury** (CREATE2) | `0x0Fa8213c0e7f749B68107900338f3a767086f351` | 已部署；miner 2/3 投票 mint / peer wrapped |
+| **conetUSDC** (legacy createERC20) | `0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa` | Treasury 工厂发行 USDC |
+| **Wrapped Base USDC** (CREATE2) | `0x24E259c5Ae58B73587F293524d59309E0832C60f` | peer deposit → mint 包装币 |
+| **BUnitAirdrop** | （见 `deployments/conet-addresses.json`） | B-Unit 空投与 USDC 购买入口 |
+| **BUint** | （见 `deployments/conet-addresses.json`） | B-Units 代币合约 |
 
-**关联地址**：
-- ConetTreasury.guardianNodesInfoV6: `0x6d7a526BFD03E90ea8D19eDB986577395a139872`
-- USDC baseToken (Base 主网 USDC): `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+**Peer 源链 USDC（Base）：** `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
 
-**记账**：BUnitAirdrop 向 BeamioIndexerDiamond (0x0DBDF27E71f9c89353bC5e4dC27c9C5dAe0cc612) 记账：claim/claimFor→buintClaim，mintForUsdcPurchase→buintUSDC，consumeFromUser→keccak256(kind 名称)。需将 BUnitAirdrop 设为 BeamioIndexerDiamond 的 admin（AdminFacet.setAdmin）。
-
-**consumeFromUser kind 登记**：kind=1 sendUSDC（AAtoEOA/Container），kind=2 cardTopup，kind=3 issueCard，kind=4 requestAccounting，kind=5 x402Send（BeamioTransfer x402）。登记命令：`npm run register:bunit-kind:x402Send:conet` 或 `KIND_ID=5 KIND_NAME=x402Send npx hardhat run scripts/registerBUnitKind.ts --network conet`。
-
-**claimFor 的 gas limit**：claimFor 内部会调用 syncTokenAction 向 Indexer 记账。syncTokenAction 需要约 55 万 gas（冷存储写入）。若 x402sdk 的 claimBUnitsProcess 发送 claimFor 时 gas limit 过低（如 82 万），剩余 gas 不足会导致 syncTokenAction 失败（out of gas），claim 成功但 Indexer 无记账。**x402sdk MemberCard.ts claimBUnitsProcess 已设置 gas limit 1_200_000**。
+**部署顺序：** `deployConetTreasuryCreate2` → `configureConetTreasuryOnConet` → `registerTreasuryPeerUsdc` → `deployTreasuryWrappedToken`
 
 Explorer: https://mainnet.conet.network

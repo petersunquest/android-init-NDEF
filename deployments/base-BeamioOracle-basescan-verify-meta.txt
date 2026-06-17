@@ -1,0 +1,33 @@
+# BaseScan: BeamioOracle (CREATE2) @ 0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008
+
+## Regenerate Standard JSON
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioOracle --full
+node scripts/exportBeamioStackBaseScanFormJson.mjs
+```
+
+Upload (BaseScan UI 推荐):
+  deployments/base-BeamioOracle-standard-input-FULL-FORM.json
+
+Full build-info (备用):
+  deployments/base-BeamioOracle-standard-input-FULL.json
+
+## Compiler
+
+- Version: v0.8.33+commit.64118f21
+- viaIR: true
+- optimizer.runs: 200
+- evmVersion: cancun
+
+## Contract name (exact)
+
+project/src/BeamioUserCard/BeamioOracle.sol:BeamioOracle
+
+If UI fails, try short name only:
+BeamioOracle
+
+## Constructor Args ABI-encoded:
+
+00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1

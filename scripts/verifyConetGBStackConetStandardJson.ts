@@ -13,7 +13,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { AbiCoder } from "ethers";
+import { AbiCoder, getAddress } from "ethers";
+import { GB_INITIAL_ADMIN } from "./gbDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,8 +99,17 @@ function loadConstructorArgsHex(deploymentKey: string): string {
   if (!j.constructorArgs?.length) return "";
   const coder = AbiCoder.defaultAbiCoder();
   if (deploymentKey === "ConetGB1155") {
-    const [st, hid] = j.constructorArgs;
-    return coder.encode(["uint64", "uint64"], [BigInt(st), BigInt(hid)]).slice(2);
+    const [st, hid, admin] = j.constructorArgs;
+    const adminAddr = admin
+      ? getAddress(String(admin))
+      : GB_INITIAL_ADMIN;
+    return coder
+      .encode(["uint64", "uint64", "address"], [BigInt(st), BigInt(hid), adminAddr])
+      .slice(2);
+  }
+  if (deploymentKey === "ConetGB_total" || deploymentKey === "ConetGB_userTotal") {
+    const [gb] = j.constructorArgs;
+    return coder.encode(["address"], [getAddress(String(gb))]).slice(2);
   }
   return "";
 }

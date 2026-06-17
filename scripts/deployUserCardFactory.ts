@@ -172,11 +172,23 @@ async function main() {
   console.log("✅ 所有依赖地址验证通过");
   console.log();
   
+  // 部署 ExecuteLib（Factory calldata 变换逻辑，external library 以控制 EIP-170 体积）
+  console.log("部署 BeamioUserCardFactoryExecuteLib...");
+  const ExecuteLibFactory = await ethers.getContractFactory("BeamioUserCardFactoryExecuteLib");
+  const executeLib = await ExecuteLibFactory.connect(deployer).deploy();
+  await executeLib.waitForDeployment();
+  const executeLibAddress = await executeLib.getAddress();
+  console.log("✅ BeamioUserCardFactoryExecuteLib:", executeLibAddress);
+
   // 部署 BeamioUserCardFactoryPaymasterV07
   console.log("部署 BeamioUserCardFactoryPaymasterV07...");
   
   const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
-  const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
+  const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07", {
+    libraries: {
+      BeamioUserCardFactoryExecuteLib: executeLibAddress,
+    },
+  });
   const factory = await FactoryFactory.connect(deployer).deploy(
     USDC_ADDRESS,
     REDEEM_MODULE_ADDRESS,
@@ -192,6 +204,15 @@ async function main() {
   
   console.log("✅ BeamioUserCardFactoryPaymasterV07 部署成功!");
   console.log("合约地址:", factoryAddress);
+  
+  // Deployer 绑定新 Factory
+  if (DEPLOYER_ADDRESS) {
+    console.log("\n调用 Deployer.setFactory(新 Factory)...");
+    const deployerContract = await ethers.getContractAt("BeamioUserCardDeployerV07", DEPLOYER_ADDRESS, deployer);
+    const setFactoryTx = await deployerContract.setFactory(factoryAddress);
+    await setFactoryTx.wait();
+    console.log("✅ setFactory 成功");
+  }
   
   // 等待区块确认
   console.log("等待区块确认...");
@@ -219,6 +240,10 @@ async function main() {
     deployer: deployerAddress,
     timestamp: new Date().toISOString(),
     contracts: {
+      beamioUserCardFactoryExecuteLib: {
+        address: executeLibAddress,
+        transactionHash: executeLib.deploymentTransaction()?.hash,
+      },
       beamioUserCardFactoryPaymaster: {
         address: factoryAddress,
         usdc: USDC_ADDRESS,
@@ -244,6 +269,7 @@ async function main() {
   console.log("=".repeat(60));
   console.log("\n部署信息已保存到:", deploymentFile);
   console.log("\n📋 部署摘要:");
+  console.log("  - BeamioUserCardFactoryExecuteLib:", executeLibAddress);
   console.log("  - BeamioUserCardFactoryPaymasterV07:", factoryAddress);
   console.log("\n下一步:");
   console.log("  使用此 Factory 为 EOA 创建 UserCard:");

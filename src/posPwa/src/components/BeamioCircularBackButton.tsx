@@ -9,8 +9,7 @@ type BeamioCircularBackButtonProps = {
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'onClick' | 'children'>
 
 /**
- * iOS POS `SheetCircularBackButton` parity — frosted circular chevron, floating with shadow.
- * @see src/CashTrees_iOS/iOS_NDEF/iOS_NDEF/ContentView.swift
+ * POS PWA circular back — light gray fill + dark chevron (readable on `#f9f9fe` / white shells).
  */
 export function BeamioCircularBackButton({
 	onClick,
@@ -28,16 +27,18 @@ export function BeamioCircularBackButton({
 			aria-label={ariaLabel}
 			className={[
 				'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-				'border border-white/40 bg-white/20 text-white/80 backdrop-blur-md',
-				'dark:border-white/40 dark:bg-white/20',
+				'border border-slate-200/90 bg-slate-100/95 text-slate-900',
 				'shadow-[0_1px_3px_rgba(0,0,0,0.12)]',
-				'transition active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40',
-				'hover:bg-white/30',
+				'transition active:scale-[0.96] hover:bg-slate-200/90',
+				'disabled:pointer-events-none disabled:opacity-40',
 				className,
 			].join(' ')}
 			{...rest}
 		>
-			<ChevronLeft className="h-[17px] w-[17px] stroke-[2.5]" aria-hidden />
+			<ChevronLeft
+				className="h-[17px] w-[17px] stroke-[2.5] text-slate-900"
+				aria-hidden
+			/>
 		</button>
 	)
 }

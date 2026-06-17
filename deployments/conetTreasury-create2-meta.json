@@ -1,8 +1,13 @@
 {
-  "predictedAddress": "0x798Cd15B34703E229a5854De31Ce33e6d651a2D0",
+  "predictedAddress": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
   "initialMiner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
   "salt": "0x0d0e7b3190abfdc68d91aab78d038a8027e4ea1659e8710b7e5889aa14e6c8a5",
-  "initCodeHash": "0x975eb0cd8ed44c5b40bfe0add84235c3b4e211631e6a06a815c95d458f4d082a",
-  "updatedAt": "2026-06-15T03:41:42.742Z"
+  "initCodeHash": "0xe38bb5954fefa12f59e3cd4e833723709f7974cbab28a0f6b63cd12a77947ba0",
+  "updatedAt": "2026-06-15T09:17:09.680Z",
+  "create2Salt": "0x0d0e7b3190abfdc68d91aab78d038a8027e4ea1659e8710b7e5889aa14e6c8a5",
+  "deployments": {
+    "8453": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
+    "224422": "0xc6e615431BC0c0c65E09e04877a08AC927A30242"
+  }
 }

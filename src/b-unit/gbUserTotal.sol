@@ -4,7 +4,12 @@ pragma solidity ^0.8.33;
 import "./GB.sol";
 
 contract ConetGB_userTotal {
-    ConetGB1155 public conetgb = ConetGB1155(0x4641Eb3055A891E6D3109e441aA8b931738A48b5);
+    ConetGB1155 public immutable conetgb;
+
+    constructor(address gb_) {
+        require(gb_ != address(0), "zero gb");
+        conetgb = ConetGB1155(gb_);
+    }
 
     function getDashboard (address to) public view returns (
         uint256 todayTotalIssued, 

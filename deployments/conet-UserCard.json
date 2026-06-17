@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-06-16T06:34:55.844Z",
+  "factory": "0xe58F457Cd5674516400013E8d338054be556A730",
+  "userCard": {
+    "address": "0xaEb75bdDC4754eb1388f165b512021F8a3d2Ac30",
+    "uri": "https://beamio.app/api/metadata/0x",
+    "currency": 4,
+    "price": "1000000",
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "gateway": "0xe58F457Cd5674516400013E8d338054be556A730",
+    "transactionHash": "0x39b8ee18a0e643a38303be6c6c4a5679e226c09fa22547d271034a2deea6c2fb"
+  }
+}

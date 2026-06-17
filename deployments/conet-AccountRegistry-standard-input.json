@@ -26,7 +26,13 @@
         ]
       }
     },
-    "remappings": [],
+    "remappings": [
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
+      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/"
+    ],
     "viaIR": true
   },
   "sources": {

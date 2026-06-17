@@ -6,10 +6,13 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"start": "vite",
 		"build": "tsc -b && vite build",
 		"build:root": "POS_PWA_BASE=/ tsc -b && POS_PWA_BASE=/ vite build",
-		"preview": "vite preview",
-		"preview:pos": "npm run build && vite preview"
+		"preview": "vite preview --base /pos/",
+		"preview:root": "vite preview --base /",
+		"preview:pos": "npm run build && vite preview --base /pos/",
+		"preview:app": "npm run build:root && vite preview --base /"
 	},
 	"dependencies": {
 		"@noble/hashes": "^1.8.0",

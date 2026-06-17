@@ -48,8 +48,8 @@ const NEW_ADDRESS_PGP =
   })();
 const GUARDIAN_NEW = process.env.GUARDIAN_NEW || "0x6d7a526BFD03E90ea8D19eDB986577395a139872";
 
-const LEGACY_CHAIN = 224400n;
-const NEW_CHAIN = 224422n;
+const LEGACY_CHAIN = process.env.LEGACY_CHAIN_ID ? BigInt(process.env.LEGACY_CHAIN_ID) : 224400n;
+const NEW_CHAIN = process.env.NEW_CHAIN_ID ? BigInt(process.env.NEW_CHAIN_ID) : 224422n;
 
 const DRY_RUN = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 const START_INDEX = Number(process.env.START_INDEX || "0");
@@ -93,6 +93,15 @@ function normalizePk(hex: string): string {
 
 /** initManager + ETH_Manager 去重（按地址），排序后返回私钥列表（CoNET-DL 与 addCoNETDLRouterAdmins 一致） */
 function loadCoNETDLAdminPrivateKeys(): string[] {
+  if (process.env.PGP_MIGRATE_SINGLE_DEPLOYER === "1") {
+    if (!fs.existsSync(MASTER_JSON)) {
+      throw new Error(`未找到 ${MASTER_JSON}`);
+    }
+    const raw = JSON.parse(fs.readFileSync(MASTER_JSON, "utf-8")) as MasterJson;
+    const pk = raw.settle_contractAdmin?.[0] || raw.beamio_Admins?.[0];
+    if (!pk) throw new Error(`${MASTER_JSON} 中无 settle_contractAdmin / beamio_Admins`);
+    return [normalizePk(pk)];
+  }
   if (!fs.existsSync(MASTER_JSON)) {
     throw new Error(`未找到 ${MASTER_JSON}`);
   }

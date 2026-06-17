@@ -1,13 +1,13 @@
 {
-  "treasuryCreate2": "0x798Cd15B34703E229a5854De31Ce33e6d651a2D0",
+  "network": "conet",
+  "chainId": "224422",
+  "rpcUrl": "https://publicrpc.conet.network",
+  "treasury": "0x0Fa8213c0e7f749B68107900338f3a767086f351",
   "peerChainId": "8453",
   "peerToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-  "wrappedName": "USD Coin",
-  "wrappedSymbol": "USDC",
-  "wrappedDecimals": 6,
-  "predictedWrapped": "0x0B0f6fDb07b2e5eD75DeFF90cb154a5CaD449Ad3",
-  "wrappedSalt": "0x07497ead038a0378e32f1b26333effaf44138f15550a82af0a6fe71ebdd0941e",
-  "wrappedInitCodeHash": "0xef068664ec8990e532df4eb79d2eedec690a810f42d4d98f51a6cdd9302f0354",
-  "note": "Wrapped address is CREATE2 deterministic on CoNET; NOT equal to Base USDC address.",
-  "updatedAt": "2026-06-14T12:00:00.000Z"
+  "wrapped": "0x24E259c5Ae58B73587F293524d59309E0832C60f",
+  "registerPeerTokenTx": "0xb613a645cecf95370ee55a3647a24ccd503b0d5b07dfda1efa2e690e6b0be03b",
+  "nickDirectDeployTx": "0x1399148975e38d8272c39d3ec7d5d58378f9ab7bbb10caaaaec0bb5629764926",
+  "treasuryTrackTx": "0x6594865ccd17e03f6c356c5f2e0025a82a27deb98e992e435c88d5e427782ca8",
+  "deployedAt": "2026-06-15T04:26:00.000Z"
 }

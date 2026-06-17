@@ -18,6 +18,7 @@ export * as redeemModuleSol from './RedeemModule.sol/index.js';
 export { BeamioOracle__factory } from './BeamioOracle__factory.js';
 export { BeamioUserCard__factory } from './BeamioUserCard__factory.js';
 export { BeamioUserCardDeployerV07__factory } from './BeamioUserCardDeployerV07__factory.js';
+export { BeamioUserCardFactoryExecuteLib__factory } from './BeamioUserCardFactoryExecuteLib__factory.js';
 export { BeamioUserCardFaucetGatewayLib__factory } from './BeamioUserCardFaucetGatewayLib__factory.js';
 export { BeamioUserCardFormattingLib__factory } from './BeamioUserCardFormattingLib__factory.js';
 export { BeamioUserCardGatewayMintLib__factory } from './BeamioUserCardGatewayMintLib__factory.js';
@@ -28,5 +29,6 @@ export { BeamioUserCardPlaceholder__factory } from './BeamioUserCardPlaceholder_
 export { BeamioUserCardRedeemGatewayLib__factory } from './BeamioUserCardRedeemGatewayLib__factory.js';
 export { BeamioUserCardTransferLib__factory } from './BeamioUserCardTransferLib__factory.js';
 export { BeamioUserCardViewsLib__factory } from './BeamioUserCardViewsLib__factory.js';
+export { IBeamioUserCardForFactory__factory } from './IBeamioUserCardForFactory__factory.js';
 export { IBeamioUserCardNftInventory__factory } from './IBeamioUserCardNftInventory__factory.js';
 export { IBeamioUserCardSelfDelegate__factory } from './IBeamioUserCardSelfDelegate__factory.js';

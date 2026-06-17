@@ -9,6 +9,8 @@
  * 运行:
  *   npx tsx scripts/verifyAccountRegistryConetStandardJson.ts
  *
+ * Explorer: https://scan.conet.network （勿用已弃用的 mainnet.conet.network）
+ *
  * 环境变量:
  *   ACCOUNT_REGISTRY_ADDRESS — 覆盖默认（否则读 deployments/conet-AccountRegistry.json 或 conet-addresses.json）
  */
@@ -21,7 +23,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
 
-const EXPLORER = "https://mainnet.conet.network";
+const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
+const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://scan.conet.network/api").replace(/\/$/, "");
 const SOURCE_KEY = "project/src/mainnet/AccountRegistry.sol";
 
 function resolveAddress(): string {
@@ -94,11 +97,11 @@ async function main() {
   const address = resolveAddress();
   const { json, compilerVersion } = loadMinimalStandardInput();
 
-  const url = `${EXPLORER}/api/v2/smart-contracts/${address}/verification/via/standard-input`;
+  const url = `${BLOCKSCOUT_API}/v2/smart-contracts/${address}/verification/via/standard-input`;
   const blob = new Blob([json], { type: "application/json" });
   const form = new FormData();
   form.set("compiler_version", compilerVersion);
-  form.set("contract_name", "AccountRegistry");
+  form.set("contract_name", "project/src/mainnet/AccountRegistry.sol:AccountRegistry");
   form.set("autodetect_constructor_args", "true");
   form.set("constructor_args", "");
   form.set("license_type", "mit");
@@ -123,7 +126,7 @@ async function main() {
       process.exitCode = 1;
     }
   }
-  console.log("\n可在浏览器查看: ", `${EXPLORER}/address/${address}#code`);
+  console.log("\n可在浏览器查看: ", `${BLOCKSCOUT_UI}/address/${address}#code`);
 }
 
 main().catch((e) => {

@@ -1,0 +1,27 @@
+BaseScan UI — Beamio AA + Oracle stack verification
+
+Use FULL-FORM JSON files (pruned, UI-safe outputSelection).
+
+## BeamioFactoryPaymasterV07
+Address: 0xe58F457Cd5674516400013E8d338054be556A730
+Upload: deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL-FORM.json (171.7 KB)
+Contract Name: project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07
+Constructor (no 0x): 000000000000000000000000000000000000000000000000000000000000006400000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## BeamioOracle
+Address: 0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008
+Upload: deployments/base-BeamioOracle-standard-input-FULL-FORM.json (14.3 KB)
+Contract Name: project/src/BeamioUserCard/BeamioOracle.sol:BeamioOracle
+Constructor (no 0x): 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## BeamioQuoteHelperV07
+Address: 0xD3f275774831810006d744d32E6b024507C0d374
+Upload: deployments/base-BeamioQuoteHelperV07-standard-input-FULL-FORM.json (83.1 KB)
+Contract Name: project/src/BeamioUserCard/BeamioQuoteHelperV07.sol:BeamioQuoteHelperV07
+Constructor (no 0x): 00000000000000000000000077cb8358c5a37ab7190b0a2c7eaa7feedcf1100800000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## BeamioAccount
+Address: 0xaAE26581B0126cDEE36602413FFc94c4436F310C
+Upload: deployments/base-BeamioAccount-standard-input-FULL-FORM.json (150.9 KB)
+Contract Name: project/src/BeamioAccount/BeamioAccount.sol:BeamioAccount
+Constructor (no 0x): 0000000000000000000000000000000071727de22e5e9d8baf0edac6f37da032

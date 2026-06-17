@@ -13,6 +13,7 @@ import {
 	fetchBUnitBalance,
 	fetchCardAdminInfo,
 	fetchCardMetadataPointSystem,
+	fetchCardMetadataRoot,
 	fetchMyPosAddress,
 	fetchPosLedger,
 	fetchWalletAssets,
@@ -36,6 +37,10 @@ import {
 	resolvePosTerminalAccessAllowed,
 } from '@/utils/posProgramCardAccess'
 import { computeHomeStatsFromPosLedger } from '@/utils/posLedgerMetrics'
+import {
+	businessNameFromCardMetadataRoot,
+	merchantProgramMetadataDisplayName,
+} from '@/utils/merchantProgramDisplayName'
 
 interface PosContextValue {
 	walletAddress: string | null
@@ -45,6 +50,10 @@ interface PosContextValue {
 	setParentProfile: (p: TerminalProfile | null) => void
 	terminalProfile: TerminalProfile | null
 	adminProfile: TerminalProfile | null
+	/** Chain `upperAdmin` or card `owner` EOA — home admin capsule subtitle. */
+	adminOwnerEoa: string | null
+	/** Merchant program card metadata `name` for home admin capsule title. */
+	programCardBusinessName: string | null
 	merchantInfraCard: string | null
 	registeredBeamioTag: string | null
 	currency: string
@@ -80,6 +89,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [parentProfile, setParentProfile] = useState<TerminalProfile | null>(null)
 	const [terminalProfile, setTerminalProfile] = useState<TerminalProfile | null>(null)
 	const [adminProfile, setAdminProfile] = useState<TerminalProfile | null>(null)
+	const [adminOwnerEoa, setAdminOwnerEoa] = useState<string | null>(null)
+	const [programCardBusinessName, setProgramCardBusinessName] = useState<string | null>(null)
 	const [merchantInfraCard, setMerchantInfraCard] = useState<string | null>(null)
 	const [registeredBeamioTag, setRegisteredBeamioTag] = useState<string | null>(null)
 	const [currency, setCurrency] = useState('CAD')
@@ -139,6 +150,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, infra)
 		if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
+		const cachedBizName = posHomeTrustedCache.loadProgramCardBusinessName(wallet, infra)
+		if (cachedBizName) setProgramCardBusinessName(cachedBizName)
 
 		const [ledger, adminInfo, assets, coupons, pointEnabled] = await Promise.all([
 			fetchPosLedger(wallet, infra),
@@ -173,6 +186,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				setBootPhase(access ? 'home' : 'permission')
 			}
 			if (adminInfo?.ok) {
+				const chainAdminEoa =
+					adminInfo.upperAdmin?.trim() || adminInfo.owner?.trim() || null
+				setAdminOwnerEoa(chainAdminEoa)
 				const resolvedAdmin = await resolveAdminProfileFromCardAdminInfo(adminInfo)
 				if (gen !== refreshGen.current) return
 				if (resolvedAdmin !== undefined) {
@@ -200,6 +216,17 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 		if (assets && typeof assets.hasAAAccount === 'boolean') {
 			setHasAAAccount(assets.hasAAAccount)
+		}
+
+		if (assets !== null) {
+			let businessName = merchantProgramMetadataDisplayName(assets.cardName)
+			if (!businessName) {
+				const metaRoot = await fetchCardMetadataRoot(infra)
+				if (gen !== refreshGen.current) return
+				businessName = businessNameFromCardMetadataRoot(metaRoot?.metadata ?? null)
+			}
+			setProgramCardBusinessName(businessName)
+			posHomeTrustedCache.saveProgramCardBusinessName(wallet, infra, businessName)
 		}
 
 		if (coupons !== null) {
@@ -288,6 +315,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					}
 					const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(addr, infra)
 					if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
+					const cachedBizName = posHomeTrustedCache.loadProgramCardBusinessName(addr, infra)
+					if (cachedBizName) setProgramCardBusinessName(cachedBizName)
 				}
 
 				const permCached = posHomeTrustedCache.loadPermissionGranted(addr)
@@ -354,6 +383,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			setParentProfile,
 			terminalProfile,
 			adminProfile,
+			adminOwnerEoa,
+			programCardBusinessName,
 			merchantInfraCard,
 			registeredBeamioTag,
 			currency,
@@ -380,6 +411,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			parentProfile,
 			terminalProfile,
 			adminProfile,
+			adminOwnerEoa,
+			programCardBusinessName,
 			merchantInfraCard,
 			registeredBeamioTag,
 			currency,

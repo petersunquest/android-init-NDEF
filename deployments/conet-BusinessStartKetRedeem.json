@@ -19,17 +19,17 @@
     "0xee73178EE888363C84713434D1570749eaeB880d"
   ],
   "constructorArgs": {
-    "ket": "0x61A206aD8fFdBA847fCB92eB8EE4bfAa2546249D",
-    "buint": "0x9149433F154C508d2a04454b8E527A479C6fd254",
+    "ket": "0xe747faB957eD29ec07B81Edab546AF5C6724fCf2",
+    "buint": "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f",
     "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
   },
-  "timestamp": "2026-05-25T06:47:44.035Z",
+  "timestamp": "2026-06-17T11:15:37.532Z",
   "contracts": {
     "BusinessStartKetRedeem": {
-      "address": "0x980340A8Eb23117b624b1f037b8a489F54C7b6a5",
-      "ket": "0x61A206aD8fFdBA847fCB92eB8EE4bfAa2546249D",
-      "buint": "0x9149433F154C508d2a04454b8E527A479C6fd254",
-      "transactionHash": "0x7d485da80e93c12f31468e8e2b9aedfd79961e9129dfb0e39e2156ea98306100"
+      "address": "0x4C3995D1Cad52a9EE65024C8Ad80Ad6B51b098ce",
+      "ket": "0xe747faB957eD29ec07B81Edab546AF5C6724fCf2",
+      "buint": "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f",
+      "transactionHash": "0xd5682a41859bc31129464f93a2d9d8ca901156e7af75bab830462d2cc9c2e3aa"
     }
   }
 }

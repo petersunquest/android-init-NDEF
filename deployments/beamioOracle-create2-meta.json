@@ -1,0 +1,21 @@
+{
+  "predictedOracle": "0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008",
+  "predictedQuoteHelper": "0xD3f275774831810006d744d32E6b024507C0d374",
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "oracleSalt": "0x2e3506831a45b98d24e008c970191feecfc4133130ee79f971980a8876baca2a",
+  "quoteHelperSalt": "0x9366de010ae9dd80392c06008c93f5e4c6d57a1dcabc98bfbc8b360153c9d0ad",
+  "oracleInitCodeHash": "0x47a00e3a5bd23ae66869fc17f53175c5cf9094b86427bec8084cc2b900088f2f",
+  "quoteHelperInitCodeHash": "0x64a234e1a8a31b93be996e9e73add082a63cdefa4f85b9a285f2fbad06924baf",
+  "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "deployments": {
+    "8453": {
+      "oracle": "0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008",
+      "quoteHelper": "0xD3f275774831810006d744d32E6b024507C0d374"
+    },
+    "224422": {
+      "oracle": "0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008",
+      "quoteHelper": "0xD3f275774831810006d744d32E6b024507C0d374"
+    }
+  },
+  "updatedAt": "2026-06-15T22:33:19.887Z"
+}

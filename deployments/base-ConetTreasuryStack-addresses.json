@@ -1,0 +1,14 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "deployedAt": "2026-06-15T09:17:00.000Z",
+  "ConetTreasury": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
+  "ConetTreasuryPeer": "0xCF26c1686aC5E01e37B72017E575511C42cad29f",
+  "wrappedConet": "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39",
+  "BUint": "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f",
+  "ConetGB1155": "0xcA423EEBC09d09834dC9CA28861798B3321893ab",
+  "ConetGB_total": "0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11",
+  "ConetGB_userTotal": "0x5663d651783364325045f061d93d05808c231163",
+  "peerChainIdsRegistered": ["224422"],
+  "verifyBundle": "deployments/base-ConetTreasuryStack-verify-bundle.json"
+}

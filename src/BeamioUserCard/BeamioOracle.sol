@@ -3,7 +3,13 @@ pragma solidity ^0.8.20;
 
 import "../contracts/access/Ownable.sol";
 import "./BeamioCurrency.sol";
+import "./Errors.sol";
 
+/**
+ * @title BeamioOracle
+ * @notice 跨链汇率 Oracle。constructor 使用固定 `initialOwner`（非 msg.sender），
+ *         以便 Nick CREATE2 在各链部署同址；部署后由 owner 喂价。
+ */
 contract BeamioOracle is Ownable {
     error OracleError();
     error RateLimitExceeded();
@@ -26,7 +32,8 @@ contract BeamioOracle is Ownable {
     event BreakerUpdated(uint8 indexed currency, uint16 maxChangeBps, uint120 minRateE18, uint120 maxRateE18);
     event DefaultMaxChangeUpdated(uint256 oldBps, uint256 newBps);
 
-    constructor() Ownable(msg.sender) {
+    constructor(address initialOwner) Ownable(initialOwner) {
+        if (initialOwner == address(0)) revert BM_ZeroAddress();
         rates[BeamioCurrency.USD] = E18;
         rates[BeamioCurrency.USDC] = E18;
     }

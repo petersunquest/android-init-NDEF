@@ -601,6 +601,7 @@ export async function executeQrCharge(params: {
 		currency: payCurrency,
 		currencyAmount: total.toFixed(2),
 		merchantInfraCard: infra,
+		posOperator: payeeWallet,
 		chargeBill: bill,
 	})
 	if (!pay?.success) {

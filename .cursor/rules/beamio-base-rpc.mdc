@@ -28,3 +28,10 @@ alwaysApply: true
 ## 新增代码
 
 新增 Base 链 RPC 调用时，默认使用 `https://base-rpc.conet.network`。
+
+## 运维与重启（Agent 须遵守）
+
+**不得** 未经用户在同一条消息里 **明确书面授权** 而停止、重启、 wipe 或跑快照重置 **`base-rpc.conet.network` 背后的 Base 链基础设施**（**全部** `op-reth` / `op-geth` / `op-node` 实例及 `docker compose` / `base-node-reset-from-snapshot.sh` 等）。详见 **`critical-chain-infra-restart-requires-approval.mdc`**（与 CoNET **全部** beacon / validator 规则同一标准）。
+
+- RPC 502、sync 落后、限流 → 只读诊断 + 向用户说明；**不** 自动 `docker restart base-op-reth`。
+- 仅 nginx / CoNET-SI `/base-rpc` 反代 reload **不** 等同 Base 节点重启。

@@ -43,7 +43,7 @@ const steps: { cmd: string; desc: string }[] = [
 
 function main() {
   const dry = process.env.DRY_RUN === "1";
-  console.log("ConNET 224422 顺序部署（RPC: https://rpc1.conet.network）\n");
+  console.log("ConNET 224422 顺序部署（RPC: https://mainnet-rpc1.conet.network）\n");
   for (const { cmd, desc } of steps) {
     console.log("\n" + "=".repeat(60));
     console.log(desc);

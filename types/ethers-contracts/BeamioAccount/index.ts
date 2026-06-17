@@ -11,6 +11,7 @@ import type * as beamioOpenContainerMintExecutorSol from './BeamioOpenContainerM
 export type { beamioOpenContainerMintExecutorSol };
 import type * as beamioTypesV07Sol from './BeamioTypesV07.sol/index.js';
 export type { beamioTypesV07Sol };
+export type { BeamioAccountCreate2Lib } from './BeamioAccountCreate2Lib.js';
 export type { BeamioAccountDeployer } from './BeamioAccountDeployer.js';
 export type { BeamioContainerModuleExternalLib2V07 } from './BeamioContainerModuleExternalLib2V07.js';
 export type { BeamioFactoryPaymasterV07 } from './BeamioFactoryPaymasterV07.js';

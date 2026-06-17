@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+/// @dev Deprecated — AA creation uses Nick CREATE2 via `BeamioAccountCreate2Lib` in `BeamioFactoryPaymasterV07`.
+///      Kept for historical artifact / verification only; do not deploy or reference in new scripts.
 contract BeamioAccountDeployer {
     address public factory;
 

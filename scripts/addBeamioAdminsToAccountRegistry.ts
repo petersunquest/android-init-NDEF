@@ -21,8 +21,28 @@ import * as fs from "fs";
 import * as path from "path";
 import { homedir } from "os";
 
-const CONET_RPC = "https://rpc1.conet.network";
-const ACCOUNT_REGISTRY = process.env.ACCOUNT_REGISTRY || "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba";
+const rootDir = process.cwd();
+const CONET_RPC =
+  process.env.CONET_RPC ||
+  process.env.CONET_RPC_URL ||
+  (() => {
+    const p = path.join(rootDir, "deployments", "conet-addresses.json");
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { rpcUrl?: string };
+      if (j.rpcUrl) return j.rpcUrl;
+    }
+    return "https://publicrpc.conet.network";
+  })();
+const ACCOUNT_REGISTRY =
+  process.env.ACCOUNT_REGISTRY ||
+  (() => {
+    const p = path.join(rootDir, "deployments", "conet-addresses.json");
+    if (fs.existsSync(p)) {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8")) as { AccountRegistry?: string };
+      if (j.AccountRegistry) return j.AccountRegistry;
+    }
+    return "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba";
+  })();
 const MASTER_PATH = path.join(homedir(), ".master.json");
 
 const AccountRegistryABI = [

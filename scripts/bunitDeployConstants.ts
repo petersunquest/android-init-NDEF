@@ -11,8 +11,13 @@ export const BUINT_INITIAL_ADMIN = getAddress(
 /** CREATE2 salt：固定字符串，各链相同 */
 export const BUINT_CREATE2_SALT = id("beamio.bunits.v1");
 
+/** 当前 bytecode + Nick factory 下各链同址预测 */
+export const BUINT_CREATE2_PREDICTED = getAddress(
+  "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f"
+);
+
 /**
  * Nick's deterministic CREATE2 factory（ETH / Base 等常见链已部署）。
- * CoNET 若无 Nick factory，需先用 Arachnid 预签名 tx 部署；rpc1.conet.network 已具备。
+ * CoNET 若无 Nick factory，需先用 Arachnid 预签名 tx 部署；mainnet-rpc1.conet.network 链上须已具备。
  */
 export const NICK_CREATE2_FACTORY = "0x4e59b44847b379578588920cA78FbF26c0B4956C";

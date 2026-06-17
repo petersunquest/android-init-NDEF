@@ -15,6 +15,8 @@ import {
 const POLL_INTERVAL_MS = 2500
 const MAX_TICKS = 600
 
+const BEAMIO_USDC_TOPUP_URL = 'https://beamio.app/usdc-topup'
+
 export function buildUsdcTopupQrUrlPhase1(params: {
 	cardAddress: string
 	cardOwner: string
@@ -24,7 +26,7 @@ export function buildUsdcTopupQrUrlPhase1(params: {
 	pos: string
 	paymentMethodRaw: TopupPaymentMethodRaw
 }): string {
-	const url = new URL('https://verra.network/usdc-topup')
+	const url = new URL(BEAMIO_USDC_TOPUP_URL)
 	url.searchParams.set('card', params.cardAddress)
 	url.searchParams.set('owner', params.cardOwner)
 	url.searchParams.set('amount', params.amount)
@@ -47,7 +49,7 @@ export function buildUsdcTopupQrUrlWithNfc(params: {
 	pos: string
 	paymentMethodRaw: TopupPaymentMethodRaw
 }): string {
-	const url = new URL('https://verra.network/usdc-topup')
+	const url = new URL(BEAMIO_USDC_TOPUP_URL)
 	url.searchParams.set('card', params.cardAddress)
 	url.searchParams.set('owner', params.cardOwner)
 	url.searchParams.set('uid', params.uid)

@@ -13,6 +13,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
+import { BEAMIO_AA_FACTORY_PREDICTED } from "./aaDeployConstants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
@@ -29,7 +30,7 @@ async function main() {
     throw new Error("请设置环境变量 CARD_FACTORY_OWNER_PK (Card Factory owner 私钥)");
   }
 
-  let newAAFactory = process.env.NEW_AA_FACTORY;
+  let newAAFactory = process.env.NEW_AA_FACTORY ?? BEAMIO_AA_FACTORY_PREDICTED;
   if (!newAAFactory) {
     if (fs.existsSync(CONFIG_PATH)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));

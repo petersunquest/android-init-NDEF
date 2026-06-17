@@ -8,10 +8,10 @@ alwaysApply: false
 
 ## BUint / BUnitAirdrop 权威地址
 
-- **当前 BUint (CoNET mainnet)**: `0x9149433F154C508d2a04454b8E527A479C6fd254`
-- **当前 BUnitAirdrop (CoNET mainnet)**: `0x67d01e0E9c859A89def4098aC7803f04BF0d77af`
-- **当前 ConetTreasury (CoNET mainnet)**: `0xb7A5d95a50b799d70424777D6f7d7EAAE0Da06A1`
-- **conet-USDC**: `0x34e437431cF8888261041C99e1D39DaA4526DeB9` (ConetTreasury 工厂创建)
+- **当前 BUint (CoNET mainnet)**: `0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f`
+- **当前 BUnitAirdrop (CoNET mainnet)**: `0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8`
+- **当前 ConetTreasury (CoNET mainnet)**: `0xc6e615431BC0c0c65E09e04877a08AC927A30242`
+- **conet-USDC**: `0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa` (ConetTreasury 工厂创建)
 - 配置来源: `deployments/conet-addresses.json`
 
 ## 禁止使用的废弃地址

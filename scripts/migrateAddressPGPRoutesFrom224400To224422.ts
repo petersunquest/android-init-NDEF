@@ -3,7 +3,7 @@
  * 同步登记到新链 224422 的 AddressPGP（addRoutes 从 Guardian 读 pgpKey/owner，需 IP 在新 Guardian 中存在）。
  *
  * 224400 RPC: https://mainnet-rpc.conet.network
- * 224422 RPC: https://rpc1.conet.network
+ * 224422 RPC: https://publicrpc.conet.network
  *
  * 用法:
  *   DRY_RUN=1 npx tsx scripts/migrateAddressPGPRoutesFrom224400To224422.ts
@@ -23,7 +23,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const LEGACY_RPC = process.env.LEGACY_RPC || "https://mainnet-rpc.conet.network";
-const NEW_RPC = process.env.NEW_RPC || "https://rpc1.conet.network";
+const NEW_RPC = process.env.NEW_RPC || "https://publicrpc.conet.network";
 const OLD_ADDRESS_PGP = process.env.OLD_ADDRESS_PGP || "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4";
 const NEW_ADDRESS_PGP =
   process.env.NEW_ADDRESS_PGP ||

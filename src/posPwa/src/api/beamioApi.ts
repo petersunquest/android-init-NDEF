@@ -603,14 +603,18 @@ export async function postAAtoEOA(body: {
 	currency: string
 	currencyAmount: string
 	merchantInfraCard: string
+	/** POS terminal EOA → indexer `subordinate` / `accountActionIds(POS)` for `/history`. */
+	posOperator: string
 	chargeBill: Record<string, string | number>
 }): Promise<PostAAtoEOAResult | null> {
 	try {
+		const posOp = body.posOperator.trim()
 		const payload: Record<string, unknown> = {
 			openContainerPayload: body.openContainerPayload,
 			currency: body.currency.toUpperCase(),
 			currencyAmount: body.currencyAmount,
 			merchantCardAddress: body.merchantInfraCard.trim(),
+			...(posOp.startsWith('0x') && posOp.length === 42 ? { posOperator: posOp } : {}),
 			...body.chargeBill,
 		}
 		const res = await fetch(`${BEAMIO_API}/api/AAtoEOA`, {

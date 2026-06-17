@@ -115,8 +115,9 @@ function main() {
     `  - ${path.basename(fullPath)} (${sourceCount} 个当前源码依赖，推荐)`,
     `  - ${path.basename(minimalPath)} (${sourceCount} 个当前源码依赖，内容相同，作为备份)`,
     ``,
-    `重要：BaseScan 新版 STANDARD_JSON_INPUT 页面不会手动选择 Contract Name，`,
-    `它会从上传 JSON 自动匹配；若失败，请先确认 Constructor Arguments ABI-encoded 未留空。`,
+    `重要：BaseScan / Etherscan 的 contractname 不是 Standard JSON 字段，`,
+    `须在表单/API 外层传入 Contract Name；若结果显示 Compiled Contract Bytecode for ''，`,
+    `说明外层 contractname 为空，不能靠修改 JSON 自动补齐。`,
   ];
   const metaPath = path.join(OUT_DIR, "base-BeamioUserCard-basescan-verify-meta.txt");
   fs.writeFileSync(metaPath, metaLines.join("\n") + "\n", "utf-8");
