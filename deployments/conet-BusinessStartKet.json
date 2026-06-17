@@ -20,17 +20,17 @@
   ],
   "constructorArgs": {
     "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
-    "name": "Business Start Ket",
+    "name": "BusinessStartKet NFT",
     "symbol": "BSK"
   },
-  "timestamp": "2026-06-17T11:13:55.743Z",
+  "timestamp": "2026-06-17T12:04:07.499Z",
   "contracts": {
     "BusinessStartKet": {
-      "address": "0xe747faB957eD29ec07B81Edab546AF5C6724fCf2",
+      "address": "0xAcf20dbb4DE0992d8947Ef00b505bBc17E6A03b2",
       "uri": "https://beamio.app/api/metadata/business-start-ket/{id}.json",
-      "name": "Business Start Ket",
+      "name": "BusinessStartKet NFT",
       "symbol": "BSK",
-      "transactionHash": "0x28fe05b476d2c4aef4df7644455a60d608d1eb22bd334d96604f5f4c8b5fab5f"
+      "transactionHash": "0xc372d24ac373fe635287ab8b78072fea0d413d47b40f52d6c6d0a06ef5ec1091"
     }
   }
 }

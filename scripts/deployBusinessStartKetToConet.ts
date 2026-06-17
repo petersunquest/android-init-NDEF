@@ -5,7 +5,7 @@
  *
  * 环境变量（可选）:
  *   BUSINESS_START_KET_URI   默认 https://beamio.app/api/metadata/business-start-ket/{id}.json
- *   BUSINESS_START_KET_NAME  默认 Business Start Ket
+ *   BUSINESS_START_KET_NAME  默认 BusinessStartKet NFT
  *   BUSINESS_START_KET_SYMBOL 默认 BSK
  *
  * 前置: 合并私钥列表首项与 hardhat conet 部署账号一致，且有足够 gas。
@@ -41,7 +41,7 @@ async function main() {
   const uri =
     process.env.BUSINESS_START_KET_URI?.trim() ||
     "https://beamio.app/api/metadata/business-start-ket/{id}.json";
-  const name_ = process.env.BUSINESS_START_KET_NAME?.trim() || "Business Start Ket";
+  const name_ = process.env.BUSINESS_START_KET_NAME?.trim() || "BusinessStartKet NFT";
   const symbol_ = process.env.BUSINESS_START_KET_SYMBOL?.trim() || "BSK";
 
   console.log("=".repeat(60));

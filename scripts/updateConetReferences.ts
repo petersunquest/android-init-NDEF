@@ -104,6 +104,11 @@ function main() {
   const buintRedeem = data.BuintRedeemAirdrop as string | undefined;
   const bizKet = data.BusinessStartKet as string | undefined;
   const bizKetRedeem = data.BusinessStartKetRedeem as string | undefined;
+  const cardFactory = data.CARD_FACTORY as string | undefined;
+  const userCardDefault = data.BEAMIO_USER_CARD_DEFAULT as string | undefined;
+  const userCardFormattingLib = data.beamioUserCardFormattingLib as string | undefined;
+  const userCardTransferLib = data.beamioUserCardTransferLib as string | undefined;
+  const userCardFactoryExecuteLib = data.beamioUserCardFactoryExecuteLib as string | undefined;
   const accountRegistry = data.AccountRegistry as string | undefined;
   const guardianNodesInfoV6 = data.GuardianNodesInfoV6 as string | undefined;
   const addressPGP = data.AddressPGP as string | undefined;
@@ -133,6 +138,8 @@ function main() {
   console.log("beamioOracle:", beamioOracle ?? "(未配置)");
   console.log("ConetTreasury:", conetTreasury ?? "(未配置)");
   console.log("conetUsdc:", conetUsdc ?? "(未配置)");
+  console.log("CARD_FACTORY:", cardFactory ?? "(未配置)");
+  console.log("BEAMIO_USER_CARD_DEFAULT:", userCardDefault ?? "(未配置)");
   console.log("AccountRegistry:", accountRegistry ?? "(未配置)");
   console.log("GuardianNodesInfoV6:", guardianNodesInfoV6 ?? "(未配置)");
   console.log("AddressPGP:", addressPGP ?? "(未配置)");
@@ -331,6 +338,12 @@ function main() {
     content = patchExportConstSingleQuoted(content, "MERCHANT_POS_MANAGEMENT_CONET", merchantPos);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
+    content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FACTORY_EXECUTE_LIB", userCardFactoryExecuteLib);
     content = patchNumericConst(content, "CONET_MAINNET_CHAIN_ID", chainIdNum);
     fs.writeFileSync(sdkChainPath, content);
     console.log("[1] 已更新 src/x402sdk/src/chainAddresses.ts");
@@ -361,6 +374,11 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
+    content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "BEAMIO_ORACLE_CONET", beamioOracle);
     content = patchExportConstSingleQuoted(content, "CONET_GUARDIAN_NODES_INFO_V6", guardianNodesInfoV6);
     content = patchExportConstSingleQuoted(content, "CONET_ADDRESS_PGP", addressPGP);
@@ -429,6 +447,11 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
+    content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
+    content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "BEAMIO_ORACLE_CONET", beamioOracle);
     content = content.replace(/conet:\s*\{[^}]*chainId:\s*\d+/, (block) => block.replace(/chainId:\s*\d+/, `chainId: ${chainIdNum}`));
     fs.writeFileSync(bizChainPath, content);

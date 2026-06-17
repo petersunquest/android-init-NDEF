@@ -131,7 +131,7 @@ async function main() {
   addrData.BusinessStartKetRedeem = redeemAddr;
   fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
   console.log("updated conet-addresses.json BusinessStartKetRedeem:", redeemAddr);
-  console.log("\n下一步: npx hardhat run scripts/verifyBusinessStartKetRedeemConet.ts --network conet");
+  console.log("\n下一步: npx tsx scripts/verifyBusinessStartKetStackOnScan.ts BusinessStartKetRedeem");
   console.log("并同步 src/x402sdk/src/chainAddresses.ts CONET_BUSINESS_START_KET_REDEEM");
 }
 

@@ -12,6 +12,8 @@ import {ERC1155} from "../contracts/token/ERC1155/ERC1155.sol";
 contract BusinessStartKet is ERC1155 {
     string public collectionName;
     string public collectionSymbol;
+    /// @notice Collection-level metadata (OpenSea / Blockscout `contractURI()`).
+    string public contractURI;
 
     mapping(address => bool) public admins;
 
@@ -30,8 +32,19 @@ contract BusinessStartKet is ERC1155 {
     constructor(string memory uri_, string memory name_, string memory symbol_) ERC1155(uri_) {
         collectionName = name_;
         collectionSymbol = symbol_;
+        contractURI = "https://beamio.app/api/metadata/business-start-ket/contract.json";
         admins[msg.sender] = true;
         emit AdminAdded(msg.sender);
+    }
+
+    /// @notice Explorer-compatible collection name (EIP-721-style; returns `collectionName`).
+    function name() external view returns (string memory) {
+        return collectionName;
+    }
+
+    /// @notice Explorer-compatible collection symbol (EIP-721-style; returns `collectionSymbol`).
+    function symbol() external view returns (string memory) {
+        return collectionSymbol;
     }
 
     function addAdmin(address account) external onlyAdmin {

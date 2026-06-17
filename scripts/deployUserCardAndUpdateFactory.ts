@@ -195,6 +195,18 @@ async function main() {
   
   const deploymentFile = path.join(deploymentsDir, `${networkInfo.name}-UserCard.json`);
   fs.writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));
+
+  if (Number(networkInfo.chainId) === 224422) {
+    const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
+    if (fs.existsSync(conetAddrPath)) {
+      const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, string>;
+      ca.BEAMIO_USER_CARD_DEFAULT = userCardAddress;
+      ca.beamioUserCardFormattingLib = cardLibs.BeamioUserCardFormattingLib;
+      ca.beamioUserCardTransferLib = cardLibs.BeamioUserCardTransferLib;
+      fs.writeFileSync(conetAddrPath, JSON.stringify(ca, null, 2), "utf-8");
+      console.log("✅ 已更新 deployments/conet-addresses.json（BEAMIO_USER_CARD_DEFAULT / linked libs）");
+    }
+  }
   
   console.log("\n" + "=".repeat(60));
   console.log("部署完成!");

@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BusinessStartKetInterface extends Interface {
-    getFunction(nameOrSignature: "addAdmin" | "adminBurn" | "adminBurnBatch" | "admins" | "balanceOf" | "balanceOfBatch" | "collectionName" | "collectionSymbol" | "isApprovedForAll" | "mint" | "mintBatch" | "removeAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setURI" | "supportsInterface" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "addAdmin" | "adminBurn" | "adminBurnBatch" | "admins" | "balanceOf" | "balanceOfBatch" | "collectionName" | "collectionSymbol" | "contractURI" | "isApprovedForAll" | "mint" | "mintBatch" | "name" | "removeAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setURI" | "supportsInterface" | "symbol" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "ApprovalForAll" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -18,15 +18,18 @@ encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumbe
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'collectionName', values?: undefined): string;
 encodeFunctionData(functionFragment: 'collectionSymbol', values?: undefined): string;
+encodeFunctionData(functionFragment: 'contractURI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mint', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'mintBatch', values: [AddressLike, BigNumberish[], BigNumberish[], BytesLike]): string;
+encodeFunctionData(functionFragment: 'name', values?: undefined): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'safeBatchTransferFrom', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[], BytesLike]): string;
 encodeFunctionData(functionFragment: 'safeTransferFrom', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setURI', values: [string]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
@@ -37,15 +40,18 @@ decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'collectionName', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'collectionSymbol', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'contractURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintBatch', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeBatchTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -220,6 +226,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    contractURI: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     isApprovedForAll: TypedContractMethod<
       [account: AddressLike, operator: AddressLike, ],
       [boolean],
@@ -240,6 +254,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [to: AddressLike, ids: BigNumberish[], amounts: BigNumberish[], data: BytesLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    name: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -287,6 +309,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >
+    
+
+    
+    symbol: TypedContractMethod<
+      [],
+      [string],
       'view'
     >
     
@@ -342,6 +372,11 @@ getFunction(nameOrSignature: 'collectionSymbol'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'contractURI'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
       [account: AddressLike, operator: AddressLike, ],
       [boolean],
@@ -356,6 +391,11 @@ getFunction(nameOrSignature: 'mintBatch'): TypedContractMethod<
       [to: AddressLike, ids: BigNumberish[], amounts: BigNumberish[], data: BytesLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'name'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
       [account: AddressLike, ],
@@ -385,6 +425,11 @@ getFunction(nameOrSignature: 'setURI'): TypedContractMethod<
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<

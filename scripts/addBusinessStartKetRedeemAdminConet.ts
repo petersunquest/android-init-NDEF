@@ -16,7 +16,7 @@ import { ethers } from "ethers";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DEFAULT_NEW_REDEEM_ADMIN = "0xc4c14f2A7566B7176a98E6D4E2fF9961C5D05d95";
+const DEFAULT_NEW_REDEEM_ADMIN = "0x4728BEeFa5b68E87a611EEC6965f5C5f9b2D5060";
 
 const REDEEM_ABI = [
   "function redeemAdmins(address) view returns (bool)",
