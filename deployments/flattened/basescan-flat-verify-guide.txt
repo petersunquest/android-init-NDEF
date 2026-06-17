@@ -1,0 +1,67 @@
+==============================================================
+BaseScan UI Verification Guide (Solidity Single File Method)
+==============================================================
+For CREATE2 contracts deployed via Nick's Factory, BaseScan's
+database often has empty indexed creation bytecode (the blank row).
+Standard-Json verification fails because it cannot auto-detect.
+
+The 100% working solution is to verify using the 'Solidity (Single File)'
+method in the UI. This allows you to type the Contract Name explicitly,
+which forces BaseScan to compile your target and match runtime bytecode.
+
+Steps for each contract on BaseScan:
+1. Go to https://basescan.org/address/<CONTRACT_ADDRESS>#code
+2. Click 'Verify and Publish'
+3. Select:
+   - Compiler Type: Solidity (Single File)
+   - Compiler Version: v0.8.33+commit.64118f21
+   - License Type: MIT (or No License/MIT accordingly)
+4. On the next page, fill in:
+   - Contract Name: <CONTRACT_NAME> (e.g. ConetTreasury, ConetTreasuryPeer, etc.)
+   - Optimization: Yes, runs: 0
+   - Solidity Contract Code: Copy & paste the contents of the flattened file
+   - Constructor Arguments (ABI-encoded): <CONSTRUCTOR_ARGS>
+5. Click 'Verify and Publish'
+
+--------------------------------------------------------------
+## ConetTreasury
+Contract Address: 0xc6e615431BC0c0c65E09e04877a08AC927A30242
+Contract Name   : ConetTreasury
+Flattened File  : deployments/flattened/base-ConetTreasury-flat.sol
+Constructor Args: 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## ConetTreasuryPeer
+Contract Address: 0xCF26c1686aC5E01e37B72017E575511C42cad29f
+Contract Name   : ConetTreasuryPeer
+Flattened File  : deployments/flattened/base-ConetTreasuryPeer-flat.sol
+Constructor Args: 000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242
+
+## FactoryERC20
+Contract Address: 0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39
+Contract Name   : FactoryERC20
+Flattened File  : deployments/flattened/base-FactoryERC20-flat.sol
+Constructor Args: 000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000012000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242000000000000000000000000000000000000000000000000000000000000000d5772617070656420436f4e455400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000577434e4554000000000000000000000000000000000000000000000000000000
+
+## BeamioBUnits
+Contract Address: 0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f
+Contract Name   : BeamioBUnits
+Flattened File  : deployments/flattened/base-BeamioBUnits-flat.sol
+Constructor Args: 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## ConetGB1155
+Contract Address: 0xcA423EEBC09d09834dC9CA28861798B3321893ab
+Contract Name   : ConetGB1155
+Flattened File  : deployments/flattened/base-ConetGB1155-flat.sol
+Constructor Args: 000000000000000000000000000000000000000000000000000000006a141da0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+
+## ConetGB_total
+Contract Address: 0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11
+Contract Name   : ConetGB_total
+Flattened File  : deployments/flattened/base-ConetGB_total-flat.sol
+Constructor Args: 000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab
+
+## ConetGB_userTotal
+Contract Address: 0x5663d651783364325045f061d93d05808c231163
+Contract Name   : ConetGB_userTotal
+Flattened File  : deployments/flattened/base-ConetGB_userTotal-flat.sol
+Constructor Args: 000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab

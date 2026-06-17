@@ -1,7 +1,8 @@
 import { createMessage, encrypt, enums, readKey } from 'openpgp'
 import { Wallet } from 'ethers'
-import { GOSSIP_POST_DOMAIN_HEX_IDS, POS_TERMINAL_PERMISSION_TYPE } from '@/conet/constants'
-import { normalizePrivateKeyHex, shuffleTake, toBase64Utf8 } from '@/conet/crypto'
+import { POS_TERMINAL_PERMISSION_TYPE } from '@/conet/constants'
+import { normalizePrivateKeyHex, toBase64Utf8 } from '@/conet/crypto'
+import { pickGossipPostDomains } from '@/conet/guardianNodes'
 import { fetchRecipientPublicArmored } from '@/conet/searchKey'
 
 export interface TerminalPermissionInner {
@@ -109,7 +110,8 @@ export async function sendTerminalPermissionRequest(params: {
 		return false
 	}
 
-	const domains = shuffleTake(GOSSIP_POST_DOMAIN_HEX_IDS, 6)
+	const domains = await pickGossipPostDomains(6)
+	if (!domains.length) return false
 	const results = await Promise.all(domains.map((d) => postGossipPayload(d, postData)))
 	return results.some(Boolean)
 }

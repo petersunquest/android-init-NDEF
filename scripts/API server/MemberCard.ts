@@ -615,7 +615,8 @@ const OLD_ERROR_SELECTORS: Record<string, string> = {
 	  user,
 	  factoryAddress,
 	  0,
-	  false
+	  false,
+	  "Beamio User Card"
 	);
   
 	const initCodeHex = deployTx.data as string;

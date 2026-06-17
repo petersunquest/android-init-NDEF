@@ -1,5 +1,5 @@
 import { fetchCardAdminInfo } from '@/api/beamioApi'
-import { CONET_RPC } from '@/constants'
+import { BASE_RPC, CONET_MAINNET_CHAIN_ID, CONET_RPC } from '@/constants'
 import type { CardAdminInfoResponse, MyPosAddressResponse } from '@/types/pos'
 
 const OWNER_SELECTOR = '0x8da5cb5b'
@@ -79,9 +79,9 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 }
 
 /** CoNET 224422：商户 program 卡 owner / isAdmin 链上预检。 */
-async function ethCallMerchantCard(to: string, data: string): Promise<string | null> {
+async function ethCallRpc(rpcUrl: string, to: string, data: string): Promise<string | null> {
 	try {
-		const res = await fetch(CONET_RPC, {
+		const res = await fetch(rpcUrl, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -98,6 +98,23 @@ async function ethCallMerchantCard(to: string, data: string): Promise<string | n
 	} catch {
 		return null
 	}
+}
+
+async function ethCallMerchantCard(to: string, data: string): Promise<string | null> {
+	return ethCallRpc(CONET_RPC, to, data)
+}
+
+export const BASE_MAINNET_CHAIN_ID = 8453
+
+/** Detect where a BeamioUserCard contract currently exists. `null` = untrusted network result. */
+export async function fetchBeamioUserCardChainId(cardAddress: string): Promise<number | null> {
+	const card = cardAddress.trim().toLowerCase()
+	if (!card.startsWith('0x') || card.length !== 42) return null
+	const conetOwner = await ethCallRpc(CONET_RPC, card, OWNER_SELECTOR)
+	if (conetOwner) return CONET_MAINNET_CHAIN_ID
+	const baseOwner = await ethCallRpc(BASE_RPC, card, OWNER_SELECTOR)
+	if (baseOwner) return BASE_MAINNET_CHAIN_ID
+	return null
 }
 
 const ETH_CALL_CURRENCY_SELECTOR = '0xe5a6b10f'

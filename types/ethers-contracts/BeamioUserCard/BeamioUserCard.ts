@@ -23,7 +23,7 @@ export declare namespace FaucetStorage {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "name" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "symbol" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "ChargeRewardAirdropped" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "IssuedNftPurchasedWithPointsCharge" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "RefereeReferrerUpdated" | "RefereeRegistered" | "RefereeUnregistered" | "ReferrerRewardMinted" | "ReferrerRewardRatioUpdated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -106,6 +106,7 @@ encodeFunctionData(functionFragment: 'mintPointsByAdminWithOperator', values: [A
 encodeFunctionData(functionFragment: 'mintPointsByGateway', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPointsByGatewayWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintPointsOpenContainerRelay', values: [AddressLike, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'name', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nftAttributes', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nftExpiresAt', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nftInventoryAt', values: [AddressLike, BigNumberish]): string;
@@ -145,6 +146,7 @@ encodeFunctionData(functionFragment: 'setTiers', values: [TierStruct[]]): string
 encodeFunctionData(functionFragment: 'setTransferWhitelist', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setTransferWhitelistEnabled', values: [boolean]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'tiers', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'tokenTierIndexOrMax', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalActiveMemberships', values?: undefined): string;
@@ -239,6 +241,7 @@ decodeFunctionResult(functionFragment: 'mintPointsByAdminWithOperator', data: By
 decodeFunctionResult(functionFragment: 'mintPointsByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByGatewayWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsOpenContainerRelay', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nftAttributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nftExpiresAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nftInventoryAt', data: BytesLike): Result;
@@ -278,6 +281,7 @@ decodeFunctionResult(functionFragment: 'setTiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTransferWhitelist', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTransferWhitelistEnabled', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tiers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tokenTierIndexOrMax', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalActiveMemberships', data: BytesLike): Result;
@@ -1369,6 +1373,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    name: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     nftAttributes: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
@@ -1676,6 +1688,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >
+    
+
+    
+    symbol: TypedContractMethod<
+      [],
+      [string],
       'view'
     >
     
@@ -2190,6 +2210,11 @@ getFunction(nameOrSignature: 'mintPointsOpenContainerRelay'): TypedContractMetho
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'name'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'nftAttributes'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [bigint],
@@ -2383,6 +2408,11 @@ getFunction(nameOrSignature: 'setTransferWhitelistEnabled'): TypedContractMethod
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<

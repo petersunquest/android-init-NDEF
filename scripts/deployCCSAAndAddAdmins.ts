@@ -90,7 +90,8 @@ async function main() {
     cardOwner,
     gateway,
     0,
-    false
+    false,
+    "CCSA"
   );
   const initCode = deployTx?.data;
   if (!initCode) throw new Error("Failed to build BeamioUserCard initCode");

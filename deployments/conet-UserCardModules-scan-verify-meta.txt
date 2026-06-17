@@ -1,0 +1,42 @@
+# CoNET Blockscout 验证 — UserCard 模块栈（2026-06-17）
+
+## 一键 API 验证
+
+```bash
+npx tsx scripts/verifyConetUserCardModulesOnScan.ts
+```
+
+单模块：
+
+```bash
+npx tsx scripts/verifyConetUserCardModulesOnScan.ts AdminStatsQueryModule
+```
+
+## 已验证
+
+| 模块 | 地址 | Explorer |
+|------|------|----------|
+| RedeemModule | `0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f` | https://scan.conet.network/address/0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f#code |
+| IssuedNftModule | `0x703d1C298d07C029dB2088529e558cfAe5Cb450D` | https://scan.conet.network/address/0x703d1C298d07C029dB2088529e558cfAe5Cb450D#code |
+| FaucetModule | `0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA` | https://scan.conet.network/address/0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA#code |
+| GovernanceModule | `0x14042f315515CE743C21336528aF1B48889B4dF3` | https://scan.conet.network/address/0x14042f315515CE743C21336528aF1B48889B4dF3#code |
+| MembershipStatsModule | `0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1` | https://scan.conet.network/address/0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1#code |
+| AdminStatsQueryModule | `0xc15c2b7422422d01e701E43F68dB943e211406A6` | https://scan.conet.network/address/0xc15c2b7422422d01e701E43F68dB943e211406A6#code |
+| ChargeRewardModule | `0xF2c3277775cb84AD7da35c4c0A2470ca2c342B58` | https://scan.conet.network/address/0xF2c3277775cb84AD7da35c4c0A2470ca2c342B58#code |
+
+Factory（绑定方，非本次新部署）: `0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB`
+
+## 编译设置
+
+- Compiler: `v0.8.33+commit.64118f21`
+- viaIR: true, runs: 0, evmVersion: cancun, bytecodeHash: none
+- Standard JSON: `scripts/basescanStandardJsonShared.ts` 递归依赖剪枝
+
+## ChargeRewardModule 链接库
+
+| 库 | 地址 |
+|----|------|
+| BeamioUserCardReferrerLib | `0xE7bA8F84D25B6c790216F2f491B947a6fc5eFC50` |
+| BeamioUserCardTransferLib | `0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664` |
+
+部署记录: `deployments/conet-UserCardModules.json`

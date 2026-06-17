@@ -54,6 +54,58 @@ function optString(v: unknown): string {
 	return String(v)
 }
 
+function expandCompactOpenContainerPayload(v: unknown): Record<string, unknown> | null {
+	if (!v || typeof v !== 'object' || Array.isArray(v)) return null
+	const o = v as Record<string, unknown>
+	const items = Array.isArray(o.i)
+		? o.i
+				.map((row) => {
+					if (!Array.isArray(row) || row.length < 5) return null
+					return {
+						kind: Number(row[0]),
+						asset: optString(row[1]),
+						amount: optString(row[2]),
+						tokenId: optString(row[3]),
+						data: optString(row[4]) || '0x',
+					}
+				})
+				.filter(Boolean)
+		: []
+	const account = optString(o.a).trim()
+	const signature = optString(o.s).trim()
+	if (!account || !signature) return null
+	const deadline = optString(o.d).trim()
+	return {
+		account,
+		to: optString(o.t).trim(),
+		items,
+		currencyType: Number(o.c ?? 4),
+		maxAmount: optString(o.m).trim() || '0',
+		nonce: optString(o.n).trim(),
+		deadline,
+		validBefore: deadline,
+		signature,
+	}
+}
+
+function expandCompactOpenContainerRoot(root: Record<string, unknown>): Record<string, unknown> {
+	const compactSingle = expandCompactOpenContainerPayload(root.o)
+	if (compactSingle) return compactSingle
+	const p = root.p
+	if (p && typeof p === 'object' && !Array.isArray(p)) {
+		const payloads = p as Record<string, unknown>
+		const expanded: Record<string, unknown> = {}
+		const base = expandCompactOpenContainerPayload(payloads.b)
+		const conet = expandCompactOpenContainerPayload(payloads.c)
+		if (base) expanded.base = base
+		if (conet) expanded.conet = conet
+		if (Object.keys(expanded).length > 0) {
+			return { openContainerPayloads: expanded }
+		}
+	}
+	return root
+}
+
 function customerLinkUrl(raw: string): URL | null {
 	const trimmed = trimBom(raw)
 	try {
@@ -84,9 +136,16 @@ function parseBeamioWallet(url: URL): string | undefined {
 function parseOpenContainerPayload(content: string): Record<string, unknown> | null {
 	let root = parseJsonObject(content)
 	if (!root) return null
+	root = expandCompactOpenContainerRoot(root)
 	const inner = root.openContainerPayload
 	if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
 		root = inner as Record<string, unknown>
+	}
+	const payloads = root.openContainerPayloads
+	if (payloads && typeof payloads === 'object' && !Array.isArray(payloads)) {
+		const p = payloads as Record<string, unknown>
+		const first = [p.conet, p.base].find((v) => v && typeof v === 'object' && !Array.isArray(v))
+		if (first) root = first as Record<string, unknown>
 	}
 	const account = optString(root.account).trim()
 	const signature = optString(root.signature).trim()
@@ -138,9 +197,26 @@ export function parseOpenContainerPaymentQr(content: string): OpenContainerParse
 	if (!root) {
 		return { payload: null, rejectReason: 'not a JSON object' }
 	}
+	root = expandCompactOpenContainerRoot(root)
 	const inner = root.openContainerPayload
 	if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
 		root = inner as Record<string, unknown>
+	}
+	const payloads = root.openContainerPayloads
+	if (payloads && typeof payloads === 'object' && !Array.isArray(payloads)) {
+		const p = payloads as Record<string, unknown>
+		const first = [p.conet, p.base].find((v) => v && typeof v === 'object' && !Array.isArray(v))
+		if (!first) {
+			return { payload: null, rejectReason: 'missing payment payload for merchant chain' }
+		}
+		const firstPayload = first as Record<string, unknown>
+		const account = optString(firstPayload.account).trim()
+		const signature = optString(firstPayload.signature).trim()
+		if (!account || !signature) {
+			return { payload: null, rejectReason: 'missing payment payload for merchant chain' }
+		}
+		normalizeReactOpenRelayPayload(firstPayload)
+		return { payload: root, rejectReason: undefined }
 	}
 	const account = optString(root.account).trim()
 	const signature = optString(root.signature).trim()
@@ -174,6 +250,7 @@ export function humanizeQrPaymentError(reason: string | undefined): string {
 	if (r.startsWith('not a JSON')) return 'Invalid QR: data is not valid JSON.'
 	if (r.includes('missing or empty account')) return 'Invalid QR: missing customer account.'
 	if (r.includes('missing or empty signature')) return 'Invalid QR: missing payment signature.'
+	if (r.includes('missing payment payload')) return 'Invalid QR: missing payment payload for this merchant chain.'
 	if (r.includes('neither open relay')) return 'Invalid QR: unrecognized payment format.'
 	return 'Could not read payment code.'
 }

@@ -1,7 +1,7 @@
 import { generateKey, readKey } from 'openpgp'
 import { BEAMIO_API } from '@/constants'
-import { ROUTE_DOMAIN_HEX_POOL } from '@/conet/constants'
-import { aesGcmEncrypt, normalizePrivateKeyHex, randomPick, sleep, toBase64Utf8 } from '@/conet/crypto'
+import { aesGcmEncrypt, normalizePrivateKeyHex, sleep, toBase64Utf8 } from '@/conet/crypto'
+import { pickReachableGossipRouteDomain } from '@/conet/guardianNodes'
 import { hasOnChainUserPgpPublic } from '@/conet/searchKey'
 import { Wallet } from 'ethers'
 
@@ -87,7 +87,11 @@ export async function ensureRegisteredForSenderGossip(walletPrivateKeyHex: strin
 	}
 
 	const keys = await generatePgpKeyPair(wallet.address)
-	const routeKeyID = randomPick(ROUTE_DOMAIN_HEX_POOL)
+	const routeKeyID = await pickReachableGossipRouteDomain()
+	if (!routeKeyID) {
+		console.warn('[CoNET chat] no reachable Guardian route for registration')
+		return false
+	}
 	let ok = await regiestChatRoute({
 		walletPrivateKeyHex: pk,
 		publicKeyArmored: keys.publicKey,

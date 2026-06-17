@@ -149,7 +149,8 @@ async function main() {
     TARGET_EOA,
     USER_CARD_FACTORY_ADDRESS,
     0,
-    false
+    false,
+    "Beamio User Card"
   )
 
   const initCode = deployTx.data

@@ -27,7 +27,11 @@ import {
 } from '@/utils/beamioPaymentRouting'
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { PosTerminalChargePolicy } from '@/utils/chargePaymentMethod'
-import { fetchCardCurrencyAndPointsPriceE6 } from '@/utils/posProgramCardAccess'
+import {
+	BASE_MAINNET_CHAIN_ID,
+	fetchBeamioUserCardChainId,
+	fetchCardCurrencyAndPointsPriceE6,
+} from '@/utils/posProgramCardAccess'
 import { memberNoPrimaryFromSortedCards } from '@/utils/readBalanceAssets'
 import {
 	buildSuccessPassHeroProps,
@@ -96,6 +100,39 @@ function replacePassCardInAssets(
 	return { ...assets, cards }
 }
 
+function cardPointBalanceDisplay(
+	assets: UIDAssetsResult,
+	merchantInfraCard: string,
+): { amount: number; display: string; currency: string; card?: ReadBalanceCardItem } | null {
+	const cardKey = merchantInfraCard.trim().toLowerCase()
+	const card =
+		assets.cards?.find((c) => c.cardAddress.trim().toLowerCase() === cardKey) ??
+		(assets.cardAddress?.trim().toLowerCase() === cardKey
+			? ({
+					cardAddress: assets.cardAddress,
+					cardName: 'Asset Card',
+					points: assets.points ?? '0',
+					points6: assets.points6 ?? '0',
+					cardCurrency: assets.cardCurrency ?? 'CAD',
+					nfts: assets.nfts ?? [],
+					primaryMemberTokenId: assets.primaryMemberTokenId,
+				} satisfies ReadBalanceCardItem)
+			: undefined)
+	if (!card) return null
+	const p6 = Number(card.points6)
+	const amount =
+		Number.isFinite(p6) && p6 >= 0
+			? p6 / 1_000_000
+			: Number(card.points ?? '0')
+	if (!Number.isFinite(amount)) return null
+	return {
+		amount,
+		display: amount.toFixed(2),
+		currency: card.cardCurrency || assets.cardCurrency || 'CAD',
+		card,
+	}
+}
+
 /** iOS `completePaymentSuccessUi` — NFC 3s / QR 5s, tier metadata merge on pass card. */
 async function completeChargeSuccessUi(params: {
 	passCard: ReadBalanceCardItem | undefined
@@ -118,19 +155,33 @@ async function completeChargeSuccessUi(params: {
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const postAssets = await params.fetchPostAssets()
 	let postBalStr = '—'
+	let postBalanceAmount: number | undefined
+	let postBalanceCurrency = params.payCurrency
+	let postCardBalance: ReturnType<typeof cardPointBalanceDisplay> = null
 	if (postAssets?.ok) {
-		const cad = postPaymentBalanceCad(
-			postAssets,
-			oracleRes,
-			params.merchantInfraCard,
-			params.useInfraPost,
-		)
-		if (cad != null) postBalStr = cad.toFixed(2)
+		postCardBalance = cardPointBalanceDisplay(postAssets, params.merchantInfraCard)
+		if (postCardBalance) {
+			postBalStr = postCardBalance.display
+			postBalanceAmount = postCardBalance.amount
+			postBalanceCurrency = postCardBalance.currency
+		} else {
+			const cad = postPaymentBalanceCad(
+				postAssets,
+				oracleRes,
+				params.merchantInfraCard,
+				params.useInfraPost,
+			)
+			if (cad != null) {
+				postBalStr = cad.toFixed(2)
+				postBalanceAmount = cad
+				postBalanceCurrency = params.payCurrency
+			}
+		}
 	}
 	if (!postAssets?.ok) return { postBalStr }
-	let refreshedPass = params.passCard
+	let refreshedPass = postCardBalance?.card ?? params.passCard
 	const passAddr = params.passCard?.cardAddress?.trim()
-	if (passAddr) {
+	if (!postCardBalance && passAddr) {
 		const pc = postAssets.cards?.find(
 			(c) => c.cardAddress.trim().toLowerCase() === passAddr.toLowerCase(),
 		)
@@ -149,11 +200,8 @@ async function completeChargeSuccessUi(params: {
 		pointSystemEnabled: params.pointSystemEnabled,
 		customerBeamioTag: postAssets.beamioTag ?? params.preAssets.beamioTag,
 		customerWalletAddress: postAssets.address ?? params.preAssets.address,
-		balanceAmount:
-			postBalStr !== '—' && Number.isFinite(Number(postBalStr))
-				? Number(postBalStr)
-				: undefined,
-		balanceCurrency: params.payCurrency,
+		balanceAmount: postBalanceAmount,
+		balanceCurrency: postBalanceCurrency,
 		chargeTierDiscountPercent: params.chargeTierDiscountPercent,
 	})
 	return {
@@ -388,6 +436,37 @@ function looksLikeAddress(v: string): boolean {
 	return /^0x[0-9a-fA-F]{40}$/.test(v.trim())
 }
 
+function isOpenContainerPayload(v: unknown): v is Record<string, unknown> {
+	if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+	const o = v as Record<string, unknown>
+	return Boolean(optPayloadString(o.account).trim() && optPayloadString(o.signature).trim())
+}
+
+async function selectOpenContainerPayloadForMerchantCard(
+	rawPayload: Record<string, unknown>,
+	merchantInfraCard: string,
+): Promise<{ payload: Record<string, unknown>; error?: string }> {
+	const payloads = rawPayload.openContainerPayloads
+	if (!payloads || typeof payloads !== 'object' || Array.isArray(payloads)) {
+		return { payload: rawPayload }
+	}
+	const byChain = payloads as Record<string, unknown>
+	const chainId = await fetchBeamioUserCardChainId(merchantInfraCard)
+	const chainKey = chainId === BASE_MAINNET_CHAIN_ID ? 'base' : chainId ? 'conet' : ''
+	const selected = chainKey ? byChain[chainKey] : undefined
+	if (isOpenContainerPayload(selected)) {
+		return { payload: selected }
+	}
+	if (chainId) {
+		return {
+			payload: rawPayload,
+			error: 'This payment code was generated before multi-chain Scan to Pay support. Ask the customer to close Pay and open a fresh QR code.',
+		}
+	}
+	const fallback = [byChain.conet, byChain.base].find(isOpenContainerPayload)
+	return fallback ? { payload: fallback } : { payload: rawPayload, error: 'Invalid payment code.' }
+}
+
 function mergedInfraKind1Amount(
 	items: Array<Record<string, unknown>>,
 	infraCard: string,
@@ -433,7 +512,12 @@ export async function executeQrCharge(params: {
 		return { status: 'error', message: 'Invalid amount.' }
 	}
 
-	const account = optPayloadString(params.openContainerPayload.account).trim()
+	const selectedPayload = await selectOpenContainerPayloadForMerchantCard(params.openContainerPayload, infra)
+	if (selectedPayload.error) {
+		return { status: 'error', message: selectedPayload.error }
+	}
+	const openContainerPayload = selectedPayload.payload
+	const account = optPayloadString(openContainerPayload.account).trim()
 	if (!account) {
 		return { status: 'error', message: 'Invalid payment code' }
 	}
@@ -527,7 +611,7 @@ export async function executeQrCharge(params: {
 			message: 'Insufficient balance for this charge.',
 			requiredLabel: `$${total.toFixed(2)} ${payCurrency}`,
 			availableLabel: `$${((totalBal * oracleRes.usdcad) / 1_000_000).toFixed(2)} CAD equiv.`,
-			qrRetryPayload: { ...params.openContainerPayload },
+			qrRetryPayload: { ...openContainerPayload },
 		}
 	}
 
@@ -557,7 +641,7 @@ export async function executeQrCharge(params: {
 	}
 	patch?.('optimizingRoute', 'success', routeDetail)
 
-	const payload: Record<string, unknown> = { ...params.openContainerPayload }
+	const payload: Record<string, unknown> = { ...openContainerPayload }
 	payload.items = items
 	if (payload.maxAmount == null) payload.maxAmount = '0'
 	if (payload.deadline == null && payload.validBefore != null) {

@@ -203,6 +203,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
     /// @dev 与 BeamioUserCardBase 同序，供 MembershipStatsModule delegatecall 一致
     uint8 public upgradeType;
 
+    /// @dev Explorer-facing contract name. Kept after existing storage to avoid shifting module slots.
+    string private _contractName;
+
     // ===== Redeem Events (emitted by card; module also emits its own) =====
     event RedeemCreated(bytes32 indexed hash, uint256 points6, uint256 attr);
     event RedeemCancelled(bytes32 indexed hash);
@@ -217,7 +220,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
         address initialOwner,
         address gateway_,
         uint8 upgradeType_,
-        bool initialTransferWhitelistEnabled
+        bool initialTransferWhitelistEnabled,
+        string memory contractName_
     ) ERC1155("") Ownable(initialOwner) {
         if (initialOwner == address(0)) revert BM_ZeroAddress();
         if (gateway_ == address(0) || gateway_.code.length == 0) revert UC_GlobalMisconfigured();
@@ -230,6 +234,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
 
         currency = currency_;
         pointsUnitPriceInCurrencyE6 = pointsUnitPriceInCurrencyE6_;
+        _contractName = contractName_;
         ChargeRewardStorage.layout().chargeRewardRatioE6 = DEFAULT_CHARGE_REWARD_RATIO_E6;
         ReferrerStorage.layout().referrerRewardFromChargeRewardRatioE6 =
             DEFAULT_REFERRER_REWARD_FROM_CHARGE_REWARD_RATIO_E6;
@@ -255,6 +260,17 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
 
     function metadataBaseURI() external view returns (string memory) {
         return _metadataBaseURI();
+    }
+
+    /// @notice Contract-level token name for explorers that index ERC-1155 contracts via name().
+    function name() external view returns (string memory) {
+        bytes memory n = bytes(_contractName);
+        return n.length == 0 ? "Beamio User Card" : string(n);
+    }
+
+    /// @notice Contract-level token symbol for explorers that index ERC-1155 contracts via symbol().
+    function symbol() external pure returns (string memory) {
+        return "BEAMIO";
     }
 
     function _metadataBaseURI() internal view returns (string memory) {

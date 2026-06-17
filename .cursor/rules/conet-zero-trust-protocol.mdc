@@ -5,18 +5,21 @@ alwaysApply: true
 
 # CoNET Zero-Trust Node Protocol
 
-CoNET 节点通信遵循 **A 跳板 / B 解密** 的零信任协议，代码实现必须满足以下约束：
+CoNET 节点通信遵循 **A 入口 / B 收件箱路由 / C 读取入口** 的零信任协议，代码实现必须满足以下约束：
 
 ## Core Model
 
-- `A`（入口/跳板节点）可以看到客户端来源 IP 与最小路由元数据，但**不能**解密业务明文。
-- `B`（目标路由节点）持有对应私钥，负责解密并处理业务内容。
-- 任意中间节点都必须被视为不可信，系统安全依赖端到端加密而非中间层信任。
+- `A`（发送入口节点）：发件人可以把 OpenPGP 密文 POST 到**任意可达 entry 节点 A**，不要求 A 是收件人注册的 route 节点。A 可以看到发件人 IP 与最小 OpenPGP 路由元数据，但**不能**解密业务明文。
+- `B`（收件箱 / route 节点）：网络从 OpenPGP 密文 packet 暴露的 recipient PGP key id 等路由侧通道识别收件人注册的 PGP key，并将密文转发到该 key 对应的 route 节点 B 的 inbox。B 负责保存/派发密文，但**不能解密业务密文**，只能知道该密文属于本节点托管的邮箱。
+- `C`（读取入口节点）：收件人不必直连 B；收件端用 **B 的公开 key** 加密一个 `mining`/listen command，连接任意可达 entry C。C 通过密文 recipient key id 得知该 command 应转发给 B；B 解密 listen command 后建立/维持收件人 R 的长连接语义，并把已存业务密文实时送给 R。
+- 任意 A/B/C 与中间节点都必须被视为不可信，系统安全依赖端到端 OpenPGP 加密与签名，而非节点信任。
 
 ## Implementation Requirements
 
-- 所有 gossip/post 业务 payload 必须先用目标路由公钥加密，再发送到对应路由节点。
-- 严禁将“为 B 加密”的 payload 随机发送到不匹配的节点。
+- 所有 gossip/post 业务 payload 必须先用**收件人链上 AddressPGP 公钥**加密；发件人只需 POST 到健康 entry A，不应为了“隐藏 IP”强制直连收件人 route B。
+- 收件人必须先通过 `regiestChatRoute` 在 AddressPGP 注册自己的 user PGP key 与 routeKeyID；否则网络无法把发给该 PGP key 的密文归集到 B inbox。
+- 收件端 listen command 必须用 **route B 的 public key** 加密，但 HTTP/SSE 连接目标可以是任意健康 entry C；禁止把“加密给 B”误实现为“必须直连 B”。
+- 健康探测 `A`/`C` 只能证明 entry 可达，不等同于“B inbox 已收到消息”或“收件人业务 UI 已处理消息”。
 - 浏览器/PWA 场景仅使用 HTTPS/WSS，不回退到 HTTP。
 - 健康探测仅用于可达性判断，不得把探测成功等同于可解密或可读明文。
 
@@ -28,6 +31,7 @@ CoNET 节点通信遵循 **A 跳板 / B 解密** 的零信任协议，代码实�
 
 ## Review Checklist
 
-- 是否先做“路由公钥 -> 目标节点”匹配，再建立连接？
+- 发件端是否用收件人 AddressPGP 公钥加密后 POST 到健康 entry A，而不是误以为必须 POST 到 B？
+- 收件端是否确认商家 EOA/AA 的 AddressPGP 注册与 routeKeyID/B public key 存在，并用 B public key 加密 listen command 后通过健康 entry C 读取 B inbox？
 - 是否保证中间节点只获得必要元数据（如 IP），而无法获知通讯内容？
 - 是否保持零信任假设（任何单点泄露不应暴露消息明文）？

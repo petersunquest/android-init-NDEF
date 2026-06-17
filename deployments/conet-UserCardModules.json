@@ -1,27 +1,20 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "timestamp": "2026-03-12T23:30:02.768Z",
+  "timestamp": "2026-06-17T14:37:14.102Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0xd57eac0372aa2fbfC6625D20fA9E4a963F3F5063",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "modules": {
-    "issuedNftModule": "0x6A870AFe1dB4A4E4652D85E7f3CeD70C6Fb010EF",
-    "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
-    "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
-    "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
-    "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953"
+    "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
+    "issuedNftModule": "0x703d1C298d07C029dB2088529e558cfAe5Cb450D",
+    "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
+    "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
+    "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
+    "adminStatsQueryModule": "0xc15c2b7422422d01e701E43F68dB943e211406A6",
+    "chargeRewardModule": "0xF2c3277775cb84AD7da35c4c0A2470ca2c342B58"
   },
-  "txs": {
-    "issuedNftModule": "0x8ae9a08ad29e9769ccc7e296674ef593ee7013aebeba7d8e87713b55853dfde1",
-    "faucetModule": "0xc1f65365724fcf763485718efacc2376243489336542a86a0278d0b454eada17",
-    "governanceModule": "0xb18aec70d3da954b79a38fe8abc0484fc241a10e70c6fa9f088022892fc36987",
-    "membershipStatsModule": "0x38c113def00e73e97ebabe6e7f9c537b922087b9c7bf2f9ea8cca2dfa7f70128",
-    "membershipStatsQueryModule": "0xa764f09bdfcf72cb00b27ebb5e4f21a4f7855a37da12a59f0a8537a14342a052"
-  },
-  "bound": {
-    "issuedNftModule": "0x6A870AFe1dB4A4E4652D85E7f3CeD70C6Fb010EF",
-    "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
-    "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
-    "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711"
+  "checks": {
+    "appendTierForCardWithOwnerSignature": true,
+    "createCardCollectionWithInitCodeAndTiers": true
   }
 }

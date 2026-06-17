@@ -121,6 +121,7 @@ async function main() {
       gatewayForInit,
       0,
       false,
+      "Beamio User Card",
     );
     initCode = deployTx?.data as string;
     console.log("initCode build: x402sdk BeamioUserCardArtifact.json + linkBeamioUserCardBytecode (Master/CCSA parity)");
@@ -140,6 +141,7 @@ async function main() {
       gatewayForInit,
       0,
       false,
+      "Beamio User Card",
     );
     initCode = deployTx?.data as string;
   }

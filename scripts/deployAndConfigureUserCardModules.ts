@@ -4,6 +4,7 @@ import * as path from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { ethers } from "ethers";
+import { deployBeamioUserCardLibraries } from "./beamioUserCardLibraries.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +71,6 @@ async function main() {
   // 未设置 *_MODULE_ADDRESS 时会重新部署缺失模块；仅升级某一模块时，请对其余模块传入链上已有地址，避免误替换工厂绑定。
   const { ethers: hhEthers } = await networkModule.connect();
   const provider = hhEthers.provider;
-  const network = await provider.getNetwork();
   const pk = loadSignerPk();
   const signer = new ethers.NonceManager(new hhEthers.Wallet(pk, provider));
   const signerAddress = await signer.getAddress();
@@ -80,17 +80,22 @@ async function main() {
   if (feeData.maxPriorityFeePerGas) txOverrides.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 2n;
 
   const deploymentsDir = path.join(__dirname, "..", "deployments");
-  const factoryFile = path.join(deploymentsDir, "base-UserCardFactory.json");
-  const modulesFile = path.join(deploymentsDir, "base-UserCardModules.json");
+  const network = await provider.getNetwork();
+  const chainId = Number(network.chainId);
+  const deploymentPrefix = chainId === 224422 ? "conet" : "base";
+  const factoryFile = path.join(deploymentsDir, `${deploymentPrefix}-UserCardFactory.json`);
+  const modulesFile = path.join(deploymentsDir, `${deploymentPrefix}-UserCardModules.json`);
 
   if (!fs.existsSync(factoryFile)) {
-    throw new Error("缺少 deployments/base-UserCardFactory.json，请先完成 Factory 部署");
+    throw new Error(`缺少 deployments/${deploymentPrefix}-UserCardFactory.json，请先完成 Factory 部署`);
   }
 
   const factoryData = JSON.parse(fs.readFileSync(factoryFile, "utf-8"));
-  const factoryAddress = factoryData?.contracts?.beamioUserCardFactoryPaymaster?.address;
+  const factoryAddress =
+    process.env.FACTORY_ADDRESS?.trim() ||
+    factoryData?.contracts?.beamioUserCardFactoryPaymaster?.address;
   if (!factoryAddress) {
-    throw new Error("base-UserCardFactory.json 中缺少 beamioUserCardFactoryPaymaster.address");
+    throw new Error(`${deploymentPrefix}-UserCardFactory.json 中缺少 beamioUserCardFactoryPaymaster.address`);
   }
 
   const factoryCode = await provider.getCode(factoryAddress);
@@ -126,6 +131,33 @@ async function main() {
   const existingChargeReward =
     await resolveModuleAddress(provider, process.env.CHARGE_REWARD_MODULE_ADDRESS, "ChargeRewardModule");
 
+  let cardLibraries: Awaited<ReturnType<typeof deployBeamioUserCardLibraries>> | undefined;
+  if (!existingChargeReward) {
+    const addrPath = path.join(deploymentsDir, "conet-addresses.json");
+    const existingLibs =
+      chainId === 224422 && fs.existsSync(addrPath)
+        ? (() => {
+            const addrData = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, string>;
+            return {
+              BeamioUserCardFormattingLib: addrData.beamioUserCardFormattingLib,
+              BeamioUserCardTransferLib: addrData.beamioUserCardTransferLib,
+              BeamioUserCardAdminGatewayLib: addrData.beamioUserCardAdminGatewayLib,
+              BeamioUserCardFaucetGatewayLib: addrData.beamioUserCardFaucetGatewayLib,
+              BeamioUserCardGatewayMintLib: addrData.beamioUserCardGatewayMintLib,
+              BeamioUserCardGovernanceLib: addrData.beamioUserCardGovernanceLib,
+              BeamioUserCardIssuedNftGatewayLib: addrData.beamioUserCardIssuedNftGatewayLib,
+              BeamioUserCardModuleRouterLib: addrData.beamioUserCardModuleRouterLib,
+              BeamioUserCardRedeemGatewayLib: addrData.beamioUserCardRedeemGatewayLib,
+              BeamioUserCardReferrerLib: addrData.beamioUserCardReferrerLib,
+              BeamioUserCardUpdateLib: addrData.beamioUserCardUpdateLib,
+              BeamioUserCardViewsLib: addrData.beamioUserCardViewsLib,
+              ReferrerRegistryLib: addrData.referrerRegistryLib,
+            };
+          })()
+        : {};
+    cardLibraries = await deployBeamioUserCardLibraries(hhEthers, signer, existingLibs);
+  }
+
   const RedeemFactory = existingRedeem ? undefined : await hhEthers.getContractFactory("BeamioUserCardRedeemModuleVNext");
   const IssuedFactory = existingIssued ? undefined : await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV1");
   const FaucetFactory = existingFaucet ? undefined : await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
@@ -134,8 +166,14 @@ async function main() {
     existingMembershipStats ? undefined : await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
   const AdminStatsQueryFactory =
     existingAdminStatsQuery ? undefined : await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
-  const ChargeRewardFactory =
-    existingChargeReward ? undefined : await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV1");
+  const ChargeRewardFactory = existingChargeReward
+    ? undefined
+    : await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV1", {
+        libraries: {
+          BeamioUserCardReferrerLib: cardLibraries!.BeamioUserCardReferrerLib,
+          BeamioUserCardTransferLib: cardLibraries!.BeamioUserCardTransferLib,
+        },
+      });
 
   const redeem = existingRedeem ? undefined : await RedeemFactory!.connect(signer).deploy(txOverrides);
   if (redeem) await redeem.waitForDeployment();
