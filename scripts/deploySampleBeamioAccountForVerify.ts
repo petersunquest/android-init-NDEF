@@ -18,7 +18,7 @@ async function main() {
 
   console.log("Factory:", BEAMIO_AA_FACTORY_PREDICTED);
   console.log("Signer:", signer.address);
-  console.log("Predicted AA (index=0):", "0xDE72163F1f75C90c4CeDeE11b9E5a17eFc128CB7");
+  console.log("Predicted AA (index=0):", "0x8f171AB4cFEEE672683a1fEBA0D04D16F7b20759");
 
   const before = await factory.beamioAccountOf(signer.address);
   if (before !== ethers.ZeroAddress) {
@@ -32,7 +32,7 @@ async function main() {
 
   const aa = await factory.beamioAccountOf(signer.address);
   console.log("✅ BeamioAccount:", aa);
-  if (aa.toLowerCase() !== "0xde72163f1f75c90c4cedee11b9e5a17efc128cb7") {
+  if (aa.toLowerCase() !== "0x8f171ab4cfeee672683a1feba0d04d16f7b20759") {
     console.warn("地址与预测样例不一致，请更新 verify bundle 中 BeamioAccount address");
   }
 }

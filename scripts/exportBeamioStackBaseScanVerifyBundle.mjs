@@ -22,11 +22,11 @@ const deploymentsDir = path.join(root, "deployments");
 
 const ENTRY_POINT = getAddress("0x0000000071727De22E5E9d8BAf0edAc6f37da032");
 const ADMIN = getAddress("0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1");
-const AA_FACTORY = getAddress("0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07");
+const AA_FACTORY = getAddress("0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2");
 const ORACLE = getAddress("0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008");
 const QUOTE_HELPER = getAddress("0xD3f275774831810006d744d32E6b024507C0d374");
 /** admin EOA index=0 CREATE2 地址（与 factory.computeSalt + getAddress 一致） */
-const SAMPLE_BEAMIO_ACCOUNT = getAddress("0xa75A0e2B5dBa846121DF536ce53Cd920A5CC8483");
+const SAMPLE_BEAMIO_ACCOUNT = getAddress("0x8f171AB4cFEEE672683a1fEBA0D04D16F7b20759");
 const ACCOUNT_LIMIT = 100;
 
 const CONTRACT_NAME_MAP = {
@@ -72,7 +72,7 @@ const STACK = [
     constructorTypes: ["address"],
     constructorValues: [ENTRY_POINT],
     deployNote:
-      "Verify at any deployed BeamioAccount with same initCode. Admin index=0 with current BeamioAccount bytecode: 0xa75A0e2B5dBa846121DF536ce53Cd920A5CC8483",
+      "Verify at any deployed BeamioAccount with same initCode. Admin index=0 with current BeamioAccount bytecode: 0x8f171AB4cFEEE672683a1fEBA0D04D16F7b20759",
   },
 ];
 

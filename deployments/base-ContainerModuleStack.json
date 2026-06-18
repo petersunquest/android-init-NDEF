@@ -1,0 +1,23 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "updatedAt": "2026-06-18T19:32:53.584Z",
+  "contracts": {
+    "BeamioContainerExtLibV07": {
+      "address": "0x306a835e31893ED152a1065498070C3Ddd2ABdB5"
+    },
+    "BeamioContainerExtLib2V07": {
+      "address": "0xf256eB0C91360c10BcF85754fAdAA4d015D4eC9f"
+    },
+    "BeamioContainerModuleV07": {
+      "address": "0x8a8AC7d3BCF8aB8a8c49eC261FbCbb757F1dDFa6",
+      "linkedLibraries": {
+        "BeamioContainerModuleExternalLibV07": "0x306a835e31893ED152a1065498070C3Ddd2ABdB5",
+        "BeamioContainerModuleExternalLib2V07": "0xf256eB0C91360c10BcF85754fAdAA4d015D4eC9f"
+      }
+    },
+    "BeamioFactoryPaymasterV07": {
+      "address": "0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2"
+    }
+  }
+}
