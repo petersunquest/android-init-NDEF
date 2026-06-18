@@ -23,19 +23,28 @@ export declare namespace IBeamioAccountAssetBalanceV07 {
     }
 
   export interface BeamioAccountInterface extends Interface {
-    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "cancelReserve" | "containerMainRelayed" | "containerMainRelayedOpen" | "containerMainRelayedOpenUsdcTopupThenPoints" | "createFaucetPool" | "createRedeem" | "createReserve" | "entryPoint" | "execReserve" | "execute" | "executeBatch" | "executeFromFactory" | "factory" | "faucetRedeemPool" | "getAssetBalanceView" | "initialize" | "isThresholdManager" | "isValidSignature" | "onERC1155BatchReceived" | "onERC1155Received" | "openRelayedNonce" | "owner" | "redeem" | "relayedNonce" | "searchReserve" | "setFactory" | "setThresholdPolicy" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "supportsInterface" | "threshold" | "thresholdManagers" | "transferReserve" | "validateUserOp"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelFaucetPoolFromEntryPoint" | "cancelRedeem" | "cancelRedeemFromEntryPoint" | "cancelReserve" | "cancelReserveFromEntryPoint" | "containerMainRelayed" | "containerMainRelayedFromEntryPoint" | "containerMainRelayedOpen" | "containerMainRelayedOpenFromEntryPoint" | "containerMainRelayedOpenUsdcTopupThenPoints" | "containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint" | "createFaucetPool" | "createFaucetPoolFromEntryPoint" | "createRedeem" | "createRedeemFromEntryPoint" | "createReserve" | "createReserveFromEntryPoint" | "entryPoint" | "execReserve" | "execute" | "executeBatch" | "executeFromFactory" | "factory" | "faucetRedeemPool" | "getAssetBalanceView" | "initialize" | "isThresholdManager" | "isValidSignature" | "onERC1155BatchReceived" | "onERC1155Received" | "openRelayedNonce" | "owner" | "redeem" | "relayedNonce" | "searchReserve" | "setFactory" | "setThresholdPolicy" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "supportsInterface" | "threshold" | "thresholdManagers" | "transferReserve" | "validateUserOp"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "FactoryUpdated" | "Initialized" | "ThresholdPolicyUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'cancelFaucetPool', values: [string]): string;
+encodeFunctionData(functionFragment: 'cancelFaucetPoolFromEntryPoint', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
+encodeFunctionData(functionFragment: 'cancelRedeemFromEntryPoint', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelReserve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'cancelReserveFromEntryPoint', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayed', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedFromEntryPoint', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayedOpen', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedOpenFromEntryPoint', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createFaucetPool', values: [BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'createFaucetPoolFromEntryPoint', values: [BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createRedeemFromEntryPoint', values: [BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createReserve', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createReserveFromEntryPoint', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'entryPoint', values?: undefined): string;
 encodeFunctionData(functionFragment: 'execReserve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'execute', values: [AddressLike, BigNumberish, BytesLike]): string;
@@ -65,14 +74,23 @@ encodeFunctionData(functionFragment: 'transferReserve', values: [AddressLike, Bi
 encodeFunctionData(functionFragment: 'validateUserOp', values: [PackedUserOperationStruct, BytesLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'cancelFaucetPool', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelFaucetPoolFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelRedeemFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelReserve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelReserveFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'containerMainRelayedFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'containerMainRelayedOpenFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createFaucetPool', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createFaucetPoolFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createRedeemFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createReserve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createReserveFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'entryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'execReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'execute', data: BytesLike): Result;
@@ -181,7 +199,23 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
     
 
     
+    cancelFaucetPoolFromEntryPoint: TypedContractMethod<
+      [code: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     cancelRedeem: TypedContractMethod<
+      [code: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    cancelRedeemFromEntryPoint: TypedContractMethod<
       [code: string, ],
       [void],
       'nonpayable'
@@ -197,7 +231,23 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
     
 
     
+    cancelReserveFromEntryPoint: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     containerMainRelayed: TypedContractMethod<
+      [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    containerMainRelayedFromEntryPoint: TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
@@ -213,7 +263,23 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
     
 
     
+    containerMainRelayedOpenFromEntryPoint: TypedContractMethod<
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     containerMainRelayedOpenUsdcTopupThenPoints: TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint: TypedContractMethod<
       [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
@@ -229,6 +295,14 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
     
 
     
+    createFaucetPoolFromEntryPoint: TypedContractMethod<
+      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     createRedeem: TypedContractMethod<
       [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
       [void],
@@ -237,7 +311,23 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
     
 
     
+    createRedeemFromEntryPoint: TypedContractMethod<
+      [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     createReserve: TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    createReserveFromEntryPoint: TypedContractMethod<
       [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
       [void],
       'nonpayable'
@@ -468,7 +558,17 @@ decodeFunctionResult(functionFragment: 'validateUserOp', data: BytesLike): Resul
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelFaucetPoolFromEntryPoint'): TypedContractMethod<
+      [code: string, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
+      [code: string, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'cancelRedeemFromEntryPoint'): TypedContractMethod<
       [code: string, ],
       [void],
       'nonpayable'
@@ -478,7 +578,17 @@ getFunction(nameOrSignature: 'cancelReserve'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelReserveFromEntryPoint'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'containerMainRelayed'): TypedContractMethod<
+      [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'containerMainRelayedFromEntryPoint'): TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
@@ -488,7 +598,17 @@ getFunction(nameOrSignature: 'containerMainRelayedOpen'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'containerMainRelayedOpenFromEntryPoint'): TypedContractMethod<
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'containerMainRelayedOpenUsdcTopupThenPoints'): TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint'): TypedContractMethod<
       [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
@@ -498,12 +618,27 @@ getFunction(nameOrSignature: 'createFaucetPool'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'createFaucetPoolFromEntryPoint'): TypedContractMethod<
+      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
       [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'createRedeemFromEntryPoint'): TypedContractMethod<
+      [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'createReserve'): TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'createReserveFromEntryPoint'): TypedContractMethod<
       [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
       [void],
       'nonpayable'

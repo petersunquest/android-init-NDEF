@@ -15,7 +15,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "chainConfigInitialized" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "initializeChainConfig" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "openContainerMintExecutor" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayContainerMainRelayedOpenUsdcTopupThenPoints" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setOpenContainerMintExecutor" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "simulateRelayOpenUsdcTopupThenPoints" | "transferAdmin" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "ENTRY_POINT" | "EXECUTE_FOR_OWNER_TYPEHASH" | "EXECUTE_FOR_REDEEMER_TYPEHASH" | "USDC" | "accountLimit" | "addPayMaster" | "admin" | "beamioAccountOf" | "beamioUserCard" | "chainConfigInitialized" | "computeSalt" | "containerModule" | "createAccount" | "createAccountFor" | "createAccountForEntryPoint" | "deposit" | "executeForOwner" | "executeForRedeemer" | "getAddress" | "getPayMasters" | "initializeChainConfig" | "isBeamioAccount" | "isPayMaster" | "myBeamioAccounts" | "nextIndexOfCreator" | "openContainerMintExecutor" | "payMasters" | "postOp" | "primaryAccountOf" | "quoteHelper" | "relayCancelFaucetPool" | "relayCancelRedeem" | "relayContainerMainRelayed" | "relayContainerMainRelayedOpen" | "relayContainerMainRelayedOpenUsdcTopupThenPoints" | "relayCreateFaucetPool" | "relayCreateRedeem" | "relayFaucetRedeemPool" | "relayHandleOps" | "relayRedeem" | "removePayMaster" | "setAccountLimit" | "setModule" | "setOpenContainerMintExecutor" | "setQuoteHelper" | "setUSDC" | "setUserCard" | "simulateRelayOpen" | "simulateRelayOpenUsdcTopupThenPoints" | "transferAdmin" | "usedOwnerExecuteNonces" | "usedRedeemerExecuteNonces" | "validatePaymasterUserOp" | "withdrawTo"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AccountCreated" | "ChainConfigInitialized" | "ModuleUpdated" | "OpenContainerMintExecutorUpdated" | "QuoteHelperUpdated" | "USDCUpdated" | "UserCardUpdated"): EventFragment;
 
@@ -34,6 +34,7 @@ encodeFunctionData(functionFragment: 'computeSalt', values: [AddressLike, BigNum
 encodeFunctionData(functionFragment: 'containerModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createAccount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createAccountFor', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'createAccountForEntryPoint', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'deposit', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executeForOwner', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'executeForRedeemer', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
@@ -57,6 +58,7 @@ encodeFunctionData(functionFragment: 'relayContainerMainRelayedOpenUsdcTopupThen
 encodeFunctionData(functionFragment: 'relayCreateFaucetPool', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'relayCreateRedeem', values: [AddressLike, BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
 encodeFunctionData(functionFragment: 'relayFaucetRedeemPool', values: [AddressLike, string, AddressLike, AddressLike, ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'relayHandleOps', values: [PackedUserOperationStruct[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'relayRedeem', values: [AddressLike, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'removePayMaster', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setAccountLimit', values: [BigNumberish]): string;
@@ -88,6 +90,7 @@ decodeFunctionResult(functionFragment: 'computeSalt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createAccount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createAccountFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createAccountForEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForOwner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeForRedeemer', data: BytesLike): Result;
@@ -111,6 +114,7 @@ decodeFunctionResult(functionFragment: 'relayContainerMainRelayedOpenUsdcTopupTh
 decodeFunctionResult(functionFragment: 'relayCreateFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayCreateRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayFaucetRedeemPool', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'relayHandleOps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removePayMaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAccountLimit', data: BytesLike): Result;
@@ -367,6 +371,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
+    createAccountForEntryPoint: TypedContractMethod<
+      [creator: AddressLike, ],
+      [string],
+      'nonpayable'
+    >
+    
+
+    
     deposit: TypedContractMethod<
       [],
       [void],
@@ -545,6 +557,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
     relayFaucetRedeemPool: TypedContractMethod<
       [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    relayHandleOps: TypedContractMethod<
+      [ops: PackedUserOperationStruct[], beneficiary: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -748,6 +768,11 @@ getFunction(nameOrSignature: 'createAccountFor'): TypedContractMethod<
       [string],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'createAccountForEntryPoint'): TypedContractMethod<
+      [creator: AddressLike, ],
+      [string],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'deposit'): TypedContractMethod<
       [],
       [void],
@@ -860,6 +885,11 @@ getFunction(nameOrSignature: 'relayCreateRedeem'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'relayFaucetRedeemPool'): TypedContractMethod<
       [account: AddressLike, password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'relayHandleOps'): TypedContractMethod<
+      [ops: PackedUserOperationStruct[], beneficiary: AddressLike, ],
       [void],
       'nonpayable'
     >;

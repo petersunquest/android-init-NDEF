@@ -54,6 +54,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelReserveFromEntryPoint",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "to",
         "type": "address"
       },
@@ -406,6 +424,56 @@
       }
     ],
     "name": "createReserve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum AssetKind",
+            "name": "kind",
+            "type": "uint8"
+          },
+          {
+            "internalType": "address",
+            "name": "asset",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes",
+            "name": "data",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct ContainerItem[]",
+        "name": "items",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "address",
+        "name": "beneficiary",
+        "type": "address"
+      },
+      {
+        "internalType": "uint32",
+        "name": "cancelWindowSeconds",
+        "type": "uint32"
+      }
+    ],
+    "name": "createReserveFromEntryPoint",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

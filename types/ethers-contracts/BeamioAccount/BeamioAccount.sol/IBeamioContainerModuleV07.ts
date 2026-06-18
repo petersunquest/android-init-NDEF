@@ -10,19 +10,21 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioContainerModuleV07Interface extends Interface {
-    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "cancelReserve" | "containerMainRelayed" | "containerMainRelayedOpen" | "containerMainRelayedOpenUsdcTopupThenPoints" | "createFaucetPool" | "createRedeem" | "createReserve" | "execReserve" | "faucetRedeemPool" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "searchReserve" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "transferReserve"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "cancelReserve" | "cancelReserveFromEntryPoint" | "containerMainRelayed" | "containerMainRelayedOpen" | "containerMainRelayedOpenUsdcTopupThenPoints" | "createFaucetPool" | "createRedeem" | "createReserve" | "createReserveFromEntryPoint" | "execReserve" | "faucetRedeemPool" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "searchReserve" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "transferReserve"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'cancelFaucetPool', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelReserve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'cancelReserveFromEntryPoint', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayed', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayedOpen', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createFaucetPool', values: [BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createReserve', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createReserveFromEntryPoint', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'execReserve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'faucetRedeemPool', values: [string, AddressLike, AddressLike, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'openRelayedNonce', values?: undefined): string;
@@ -37,12 +39,14 @@ encodeFunctionData(functionFragment: 'transferReserve', values: [AddressLike, Bi
     decodeFunctionResult(functionFragment: 'cancelFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelReserve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelReserveFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpen', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createReserve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createReserveFromEntryPoint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'execReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetRedeemPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'openRelayedNonce', data: BytesLike): Result;
@@ -115,6 +119,14 @@ decodeFunctionResult(functionFragment: 'transferReserve', data: BytesLike): Resu
     
 
     
+    cancelReserveFromEntryPoint: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     containerMainRelayed: TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
@@ -156,6 +168,14 @@ decodeFunctionResult(functionFragment: 'transferReserve', data: BytesLike): Resu
 
     
     createReserve: TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    createReserveFromEntryPoint: TypedContractMethod<
       [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
       [void],
       'nonpayable'
@@ -260,6 +280,11 @@ getFunction(nameOrSignature: 'cancelReserve'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelReserveFromEntryPoint'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'containerMainRelayed'): TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
@@ -286,6 +311,11 @@ getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createReserve'): TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'createReserveFromEntryPoint'): TypedContractMethod<
       [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
       [void],
       'nonpayable'

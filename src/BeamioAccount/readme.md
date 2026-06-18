@@ -2,11 +2,13 @@
 
 ## Cross-chain same address (Nick CREATE2)
 
-**Factory + per-EOA AA addresses are identical on Base (8453) and CoNET (224422)** when deployed via Nick CREATE2 with fixed initCode.
+**Factory + per-EOA AA addresses are identical on every chain where the same bytecode is deployed via Nick CREATE2 with fixed initCode.**
+
+Current status: CoNET (224422) has the EntryPoint-aware bytecode deployed at the new address below. Base (8453) still uses the previous Factory until a Base deploy signer is configured and the same bytecode is deployed there.
 
 | Contract | CREATE2 salt | Predicted (current bytecode) |
 |---|---|---|
-| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | [`0xe58F457Cd5674516400013E8d338054be556A730`](https://basescan.org/address/0xe58F457Cd5674516400013E8d338054be556A730) |
+| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | CoNET current: [`0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07`](https://scan.conet.network/address/0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07) |
 | **BeamioAccount** (per EOA, index=0) | `keccak256(abi.encode(creator, index))` | Nick factory + `BeamioAccount` initCode(`EntryPoint v0.7`) |
 
 **Same address ≠ shared state.** Container nonce, ERC1155 balances, and registry counters remain **per chain**.
@@ -51,7 +53,8 @@ Meta: `deployments/beamioAAFactory-create2-meta.json`
 
 ### Application constants
 
-- **Canonical:** `BEAMIO_AA_FACTORY` = `0xe58F457Cd5674516400013E8d338054be556A730` (x402sdk / clients)
+- **Base:** `BEAMIO_AA_FACTORY` = `0xe58F457Cd5674516400013E8d338054be556A730` until Base is redeployed with the current bytecode
+- **CoNET:** `CONET_AA_FACTORY` = `0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07`
 - **Deprecated:** `BeamioAccountDeployer` per-chain addresses — AA creation uses Nick CREATE2 in Factory
 
 After Solidity changes: re-run predict, redeploy **all** chains, sync artifacts:

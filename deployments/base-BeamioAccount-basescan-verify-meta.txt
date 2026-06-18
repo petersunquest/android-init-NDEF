@@ -1,4 +1,4 @@
-# BaseScan: BeamioAccount (CREATE2 instance, admin index=0) @ 0xaAE26581B0126cDEE36602413FFc94c4436F310C
+# BaseScan: BeamioAccount (CREATE2 instance, admin index=0) @ 0xa75A0e2B5dBa846121DF536ce53Cd920A5CC8483
 
 ## Regenerate Standard JSON
 
@@ -34,4 +34,4 @@ BeamioAccount
 
 ## Deploy note
 
-Verify at any deployed BeamioAccount with same initCode. Admin index=0 on Base: 0xaAE26581B0126cDEE36602413FFc94c4436F310C
+Verify at any deployed BeamioAccount with same initCode. Admin index=0 with current BeamioAccount bytecode: 0xa75A0e2B5dBa846121DF536ce53Cd920A5CC8483

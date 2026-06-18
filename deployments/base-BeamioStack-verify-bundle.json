@@ -1,13 +1,13 @@
 {
   "network": "base",
   "chainId": "8453",
-  "updatedAt": "2026-06-15T22:36:58.645Z",
+  "updatedAt": "2026-06-18T05:04:43.758Z",
   "compiler": "v0.8.33+commit.64118f21",
   "contracts": [
     {
       "exportKey": "BeamioFactoryPaymasterV07",
       "label": "BeamioFactoryPaymasterV07 (CREATE2 AA Factory)",
-      "address": "0xe58F457Cd5674516400013E8d338054be556A730",
+      "address": "0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07",
       "contractName": "project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol:BeamioFactoryPaymasterV07",
       "jsonRel": "deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL.json",
       "formJsonRel": "deployments/base-BeamioFactoryPaymasterV07-standard-input-FULL-FORM.json",
@@ -34,7 +34,7 @@
     {
       "exportKey": "BeamioAccount",
       "label": "BeamioAccount (CREATE2 instance, admin index=0)",
-      "address": "0xaAE26581B0126cDEE36602413FFc94c4436F310C",
+      "address": "0xa75A0e2B5dBa846121DF536ce53Cd920A5CC8483",
       "contractName": "project/src/BeamioAccount/BeamioAccount.sol:BeamioAccount",
       "jsonRel": "deployments/base-BeamioAccount-standard-input-FULL.json",
       "formJsonRel": "deployments/base-BeamioAccount-standard-input-FULL-FORM.json",

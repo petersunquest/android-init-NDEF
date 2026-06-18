@@ -860,6 +860,24 @@ contract BeamioContainerModuleV07 {
 		uint32 cancelWindowSeconds
 	) external onlyDelegatecall {
 		address acct = address(this);
+		_requireMsgSenderIsOwner(acct);
+		_createReserveInternal(items, beneficiary, cancelWindowSeconds);
+	}
+
+	function createReserveFromEntryPoint(
+		ContainerItem[] calldata items,
+		address beneficiary,
+		uint32 cancelWindowSeconds
+	) external onlyDelegatecall {
+		_createReserveInternal(items, beneficiary, cancelWindowSeconds);
+	}
+
+	function _createReserveInternal(
+		ContainerItem[] calldata items,
+		address beneficiary,
+		uint32 cancelWindowSeconds
+	) internal {
+		address acct = address(this);
 		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
 		if (cancelWindowSeconds == 0) revert RS_CancelWindowZero();
 		if (items.length == 0) revert CM_EmptyItems();
@@ -867,7 +885,6 @@ contract BeamioContainerModuleV07 {
 		uint256 dl = uint256(block.timestamp) + uint256(cancelWindowSeconds);
 		if (dl > type(uint64).max) revert RS_CancelWindowTooLong();
 
-		_requireMsgSenderIsOwner(acct);
 		_checkSpendable(acct, items);
 
 		bytes memory enc = abi.encode(items);
@@ -891,9 +908,16 @@ contract BeamioContainerModuleV07 {
 	}
 
 	function cancelReserve(address beneficiary, uint256 index) external onlyDelegatecall {
-		address acct = address(this);
+		_requireMsgSenderIsOwner(address(this));
+		_cancelReserveInternal(beneficiary, index);
+	}
+
+	function cancelReserveFromEntryPoint(address beneficiary, uint256 index) external onlyDelegatecall {
+		_cancelReserveInternal(beneficiary, index);
+	}
+
+	function _cancelReserveInternal(address beneficiary, uint256 index) internal {
 		if (beneficiary == address(0)) revert RS_BeneficiaryZero();
-		_requireMsgSenderIsOwner(acct);
 
 		BeamioContainerStorageV07.Layout storage l = BeamioContainerStorageV07.layout();
 		uint256[] storage ids = l.reserveIdsByBeneficiary[beneficiary];

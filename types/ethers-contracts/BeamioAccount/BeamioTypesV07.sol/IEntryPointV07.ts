@@ -4,18 +4,24 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
   
+    export type PackedUserOperationStruct = {sender: AddressLike, nonce: BigNumberish, initCode: BytesLike, callData: BytesLike, accountGasLimits: BytesLike, preVerificationGas: BigNumberish, gasFees: BytesLike, paymasterAndData: BytesLike, signature: BytesLike}
+
+    export type PackedUserOperationStructOutput = [sender: string, nonce: bigint, initCode: string, callData: string, accountGasLimits: string, preVerificationGas: bigint, gasFees: string, paymasterAndData: string, signature: string] & {sender: string, nonce: bigint, initCode: string, callData: string, accountGasLimits: string, preVerificationGas: bigint, gasFees: string, paymasterAndData: string, signature: string }
+  
 
   export interface IEntryPointV07Interface extends Interface {
-    getFunction(nameOrSignature: "balanceOf" | "depositTo" | "withdrawTo"): FunctionFragment;
+    getFunction(nameOrSignature: "balanceOf" | "depositTo" | "handleOps" | "withdrawTo"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'depositTo', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'handleOps', values: [PackedUserOperationStruct[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'withdrawTo', values: [AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositTo', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'handleOps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
   }
 
@@ -71,6 +77,14 @@ decodeFunctionResult(functionFragment: 'withdrawTo', data: BytesLike): Result;
     
 
     
+    handleOps: TypedContractMethod<
+      [ops: PackedUserOperationStruct[], beneficiary: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     withdrawTo: TypedContractMethod<
       [withdrawAddress: AddressLike, withdrawAmount: BigNumberish, ],
       [void],
@@ -90,6 +104,11 @@ getFunction(nameOrSignature: 'depositTo'): TypedContractMethod<
       [account: AddressLike, ],
       [void],
       'payable'
+    >;
+getFunction(nameOrSignature: 'handleOps'): TypedContractMethod<
+      [ops: PackedUserOperationStruct[], beneficiary: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'withdrawTo'): TypedContractMethod<
       [withdrawAddress: AddressLike, withdrawAmount: BigNumberish, ],

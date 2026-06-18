@@ -45,6 +45,7 @@ interface IEntryPointV07 {
     function depositTo(address account) external payable;
     function withdrawTo(address payable withdrawAddress, uint256 withdrawAmount) external;
     function balanceOf(address account) external view returns (uint256);
+    function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external;
 }
 
 interface IAccountV07 {

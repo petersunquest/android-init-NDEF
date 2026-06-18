@@ -123,6 +123,10 @@ interface IBeamioContainerModuleV07 {
 
 	function transferReserve(address beneficiary, uint256 index) external;
 
+	// EntryPoint-authorized owner reserve wrappers.
+	function createReserveFromEntryPoint(ContainerItem[] calldata items, address beneficiary, uint32 cancelWindowSeconds) external;
+	function cancelReserveFromEntryPoint(address beneficiary, uint256 index) external;
+
 	/// @dev Not `view`: reads module layout on this account via delegatecall return path.
 	/// itemBundles[i] is abi.encode(ContainerItem[]) for row i.
 	function searchReserve(address beneficiary)
@@ -268,7 +272,7 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 			if (pm != factory) revert PMD_BadPaymaster(pm, factory);
 		}
 
-		if (!_checkThresholdManagersEthSign(userOpHash, userOp.signature)) {
+		if (!_validateEntryPointUserOpSignature(userOp, userOpHash)) {
 			return 1; // SIG_VALIDATION_FAILED
 		}
 
@@ -278,6 +282,74 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		}
 
 		return 0;
+	}
+
+	function _validateEntryPointUserOpSignature(PackedUserOperation calldata userOp, bytes32 userOpHash) internal view returns (bool) {
+		bytes calldata cd = userOp.callData;
+		if (cd.length >= 4) {
+			bytes4 selector;
+			assembly {
+				selector := calldataload(cd.offset)
+			}
+			if (selector == this.containerMainRelayedOpenFromEntryPoint.selector) {
+				(
+					,
+					,
+					uint8 currencyType,
+					uint256 maxAmount,
+					uint256 nonce_,
+					uint256 deadline_,
+					bytes memory openSig
+				) = abi.decode(cd[4:], (address, ContainerItem[], uint8, uint256, uint256, uint256, bytes));
+				return _checkOpenContainerAuthorization(currencyType, maxAmount, nonce_, deadline_, openSig);
+			}
+			if (selector == this.containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint.selector) {
+				(
+					,
+					,
+					uint8 currencyType,
+					uint256 maxAmount,
+					uint256 nonce_,
+					uint256 deadline_,
+					bytes memory openSig
+				) = abi.decode(cd[4:], (address, ContainerItem[], uint8, uint256, uint256, uint256, bytes));
+				return _checkOpenContainerAuthorization(currencyType, maxAmount, nonce_, deadline_, openSig);
+			}
+		}
+		return _checkThresholdManagersEthSign(userOpHash, userOp.signature);
+	}
+
+	function _checkOpenContainerAuthorization(
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes memory openSig
+	) internal view returns (bool) {
+		if (block.timestamp > deadline_) return false;
+		if (openSig.length != 65) return false;
+		bytes32 structHash = keccak256(
+			abi.encode(
+				keccak256("OpenContainerMain(address account,uint8 currencyType,uint256 maxAmount,uint256 nonce,uint256 deadline)"),
+				address(this),
+				currencyType,
+				maxAmount,
+				nonce_,
+				deadline_
+			)
+		);
+		bytes32 domain = keccak256(
+			abi.encode(
+				keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+				keccak256(bytes("BeamioAccount")),
+				keccak256(bytes("1")),
+				block.chainid,
+				address(this)
+			)
+		);
+		bytes32 digest = MessageHashUtils.toTypedDataHash(domain, structHash);
+		address signer = ECDSA.recover(digest, openSig);
+		return isThresholdManager[signer];
 	}
 
 	function _checkThresholdManagersEthSign(bytes32 hash, bytes calldata sigs) internal view returns (bool) {
@@ -415,6 +487,19 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		));
 	}
 
+	function containerMainRelayedFromEntryPoint(
+		address to,
+		ContainerItem[] calldata items,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyEntryPoint {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.containerMainRelayed.selector,
+			to, items, nonce_, deadline_, sig
+		));
+	}
+
 	// --- open relayed container (no-to signature; module enforces all rules) ---
 	function containerMainRelayedOpen(
 		address to,
@@ -431,6 +516,21 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		));
 	}
 
+	function containerMainRelayedOpenFromEntryPoint(
+		address to,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyEntryPoint {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.containerMainRelayedOpen.selector,
+			to, items, currencyType, maxAmount, nonce_, deadline_, sig
+		));
+	}
+
 	function containerMainRelayedOpenUsdcTopupThenPoints(
 		address pointsTo,
 		ContainerItem[] calldata items,
@@ -440,6 +540,21 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		uint256 deadline_,
 		bytes calldata sig
 	) external onlyFactory {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.containerMainRelayedOpenUsdcTopupThenPoints.selector,
+			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
+		));
+	}
+
+	function containerMainRelayedOpenUsdcTopupThenPointsFromEntryPoint(
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyEntryPoint {
 		_delegate(abi.encodeWithSelector(
 			IBeamioContainerModuleV07.containerMainRelayedOpenUsdcTopupThenPoints.selector,
 			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
@@ -495,7 +610,24 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		));
 	}
 
+	function createRedeemFromEntryPoint(bytes32 passwordHash, address to, ContainerItem[] calldata items, uint64 expiry)
+		external
+		onlyEntryPoint
+	{
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.createRedeem.selector,
+			passwordHash, to, items, expiry
+		));
+	}
+
 	function cancelRedeem(string calldata code) external onlyOwnerDirect {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.cancelRedeem.selector,
+			code
+		));
+	}
+
+	function cancelRedeemFromEntryPoint(string calldata code) external onlyEntryPoint {
 		_delegate(abi.encodeWithSelector(
 			IBeamioContainerModuleV07.cancelRedeem.selector,
 			code
@@ -520,7 +652,24 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		));
 	}
 
+	function createFaucetPoolFromEntryPoint(bytes32 passwordHash, uint32 totalCount, uint64 expiry, ContainerItem[] calldata items)
+		external
+		onlyEntryPoint
+	{
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.createFaucetPool.selector,
+			passwordHash, totalCount, expiry, items
+		));
+	}
+
 	function cancelFaucetPool(string calldata code) external onlyOwnerDirect {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.cancelFaucetPool.selector,
+			code
+		));
+	}
+
+	function cancelFaucetPoolFromEntryPoint(string calldata code) external onlyEntryPoint {
 		_delegate(abi.encodeWithSelector(
 			IBeamioContainerModuleV07.cancelFaucetPool.selector,
 			code
@@ -548,8 +697,25 @@ contract BeamioAccount is ERC1155Holder, IAccountV07, IERC1271, IBeamioAccountAs
 		));
 	}
 
+	function createReserveFromEntryPoint(
+		ContainerItem[] calldata items,
+		address beneficiary,
+		uint32 cancelWindowSeconds
+	) external onlyEntryPoint {
+		_delegate(abi.encodeWithSelector(
+			IBeamioContainerModuleV07.createReserveFromEntryPoint.selector,
+			items,
+			beneficiary,
+			cancelWindowSeconds
+		));
+	}
+
 	function cancelReserve(address beneficiary, uint256 index) external onlyOwnerDirect {
 		_delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.cancelReserve.selector, beneficiary, index));
+	}
+
+	function cancelReserveFromEntryPoint(address beneficiary, uint256 index) external onlyEntryPoint {
+		_delegate(abi.encodeWithSelector(IBeamioContainerModuleV07.cancelReserveFromEntryPoint.selector, beneficiary, index));
 	}
 
 	function execReserve(address beneficiary, uint256 index) external {

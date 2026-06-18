@@ -657,21 +657,19 @@ export async function executeQrCharge(params: {
 		payload.deadline = payload.validBefore
 	}
 
-	const terminalAssets = await fetchWalletAssetsForRead({
-		wallet: payeeWallet,
-		merchantInfraCard: infra,
-	})
-	const toAA =
-		terminalAssets?.aaAddress?.trim() ||
-		optPayloadString(payload.to).trim()
-	if (!toAA || !looksLikeAddress(toAA)) {
-		patch?.('sendTx', 'error', 'Merchant AA not found')
+	// The server resolves ERC1155 program-point charges to the merchant card owner's AA.
+	// Keep the QR relay recipient in the merchant/POS context and avoid querying wallet assets for the terminal EOA.
+	const relayPayee = looksLikeAddress(payeeWallet)
+		? payeeWallet
+		: optPayloadString(payload.to).trim()
+	if (!relayPayee || !looksLikeAddress(relayPayee)) {
+		patch?.('sendTx', 'error', 'Merchant recipient not found')
 		return {
 			status: 'error',
-			message: 'Merchant AA not found. Please ensure terminal is configured.',
+			message: 'Merchant recipient not found. Please ensure terminal is configured.',
 		}
 	}
-	payload.to = toAA
+	payload.to = relayPayee
 
 	const taxFiat6 = Math.round(subtotal * (routing.taxPercent / 100) * 1_000_000)
 	const discNorm = normalizeTierDiscountPercent(disc)
@@ -741,7 +739,7 @@ export async function executeQrCharge(params: {
 			cardCurrency: payCurrency,
 			memberNo: memberNo || undefined,
 			customerBeamioTag: customerBeamioTag ?? assets.beamioTag,
-			payee: toAA,
+			payee: relayPayee,
 			cardName: payCard?.cardName,
 			tierName: payCard?.tierName,
 			chargeTaxPercent: routing.taxPercent,

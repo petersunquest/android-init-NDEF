@@ -105,6 +105,7 @@ function main() {
   const bizKet = data.BusinessStartKet as string | undefined;
   const bizKetRedeem = data.BusinessStartKetRedeem as string | undefined;
   const cardFactory = data.CARD_FACTORY as string | undefined;
+  const aaFactory = data.AA_FACTORY as string | undefined;
   const userCardDefault = data.BEAMIO_USER_CARD_DEFAULT as string | undefined;
   const userCardFormattingLib = data.beamioUserCardFormattingLib as string | undefined;
   const userCardTransferLib = data.beamioUserCardTransferLib as string | undefined;
@@ -339,6 +340,7 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_AA_FACTORY", aaFactory);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
     content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
@@ -375,6 +377,7 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_AA_FACTORY", aaFactory);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
     content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
@@ -448,6 +451,7 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET", bizKet);
     content = patchExportConstSingleQuoted(content, "CONET_BUSINESS_START_KET_REDEEM", bizKetRedeem);
     content = patchExportConstSingleQuoted(content, "CONET_CARD_FACTORY", cardFactory);
+    content = patchExportConstSingleQuoted(content, "CONET_AA_FACTORY", aaFactory);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
     content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);

@@ -201,9 +201,22 @@ export async function fetchWalletAssets(wallet: string, merchantInfraCard?: stri
 	hasAAAccount?: boolean
 	cardName?: string
 } | null> {
+	const infra = merchantInfraCard?.trim() ?? ''
+	if (infra) {
+		const root = await fetchCardMetadataRoot(infra)
+		const meta = root?.metadata
+		if (meta && typeof meta === 'object') {
+			const o = meta as { name?: unknown; cardName?: unknown; title?: unknown }
+			const cardName =
+				String(o.name ?? '').trim() ||
+				String(o.cardName ?? '').trim() ||
+				String(o.title ?? '').trim()
+			return cardName ? { cardName } : {}
+		}
+		return {}
+	}
 	try {
 		const params = new URLSearchParams({ wallet, cardsScope: 'merchantInfraOnly' })
-		if (merchantInfraCard) params.set('merchantInfraCard', merchantInfraCard)
 		const res = await fetch(`${BEAMIO_API}/api/getWalletAssets?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as {

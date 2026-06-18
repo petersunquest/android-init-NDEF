@@ -223,6 +223,13 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		ENTRY_POINT.withdrawTo(to, amount);
 	}
 
+	/// @notice Paymaster/admin relay for submitting ERC-4337 UserOps through this factory.
+	/// @dev Useful when the API submits to the Beamio factory while EntryPoint still emits
+	///      the canonical UserOperationEvent for explorer/account-abstraction statistics.
+	function relayHandleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external onlyPayMaster {
+		ENTRY_POINT.handleOps(ops, beneficiary);
+	}
+
 	// =========================================================
 	// Deterministic address (Nick CREATE2)
 	// =========================================================
@@ -252,37 +259,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	// Create account (EOA)
 	// =========================================================
 	function createAccount() external returns (address account) {
-		address creator = msg.sender;
-		uint256 index = nextIndexOfCreator[creator];
-		require(index < accountLimit, "limit");
-
-		account = getAddress(creator, index);
-		nextIndexOfCreator[creator] = index + 1;
-
-		if (account.code.length > 0) {
-			if (!isBeamioAccount[account]) {
-				isBeamioAccount[account] = true;
-				accountsByCreator[creator].push(account);
-			}
-			if (primaryAccountOf[creator] == address(0)) primaryAccountOf[creator] = account;
-			return account;
-		}
-
-		bytes32 salt = computeSalt(creator, index);
-		bytes memory initCode = _initCode();
-		account = BeamioAccountCreate2Lib.nickDeploy(salt, initCode);
-
-		address[] memory managers = new address[](1);
-		managers[0] = creator;
-
-		BeamioAccount(payable(account)).initialize(creator, managers, 1, address(this));
-
-		isBeamioAccount[account] = true;
-		accountsByCreator[creator].push(account);
-		if (primaryAccountOf[creator] == address(0)) primaryAccountOf[creator] = account;
-
-		emit AccountCreated(creator, account, index, salt);
-		return account;
+		return _createAccountAtNextIndex(msg.sender);
 	}
 
 	// =========================================================
@@ -290,7 +267,23 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	// =========================================================
 	function createAccountFor(address creator) external onlyPayMaster returns (address account) {
 		require(creator != address(0), "zero creator");
+		return _createAccountAtNextIndex(creator);
+	}
 
+	/// @notice ERC-4337 initCode target for creating a creator's canonical index-0 BeamioAccount.
+	/// @dev Intended to be called by EntryPoint during handleOps. Public access is safe because
+	///      the deployed account owner and sole threshold manager are always `creator`.
+	function createAccountForEntryPoint(address creator) external returns (address account) {
+		require(creator != address(0), "zero creator");
+		address primary = primaryAccountOf[creator];
+		if (primary != address(0)) return primary;
+
+		uint256 index = nextIndexOfCreator[creator];
+		require(index == 0, "primary exists");
+		return _createAccountAtNextIndex(creator);
+	}
+
+	function _createAccountAtNextIndex(address creator) internal returns (address account) {
 		uint256 index = nextIndexOfCreator[creator];
 		require(index < accountLimit, "limit");
 

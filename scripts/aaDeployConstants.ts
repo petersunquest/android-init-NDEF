@@ -21,7 +21,7 @@ export const BEAMIO_AA_FACTORY_CREATE2_SALT = id("beamio.aa.factory.v1");
  * bytecode 变更后须重跑 predictBeamioAAStackCreate2.ts 并更新此常量。
  */
 export const BEAMIO_AA_FACTORY_PREDICTED = getAddress(
-  "0xe58F457Cd5674516400013E8d338054be556A730"
+  "0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2"
 );
 
 /** 固定测试 EOA：用于 predict 脚本输出跨链 AA 地址样例 */
@@ -31,5 +31,5 @@ export const BEAMIO_AA_PREDICT_SAMPLE_EOA = getAddress(
 
 /** admin EOA index=0 的 CREATE2 BeamioAccount（与 factory.getAddress 一致） */
 export const BEAMIO_AA_PREDICT_SAMPLE_ACCOUNT = getAddress(
-  "0xaAE26581B0126cDEE36602413FFc94c4436F310C"
+  "0x8f171AB4cFEEE672683a1fEBA0D04D16F7b20759"
 );
