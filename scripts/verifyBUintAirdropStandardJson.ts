@@ -22,18 +22,103 @@ const COMPILER_VERSION = "v0.8.33+commit.64118f21";
 // BUint 无依赖，仅需自身；constructor(initialAdmin)
 const BUINT_SOURCES = ["project/src/b-unit/BUint.sol"];
 
-// BUnitAirdrop：使用 build-info 中所有 b-unit 与 contracts 源（确保 bytecode 完全匹配）
-function getBUnitAirdropSources(fullInput: { sources: Record<string, unknown> }): string[] {
-  return Object.keys(fullInput.sources).filter(
-    (k) => k.startsWith("project/src/b-unit") || k.startsWith("project/src/contracts")
-  );
+type StandardJsonInput = {
+  language: string;
+  sources: Record<string, { content: string }>;
+  settings: Record<string, unknown> & {
+    compilationTarget?: unknown;
+    libraries?: Record<string, unknown>;
+    remappings?: string[];
+  };
+};
+
+/**
+ * Hardhat 3 的 build-info 会把 npm 依赖写成 `npm/@openzeppelin/contracts@5.4.0/...`
+ * 并通过 remappings 解析 `@openzeppelin/...`。Blockscout 的 Standard JSON
+ * 验证器不会回调文件系统，因此必须让 source key 与 import 字符串直接一致。
+ */
+function normalizeNpmSourceKeysForBlockscout(stdInput: StandardJsonInput): StandardJsonInput {
+  const input = JSON.parse(JSON.stringify(stdInput)) as StandardJsonInput;
+  const rawRemappings = Array.isArray(input.settings?.remappings) ? input.settings.remappings : [];
+  const npmPrefixMap: Array<{ prefix: string; target: string }> = [];
+
+  for (const r of rawRemappings) {
+    const eq = r.indexOf("=");
+    if (eq < 0) continue;
+    const left = r.slice(0, eq);
+    const target = r.slice(eq + 1);
+    if (!target.startsWith("npm/")) continue;
+    const colon = left.indexOf(":");
+    const prefix = colon >= 0 ? left.slice(colon + 1) : left;
+    npmPrefixMap.push({ prefix, target });
+  }
+
+  npmPrefixMap.sort((a, b) => b.target.length - a.target.length);
+
+  const remapKey = (key: string) => {
+    if (!key.startsWith("npm/")) return key;
+    for (const { prefix, target } of npmPrefixMap) {
+      if (key.startsWith(target)) return prefix + key.slice(target.length);
+    }
+    return key;
+  };
+
+  input.sources = Object.fromEntries(Object.entries(input.sources).map(([k, v]) => [remapKey(k), v]));
+
+  if (input.settings?.libraries && typeof input.settings.libraries === "object") {
+    input.settings.libraries = Object.fromEntries(
+      Object.entries(input.settings.libraries).map(([k, v]) => [remapKey(k), v])
+    );
+  }
+
+  if (input.settings) {
+    input.settings.remappings = [];
+    delete input.settings.compilationTarget;
+  }
+
+  return input;
+}
+
+function resolveImportSourceKey(fromKey: string, specifier: string): string {
+  if (specifier.startsWith("./") || specifier.startsWith("../")) {
+    return path.posix.normalize(path.posix.join(path.posix.dirname(fromKey), specifier));
+  }
+  return specifier;
+}
+
+function getRecursiveSourceKeys(fullInput: StandardJsonInput, entryKeys: string[]): string[] {
+  const seen = new Set<string>();
+  const stack = [...entryKeys];
+  const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
+
+  while (stack.length > 0) {
+    const key = stack.pop()!;
+    if (seen.has(key)) continue;
+    const source = fullInput.sources[key];
+    if (!source) {
+      throw new Error(`Standard JSON 缺少依赖源文件: ${key}`);
+    }
+    seen.add(key);
+
+    for (const match of source.content.matchAll(importRegex)) {
+      const importKey = resolveImportSourceKey(key, match[1]);
+      if (!seen.has(importKey)) stack.push(importKey);
+    }
+  }
+
+  return [...seen].sort();
+}
+
+// BUnitAirdrop：从入口文件递归收集完整依赖（含 OpenZeppelin npm 源）
+function getBUnitAirdropSources(fullInput: StandardJsonInput): string[] {
+  return getRecursiveSourceKeys(fullInput, ["project/src/b-unit/BUnitAirdrop.sol"]);
 }
 
 async function verifyViaStandardJson(
   address: string,
   contractName: string,
   sourceKeys: string[],
-  fullInput: { language: string; sources: Record<string, { content: string }>; settings: Record<string, unknown> },
+  fullInput: StandardJsonInput,
   constructorArgsHex: string
 ): Promise<{ ok: boolean; message: string }> {
   const minimalSources: Record<string, { content: string }> = {};
@@ -111,11 +196,7 @@ async function main() {
   }
 
   const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
-  const fullInput = buildInfo.input as {
-    language: string;
-    sources: Record<string, { content: string }>;
-    settings: Record<string, unknown>;
-  };
+  const fullInput = normalizeNpmSourceKeysForBlockscout(buildInfo.input as StandardJsonInput);
 
   console.log("=".repeat(60));
   console.log("验证 BUint 与 BUnitAirdrop (Standard JSON Input)");
