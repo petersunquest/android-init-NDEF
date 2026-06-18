@@ -15,7 +15,8 @@ import { BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = "https://mainnet.conet.network";
+const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
+const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || `${BLOCKSCOUT_UI}/api`).replace(/\/$/, "");
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";
 
 // BUint 无依赖，仅需自身；constructor(initialAdmin)
@@ -52,7 +53,7 @@ async function verifyViaStandardJson(
   console.log(`  Standard JSON 大小: ${standardJson.length} bytes`);
   console.log(`  contract_name: ${contractName}`);
 
-  const v2Url = `${BASE_URL}/api/v2/smart-contracts/${address}/verification/via/standard-input`;
+  const v2Url = `${BLOCKSCOUT_API}/v2/smart-contracts/${address}/verification/via/standard-input`;
   const formData = new FormData();
   formData.append("compiler_version", COMPILER_VERSION);
   formData.append("contract_name", contractName);
@@ -152,7 +153,8 @@ async function main() {
   const encoded = coder.encode(["address", "address"], [buintAddr, deployer]);
   const constructorArgsHex = encoded.startsWith("0x") ? encoded.slice(2) : encoded;
 
-  const bunitAirdropContractName = "project/src/b-unit/BUnitAirdrop.sol:BUnitAirdrop";
+  const bunitAirdropContractName =
+    process.env.BUNIT_AIRDROP_CONTRACT_NAME || "project/src/b-unit/BUnitAirdrop.sol:BUnitAirdrop";
 
   console.log("\n[2] 验证 BUnitAirdrop (Standard JSON)...");
   const bunitAirdropSources = getBUnitAirdropSources(fullInput);
@@ -194,8 +196,8 @@ async function main() {
   }
 
   console.log("\n✅ 全部验证完成！");
-  console.log("  BUint: https://mainnet.conet.network/address/" + buintAddr);
-  console.log("  BUnitAirdrop: https://mainnet.conet.network/address/" + airdropAddr);
+  console.log("  BUint: " + BLOCKSCOUT_UI + "/address/" + buintAddr);
+  console.log("  BUnitAirdrop: " + BLOCKSCOUT_UI + "/address/" + airdropAddr);
 }
 
 main().catch((e) => {
