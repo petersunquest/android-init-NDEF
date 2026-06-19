@@ -6,27 +6,83 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioIssuedNftModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "burnIssuedNftByGateway" | "createIssuedNft" | "isIssuedNftValid" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftSharedMetadataHash" | "issuedNftUserSigClaimUsed" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
+    getFunction(nameOrSignature: "CARD_REFERRAL_BURN_TOKEN_ID" | "CARD_REFERRAL_CLAIM_TOKEN_ID" | "CARD_REFERRAL_CLICK_TOKEN_ID" | "COUPON_REFERRAL_BURN_OFFSET" | "COUPON_REFERRAL_CLAIM_OFFSET" | "COUPON_REFERRAL_CLICK_OFFSET" | "ISSUED_NFT_TRAFFIC_OFFSET" | "STAT_KIND_REFERRAL_BURN" | "STAT_KIND_REFERRAL_CLAIM" | "STAT_KIND_REFERRAL_CLICK" | "STAT_KIND_TRAFFIC" | "burnIssuedNftByGateway" | "createIssuedNft" | "isIssuedNftStatToken" | "isIssuedNftValid" | "issuedNftContentStats" | "issuedNftLikedByWallet" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftReferralStatTokenId" | "issuedNftSharedByWallet" | "issuedNftSharedMetadataHash" | "issuedNftSocialStats" | "issuedNftStatTokenInfo" | "issuedNftTrafficStatTokenId" | "issuedNftUserContentStats" | "issuedNftUserSigClaimUsed" | "recordCardReferralStat" | "recordIssuedNftAccess" | "recordIssuedNftComment" | "recordIssuedNftPurchase" | "recordIssuedNftReferralStat" | "recordIssuedNftShare" | "recordIssuedNftTraffic" | "setIssuedNftLike" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'burnIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'CARD_REFERRAL_BURN_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CARD_REFERRAL_CLAIM_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CARD_REFERRAL_CLICK_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'COUPON_REFERRAL_BURN_OFFSET', values?: undefined): string;
+encodeFunctionData(functionFragment: 'COUPON_REFERRAL_CLAIM_OFFSET', values?: undefined): string;
+encodeFunctionData(functionFragment: 'COUPON_REFERRAL_CLICK_OFFSET', values?: undefined): string;
+encodeFunctionData(functionFragment: 'ISSUED_NFT_TRAFFIC_OFFSET', values?: undefined): string;
+encodeFunctionData(functionFragment: 'STAT_KIND_REFERRAL_BURN', values?: undefined): string;
+encodeFunctionData(functionFragment: 'STAT_KIND_REFERRAL_CLAIM', values?: undefined): string;
+encodeFunctionData(functionFragment: 'STAT_KIND_REFERRAL_CLICK', values?: undefined): string;
+encodeFunctionData(functionFragment: 'STAT_KIND_TRAFFIC', values?: undefined): string;
+encodeFunctionData(functionFragment: 'burnIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'isIssuedNftStatToken', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isIssuedNftValid', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftContentStats', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftLikedByWallet', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftMaxSupply', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issuedNftMintedCount', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftReferralStatTokenId', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftSharedByWallet', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftSharedMetadataHash', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftSocialStats', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftStatTokenInfo', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftTrafficStatTokenId', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issuedNftUserContentStats', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftUserSigClaimUsed', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordCardReferralStat', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftAccess', values: [BigNumberish, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftComment', values: [BigNumberish, AddressLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftPurchase', values: [BigNumberish, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftReferralStat', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftShare', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'recordIssuedNftTraffic', values: [BigNumberish, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setIssuedNftLike', values: [BigNumberish, AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNft', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', values: [AddressLike, AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'burnIssuedNftByGateway', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'CARD_REFERRAL_BURN_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CARD_REFERRAL_CLAIM_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CARD_REFERRAL_CLICK_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_BURN_OFFSET', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_CLAIM_OFFSET', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_CLICK_OFFSET', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'ISSUED_NFT_TRAFFIC_OFFSET', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'STAT_KIND_REFERRAL_BURN', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'STAT_KIND_REFERRAL_CLAIM', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'STAT_KIND_REFERRAL_CLICK', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'STAT_KIND_TRAFFIC', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnIssuedNftByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isIssuedNftStatToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isIssuedNftValid', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftContentStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftLikedByWallet', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftMaxSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftMintedCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftReferralStatTokenId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftSharedByWallet', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftSharedMetadataHash', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftSocialStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftStatTokenInfo', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftTrafficStatTokenId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issuedNftUserContentStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftUserSigClaimUsed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordCardReferralStat', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftAccess', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftComment', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftPurchase', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftReferralStat', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftShare', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordIssuedNftTraffic', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setIssuedNftLike', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', data: BytesLike): Result;
   }
@@ -67,6 +123,94 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
 
     
     
+    CARD_REFERRAL_BURN_TOKEN_ID: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CARD_REFERRAL_CLAIM_TOKEN_ID: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CARD_REFERRAL_CLICK_TOKEN_ID: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    COUPON_REFERRAL_BURN_OFFSET: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    COUPON_REFERRAL_CLAIM_OFFSET: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    COUPON_REFERRAL_CLICK_OFFSET: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    ISSUED_NFT_TRAFFIC_OFFSET: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    STAT_KIND_REFERRAL_BURN: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    STAT_KIND_REFERRAL_CLAIM: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    STAT_KIND_REFERRAL_CLICK: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    STAT_KIND_TRAFFIC: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     burnIssuedNftByGateway: TypedContractMethod<
       [holder: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
       [void],
@@ -83,8 +227,32 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     
 
     
+    isIssuedNftStatToken: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     isIssuedNftValid: TypedContractMethod<
       [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    issuedNftContentStats: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint] & {accessCount: bigint, firstAccessAt: bigint, trafficGB18: bigint, salesAmount6: bigint, purchaseCount: bigint }],
+      'view'
+    >
+    
+
+    
+    issuedNftLikedByWallet: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
       [boolean],
       'view'
     >
@@ -107,9 +275,57 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     
 
     
+    issuedNftReferralStatTokenId: TypedContractMethod<
+      [tokenId: BigNumberish, statKind: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    issuedNftSharedByWallet: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     issuedNftSharedMetadataHash: TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
+      'view'
+    >
+    
+
+    
+    issuedNftSocialStats: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[bigint, bigint, bigint] & {shareCount: bigint, likeCount: bigint, commentCount: bigint }],
+      'view'
+    >
+    
+
+    
+    issuedNftStatTokenInfo: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[boolean, bigint, bigint] & {isStatToken: boolean, parentTokenId: bigint, statKind: bigint }],
+      'view'
+    >
+    
+
+    
+    issuedNftTrafficStatTokenId: TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    issuedNftUserContentStats: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint] & {purchaseCount: bigint, purchaseAmount6: bigint, firstPurchaseAt: bigint, firstAccessAt: bigint, accessCount: bigint, trafficGB18: bigint }],
       'view'
     >
     
@@ -119,6 +335,70 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
       [userEOA: AddressLike, tokenId: BigNumberish, ],
       [boolean],
       'view'
+    >
+    
+
+    
+    recordCardReferralStat: TypedContractMethod<
+      [wallet: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftAccess: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, trafficGB18: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftComment: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, commentIpfsHash: BytesLike, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftPurchase: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, amount6: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftReferralStat: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, statKind: BigNumberish, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftShare: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [[boolean, bigint] & {counted: boolean, shareCount: bigint }],
+      'nonpayable'
+    >
+    
+
+    
+    recordIssuedNftTraffic: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, trafficGB18: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    setIssuedNftLike: TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, liked: boolean, ],
+      [bigint],
+      'nonpayable'
     >
     
 
@@ -141,7 +421,62 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'burnIssuedNftByGateway'): TypedContractMethod<
+    getFunction(nameOrSignature: 'CARD_REFERRAL_BURN_TOKEN_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CARD_REFERRAL_CLAIM_TOKEN_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CARD_REFERRAL_CLICK_TOKEN_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'COUPON_REFERRAL_BURN_OFFSET'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'COUPON_REFERRAL_CLAIM_OFFSET'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'COUPON_REFERRAL_CLICK_OFFSET'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'ISSUED_NFT_TRAFFIC_OFFSET'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'STAT_KIND_REFERRAL_BURN'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'STAT_KIND_REFERRAL_CLAIM'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'STAT_KIND_REFERRAL_CLICK'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'STAT_KIND_TRAFFIC'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'burnIssuedNftByGateway'): TypedContractMethod<
       [holder: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -151,8 +486,23 @@ getFunction(nameOrSignature: 'createIssuedNft'): TypedContractMethod<
       [bigint],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'isIssuedNftStatToken'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'isIssuedNftValid'): TypedContractMethod<
       [tokenId: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftContentStats'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint] & {accessCount: bigint, firstAccessAt: bigint, trafficGB18: bigint, salesAmount6: bigint, purchaseCount: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftLikedByWallet'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
       [boolean],
       'view'
     >;
@@ -166,15 +516,85 @@ getFunction(nameOrSignature: 'issuedNftMintedCount'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'issuedNftReferralStatTokenId'): TypedContractMethod<
+      [tokenId: BigNumberish, statKind: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftSharedByWallet'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'issuedNftSharedMetadataHash'): TypedContractMethod<
       [tokenId: BigNumberish, ],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftSocialStats'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[bigint, bigint, bigint] & {shareCount: bigint, likeCount: bigint, commentCount: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftStatTokenInfo'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [[boolean, bigint, bigint] & {isStatToken: boolean, parentTokenId: bigint, statKind: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftTrafficStatTokenId'): TypedContractMethod<
+      [tokenId: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'issuedNftUserContentStats'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint] & {purchaseCount: bigint, purchaseAmount6: bigint, firstPurchaseAt: bigint, firstAccessAt: bigint, accessCount: bigint, trafficGB18: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'issuedNftUserSigClaimUsed'): TypedContractMethod<
       [userEOA: AddressLike, tokenId: BigNumberish, ],
       [boolean],
       'view'
+    >;
+getFunction(nameOrSignature: 'recordCardReferralStat'): TypedContractMethod<
+      [wallet: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftAccess'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, trafficGB18: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftComment'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, commentIpfsHash: BytesLike, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftPurchase'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, amount6: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftReferralStat'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, statKind: BigNumberish, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftShare'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, ],
+      [[boolean, bigint] & {counted: boolean, shareCount: bigint }],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordIssuedNftTraffic'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, trafficGB18: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setIssuedNftLike'): TypedContractMethod<
+      [tokenId: BigNumberish, wallet: AddressLike, liked: boolean, ],
+      [bigint],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'validateAndRecordMintIssuedNft'): TypedContractMethod<
       [acct: AddressLike, tokenId: BigNumberish, amount: BigNumberish, ],

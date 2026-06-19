@@ -188,6 +188,7 @@ getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Fa
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
+getContractFactory(name: 'ValidatorDepositRedeem', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorDepositRedeem__factory>
 
   getContractAt(name: 'BeamioAccount', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccount>
 getContractAt(name: 'IBeamioAccountFactoryConfigV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -367,6 +368,7 @@ getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, sig
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
+getContractAt(name: 'ValidatorDepositRedeem', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorDepositRedeem>
 
   deployContract(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -546,6 +548,7 @@ deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Deploy
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'ValidatorDepositRedeem', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeem>
 
   deployContract(name: 'BeamioAccount', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -725,6 +728,7 @@ deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Si
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'ValidatorDepositRedeem', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeem>
 
     // default types
     getContractFactory(

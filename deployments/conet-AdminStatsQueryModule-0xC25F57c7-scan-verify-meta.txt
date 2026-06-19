@@ -1,0 +1,42 @@
+# CoNET Scan verification — AdminStatsQueryModule 0xC25F57c75d0c8FE4CE0db7A592f4EE429e458f25
+
+## 路由（registerSeries）
+
+| Selector | ROUTE_ISSUED_NFT (=2) / 备注 |
+|---------|-----------------------------|
+| issuedNftSharedMetadataHash(uint256) | ROUTE_ISSUED_NFT (2) |
+| createIssuedNft(...) | ROUTE_ISSUED_NFT (2) |
+
+## Contract Name
+
+project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1
+
+## Standard JSON
+
+deployments/base-AdminStatsQueryModule-standard-input-FULL.json
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
+```
+
+## Factory
+
+0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB
+
+## Previous module
+
+0xc15c2b7422422d01e701E43F68dB943e211406A6
+
+## CoNET Scan
+
+https://scan.conet.network/address/0xC25F57c75d0c8FE4CE0db7A592f4EE429e458f25#code
+
+## CoNET Scan verification evidence
+
+- URL: https://scan.conet.network/address/0xC25F57c75d0c8FE4CE0db7A592f4EE429e458f25#code
+- is_verified: true
+- name: BeamioUserCardAdminStatsQueryModuleV1
+- compiler_version: v0.8.33+commit.64118f21
+- language: solidity
+- verified_at: 2026-06-19T00:29:09.898283Z

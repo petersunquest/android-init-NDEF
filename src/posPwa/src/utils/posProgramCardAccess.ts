@@ -101,7 +101,10 @@ async function ethCallRpc(rpcUrl: string, to: string, data: string): Promise<str
 }
 
 async function ethCallMerchantCard(to: string, data: string): Promise<string | null> {
-	return ethCallRpc(CONET_RPC, to, data)
+	const chainId = await fetchBeamioUserCardChainId(to)
+	const rpcUrl = chainId === BASE_MAINNET_CHAIN_ID ? BASE_RPC : chainId ? CONET_RPC : null
+	if (!rpcUrl) return null
+	return ethCallRpc(rpcUrl, to, data)
 }
 
 export const BASE_MAINNET_CHAIN_ID = 8453

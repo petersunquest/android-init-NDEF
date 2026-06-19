@@ -8,7 +8,7 @@ Current status: CoNET (224422) has the EntryPoint-aware bytecode deployed at the
 
 | Contract | CREATE2 salt | Predicted (current bytecode) |
 |---|---|---|
-| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | CoNET current: [`0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07`](https://scan.conet.network/address/0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07) |
+| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | CoNET current: [`0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2`](https://scan.conet.network/address/0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2) |
 | **BeamioAccount** (per EOA, index=0) | `keccak256(abi.encode(creator, index))` | Nick factory + `BeamioAccount` initCode(`EntryPoint v0.7`) |
 
 **Same address ≠ shared state.** Container nonce, ERC1155 balances, and registry counters remain **per chain**.
@@ -54,7 +54,7 @@ Meta: `deployments/beamioAAFactory-create2-meta.json`
 ### Application constants
 
 - **Base:** `BEAMIO_AA_FACTORY` = `0xe58F457Cd5674516400013E8d338054be556A730` until Base is redeployed with the current bytecode
-- **CoNET:** `CONET_AA_FACTORY` = `0x23a331ee3BD3ab8F8772c7AC4a57fc45867C5B07`
+- **CoNET:** `CONET_AA_FACTORY` = `0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2`
 - **Deprecated:** `BeamioAccountDeployer` per-chain addresses — AA creation uses Nick CREATE2 in Factory
 
 After Solidity changes: re-run predict, redeploy **all** chains, sync artifacts:

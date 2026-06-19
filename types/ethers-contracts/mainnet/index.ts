@@ -5,3 +5,4 @@ export type { AccountRegistry } from './AccountRegistry.js';
 export type { AddressPGP } from './AddressPGP.js';
 export type { LayerMinusNodeRestart_V2 } from './LayerMinusNodeRestart_V2.js';
 export type { MerchantPOSManagement } from './MerchantPOSManagement.js';
+export type { ValidatorDepositRedeem } from './ValidatorDepositRedeem.js';

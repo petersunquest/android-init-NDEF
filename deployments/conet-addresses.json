@@ -35,8 +35,8 @@
   "beamioContainerExtLibV07": "0x512Da49254123985ABbC924962C4f64BF36dCf4C",
   "beamioContainerExtLib2V07": "0x66E8Ce786a6bC221bd3c406DdBb7a7Ca38E1fF79",
   "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
-  "issuedNftModule": "0x703d1C298d07C029dB2088529e558cfAe5Cb450D",
-  "adminStatsQueryModule": "0xc15c2b7422422d01e701E43F68dB943e211406A6",
+  "issuedNftModule": "0x4444b5f7A8119143f262EFC7458dD001314BA4cb",
+  "adminStatsQueryModule": "0xC25F57c75d0c8FE4CE0db7A592f4EE429e458f25",
   "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
   "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
   "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
@@ -87,5 +87,9 @@
   "beamioUserCardReferrerLib": "0xE7bA8F84D25B6c790216F2f491B947a6fc5eFC50",
   "beamioUserCardUpdateLib": "0x0dd2F946D14b5b49F117cB3Ad5c35B72c1761b48",
   "beamioUserCardViewsLib": "0xeeE65DD61EB2D1188508e298b4B956EDfB82f9C6",
-  "referrerRegistryLib": "0x3CC7ddD8e8F9711C4fcdA68191A6A88304E6B3CA"
+  "referrerRegistryLib": "0x3CC7ddD8e8F9711C4fcdA68191A6A88304E6B3CA",
+  "ValidatorDepositRedeem": "0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681",
+  "validatorDepositRedeemDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "validatorDepositRedeemDeployedAt": "2026-06-19T08:57:55.272Z",
+  "validatorDepositRedeemTx": "0xcd85a65abfa39ed1cec9f24bdc1dc83c34a0b3c91d6a3ee0461b336dfeaf4305"
 }

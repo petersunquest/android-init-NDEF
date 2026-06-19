@@ -108,9 +108,24 @@ interface IBeamioFaucetModuleV1 {
 }
 
 interface IBeamioIssuedNftModuleV1 {
+    function CARD_REFERRAL_CLICK_TOKEN_ID() external view returns (uint256);
+    function CARD_REFERRAL_CLAIM_TOKEN_ID() external view returns (uint256);
+    function CARD_REFERRAL_BURN_TOKEN_ID() external view returns (uint256);
+    function COUPON_REFERRAL_CLICK_OFFSET() external view returns (uint256);
+    function COUPON_REFERRAL_CLAIM_OFFSET() external view returns (uint256);
+    function COUPON_REFERRAL_BURN_OFFSET() external view returns (uint256);
+    function ISSUED_NFT_TRAFFIC_OFFSET() external view returns (uint256);
+    function STAT_KIND_REFERRAL_CLICK() external view returns (uint8);
+    function STAT_KIND_REFERRAL_CLAIM() external view returns (uint8);
+    function STAT_KIND_REFERRAL_BURN() external view returns (uint8);
+    function STAT_KIND_TRAFFIC() external view returns (uint8);
     function issuedNftSharedMetadataHash(uint256 tokenId) external view returns (bytes32);
     function issuedNftMaxSupply(uint256 tokenId) external view returns (uint256);
     function issuedNftMintedCount(uint256 tokenId) external view returns (uint256);
+    function isIssuedNftStatToken(uint256 tokenId) external view returns (bool);
+    function issuedNftStatTokenInfo(uint256 tokenId) external view returns (bool isStatToken, uint256 parentTokenId, uint8 statKind);
+    function issuedNftReferralStatTokenId(uint256 tokenId, uint8 statKind) external pure returns (uint256);
+    function issuedNftTrafficStatTokenId(uint256 tokenId) external pure returns (uint256);
     function burnIssuedNftByGateway(address holder, uint256 tokenId, uint256 amount) external;
     function isIssuedNftValid(uint256 tokenId) external view returns (bool);
     function issuedNftUserSigClaimUsed(address userEOA, uint256 tokenId) external view returns (bool);
@@ -118,6 +133,32 @@ interface IBeamioIssuedNftModuleV1 {
     function validateAndRecordMintIssuedNft(address acct, uint256 tokenId, uint256 amount) external;
     /// @notice Exactly 1 NFT; per userEOA per tokenId at most once; maxSupply enforced
     function validateAndRecordMintIssuedNftUserSigClaim(address userEOA, address recipientAcct, uint256 tokenId) external;
+    function recordCardReferralStat(address wallet, uint256 tokenId, uint256 amount) external;
+    function recordIssuedNftReferralStat(uint256 tokenId, address wallet, uint8 statKind, uint256 amount) external returns (uint256 statTokenId);
+    function recordIssuedNftTraffic(uint256 tokenId, address wallet, uint256 trafficGB18) external returns (uint256 statTokenId);
+    function recordIssuedNftShare(uint256 tokenId, address wallet) external returns (bool counted, uint256 shareCount);
+    function setIssuedNftLike(uint256 tokenId, address wallet, bool liked) external returns (uint256 likeCount);
+    function recordIssuedNftComment(uint256 tokenId, address wallet, bytes32 commentIpfsHash) external returns (uint256 commentCount);
+    function recordIssuedNftAccess(uint256 tokenId, address wallet, uint256 trafficGB18) external returns (uint256 accessCount);
+    function recordIssuedNftPurchase(uint256 tokenId, address wallet, uint256 amount6) external returns (uint256 purchaseCount);
+    function issuedNftSocialStats(uint256 tokenId) external view returns (uint256 shareCount, uint256 likeCount, uint256 commentCount);
+    function issuedNftSharedByWallet(uint256 tokenId, address wallet) external view returns (bool);
+    function issuedNftLikedByWallet(uint256 tokenId, address wallet) external view returns (bool);
+    function issuedNftContentStats(uint256 tokenId)
+        external
+        view
+        returns (uint256 accessCount, uint64 firstAccessAt, uint256 trafficGB18, uint256 salesAmount6, uint256 purchaseCount);
+    function issuedNftUserContentStats(uint256 tokenId, address wallet)
+        external
+        view
+        returns (
+            uint256 purchaseCount,
+            uint256 purchaseAmount6,
+            uint64 firstPurchaseAt,
+            uint64 firstAccessAt,
+            uint256 accessCount,
+            uint256 trafficGB18
+        );
 }
 
 interface IBeamioChargeRewardModuleV1 {

@@ -84,6 +84,102 @@ async function sleepMs(ms: number): Promise<void> {
 	await new Promise((r) => setTimeout(r, ms))
 }
 
+const POST_CHARGE_BALANCE_RETRY_DELAYS_MS = [1500, 2000, 2500, 3000]
+
+function points6ToDisplayAmount(points6: string): number {
+	const n = Number(points6)
+	return Number.isFinite(n) && n >= 0 ? n / 1_000_000 : 0
+}
+
+function findMerchantCard(
+	assets: UIDAssetsResult,
+	merchantInfraCard: string,
+): ReadBalanceCardItem | undefined {
+	const cardKey = merchantInfraCard.trim().toLowerCase()
+	return (
+		assets.cards?.find((c) => c.cardAddress.trim().toLowerCase() === cardKey) ??
+		(assets.cardAddress?.trim().toLowerCase() === cardKey
+			? ({
+					cardAddress: assets.cardAddress,
+					cardName: 'Asset Card',
+					points: assets.points ?? '0',
+					points6: assets.points6 ?? '0',
+					cardCurrency: assets.cardCurrency ?? 'CAD',
+					nfts: assets.nfts ?? [],
+					primaryMemberTokenId: assets.primaryMemberTokenId,
+				} satisfies ReadBalanceCardItem)
+			: undefined)
+	)
+}
+
+function merchantCardPoints6(assets: UIDAssetsResult | null | undefined, merchantInfraCard: string): bigint | null {
+	if (!assets?.ok) return null
+	const raw = findMerchantCard(assets, merchantInfraCard)?.points6
+	if (raw == null) return null
+	try {
+		return BigInt(String(raw).trim())
+	} catch {
+		return null
+	}
+}
+
+function expectedPostMerchantCardPoints6(
+	preAssets: UIDAssetsResult,
+	merchantInfraCard: string,
+	debitPoints6: number,
+): string | undefined {
+	if (!(debitPoints6 > 0)) return undefined
+	const pre = merchantCardPoints6(preAssets, merchantInfraCard)
+	if (pre == null) return undefined
+	const debit = BigInt(Math.max(0, Math.trunc(debitPoints6)))
+	const post = pre > debit ? pre - debit : 0n
+	return post.toString()
+}
+
+function merchantCardBalanceIsFresh(
+	assets: UIDAssetsResult | null | undefined,
+	merchantInfraCard: string,
+	expectedPoints6?: string,
+): boolean {
+	if (!expectedPoints6) return Boolean(assets?.ok)
+	const actual = merchantCardPoints6(assets, merchantInfraCard)
+	if (actual == null) return false
+	try {
+		return actual <= BigInt(expectedPoints6)
+	} catch {
+		return false
+	}
+}
+
+function patchMerchantCardPoints6ForReceipt(
+	assets: UIDAssetsResult,
+	preAssets: UIDAssetsResult,
+	merchantInfraCard: string,
+	points6: string,
+): UIDAssetsResult {
+	const cardKey = merchantInfraCard.trim().toLowerCase()
+	const base = findMerchantCard(assets, merchantInfraCard) ?? findMerchantCard(preAssets, merchantInfraCard)
+	if (!base) return assets
+	const patchedCard: ReadBalanceCardItem = {
+		...base,
+		points6,
+		points: points6ToDisplayAmount(points6).toFixed(6),
+	}
+	const nextCards = assets.cards?.length
+		? assets.cards.map((c) => (c.cardAddress.trim().toLowerCase() === cardKey ? patchedCard : c))
+		: [patchedCard]
+	if (!nextCards.some((c) => c.cardAddress.trim().toLowerCase() === cardKey)) {
+		nextCards.unshift(patchedCard)
+	}
+	return {
+		...assets,
+		cards: nextCards,
+		...(assets.cardAddress?.trim().toLowerCase() === cardKey
+			? { points6, points: patchedCard.points, cardCurrency: patchedCard.cardCurrency }
+			: {}),
+	}
+}
+
 function replacePassCardInAssets(
 	assets: UIDAssetsResult,
 	passCard: ReadBalanceCardItem | undefined,
@@ -104,20 +200,7 @@ function cardPointBalanceDisplay(
 	assets: UIDAssetsResult,
 	merchantInfraCard: string,
 ): { amount: number; display: string; currency: string; card?: ReadBalanceCardItem } | null {
-	const cardKey = merchantInfraCard.trim().toLowerCase()
-	const card =
-		assets.cards?.find((c) => c.cardAddress.trim().toLowerCase() === cardKey) ??
-		(assets.cardAddress?.trim().toLowerCase() === cardKey
-			? ({
-					cardAddress: assets.cardAddress,
-					cardName: 'Asset Card',
-					points: assets.points ?? '0',
-					points6: assets.points6 ?? '0',
-					cardCurrency: assets.cardCurrency ?? 'CAD',
-					nfts: assets.nfts ?? [],
-					primaryMemberTokenId: assets.primaryMemberTokenId,
-				} satisfies ReadBalanceCardItem)
-			: undefined)
+	const card = findMerchantCard(assets, merchantInfraCard)
 	if (!card) return null
 	const p6 = Number(card.points6)
 	const amount =
@@ -144,6 +227,7 @@ async function completeChargeSuccessUi(params: {
 	payCurrency: string
 	preAssets: UIDAssetsResult
 	fetchPostAssets: () => Promise<UIDAssetsResult | null>
+	expectedMerchantCardPoints6?: string
 }): Promise<{
 	postBalStr: string
 	passHero?: PosSuccessPassHeroProps
@@ -153,20 +237,52 @@ async function completeChargeSuccessUi(params: {
 	const delayMs = params.settlementViaQr ? 5000 : 3000
 	await sleepMs(delayMs)
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
-	const postAssets = await params.fetchPostAssets()
+	let postAssets = await params.fetchPostAssets()
+	let retryIndex = 0
+	while (
+		!merchantCardBalanceIsFresh(
+			postAssets,
+			params.merchantInfraCard,
+			params.expectedMerchantCardPoints6,
+		) &&
+		retryIndex < POST_CHARGE_BALANCE_RETRY_DELAYS_MS.length
+	) {
+		await sleepMs(POST_CHARGE_BALANCE_RETRY_DELAYS_MS[retryIndex]!)
+		postAssets = await params.fetchPostAssets()
+		retryIndex += 1
+	}
 	let postBalStr = '—'
 	let postBalanceAmount: number | undefined
 	let postBalanceCurrency = params.payCurrency
 	let postCardBalance: ReturnType<typeof cardPointBalanceDisplay> = null
-	if (postAssets?.ok) {
-		postCardBalance = cardPointBalanceDisplay(postAssets, params.merchantInfraCard)
+	let displayAssets = postAssets
+	if (
+		postAssets?.ok &&
+		params.expectedMerchantCardPoints6 &&
+		!merchantCardBalanceIsFresh(
+			postAssets,
+			params.merchantInfraCard,
+			params.expectedMerchantCardPoints6,
+		)
+	) {
+		// The relay succeeded but RPC still returned the pre-charge card row; use the
+		// transaction-derived post-state for this receipt without writing any cache.
+		displayAssets = patchMerchantCardPoints6ForReceipt(
+			postAssets,
+			params.preAssets,
+			params.merchantInfraCard,
+			params.expectedMerchantCardPoints6,
+		)
+	}
+	if (displayAssets?.ok) {
+		postCardBalance = cardPointBalanceDisplay(displayAssets, params.merchantInfraCard)
 		if (postCardBalance) {
 			postBalStr = postCardBalance.display
 			postBalanceAmount = postCardBalance.amount
 			postBalanceCurrency = postCardBalance.currency
 		} else {
 			const cad = postPaymentBalanceCad(
-				postAssets,
+				displayAssets,
 				oracleRes,
 				params.merchantInfraCard,
 				params.useInfraPost,
@@ -178,11 +294,11 @@ async function completeChargeSuccessUi(params: {
 			}
 		}
 	}
-	if (!postAssets?.ok) return { postBalStr }
+	if (!displayAssets?.ok) return { postBalStr }
 	let refreshedPass = postCardBalance?.card ?? params.passCard
 	const passAddr = params.passCard?.cardAddress?.trim()
 	if (!postCardBalance && passAddr) {
-		const pc = postAssets.cards?.find(
+		const pc = displayAssets.cards?.find(
 			(c) => c.cardAddress.trim().toLowerCase() === passAddr.toLowerCase(),
 		)
 		if (pc) refreshedPass = pc
@@ -192,14 +308,14 @@ async function completeChargeSuccessUi(params: {
 		refreshedPass = mergePrimaryTierStyleFromCardMetadata(refreshedPass, bundle.rows)
 	}
 	const heroAssets = refreshedPass
-		? replacePassCardInAssets(postAssets, params.passCard, refreshedPass)
-		: postAssets
+		? replacePassCardInAssets(displayAssets, params.passCard, refreshedPass)
+		: displayAssets
 	const passHero = buildSuccessPassHeroProps({
 		assets: heroAssets,
 		merchantInfraCard: params.merchantInfraCard,
 		pointSystemEnabled: params.pointSystemEnabled,
-		customerBeamioTag: postAssets.beamioTag ?? params.preAssets.beamioTag,
-		customerWalletAddress: postAssets.address ?? params.preAssets.address,
+		customerBeamioTag: displayAssets.beamioTag ?? params.preAssets.beamioTag,
+		customerWalletAddress: displayAssets.address ?? params.preAssets.address,
 		balanceAmount: postBalanceAmount,
 		balanceCurrency: postBalanceCurrency,
 		chargeTierDiscountPercent: params.chargeTierDiscountPercent,
@@ -207,8 +323,8 @@ async function completeChargeSuccessUi(params: {
 	return {
 		postBalStr,
 		passHero,
-		customerBeamioTag: postAssets.beamioTag?.trim() || undefined,
-		customerWalletAddress: postAssets.address?.trim() || undefined,
+		customerBeamioTag: displayAssets.beamioTag?.trim() || undefined,
+		customerWalletAddress: displayAssets.address?.trim() || undefined,
 	}
 }
 
@@ -251,7 +367,15 @@ export async function executeNfcCharge(params: {
 
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const payCard = assets.cards?.[0]
-	const payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? 'CAD'
+	const chargeCardInfo = await fetchCardCurrencyAndPointsPriceE6(infra)
+	if (!chargeCardInfo) {
+		patch?.('analyzingAssets', 'error', 'Program card price unavailable')
+		return {
+			status: 'error',
+			message: 'Program card price unavailable. Please refresh and try again.',
+		}
+	}
+	const payCurrency = chargeCardInfo.code.toUpperCase()
 	const routing = (await fetchChargeTierRoutingDetails(payee, infra)) ?? {
 		taxPercent: 0,
 		discountByTierKey: {},
@@ -298,8 +422,8 @@ export async function executeNfcCharge(params: {
 	}
 	patch?.('optimizingRoute', 'success', 'Direct: NFC → Merchant')
 
-	const cardCurrencyOnChain = prep.cardCurrency?.toUpperCase()
-	const pointsPriceCurE6 = Number(prep.pointsUnitPriceInCurrencyE6) || 0
+	const cardCurrencyOnChain = prep.cardCurrency?.toUpperCase() || chargeCardInfo.code.toUpperCase()
+	const pointsPriceCurE6 = Number(prep.pointsUnitPriceInCurrencyE6) || chargeCardInfo.priceE6
 	const amountBig = Math.floor((amountFiat6 * unitPrice + 999_999) / 1_000_000)
 	const usdcBal = payerUsdcBalance6(assets, params.chargePolicy)
 	const cards = chargeableCards(assets, infra)
@@ -339,6 +463,12 @@ export async function executeNfcCharge(params: {
 	})
 	let items = buildPayItemsFiat6(split, infra)
 	items = mergeInfraKind1Items(items, infra)
+	const merchantPointDebit6 = split.ccsaPointsWei + split.infraPointsWei
+	const expectedMerchantCardPoints6 = expectedPostMerchantCardPoints6(
+		assets,
+		infra,
+		merchantPointDebit6,
+	)
 	const container = {
 		account,
 		to: payeeAA,
@@ -368,6 +498,7 @@ export async function executeNfcCharge(params: {
 		containerPayload: container,
 		amountFiat6: amountFiat6Str,
 		currency: payCurrency,
+		merchantInfraCard: infra,
 		sun: params.target.sun,
 		nfcBill: bill,
 	})
@@ -398,6 +529,7 @@ export async function executeNfcCharge(params: {
 				merchantInfraCard: infra,
 				sun: params.target.sun,
 			}),
+		expectedMerchantCardPoints6,
 	})
 
 	patch?.('refreshBalance', 'success', postBalStr !== '—' ? postBalStr : 'Updated')
@@ -563,7 +695,15 @@ export async function executeQrCharge(params: {
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const tip = chargeTipFromRequestAndBps(subtotal, params.tipBps)
 	const total = chargeTotalInCurrency(subtotal, routing.taxPercent, disc, tip)
-	const payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? 'CAD'
+	const chargeCardInfo = await fetchCardCurrencyAndPointsPriceE6(infra)
+	if (!chargeCardInfo) {
+		patch?.('analyzingAssets', 'error', 'Program card price unavailable')
+		return {
+			status: 'error',
+			message: 'Program card price unavailable. Please refresh the customer balance and try again.',
+		}
+	}
+	const payCurrency = chargeCardInfo.code.toUpperCase()
 	const amountFiat6Str = currencyToFiat6(total)
 	const amountFiat6 = Number(amountFiat6Str)
 	if (!(amountFiat6 > 0)) {
@@ -571,21 +711,12 @@ export async function executeQrCharge(params: {
 		return { status: 'error', message: 'Amount conversion failed' }
 	}
 
-	const cardAddr = payCard?.cardAddress?.trim() || assets.cardAddress?.trim() || ''
-	const cardChainInfo = cardAddr ? await fetchCardCurrencyAndPointsPriceE6(cardAddr) : null
 	const unitPrice = Number(assets.unitPriceUSDC6 ?? '0') || 0
 	const cards = chargeableCards(assets, infra)
 	const part = partitionPointsForMerchantCharge(cards, infra)
 	const unitPoints6 = part.unitPricePoints6
-	if (unitPoints6 > 0 && !cardChainInfo) {
-		patch?.('analyzingAssets', 'error', 'Card price unavailable')
-		return {
-			status: 'error',
-			message: 'Card price unavailable. Please refresh the customer balance and try again.',
-		}
-	}
-	const cardCurrencyOnChain = cardChainInfo?.code.toUpperCase()
-	const pointsPriceCurE6 = cardChainInfo?.priceE6 ?? 0
+	const cardCurrencyOnChain = chargeCardInfo.code.toUpperCase()
+	const pointsPriceCurE6 = chargeCardInfo.priceE6
 	const oracleInfraCards = part.oracleInfraCards
 	const infraPoints6 = oracleInfraCards.reduce((s, c) => s + (Number(c.points6) || 0), 0)
 	const usdcBal = payerUsdcBalance6(assets, params.chargePolicy)
@@ -640,6 +771,11 @@ export async function executeQrCharge(params: {
 	items = mergeInfraKind1Items(items, infra)
 	const beamio1155Wei = mergedInfraKind1Amount(items, infra)
 	const usdcWei = firstUsdcAmount6(items)
+	const expectedMerchantCardPoints6 = expectedPostMerchantCardPoints6(
+		assets,
+		infra,
+		beamio1155Wei,
+	)
 	let routeDetail: string
 	if (beamio1155Wei > 0 && usdcWei > 0) {
 		routeDetail = 'Hybrid: points + USDC'
@@ -724,6 +860,7 @@ export async function executeQrCharge(params: {
 				merchantInfraCard: infra,
 				forPostPayment: true,
 			}),
+		expectedMerchantCardPoints6,
 	})
 
 	patch?.('refreshBalance', 'success', postBalStr !== '—' ? postBalStr : 'Updated')

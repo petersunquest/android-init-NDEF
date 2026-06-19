@@ -575,6 +575,7 @@ export async function payByNfcUidSignContainer(body: {
 	containerPayload: Record<string, unknown>
 	amountFiat6: string
 	currency: string
+	merchantInfraCard?: string
 	sun?: { e: string; c: string; m: string }
 	nfcBill: Record<string, string | number>
 }): Promise<PayByNfcUidSignResult | null> {
@@ -585,6 +586,9 @@ export async function payByNfcUidSignContainer(body: {
 			amountFiat6: body.amountFiat6,
 			currency: body.currency.toUpperCase(),
 			...body.nfcBill,
+		}
+		if (body.merchantInfraCard?.trim()) {
+			payload.merchantInfraCard = body.merchantInfraCard.trim()
 		}
 		if (body.sun) {
 			payload.e = body.sun.e

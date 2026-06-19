@@ -1,0 +1,21 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "ValidatorDepositRedeem",
+  "source": "src/mainnet/ValidatorDepositRedeem.sol",
+  "address": "0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "constructorArgs": {
+    "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "timestamp": "2026-06-19T08:57:55.270Z",
+  "transactionHash": "0xcd85a65abfa39ed1cec9f24bdc1dc83c34a0b3c91d6a3ee0461b336dfeaf4305",
+  "contracts": {
+    "ValidatorDepositRedeem": {
+      "address": "0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681",
+      "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "transactionHash": "0xcd85a65abfa39ed1cec9f24bdc1dc83c34a0b3c91d6a3ee0461b336dfeaf4305"
+    }
+  }
+}

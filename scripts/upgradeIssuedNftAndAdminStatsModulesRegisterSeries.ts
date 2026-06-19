@@ -66,6 +66,7 @@ async function main() {
     "function defaultFaucetModule() view returns (address)",
     "function defaultGovernanceModule() view returns (address)",
     "function defaultMembershipStatsModule() view returns (address)",
+		"function defaultChargeRewardModule() view returns (address)",
     "function defaultIssuedNftModule() view returns (address)",
     "function defaultAdminStatsQueryModule() view returns (address)",
     "function setIssuedNftModule(address m) external",
@@ -92,6 +93,10 @@ async function main() {
     "MEMBERSHIP_STATS_MODULE_ADDRESS",
     () => factoryReader.defaultMembershipStatsModule() as Promise<string>,
   );
+	const keepChargeReward = await envOr(
+		"CHARGE_REWARD_MODULE_ADDRESS",
+		() => factoryReader.defaultChargeRewardModule() as Promise<string>,
+	);
 
   try {
     const owner = (await factoryReader.owner()) as string;
@@ -113,7 +118,14 @@ async function main() {
   console.log("network", network.name, "chainId", network.chainId.toString());
   console.log("factory", factoryAddress);
   console.log("signer", signerAddress);
-  console.log("keeping redeem/faucet/gov/membershipStats:", keepRedeem, keepFaucet, keepGov, keepMem);
+	console.log(
+		"keeping redeem/faucet/gov/membershipStats/chargeReward:",
+		keepRedeem,
+		keepFaucet,
+		keepGov,
+		keepMem,
+		keepChargeReward,
+	);
   console.log("replacing IssuedNft:", oldIssued);
   console.log("replacing AdminStatsQuery:", oldAdminStats);
 
@@ -184,8 +196,12 @@ async function main() {
   console.log("Factory 已绑定新模块并已验证");
 
   const deploymentsDir = path.join(__dirname, "..", "deployments");
-  const factoryPath = path.join(deploymentsDir, "base-UserCardFactory.json");
-  const modulesPath = path.join(deploymentsDir, "base-UserCardModules.json");
+	const chainId = Number(network.chainId);
+	const deploymentPrefix = chainId === 224422 ? "conet" : "base";
+	const explorerBase = chainId === 224422 ? "https://scan.conet.network" : "https://basescan.org";
+	const verifyLabel = chainId === 224422 ? "CoNET Scan" : "BaseScan";
+	const factoryPath = path.join(deploymentsDir, `${deploymentPrefix}-UserCardFactory.json`);
+	const modulesPath = path.join(deploymentsDir, `${deploymentPrefix}-UserCardModules.json`);
 
   if (fs.existsSync(factoryPath)) {
     const data = JSON.parse(fs.readFileSync(factoryPath, "utf-8"));
@@ -197,6 +213,7 @@ async function main() {
       bp.faucetModule = keepFaucet;
       bp.governanceModule = keepGov;
       bp.membershipStatsModule = keepMem;
+			bp.chargeRewardModule = keepChargeReward;
       data.timestamp = new Date().toISOString();
       data.note =
         `IssuedNft + AdminStatsQuery upgrade (${newIssuedAddr.slice(0, 10)}… / ${newAdminAddr.slice(0, 10)}…) registerSeries`;
@@ -218,6 +235,7 @@ async function main() {
       governanceModule: keepGov,
       membershipStatsModule: keepMem,
       adminStatsQueryModule: newAdminAddr,
+			chargeRewardModule: keepChargeReward,
     },
     replaced: { issuedNftModule: oldIssued, adminStatsQueryModule: oldAdminStats },
     checks: { issuedNftSharedMetadataHashRoutedToIssuedNft: true },
@@ -225,26 +243,37 @@ async function main() {
   fs.writeFileSync(modulesPath, JSON.stringify(moduleSnapshot, null, 2));
   console.log("写入", modulesPath);
 
+	if (deploymentPrefix === "conet") {
+		const conetAddressesPath = path.join(deploymentsDir, "conet-addresses.json");
+		if (fs.existsSync(conetAddressesPath)) {
+			const data = JSON.parse(fs.readFileSync(conetAddressesPath, "utf-8"));
+			data.issuedNftModule = newIssuedAddr;
+			data.adminStatsQueryModule = newAdminAddr;
+			fs.writeFileSync(conetAddressesPath, JSON.stringify(data, null, 2) + "\n", "utf-8");
+			console.log("写入", conetAddressesPath);
+		}
+	}
+
   const slugIssued = `${newIssuedAddr.slice(0, 10)}`;
   const slugAdmin = `${newAdminAddr.slice(0, 10)}`;
 
   const verifyIssuedPath = path.join(
     deploymentsDir,
-    `base-BeamioUserCardIssuedNftModuleV1-${slugIssued}-basescan-verify-meta.txt`,
+		`${deploymentPrefix}-BeamioUserCardIssuedNftModuleV1-${slugIssued}-scan-verify-meta.txt`,
   );
   const verifyAdminPath = path.join(
     deploymentsDir,
-    `base-AdminStatsQueryModule-${slugAdmin}-basescan-verify-meta.txt`,
+		`${deploymentPrefix}-AdminStatsQueryModule-${slugAdmin}-scan-verify-meta.txt`,
   );
 
-  const issuedTxt = `# BaseScan verification — BeamioUserCardIssuedNftModuleV1 (coupon registerSeries support)
+	const issuedTxt = `# ${verifyLabel} verification — BeamioUserCardIssuedNftModuleV1 (issued NFT interaction support)
 
-Deployed: https://basescan.org/address/${newIssuedAddr}
+Deployed: ${explorerBase}/address/${newIssuedAddr}
 Script: scripts/upgradeIssuedNftAndAdminStatsModulesRegisterSeries.ts
 
 ## Adds
 
-- issuedNftSharedMetadataHash(uint256) view (delegatecall storage read)
+- referral/stat NFT, share/like/comment, access/traffic/purchase stats support
 
 ## Standard JSON input
 
@@ -274,7 +303,7 @@ ${oldIssued}
 
 FACTORY=${factoryAddress}
 `;
-  const adminTxt = `# BaseScan 验证 — AdminStatsQueryModule ${newAdminAddr}
+	const adminTxt = `# ${verifyLabel} verification — AdminStatsQueryModule ${newAdminAddr}
 
 ## 路由（registerSeries）
 
@@ -304,9 +333,9 @@ ${factoryAddress}
 
 ${oldAdminStats}
 
-## BaseScan
+## ${verifyLabel}
 
-https://basescan.org/address/${newAdminAddr}#code
+${explorerBase}/address/${newAdminAddr}#code
 `;
   fs.writeFileSync(verifyIssuedPath, issuedTxt.trim() + "\n", "utf-8");
   fs.writeFileSync(verifyAdminPath, adminTxt.trim() + "\n", "utf-8");

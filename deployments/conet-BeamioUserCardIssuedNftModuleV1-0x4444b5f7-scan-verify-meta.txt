@@ -1,0 +1,45 @@
+# CoNET Scan verification — BeamioUserCardIssuedNftModuleV1 (issued NFT interaction support)
+
+Deployed: https://scan.conet.network/address/0x4444b5f7A8119143f262EFC7458dD001314BA4cb
+Script: scripts/upgradeIssuedNftAndAdminStatsModulesRegisterSeries.ts
+
+## Adds
+
+- referral/stat NFT, share/like/comment, access/traffic/purchase stats support
+
+## Standard JSON input
+
+deployments/base-BeamioUserCardIssuedNftModuleV1-standard-input-FULL.json
+
+Regenerate:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV1 --full
+
+## Contract Name
+
+  project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+
+## Constructor arguments
+
+**None**
+
+## Compiler
+
+Solidity **0.8.33**, optimizer runs **0**, **viaIR: true**, **cancun**, **bytecodeHash: none**, **strip** (matches Hardhat / FULL JSON).
+
+## Previous module
+
+0x703d1C298d07C029dB2088529e558cfAe5Cb450D
+
+## Factory configuration
+
+FACTORY=0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB
+
+## CoNET Scan verification evidence
+
+- URL: https://scan.conet.network/address/0x4444b5f7A8119143f262EFC7458dD001314BA4cb#code
+- is_verified: true
+- name: BeamioUserCardIssuedNftModuleV1
+- compiler_version: v0.8.33+commit.64118f21
+- language: solidity
+- verified_at: 2026-06-19T00:28:29.226830Z

@@ -1,20 +1,23 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "timestamp": "2026-06-17T14:37:14.102Z",
+  "timestamp": "2026-06-19T00:28:13.609Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "modules": {
     "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
-    "issuedNftModule": "0x703d1C298d07C029dB2088529e558cfAe5Cb450D",
+    "issuedNftModule": "0x4444b5f7A8119143f262EFC7458dD001314BA4cb",
     "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
     "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
     "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
-    "adminStatsQueryModule": "0xc15c2b7422422d01e701E43F68dB943e211406A6",
+    "adminStatsQueryModule": "0xC25F57c75d0c8FE4CE0db7A592f4EE429e458f25",
     "chargeRewardModule": "0xF2c3277775cb84AD7da35c4c0A2470ca2c342B58"
   },
+  "replaced": {
+    "issuedNftModule": "0x703d1C298d07C029dB2088529e558cfAe5Cb450D",
+    "adminStatsQueryModule": "0xc15c2b7422422d01e701E43F68dB943e211406A6"
+  },
   "checks": {
-    "appendTierForCardWithOwnerSignature": true,
-    "createCardCollectionWithInitCodeAndTiers": true
+    "issuedNftSharedMetadataHashRoutedToIssuedNft": true
   }
 }

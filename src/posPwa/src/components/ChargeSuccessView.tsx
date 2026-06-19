@@ -42,6 +42,7 @@ export function ChargeSuccessView({
 	const tipNum = Number(result.tip ?? '0') || 0
 	const taxP = result.chargeTaxPercent ?? 0
 	const discP = result.chargeTierDiscountPercent ?? 0
+	const hasResolvedPassHero = Boolean(passHeroProp ?? result.passHero)
 	const passHero =
 		passHeroProp ??
 		result.passHero ??
@@ -69,7 +70,9 @@ export function ChargeSuccessView({
 
 	const postNum = Number(result.postBalance)
 	const heroBalance =
-		Number.isFinite(postNum) && result.postBalance !== '—'
+		hasResolvedPassHero
+			? passHero.balanceParts
+			: Number.isFinite(postNum) && result.postBalance !== '—'
 			? readBalanceFormatMoney(postNum, currency)
 			: passHero.balanceParts
 
