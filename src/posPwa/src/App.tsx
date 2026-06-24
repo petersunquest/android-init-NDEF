@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { bootPathForPhase } from '@/boot/posBootInit'
 import { PosAppBootSplash } from '@/components/PosAppBootSplash'
+import { PosPwaUpdateGate } from '@/components/PosPwaUpdateGate'
 import { PosDataDaemonProvider } from '@/providers/PosDataDaemonProvider'
 import { IpfsImageLibraryProvider } from '@/providers/IpfsImageLibraryProvider'
 import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvider'
@@ -124,6 +125,7 @@ export default function App() {
 					</PosDataDaemonProvider>
 				</IpfsImageLibraryProvider>
 			</PosSessionProvider>
+			<PosPwaUpdateGate />
 		</BrowserRouter>
 	)
 }
