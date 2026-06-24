@@ -28,7 +28,6 @@ import {
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { PosTerminalChargePolicy } from '@/utils/chargePaymentMethod'
 import {
-	BASE_MAINNET_CHAIN_ID,
 	fetchBeamioUserCardChainId,
 	fetchCardCurrencyAndPointsPriceE6,
 } from '@/utils/posProgramCardAccess'
@@ -584,19 +583,19 @@ async function selectOpenContainerPayloadForMerchantCard(
 	}
 	const byChain = payloads as Record<string, unknown>
 	const chainId = await fetchBeamioUserCardChainId(merchantInfraCard)
-	const chainKey = chainId === BASE_MAINNET_CHAIN_ID ? 'base' : chainId ? 'conet' : ''
-	const selected = chainKey ? byChain[chainKey] : undefined
+	const selected = chainId ? byChain.conet : undefined
 	if (isOpenContainerPayload(selected)) {
 		return { payload: selected }
 	}
 	if (chainId) {
 		return {
 			payload: rawPayload,
-			error: 'This payment code was generated before multi-chain Scan to Pay support. Ask the customer to close Pay and open a fresh QR code.',
+			error: 'This payment code is missing a CoNET payment payload. Ask the customer to close Pay and open a fresh QR code.',
 		}
 	}
-	const fallback = [byChain.conet, byChain.base].find(isOpenContainerPayload)
-	return fallback ? { payload: fallback } : { payload: rawPayload, error: 'Invalid payment code.' }
+	return isOpenContainerPayload(byChain.conet)
+		? { payload: byChain.conet }
+		: { payload: rawPayload, error: 'Invalid payment code.' }
 }
 
 function mergedInfraKind1Amount(

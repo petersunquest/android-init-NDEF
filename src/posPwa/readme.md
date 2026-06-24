@@ -30,6 +30,8 @@ Deployed at:
 
 **Charge (PWA):** `/charge` → amount pad (program card / USDC / CADD) → tip (15/18/20/custom) → program card: NFC → `payByNfcUidPrepare` + `payByNfcUidSignContainer` (fiat6-only); USDC/CADD: `verra.network/usdc-charge` QR + session poll (aligned with iOS).
 
+**Terminal admin hierarchy:** POS EOA must be registered as a **subordinate admin** under the merchant owner EOA (`adminParent = owner`); owner must also be a top-level admin on the program card. Charge / Top-up / Check Balance use **POS wallet signing** (`executeForAdmin`) — owner co-sign is not required per transaction. See `.cursor/rules/beamio-pos-terminal-admin-hierarchy.mdc`.
+
 **Check Balance (PWA):** `/check-balance` → full-screen loading → NFC/QR/API → result or return Home with error banner.
 
 **Native actions:** `/native/charge` etc. → loading → `BeamioPOS.navigateNative`. Native shell should return WebView to `/home` (or `nativeFlowComplete` bridge event) when dismissed.

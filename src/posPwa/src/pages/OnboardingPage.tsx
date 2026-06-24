@@ -1,7 +1,7 @@
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isBeamioAccountNameAvailable } from '@/api/beamioApi'
+import { isBeamioAccountNameAvailable, probeBeamioTagRegistration } from '@/api/beamioApi'
 import { posNativeBridge } from '@/bridge/nativeBridge'
 import {
 	BEAMIO_CIRCULAR_BACK_ROW_CLASS,
@@ -36,6 +36,7 @@ export function OnboardingPage() {
 	const lastChecked = useRef('')
 	const debounceRef = useRef<number | null>(null)
 	const accessPasswordRef = useRef<HTMLInputElement>(null)
+	const continueInFlightRef = useRef(false)
 
 	useEffect(() => {
 		if (!parentBeamioTag) {
@@ -47,12 +48,13 @@ export function OnboardingPage() {
 				parentBeamioTag,
 				isBeamioAccountNameAvailable,
 			)
-			if (suggested) {
-				setBeamioTag(suggested)
-				lastChecked.current = suggested
-				setTagStatus('valid')
-				setTagError('')
-			}
+			if (!suggested) return
+			const probe = await probeBeamioTagRegistration(suggested)
+			if (!probe.ok) return
+			setBeamioTag(suggested)
+			lastChecked.current = suggested
+			setTagStatus('valid')
+			setTagError('')
 		})()
 	}, [parentBeamioTag, navigate])
 
@@ -72,8 +74,7 @@ export function OnboardingPage() {
 	// Auto-suggested tags may stay `idle` until blur/debounce even though they are available.
 	const canSubmit =
 		localTag.ok &&
-		tagStatus !== 'checking' &&
-		tagStatus !== 'invalid' &&
+		tagStatus === 'valid' &&
 		rules.all &&
 		passwordsMatch &&
 		!isSubmitting
@@ -90,19 +91,18 @@ export function OnboardingPage() {
 			}
 			return false
 		}
-		if (loc.value === lastChecked.current && tagStatus === 'valid') return true
 		lastChecked.current = loc.value
 		setTagStatus('checking')
-		const available = await isBeamioAccountNameAvailable(loc.value)
-		if (available === false) {
-			setTagStatus('invalid')
-			setTagError(`@${loc.value} is already taken`)
-			return false
-		}
-		if (available === true) {
+		const probe = await probeBeamioTagRegistration(loc.value)
+		if (probe.ok) {
 			setTagStatus('valid')
 			setTagError('')
 			return true
+		}
+		if (probe.reason === 'taken') {
+			setTagStatus('invalid')
+			setTagError(`@${loc.value} is already taken`)
+			return false
 		}
 		setTagStatus('invalid')
 		setTagError('Network error. Try again.')
@@ -119,27 +119,33 @@ export function OnboardingPage() {
 	}
 
 	async function onContinue() {
-		const ok = await validateTagNow()
-		if (!ok) return
-		if (!rules.all || !passwordsMatch) return
+		if (continueInFlightRef.current) return
+		continueInFlightRef.current = true
 		setIsSubmitting(true)
 		setSubmitError('')
-		const result = await posNativeBridge.createWallet({
-			accountName: normalizedTag,
-			password,
-			parentBeamioTag,
-		})
-		setIsSubmitting(false)
-		if (!result.ok || !result.address) {
-			setSubmitError(result.error ?? 'Registration failed')
-			return
+		try {
+			const ok = await validateTagNow()
+			if (!ok) return
+			if (!rules.all || !passwordsMatch) return
+			const result = await posNativeBridge.createWallet({
+				accountName: normalizedTag,
+				password,
+				parentBeamioTag,
+			})
+			if (!result.ok || !result.address) {
+				setSubmitError(result.error ?? 'Registration failed')
+				return
+			}
+			markOnboardingComplete({
+				wallet: result.address,
+				accountName: normalizedTag,
+				parentTag: parentBeamioTag,
+			})
+			navigate('/permission', { replace: true })
+		} finally {
+			continueInFlightRef.current = false
+			setIsSubmitting(false)
 		}
-		markOnboardingComplete({
-			wallet: result.address,
-			accountName: normalizedTag,
-			parentTag: parentBeamioTag,
-		})
-		navigate('/permission', { replace: true })
 	}
 
 	async function onRestore() {

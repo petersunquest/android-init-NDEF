@@ -26,7 +26,7 @@ export async function resolveFirstAvailablePosTerminalTag(
 		const avail = await isAvailableWithRetries(candidate, isAvailable)
 		if (avail === true) return candidate
 		if (avail === false) continue
-		return ''
+		// Network flake: try next sequence instead of aborting the whole search.
 	}
 	return ''
 }

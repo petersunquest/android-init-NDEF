@@ -1,5 +1,5 @@
 import { Interface, Wallet, type HDNodeWallet } from 'ethers'
-import { addUser } from '@/api/beamioApi'
+import { addUser, mapAddUserRegistrationError, probeBeamioTagRegistration } from '@/api/beamioApi'
 import { ACCOUNT_REGISTRY, CONET_RPC } from '@/constants'
 import { fromBase64Utf8 } from '@/conet/crypto'
 import {
@@ -13,6 +13,37 @@ import {
 	savePosWalletInitToIndexedDb,
 	type PosWalletInitRecord,
 } from '@/wallet/posWalletStorage'
+
+const IDB_SAVE_MAX_ATTEMPTS = 3
+
+async function persistPosWalletInit(record: PosWalletInitRecord): Promise<void> {
+	let lastError: unknown
+	for (let attempt = 0; attempt < IDB_SAVE_MAX_ATTEMPTS; attempt++) {
+		try {
+			await savePosWalletInitToIndexedDb(record)
+			return
+		} catch (err) {
+			lastError = err
+			if (attempt + 1 < IDB_SAVE_MAX_ATTEMPTS) {
+				await new Promise((r) => setTimeout(r, 120 * (attempt + 1)))
+			}
+		}
+	}
+	throw lastError instanceof Error ? lastError : new Error('Could not save wallet locally.')
+}
+
+function walletSaveFailedMessage(registeredOnChain: boolean): string {
+	if (registeredOnChain) {
+		return (
+			'Your terminal was registered on CoNET, but this device could not save the wallet locally. ' +
+			'Allow site storage (turn off Private Browsing if enabled), then tap Restore existing terminal ' +
+			'with the same @BeamioTag and access password.'
+		)
+	}
+	return (
+		'Could not save wallet on this device. Allow site storage (turn off Private Browsing if enabled) and try again.'
+	)
+}
 import {
 	clearSessionWallet,
 	getSessionPrivateKeyHex,
@@ -74,6 +105,22 @@ export async function createPosWalletWithIndexedDb(params: {
 	}
 
 	const signMessage = await w.signMessage(w.address)
+
+	const registrationProbe = await probeBeamioTagRegistration(accountName, w.address)
+	if (!registrationProbe.ok) {
+		clearSessionWallet()
+		if (registrationProbe.reason === 'taken') {
+			return {
+				ok: false,
+				error: mapAddUserRegistrationError('Wallet & accountName ownership Error!'),
+			}
+		}
+		if (registrationProbe.reason === 'network') {
+			return { ok: false, error: 'Network error. Check connection and try again.' }
+		}
+		return { ok: false, error: 'Invalid terminal @BeamioTag.' }
+	}
+
 	const reg = await addUser({
 		accountName,
 		wallet: w.address,
@@ -100,10 +147,10 @@ export async function createPosWalletWithIndexedDb(params: {
 		parentBeamioTag: params.parentBeamioTag.trim() || undefined,
 	}
 	try {
-		await savePosWalletInitToIndexedDb(record)
+		await persistPosWalletInit(record)
 	} catch {
 		clearSessionWallet()
-		return { ok: false, error: 'Could not save wallet to IndexedDB.' }
+		return { ok: false, error: walletSaveFailedMessage(true) }
 	}
 
 	return { ok: true, address: w.address, recoveryCode: recoverEntries.recoveryCode }
@@ -173,7 +220,7 @@ export async function restorePosWalletWithIndexedDb(params: {
 	if (!w) return { ok: false, error: 'Could not restore wallet from recovery data.' }
 
 	try {
-		await savePosWalletInitToIndexedDb({
+		await persistPosWalletInit({
 			ver: 1,
 			isReady: true,
 			mnemonicPhrase,
@@ -187,7 +234,7 @@ export async function restorePosWalletWithIndexedDb(params: {
 			],
 		})
 	} catch {
-		return { ok: false, error: 'Wallet restored but could not save to IndexedDB.' }
+		return { ok: false, error: walletSaveFailedMessage(false) }
 	}
 
 	return { ok: true, address: w.address }

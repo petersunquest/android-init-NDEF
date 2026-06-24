@@ -1,5 +1,5 @@
 import { fetchCardAdminInfo } from '@/api/beamioApi'
-import { BASE_RPC, CONET_MAINNET_CHAIN_ID, CONET_RPC } from '@/constants'
+import { CONET_MAINNET_CHAIN_ID, CONET_RPC } from '@/constants'
 import type { CardAdminInfoResponse, MyPosAddressResponse } from '@/types/pos'
 
 const OWNER_SELECTOR = '0x8da5cb5b'
@@ -49,7 +49,7 @@ function decodeAbiBoolWord(hex: string): boolean | null {
 	return h.endsWith('1')
 }
 
-/** Base chain: `owner()==wallet` or `isAdmin(wallet)`. `null` = RPC untrusted. */
+/** CoNET merchant program card: `owner()==wallet` or `isAdmin(wallet)`. `null` = RPC untrusted. */
 export async function fetchPosProgramCardHomeAccessAllowed(
 	cardAddress: string,
 	wallet: string,
@@ -102,21 +102,16 @@ async function ethCallRpc(rpcUrl: string, to: string, data: string): Promise<str
 
 async function ethCallMerchantCard(to: string, data: string): Promise<string | null> {
 	const chainId = await fetchBeamioUserCardChainId(to)
-	const rpcUrl = chainId === BASE_MAINNET_CHAIN_ID ? BASE_RPC : chainId ? CONET_RPC : null
-	if (!rpcUrl) return null
-	return ethCallRpc(rpcUrl, to, data)
+	if (chainId !== CONET_MAINNET_CHAIN_ID) return null
+	return ethCallRpc(CONET_RPC, to, data)
 }
 
-export const BASE_MAINNET_CHAIN_ID = 8453
-
-/** Detect where a BeamioUserCard contract currently exists. `null` = untrusted network result. */
+/** Detect whether a BeamioUserCard contract exists on CoNET. `null` = untrusted network result. */
 export async function fetchBeamioUserCardChainId(cardAddress: string): Promise<number | null> {
 	const card = cardAddress.trim().toLowerCase()
 	if (!card.startsWith('0x') || card.length !== 42) return null
 	const conetOwner = await ethCallRpc(CONET_RPC, card, OWNER_SELECTOR)
 	if (conetOwner) return CONET_MAINNET_CHAIN_ID
-	const baseOwner = await ethCallRpc(BASE_RPC, card, OWNER_SELECTOR)
-	if (baseOwner) return BASE_MAINNET_CHAIN_ID
 	return null
 }
 

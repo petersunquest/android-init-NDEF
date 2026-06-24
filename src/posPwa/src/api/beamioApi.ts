@@ -1,4 +1,4 @@
-import { Interface } from 'ethers'
+import { Interface, getAddress, isAddress, ZeroAddress } from 'ethers'
 import { ACCOUNT_REGISTRY, BEAMIO_API, CONET_RPC } from '@/constants'
 import type { PosLedgerSnapshot } from '@/utils/posLedgerMetrics'
 import { parsePosLedgerResponse } from '@/utils/posLedgerMetrics'
@@ -19,7 +19,95 @@ import { parsePointSystemEnabledFromMetadata } from '@/utils/pointSystemMetadata
 
 const registryIface = new Interface([
 	'function isAccountNameAvailable(string name) view returns (bool)',
+	'function getOwnerByAccountName(string accountName) view returns (address)',
 ])
+
+const ADD_USER_OWNERSHIP_ERROR = 'Wallet & accountName ownership Error!'
+
+function normalizeRegistryHandle(raw: string): string {
+	return raw.trim().replace(/^@+/, '')
+}
+
+async function ethCallRegistry(data: string): Promise<string | null> {
+	try {
+		const res = await fetch(CONET_RPC, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				jsonrpc: '2.0',
+				method: 'eth_call',
+				params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
+				id: 1,
+			}),
+		})
+		if (!res.ok) return null
+		const json = (await res.json()) as { error?: unknown; result?: string }
+		if (json.error || !json.result || json.result === '0x') return null
+		return String(json.result)
+	} catch {
+		return null
+	}
+}
+
+/** Mirror x402sdk Cluster `userOwnershipCheck` — registry owner must be zero or the registering wallet. */
+export async function fetchRegistryOwnerByAccountName(
+	normalizedHandle: string,
+): Promise<string | null | undefined> {
+	const name = normalizeRegistryHandle(normalizedHandle)
+	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) return undefined
+	const hex = await ethCallRegistry(
+		registryIface.encodeFunctionData('getOwnerByAccountName', [name]),
+	)
+	if (!hex) return null
+	try {
+		const decoded = registryIface.decodeFunctionResult('getOwnerByAccountName', hex)
+		const owner = String(decoded[0] ?? '')
+		if (!owner || owner === ZeroAddress) return ZeroAddress
+		return isAddress(owner) ? getAddress(owner) : null
+	} catch {
+		return null
+	}
+}
+
+export type BeamioTagRegistrationProbe =
+	| { ok: true; owner: typeof ZeroAddress | string }
+	| { ok: false; reason: 'invalid' | 'network' | 'taken' }
+
+/** Preflight before `/api/addUser` — same semantics as server ownership gate. */
+export async function probeBeamioTagRegistration(
+	normalizedHandle: string,
+	walletAddress?: string,
+): Promise<BeamioTagRegistrationProbe> {
+	const name = normalizeRegistryHandle(normalizedHandle)
+	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) {
+		return { ok: false, reason: 'invalid' }
+	}
+	const owner = await fetchRegistryOwnerByAccountName(name)
+	if (owner === null || owner === undefined) {
+		return { ok: false, reason: owner === undefined ? 'invalid' : 'network' }
+	}
+	if (owner === ZeroAddress) return { ok: true, owner: ZeroAddress }
+	if (
+		walletAddress &&
+		isAddress(walletAddress) &&
+		owner.toLowerCase() === getAddress(walletAddress).toLowerCase()
+	) {
+		return { ok: true, owner }
+	}
+	return { ok: false, reason: 'taken' }
+}
+
+export function mapAddUserRegistrationError(raw: string | undefined): string {
+	const msg = String(raw ?? '').trim()
+	if (!msg) return 'Registration failed'
+	if (msg === ADD_USER_OWNERSHIP_ERROR) {
+		return 'This @BeamioTag is already registered to another wallet. Use Restore existing terminal or pick a different handle.'
+	}
+	if (/signature verification failed/i.test(msg)) {
+		return 'Wallet signature failed. Close the app and try again.'
+	}
+	return msg
+}
 
 function parseProfiles(body: unknown): TerminalProfile[] {
 	if (!body || typeof body !== 'object') return []
@@ -77,30 +165,10 @@ export async function searchUsers(keyword: string): Promise<TerminalProfile[] | 
 }
 
 export async function isBeamioAccountNameAvailable(normalizedHandle: string): Promise<boolean | null> {
-	const name = normalizedHandle.trim()
-	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) return false
-	try {
-		const data = registryIface.encodeFunctionData('isAccountNameAvailable', [name])
-		const res = await fetch(CONET_RPC, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_call',
-				params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
-				id: 1,
-			}),
-		})
-		if (!res.ok) return null
-		const json = await res.json()
-		if (json.error) return null
-		const hex = String(json.result ?? '')
-		if (!hex || hex === '0x') return null
-		const decoded = registryIface.decodeFunctionResult('isAccountNameAvailable', hex)
-		return Boolean(decoded[0])
-	} catch {
-		return null
-	}
+	const probe = await probeBeamioTagRegistration(normalizedHandle)
+	if (probe.ok) return true
+	if (probe.reason === 'taken' || probe.reason === 'invalid') return false
+	return null
 }
 
 export async function addUser(params: {
@@ -122,7 +190,8 @@ export async function addUser(params: {
 		})
 		const json = await res.json().catch(() => ({}))
 		if (!res.ok) {
-			return { ok: false, error: String((json as { error?: string }).error ?? `HTTP ${res.status}`) }
+			const raw = String((json as { error?: string }).error ?? `HTTP ${res.status}`)
+			return { ok: false, error: mapAddUserRegistrationError(raw) }
 		}
 		return { ok: true }
 	} catch (e) {

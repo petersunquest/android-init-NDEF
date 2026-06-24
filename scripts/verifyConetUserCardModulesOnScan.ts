@@ -140,7 +140,28 @@ function buildTargets(): VerifyTarget[] {
         "BeamioUserCardModuleRouterLib",
       ],
     },
+    {
+      exportKey: "BeamioUserCardUpdateLib",
+      address: loadUpdateLibAddress(),
+      rootSource: "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol",
+      contractNames: [
+        "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol:BeamioUserCardUpdateLib",
+        "BeamioUserCardUpdateLib",
+      ],
+      libraryLinks: {
+        "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol": {
+          BeamioUserCardReferrerLib: libs.referrerLib,
+          BeamioUserCardTransferLib: libs.transferLib,
+        },
+      },
+    },
   ];
+}
+
+function loadUpdateLibAddress(): string {
+  const addrPath = path.join(root, "deployments/conet-addresses.json");
+  const data = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, string>;
+  return data.beamioUserCardUpdateLib;
 }
 
 function loadStandardJson(target: VerifyTarget): string {
