@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {EIP20Permit3009} from "./EIP20Permit3009.sol";
+
 /// @dev ConetTreasury / ConetTreasuryPeer CREATE2 包装 ERC20 模板；minter 为 Treasury 同址。
-contract FactoryERC20 {
+///      支持 EIP-2612 permit 与 EIP-3009 transferWithAuthorization（CoNET-USDC / wCNET / wrapped ERC20）。
+contract FactoryERC20 is EIP20Permit3009 {
     string private _name;
     string private _symbol;
     uint8 private _decimals;
@@ -14,7 +17,10 @@ contract FactoryERC20 {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_, address minter_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_, address minter_)
+        EIP20Permit3009(name_)
+    {
+        require(bytes(name_).length > 0 && bytes(symbol_).length > 0, "FactoryERC20: empty name/symbol");
         _name = name_;
         _symbol = symbol_;
         _decimals = decimals_;
@@ -81,5 +87,14 @@ contract FactoryERC20 {
             _totalSupply -= amount;
         }
         emit Transfer(account, address(0), amount);
+    }
+
+    function _transferForAuth(address from, address to, uint256 value) internal override {
+        _transfer(from, to, value);
+    }
+
+    function _approveForAuth(address owner, address spender, uint256 value) internal override {
+        _allowances[owner][spender] = value;
+        emit Approval(owner, spender, value);
     }
 }

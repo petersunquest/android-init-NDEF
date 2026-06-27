@@ -136,6 +136,7 @@ contract ConetTreasuryPeer {
     error NotConetChain();
     error TransferFailed();
     error WrappedTokenNotTracked();
+    error EmptyTokenMetadata();
 
     modifier onlyMiner() {
         if (!IConetTreasuryGovernance(treasury).isMiner(msg.sender)) revert NotMiner();
@@ -208,6 +209,7 @@ contract ConetTreasuryPeer {
         uint8 decimals_
     ) external onlyMiner returns (address predicted) {
         if (peerToken == address(0)) revert InvalidTarget();
+        if (bytes(name_).length == 0 || bytes(symbol_).length == 0) revert EmptyTokenMetadata();
         bytes32 key = _peerKey(peerChainId, peerToken);
         PeerTokenMeta storage meta = _peerTokens[key];
         meta.name = name_;

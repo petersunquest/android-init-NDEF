@@ -19,15 +19,15 @@ export const GB_CREATE2_SALT = id("beamio.conetgb1155.v1");
 export const GB_TOTAL_CREATE2_SALT = id("beamio.conetgb_total.v1");
 export const GB_USER_TOTAL_CREATE2_SALT = id("beamio.conetgb_user_total.v1");
 
-/** 当前 bytecode + Nick factory 下各链同址预测 */
+/** 当前 bytecode（含 EIP-2612/EIP-3009）+ Nick factory 下各链同址预测 */
 export const GB_CREATE2_PREDICTED = getAddress(
-  "0xcA423EEBC09d09834dC9CA28861798B3321893ab"
+  "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748"
 );
 export const GB_TOTAL_CREATE2_PREDICTED = getAddress(
-  "0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11"
+  "0x949ed49faB0e999f685f16e09Cf5EaaF4090F290"
 );
 export const GB_USER_TOTAL_CREATE2_PREDICTED = getAddress(
-  "0x5663d651783364325045f061d93d05808c231163"
+  "0x40435307b533c5bd8349368f27BaaDA13678657C"
 );
 
 export { NICK_CREATE2_FACTORY } from "./bunitDeployConstants.js";

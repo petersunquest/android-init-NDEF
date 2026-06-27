@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {EIP20Permit3009} from "./EIP20Permit3009.sol";
+
 /**
  * @title Beamio B-Units 燃料合约 (CoNET L1)
  * @dev 深度重载的 ERC20 实现。包含：双水池分类账本、限制转账(SBT特性)、瀑布流核销与真实收益分润机制。
+ *      公开 transfer/transferFrom 仍锁定；EIP-2612 permit 与 EIP-3009 授权转账为 gasless 支付路径。
  */
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -17,7 +20,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract BeamioBUnits is IERC20 {
+contract BeamioBUnits is IERC20, EIP20Permit3009 {
     string public constant name = "Beamio Units";
     string public constant symbol = "B-UNITS";
     
@@ -76,7 +79,7 @@ contract BeamioBUnits is IERC20 {
         _;
     }
 
-    constructor(address initialAdmin) {
+    constructor(address initialAdmin) EIP20Permit3009("Beamio Units") {
         require(initialAdmin != address(0), "B-Units: Invalid admin address");
         admins[initialAdmin] = true;
         emit AdminAdded(initialAdmin);
@@ -372,6 +375,43 @@ contract BeamioBUnits is IERC20 {
         if (n > slot) return (0, 0);
         PeriodStats storage s = _yearlyStats[slot - n];
         return (s.mint, s.burn);
+    }
+
+    // ==========================================
+    // EIP-2612 / EIP-3009 hooks (gasless approve & authorized transfer)
+    // ==========================================
+
+    /// @dev EIP-3009 授权转账：优先移动 freePool，再移动 paidPool（与 consume 瀑布一致）。
+    function _transferFuelAuthorized(address from, address to, uint256 amount) internal {
+        require(from != address(0) && to != address(0), "B-Units: zero address");
+        FuelBalance storage fromBal = _fuelBalances[from];
+        FuelBalance storage toBal = _fuelBalances[to];
+        uint256 totalBal = uint256(fromBal.freePool) + uint256(fromBal.paidPool);
+        require(totalBal >= amount, "B-Units: Insufficient balance");
+        require(uint256(toBal.freePool) + amount <= type(uint128).max, "B-Units: Amount exceeds uint128");
+
+        if (fromBal.freePool >= amount) {
+            fromBal.freePool -= uint128(amount);
+            toBal.freePool += uint128(amount);
+        } else {
+            uint256 freePart = uint256(fromBal.freePool);
+            uint256 paidPart = amount - freePart;
+            require(uint256(toBal.paidPool) + paidPart <= type(uint128).max, "B-Units: Amount exceeds uint128");
+            fromBal.freePool = 0;
+            fromBal.paidPool -= uint128(paidPart);
+            toBal.freePool += uint128(freePart);
+            toBal.paidPool += uint128(paidPart);
+        }
+        emit Transfer(from, to, amount);
+    }
+
+    function _transferForAuth(address from, address to, uint256 value) internal override {
+        _transferFuelAuthorized(from, to, value);
+    }
+
+    function _approveForAuth(address owner, address spender, uint256 value) internal override {
+        _allowances[owner][spender] = value;
+        emit Approval(owner, spender, value);
     }
 }
 

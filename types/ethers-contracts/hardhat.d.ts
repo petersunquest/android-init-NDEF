@@ -131,6 +131,8 @@ getContractFactory(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | Facto
 getContractFactory(name: 'IConetTreasuryFactoryMinter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryFactoryMinter__factory>
 getContractFactory(name: 'IConetTreasuryGovernance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryGovernance__factory>
 getContractFactory(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IMintableERC20__factory>
+getContractFactory(name: 'EIP1155Permit3009', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.EIP1155Permit3009__factory>
+getContractFactory(name: 'EIP20Permit3009', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.EIP20Permit3009__factory>
 getContractFactory(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.FactoryERC20__factory>
 getContractFactory(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB1155__factory>
 getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
@@ -188,7 +190,24 @@ getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Fa
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
+getContractFactory(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeaconDeposit__factory>
+getContractFactory(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC1155Balance__factory>
+getContractFactory(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20Balance__factory>
+getContractFactory(name: 'IGuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IGuardianNodesInfoV6__factory>
+getContractFactory(name: 'IValidatorDepositRedeemReferrerExtension', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IValidatorDepositRedeemReferrerExtension__factory>
+getContractFactory(name: 'IValidatorDepositRedeemTransferMarket', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IValidatorDepositRedeemTransferMarket__factory>
 getContractFactory(name: 'ValidatorDepositRedeem', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorDepositRedeem__factory>
+getContractFactory(name: 'IReferrerRewardHost', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IReferrerRewardHost__factory>
+getContractFactory(name: 'ValidatorDepositRedeemReferrerExtension', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorDepositRedeemReferrerExtension__factory>
+getContractFactory(name: 'IConetGB1155Income', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetGB1155Income__factory>
+getContractFactory(name: 'IRedeemUnifiedReader', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IRedeemUnifiedReader__factory>
+getContractFactory(name: 'IRewardIndexerSummary', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IRewardIndexerSummary__factory>
+getContractFactory(name: 'ValidatorDepositRedeemStatsLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorDepositRedeemStatsLib__factory>
+getContractFactory(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC3009BytesSig__factory>
+getContractFactory(name: 'IValidatorDepositRedeemHost', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IValidatorDepositRedeemHost__factory>
+getContractFactory(name: 'ValidatorDepositRedeemTransferMarket', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorDepositRedeemTransferMarket__factory>
+getContractFactory(name: 'IValidatorDepositRedeemBeneficiary', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IValidatorDepositRedeemBeneficiary__factory>
+getContractFactory(name: 'ValidatorNodeRewardIndexer', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ValidatorNodeRewardIndexer__factory>
 
   getContractAt(name: 'BeamioAccount', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioAccount>
 getContractAt(name: 'IBeamioAccountFactoryConfigV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -311,6 +330,8 @@ getContractAt(name: 'IConetGB1155', address: string | ethers.Addressable, signer
 getContractAt(name: 'IConetTreasuryFactoryMinter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryFactoryMinter>
 getContractAt(name: 'IConetTreasuryGovernance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryGovernance>
 getContractAt(name: 'IMintableERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IMintableERC20>
+getContractAt(name: 'EIP1155Permit3009', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.EIP1155Permit3009>
+getContractAt(name: 'EIP20Permit3009', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.EIP20Permit3009>
 getContractAt(name: 'FactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.FactoryERC20>
 getContractAt(name: 'ConetGB1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB1155>
 getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
@@ -368,7 +389,24 @@ getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, sig
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
+getContractAt(name: 'IBeaconDeposit', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeaconDeposit>
+getContractAt(name: 'IERC1155Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC1155Balance>
+getContractAt(name: 'IERC20Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20Balance>
+getContractAt(name: 'IGuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IGuardianNodesInfoV6>
+getContractAt(name: 'IValidatorDepositRedeemReferrerExtension', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IValidatorDepositRedeemReferrerExtension>
+getContractAt(name: 'IValidatorDepositRedeemTransferMarket', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IValidatorDepositRedeemTransferMarket>
 getContractAt(name: 'ValidatorDepositRedeem', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorDepositRedeem>
+getContractAt(name: 'IReferrerRewardHost', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IReferrerRewardHost>
+getContractAt(name: 'ValidatorDepositRedeemReferrerExtension', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorDepositRedeemReferrerExtension>
+getContractAt(name: 'IConetGB1155Income', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetGB1155Income>
+getContractAt(name: 'IRedeemUnifiedReader', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IRedeemUnifiedReader>
+getContractAt(name: 'IRewardIndexerSummary', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IRewardIndexerSummary>
+getContractAt(name: 'ValidatorDepositRedeemStatsLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorDepositRedeemStatsLib>
+getContractAt(name: 'IERC3009BytesSig', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC3009BytesSig>
+getContractAt(name: 'IValidatorDepositRedeemHost', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IValidatorDepositRedeemHost>
+getContractAt(name: 'ValidatorDepositRedeemTransferMarket', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorDepositRedeemTransferMarket>
+getContractAt(name: 'IValidatorDepositRedeemBeneficiary', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IValidatorDepositRedeemBeneficiary>
+getContractAt(name: 'ValidatorNodeRewardIndexer', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ValidatorNodeRewardIndexer>
 
   deployContract(name: 'BeamioAccount', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -491,6 +529,8 @@ deployContract(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | DeployCon
 deployContract(name: 'IConetTreasuryFactoryMinter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryFactoryMinter>
 deployContract(name: 'IConetTreasuryGovernance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryGovernance>
 deployContract(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
+deployContract(name: 'EIP1155Permit3009', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP1155Permit3009>
+deployContract(name: 'EIP20Permit3009', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP20Permit3009>
 deployContract(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
 deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
@@ -548,7 +588,24 @@ deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Deploy
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
+deployContract(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
+deployContract(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>
+deployContract(name: 'IGuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGuardianNodesInfoV6>
+deployContract(name: 'IValidatorDepositRedeemReferrerExtension', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemReferrerExtension>
+deployContract(name: 'IValidatorDepositRedeemTransferMarket', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemTransferMarket>
 deployContract(name: 'ValidatorDepositRedeem', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeem>
+deployContract(name: 'IReferrerRewardHost', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerRewardHost>
+deployContract(name: 'ValidatorDepositRedeemReferrerExtension', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemReferrerExtension>
+deployContract(name: 'IConetGB1155Income', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155Income>
+deployContract(name: 'IRedeemUnifiedReader', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRedeemUnifiedReader>
+deployContract(name: 'IRewardIndexerSummary', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRewardIndexerSummary>
+deployContract(name: 'ValidatorDepositRedeemStatsLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemStatsLib>
+deployContract(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
+deployContract(name: 'IValidatorDepositRedeemHost', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemHost>
+deployContract(name: 'ValidatorDepositRedeemTransferMarket', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemTransferMarket>
+deployContract(name: 'IValidatorDepositRedeemBeneficiary', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemBeneficiary>
+deployContract(name: 'ValidatorNodeRewardIndexer', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorNodeRewardIndexer>
 
   deployContract(name: 'BeamioAccount', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioAccount>
 deployContract(name: 'IBeamioAccountFactoryConfigV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryConfigV2>
@@ -671,6 +728,8 @@ deployContract(name: 'IConetGB1155', args: any[], signerOrOptions?: ethers.Signe
 deployContract(name: 'IConetTreasuryFactoryMinter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryFactoryMinter>
 deployContract(name: 'IConetTreasuryGovernance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryGovernance>
 deployContract(name: 'IMintableERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
+deployContract(name: 'EIP1155Permit3009', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP1155Permit3009>
+deployContract(name: 'EIP20Permit3009', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP20Permit3009>
 deployContract(name: 'FactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'ConetGB1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
 deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
@@ -728,7 +787,24 @@ deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Si
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'IBeaconDeposit', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
+deployContract(name: 'IERC1155Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
+deployContract(name: 'IERC20Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>
+deployContract(name: 'IGuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IGuardianNodesInfoV6>
+deployContract(name: 'IValidatorDepositRedeemReferrerExtension', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemReferrerExtension>
+deployContract(name: 'IValidatorDepositRedeemTransferMarket', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemTransferMarket>
 deployContract(name: 'ValidatorDepositRedeem', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeem>
+deployContract(name: 'IReferrerRewardHost', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerRewardHost>
+deployContract(name: 'ValidatorDepositRedeemReferrerExtension', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemReferrerExtension>
+deployContract(name: 'IConetGB1155Income', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155Income>
+deployContract(name: 'IRedeemUnifiedReader', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRedeemUnifiedReader>
+deployContract(name: 'IRewardIndexerSummary', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IRewardIndexerSummary>
+deployContract(name: 'ValidatorDepositRedeemStatsLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemStatsLib>
+deployContract(name: 'IERC3009BytesSig', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
+deployContract(name: 'IValidatorDepositRedeemHost', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemHost>
+deployContract(name: 'ValidatorDepositRedeemTransferMarket', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorDepositRedeemTransferMarket>
+deployContract(name: 'IValidatorDepositRedeemBeneficiary', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IValidatorDepositRedeemBeneficiary>
+deployContract(name: 'ValidatorNodeRewardIndexer', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ValidatorNodeRewardIndexer>
 
     // default types
     getContractFactory(

@@ -27,6 +27,8 @@ import type * as miningInfoSol from './mining_info.sol/index.js';
 export type { miningInfoSol };
 import type * as usdcSol from './usdc.sol/index.js';
 export type { usdcSol };
+export type { EIP1155Permit3009 } from './EIP1155Permit3009.js';
+export type { EIP20Permit3009 } from './EIP20Permit3009.js';
 export type { FactoryERC20 } from './FactoryERC20.js';
 export type { GuardianNodesInfoV6 } from './GuardianNodesInfoV6.js';
 export type { TreasuryCreate2Lib } from './TreasuryCreate2Lib.js';

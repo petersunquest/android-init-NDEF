@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
+import {EIP1155Permit3009} from "./EIP1155Permit3009.sol";
 
 /* ---------- Minimal Date helpers (month/year boundaries) ---------- */
 library DateTimeLib {
@@ -43,7 +44,7 @@ library DateTimeLib {
     }
 }
 
-contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
+contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl, EIP1155Permit3009 {
     using Strings for uint256;
 
     /* ---------------- Roles ---------------- */
@@ -91,6 +92,32 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
     mapping(uint64 => mapping(address => bool))    private _yearSeen;
     mapping(uint64 => uint256)                     private _yearTotal;
 
+    /* ---------------- Per-node (beneficiary) GB income index ----------------
+     * 受益人制度：每个节点（node = 节点运营钱包）的 GB 收入铸给「受益人钱包」，
+     * 但仍按 node 维度单独记录时间桶（毛发行），供 dashboard 出每节点收入时间曲线。
+     * 这里只索引「节点收入」（issueGBForNode / issueGBForNodeBatch 写入），
+     * 普通消费者 GB（issueGB / issueGBBatch）不进入本索引。
+     */
+    // node => 最近一次发行使用的受益人钱包
+    mapping(address => address) public nodeBeneficiary;
+    // 受益人 => 其拥有/曾发行过的 node 列表（dashboard 枚举每节点曲线）
+    mapping(address => address[]) private _beneficiaryNodes;
+    mapping(address => mapping(address => bool)) private _beneficiaryNodeSeen;
+    // node => 累计发行（毛，不受 revokeTotalOnly 影响）
+    mapping(address => uint256) public nodeTotalIssued;
+    // node => DePIN IP（denormalized 缓存，便于「受益人 → {节点钱包, IP}」一次性出表；
+    // 真相仍以 GuardianNodesInfoV6 / ValidatorDepositRedeem 为准，由 OPERATOR 幂等登记）
+    mapping(address => string) private _nodeIp;
+    // node 维度时间桶（毛发行）
+    mapping(address => mapping(uint256 => uint256)) private _nodeHourAmount;  // node => hourId  => GB18
+    mapping(address => mapping(uint64  => uint256)) private _nodeDayAmount;   // node => dayKey  => GB18
+    mapping(address => mapping(uint64  => uint256)) private _nodeWeekAmount;  // node => weekKey => GB18
+    mapping(address => mapping(uint64  => uint256)) private _nodeMonthAmount; // node => monthKey=> GB18
+    mapping(address => mapping(uint64  => uint256)) private _nodeYearAmount;  // node => yearKey => GB18
+
+    /// @dev When true, {_update} allows user-to-user moves (EIP-3009 signed path only).
+    bool private _authTransferActive;
+
     /* ---------------- Events ---------------- */
     event Issued(address indexed issuer, address indexed to, uint256 amountGB18, uint256 indexed hourId);
     event BatchIssued(address indexed issuer, uint256 indexed hourId, uint256 count, uint256 totalAmountGB18);
@@ -99,12 +126,18 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
     event HourFinalized(uint256 indexed hourId, uint64 endBlock);
     event IssuerAdded(address indexed account);
     event IssuerRemoved(address indexed account);
+    // 节点收入发行到受益人；node 维度时间桶同时累加
+    event NodeIssued(address indexed issuer, address indexed beneficiary, address indexed node, uint256 amountGB18, uint256 hourId);
+    // node 首次/变更受益人归属
+    event NodeBeneficiaryLinked(address indexed node, address indexed beneficiary);
+    // node 的 DePIN IP 登记/变更
+    event NodeIpUpdated(address indexed node, string ip);
 
     constructor(
         uint64 _startTimeAlignedToHour,
         uint64 _startHourId,
         address initialAdmin
-    ) ERC1155("") {
+    ) ERC1155("") EIP1155Permit3009("CONET GB") {
         require(_startTimeAlignedToHour % 3600 == 0, "start not hour-aligned");
         require(initialAdmin != address(0), "zero admin");
         startTime   = _startTimeAlignedToHour;
@@ -113,6 +146,18 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin);
         _grantRole(ISSUER_ROLE, initialAdmin);
         _grantRole(OPERATOR_ROLE, initialAdmin);
+    }
+
+    /* ---------------- Token identity (Blockscout / explorers) ---------------- */
+
+    /// @notice Contract-level token name so explorers indexing ERC-1155 via name() show "CONET GB" instead of "Unnamed token".
+    function name() external pure returns (string memory) {
+        return "CONET GB";
+    }
+
+    /// @notice Contract-level token symbol so explorers indexing ERC-1155 via symbol() show "GB".
+    function symbol() external pure returns (string memory) {
+        return "GB";
     }
 
     /* ---------------- Issuer whitelist management ---------------- */
@@ -209,6 +254,106 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         }
 
         emit BatchIssued(msg.sender, hourId, wallets.length, totalBatch);
+    }
+
+    /* ---------------- Issue for node (beneficiary) ---------------- */
+
+    /// 节点收入发行：余额/总量/时间桶铸给「受益人钱包」（与 issueGB 等价，to = beneficiary），
+    /// 并额外按 node 记录时间序列（dashboard 每节点收入曲线）。
+    /// node 通常为节点运营钱包（gossip 上报的 nodeWallet）；受益人由发行端（CoNET-DL）解析。
+    function issueGBForNode(address beneficiary, address node, uint256 amountGB18)
+        external onlyRole(ISSUER_ROLE)
+    {
+        require(beneficiary != address(0), "zero beneficiary");
+        require(node != address(0), "zero node");
+        require(amountGB18 > 0, "amount=0");
+
+        uint256 hourId = currentHourId();
+        _initHourIfNeeded(hourId);
+
+        // 受益人钱包：与 issueGB 完全一致（净总量 + 小时毛 + 受益人时间桶）
+        _mint(beneficiary, TOKENID_TOTAL, amountGB18, "");
+        _mint(beneficiary, hourId,        amountGB18, "");
+        if (!_hourSeen[hourId][beneficiary]) { _hourSeen[hourId][beneficiary] = true; _hourRecipients[hourId].push(beneficiary); }
+        _hourAmount[hourId][beneficiary] += amountGB18;
+
+        PeriodKeys memory k = _currentPeriodKeys();
+        _accumulatePK(beneficiary, amountGB18, k);
+
+        // node 维度时间序列
+        _accrueNode(beneficiary, node, amountGB18, hourId, k);
+
+        emit Issued(msg.sender, beneficiary, amountGB18, hourId);
+        emit NodeIssued(msg.sender, beneficiary, node, amountGB18, hourId);
+    }
+
+    /// 批量节点收入发行：beneficiaries[i] 收到来自 nodes[i] 的 issues[i] GB。
+    function issueGBForNodeBatch(
+        address[] calldata beneficiaries,
+        address[] calldata nodes,
+        uint256[] calldata issues
+    ) external onlyRole(ISSUER_ROLE) {
+        require(
+            beneficiaries.length == nodes.length &&
+            nodes.length == issues.length &&
+            nodes.length > 0,
+            "bad inputs"
+        );
+
+        uint256 hourId = currentHourId();
+        _initHourIfNeeded(hourId);
+
+        PeriodKeys memory k = _currentPeriodKeys();
+        uint256 totalBatch;
+
+        for (uint256 i=0;i<nodes.length;i++){
+            address beneficiary = beneficiaries[i];
+            address node        = nodes[i];
+            uint256 amountGB18  = issues[i];
+            require(beneficiary != address(0), "zero beneficiary");
+            require(node != address(0), "zero node");
+            require(amountGB18 > 0, "amount=0");
+
+            _mint(beneficiary, TOKENID_TOTAL, amountGB18, "");
+            _mint(beneficiary, hourId,        amountGB18, "");
+            if (!_hourSeen[hourId][beneficiary]) { _hourSeen[hourId][beneficiary] = true; _hourRecipients[hourId].push(beneficiary); }
+            _hourAmount[hourId][beneficiary] += amountGB18;
+
+            _accumulatePK(beneficiary, amountGB18, k);
+            _accrueNode(beneficiary, node, amountGB18, hourId, k);
+
+            totalBatch += amountGB18;
+            emit Issued(msg.sender, beneficiary, amountGB18, hourId);
+            emit NodeIssued(msg.sender, beneficiary, node, amountGB18, hourId);
+        }
+
+        emit BatchIssued(msg.sender, hourId, nodes.length, totalBatch);
+    }
+
+    /* ---------------- Node IP registry (denormalized) ---------------- */
+
+    /// 登记/更新 node 的 DePIN IP（幂等：相同则不写、不发事件）。
+    function setNodeIp(address node, string calldata ip) external onlyRole(OPERATOR_ROLE) {
+        require(node != address(0), "zero node");
+        if (keccak256(bytes(_nodeIp[node])) != keccak256(bytes(ip))) {
+            _nodeIp[node] = ip;
+            emit NodeIpUpdated(node, ip);
+        }
+    }
+
+    /// 批量登记 node IP。
+    function setNodeIpBatch(address[] calldata nodes, string[] calldata ips)
+        external onlyRole(OPERATOR_ROLE)
+    {
+        require(nodes.length == ips.length && nodes.length > 0, "bad inputs");
+        for (uint256 i = 0; i < nodes.length; i++) {
+            address node = nodes[i];
+            require(node != address(0), "zero node");
+            if (keccak256(bytes(_nodeIp[node])) != keccak256(bytes(ips[i]))) {
+                _nodeIp[node] = ips[i];
+                emit NodeIpUpdated(node, ips[i]);
+            }
+        }
     }
 
     /// 撤销：仅从 id=0（净总量）扣减；不影响小时/日/周/月/年的毛发行历史
@@ -476,6 +621,34 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         _yearAmount[k.year][to] += amount; _yearTotal[k.year] += amount;
     }
 
+    /* ---------------- Internal: per-node accrual ---------------- */
+
+    function _accrueNode(
+        address beneficiary,
+        address node,
+        uint256 amount,
+        uint256 hourId,
+        PeriodKeys memory k
+    ) internal {
+        // node 归属 / 受益人 node 列表
+        if (nodeBeneficiary[node] != beneficiary) {
+            nodeBeneficiary[node] = beneficiary;
+            emit NodeBeneficiaryLinked(node, beneficiary);
+        }
+        if (!_beneficiaryNodeSeen[beneficiary][node]) {
+            _beneficiaryNodeSeen[beneficiary][node] = true;
+            _beneficiaryNodes[beneficiary].push(node);
+        }
+
+        // node 维度时间桶（毛）
+        nodeTotalIssued[node]            += amount;
+        _nodeHourAmount[node][hourId]    += amount;
+        _nodeDayAmount[node][k.day]      += amount;
+        _nodeWeekAmount[node][k.week]    += amount;
+        _nodeMonthAmount[node][k.month]  += amount;
+        _nodeYearAmount[node][k.year]    += amount;
+    }
+
     /* ---------------- Non-transferable enforcement ---------------- */
 
     function _update(
@@ -484,10 +657,23 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         uint256[] memory ids,
         uint256[] memory values
     ) internal override(ERC1155, ERC1155Supply) {
-        if (from != address(0) && to != address(0)) {
+        if (from != address(0) && to != address(0) && !_authTransferActive) {
             revert("non-transferable");
         }
         super._update(from, to, ids, values);
+    }
+
+    function _setApprovalForAll(address owner, address operator, bool approved)
+        internal
+        override(ERC1155, EIP1155Permit3009)
+    {
+        super._setApprovalForAll(owner, operator, approved);
+    }
+
+    function _authTransfer1155(address from, address to, uint256 id, uint256 value) internal override {
+        _authTransferActive = true;
+        _safeTransferFrom(from, to, id, value, "");
+        _authTransferActive = false;
     }
 
     /* ---------------- Dynamic URI ---------------- */
@@ -496,7 +682,7 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         // 尽量少的拼接片段，减少 ABI 编码临时值
         return abi.encodePacked(
             '{"name":"CONET Total GB",',
-            '"description":"Net total GBytes since start. 1e18 = 1 GB. Revoke affects only id=0.",',
+            '"description":"Net total GB. 1e18=1GB.",',
             '"tokenId":"', id.toString(), '",',
             '"decimals":"18","unit":"GB","type":"total"}'
         );
@@ -506,7 +692,7 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
         HourMeta memory m = hourMeta[id];
         return abi.encodePacked(
             '{"name":"CONET Hourly GB #', id.toString(), '",',
-            '"description":"Hourly gross GB issuance. 1e18 = 1 GB.",',
+            '"description":"Hourly gross GB. 1e18=1GB.",',
             '"tokenId":"', id.toString(), '",',
             '"decimals":"18","unit":"GB","type":"hourly",',
             '"hour_start_time":"', hourStartTime(id).toString(), '",',
@@ -555,6 +741,124 @@ contract ConetGB1155 is ERC1155, ERC1155Supply, AccessControl {
     }
     function issuedThisYearOf(address account) external view returns (uint256) {
         return _yearAmount[_yearKeyByDeviation(0)][account];
+    }
+
+    // ===== Per-node issued amount queries (dashboard) =====
+
+    // ---- node Hourly ----
+    function nodeHourlyIssuedOf(address node, uint256 deviation) external view returns (uint256) {
+        return _nodeHourAmount[node][_hourIdByDeviation(deviation)];
+    }
+    function nodeIssuedThisHourOf(address node) external view returns (uint256) {
+        return _nodeHourAmount[node][_hourIdByDeviation(0)];
+    }
+
+    // ---- node Daily ----
+    function nodeDayIssuedOf(address node, uint256 deviation) external view returns (uint256) {
+        return _nodeDayAmount[node][_dayKeyByDeviation(deviation)];
+    }
+    function nodeIssuedTodayOf(address node) external view returns (uint256) {
+        return _nodeDayAmount[node][_dayKeyByDeviation(0)];
+    }
+
+    // ---- node Weekly ----
+    function nodeWeeklyIssuedOf(address node, uint256 deviation) external view returns (uint256) {
+        return _nodeWeekAmount[node][_weekKeyByDeviation(deviation)];
+    }
+    function nodeIssuedThisWeekOf(address node) external view returns (uint256) {
+        return _nodeWeekAmount[node][_weekKeyByDeviation(0)];
+    }
+
+    // ---- node Monthly ----
+    function nodeMonthlyIssuedOf(address node, uint256 deviation) external view returns (uint256) {
+        return _nodeMonthAmount[node][_monthKeyByDeviation(deviation)];
+    }
+    function nodeIssuedThisMonthOf(address node) external view returns (uint256) {
+        return _nodeMonthAmount[node][_monthKeyByDeviation(0)];
+    }
+
+    // ---- node Yearly ----
+    function nodeYearlyIssuedOf(address node, uint256 deviation) external view returns (uint256) {
+        return _nodeYearAmount[node][_yearKeyByDeviation(deviation)];
+    }
+    function nodeIssuedThisYearOf(address node) external view returns (uint256) {
+        return _nodeYearAmount[node][_yearKeyByDeviation(0)];
+    }
+
+    // node 累计发行（毛）：使用 public 映射自动 getter nodeTotalIssued(address)。
+
+    // ===== Beneficiary -> nodes enumeration (dashboard) =====
+
+    function beneficiaryNodesCount(address beneficiary) external view returns (uint256) {
+        return _beneficiaryNodes[beneficiary].length;
+    }
+
+    function beneficiaryNodesPage(address beneficiary, uint256 start, uint256 limit)
+        external view returns (address[] memory nodes)
+    {
+        address[] storage all = _beneficiaryNodes[beneficiary];
+        uint256 n = all.length;
+        if (start >= n) {
+            return new address[](0);
+        }
+        uint256 end = start + limit;
+        if (end > n) end = n;
+        nodes = new address[](end - start);
+        for (uint256 i = start; i < end; i++) {
+            nodes[i - start] = all[i];
+        }
+    }
+
+    function nodeIpOf(address node) external view returns (string memory) {
+        return _nodeIp[node];
+    }
+
+    /// 受益人 → {节点钱包, IP} 一览表（分页）。IP 为空字符串表示尚未登记。
+    function beneficiaryNodeIpsPage(address beneficiary, uint256 start, uint256 limit)
+        external view returns (address[] memory nodes, string[] memory ips)
+    {
+        address[] storage all = _beneficiaryNodes[beneficiary];
+        uint256 n = all.length;
+        if (start >= n) {
+            return (new address[](0), new string[](0));
+        }
+        uint256 end = start + limit;
+        if (end > n) end = n;
+        nodes = new address[](end - start);
+        ips   = new string[](end - start);
+        for (uint256 i = start; i < end; i++) {
+            address node = all[i];
+            nodes[i - start] = node;
+            ips[i - start]   = _nodeIp[node];
+        }
+    }
+
+    // ===== Per-node time series (dashboard curves) =====
+
+    /// node 最近 `count` 个小时的发行曲线；index 0 = 当前小时，逐项向前回溯。
+    function nodeHourlySeries(address node, uint256 count)
+        external view returns (uint256[] memory hourIds, uint256[] memory amounts)
+    {
+        hourIds = new uint256[](count);
+        amounts = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            uint256 hid = _hourIdByDeviation(i);
+            hourIds[i] = hid;
+            amounts[i] = _nodeHourAmount[node][hid];
+        }
+    }
+
+    /// node 最近 `count` 天的发行曲线；index 0 = 今天（UTC），逐项向前回溯。dayKey 为该天 00:00 UTC 秒时间戳。
+    function nodeDailySeries(address node, uint256 count)
+        external view returns (uint64[] memory dayKeys, uint256[] memory amounts)
+    {
+        dayKeys = new uint64[](count);
+        amounts = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            uint64 k = _dayKeyByDeviation(i);
+            dayKeys[i] = k;
+            amounts[i] = _nodeDayAmount[node][k];
+        }
     }
 
     function uri(uint256 id) public view override returns (string memory out) {

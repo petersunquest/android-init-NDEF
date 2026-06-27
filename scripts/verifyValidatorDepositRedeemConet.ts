@@ -17,35 +17,69 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://scan.conet.network/api").replace(/\/$/, "");
-const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
+const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://mainnet.conet.network/api").replace(/\/$/, "");
+const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet.network").replace(/\/$/, "");
 const CONET_RPC = process.env.CONET_RPC_URL || "https://publicrpc.conet.network";
 const COMPILER_VERSION = `v${BASESCAN_COMPILER_VERSION}`;
 const SOURCE = "project/src/mainnet/ValidatorDepositRedeem.sol";
 const CONTRACT_NAME = `${SOURCE}:ValidatorDepositRedeem`;
 
-type DeploymentJson = {
-  address?: string;
+type CtorArgs = {
   initialRedeemAdmin?: string;
-  constructorArgs?: { initialRedeemAdmin?: string };
-  contracts?: { ValidatorDepositRedeem?: { address?: string; initialRedeemAdmin?: string } };
+  gbToken?: string;
+  usdcToken?: string;
+  guardianNodes?: string;
+  guardianAllocStartId?: string | number;
 };
 
-function loadDeployment(): { address: string; initialRedeemAdmin: string } {
+type DeploymentJson = CtorArgs & {
+  address?: string;
+  constructorArgs?: CtorArgs;
+  contracts?: { ValidatorDepositRedeem?: CtorArgs & { address?: string } };
+};
+
+type ResolvedDeployment = {
+  address: string;
+  initialRedeemAdmin: string;
+  gbToken: string;
+  usdcToken: string;
+  guardianNodes: string;
+  guardianAllocStartId: bigint;
+};
+
+function loadDeployment(): ResolvedDeployment {
   const p = path.join(root, "deployments/conet-ValidatorDepositRedeem.json");
   if (!fs.existsSync(p)) {
     throw new Error("缺少 deployments/conet-ValidatorDepositRedeem.json，请先部署");
   }
   const data = JSON.parse(fs.readFileSync(p, "utf-8")) as DeploymentJson;
-  const address = data.contracts?.ValidatorDepositRedeem?.address || data.address;
-  const initialRedeemAdmin =
-    data.contracts?.ValidatorDepositRedeem?.initialRedeemAdmin ||
-    data.constructorArgs?.initialRedeemAdmin ||
-    data.initialRedeemAdmin;
-  if (!address || !initialRedeemAdmin) {
-    throw new Error("部署 JSON 缺少 address / initialRedeemAdmin");
+  const inner = data.contracts?.ValidatorDepositRedeem;
+  const args = data.constructorArgs;
+  const pick = (k: keyof CtorArgs): string | number | undefined =>
+    (inner?.[k] as string | number | undefined) ??
+    (args?.[k] as string | number | undefined) ??
+    (data[k] as string | number | undefined);
+
+  const address = inner?.address || data.address;
+  const initialRedeemAdmin = pick("initialRedeemAdmin");
+  const gbToken = pick("gbToken");
+  const usdcToken = pick("usdcToken");
+  const guardianNodes = pick("guardianNodes");
+  const guardianAllocStartId = pick("guardianAllocStartId");
+
+  if (!address || !initialRedeemAdmin || !gbToken || !usdcToken || !guardianNodes || guardianAllocStartId == null) {
+    throw new Error(
+      "部署 JSON 缺少 address / initialRedeemAdmin / gbToken / usdcToken / guardianNodes / guardianAllocStartId"
+    );
   }
-  return { address: getAddress(address), initialRedeemAdmin: getAddress(initialRedeemAdmin) };
+  return {
+    address: getAddress(address),
+    initialRedeemAdmin: getAddress(String(initialRedeemAdmin)),
+    gbToken: getAddress(String(gbToken)),
+    usdcToken: getAddress(String(usdcToken)),
+    guardianNodes: getAddress(String(guardianNodes)),
+    guardianAllocStartId: BigInt(guardianAllocStartId),
+  };
 }
 
 async function rpcHasCode(address: string): Promise<boolean> {
@@ -65,8 +99,17 @@ async function checkVerified(address: string): Promise<boolean> {
   return Boolean(data.is_verified || data.source_code);
 }
 
-async function submitVerify(address: string, initialRedeemAdmin: string, standardJson: string): Promise<void> {
-  const constructorArgs = AbiCoder.defaultAbiCoder().encode(["address"], [initialRedeemAdmin]).slice(2);
+async function submitVerify(
+  address: string,
+  ctor: Omit<ResolvedDeployment, "address">,
+  standardJson: string
+): Promise<void> {
+  const constructorArgs = AbiCoder.defaultAbiCoder()
+    .encode(
+      ["address", "address", "address", "address", "uint256"],
+      [ctor.initialRedeemAdmin, ctor.gbToken, ctor.usdcToken, ctor.guardianNodes, ctor.guardianAllocStartId]
+    )
+    .slice(2);
   const url = `${BLOCKSCOUT_API}/v2/smart-contracts/${address}/verification/via/standard-input`;
   const form = new FormData();
   form.set("compiler_version", COMPILER_VERSION);
@@ -108,11 +151,11 @@ async function waitVerified(address: string): Promise<void> {
 }
 
 async function main() {
-  const { address, initialRedeemAdmin } = loadDeployment();
+  const { address, ...ctor } = loadDeployment();
   console.log("CoNET Blockscout:", BLOCKSCOUT_UI);
   console.log("RPC:", CONET_RPC);
   console.log("address:", address);
-  console.log("initialRedeemAdmin:", initialRedeemAdmin);
+  console.log("ctor:", JSON.stringify({ ...ctor, guardianAllocStartId: ctor.guardianAllocStartId.toString() }));
 
   if (!(await rpcHasCode(address))) {
     throw new Error(`链上无 code: ${address}`);
@@ -123,7 +166,7 @@ async function main() {
   }
 
   const { standardJson } = exportBasescanStandardJsonFromRoot(root, SOURCE);
-  await submitVerify(address, initialRedeemAdmin, JSON.stringify(standardJson));
+  await submitVerify(address, ctor, JSON.stringify(standardJson));
   await waitVerified(address);
 }
 

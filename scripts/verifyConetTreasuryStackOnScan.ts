@@ -31,6 +31,10 @@ import {
   GB_TOTAL_CREATE2_PREDICTED,
   GB_USER_TOTAL_CREATE2_PREDICTED,
 } from "./gbDeployConstants.js";
+import {
+  BASESCAN_COMPILER_VERSION,
+  exportBasescanStandardJsonFromRoot,
+} from "./basescanStandardJsonShared.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,26 +147,16 @@ function loadTargets(): VerifyTarget[] {
   return targets;
 }
 
+/**
+ * 递归依赖剪枝导出 Standard JSON（避免 mainnet.conet.network nginx 413）。
+ * 见 standard-json-export-source-of-truth.mdc / beamio-base-basescan-verify.mdc。
+ */
 function loadStandardInputForSource(sourceKey: string): { json: string; compilerVersion: string } {
-  const biDir = path.join(root, "artifacts", "build-info");
-  const files = fs.readdirSync(biDir).filter((f) => f.endsWith(".json") && !f.includes(".output."));
-  for (const f of files) {
-    const bi = JSON.parse(fs.readFileSync(path.join(biDir, f), "utf-8")) as {
-      input?: { language: string; settings: unknown; sources: Record<string, unknown> };
-      solcLongVersion?: string;
-    };
-    if (!bi.input?.sources?.[sourceKey]) continue;
-    const v = bi.solcLongVersion ?? "0.8.33+commit.64118f21";
-    return {
-      json: JSON.stringify({
-        language: bi.input.language,
-        settings: bi.input.settings,
-        sources: bi.input.sources,
-      }),
-      compilerVersion: v.startsWith("v") ? v : `v${v}`,
-    };
-  }
-  throw new Error(`未找到 ${sourceKey} 的 build-info；请先 npm run compile`);
+  const { standardJson } = exportBasescanStandardJsonFromRoot(root, sourceKey);
+  return {
+    json: JSON.stringify(standardJson),
+    compilerVersion: `v${BASESCAN_COMPILER_VERSION}`,
+  };
 }
 
 async function checkVerified(address: string): Promise<boolean> {
@@ -231,7 +225,7 @@ async function submitVerify(
   const url = `${BLOCKSCOUT_API}/v2/smart-contracts/${target.address}/verification/via/standard-input`;
   const form = new FormData();
   form.set("compiler_version", compilerVersion);
-  form.set("contract_name", target.contractName);
+  form.set("contract_name", `${target.sourceKey}:${target.contractName}`);
   form.set("autodetect_constructor_args", "false");
   form.set("constructor_args", constructorArgs);
   form.set("license_type", "mit");

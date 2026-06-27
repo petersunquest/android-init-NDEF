@@ -113,8 +113,8 @@ if [[ "$SKIP_SMOKE" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 		echo "Smoke test failed: success!=true" >&2
 		exit 1
 	fi
-	if ! echo "$body" | grep -q '0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681'; then
-		echo "Warning: contract address not in config response (may need env on server)" >&2
+	if ! echo "$body" | grep -q '0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E'; then
+		echo "Warning: ValidatorDepositRedeem address not in config response (may need env on server)" >&2
 	fi
 fi
 

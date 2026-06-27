@@ -21,15 +21,23 @@ async function main() {
   const [signer] = await ethers.getSigners();
   const net = await ethers.provider.getNetwork();
 
-  const deploymentPath = path.join(__dirname, "..", "deployments", "conet-ConetTreasury.json");
-  if (!fs.existsSync(deploymentPath)) {
-    throw new Error("未找到 conet-ConetTreasury.json");
+  // 优先 env，其次 CREATE2 meta（新栈），最后回退旧 conet-ConetTreasury.json。
+  function resolveTreasury(): string {
+    if (process.env.CONET_TREASURY?.trim()) return ethers.getAddress(process.env.CONET_TREASURY.trim());
+    const metaPath = path.join(__dirname, "..", "deployments", "conetTreasury-create2-meta.json");
+    if (fs.existsSync(metaPath)) {
+      const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+      if (meta.predictedAddress) return ethers.getAddress(meta.predictedAddress);
+    }
+    const deploymentPath = path.join(__dirname, "..", "deployments", "conet-ConetTreasury.json");
+    if (fs.existsSync(deploymentPath)) {
+      const deploy = JSON.parse(fs.readFileSync(deploymentPath, "utf-8"));
+      const a = deploy.contracts?.ConetTreasury?.address;
+      if (a) return ethers.getAddress(a);
+    }
+    throw new Error("无法解析 ConetTreasury 地址（设 CONET_TREASURY 或先部署 create2 meta）");
   }
-  const deploy = JSON.parse(fs.readFileSync(deploymentPath, "utf-8"));
-  const treasuryAddress = deploy.contracts?.ConetTreasury?.address;
-  if (!treasuryAddress) {
-    throw new Error("部署文件中无 ConetTreasury 地址");
-  }
+  const treasuryAddress = resolveTreasury();
 
   console.log("=".repeat(60));
   console.log("ConetTreasury 工厂发行 USDC");
@@ -76,21 +84,23 @@ async function main() {
   console.log("[2] CoNET USDC 地址:", tokenAddress);
   console.log("    baseToken (Base USDC):", BASE_USDC);
 
-  // 更新部署文件
-  const outPath = path.join(__dirname, "..", "deployments", "conet-ConetTreasury.json");
-  const out = {
-    ...deploy,
-    contracts: {
-      ...deploy.contracts,
-      ConetTreasury: {
-        ...deploy.contracts.ConetTreasury,
-        usdc: tokenAddress,
-        usdcBaseToken: BASE_USDC,
-      },
-    },
-  };
-  fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
-  console.log("\nsaved:", outPath);
+  // 更新权威 conet-addresses.json（仅 CoNET 链）
+  if (net.chainId === 224422n) {
+    const addrPath = path.join(__dirname, "..", "deployments", "conet-addresses.json");
+    if (fs.existsSync(addrPath)) {
+      const addr = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, unknown>;
+      const prev = typeof addr.conetUsdc === "string" ? (addr.conetUsdc as string) : "";
+      const dep = Array.isArray(addr.DEPRECATED_CONET_USDC) ? (addr.DEPRECATED_CONET_USDC as string[]) : [];
+      if (prev && prev.toLowerCase() !== tokenAddress.toLowerCase() && !dep.map((x) => x.toLowerCase()).includes(prev.toLowerCase())) {
+        dep.push(prev);
+      }
+      addr.conetUsdc = tokenAddress;
+      addr.DEPRECATED_CONET_USDC = dep;
+      addr.ConetTreasury = treasuryAddress;
+      fs.writeFileSync(addrPath, JSON.stringify(addr, null, 2) + "\n", "utf-8");
+      console.log("\nupdated conet-addresses.json conetUsdc + ConetTreasury (+DEPRECATED_CONET_USDC)");
+    }
+  }
 }
 
 main().catch((e) => {

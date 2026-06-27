@@ -14,6 +14,8 @@ export * as gbTotalSol from './gbTotal.sol/index.js';
 export * as gbUserTotalSol from './gbUserTotal.sol/index.js';
 export * as miningInfoSol from './mining_info.sol/index.js';
 export * as usdcSol from './usdc.sol/index.js';
+export { EIP1155Permit3009__factory } from './EIP1155Permit3009__factory.js';
+export { EIP20Permit3009__factory } from './EIP20Permit3009__factory.js';
 export { FactoryERC20__factory } from './FactoryERC20__factory.js';
 export { GuardianNodesInfoV6__factory } from './GuardianNodesInfoV6__factory.js';
 export { TreasuryCreate2Lib__factory } from './TreasuryCreate2Lib__factory.js';

@@ -100,7 +100,7 @@ const beamioConet = '0xCE8e2Cda88FfE2c99bc88D9471A3CBD08F519FEd'
 const airdropRecord = '0x070BcBd163a3a280Ab6106bA62A079f228139379'
 const beamioConetAccountRegistry = '0xfFDc8d2021A41F4638Cb3eCf58B5155383EE9f6d'
 /** CoNET USDC (FactoryERC20) - from deployments/conet-addresses.json, updated by updateConetReferences */
-const CONET_USDC_ADDRESS = '0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa'
+const CONET_USDC_ADDRESS = '0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC'
 
 let Guardian_Nodes: nodeInfo[] = []
 

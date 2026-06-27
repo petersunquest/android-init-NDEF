@@ -6,35 +6,59 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface FactoryERC20Interface extends Interface {
-    getFunction(nameOrSignature: "allowance" | "approve" | "balanceOf" | "burnFrom" | "decimals" | "mint" | "minter" | "name" | "symbol" | "totalSupply" | "transfer" | "transferFrom"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "burnFrom" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "decimals" | "eip712Domain" | "mint" | "minter" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "Approval" | "Transfer"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "Approval" | "AuthorizationUsed" | "EIP712DomainChanged" | "Transfer"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
+    encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'authorizationState', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'burnFrom', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', values: [AddressLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'decimals', values?: undefined): string;
+encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mint', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'minter', values?: undefined): string;
 encodeFunctionData(functionFragment: 'name', values?: undefined): string;
+encodeFunctionData(functionFragment: 'nonces', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 
-    decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'authorizationState', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnFrom', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'decimals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'minter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nonces', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,bytes)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
   }
 
   
@@ -42,6 +66,30 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
       export type InputTuple = [owner: AddressLike, spender: AddressLike, value: BigNumberish];
       export type OutputTuple = [owner: string, spender: string, value: bigint];
       export interface OutputObject {owner: string, spender: string, value: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace AuthorizationUsedEvent {
+      export type InputTuple = [authorizer: AddressLike, nonce: BytesLike];
+      export type OutputTuple = [authorizer: string, nonce: string];
+      export interface OutputObject {authorizer: string, nonce: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace EIP712DomainChangedEvent {
+      export type InputTuple = [];
+      export type OutputTuple = [];
+      export interface OutputObject {};
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -96,6 +144,14 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 
     
     
+    DOMAIN_SEPARATOR: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     allowance: TypedContractMethod<
       [owner: AddressLike, spender: AddressLike, ],
       [bigint],
@@ -108,6 +164,14 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
       [spender: AddressLike, value: BigNumberish, ],
       [boolean],
       'nonpayable'
+    >
+    
+
+    
+    authorizationState: TypedContractMethod<
+      [arg0: AddressLike, arg1: BytesLike, ],
+      [boolean],
+      'view'
     >
     
 
@@ -128,9 +192,33 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     
 
     
+    "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": TypedContractMethod<
+      [authorizer: AddressLike, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "cancelAuthorization(address,bytes32,bytes)": TypedContractMethod<
+      [authorizer: AddressLike, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     decimals: TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >
+    
+
+    
+    eip712Domain: TypedContractMethod<
+      [],
+      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
       'view'
     >
     
@@ -156,6 +244,46 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
       [],
       [string],
       'view'
+    >
+    
+
+    
+    nonces: TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    "permit(address,address,uint256,uint256,bytes)": TypedContractMethod<
+      [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)": TypedContractMethod<
+      [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -191,10 +319,31 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
     >
     
 
+    
+    "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'allowance'): TypedContractMethod<
+    getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'allowance'): TypedContractMethod<
       [owner: AddressLike, spender: AddressLike, ],
       [bigint],
       'view'
@@ -203,6 +352,11 @@ getFunction(nameOrSignature: 'approve'): TypedContractMethod<
       [spender: AddressLike, value: BigNumberish, ],
       [boolean],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'authorizationState'): TypedContractMethod<
+      [arg0: AddressLike, arg1: BytesLike, ],
+      [boolean],
+      'view'
     >;
 getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
       [account: AddressLike, ],
@@ -214,9 +368,24 @@ getFunction(nameOrSignature: 'burnFrom'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)'): TypedContractMethod<
+      [authorizer: AddressLike, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'cancelAuthorization(address,bytes32,bytes)'): TypedContractMethod<
+      [authorizer: AddressLike, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'decimals'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'eip712Domain'): TypedContractMethod<
+      [],
+      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'mint'): TypedContractMethod<
@@ -233,6 +402,31 @@ getFunction(nameOrSignature: 'name'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'nonces'): TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'permit(address,address,uint256,uint256,bytes)'): TypedContractMethod<
+      [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)'): TypedContractMethod<
+      [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
       [],
@@ -254,14 +448,34 @@ getFunction(nameOrSignature: 'transferFrom'): TypedContractMethod<
       [boolean],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'Approval'): TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+getEvent(key: 'AuthorizationUsed'): TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
+getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
 getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
 
     filters: {
       
       'Approval(address,address,uint256)': TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
       Approval: TypedContractEvent<ApprovalEvent.InputTuple, ApprovalEvent.OutputTuple, ApprovalEvent.OutputObject>;
+    
+
+      'AuthorizationUsed(address,bytes32)': TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
+      AuthorizationUsed: TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
+    
+
+      'EIP712DomainChanged()': TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+      EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
     
 
       'Transfer(address,address,uint256)': TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;

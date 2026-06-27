@@ -6,23 +6,29 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ConetGB1155Interface extends Interface {
-    getFunction(nameOrSignature: "DEFAULT_ADMIN_ROLE" | "ISSUER_ROLE" | "OPERATOR_ROLE" | "TOKENID_TOTAL" | "addIssuer" | "addIssuers" | "balanceOf" | "balanceOfBatch" | "currentHourId" | "dayIssuedOf" | "dayRecipientsPage" | "dayTotalIssued" | "dayWalletsCount" | "exists" | "finalizeHour" | "getRoleAdmin" | "grantRole" | "hasRole" | "hourExists" | "hourIdAt" | "hourInfo" | "hourMeta" | "hourStartTime" | "hourlyIssuedOf" | "hourlyRecipientsPage" | "hourlyTotalIssued" | "hourlyWalletsCount" | "isApprovedForAll" | "isIssuer" | "issueGB" | "issueGBBatch" | "issuedThisHourOf" | "issuedThisMonthOf" | "issuedThisWeekOf" | "issuedThisYearOf" | "issuedTodayOf" | "monthlyIssuedOf" | "monthlyRecipientsPage" | "monthlyTotalIssued" | "monthlyWalletsCount" | "removeIssuer" | "removeIssuers" | "renounceRole" | "revokeRole" | "revokeTotalOnly" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "startHourId" | "startTime" | "supportsInterface" | "totalSupply()" | "totalSupply(uint256)" | "uri" | "wasHourlyRecipient" | "weeklyIssuedOf" | "weeklyRecipientsPage" | "weeklyTotalIssued" | "weeklyWalletsCount" | "yearlyIssuedOf" | "yearlyRecipientsPage" | "yearlyTotalIssued" | "yearlyWalletsCount"): FunctionFragment;
+    getFunction(nameOrSignature: "DEFAULT_ADMIN_ROLE" | "DOMAIN_SEPARATOR" | "ISSUER_ROLE" | "OPERATOR_ROLE" | "TOKENID_TOTAL" | "addIssuer" | "addIssuers" | "authorizationState" | "balanceOf" | "balanceOfBatch" | "beneficiaryNodeIpsPage" | "beneficiaryNodesCount" | "beneficiaryNodesPage" | "currentHourId" | "dayIssuedOf" | "dayRecipientsPage" | "dayTotalIssued" | "dayWalletsCount" | "eip712Domain" | "exists" | "finalizeHour" | "getRoleAdmin" | "grantRole" | "hasRole" | "hourExists" | "hourIdAt" | "hourInfo" | "hourMeta" | "hourStartTime" | "hourlyIssuedOf" | "hourlyRecipientsPage" | "hourlyTotalIssued" | "hourlyWalletsCount" | "isApprovedForAll" | "isIssuer" | "issueGB" | "issueGBBatch" | "issueGBForNode" | "issueGBForNodeBatch" | "issuedThisHourOf" | "issuedThisMonthOf" | "issuedThisWeekOf" | "issuedThisYearOf" | "issuedTodayOf" | "monthlyIssuedOf" | "monthlyRecipientsPage" | "monthlyTotalIssued" | "monthlyWalletsCount" | "name" | "nodeBeneficiary" | "nodeDailySeries" | "nodeDayIssuedOf" | "nodeHourlyIssuedOf" | "nodeHourlySeries" | "nodeIpOf" | "nodeIssuedThisHourOf" | "nodeIssuedThisMonthOf" | "nodeIssuedThisWeekOf" | "nodeIssuedThisYearOf" | "nodeIssuedTodayOf" | "nodeMonthlyIssuedOf" | "nodeTotalIssued" | "nodeWeeklyIssuedOf" | "nodeYearlyIssuedOf" | "nonces" | "permitForAll" | "removeIssuer" | "removeIssuers" | "renounceRole" | "revokeRole" | "revokeTotalOnly" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setNodeIp" | "setNodeIpBatch" | "startHourId" | "startTime" | "supportsInterface" | "symbol" | "totalSupply()" | "totalSupply(uint256)" | "transferWithAuthorization" | "uri" | "wasHourlyRecipient" | "weeklyIssuedOf" | "weeklyRecipientsPage" | "weeklyTotalIssued" | "weeklyWalletsCount" | "yearlyIssuedOf" | "yearlyRecipientsPage" | "yearlyTotalIssued" | "yearlyWalletsCount"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "BatchIssued" | "HourFinalized" | "HourInitialized" | "Issued" | "IssuerAdded" | "IssuerRemoved" | "RevokedTotal" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "AuthorizationUsed" | "BatchIssued" | "EIP712DomainChanged" | "HourFinalized" | "HourInitialized" | "Issued" | "IssuerAdded" | "IssuerRemoved" | "NodeBeneficiaryLinked" | "NodeIpUpdated" | "NodeIssued" | "RevokedTotal" | "RoleAdminChanged" | "RoleGranted" | "RoleRevoked" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DEFAULT_ADMIN_ROLE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'ISSUER_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'OPERATOR_ROLE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'TOKENID_TOTAL', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addIssuer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addIssuers', values: [AddressLike[]]): string;
+encodeFunctionData(functionFragment: 'authorizationState', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'beneficiaryNodeIpsPage', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'beneficiaryNodesCount', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'beneficiaryNodesPage', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'currentHourId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'dayIssuedOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'dayRecipientsPage', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'dayTotalIssued', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'dayWalletsCount', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
 encodeFunctionData(functionFragment: 'exists', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'finalizeHour', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRoleAdmin', values: [BytesLike]): string;
@@ -41,6 +47,8 @@ encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, A
 encodeFunctionData(functionFragment: 'isIssuer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issueGB', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issueGBBatch', values: [AddressLike[], BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'issueGBForNode', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'issueGBForNodeBatch', values: [AddressLike[], AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'issuedThisHourOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedThisMonthOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedThisWeekOf', values: [AddressLike]): string;
@@ -50,6 +58,24 @@ encodeFunctionData(functionFragment: 'monthlyIssuedOf', values: [AddressLike, Bi
 encodeFunctionData(functionFragment: 'monthlyRecipientsPage', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'monthlyTotalIssued', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'monthlyWalletsCount', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'name', values?: undefined): string;
+encodeFunctionData(functionFragment: 'nodeBeneficiary', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeDailySeries', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeDayIssuedOf', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeHourlyIssuedOf', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeHourlySeries', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeIpOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeIssuedThisHourOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeIssuedThisMonthOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeIssuedThisWeekOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeIssuedThisYearOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeIssuedTodayOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeMonthlyIssuedOf', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeTotalIssued', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeWeeklyIssuedOf', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nodeYearlyIssuedOf', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'nonces', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'permitForAll', values: [AddressLike, AddressLike, boolean, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'removeIssuer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'removeIssuers', values: [AddressLike[]]): string;
 encodeFunctionData(functionFragment: 'renounceRole', values: [BytesLike, AddressLike]): string;
@@ -58,11 +84,15 @@ encodeFunctionData(functionFragment: 'revokeTotalOnly', values: [AddressLike, Bi
 encodeFunctionData(functionFragment: 'safeBatchTransferFrom', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[], BytesLike]): string;
 encodeFunctionData(functionFragment: 'safeTransferFrom', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
+encodeFunctionData(functionFragment: 'setNodeIp', values: [AddressLike, string]): string;
+encodeFunctionData(functionFragment: 'setNodeIpBatch', values: [AddressLike[], string[]]): string;
 encodeFunctionData(functionFragment: 'startHourId', values?: undefined): string;
 encodeFunctionData(functionFragment: 'startTime', values?: undefined): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply()', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply(uint256)', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'transferWithAuthorization', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'wasHourlyRecipient', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'weeklyIssuedOf', values: [AddressLike, BigNumberish]): string;
@@ -75,18 +105,24 @@ encodeFunctionData(functionFragment: 'yearlyTotalIssued', values: [BigNumberish]
 encodeFunctionData(functionFragment: 'yearlyWalletsCount', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'DEFAULT_ADMIN_ROLE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'ISSUER_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'OPERATOR_ROLE', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'TOKENID_TOTAL', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addIssuer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addIssuers', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'authorizationState', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'beneficiaryNodeIpsPage', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'beneficiaryNodesCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'beneficiaryNodesPage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'currentHourId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dayIssuedOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dayRecipientsPage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dayTotalIssued', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dayWalletsCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'exists', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'finalizeHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRoleAdmin', data: BytesLike): Result;
@@ -105,6 +141,8 @@ decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'isIssuer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueGB', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueGBBatch', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issueGBForNode', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issueGBForNodeBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedThisHourOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedThisMonthOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedThisWeekOf', data: BytesLike): Result;
@@ -114,6 +152,24 @@ decodeFunctionResult(functionFragment: 'monthlyIssuedOf', data: BytesLike): Resu
 decodeFunctionResult(functionFragment: 'monthlyRecipientsPage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'monthlyTotalIssued', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'monthlyWalletsCount', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeBeneficiary', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeDailySeries', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeDayIssuedOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeHourlyIssuedOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeHourlySeries', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIpOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIssuedThisHourOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIssuedThisMonthOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIssuedThisWeekOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIssuedThisYearOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeIssuedTodayOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeMonthlyIssuedOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeTotalIssued', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeWeeklyIssuedOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeYearlyIssuedOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nonces', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'permitForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeIssuer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeIssuers', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceRole', data: BytesLike): Result;
@@ -122,11 +178,15 @@ decodeFunctionResult(functionFragment: 'revokeTotalOnly', data: BytesLike): Resu
 decodeFunctionResult(functionFragment: 'safeBatchTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'safeTransferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setNodeIp', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setNodeIpBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'startHourId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'startTime', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply()', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply(uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferWithAuthorization', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'wasHourlyRecipient', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'weeklyIssuedOf', data: BytesLike): Result;
@@ -152,10 +212,34 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
 
   
 
+    export namespace AuthorizationUsedEvent {
+      export type InputTuple = [authorizer: AddressLike, nonce: BytesLike];
+      export type OutputTuple = [authorizer: string, nonce: string];
+      export interface OutputObject {authorizer: string, nonce: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace BatchIssuedEvent {
       export type InputTuple = [issuer: AddressLike, hourId: BigNumberish, count: BigNumberish, totalAmountGB18: BigNumberish];
       export type OutputTuple = [issuer: string, hourId: bigint, count: bigint, totalAmountGB18: bigint];
       export interface OutputObject {issuer: string, hourId: bigint, count: bigint, totalAmountGB18: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace EIP712DomainChangedEvent {
+      export type InputTuple = [];
+      export type OutputTuple = [];
+      export interface OutputObject {};
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -216,6 +300,42 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
       export type InputTuple = [account: AddressLike];
       export type OutputTuple = [account: string];
       export interface OutputObject {account: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace NodeBeneficiaryLinkedEvent {
+      export type InputTuple = [node: AddressLike, beneficiary: AddressLike];
+      export type OutputTuple = [node: string, beneficiary: string];
+      export interface OutputObject {node: string, beneficiary: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace NodeIpUpdatedEvent {
+      export type InputTuple = [node: AddressLike, ip: string];
+      export type OutputTuple = [node: string, ip: string];
+      export interface OutputObject {node: string, ip: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace NodeIssuedEvent {
+      export type InputTuple = [issuer: AddressLike, beneficiary: AddressLike, node: AddressLike, amountGB18: BigNumberish, hourId: BigNumberish];
+      export type OutputTuple = [issuer: string, beneficiary: string, node: string, amountGB18: bigint, hourId: bigint];
+      export interface OutputObject {issuer: string, beneficiary: string, node: string, amountGB18: bigint, hourId: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -350,6 +470,14 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    DOMAIN_SEPARATOR: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     ISSUER_ROLE: TypedContractMethod<
       [],
       [string],
@@ -390,6 +518,14 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    authorizationState: TypedContractMethod<
+      [arg0: AddressLike, arg1: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     balanceOf: TypedContractMethod<
       [account: AddressLike, id: BigNumberish, ],
       [bigint],
@@ -401,6 +537,30 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     balanceOfBatch: TypedContractMethod<
       [accounts: AddressLike[], ids: BigNumberish[], ],
       [bigint[]],
+      'view'
+    >
+    
+
+    
+    beneficiaryNodeIpsPage: TypedContractMethod<
+      [beneficiary: AddressLike, start: BigNumberish, limit: BigNumberish, ],
+      [[string[], string[]] & {nodes: string[], ips: string[] }],
+      'view'
+    >
+    
+
+    
+    beneficiaryNodesCount: TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    beneficiaryNodesPage: TypedContractMethod<
+      [beneficiary: AddressLike, start: BigNumberish, limit: BigNumberish, ],
+      [string[]],
       'view'
     >
     
@@ -441,6 +601,14 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     dayWalletsCount: TypedContractMethod<
       [deviation: BigNumberish, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    eip712Domain: TypedContractMethod<
+      [],
+      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
       'view'
     >
     
@@ -590,6 +758,22 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    issueGBForNode: TypedContractMethod<
+      [beneficiary: AddressLike, node: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    issueGBForNodeBatch: TypedContractMethod<
+      [beneficiaries: AddressLike[], nodes: AddressLike[], issues: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     issuedThisHourOf: TypedContractMethod<
       [account: AddressLike, ],
       [bigint],
@@ -662,6 +846,150 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    name: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    nodeBeneficiary: TypedContractMethod<
+      [arg0: AddressLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    nodeDailySeries: TypedContractMethod<
+      [node: AddressLike, count: BigNumberish, ],
+      [[bigint[], bigint[]] & {dayKeys: bigint[], amounts: bigint[] }],
+      'view'
+    >
+    
+
+    
+    nodeDayIssuedOf: TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeHourlyIssuedOf: TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeHourlySeries: TypedContractMethod<
+      [node: AddressLike, count: BigNumberish, ],
+      [[bigint[], bigint[]] & {hourIds: bigint[], amounts: bigint[] }],
+      'view'
+    >
+    
+
+    
+    nodeIpOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [string],
+      'view'
+    >
+    
+
+    
+    nodeIssuedThisHourOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeIssuedThisMonthOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeIssuedThisWeekOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeIssuedThisYearOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeIssuedTodayOf: TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeMonthlyIssuedOf: TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeTotalIssued: TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeWeeklyIssuedOf: TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nodeYearlyIssuedOf: TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    nonces: TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    permitForAll: TypedContractMethod<
+      [owner: AddressLike, operator: AddressLike, approved: boolean, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     removeIssuer: TypedContractMethod<
       [account: AddressLike, ],
       [void],
@@ -726,6 +1054,22 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    setNodeIp: TypedContractMethod<
+      [node: AddressLike, ip: string, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setNodeIpBatch: TypedContractMethod<
+      [nodes: AddressLike[], ips: string[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     startHourId: TypedContractMethod<
       [],
       [bigint],
@@ -750,6 +1094,14 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
     
 
     
+    symbol: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     "totalSupply()": TypedContractMethod<
       [],
       [bigint],
@@ -762,6 +1114,14 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
       [id: BigNumberish, ],
       [bigint],
       'view'
+    >
+    
+
+    
+    transferWithAuthorization: TypedContractMethod<
+      [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -853,6 +1213,11 @@ decodeFunctionResult(functionFragment: 'yearlyWalletsCount', data: BytesLike): R
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'ISSUER_ROLE'): TypedContractMethod<
       [],
       [string],
@@ -878,6 +1243,11 @@ getFunction(nameOrSignature: 'addIssuers'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'authorizationState'): TypedContractMethod<
+      [arg0: AddressLike, arg1: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
       [account: AddressLike, id: BigNumberish, ],
       [bigint],
@@ -886,6 +1256,21 @@ getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
 getFunction(nameOrSignature: 'balanceOfBatch'): TypedContractMethod<
       [accounts: AddressLike[], ids: BigNumberish[], ],
       [bigint[]],
+      'view'
+    >;
+getFunction(nameOrSignature: 'beneficiaryNodeIpsPage'): TypedContractMethod<
+      [beneficiary: AddressLike, start: BigNumberish, limit: BigNumberish, ],
+      [[string[], string[]] & {nodes: string[], ips: string[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'beneficiaryNodesCount'): TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'beneficiaryNodesPage'): TypedContractMethod<
+      [beneficiary: AddressLike, start: BigNumberish, limit: BigNumberish, ],
+      [string[]],
       'view'
     >;
 getFunction(nameOrSignature: 'currentHourId'): TypedContractMethod<
@@ -911,6 +1296,11 @@ getFunction(nameOrSignature: 'dayTotalIssued'): TypedContractMethod<
 getFunction(nameOrSignature: 'dayWalletsCount'): TypedContractMethod<
       [deviation: BigNumberish, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'eip712Domain'): TypedContractMethod<
+      [],
+      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'exists'): TypedContractMethod<
@@ -1003,6 +1393,16 @@ getFunction(nameOrSignature: 'issueGBBatch'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'issueGBForNode'): TypedContractMethod<
+      [beneficiary: AddressLike, node: AddressLike, amountGB18: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'issueGBForNodeBatch'): TypedContractMethod<
+      [beneficiaries: AddressLike[], nodes: AddressLike[], issues: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'issuedThisHourOf'): TypedContractMethod<
       [account: AddressLike, ],
       [bigint],
@@ -1048,6 +1448,96 @@ getFunction(nameOrSignature: 'monthlyWalletsCount'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'name'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeBeneficiary'): TypedContractMethod<
+      [arg0: AddressLike, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeDailySeries'): TypedContractMethod<
+      [node: AddressLike, count: BigNumberish, ],
+      [[bigint[], bigint[]] & {dayKeys: bigint[], amounts: bigint[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeDayIssuedOf'): TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeHourlyIssuedOf'): TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeHourlySeries'): TypedContractMethod<
+      [node: AddressLike, count: BigNumberish, ],
+      [[bigint[], bigint[]] & {hourIds: bigint[], amounts: bigint[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIpOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIssuedThisHourOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIssuedThisMonthOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIssuedThisWeekOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIssuedThisYearOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeIssuedTodayOf'): TypedContractMethod<
+      [node: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeMonthlyIssuedOf'): TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeTotalIssued'): TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeWeeklyIssuedOf'): TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeYearlyIssuedOf'): TypedContractMethod<
+      [node: AddressLike, deviation: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nonces'): TypedContractMethod<
+      [owner: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'permitForAll'): TypedContractMethod<
+      [owner: AddressLike, operator: AddressLike, approved: boolean, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'removeIssuer'): TypedContractMethod<
       [account: AddressLike, ],
       [void],
@@ -1088,6 +1578,16 @@ getFunction(nameOrSignature: 'setApprovalForAll'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setNodeIp'): TypedContractMethod<
+      [node: AddressLike, ip: string, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setNodeIpBatch'): TypedContractMethod<
+      [nodes: AddressLike[], ips: string[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'startHourId'): TypedContractMethod<
       [],
       [bigint],
@@ -1103,6 +1603,11 @@ getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'totalSupply()'): TypedContractMethod<
       [],
       [bigint],
@@ -1112,6 +1617,11 @@ getFunction(nameOrSignature: 'totalSupply(uint256)'): TypedContractMethod<
       [id: BigNumberish, ],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'transferWithAuthorization'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, id: BigNumberish, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<
       [id: BigNumberish, ],
@@ -1165,12 +1675,17 @@ getFunction(nameOrSignature: 'yearlyWalletsCount'): TypedContractMethod<
     >;
 
     getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
+getEvent(key: 'AuthorizationUsed'): TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
 getEvent(key: 'BatchIssued'): TypedContractEvent<BatchIssuedEvent.InputTuple, BatchIssuedEvent.OutputTuple, BatchIssuedEvent.OutputObject>;
+getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
 getEvent(key: 'HourFinalized'): TypedContractEvent<HourFinalizedEvent.InputTuple, HourFinalizedEvent.OutputTuple, HourFinalizedEvent.OutputObject>;
 getEvent(key: 'HourInitialized'): TypedContractEvent<HourInitializedEvent.InputTuple, HourInitializedEvent.OutputTuple, HourInitializedEvent.OutputObject>;
 getEvent(key: 'Issued'): TypedContractEvent<IssuedEvent.InputTuple, IssuedEvent.OutputTuple, IssuedEvent.OutputObject>;
 getEvent(key: 'IssuerAdded'): TypedContractEvent<IssuerAddedEvent.InputTuple, IssuerAddedEvent.OutputTuple, IssuerAddedEvent.OutputObject>;
 getEvent(key: 'IssuerRemoved'): TypedContractEvent<IssuerRemovedEvent.InputTuple, IssuerRemovedEvent.OutputTuple, IssuerRemovedEvent.OutputObject>;
+getEvent(key: 'NodeBeneficiaryLinked'): TypedContractEvent<NodeBeneficiaryLinkedEvent.InputTuple, NodeBeneficiaryLinkedEvent.OutputTuple, NodeBeneficiaryLinkedEvent.OutputObject>;
+getEvent(key: 'NodeIpUpdated'): TypedContractEvent<NodeIpUpdatedEvent.InputTuple, NodeIpUpdatedEvent.OutputTuple, NodeIpUpdatedEvent.OutputObject>;
+getEvent(key: 'NodeIssued'): TypedContractEvent<NodeIssuedEvent.InputTuple, NodeIssuedEvent.OutputTuple, NodeIssuedEvent.OutputObject>;
 getEvent(key: 'RevokedTotal'): TypedContractEvent<RevokedTotalEvent.InputTuple, RevokedTotalEvent.OutputTuple, RevokedTotalEvent.OutputObject>;
 getEvent(key: 'RoleAdminChanged'): TypedContractEvent<RoleAdminChangedEvent.InputTuple, RoleAdminChangedEvent.OutputTuple, RoleAdminChangedEvent.OutputObject>;
 getEvent(key: 'RoleGranted'): TypedContractEvent<RoleGrantedEvent.InputTuple, RoleGrantedEvent.OutputTuple, RoleGrantedEvent.OutputObject>;
@@ -1185,8 +1700,16 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
       ApprovalForAll: TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
     
 
+      'AuthorizationUsed(address,bytes32)': TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
+      AuthorizationUsed: TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
+    
+
       'BatchIssued(address,uint256,uint256,uint256)': TypedContractEvent<BatchIssuedEvent.InputTuple, BatchIssuedEvent.OutputTuple, BatchIssuedEvent.OutputObject>;
       BatchIssued: TypedContractEvent<BatchIssuedEvent.InputTuple, BatchIssuedEvent.OutputTuple, BatchIssuedEvent.OutputObject>;
+    
+
+      'EIP712DomainChanged()': TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+      EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
     
 
       'HourFinalized(uint256,uint64)': TypedContractEvent<HourFinalizedEvent.InputTuple, HourFinalizedEvent.OutputTuple, HourFinalizedEvent.OutputObject>;
@@ -1207,6 +1730,18 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'IssuerRemoved(address)': TypedContractEvent<IssuerRemovedEvent.InputTuple, IssuerRemovedEvent.OutputTuple, IssuerRemovedEvent.OutputObject>;
       IssuerRemoved: TypedContractEvent<IssuerRemovedEvent.InputTuple, IssuerRemovedEvent.OutputTuple, IssuerRemovedEvent.OutputObject>;
+    
+
+      'NodeBeneficiaryLinked(address,address)': TypedContractEvent<NodeBeneficiaryLinkedEvent.InputTuple, NodeBeneficiaryLinkedEvent.OutputTuple, NodeBeneficiaryLinkedEvent.OutputObject>;
+      NodeBeneficiaryLinked: TypedContractEvent<NodeBeneficiaryLinkedEvent.InputTuple, NodeBeneficiaryLinkedEvent.OutputTuple, NodeBeneficiaryLinkedEvent.OutputObject>;
+    
+
+      'NodeIpUpdated(address,string)': TypedContractEvent<NodeIpUpdatedEvent.InputTuple, NodeIpUpdatedEvent.OutputTuple, NodeIpUpdatedEvent.OutputObject>;
+      NodeIpUpdated: TypedContractEvent<NodeIpUpdatedEvent.InputTuple, NodeIpUpdatedEvent.OutputTuple, NodeIpUpdatedEvent.OutputObject>;
+    
+
+      'NodeIssued(address,address,address,uint256,uint256)': TypedContractEvent<NodeIssuedEvent.InputTuple, NodeIssuedEvent.OutputTuple, NodeIssuedEvent.OutputObject>;
+      NodeIssued: TypedContractEvent<NodeIssuedEvent.InputTuple, NodeIssuedEvent.OutputTuple, NodeIssuedEvent.OutputObject>;
     
 
       'RevokedTotal(address,uint256)': TypedContractEvent<RevokedTotalEvent.InputTuple, RevokedTotalEvent.OutputTuple, RevokedTotalEvent.OutputObject>;

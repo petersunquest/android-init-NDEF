@@ -1,10 +1,10 @@
 {
-  "peerModule": "0xCF26c1686aC5E01e37B72017E575511C42cad29f",
+  "peerModule": "0x952c62feb412Eb60b52D086163fED2677363143f",
   "peerChainId": "224422",
   "nativePeerToken": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
   "deployments": {
     "8453": "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39",
-    "224422": "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39"
+    "224422": "0x9619eA6617fc8D7290Ee62FDAc0a9861B50fFb06"
   },
-  "updatedAt": "2026-06-15T09:18:03.591Z"
+  "updatedAt": "2026-06-27T02:27:19.875Z"
 }

@@ -17,13 +17,19 @@ alwaysApply: true
 
 `package.json` 中 `homepage` 必须为 `"/biz"`。
 
-## 标准部署流程（推荐：服务器构建）
+**版本号**：`package.json` → `src/version.ts` → UI `APP_VERSION`（登录页、Onboarding 页脚等）。**每次标准部署须 patch bump**，见 **`beamio-deploy-version-bump.mdc`**。
 
-1. **本地子项目**：`cd src/bizSite` → 提交并 `git push`（分支 `cashtrees`）。
-2. **根仓**：若更新了子模块指针或部署脚本，一并 commit + push。
-3. **远程构建与发布**（二选一）：
-   - 脚本：`./scripts/deployBeamioBizSite.sh`（默认 remote build）
-   - 或手动 SSH：
+## 标准部署流程（推荐：脚本一键）
+
+1. **业务改动**：`src/bizSite` 内 commit；working tree **必须 clean**（bump 前脚本会检查）。
+2. **部署**：`./scripts/deployBeamioBizSite.sh`（默认 remote build）或 `./scripts/deployBeamioBizSite.sh --local-build`。
+   - 脚本 **自动** `npm version patch` → commit `chore(biz): bump version to …` → **push** → build → `bizTemp/` → `biz/`。
+3. **根仓**：若更新了子模块指针，一并 commit + push。
+4. **验收**：硬刷新 `https://biz.beamio.app/biz/`，确认页脚 **新版本号** + Overview / Terminals / Programs。
+
+## 手动 SSH（仅当无法跑脚本时）
+
+须 **先**在本地完成 version bump + push（同上守则），再 SSH：
 
 ```bash
 ssh conet.network
@@ -34,23 +40,24 @@ rsync -a --delete build/ ../bizTemp/
 rsync -a --delete ../bizTemp/ ../biz/
 ```
 
-4. **验收**：硬刷新 `https://biz.beamio.app/biz/`，抽查 Merchant OS 关键页（Overview、Terminals、Programs）。
-
 ## 脚本选项
 
 `scripts/deployBeamioBizSite.sh`：
 
 | 模式 | 说明 |
 |---|---|
-| 默认 | SSH 到服务器，在 `SilentPassUI` 内 `git pull && npm run build`，再 promote 到 `biz/` |
-| `--local-build` | 本地 `src/bizSite` 构建后 rsync 到远程 `bizTemp/` + `biz/` |
+| 默认 | **patch bump** → push → SSH `git pull && npm run build` → promote 到 `biz/` |
+| `--local-build` | **patch bump** → push → 本地 build → rsync `bizTemp/` + `biz/` |
+| `--skip-version-bump` | 跳过 bump（**不推荐**；见 `beamio-deploy-version-bump.mdc`） |
 | `--skip-build` | 跳过构建，仅 promote 已有 `build/` |
 | `--skip-promote` | 只更新 `bizTemp/`，不写入 `biz/` |
+| `--dry-run` | 打印计划步骤，不 bump / 不发布 |
 
 环境变量：`BEAMIO_DEPLOY_HOST`（默认 `conet.network`）、`BEAMIO_DEPLOY_USER`、`BEAMIO_BIZ_ROOT`（默认 `/var/www/biz.beamio.app`）。
 
 ## 严禁
 
+- ❌ 标准部署 **不 bump** `src/bizSite/package.json` version（除非显式 `--skip-version-bump` 且有理由）
 - ❌ 把 bizSite build rsync 到 `/var/www/beamio.app/`（那是 homepage + PWA，见 `beamio-pwa-deploy-app-dirs.mdc`）
 - ❌ 删除或 `--delete` 覆盖 `/var/www/biz.beamio.app/` 下与 biz 无关的目录
 - ❌ 未 `git push` 就在服务器 `git pull`（会得到旧代码）
@@ -58,6 +65,7 @@ rsync -a --delete ../bizTemp/ ../biz/
 
 ## 参考
 
+- 版本 bump 总则：`beamio-deploy-version-bump.mdc`
 - nginx：`src/x402sdk/service/beamio.conf` — `server_name biz.beamio.app`
 - 部署脚本：`scripts/deployBeamioBizSite.sh`
 - 源码：`src/bizSite/`（`homepage: "/biz"`）

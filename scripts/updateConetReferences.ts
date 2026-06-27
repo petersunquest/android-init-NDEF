@@ -78,10 +78,12 @@ function patchDashboardContractsGbEntry(content: string, entryKey: string, addr:
 /** 替换 `export const Name = '0x...'`（单引号） */
 function patchExportConstSingleQuoted(content: string, exportName: string, addr: string | undefined): string {
   if (!addr) return content;
-  return content.replace(
+  const withAddr = content.replace(
     new RegExp(`(export const ${exportName} = ')0x[a-fA-F0-9]{40}(')`, "g"),
     `$1${addr}$2`
   );
+  if (withAddr !== content) return withAddr;
+  return content.replace(new RegExp(`(export const ${exportName} = )''`), `$1'${addr}'`);
 }
 
 function patchNumericConst(content: string, exportName: string, n: number): string {
@@ -118,6 +120,8 @@ function main() {
   const conetGBTotal = data.ConetGB_total as string | undefined;
   const conetGBUserTotal = data.ConetGB_userTotal as string | undefined;
   const epochMiningInfo = data.EpochMiningInfo as string | undefined;
+  const validatorDepositRedeem = data.ValidatorDepositRedeem as string | undefined;
+  const validatorNodeRewardIndexer = data.ValidatorNodeRewardIndexer as string | undefined;
 
   const legacyAccountRegistry = data.legacyAccountRegistry as string | undefined;
   const legacyArchiveRpc = data.legacyArchiveRpc as string | undefined;
@@ -343,6 +347,10 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_AA_FACTORY", aaFactory);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
     content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
+    content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
+    content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FACTORY_EXECUTE_LIB", userCardFactoryExecuteLib);
@@ -388,6 +396,8 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_ACCOUNT_REGISTRY", accountRegistry);
     content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
     content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
     content = patchNumericConst(content, "CONET_MAINNET_CHAIN_ID", chainIdNum);
     content = content.replace(/conet:\s*\{[^}]*chainId:\s*\d+/, (block) => block.replace(/chainId:\s*\d+/, `chainId: ${chainIdNum}`));
     fs.writeFileSync(uiChainPath, content);
@@ -454,6 +464,10 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_AA_FACTORY", aaFactory);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_DEFAULT", userCardDefault);
     content = patchExportConstSingleQuoted(content, "CONET_USDC", conetUsdc);
+    content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
+    content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "BEAMIO_ORACLE_CONET", beamioOracle);

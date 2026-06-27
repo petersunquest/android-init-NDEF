@@ -110,6 +110,7 @@ contract ConetTreasury {
     error InvalidSignature();
     error BUnitAirdropNotSet();
     error ConetGBNotSet();
+    error EmptyTokenMetadata();
 
     address public peerModule;
     address public bunitAirdrop;
@@ -258,6 +259,7 @@ contract ConetTreasury {
      *      baseToken 为该 CoNET 代币在 Base 链上对应的 ERC20 地址，出金时 miner 在 BaseTreasury 转账用。
      */
     function createERC20(string calldata name_, string calldata symbol_, uint8 decimals_, address baseToken) external onlyMiner returns (address token) {
+        if (bytes(name_).length == 0 || bytes(symbol_).length == 0) revert EmptyTokenMetadata();
         token = address(new FactoryERC20(name_, symbol_, decimals_, address(this)));
         _createdTokens.push(token);
         _isCreatedToken[token] = true;

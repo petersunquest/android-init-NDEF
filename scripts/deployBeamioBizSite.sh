@@ -17,6 +17,7 @@ SSH_TARGET="${BEAMIO_DEPLOY_USER:+${BEAMIO_DEPLOY_USER}@}${BEAMIO_DEPLOY_HOST}"
 LOCAL_BUILD=0
 SKIP_BUILD=0
 SKIP_PROMOTE=0
+SKIP_VERSION_BUMP=0
 DRY_RUN=0
 
 usage() {
@@ -26,16 +27,18 @@ Usage: scripts/deployBeamioBizSite.sh [options]
 Deploy bizSite (Merchant OS) to biz.beamio.app/biz/.
 
 Default (remote build):
-  1) ssh: cd /var/www/biz.beamio.app/SilentPassUI && git pull && npm run build
-  2) rsync build/ -> bizTemp/
-  3) rsync bizTemp/ -> biz/
+  1) bump patch version in src/bizSite/package.json (commit + push, branch cashtrees)
+  2) ssh: cd /var/www/biz.beamio.app/SilentPassUI && git pull && npm run build
+  3) rsync build/ -> bizTemp/
+  4) rsync bizTemp/ -> biz/
 
 Options:
-  --local-build   Build in src/bizSite locally, then rsync to remote
-  --skip-build    Skip build step (remote: use existing build/ on server)
-  --skip-promote  Only update bizTemp/, do not copy to biz/
-  --dry-run       Pass --dry-run to rsync (local-build mode only)
-  -h, --help      Show this help
+  --local-build        Build in src/bizSite locally, then rsync to remote
+  --skip-build         Skip build step (remote: use existing build/ on server)
+  --skip-promote       Only update bizTemp/, do not copy to biz/
+  --skip-version-bump  Skip local package.json patch bump (not recommended)
+  --dry-run            Print planned steps; local-build rsync uses --dry-run
+  -h, --help           Show this help
 
 Environment:
   BEAMIO_DEPLOY_HOST   SSH host (default: conet.network)
@@ -50,11 +53,62 @@ while [[ $# -gt 0 ]]; do
 		--local-build) LOCAL_BUILD=1; shift ;;
 		--skip-build) SKIP_BUILD=1; shift ;;
 		--skip-promote) SKIP_PROMOTE=1; shift ;;
+		--skip-version-bump) SKIP_VERSION_BUMP=1; shift ;;
 		--dry-run) DRY_RUN=1; shift ;;
 		-h | --help) usage; exit 0 ;;
 		*) echo "Unknown option: $1" >&2; usage; exit 1 ;;
 	esac
 done
+
+if [[ ! -f "$BIZ_DIR/package.json" ]]; then
+	echo "Missing bizSite package.json: $BIZ_DIR/package.json" >&2
+	exit 1
+fi
+
+bump_bizsite_version() {
+	local old_version new_version
+
+	cd "$BIZ_DIR"
+
+	if ! git diff --quiet || ! git diff --cached --quiet; then
+		echo "bizSite has uncommitted changes. Commit or stash before deploy." >&2
+		exit 1
+	fi
+
+	old_version="$(node -p "require('./package.json').version")"
+	npm version patch --no-git-tag-version >/dev/null
+	new_version="$(node -p "require('./package.json').version")"
+
+	echo "==> Bumped bizSite version: ${old_version} -> ${new_version}"
+
+	git add package.json
+	if [[ -f package-lock.json ]]; then
+		git add package-lock.json
+	fi
+	git commit -m "chore(biz): bump version to ${new_version}"
+	git push
+}
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+	echo "==> Dry run: would deploy bizSite"
+	if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
+		echo "    1) npm version patch in $BIZ_DIR (commit + push)"
+	fi
+	if [[ "$LOCAL_BUILD" -eq 1 ]]; then
+		echo "    2) npm run build in $BIZ_DIR"
+		echo "    3) rsync build/ -> ${SSH_TARGET}:${BEAMIO_BIZ_ROOT}/bizTemp/ -> biz/"
+	else
+		echo "    2) ssh $SSH_TARGET 'cd $BEAMIO_BIZ_SRC && git pull && npm run build'"
+		echo "    3) remote promote bizTemp/ -> biz/"
+	fi
+	exit 0
+fi
+
+if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
+	bump_bizsite_version
+else
+	echo "==> Skipping version bump (--skip-version-bump)"
+fi
 
 remote_promote() {
 	local remote_cmd="
@@ -121,3 +175,6 @@ fi
 
 echo "==> Done. Spot-check:"
 echo "    https://biz.beamio.app/biz/"
+if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
+	echo "    version: v$(node -p "require('$BIZ_DIR/package.json').version") (login footer / APP_VERSION)"
+fi

@@ -1,11 +1,16 @@
 /**
- * 部署 ValidatorDepositRedeem 到 CoNET。
+ * 部署 ValidatorDepositRedeem 栈到 CoNET：
+ *   1) ValidatorDepositRedeemStatsLib（link）
+ *   2) ValidatorDepositRedeem
+ *   3) ValidatorDepositRedeemReferrerExtension
+ *   4) ValidatorDepositRedeemTransferMarket
+ *   5) 连线 setRedeemHost / setReferrerExtension / setTransferMarket
  *
  * 运行:
  *   npx hardhat run scripts/deployValidatorDepositRedeemToConet.ts --network conet
  *
- * 部署后必须验证:
- *   npx tsx scripts/verifyValidatorDepositRedeemConet.ts
+ * 部署后验证:
+ *   npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts
  */
 
 import { network as networkModule } from "hardhat";
@@ -27,6 +32,52 @@ function loadInitialRedeemAdmin(): string | undefined {
   return new ethers.Wallet(pks[0]).address;
 }
 
+function loadConetAddresses(): Record<string, unknown> {
+  const addrPath = path.join(root, "deployments", "conet-addresses.json");
+  if (!fs.existsSync(addrPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function loadGbTokenAddress(addrData: Record<string, unknown>): string {
+  const env = process.env.CONET_GB1155?.trim();
+  const raw = env || (typeof addrData.ConetGB1155 === "string" ? (addrData.ConetGB1155 as string) : "");
+  return raw && ethers.isAddress(raw) ? ethers.getAddress(raw) : ethers.ZeroAddress;
+}
+
+function loadGuardianNodesAddress(addrData: Record<string, unknown>): string {
+  const env = process.env.CONET_GUARDIAN_NODES_INFO_V6?.trim();
+  const raw =
+    env ||
+    (typeof addrData.GuardianNodesInfoV6 === "string"
+      ? (addrData.GuardianNodesInfoV6 as string)
+      : typeof addrData.guardianNodesInfoV6 === "string"
+        ? (addrData.guardianNodesInfoV6 as string)
+        : "0xBC6b53065b5647261396d002bDBA0d3396E0722f");
+  return raw && ethers.isAddress(raw) ? ethers.getAddress(raw) : ethers.ZeroAddress;
+}
+
+function loadGuardianAllocStartId(): bigint {
+  const env = process.env.VALIDATOR_REDEEM_GUARDIAN_ALLOC_START_ID?.trim();
+  if (env && /^\d+$/.test(env)) return BigInt(env);
+  return 100n;
+}
+
+function loadUsdcTokenAddress(addrData: Record<string, unknown>): string {
+  const env = process.env.CONET_USDC?.trim();
+  const raw =
+    env ||
+    (typeof addrData["conet-USDC"] === "string"
+      ? (addrData["conet-USDC"] as string)
+      : typeof addrData.conetUsdc === "string"
+        ? (addrData.conetUsdc as string)
+        : "");
+  return raw && ethers.isAddress(raw) ? ethers.getAddress(raw) : ethers.ZeroAddress;
+}
+
 async function main() {
   const { ethers: ethersHH } = await networkModule.connect();
   const [deployer] = await ethersHH.getSigners();
@@ -41,22 +92,71 @@ async function main() {
   }
   const initialRedeemAdmin = ethers.getAddress(initialRedeemAdminRaw);
 
+  const addrData = loadConetAddresses();
+  const gbToken = loadGbTokenAddress(addrData);
+  const usdcToken = loadUsdcTokenAddress(addrData);
+  const guardianNodes = loadGuardianNodesAddress(addrData);
+  const guardianAllocStartId = loadGuardianAllocStartId();
+
   console.log("=".repeat(60));
-  console.log("Deploy ValidatorDepositRedeem on CoNET");
+  console.log("Deploy ValidatorDepositRedeem stack on CoNET");
   console.log("=".repeat(60));
   console.log("deployer:", deployer.address);
   console.log("chainId:", net.chainId.toString());
   console.log("initialRedeemAdmin:", initialRedeemAdmin);
+  console.log("gbToken (ConetGB1155):", gbToken);
+  console.log("usdcToken (conetUsdc):", usdcToken);
+  console.log("guardianNodes (GuardianNodesInfoV6):", guardianNodes);
+  console.log("guardianAllocStartId:", guardianAllocStartId.toString());
   console.log("balance:", ethers.formatEther(await ethersHH.provider.getBalance(deployer.address)), "CNET\n");
 
-  const Factory = await ethersHH.getContractFactory("ValidatorDepositRedeem");
-  const redeem = await Factory.deploy(initialRedeemAdmin);
+  const StatsLibFactory = await ethersHH.getContractFactory("ValidatorDepositRedeemStatsLib");
+  const statsLib = await StatsLibFactory.deploy();
+  await statsLib.waitForDeployment();
+  const statsLibAddr = await statsLib.getAddress();
+  console.log("ValidatorDepositRedeemStatsLib:", statsLibAddr);
+
+  const RedeemFactory = await ethersHH.getContractFactory("ValidatorDepositRedeem", {
+    libraries: {
+      ValidatorDepositRedeemStatsLib: statsLibAddr,
+    },
+  });
+  const redeem = await RedeemFactory.deploy(
+    initialRedeemAdmin,
+    gbToken,
+    usdcToken,
+    guardianNodes,
+    guardianAllocStartId
+  );
   await redeem.waitForDeployment();
   const redeemAddr = await redeem.getAddress();
-  const txHash = redeem.deploymentTransaction()?.hash ?? "";
+  const redeemTxHash = redeem.deploymentTransaction()?.hash ?? "";
+  console.log("ValidatorDepositRedeem:", redeemAddr);
+  console.log("  tx:", redeemTxHash);
 
-  console.log("ValidatorDepositRedeem deployed:", redeemAddr);
-  console.log("tx:", txHash);
+  const ExtFactory = await ethersHH.getContractFactory("ValidatorDepositRedeemReferrerExtension");
+  const referrerExt = await ExtFactory.deploy(initialRedeemAdmin);
+  await referrerExt.waitForDeployment();
+  const referrerExtAddr = await referrerExt.getAddress();
+  console.log("ValidatorDepositRedeemReferrerExtension:", referrerExtAddr);
+
+  const MarketFactory = await ethersHH.getContractFactory("ValidatorDepositRedeemTransferMarket");
+  const transferMarket = await MarketFactory.deploy(redeemAddr);
+  await transferMarket.waitForDeployment();
+  const transferMarketAddr = await transferMarket.getAddress();
+  console.log("ValidatorDepositRedeemTransferMarket:", transferMarketAddr);
+
+  const wireExt = await referrerExt.setRedeemHost(redeemAddr);
+  await wireExt.wait();
+  console.log("referrerExt.setRedeemHost ok");
+
+  const wireRef = await redeem.setReferrerExtension(referrerExtAddr);
+  await wireRef.wait();
+  console.log("redeem.setReferrerExtension ok");
+
+  const wireMarket = await redeem.setTransferMarket(transferMarketAddr);
+  await wireMarket.wait();
+  console.log("redeem.setTransferMarket ok");
 
   const deploymentsDir = path.join(root, "deployments");
   if (!fs.existsSync(deploymentsDir)) fs.mkdirSync(deploymentsDir, { recursive: true });
@@ -69,16 +169,47 @@ async function main() {
     address: redeemAddr,
     deployer: deployer.address,
     initialRedeemAdmin,
+    gbToken,
+    usdcToken,
+    guardianNodes,
+    guardianAllocStartId: guardianAllocStartId.toString(),
+    statsLib: statsLibAddr,
+    referrerExtension: referrerExtAddr,
+    transferMarket: transferMarketAddr,
     constructorArgs: {
       initialRedeemAdmin,
+      gbToken,
+      usdcToken,
+      guardianNodes,
+      guardianAllocStartId: guardianAllocStartId.toString(),
+    },
+    libraryLinks: {
+      ValidatorDepositRedeemStatsLib: statsLibAddr,
     },
     timestamp: new Date().toISOString(),
-    transactionHash: txHash,
+    transactionHash: redeemTxHash,
     contracts: {
+      ValidatorDepositRedeemStatsLib: { address: statsLibAddr },
       ValidatorDepositRedeem: {
         address: redeemAddr,
         initialRedeemAdmin,
-        transactionHash: txHash,
+        gbToken,
+        usdcToken,
+        guardianNodes,
+        guardianAllocStartId: guardianAllocStartId.toString(),
+        statsLib: statsLibAddr,
+        referrerExtension: referrerExtAddr,
+        transferMarket: transferMarketAddr,
+        transactionHash: redeemTxHash,
+      },
+      ValidatorDepositRedeemReferrerExtension: {
+        address: referrerExtAddr,
+        admin: initialRedeemAdmin,
+        redeemHost: redeemAddr,
+      },
+      ValidatorDepositRedeemTransferMarket: {
+        address: transferMarketAddr,
+        redeemHost: redeemAddr,
       },
     },
   };
@@ -89,17 +220,29 @@ async function main() {
 
   const addrPath = path.join(deploymentsDir, "conet-addresses.json");
   if (fs.existsSync(addrPath)) {
-    const addrData = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, unknown>;
-    addrData.ValidatorDepositRedeem = redeemAddr;
-    addrData.validatorDepositRedeemDeployer = deployer.address;
-    addrData.validatorDepositRedeemDeployedAt = new Date().toISOString();
-    addrData.validatorDepositRedeemTx = txHash;
-    fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
-    console.log("updated deployments/conet-addresses.json ValidatorDepositRedeem:", redeemAddr);
+    const merged = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, unknown>;
+    const prev = typeof merged.ValidatorDepositRedeem === "string" ? merged.ValidatorDepositRedeem : "";
+    if (prev && prev !== redeemAddr) {
+      const deprecated = Array.isArray(merged.DEPRECATED_VALIDATOR_DEPOSIT_REDEEM)
+        ? (merged.DEPRECATED_VALIDATOR_DEPOSIT_REDEEM as string[])
+        : [];
+      if (!deprecated.includes(prev)) deprecated.push(prev);
+      merged.DEPRECATED_VALIDATOR_DEPOSIT_REDEEM = deprecated;
+    }
+    merged.ValidatorDepositRedeem = redeemAddr;
+    merged.ValidatorDepositRedeemStatsLib = statsLibAddr;
+    merged.ValidatorDepositRedeemReferrerExtension = referrerExtAddr;
+    merged.ValidatorDepositRedeemTransferMarket = transferMarketAddr;
+    merged.validatorDepositRedeemDeployer = deployer.address;
+    merged.validatorDepositRedeemDeployedAt = new Date().toISOString();
+    merged.validatorDepositRedeemTx = redeemTxHash;
+    fs.writeFileSync(addrPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
+    console.log("updated deployments/conet-addresses.json");
   }
 
-  console.log("\n下一步（必须）: npx tsx scripts/verifyValidatorDepositRedeemConet.ts");
-  console.log("然后同步 src/x402sdk/src/chainAddresses.ts CONET_VALIDATOR_DEPOSIT_REDEEM");
+  console.log("\n下一步（必须）: npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts");
+  console.log("配置 deposit / rewardIndexer: npx hardhat run scripts/configureValidatorDepositRedeemConet.ts --network conet");
+  console.log("然后: npx tsx scripts/updateConetReferences.ts");
 }
 
 main().catch((e) => {

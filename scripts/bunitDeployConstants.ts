@@ -11,9 +11,9 @@ export const BUINT_INITIAL_ADMIN = getAddress(
 /** CREATE2 salt：固定字符串，各链相同 */
 export const BUINT_CREATE2_SALT = id("beamio.bunits.v1");
 
-/** 当前 bytecode + Nick factory 下各链同址预测 */
+/** 当前 bytecode（含 EIP-2612/EIP-3009）+ Nick factory 下各链同址预测 */
 export const BUINT_CREATE2_PREDICTED = getAddress(
-  "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f"
+  "0xa354CC4c414568Dd14F6d63b53013f35483427f0"
 );
 
 /**
