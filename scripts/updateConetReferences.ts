@@ -121,7 +121,34 @@ function main() {
   const conetGBUserTotal = data.ConetGB_userTotal as string | undefined;
   const epochMiningInfo = data.EpochMiningInfo as string | undefined;
   const validatorDepositRedeem = data.ValidatorDepositRedeem as string | undefined;
+  const validatorDepositContractAdmin = data.validatorDepositContractAdmin as string | undefined;
   const validatorNodeRewardIndexer = data.ValidatorNodeRewardIndexer as string | undefined;
+  const validatorReferrerExtension = data.ValidatorDepositRedeemReferrerExtension as string | undefined;
+
+  let validatorDepositRedeemAdmin: string | undefined;
+  const redeemDeployPath = path.join(__dirname, "..", "deployments", "conet-ValidatorDepositRedeem.json");
+  if (fs.existsSync(redeemDeployPath)) {
+    try {
+      const rd = JSON.parse(fs.readFileSync(redeemDeployPath, "utf-8")) as {
+        initialContractAdmin?: string;
+        redeemAdmins?: string[];
+      };
+      if (!validatorDepositContractAdmin && rd.initialContractAdmin) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (data as any).validatorDepositContractAdmin = rd.initialContractAdmin;
+      }
+      if (Array.isArray(rd.redeemAdmins)) {
+        const nodeAdmin = rd.redeemAdmins.find(
+          (a) => a.toLowerCase() === "0xe974c5d10cc36738bc2619fc73b075504d5c6d1e"
+        );
+        if (nodeAdmin) validatorDepositRedeemAdmin = nodeAdmin;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  const contractAdmin =
+    validatorDepositContractAdmin ?? (data.validatorDepositContractAdmin as string | undefined);
 
   const legacyAccountRegistry = data.legacyAccountRegistry as string | undefined;
   const legacyArchiveRpc = data.legacyArchiveRpc as string | undefined;
@@ -350,7 +377,10 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
     content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_CONTRACT_ADMIN", contractAdmin);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM_ADMIN", validatorDepositRedeemAdmin);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_REFERRER_EXTENSION", validatorReferrerExtension);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FACTORY_EXECUTE_LIB", userCardFactoryExecuteLib);
@@ -397,7 +427,10 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
     content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_CONTRACT_ADMIN", contractAdmin);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM_ADMIN", validatorDepositRedeemAdmin);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_REFERRER_EXTENSION", validatorReferrerExtension);
     content = patchNumericConst(content, "CONET_MAINNET_CHAIN_ID", chainIdNum);
     content = content.replace(/conet:\s*\{[^}]*chainId:\s*\d+/, (block) => block.replace(/chainId:\s*\d+/, `chainId: ${chainIdNum}`));
     fs.writeFileSync(uiChainPath, content);
@@ -467,7 +500,10 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
     content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_CONTRACT_ADMIN", contractAdmin);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM_ADMIN", validatorDepositRedeemAdmin);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);
+    content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_REFERRER_EXTENSION", validatorReferrerExtension);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_FORMATTING_LIB", userCardFormattingLib);
     content = patchExportConstSingleQuoted(content, "CONET_BEAMIO_USER_CARD_TRANSFER_LIB", userCardTransferLib);
     content = patchExportConstSingleQuoted(content, "BEAMIO_ORACLE_CONET", beamioOracle);

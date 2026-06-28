@@ -208,7 +208,8 @@ async function main() {
 
   console.log("\n下一步:");
   console.log("  npx tsx scripts/updateConetReferences.ts");
-  console.log("  npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts ValidatorNodeRewardIndexer  # 若已加入 verify 目标");
+  console.log("  npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts");
+  console.log("  npx tsx scripts/acceptValidatorDepositRedeemStackConet.ts");
 }
 
 main().catch((e) => {

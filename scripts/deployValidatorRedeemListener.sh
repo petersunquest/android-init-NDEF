@@ -24,6 +24,7 @@ SSH_TARGET="${VALIDATOR_LISTENER_USER}@${VALIDATOR_LISTENER_HOST}"
 
 SKIP_BUILD=0
 SKIP_RESTART=0
+FORCE_ENV=0
 DRY_RUN=0
 
 usage() {
@@ -36,13 +37,14 @@ Default:
   1) cd src/x402sdk && npm run build
   2) rsync dist/ -> validator host ~/x402sdk/dist/
   3) Install /etc/default/conet-validator-redeem-listener + systemd unit
-  4) Copy 06_exit_validator.sh / 07_update_fee_recipient.sh into newCoNET dir
+  4) Copy 01_generate_listener wrapper + 06/07/08 validator helper scripts into newCoNET dir
   5) Preflight: Node >= 20, remote ~/.master.json exists (NOT copied by this script)
   6) systemctl enable --now conet-validator-redeem-listener
 
 Options:
   --skip-build      Skip local compile
   --skip-restart    Do not start/restart systemd service
+  --force-env       Replace /etc/default/conet-validator-redeem-listener entirely (default: merge, preserve secrets)
   --dry-run         rsync dry-run only
   -h, --help
 
@@ -57,6 +59,8 @@ Secrets (must exist ON TARGET HOST before claim redeems — never copied by this
   ~/.master.json               Created/maintained locally on that server only (Settle pool / other ops)
   secrets/deposit_sender_private_key.txt   Redeem admin key (key_38.102.85.33 → 0xE974…6d1E);
                                            signs fundAndDepositValidators; stake paid from contract balance.
+  secrets/validator_keystore_password.txt  Prysm keystore password (or set KEYSTORE_PASSWORD in env file).
+  secrets/prysm_wallet_password.txt        Prysm wallet password (or set WALLET_PASSWORD in env file).
   Install key only: scripts/installValidatorNodeRedeemAdminKey.sh
 EOF
 }
@@ -65,6 +69,7 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--skip-build) SKIP_BUILD=1; shift ;;
 		--skip-restart) SKIP_RESTART=1; shift ;;
+		--force-env) FORCE_ENV=1; shift ;;
 		--dry-run) DRY_RUN=1; shift ;;
 		-h | --help) usage; exit 0 ;;
 		*) echo "Unknown option: $1" >&2; usage; exit 1 ;;
@@ -81,7 +86,7 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
 	( cd "$X402SDK_DIR" && npm run build )
 fi
 
-for required in dist/endpoint/validatorDepositRedeemListenerDaemon.js dist/endpoint/validatorDepositRedeem.js; do
+for required in dist/endpoint/validatorDepositRedeemListenerDaemon.js dist/endpoint/validatorDepositRedeem.js dist/endpoint/validatorRewardHourlyReporter.js; do
 	if [[ ! -f "$X402SDK_DIR/$required" ]]; then
 		echo "Missing $X402SDK_DIR/$required — run npm run build in src/x402sdk first." >&2
 		exit 1
@@ -107,12 +112,17 @@ fi
 
 echo "==> Install validator helper scripts into ${VALIDATOR_NEWCONET_DIR}"
 rsync "${RSYNC_FLAGS[@]}" \
+	"$VALIDATOR_NODE_SCRIPTS/01_generate_append_validator_deposits_listener.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/06_exit_validator.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/07_update_fee_recipient.sh" \
+	"$VALIDATOR_NODE_SCRIPTS/08_import_append_validator_keys.sh" \
 	"${SSH_TARGET}:${VALIDATOR_NEWCONET_DIR}/"
 if [[ "$DRY_RUN" -eq 0 ]]; then
-	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh'"
+	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/01_generate_append_validator_deposits_listener.sh' '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh' '${VALIDATOR_NEWCONET_DIR}/08_import_append_validator_keys.sh'"
 fi
+
+KEYSTORE_PW_FILE="${VALIDATOR_NEWCONET_DIR}/secrets/validator_keystore_password.txt"
+WALLET_PW_FILE="${VALIDATOR_NEWCONET_DIR}/secrets/prysm_wallet_password.txt"
 
 echo "==> Install systemd unit + environment defaults"
 if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -122,18 +132,68 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
 	sed \
 		-e "s|CONET_VALIDATOR_NODE_IP=.*|CONET_VALIDATOR_NODE_IP=${VALIDATOR_NODE_IP}|" \
 		-e "s|CONET_VALIDATOR_NEWCONET_DIR=.*|CONET_VALIDATOR_NEWCONET_DIR=${VALIDATOR_NEWCONET_DIR}|" \
+		-e "s|CONET_VALIDATOR_REDEEM_ADMIN_PRIVATE_KEY_FILE=.*|CONET_VALIDATOR_REDEEM_ADMIN_PRIVATE_KEY_FILE=${DEPOSIT_KEY_FILE}|" \
 		-e "s|CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE=.*|CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE=${DEPOSIT_KEY_FILE}|" \
+		-e "s|CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE=.*|CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE=${KEYSTORE_PW_FILE}|" \
+		-e "s|CONET_VALIDATOR_WALLET_PASSWORD_FILE=.*|CONET_VALIDATOR_WALLET_PASSWORD_FILE=${WALLET_PW_FILE}|" \
+		-e "s|^# CONET_VALIDATOR_HOURLY_REWARD_REPORT=1|CONET_VALIDATOR_HOURLY_REWARD_REPORT=1|" \
+		-e "s|^# CONET_VALIDATOR_BEACON_REST_URL=.*|CONET_VALIDATOR_BEACON_REST_URL=http://127.0.0.1:4100|" \
+		-e "s|^# CONET_VALIDATOR_HOURLY_REWARD_STATE_FILE=.*|CONET_VALIDATOR_HOURLY_REWARD_STATE_FILE=/home/peter/.conet-validator-hourly-reward-state.json|" \
 		"$ENV_EXAMPLE" > "$ENV_TMP"
-	rsync -av "$ENV_TMP" "${SSH_TARGET}:/tmp/conet-validator-redeem-listener.env"
+	if [[ "$FORCE_ENV" -eq 1 ]]; then
+		echo "==> Replace /etc/default/conet-validator-redeem-listener (--force-env)"
+		rsync -av "$ENV_TMP" "${SSH_TARGET}:/tmp/conet-validator-redeem-listener.env"
+		ssh "$SSH_TARGET" "sudo mv /tmp/conet-validator-redeem-listener.env /etc/default/conet-validator-redeem-listener && sudo chmod 640 /etc/default/conet-validator-redeem-listener"
+	else
+		echo "==> Merge /etc/default/conet-validator-redeem-listener (preserve KEYSTORE_PASSWORD / custom lines)"
+		rsync -av "$ENV_TMP" "${SSH_TARGET}:/tmp/conet-validator-redeem-listener.env.new"
+		ssh "$SSH_TARGET" bash -s -- "$KEYSTORE_PW_FILE" "$VALIDATOR_NODE_IP" "$VALIDATOR_NEWCONET_DIR" "$DEPOSIT_KEY_FILE" <<'REMOTE'
+set -euo pipefail
+KEYSTORE_PW_FILE="$1"
+NODE_IP="$2"
+NEWCONET_DIR="$3"
+DEPOSIT_KEY="$4"
+ENV_PATH="/etc/default/conet-validator-redeem-listener"
+NEW_ENV="/tmp/conet-validator-redeem-listener.env.new"
+if [[ ! -f "$ENV_PATH" ]]; then
+	sudo mv "$NEW_ENV" "$ENV_PATH"
+else
+	sudo cp "$ENV_PATH" "${ENV_PATH}.bak.$(date +%Y%m%d%H%M%S)"
+	sudo cp "$ENV_PATH" /tmp/conet-validator-redeem-listener.env.merge
+	sudo chmod 644 /tmp/conet-validator-redeem-listener.env.merge
+	merge_kv() {
+		local key="$1"
+		local val="$2"
+		if sudo grep -qE "^${key}=" /tmp/conet-validator-redeem-listener.env.merge; then
+			sudo sed -i "s|^${key}=.*|${key}=${val}|" /tmp/conet-validator-redeem-listener.env.merge
+		else
+			echo "${key}=${val}" | sudo tee -a /tmp/conet-validator-redeem-listener.env.merge >/dev/null
+		fi
+	}
+	while IFS= read -r line || [[ -n "$line" ]]; do
+		[[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+		key="${line%%=*}"
+		val="${line#*=}"
+		case "$key" in
+			KEYSTORE_PASSWORD) continue ;; # never overwrite inline secret from template
+		esac
+		merge_kv "$key" "$val"
+	done < "$NEW_ENV"
+	sudo mv /tmp/conet-validator-redeem-listener.env.merge "$ENV_PATH"
+	rm -f "$NEW_ENV"
+fi
+sudo chmod 640 "$ENV_PATH"
+REMOTE
+	fi
 	rm -f "$ENV_TMP"
-	ssh "$SSH_TARGET" "sudo mv /tmp/conet-validator-redeem-listener.env /etc/default/conet-validator-redeem-listener && sudo chmod 640 /etc/default/conet-validator-redeem-listener"
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
 	echo "==> Preflight (no secrets copied)"
-	ssh "$SSH_TARGET" bash -s -- "$DEPOSIT_KEY_FILE" <<'REMOTE'
+	ssh "$SSH_TARGET" bash -s -- "$DEPOSIT_KEY_FILE" "$VALIDATOR_NEWCONET_DIR" <<'REMOTE'
 set -euo pipefail
 DEPOSIT_KEY="$1"
+NEWCONET_DIR="$2"
 NODE_MAJOR="$(node -p 'parseInt(process.versions.node,10)' 2>/dev/null || echo 0)"
 if [[ "$NODE_MAJOR" -lt 20 ]]; then
 	echo "ERROR: Node.js >= 20 required (current: $(node -v)). Install Node 20+ on this host." >&2
@@ -152,7 +212,36 @@ if [[ ! -f "$DEPOSIT_KEY" ]]; then
 else
 	echo "OK: redeem admin key file present"
 fi
+KEYSTORE_PW_FILE="${NEWCONET_DIR}/secrets/validator_keystore_password.txt"
+WALLET_PW_FILE="${NEWCONET_DIR}/secrets/prysm_wallet_password.txt"
+if [[ -f /etc/default/conet-validator-redeem-listener ]] && grep -qE '^KEYSTORE_PASSWORD=' /etc/default/conet-validator-redeem-listener 2>/dev/null; then
+	echo "OK: KEYSTORE_PASSWORD set in /etc/default/conet-validator-redeem-listener"
+elif [[ -f /etc/default/conet-validator-redeem-listener ]] && grep -qE '^CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE=' /etc/default/conet-validator-redeem-listener 2>/dev/null; then
+	echo "OK: CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE set in /etc/default/conet-validator-redeem-listener"
+elif [[ -f "$KEYSTORE_PW_FILE" ]]; then
+	echo "OK: validator keystore password file present ($KEYSTORE_PW_FILE)"
+else
+	echo "WARNING: KEYSTORE_PASSWORD / CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE missing." >&2
+	echo "ValidatorRedeemClaimed will fail at generate validators until configured." >&2
+	echo "Create $KEYSTORE_PW_FILE (chmod 600) or add KEYSTORE_PASSWORD to /etc/default/conet-validator-redeem-listener." >&2
+fi
+if [[ -f /etc/default/conet-validator-redeem-listener ]] && grep -qE '^WALLET_PASSWORD=' /etc/default/conet-validator-redeem-listener 2>/dev/null; then
+	echo "OK: WALLET_PASSWORD set in /etc/default/conet-validator-redeem-listener"
+elif [[ -f /etc/default/conet-validator-redeem-listener ]] && grep -qE '^CONET_VALIDATOR_WALLET_PASSWORD_FILE=' /etc/default/conet-validator-redeem-listener 2>/dev/null; then
+	echo "OK: CONET_VALIDATOR_WALLET_PASSWORD_FILE set in /etc/default/conet-validator-redeem-listener"
+elif [[ -f "$WALLET_PW_FILE" ]]; then
+	echo "OK: Prysm wallet password file present ($WALLET_PW_FILE)"
+else
+	echo "WARNING: WALLET_PASSWORD / CONET_VALIDATOR_WALLET_PASSWORD_FILE missing." >&2
+	echo "ValidatorRedeemClaimed will fail at generate validators until configured." >&2
+	echo "Create $WALLET_PW_FILE (chmod 600) or add WALLET_PASSWORD to /etc/default/conet-validator-redeem-listener." >&2
+fi
 REMOTE
+fi
+
+if [[ "$DRY_RUN" -eq 0 ]]; then
+	echo "==> Prysm import backfill skipped (run manually after wallet passwords verified):"
+	echo "    ssh ${SSH_TARGET} 'cd ${VALIDATOR_NEWCONET_DIR} && ./08_import_append_validator_keys.sh'"
 fi
 
 if [[ "$SKIP_RESTART" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
@@ -161,6 +250,8 @@ if [[ "$SKIP_RESTART" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 	sleep 4
 	echo "==> Service status"
 	ssh "$SSH_TARGET" "systemctl is-active ${VALIDATOR_LISTENER_SERVICE} && sudo journalctl -u ${VALIDATOR_LISTENER_SERVICE} -n 15 --no-pager -q"
+	echo "==> Hourly reward reporter (expect validatorRewardHourlyReporter starting when CONET_VALIDATOR_REDEEM_LISTENER=1)"
+	ssh "$SSH_TARGET" "sudo journalctl -u ${VALIDATOR_LISTENER_SERVICE} -n 80 --no-pager -q | grep -E 'validatorRewardHourlyReporter|validatorDepositRedeemListener' | tail -n 8 || true"
 fi
 
 echo "==> Done. Listener on ${VALIDATOR_LISTENER_HOST} (nodeIp=${VALIDATOR_NODE_IP})."

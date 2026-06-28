@@ -53,8 +53,16 @@
     "ValidatorDepositRedeemTransferMarket": {
       "address": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
       "redeemHost": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f"
+    },
+    "ValidatorNodeRewardIndexer": {
+      "address": "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
+      "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "redeem": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
+      "transactionHash": "0xfc3f03b7519baf6388f84e56414e290a6af105e578b32319e37afa356344dbc4"
     }
   },
+  "rewardIndexer": "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
+  "depositContract": "0x4242424242424242424242424242424242424242",
   "redeemAdmins": [
     "0xE974c5d10cc36738bC2619FC73b075504D5c6d1E",
     "0x4728BEeFa5b68E87a611EEC6965f5C5f9b2D5060",

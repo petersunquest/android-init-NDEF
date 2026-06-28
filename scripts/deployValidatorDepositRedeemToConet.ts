@@ -4,7 +4,8 @@
  *   2) ValidatorDepositRedeem
  *   3) ValidatorDepositRedeemReferrerExtension
  *   4) ValidatorDepositRedeemTransferMarket
- *   5) 连线 setRedeemHost / setReferrerExtension / setTransferMarket
+ *   5) ValidatorNodeRewardIndexer
+ *   6) 连线 setRedeemHost / setReferrerExtension / setTransferMarket / setDepositContract / setRewardIndexer
  *
  * 运行:
  *   npx hardhat run scripts/deployValidatorDepositRedeemToConet.ts --network conet
@@ -23,6 +24,7 @@ import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdm
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
+const DEFAULT_DEPOSIT = "0x4242424242424242424242424242424242424242";
 
 function loadInitialRedeemAdmin(): string | undefined {
   const env = process.env.VALIDATOR_DEPOSIT_REDEEM_INITIAL_ADMIN?.trim();
@@ -174,6 +176,38 @@ async function main() {
   await wireMarket.wait();
   console.log("redeem.setTransferMarket ok");
 
+  const depositContract = (() => {
+    const env = process.env.CONET_DEPOSIT_CONTRACT?.trim();
+    const raw = env || DEFAULT_DEPOSIT;
+    if (!ethers.isAddress(raw)) throw new Error("CONET_DEPOSIT_CONTRACT 无效");
+    return ethers.getAddress(raw);
+  })();
+  const curDeposit = ethers.getAddress(await redeem.depositContract());
+  if (curDeposit === ethers.ZeroAddress) {
+    const txDep = await redeem.setDepositContract(depositContract);
+    await txDep.wait();
+    console.log("redeem.setDepositContract ok →", depositContract);
+  } else {
+    console.log("redeem.depositContract already:", curDeposit);
+  }
+
+  const IndexerFactory = await ethersHH.getContractFactory("ValidatorNodeRewardIndexer");
+  const rewardIndexer = await IndexerFactory.deploy(initialRedeemAdmin, redeemAddr);
+  await rewardIndexer.waitForDeployment();
+  const rewardIndexerAddr = await rewardIndexer.getAddress();
+  const rewardIndexerTx = rewardIndexer.deploymentTransaction()?.hash ?? "";
+  console.log("ValidatorNodeRewardIndexer:", rewardIndexerAddr);
+  if (rewardIndexerTx) console.log("  tx:", rewardIndexerTx);
+
+  const curIndexer = ethers.getAddress(await redeem.rewardIndexer());
+  if (curIndexer === ethers.ZeroAddress) {
+    const txIdx = await redeem.setRewardIndexer(rewardIndexerAddr);
+    await txIdx.wait();
+    console.log("redeem.setRewardIndexer ok");
+  } else {
+    console.log("redeem.rewardIndexer already:", curIndexer);
+  }
+
   const deploymentsDir = path.join(root, "deployments");
   if (!fs.existsSync(deploymentsDir)) fs.mkdirSync(deploymentsDir, { recursive: true });
 
@@ -193,6 +227,8 @@ async function main() {
     statsLib: statsLibAddr,
     referrerExtension: referrerExtAddr,
     transferMarket: transferMarketAddr,
+    rewardIndexer: rewardIndexerAddr,
+    depositContract,
     constructorArgs: {
       initialRedeemAdmin,
       initialContractAdmin,
@@ -231,6 +267,12 @@ async function main() {
         address: transferMarketAddr,
         redeemHost: redeemAddr,
       },
+      ValidatorNodeRewardIndexer: {
+        address: rewardIndexerAddr,
+        admin: initialRedeemAdmin,
+        redeem: redeemAddr,
+        transactionHash: rewardIndexerTx || undefined,
+      },
     },
   };
 
@@ -253,6 +295,9 @@ async function main() {
     merged.ValidatorDepositRedeemStatsLib = statsLibAddr;
     merged.ValidatorDepositRedeemReferrerExtension = referrerExtAddr;
     merged.ValidatorDepositRedeemTransferMarket = transferMarketAddr;
+    merged.ValidatorNodeRewardIndexer = rewardIndexerAddr;
+    if (rewardIndexerTx) merged.validatorNodeRewardIndexerTx = rewardIndexerTx;
+    merged.validatorNodeRewardIndexerConfiguredAt = new Date().toISOString();
     merged.validatorDepositRedeemDeployer = deployer.address;
     merged.validatorDepositContractAdmin = initialContractAdmin;
     merged.validatorDepositRedeemDeployedAt = new Date().toISOString();
@@ -263,7 +308,7 @@ async function main() {
   }
 
   console.log("\n下一步（必须）: npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts");
-  console.log("配置 deposit / rewardIndexer: npx hardhat run scripts/configureValidatorDepositRedeemConet.ts --network conet");
+  console.log("链上验收: npx tsx scripts/acceptValidatorDepositRedeemStackConet.ts");
   console.log("添加 validator 节点 redeem admin: npx hardhat run scripts/addValidatorDepositRedeemAdminConet.ts --network conet");
   console.log("然后: npx tsx scripts/updateConetReferences.ts");
 }
