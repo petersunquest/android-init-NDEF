@@ -65,7 +65,8 @@
     "0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681",
     "0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab",
     "0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E",
-    "0x970792658C09A96E27Fc4D8B69fF9989C2AcB50E"
+    "0x970792658C09A96E27Fc4D8B69fF9989C2AcB50E",
+    "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC"
   ],
   "DEPRECATED_CONET_TREASURY_PEER": [
     "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39"
@@ -114,14 +115,14 @@
   "beamioUserCardUpdateLib": "0x0dd2F946D14b5b49F117cB3Ad5c35B72c1761b48",
   "beamioUserCardViewsLib": "0xeeE65DD61EB2D1188508e298b4B956EDfB82f9C6",
   "referrerRegistryLib": "0x3CC7ddD8e8F9711C4fcdA68191A6A88304E6B3CA",
-  "ValidatorDepositRedeem": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC",
-  "validatorDepositRedeemDeployBlock": 156606,
+  "ValidatorDepositRedeem": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
+  "validatorDepositRedeemDeployBlock": 159057,
   "validatorDepositRedeemDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "validatorDepositRedeemDeployedAt": "2026-06-28T00:16:01.781Z",
-  "validatorDepositRedeemTx": "0x59cf98f33f478a89213f440958592be86576060b1ddcf5e77ecb53e9d0160384",
-  "ValidatorDepositRedeemStatsLib": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377",
-  "ValidatorDepositRedeemReferrerExtension": "0xd3F42Fba76c37E9212bb3f11c927C97F439989f2",
-  "ValidatorDepositRedeemTransferMarket": "0x33bb8D468c76727A104c23C95cCD495b554978F0",
+  "validatorDepositRedeemDeployedAt": "2026-06-28T04:21:31.634Z",
+  "validatorDepositRedeemTx": "0xc10027914dc0b8e6647334d713104f0270d63ecfb34682ab3f0d345500cc66f2",
+  "ValidatorDepositRedeemStatsLib": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7",
+  "ValidatorDepositRedeemReferrerExtension": "0xF3097FB1339DbA0135196667FA2f13B313E4d08e",
+  "ValidatorDepositRedeemTransferMarket": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
   "ValidatorNodeRewardIndexer": "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
   "validatorNodeRewardIndexerTx": "0xfc3f03b7519baf6388f84e56414e290a6af105e578b32319e37afa356344dbc4",
   "validatorNodeRewardIndexerConfiguredAt": "2026-06-27T21:26:49.485Z",

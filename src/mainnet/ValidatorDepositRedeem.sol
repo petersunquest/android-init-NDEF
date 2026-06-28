@@ -1566,13 +1566,9 @@ contract ValidatorDepositRedeem is EIP712 {
             }
             require(nodeWallet != address(0), "ValidatorRedeem: no node wallet");
 
-            // Strict 1:1 — a node operator wallet must not serve two beneficiaries.
-            address nodeWalletBen = _nodeWalletBeneficiary[nodeWallet];
-            require(
-                nodeWalletBen == address(0) || nodeWalletBen == beneficiary,
-                "ValidatorRedeem: node wallet other beneficiary"
-            );
-            if (nodeWalletBen == address(0)) {
+            // DePIN uniqueness is per-IP in {_accrueOneDepinIp}. Many Guardian ids may share one
+            // operator EOA; do not block a new beneficiary when the operator wallet is already bound.
+            if (_nodeWalletBeneficiary[nodeWallet] == address(0)) {
                 _nodeWalletBeneficiary[nodeWallet] = beneficiary;
             }
 

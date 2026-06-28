@@ -113,7 +113,7 @@ if [[ "$SKIP_SMOKE" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 		echo "Smoke test failed: success!=true" >&2
 		exit 1
 	fi
-	if ! echo "$body" | grep -q '0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC'; then
+	if ! echo "$body" | grep -q '0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f'; then
 		echo "Warning: ValidatorDepositRedeem address not in config response (may need env on server)" >&2
 	fi
 fi

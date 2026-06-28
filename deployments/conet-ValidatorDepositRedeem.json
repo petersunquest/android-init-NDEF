@@ -3,7 +3,7 @@
   "chainId": "224422",
   "contract": "ValidatorDepositRedeem",
   "source": "src/mainnet/ValidatorDepositRedeem.sol",
-  "address": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC",
+  "address": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
@@ -11,9 +11,9 @@
   "usdcToken": "0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC",
   "guardianNodes": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
   "guardianAllocStartId": "100",
-  "statsLib": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377",
-  "referrerExtension": "0xd3F42Fba76c37E9212bb3f11c927C97F439989f2",
-  "transferMarket": "0x33bb8D468c76727A104c23C95cCD495b554978F0",
+  "statsLib": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7",
+  "referrerExtension": "0xF3097FB1339DbA0135196667FA2f13B313E4d08e",
+  "transferMarket": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
   "constructorArgs": {
     "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
     "initialContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
@@ -23,40 +23,41 @@
     "guardianAllocStartId": "100"
   },
   "libraryLinks": {
-    "ValidatorDepositRedeemStatsLib": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377"
+    "ValidatorDepositRedeemStatsLib": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7"
   },
-  "timestamp": "2026-06-28T00:16:01.777Z",
-  "deployBlock": 156606,
-  "transactionHash": "0x59cf98f33f478a89213f440958592be86576060b1ddcf5e77ecb53e9d0160384",
+  "timestamp": "2026-06-28T04:21:31.633Z",
+  "deployBlock": 159057,
+  "transactionHash": "0xc10027914dc0b8e6647334d713104f0270d63ecfb34682ab3f0d345500cc66f2",
   "contracts": {
     "ValidatorDepositRedeemStatsLib": {
-      "address": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377"
+      "address": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7"
     },
     "ValidatorDepositRedeem": {
-      "address": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC",
+      "address": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
       "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
       "initialContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
       "gbToken": "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748",
       "usdcToken": "0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC",
       "guardianNodes": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
       "guardianAllocStartId": "100",
-      "statsLib": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377",
-      "referrerExtension": "0xd3F42Fba76c37E9212bb3f11c927C97F439989f2",
-      "transferMarket": "0x33bb8D468c76727A104c23C95cCD495b554978F0",
-      "transactionHash": "0x59cf98f33f478a89213f440958592be86576060b1ddcf5e77ecb53e9d0160384"
+      "statsLib": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7",
+      "referrerExtension": "0xF3097FB1339DbA0135196667FA2f13B313E4d08e",
+      "transferMarket": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
+      "transactionHash": "0xc10027914dc0b8e6647334d713104f0270d63ecfb34682ab3f0d345500cc66f2"
     },
     "ValidatorDepositRedeemReferrerExtension": {
-      "address": "0xd3F42Fba76c37E9212bb3f11c927C97F439989f2",
+      "address": "0xF3097FB1339DbA0135196667FA2f13B313E4d08e",
       "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "redeemHost": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC"
+      "redeemHost": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f"
     },
     "ValidatorDepositRedeemTransferMarket": {
-      "address": "0x33bb8D468c76727A104c23C95cCD495b554978F0",
-      "redeemHost": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC"
+      "address": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
+      "redeemHost": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f"
     }
   },
   "redeemAdmins": [
     "0xE974c5d10cc36738bC2619FC73b075504D5c6d1E",
-    "0x4728BEeFa5b68E87a611EEC6965f5C5f9b2D5060"
+    "0x4728BEeFa5b68E87a611EEC6965f5C5f9b2D5060",
+    "0xEAC6AB958A113baF368D2D37EECf0492C0da2fE2"
   ]
 }
