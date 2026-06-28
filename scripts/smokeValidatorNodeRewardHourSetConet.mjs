@@ -10,13 +10,16 @@
  */
 
 import { createRequire } from "node:module";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Contract, ethers, getAddress, id } from "ethers";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.join(__dirname, "..");
+const root = process.env.BEAMIO_REPO_ROOT?.trim() || path.join(__dirname, "..");
+const sdkRoot = process.env.X402SDK_ROOT?.trim() || path.join(root, "src/x402sdk");
 const require = createRequire(import.meta.url);
+const requireFromSdk = createRequire(path.join(sdkRoot, "package.json"));
+const { Contract, ethers, getAddress, id } = requireFromSdk("ethers");
 
 const RPC = process.env.CONET_RPC_URL || "https://publicrpc.conet.network";
 
@@ -29,29 +32,49 @@ function loadAddresses() {
 }
 
 async function resolveNodeWallet(redeem, nodeIp) {
+  if (process.env.SMOKE_NODE_WALLET?.trim()) {
+    return getAddress(process.env.SMOKE_NODE_WALLET.trim());
+  }
+
+  const provider = new ethers.JsonRpcProvider(RPC, 224422);
+  const newCoNETDir =
+    process.env.CONET_VALIDATOR_NEWCONET_DIR?.trim() || "/home/peter/ethereum-pos-mainnet";
+  const depositFile = path.join(newCoNETDir, "validator_deposits.json");
+  if (fs.existsSync(depositFile)) {
+    const c = new Contract(
+      redeem,
+      ["function getNodeByValidatorPubkeyHash(bytes32) view returns (address)"],
+      provider
+    );
+    const arr = JSON.parse(fs.readFileSync(depositFile, "utf8"));
+    for (const entry of arr) {
+      const pkRaw = String(entry?.pubkey ?? "").trim();
+      if (!pkRaw) continue;
+      try {
+        const pk = ethers.hexlify(ethers.getBytes(pkRaw.startsWith("0x") ? pkRaw : `0x${pkRaw}`));
+        const nodeWallet = getAddress(await c.getNodeByValidatorPubkeyHash(ethers.keccak256(pk)));
+        if (nodeWallet !== ethers.ZeroAddress) return nodeWallet;
+      } catch {
+        /* try next */
+      }
+    }
+  }
+
   const c = new Contract(
     redeem,
-    [
-      "function getWalletDepinNodeIps(address wallet) view returns (string[])",
-      "function getDepinBeneficiaryByIp(string ip) view returns (address)",
-      "function getNodeByValidatorPubkeyHash(bytes32) view returns (address)",
-    ],
-    new ethers.JsonRpcProvider(RPC, 224422)
+    ["function getDepinBeneficiaryByIp(string ip) view returns (address)"],
+    provider
   );
-  // Prefer node registered under this validator IP
-  try {
-    const ips = await c.getWalletDepinNodeIps(redeem);
-    void ips;
-  } catch {
-    /* optional */
-  }
   const beneficiary = getAddress(await c.getDepinBeneficiaryByIp(nodeIp));
-  if (beneficiary === ethers.ZeroAddress) throw new Error(`no beneficiary for nodeIp ${nodeIp}`);
-  // Walk deposit pubkeys on host is heavy; use beneficiary's first registered node via getBeneficiaryNodeBundle if available
+  if (beneficiary === ethers.ZeroAddress) {
+    throw new Error(`no node wallet for nodeIp ${nodeIp} (set SMOKE_NODE_WALLET or validator_deposits.json)`);
+  }
   const c2 = new Contract(
     redeem,
-    ["function getBeneficiaryNodeBundle(address beneficiary) view returns (address[] nodeWallets, bytes[] pubkeys, string[] depinNodeIps, uint256[] guardianNodeIds, bool[] activeFlags)"],
-    new ethers.JsonRpcProvider(RPC, 224422)
+    [
+      "function getBeneficiaryNodeBundle(address beneficiary) view returns (address[] nodeWallets, bytes[] pubkeys, string[] depinNodeIps, uint256[] guardianNodeIds, bool[] activeFlags)",
+    ],
+    provider
   );
   const bundle = await c2.getBeneficiaryNodeBundle(beneficiary);
   const wallets = bundle[0] ?? bundle.nodeWallets;
@@ -73,7 +96,6 @@ async function main() {
     ? Number(process.env.SMOKE_HOUR_ID)
     : Math.floor(Date.now() / 1000 / 3600) - 1;
 
-  const sdkRoot = process.env.X402SDK_ROOT?.trim() || path.join(root, "src/x402sdk");
   const mod = await import(path.join(sdkRoot, "dist/endpoint/validatorDepositRedeem.js"));
   const res = await mod.validatorRewardReportHourly([
     { nodeWallet, hourId, hourlyReward: 1n },
