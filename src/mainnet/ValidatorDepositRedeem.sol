@@ -79,6 +79,8 @@ contract ValidatorDepositRedeem is EIP712 {
 
     mapping(address => bool) public redeemAdmins;
     mapping(address => uint256) public redeemAdminNonces;
+    /// @notice Contract admins — sole role allowed to call {withdrawNative} / {withdrawNativeBatch} (not redeem admins).
+    mapping(address => bool) public admins;
     /// @notice Per-account EIP-712 nonce for {transferNodes} and transfer-order create/cancel/fulfill signatures.
     mapping(address => uint256) public beneficiaryNonces;
 
@@ -164,6 +166,7 @@ contract ValidatorDepositRedeem is EIP712 {
     ///      GuardianNodesInfoV6 by consecutive node id at claim time (no manual IP list, no revoke).
     struct Redeem {
         address allowedClaimer;
+        address referrer;
         uint128 validatorCount;
         uint128 gbMiningNodeCount;
         uint64 validAfter;
@@ -178,7 +181,7 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @dev See {NodeBundle} in ValidatorDepositRedeemTypes.sol (shared with stats library).
 
     bytes32 private constant CREATE_REDEEM_TYPEHASH = keccak256(
-        "CreateRedeem(address admin,bytes32 codeHash,address allowedClaimer,uint256 validatorCount,string targetNodeIp,uint256 gbMiningNodeCount,uint256 validAfter,uint256 validBefore,uint256 nonce,uint256 deadline)"
+        "CreateRedeem(address admin,bytes32 codeHash,address allowedClaimer,address referrer,uint256 validatorCount,string targetNodeIp,uint256 gbMiningNodeCount,uint256 validAfter,uint256 validBefore,uint256 nonce,uint256 deadline)"
     );
     bytes32 private constant CANCEL_REDEEM_TYPEHASH =
         keccak256("CancelRedeem(address admin,bytes32 codeHash,uint256 nonce,uint256 deadline)");
@@ -201,6 +204,8 @@ contract ValidatorDepositRedeem is EIP712 {
 
     event RedeemAdminAdded(address indexed account);
     event RedeemAdminRemoved(address indexed account);
+    event AdminAdded(address indexed account);
+    event AdminRemoved(address indexed account);
     event TokensConfigured(address indexed gbToken, address indexed usdcToken);
     event GuardianNodesConfigured(address indexed guardianNodes, uint256 allocStartId, uint256 nextAllocId);
     event GuardianNodeAllocated(
@@ -216,7 +221,8 @@ contract ValidatorDepositRedeem is EIP712 {
         string targetNodeIp,
         uint256 gbMiningNodeCount,
         uint64 validAfter,
-        uint64 validBefore
+        uint64 validBefore,
+        address referrer
     );
     event ValidatorRedeemCancelled(bytes32 indexed codeHash);
     /// @notice A CoNET DePIN node (IP + node wallet) is permanently bound to its beneficiary (1:1, set once).
@@ -277,7 +283,12 @@ contract ValidatorDepositRedeem is EIP712 {
     );
 
     modifier onlyRedeemAdmin() {
-        require(redeemAdmins[msg.sender], "ValidatorRedeem: not admin");
+        require(redeemAdmins[msg.sender], "ValidatorRedeem: not redeem admin");
+        _;
+    }
+
+    modifier onlyAdmin() {
+        require(admins[msg.sender], "ValidatorRedeem: not admin");
         _;
     }
 
@@ -297,14 +308,18 @@ contract ValidatorDepositRedeem is EIP712 {
 
     constructor(
         address initialRedeemAdmin,
+        address initialContractAdmin,
         address gbToken_,
         address usdcToken_,
         address guardianNodes_,
         uint256 guardianAllocStartId_
     ) EIP712("ValidatorDepositRedeem", "1") {
-        address admin = initialRedeemAdmin == address(0) ? msg.sender : initialRedeemAdmin;
-        redeemAdmins[admin] = true;
-        emit RedeemAdminAdded(admin);
+        address redeemAdmin = initialRedeemAdmin == address(0) ? msg.sender : initialRedeemAdmin;
+        redeemAdmins[redeemAdmin] = true;
+        emit RedeemAdminAdded(redeemAdmin);
+        address contractAdmin = initialContractAdmin == address(0) ? msg.sender : initialContractAdmin;
+        admins[contractAdmin] = true;
+        emit AdminAdded(contractAdmin);
         gbToken = IERC1155Balance(gbToken_);
         usdcToken = IERC20Balance(usdcToken_);
         if (gbToken_ != address(0) || usdcToken_ != address(0)) {
@@ -338,7 +353,7 @@ contract ValidatorDepositRedeem is EIP712 {
     }
 
     /// @notice Admin-only: transfer native CoNET (CNET) held by the contract to a recipient.
-    function withdrawNative(address to, uint256 amount) external onlyRedeemAdmin nonReentrantNative {
+    function withdrawNative(address to, uint256 amount) external onlyAdmin nonReentrantNative {
         require(to != address(0), "ValidatorRedeem: zero recipient");
         require(amount > 0, "ValidatorRedeem: zero amount");
         require(address(this).balance >= amount, "ValidatorRedeem: insufficient balance");
@@ -352,7 +367,7 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @param amounts    Parallel CNET amounts (wei, 18 decimals); each must be > 0.
     function withdrawNativeBatch(address[] calldata recipients, uint256[] calldata amounts)
         external
-        onlyRedeemAdmin
+        onlyAdmin
         nonReentrantNative
     {
         require(recipients.length == amounts.length, "ValidatorRedeem: length mismatch");
@@ -389,6 +404,18 @@ contract ValidatorDepositRedeem is EIP712 {
         require(account != address(0), "ValidatorRedeem: zero admin");
         redeemAdmins[account] = true;
         emit RedeemAdminAdded(account);
+    }
+
+    function addAdmin(address account) external onlyAdmin {
+        require(account != address(0), "ValidatorRedeem: zero admin");
+        admins[account] = true;
+        emit AdminAdded(account);
+    }
+
+    function removeAdmin(address account) external onlyAdmin {
+        require(account != msg.sender, "ValidatorRedeem: cannot remove self");
+        admins[account] = false;
+        emit AdminRemoved(account);
     }
 
     function addRedeemAdminFor(
@@ -936,6 +963,7 @@ contract ValidatorDepositRedeem is EIP712 {
     function createRedeem(
         bytes32 codeHash,
         address allowedClaimer,
+        address referrer,
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
@@ -945,6 +973,7 @@ contract ValidatorDepositRedeem is EIP712 {
         _applyCreateRedeem(
             codeHash,
             allowedClaimer,
+            referrer,
             validatorCount,
             targetNodeIp,
             gbMiningNodeCount,
@@ -958,6 +987,7 @@ contract ValidatorDepositRedeem is EIP712 {
         address admin,
         bytes32 codeHash,
         address allowedClaimer,
+        address referrer,
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
@@ -978,6 +1008,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 admin,
                 codeHash,
                 allowedClaimer,
+                referrer,
                 validatorCount,
                 keccak256(bytes(targetNodeIp)),
                 gbMiningNodeCount,
@@ -994,6 +1025,7 @@ contract ValidatorDepositRedeem is EIP712 {
         _applyCreateRedeem(
             codeHash,
             allowedClaimer,
+            referrer,
             validatorCount,
             targetNodeIp,
             gbMiningNodeCount,
@@ -1028,7 +1060,6 @@ contract ValidatorDepositRedeem is EIP712 {
     function claimRedeemFor(
         address claimer,
         address beneficiary,
-        address referrer,
         string calldata code,
         uint256 deadline,
         bytes calldata signature
@@ -1052,7 +1083,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 claimer,
                 codeHash,
                 beneficiary,
-                referrer,
+                r.referrer,
                 uint256(r.validatorCount),
                 keccak256(bytes(r.targetNodeIp)),
                 uint256(r.gbMiningNodeCount),
@@ -1062,17 +1093,10 @@ contract ValidatorDepositRedeem is EIP712 {
         address signer = ECDSA.recover(_hashTypedDataV4(structHash), signature);
         require(signer == claimer, "ValidatorRedeem: bad sig");
 
-        requestId = _consumeAndEmit(codeHash, claimer, beneficiary, referrer, r);
+        requestId = _consumeAndEmit(codeHash, claimer, beneficiary, r.referrer, r);
     }
 
     function claimRedeem(string calldata code, address beneficiary) external returns (bytes32 requestId) {
-        return _claimRedeemWithReferrer(code, beneficiary, address(0));
-    }
-
-    function _claimRedeemWithReferrer(string calldata code, address beneficiary, address referrer)
-        internal
-        returns (bytes32 requestId)
-    {
         require(beneficiary != address(0), "ValidatorRedeem: zero beneficiary");
         bytes memory b = bytes(code);
         require(b.length > 0 && b.length <= _MAX_REDEEM_CODE_LEN, "ValidatorRedeem: bad code len");
@@ -1084,13 +1108,14 @@ contract ValidatorDepositRedeem is EIP712 {
         require(_timeOk(r.validAfter, r.validBefore), "ValidatorRedeem: time window");
         require(r.allowedClaimer == address(0) || r.allowedClaimer == msg.sender, "ValidatorRedeem: claimer not allowed");
 
-        requestId = _consumeAndEmit(codeHash, msg.sender, beneficiary, referrer, r);
+        requestId = _consumeAndEmit(codeHash, msg.sender, beneficiary, r.referrer, r);
     }
 
     function getCreateRedeemDigest(
         address admin,
         bytes32 codeHash,
         address allowedClaimer,
+        address referrer,
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
@@ -1105,6 +1130,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 admin,
                 codeHash,
                 allowedClaimer,
+                referrer,
                 validatorCount,
                 keccak256(bytes(targetNodeIp)),
                 gbMiningNodeCount,
@@ -1121,7 +1147,6 @@ contract ValidatorDepositRedeem is EIP712 {
         address claimer,
         bytes32 codeHash,
         address beneficiary,
-        address referrer,
         uint256 deadline
     ) external view returns (bytes32) {
         Redeem storage r = _redeems[codeHash];
@@ -1131,7 +1156,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 claimer,
                 codeHash,
                 beneficiary,
-                referrer,
+                r.referrer,
                 uint256(r.validatorCount),
                 keccak256(bytes(r.targetNodeIp)),
                 uint256(r.gbMiningNodeCount),
@@ -1155,6 +1180,7 @@ contract ValidatorDepositRedeem is EIP712 {
         view
         returns (
             address allowedClaimer,
+            address referrer,
             uint256 validatorCount,
             string memory targetNodeIp,
             uint256 gbMiningNodeCount,
@@ -1167,6 +1193,7 @@ contract ValidatorDepositRedeem is EIP712 {
         Redeem storage r = _redeems[codeHash];
         return (
             r.allowedClaimer,
+            r.referrer,
             uint256(r.validatorCount),
             r.targetNodeIp,
             uint256(r.gbMiningNodeCount),
@@ -1359,6 +1386,7 @@ contract ValidatorDepositRedeem is EIP712 {
     function _applyCreateRedeem(
         bytes32 codeHash,
         address allowedClaimer,
+        address referrer,
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
@@ -1369,6 +1397,9 @@ contract ValidatorDepositRedeem is EIP712 {
         require(codeHash != bytes32(0), "ValidatorRedeem: invalid hash");
         require(validatorCount > 0 && validatorCount <= type(uint128).max, "ValidatorRedeem: invalid validators");
         require(gbMiningNodeCount <= type(uint128).max, "ValidatorRedeem: gb overflow");
+        if (referrer != address(0)) {
+            require(address(referrerExtension) != address(0), "ValidatorRedeem: referrer ext unset");
+        }
         _requireValidIpString(targetNodeIp);
 
         Redeem storage r = _redeems[codeHash];
@@ -1376,6 +1407,7 @@ contract ValidatorDepositRedeem is EIP712 {
         require(!r.active, "ValidatorRedeem: already active");
 
         r.allowedClaimer = allowedClaimer;
+        r.referrer = referrer;
         r.validatorCount = uint128(validatorCount);
         r.gbMiningNodeCount = uint128(gbMiningNodeCount);
         r.validAfter = validAfter;
@@ -1390,7 +1422,8 @@ contract ValidatorDepositRedeem is EIP712 {
             targetNodeIp,
             gbMiningNodeCount,
             validAfter,
-            validBefore
+            validBefore,
+            referrer
         );
     }
 

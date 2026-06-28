@@ -153,6 +153,18 @@ async function main() {
       indexerAddr = null;
     } else {
       console.log("existing ValidatorNodeRewardIndexer:", indexerAddr);
+      const indexerRead = new ethers.Contract(
+        indexerAddr,
+        ["function redeem() view returns (address)", "function setRedeem(address) external"],
+        signer
+      );
+      const idxRedeem = ethers.getAddress(await indexerRead.redeem());
+      if (idxRedeem.toLowerCase() !== redeemAddr.toLowerCase()) {
+        console.log("indexer.setRedeem →", redeemAddr, "(was", idxRedeem, ")");
+        const tx = await indexerRead.setRedeem(redeemAddr);
+        const rc = await tx.wait();
+        console.log("  tx:", rc?.hash);
+      }
     }
   }
 

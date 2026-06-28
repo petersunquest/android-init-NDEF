@@ -92,6 +92,10 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
 
   const ca = data.constructorArgs ?? {};
   const initialRedeemAdmin = redeem?.initialRedeemAdmin ?? ca.initialRedeemAdmin ?? data.initialRedeemAdmin;
+  const initialContractAdmin =
+    (redeem as { initialContractAdmin?: string })?.initialContractAdmin ??
+    ca.initialContractAdmin ??
+    (data as { initialContractAdmin?: string }).initialContractAdmin;
   const gbToken = redeem?.gbToken ?? ca.gbToken ?? data.gbToken;
   const usdcToken = redeem?.usdcToken ?? ca.usdcToken ?? data.usdcToken;
   const guardianNodes = redeem?.guardianNodes ?? ca.guardianNodes ?? data.guardianNodes;
@@ -102,11 +106,12 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
   if (!statsLib || !redeem?.address || !ext?.address || !market?.address) {
     throw new Error("部署 JSON 缺少 StatsLib / Redeem / ReferrerExtension / TransferMarket 地址");
   }
-  if (!initialRedeemAdmin || !gbToken || !usdcToken || !guardianNodes || guardianAllocStartId == null) {
+  if (!initialRedeemAdmin || !initialContractAdmin || !gbToken || !usdcToken || !guardianNodes || guardianAllocStartId == null) {
     throw new Error("部署 JSON 缺少 Redeem constructorArgs");
   }
 
-  const admin = getAddress(String(initialRedeemAdmin));
+  const redeemAdmin = getAddress(String(initialRedeemAdmin));
+  const contractAdmin = getAddress(String(initialContractAdmin));
   const statsLibAddr = getAddress(String(statsLib));
   const redeemAddr = getAddress(redeem.address);
   const extAddr = getAddress(ext.address);
@@ -124,9 +129,10 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
       address: redeemAddr,
       rootSource: "project/src/mainnet/ValidatorDepositRedeem.sol",
       contractName: "project/src/mainnet/ValidatorDepositRedeem.sol:ValidatorDepositRedeem",
-      constructorTypes: ["address", "address", "address", "address", "uint256"],
+      constructorTypes: ["address", "address", "address", "address", "address", "uint256"],
       constructorValues: [
-        admin,
+        redeemAdmin,
+        contractAdmin,
         getAddress(String(gbToken)),
         getAddress(String(usdcToken)),
         getAddress(String(guardianNodes)),
@@ -144,7 +150,7 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
       rootSource: "project/src/mainnet/ValidatorDepositRedeemReferrerExtension.sol",
       contractName: "project/src/mainnet/ValidatorDepositRedeemReferrerExtension.sol:ValidatorDepositRedeemReferrerExtension",
       constructorTypes: ["address"],
-      constructorValues: [admin],
+      constructorValues: [redeemAdmin],
     },
     {
       key: "ValidatorDepositRedeemTransferMarket",
@@ -165,7 +171,7 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
                 rootSource: "project/src/mainnet/ValidatorNodeRewardIndexer.sol",
                 contractName: "project/src/mainnet/ValidatorNodeRewardIndexer.sol:ValidatorNodeRewardIndexer",
                 constructorTypes: ["address", "address"],
-                constructorValues: [admin, redeemAddr],
+                constructorValues: [redeemAdmin, redeemAddr],
               } satisfies VerifyTarget,
             ];
           } catch {

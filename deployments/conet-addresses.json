@@ -63,7 +63,9 @@
   ],
   "DEPRECATED_VALIDATOR_DEPOSIT_REDEEM": [
     "0xdcfFFDD58E8d1242b5ee52FBcdfeB698f4cd5681",
-    "0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab"
+    "0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab",
+    "0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E",
+    "0x970792658C09A96E27Fc4D8B69fF9989C2AcB50E"
   ],
   "DEPRECATED_CONET_TREASURY_PEER": [
     "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39"
@@ -112,14 +114,16 @@
   "beamioUserCardUpdateLib": "0x0dd2F946D14b5b49F117cB3Ad5c35B72c1761b48",
   "beamioUserCardViewsLib": "0xeeE65DD61EB2D1188508e298b4B956EDfB82f9C6",
   "referrerRegistryLib": "0x3CC7ddD8e8F9711C4fcdA68191A6A88304E6B3CA",
-  "ValidatorDepositRedeem": "0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E",
+  "ValidatorDepositRedeem": "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC",
+  "validatorDepositRedeemDeployBlock": 156606,
   "validatorDepositRedeemDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "validatorDepositRedeemDeployedAt": "2026-06-27T21:08:07.542Z",
-  "validatorDepositRedeemTx": "0x758caacea0fcc29f88df0a4942a1367e7b5be8c985ffa3c40a3a50939c72499c",
-  "ValidatorDepositRedeemStatsLib": "0x0ce847c136E4eDB4289E5eA62d81A718A6753091",
-  "ValidatorDepositRedeemReferrerExtension": "0x64D6a35874a27e78a8B89bF9a881A04fd2A3750f",
-  "ValidatorDepositRedeemTransferMarket": "0xE51540589975156210D5E609Efc3C6116f91A3bA",
+  "validatorDepositRedeemDeployedAt": "2026-06-28T00:16:01.781Z",
+  "validatorDepositRedeemTx": "0x59cf98f33f478a89213f440958592be86576060b1ddcf5e77ecb53e9d0160384",
+  "ValidatorDepositRedeemStatsLib": "0xB40B5a6376AeD36Ba4E1aE6C27cF5b67f29Bd377",
+  "ValidatorDepositRedeemReferrerExtension": "0xd3F42Fba76c37E9212bb3f11c927C97F439989f2",
+  "ValidatorDepositRedeemTransferMarket": "0x33bb8D468c76727A104c23C95cCD495b554978F0",
   "ValidatorNodeRewardIndexer": "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
   "validatorNodeRewardIndexerTx": "0xfc3f03b7519baf6388f84e56414e290a6af105e578b32319e37afa356344dbc4",
-  "validatorNodeRewardIndexerConfiguredAt": "2026-06-27T21:26:49.485Z"
+  "validatorNodeRewardIndexerConfiguredAt": "2026-06-27T21:26:49.485Z",
+  "validatorDepositContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
 }

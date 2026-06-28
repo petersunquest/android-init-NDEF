@@ -32,6 +32,12 @@ function loadInitialRedeemAdmin(): string | undefined {
   return new ethers.Wallet(pks[0]).address;
 }
 
+function loadInitialContractAdmin(deployer: string): string {
+  const env = process.env.VALIDATOR_DEPOSIT_REDEEM_INITIAL_CONTRACT_ADMIN?.trim();
+  if (env && ethers.isAddress(env)) return ethers.getAddress(env);
+  return ethers.getAddress(deployer);
+}
+
 function loadConetAddresses(): Record<string, unknown> {
   const addrPath = path.join(root, "deployments", "conet-addresses.json");
   if (!fs.existsSync(addrPath)) return {};
@@ -91,6 +97,7 @@ async function main() {
     throw new Error("VALIDATOR_DEPOSIT_REDEEM_INITIAL_ADMIN 不是有效地址");
   }
   const initialRedeemAdmin = ethers.getAddress(initialRedeemAdminRaw);
+  const initialContractAdmin = loadInitialContractAdmin(deployer.address);
 
   const addrData = loadConetAddresses();
   const gbToken = loadGbTokenAddress(addrData);
@@ -104,6 +111,7 @@ async function main() {
   console.log("deployer:", deployer.address);
   console.log("chainId:", net.chainId.toString());
   console.log("initialRedeemAdmin:", initialRedeemAdmin);
+  console.log("initialContractAdmin (withdrawNative):", initialContractAdmin);
   console.log("gbToken (ConetGB1155):", gbToken);
   console.log("usdcToken (conetUsdc):", usdcToken);
   console.log("guardianNodes (GuardianNodesInfoV6):", guardianNodes);
@@ -123,6 +131,7 @@ async function main() {
   });
   const redeem = await RedeemFactory.deploy(
     initialRedeemAdmin,
+    initialContractAdmin,
     gbToken,
     usdcToken,
     guardianNodes,
@@ -130,9 +139,16 @@ async function main() {
   );
   await redeem.waitForDeployment();
   const redeemAddr = await redeem.getAddress();
-  const redeemTxHash = redeem.deploymentTransaction()?.hash ?? "";
+  const redeemDeployTx = redeem.deploymentTransaction();
+  const redeemTxHash = redeemDeployTx?.hash ?? "";
+  let redeemDeployBlock = 0;
+  if (redeemDeployTx) {
+    const receipt = await redeemDeployTx.wait();
+    redeemDeployBlock = Number(receipt?.blockNumber ?? 0);
+  }
   console.log("ValidatorDepositRedeem:", redeemAddr);
   console.log("  tx:", redeemTxHash);
+  if (redeemDeployBlock) console.log("  block:", redeemDeployBlock);
 
   const ExtFactory = await ethersHH.getContractFactory("ValidatorDepositRedeemReferrerExtension");
   const referrerExt = await ExtFactory.deploy(initialRedeemAdmin);
@@ -169,6 +185,7 @@ async function main() {
     address: redeemAddr,
     deployer: deployer.address,
     initialRedeemAdmin,
+    initialContractAdmin,
     gbToken,
     usdcToken,
     guardianNodes,
@@ -178,6 +195,7 @@ async function main() {
     transferMarket: transferMarketAddr,
     constructorArgs: {
       initialRedeemAdmin,
+      initialContractAdmin,
       gbToken,
       usdcToken,
       guardianNodes,
@@ -187,12 +205,14 @@ async function main() {
       ValidatorDepositRedeemStatsLib: statsLibAddr,
     },
     timestamp: new Date().toISOString(),
+    deployBlock: redeemDeployBlock || undefined,
     transactionHash: redeemTxHash,
     contracts: {
       ValidatorDepositRedeemStatsLib: { address: statsLibAddr },
       ValidatorDepositRedeem: {
         address: redeemAddr,
         initialRedeemAdmin,
+        initialContractAdmin,
         gbToken,
         usdcToken,
         guardianNodes,
@@ -234,14 +254,17 @@ async function main() {
     merged.ValidatorDepositRedeemReferrerExtension = referrerExtAddr;
     merged.ValidatorDepositRedeemTransferMarket = transferMarketAddr;
     merged.validatorDepositRedeemDeployer = deployer.address;
+    merged.validatorDepositContractAdmin = initialContractAdmin;
     merged.validatorDepositRedeemDeployedAt = new Date().toISOString();
     merged.validatorDepositRedeemTx = redeemTxHash;
+    if (redeemDeployBlock) merged.validatorDepositRedeemDeployBlock = redeemDeployBlock;
     fs.writeFileSync(addrPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
     console.log("updated deployments/conet-addresses.json");
   }
 
   console.log("\n下一步（必须）: npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts");
   console.log("配置 deposit / rewardIndexer: npx hardhat run scripts/configureValidatorDepositRedeemConet.ts --network conet");
+  console.log("添加 validator 节点 redeem admin: npx hardhat run scripts/addValidatorDepositRedeemAdminConet.ts --network conet");
   console.log("然后: npx tsx scripts/updateConetReferences.ts");
 }
 
