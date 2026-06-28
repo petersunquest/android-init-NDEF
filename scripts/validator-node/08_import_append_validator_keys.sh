@@ -29,8 +29,15 @@ PRYSM_BEACON_RPC_PORT="${PRYSM_BEACON_RPC_PORT:-4000}"
 PRYSM_VALIDATOR_RPC_PORT="${PRYSM_VALIDATOR_RPC_PORT:-7000}"
 PRYSM_VALIDATOR_GRPC_GATEWAY_PORT="${PRYSM_VALIDATOR_GRPC_GATEWAY_PORT:-7100}"
 PRYSM_VALIDATOR_MONITORING_PORT="${PRYSM_VALIDATOR_MONITORING_PORT:-7200}"
+VALIDATOR_SYSTEMD_UNIT="${VALIDATOR_SYSTEMD_UNIT:-conet-prysm-validator.service}"
 
 RELOAD_VALIDATOR_AFTER_IMPORT="${RELOAD_VALIDATOR_AFTER_IMPORT:-${CONET_VALIDATOR_RELOAD_VALIDATOR_AFTER_IMPORT:-YES}}"
+
+# Set when stop_validator_only runs; cleared after start_validator_only completes.
+# EXIT/INT/TERM trap restarts validator if stop happened without start (e.g. listener systemctl restart mid-script).
+VALIDATOR_STOPPED_FOR_RELOAD=0
+VALIDATOR_START_COMPLETED=0
+_IMPORT_TRAP_INSTALLED=0
 
 LEGACY_IMPORT_MARKER="$VALIDATOR_WALLET_DIR/.imported_append_validator_keys"
 IMPORT_MANIFEST="$VALIDATOR_WALLET_DIR/.imported_append_keystores.manifest"
@@ -235,13 +242,61 @@ import_all_append_keystores() {
 	[[ "$failed" -eq 0 ]] || die "$failed keystore import(s) failed"
 }
 
-stop_validator_only() {
+validator_client_running() {
+	if validator_systemd_unit_installed && validator_systemctl is-active --quiet; then
+		return 0
+	fi
 	local pid_file="$NODE_DIR/validator.pid"
 	if [[ -f "$pid_file" ]]; then
 		local pid
-		pid="$(cat "$pid_file" || true)"
+		pid="$(cat "$pid_file" 2>/dev/null || true)"
 		if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-			echo "Stopping validator pid=$pid ..."
+			return 0
+		fi
+	fi
+	pgrep -f "validator.*${VALIDATOR_DATA_DIR}" >/dev/null 2>&1
+}
+
+sync_validator_pid_file_from_process() {
+	if validator_systemd_unit_installed; then
+		local main_pid
+		main_pid="$(systemctl show -p MainPID --value "$VALIDATOR_SYSTEMD_UNIT" 2>/dev/null || true)"
+		if [[ -n "$main_pid" && "$main_pid" != "0" ]]; then
+			echo "$main_pid" >"$NODE_DIR/validator.pid"
+			return 0
+		fi
+	fi
+	local pid
+	pid="$(pgrep -f "validator.*${VALIDATOR_DATA_DIR}" | head -n1 || true)"
+	if [[ -n "$pid" ]]; then
+		echo "$pid" >"$NODE_DIR/validator.pid"
+	fi
+}
+
+# Prysm v7 may expose monitoring (:7200) without binding validator gRPC RPC (:7000).
+validator_client_up() {
+	if validator_client_running; then
+		return 0
+	fi
+	(echo >/dev/tcp/127.0.0.1/"$PRYSM_VALIDATOR_RPC_PORT") 2>/dev/null && return 0
+	(echo >/dev/tcp/127.0.0.1/"$PRYSM_VALIDATOR_MONITORING_PORT") 2>/dev/null
+}
+
+validator_systemd_unit_installed() {
+	systemctl list-unit-files "${VALIDATOR_SYSTEMD_UNIT}" 2>/dev/null | grep -q "${VALIDATOR_SYSTEMD_UNIT}"
+}
+
+validator_systemctl() {
+	sudo -n /bin/systemctl "$@" "$VALIDATOR_SYSTEMD_UNIT"
+}
+
+stop_legacy_validator_processes() {
+	local pid_file="$NODE_DIR/validator.pid"
+	if [[ -f "$pid_file" ]]; then
+		local pid
+		pid="$(cat "$pid_file" 2>/dev/null || true)"
+		if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+			echo "Stopping legacy validator pid=$pid ..."
 			kill "$pid" 2>/dev/null || true
 			for _ in {1..30}; do
 				kill -0 "$pid" 2>/dev/null || break
@@ -251,12 +306,59 @@ stop_validator_only() {
 		fi
 		rm -f "$pid_file"
 	fi
-	pkill -f "validator.*$NODE_DIR" 2>/dev/null || true
+	pkill -f "validator.*${VALIDATOR_DATA_DIR}" 2>/dev/null || true
+}
+
+ensure_validator_restarted_if_needed() {
+	if [[ "$VALIDATOR_STOPPED_FOR_RELOAD" != "1" ]] || [[ "$VALIDATOR_START_COMPLETED" == "1" ]]; then
+		return 0
+	fi
+	if validator_client_up; then
+		sync_validator_pid_file_from_process
+		echo "WARN: validator client already running; skip trap restart" >&2
+		VALIDATOR_START_COMPLETED=1
+		return 0
+	fi
+	echo "WARN: validator was stopped but start_validator_only did not finish; restarting now..." >&2
+	start_validator_only
+}
+
+install_validator_reload_trap() {
+	[[ "$_IMPORT_TRAP_INSTALLED" == "1" ]] && return 0
+	_IMPORT_TRAP_INSTALLED=1
+	trap 'ensure_validator_restarted_if_needed' EXIT
+	trap 'ensure_validator_restarted_if_needed; exit 130' INT
+	trap 'ensure_validator_restarted_if_needed; exit 143' TERM
+}
+
+stop_validator_only() {
+	VALIDATOR_STOPPED_FOR_RELOAD=1
+	if validator_systemd_unit_installed; then
+		echo "Stopping ${VALIDATOR_SYSTEMD_UNIT} ..."
+		validator_systemctl stop || true
+		for _ in {1..60}; do
+			validator_systemctl is-active --quiet 2>/dev/null && sleep 1 || break
+		done
+	else
+		stop_legacy_validator_processes
+	fi
 	sleep 2
 }
 
 start_validator_only() {
-	echo "Starting validator client (beacon + geth unchanged) ..."
+	if validator_client_up; then
+		sync_validator_pid_file_from_process
+		echo "Validator already running pid=$(cat "$NODE_DIR/validator.pid" 2>/dev/null || echo unknown)"
+		VALIDATOR_START_COMPLETED=1
+		return 0
+	fi
+	if validator_systemd_unit_installed; then
+		echo "Starting ${VALIDATOR_SYSTEMD_UNIT} ..."
+		validator_systemctl start
+		VALIDATOR_START_COMPLETED=1
+		return 0
+	fi
+	echo "Starting validator client via nohup (install ${VALIDATOR_SYSTEMD_UNIT} for systemd) ..."
 	mkdir -p "$NODE_DIR/logs" "$VALIDATOR_DATA_DIR"
 	nohup "$PRYSM_VALIDATOR_BINARY" \
 		--beacon-rpc-provider="127.0.0.1:${PRYSM_BEACON_RPC_PORT}" \
@@ -273,6 +375,31 @@ start_validator_only() {
 		>"$NODE_DIR/logs/validator.log" 2>&1 &
 	echo $! >"$NODE_DIR/validator.pid"
 	echo "Validator started pid=$(cat "$NODE_DIR/validator.pid")"
+	VALIDATOR_START_COMPLETED=1
+}
+
+ensure_validator_running_cli() {
+	require_exec "$PRYSM_VALIDATOR_BINARY"
+	require_file "$CHAIN_CONFIG_FILE"
+	local wallet_pw_file
+	wallet_pw_file="$(resolve_password_file "${WALLET_PASSWORD:-}" "$WALLET_PASSWORD_FILE")"
+	WALLET_PASSWORD_FILE="$wallet_pw_file"
+	if validator_client_up; then
+		sync_validator_pid_file_from_process
+		echo "OK: Prysm validator client running (pid=$(cat "$NODE_DIR/validator.pid" 2>/dev/null || echo unknown))"
+		return 0
+	fi
+	echo "Prysm validator client not running; starting ..."
+	start_validator_only
+	for _ in {1..30}; do
+		if validator_client_up; then
+			sync_validator_pid_file_from_process
+			echo "OK: Prysm validator client up after start"
+			return 0
+		fi
+		sleep 1
+	done
+	die "validator client still down after start_validator_only"
 }
 
 main() {
@@ -299,6 +426,7 @@ main() {
 	import_all_append_keystores
 
 	if [[ "${RELOAD_VALIDATOR_AFTER_IMPORT^^}" == "YES" ]]; then
+		install_validator_reload_trap
 		stop_validator_only
 		start_validator_only
 	else
@@ -308,4 +436,12 @@ main() {
 	echo "Done."
 }
 
-main "$@"
+if [[ "${1:-}" == "--ensure-running" ]]; then
+	shift
+	ensure_validator_running_cli "$@"
+	exit 0
+fi
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	main "$@"
+fi

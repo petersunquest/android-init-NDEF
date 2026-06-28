@@ -1,0 +1,3 @@
+# Installed to /etc/sudoers.d/conet-prysm-validator-peter by deployValidatorRedeemListener.sh
+# Allows peter (listener / 08_import) to reload validator without interactive sudo.
+peter ALL=(root) NOPASSWD: /bin/systemctl start conet-prysm-validator.service, /bin/systemctl stop conet-prysm-validator.service, /bin/systemctl restart conet-prysm-validator.service, /bin/systemctl try-restart conet-prysm-validator.service, /bin/systemctl is-active conet-prysm-validator.service

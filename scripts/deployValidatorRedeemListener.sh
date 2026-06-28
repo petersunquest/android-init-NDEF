@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy ValidatorDepositRedeem event listener to a CoNET validator node (default 38.102.85.33).
-# Does NOT restart geth/beacon/validator — only installs x402sdk listener daemon + helper scripts.
+# Does NOT restart geth/beacon — listener restart waits for 08_import subprocesses; post-deploy runs 09_ensure_validator_running.
 # Does NOT copy ~/.master.json between hosts (see beamio-no-master-json-remote-copy.mdc).
 
 set -euo pipefail
@@ -8,15 +8,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 X402SDK_DIR="$REPO_ROOT/src/x402sdk"
-SYSTEMD_UNIT="$X402SDK_DIR/service/systemd/conet-validator-redeem-listener.service"
-ENV_EXAMPLE="$X402SDK_DIR/service/conet-validator-redeem-listener.env.example"
 VALIDATOR_NODE_SCRIPTS="$REPO_ROOT/scripts/validator-node"
+SYSTEMD_UNIT="$X402SDK_DIR/service/systemd/conet-validator-redeem-listener.service"
+PRYSM_VALIDATOR_SERVICE="$X402SDK_DIR/service/systemd/conet-prysm-validator.service"
+PRYSM_VALIDATOR_SUDOERS="$VALIDATOR_NODE_SCRIPTS/conet-prysm-validator.sudoers"
+WATCHDOG_SERVICE="$X402SDK_DIR/service/systemd/conet-prysm-validator-watchdog.service"
+WATCHDOG_TIMER="$X402SDK_DIR/service/systemd/conet-prysm-validator-watchdog.timer"
+ENV_EXAMPLE="$X402SDK_DIR/service/conet-validator-redeem-listener.env.example"
 
 VALIDATOR_LISTENER_HOST="${VALIDATOR_LISTENER_HOST:-38.102.85.33}"
 VALIDATOR_LISTENER_USER="${VALIDATOR_LISTENER_USER:-peter}"
 VALIDATOR_LISTENER_ROOT="${VALIDATOR_LISTENER_ROOT:-/home/peter/x402sdk}"
 VALIDATOR_NEWCONET_DIR="${VALIDATOR_NEWCONET_DIR:-/home/peter/ethereum-pos-mainnet}"
 VALIDATOR_LISTENER_SERVICE="${VALIDATOR_LISTENER_SERVICE:-conet-validator-redeem-listener.service}"
+PRYSM_VALIDATOR_SYSTEMD_UNIT="${PRYSM_VALIDATOR_SYSTEMD_UNIT:-conet-prysm-validator.service}"
 VALIDATOR_NODE_IP="${VALIDATOR_NODE_IP:-38.102.85.33}"
 DEPOSIT_KEY_FILE="${VALIDATOR_NEWCONET_DIR}/secrets/deposit_sender_private_key.txt"
 
@@ -116,9 +121,11 @@ rsync "${RSYNC_FLAGS[@]}" \
 	"$VALIDATOR_NODE_SCRIPTS/06_exit_validator.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/07_update_fee_recipient.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/08_import_append_validator_keys.sh" \
+	"$VALIDATOR_NODE_SCRIPTS/09_ensure_validator_running.sh" \
+	"$VALIDATOR_NODE_SCRIPTS/10_run_prysm_validator.sh" \
 	"${SSH_TARGET}:${VALIDATOR_NEWCONET_DIR}/"
 if [[ "$DRY_RUN" -eq 0 ]]; then
-	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/01_generate_append_validator_deposits_listener.sh' '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh' '${VALIDATOR_NEWCONET_DIR}/08_import_append_validator_keys.sh'"
+	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/01_generate_append_validator_deposits_listener.sh' '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh' '${VALIDATOR_NEWCONET_DIR}/08_import_append_validator_keys.sh' '${VALIDATOR_NEWCONET_DIR}/09_ensure_validator_running.sh' '${VALIDATOR_NEWCONET_DIR}/10_run_prysm_validator.sh'"
 fi
 
 KEYSTORE_PW_FILE="${VALIDATOR_NEWCONET_DIR}/secrets/validator_keystore_password.txt"
@@ -186,6 +193,41 @@ sudo chmod 640 "$ENV_PATH"
 REMOTE
 	fi
 	rm -f "$ENV_TMP"
+
+	echo "==> Install Prysm validator systemd unit (${PRYSM_VALIDATOR_SYSTEMD_UNIT})"
+	rsync -av "$PRYSM_VALIDATOR_SERVICE" "${SSH_TARGET}:/tmp/${PRYSM_VALIDATOR_SYSTEMD_UNIT}"
+	rsync -av "$PRYSM_VALIDATOR_SUDOERS" "${SSH_TARGET}:/tmp/conet-prysm-validator.sudoers"
+	ssh "$SSH_TARGET" bash -s -- "$VALIDATOR_NEWCONET_DIR" "$PRYSM_VALIDATOR_SYSTEMD_UNIT" <<'REMOTE'
+set -euo pipefail
+NEWCONET_DIR="$1"
+UNIT="$2"
+sudo mv "/tmp/${UNIT}" "/etc/systemd/system/${UNIT}"
+sudo mv /tmp/conet-prysm-validator.sudoers /etc/sudoers.d/conet-prysm-validator-peter
+sudo chmod 440 /etc/sudoers.d/conet-prysm-validator-peter
+sudo visudo -cf /etc/sudoers.d/conet-prysm-validator-peter
+mkdir -p "${NEWCONET_DIR}/network/node-0/logs"
+# Stop legacy nohup orphan before handoff to systemd
+pkill -f "validator.*${NEWCONET_DIR}/network/node-0/consensus/validatordata" 2>/dev/null || true
+sleep 2
+rm -f "${NEWCONET_DIR}/network/node-0/validator.pid"
+sudo systemctl daemon-reload
+sudo systemctl enable "${UNIT}"
+sudo systemctl restart "${UNIT}"
+REMOTE
+
+	echo "==> Install Prysm validator watchdog timer (09_ensure_validator_running every 5m)"
+	rsync -av "$WATCHDOG_SERVICE" "${SSH_TARGET}:/tmp/conet-prysm-validator-watchdog.service"
+	rsync -av "$WATCHDOG_TIMER" "${SSH_TARGET}:/tmp/conet-prysm-validator-watchdog.timer"
+	ssh "$SSH_TARGET" bash -s <<'REMOTE'
+set -euo pipefail
+sudo mv /tmp/conet-prysm-validator-watchdog.service /etc/systemd/system/conet-prysm-validator-watchdog.service
+sudo mv /tmp/conet-prysm-validator-watchdog.timer /etc/systemd/system/conet-prysm-validator-watchdog.timer
+sudo systemctl daemon-reload
+sudo systemctl enable conet-prysm-validator-watchdog.timer
+sudo systemctl restart conet-prysm-validator-watchdog.timer
+REMOTE
+	echo "==> Prysm validator status"
+	ssh "$SSH_TARGET" "systemctl is-active ${PRYSM_VALIDATOR_SYSTEMD_UNIT} && systemctl show -p MainPID --value ${PRYSM_VALIDATOR_SYSTEMD_UNIT}"
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -252,6 +294,8 @@ if [[ "$SKIP_RESTART" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 	ssh "$SSH_TARGET" "systemctl is-active ${VALIDATOR_LISTENER_SERVICE} && sudo journalctl -u ${VALIDATOR_LISTENER_SERVICE} -n 15 --no-pager -q"
 	echo "==> Hourly reward reporter (expect validatorRewardHourlyReporter starting when CONET_VALIDATOR_REDEEM_LISTENER=1)"
 	ssh "$SSH_TARGET" "sudo journalctl -u ${VALIDATOR_LISTENER_SERVICE} -n 80 --no-pager -q | grep -E 'validatorRewardHourlyReporter|validatorDepositRedeemListener' | tail -n 8 || true"
+	echo "==> Ensure Prysm validator client is up (post listener restart)"
+	ssh "$SSH_TARGET" "cd '${VALIDATOR_NEWCONET_DIR}' && ./09_ensure_validator_running.sh"
 fi
 
 echo "==> Done. Listener on ${VALIDATOR_LISTENER_HOST} (nodeIp=${VALIDATOR_NODE_IP})."
