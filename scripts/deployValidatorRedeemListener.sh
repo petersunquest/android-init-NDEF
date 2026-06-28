@@ -202,13 +202,16 @@ set -euo pipefail
 NEWCONET_DIR="$1"
 UNIT="$2"
 sudo mv "/tmp/${UNIT}" "/etc/systemd/system/${UNIT}"
-sudo mv /tmp/conet-prysm-validator.sudoers /etc/sudoers.d/conet-prysm-validator-peter
+sudo tee /etc/sudoers.d/conet-prysm-validator-peter >/dev/null < /tmp/conet-prysm-validator.sudoers
 sudo chmod 440 /etc/sudoers.d/conet-prysm-validator-peter
+sudo chown root:root /etc/sudoers.d/conet-prysm-validator-peter
+rm -f /tmp/conet-prysm-validator.sudoers
 sudo visudo -cf /etc/sudoers.d/conet-prysm-validator-peter
 mkdir -p "${NEWCONET_DIR}/network/node-0/logs"
-# Stop legacy nohup orphan before handoff to systemd
-pkill -f "validator.*${NEWCONET_DIR}/network/node-0/consensus/validatordata" 2>/dev/null || true
-sleep 2
+# Stop legacy nohup orphan before handoff to systemd (cmdline uses relative datadir paths)
+pkill -f "dependencies/prysm.*validator.*consensus/validatordata" 2>/dev/null || true
+pkill -f "validator.*consensus/validatordata" 2>/dev/null || true
+sleep 3
 rm -f "${NEWCONET_DIR}/network/node-0/validator.pid"
 sudo systemctl daemon-reload
 sudo systemctl enable "${UNIT}"
@@ -227,7 +230,21 @@ sudo systemctl enable conet-prysm-validator-watchdog.timer
 sudo systemctl restart conet-prysm-validator-watchdog.timer
 REMOTE
 	echo "==> Prysm validator status"
-	ssh "$SSH_TARGET" "systemctl is-active ${PRYSM_VALIDATOR_SYSTEMD_UNIT} && systemctl show -p MainPID --value ${PRYSM_VALIDATOR_SYSTEMD_UNIT}"
+	ssh "$SSH_TARGET" bash -s -- "$PRYSM_VALIDATOR_SYSTEMD_UNIT" <<'REMOTE'
+set -euo pipefail
+UNIT="$1"
+for _ in {1..30}; do
+	state="$(systemctl is-active "${UNIT}" 2>/dev/null || true)"
+	if [[ "$state" == "active" ]]; then
+		echo "OK: ${UNIT} active MainPID=$(systemctl show -p MainPID --value "${UNIT}")"
+		exit 0
+	fi
+	sleep 1
+done
+echo "ERROR: ${UNIT} not active after 30s (state=$(systemctl is-active "${UNIT}" 2>/dev/null || echo unknown))" >&2
+systemctl status "${UNIT}" --no-pager -l | tail -n 20 >&2 || true
+exit 1
+REMOTE
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then

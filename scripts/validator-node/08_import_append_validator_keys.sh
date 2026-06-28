@@ -306,7 +306,8 @@ stop_legacy_validator_processes() {
 		fi
 		rm -f "$pid_file"
 	fi
-	pkill -f "validator.*${VALIDATOR_DATA_DIR}" 2>/dev/null || true
+	pkill -f "dependencies/prysm.*validator.*consensus/validatordata" 2>/dev/null || true
+	pkill -f "validator.*consensus/validatordata" 2>/dev/null || true
 }
 
 ensure_validator_restarted_if_needed() {
