@@ -1,0 +1,161 @@
+---
+description: CoNET L1 聆听 Validator 节点 — Redeem 成功后 append validator 标准 workflow（import + 仅 reload validator）
+globs: scripts/deployValidatorRedeemListener.sh,scripts/validator-node/**,src/x402sdk/src/endpoint/validatorDepositRedeem.ts,src/x402sdk/service/conet-validator-redeem-listener.env.example,src/x402sdk/service/systemd/conet-validator-redeem-listener.service
+alwaysApply: false
+---
+
+# CoNET L1 聆听 Validator 节点 — Redeem Append 标准 Workflow
+
+适用 **已运行 geth + beacon + validator，且部署了 `conet-validator-redeem-listener`** 的 CoNET L1 节点（如 `38.102.85.33`）。  
+**每次 `ValidatorRedeemClaimed` 成功后在同一机器上追加 validator 时，必须遵守本 workflow。**
+
+与 **`beamio-validator-deposit-redeem-staking-custody.mdc`**（合约/经济模型）、**`critical-chain-infra-restart-requires-approval.mdc`**（禁止擅自重启 geth/beacon）、**`beamio-no-master-json-remote-copy.mdc`**（禁止跨机复制 master.json）并存。
+
+---
+
+## 核心规则（append 新 validator）
+
+**链上 deposit 成功 ≠ Prysm 已开始签名。** 追加 validator 后：
+
+1. **必须** 把新 keystore **import 进现有 Prysm wallet**
+2. **必须** **仅 reload validator 客户端**（停/启 validator 进程）
+3. **禁止** 为 append 而重启 **beacon-chain** 或 **geth**（除非独立运维故障，且须用户书面授权）
+
+| 组件 | Redeem append 后 | 原因 |
+|---|---|---|
+| **Geth** | ❌ 不重启 | 与「多一个验证者」无关 |
+| **Beacon** | ❌ 不重启 | deposit 上链后 beacon 自动从链上状态看到新 validator（`pending_*` → `active_*`） |
+| **Validator 客户端** | ✅ **必须 reload** | 只有 VC 读本地 wallet；import 后须重载进程才加载新 BLS key |
+
+---
+
+## 标准顺序（Listener `executeValidatorRedeem` — 单一事实来源）
+
+`src/x402sdk/src/endpoint/validatorDepositRedeem.ts` 在 **deposit 上链成功后** 默认执行：
+
+| 步骤 | 脚本 / 动作 | 说明 |
+|---|---|---|
+| **1** | `01_generate_append_validator_deposits_listener.sh` | 生成本次 redeem 的 keystore + `validator_deposits.json`；**withdrawal** 指向 `ValidatorDepositRedeem` 合约 |
+| **2** | `fundAndDepositValidators` + `04_submit_validator_deposits.js`（链上） | 合约垫资 + deposit 合约 `deposit`（32 CNET/validator） |
+| **3** | `registerNodeValidators` | relayer 写链绑定 node ↔ beneficiary |
+| **4** | **`08_import_append_validator_keys.sh`** | Import `append_validator_keys/validator_keys/*.json` → Prysm wallet；manifest 幂等 |
+| **5** | **`08` 内 `RELOAD_VALIDATOR_AFTER_IMPORT=YES`** | **仅** stop/start validator（beacon + geth 不动） |
+| **6** | ~~`05_restart_beacon_validator.sh`~~ | **默认跳过**（`CONET_VALIDATOR_SKIP_BEACON_RESTART=YES`） |
+
+**禁止** 把「deposit 成功」当作「已 import + 已 reload validator」。
+
+---
+
+## 环境变量（`/etc/default/conet-validator-redeem-listener`）
+
+模板：`src/x402sdk/service/conet-validator-redeem-listener.env.example`
+
+| 变量 | 默认 / 推荐 | 含义 |
+|---|---|---|
+| `CONET_VALIDATOR_REDEEM_LISTENER` | `1` | 启用监听 |
+| `CONET_VALIDATOR_NODE_IP` | 本机公网 IP | 与 redeem `targetNodeIp` 对齐 |
+| `CONET_VALIDATOR_NEWCONET_DIR` | `/home/peter/ethereum-pos-mainnet` | CoNET 栈根目录 |
+| `CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE` | `secrets/validator_keystore_password.txt` | Prysm **keystore** 解密密码（或 inline `KEYSTORE_PASSWORD`） |
+| `CONET_VALIDATOR_WALLET_PASSWORD_FILE` | `secrets/prysm_wallet_password.txt` | Prysm **wallet** 密码（或 inline `WALLET_PASSWORD`） |
+| `CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE` | `secrets/deposit_sender_private_key.txt` | 本机 deposit 签名 EOA（**禁止**与 settle admin 混用） |
+| `CONET_VALIDATOR_SKIP_IMPORT` | 未设 / `NO` | 设为 `YES` 仅调试；**生产禁止**跳过 import |
+| `CONET_VALIDATOR_RELOAD_VALIDATOR_AFTER_IMPORT` | 未设 → **YES** | 设为 `NO` 时 import 后**不** reload validator（易漏签） |
+| `CONET_VALIDATOR_SKIP_BEACON_RESTART` | **YES** | 设为 `NO` 才会跑 `05_restart_beacon_validator.sh`（**append 不推荐**） |
+| ~~`CONET_VALIDATOR_RUN_JOIN_SCRIPT`~~ | **已废弃** | 勿用 `03_join_v714.sh` 代替 `08_import` |
+
+Listener 部署：`./scripts/deployValidatorRedeemListener.sh`（同步 `01_*_listener.sh`、`08_import_append_validator_keys.sh` 等到 `CONET_VALIDATOR_NEWCONET_DIR`）。
+
+---
+
+## 密码与 generate 守则
+
+1. **`01_generate_append_validator_deposits_listener.sh`** 在 generate 后 **恢复** 原有 `secrets/validator_keystore_password.txt` / `prysm_wallet_password.txt`，**不得**因 listener 再次 generate 而覆盖 wallet 密码（否则旧 key 无法 decrypt / wallet 打不开）。
+2. **Keystore 密码与 wallet 密码可不同**；两者均须在本机 `secrets/` 稳定保存（chmod 600，勿提交 git）。
+3. 若某次 append 用了**与 wallet 文件不同的 keystore 密码**（如历史节点），import 时须对该 keystore 使用**当时加密密码**（`--account-password-file`），wallet 仍用 `prysm_wallet_password.txt`。
+4. **助记词**：若 generate 产生新 mnemonic，须**人工安全备份**；listener **不**依赖 `secrets/validator_mnemonic.txt` 做 append import。
+
+---
+
+## 两种场景
+
+### A. 全新 L1 节点（首次 join，非 redeem append）
+
+仅 **第一次** 上架机器时执行（示例 `25_deploy_*_full_dht.sh` + `03_join_v714.sh`）：
+
+- 生成首批 keystore → join 脚本 import → 启动 **geth + beacon + validator** → 提交 deposit → systemd `conet-node*.service`
+- **之后** 该节点的 redeem append **只走上文标准顺序 1–5**，**不再** 全量 `03_join` / `RESET_JOIN_NODE=YES`
+
+### B. 已运行节点 — Redeem append（本守则主路径）
+
+```
+ValidatorRedeemClaimed (targetNodeIp = 本机)
+  → generate (listener wrapper)
+  → fundAndDeposit + submit deposit
+  → registerNodeValidators
+  → 08_import_append_validator_keys.sh
+  → reload validator ONLY
+```
+
+---
+
+## 手工验收（每次 append 或部署后）
+
+```bash
+# 1) Wallet 账户数应增加（或 manifest 显示新 keystore 已 import）
+./dependencies/prysm-v7.1.5/validator accounts list \
+  --wallet-dir=network/node-0/consensus/validator-wallet \
+  --wallet-password-file=secrets/prysm_wallet_password.txt
+
+# 2) 链上状态（pending → active）
+curl -s "http://127.0.0.1:4100/eth/v1/beacon/states/head/validators/<pubkey>" | jq '.data | {index, status, balance}'
+
+# 3) Validator 日志：新 key 应出现 ACTIVE 或 PENDING；active key 应有 attester duty
+tail -f network/node-0/logs/validator.log
+
+# 4) geth / beacon 仍在跑（未因 append 重启）
+pgrep -af 'geth.*node-0'; pgrep -af 'beacon-chain.*node-0'
+```
+
+---
+
+## AI / 运维检查清单
+
+- [ ] Redeem 成功后是否跑了 **`08_import_append_validator_keys.sh`**（非仅 deposit）？
+- [ ] 是否 **`RELOAD_VALIDATOR_AFTER_IMPORT=YES`**（或等价手动 reload validator）？
+- [ ] 是否 **未** 为 append 重启 beacon / geth（除非用户明确授权）？
+- [ ] `CONET_VALIDATOR_SKIP_BEACON_RESTART` 是否保持 **YES**？
+- [ ] generate 是否走 **`01_generate_append_validator_deposits_listener.sh`**（密码文件未被覆盖）？
+- [ ] deposit sender 是否 **本机** `secrets/deposit_sender_private_key.txt`（未 scp master.json）？
+- [ ] 多 validator 并存时，wallet `accounts list` 数量是否与预期一致？
+
+---
+
+## 严禁
+
+- ❌ Redeem deposit 成功却 **不 import** keystore（validator 不会对新区块签名）
+- ❌ Import 后 **不 reload validator**（wallet 已有 key 但进程仍只用旧 key）
+- ❌ 每次 append 默认 **`05_restart_beacon_validator.sh`** 或重启 geth/beacon（违反 append 语义；链基础设施重启须授权）
+- ❌ 使用 **`CONET_VALIDATOR_RUN_JOIN_SCRIPT=YES`** / 全量 `03_join_v714.sh` 代替 **`08_import`**（会 reset join、风险高）
+- ❌ Listener generate **覆盖** 已有 Prysm wallet 密码文件（须 listener wrapper 恢复）
+- ❌ 跨机复制 `~/.master.json` 或 deposit 私钥（见 `beamio-no-master-json-remote-copy.mdc`）
+- ❌ 把 deposit sender 与 settle_contractAdmin 混为同一私钥
+
+---
+
+## 参考实现
+
+| 模块 | 路径 |
+|---|---|
+| Listener 编排 | `src/x402sdk/src/endpoint/validatorDepositRedeem.ts` — `executeValidatorRedeem` |
+| Generate（密码保护） | `scripts/validator-node/01_generate_append_validator_deposits_listener.sh` |
+| Import + reload validator | `scripts/validator-node/08_import_append_validator_keys.sh` |
+| 部署 listener | `scripts/deployValidatorRedeemListener.sh` |
+| Env 模板 | `src/x402sdk/service/conet-validator-redeem-listener.env.example` |
+| 仅 reload validator（systemd 节点） | `ethereum-pos-mainnet/06_restart_node*.sh` — `start_validator` / stop validator pid |
+
+## 相关守则
+
+- `beamio-validator-deposit-redeem-staking-custody.mdc` — 合约托管 / fee_recipient / deposit withdrawal
+- `critical-chain-infra-restart-requires-approval.mdc` — geth / beacon 重启须授权
+- `conet-no-restart-eth-nodes.mdc` — CoNET L1 节点重启专项
+- `beamio-no-master-json-remote-copy.mdc` — 密钥本地化

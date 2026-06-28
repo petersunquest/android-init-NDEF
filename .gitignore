@@ -41,3 +41,5 @@ Thumbs.db
 !.cursor/rules/beamio-bizsite-deploy.mdc
 !.cursor/rules/beamio-pwa-deploy-app-dirs.mdc
 !.cursor/rules/conet-ipfs-deploy.mdc
+!.cursor/rules/beamio-validator-deposit-redeem-staking-custody.mdc
+!.cursor/rules/conet-validator-redeem-listener-l1-workflow.mdc

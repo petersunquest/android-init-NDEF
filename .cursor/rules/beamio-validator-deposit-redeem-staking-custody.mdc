@@ -1,0 +1,363 @@
+---
+description: ValidatorDepositRedeem 质押托管 + 转让/退出 + 介绍人自动发奖 + Referrer Dashboard UI（部署/实现参照）
+globs: src/mainnet/ValidatorDepositRedeem*.sol,src/x402sdk/src/endpoint/validatorDepositRedeem.ts,src/SilentPassUI/src/services/validatorWalletNodeProfile.ts,src/SilentPassUI/src/pages/Wallet/ValidatorNodeProfilePage.tsx
+alwaysApply: false
+---
+
+# ValidatorDepositRedeem 协议（部署实现参照守则）
+
+本守则定稿 `ValidatorDepositRedeem` 的 **validator 质押本金托管 + 转让 + 退出** 经济模型，以及 **介绍人（Referrer）自动发奖 + 客户端 Dashboard 读模型**。**实现 / 重新部署 / 改监听器 / 做 Referrer UI 前必须遵守**；与既有 redeem 自动分配、1:1 node↔beneficiary、`registerNodeValidators` 兼容。
+
+> 当前链上 `0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab` 为**旧模型**（withdrawal=受益人、转让走 exit+重部署，**无 Referrer Extension / 新 ClaimRedeem 签名字段**），**不符合**本协议；本协议需**重新部署**新版 Redeem + ReferrerExtension 后生效。主合约 bytecode 仍可能超 EIP-170，部署前须瘦身或代理方案。
+
+## 三条物理事实（不可违背）
+
+1. validator `withdrawal_credentials (0x01)` 在 **deposit 时写入即不可变**，本协议恒指向 **`ValidatorDepositRedeem` 合约地址**（合约 = 唯一 depositor + 本金托管方）。
+2. exit / skim 的 CNET **自动 push 回合约**，**无 memo**；合约无法链上得知归属，必须由监听器**链下对账** `pubkey → node → beneficiary`。
+3. `fee_recipient`（执行层出块奖励，运行时可改）**独立于** `0x01`；本协议用它把**出块奖励直发受益人**。GB 收益走 depin api，合约只管 CoNET L1 本金。
+
+## 单一事实来源（核心不变式）
+
+> **链上 `ValidatorBinding.withdrawalBeneficiary`（= 经济受益人）== 监听器设置的 `fee_recipient` == 完全退出时收款人**
+
+转让时必须**同步**更新这三者，否则退出会把 32 CNET 付错人。`withdrawalBeneficiary` 语义 = **经济受益人**（物理 withdrawal 恒 = 合约）。
+
+## 部署
+
+- 监听器链下生成 BLS key + deposit data，`withdrawal_credentials = 0x01||0x11||合约地址`。
+- relayer/admin 调 `fundAndDepositValidators(beneficiary, nodeWallets[], depositData[])`：合约**逐个强校验 withdrawal_credentials == 自身**（命门，错则本金提款权流失）→ `IBeaconDeposit(0x4242…4242).deposit{value:32e18}(...)` → 记账 `stakedValidatorCountOf[beneficiary]+=N` + `registerNodeValidators` 绑定。
+- 启动 validator `--suggested-fee-recipient = beneficiary`。部署前断言 `address(this).balance >= 32×N`。
+
+## 转让（fee_recipient 热更新，**不 exit**）
+
+**两条转让路径都走同一内部函数 `_transferOneNodeWallet`，集中对齐热更新**：
+
+| 路径 | 入口 | 付款 |
+|---|---|---|
+| **免费转让** | `transferNodes(...)`（受益人 EIP-712 签） | 无 |
+| **挂单成交（EIP-3009 零 approve）** | `createTransferOrder` 挂单 → `fulfillTransferOrder`（买家 EIP-712 `FulfillTransferOrder` + EIP-3009 `transferWithAuthorization` 双签，relayer 提交） | 合约用 EIP-3009 把 CoNET-USDC 价款 **buyer→seller** 直转，**无需 approve**；同笔原子转移节点 |
+
+1. relayer 上链 → 合约 `_transferOneNodeWallet`：node/IP/GB 归属 → 新受益人（买家）；**`b.withdrawalBeneficiary = to`**；validator **保活**（不改 `active`/`exitedAt`、**不 emit `NodeValidatorExitRequested`**）；`stakedValidatorCountOf` 随节点迁移；emit `NodesTransferred`/`TransferOrderFilled` + `NodeValidatorBeneficiaryUpdated`。
+2. 监听器收 `NodesTransferred`（含挂单成交触发）→ Prysm 把该 pubkey `fee_recipient` **热更新**为新受益人（validator 继续跑，同一 BLS pubkey，无退出队列、无重新垫资）。
+3. 本金始终在合约，不变式仍成立。
+
+> **EIP-3009 挂单自动成交**：`fulfillTransferOrder` 原子完成「USDC 零 approve 收款 + 节点转移 + 经济受益人热更新」；因复用 `_transferOneNodeWallet`，**天然对齐** fee_recipient 热更新，**不触发 exit**。挂单期间节点被 `nodeOrder` 锁定，禁止 `transferNodes` / `requestFullExit`。
+
+## 完全退出（受益人取回 32 CNET，**预支**）
+
+1. 受益人 EIP-712 签 `requestFullExit(nodeWallets[])` → emit `FullExitRequested`。
+2. 监听器 exit 对应 validators，**确认 exit tx 上链**。
+3. relayer/admin 调 `settleFullExitPayout(beneficiary, nodeWallets[])`，合约**预支**（不等退出队列）：
+   - 强校验每个 `b.withdrawalBeneficiary == beneficiary`、`!settledPubkey[pkHash]`、exit 已发起；
+   - 断言 `address(this).balance >= 32×count`；
+   - `withdrawNative` 付 **32×count** 给受益人；标记 `settledPubkey[pkHash]=true`、binding 失活、`stakedValidatorCountOf[beneficiary]-=count`。
+4. 数小时/天后 exit 的 32×count **自动回流合约**补回池子（**不触发任何付款**，仅补余额）。
+
+### 退出护栏（必须实现）
+
+| 风险 | 护栏 |
+|---|---|
+| 退出未广播就预支 | 仅 relayer/admin 在监听器确认 exit 上链后触发；受益人签名**不能**直接提款 |
+| 重复预支 | `settledPubkey[pkHash]` 标记，已结算再次结算 revert |
+| 回流被当奖励再付一次 | 回流入池只补余额，**不**触发付款 |
+| slashing 致回流 <32 | **预支固定全额 32**，差额由合约资金池承担（CoNET 自控 validator） |
+| 资金池不足 | `balance < 32×count` 时**退化为"等回流再付"**模式，不拒绝退出 |
+| 付错人 | 收款人强校验 == `b.withdrawalBeneficiary`（= fee_recipient） |
+
+## 奖励语义
+
+- 出块奖励 → `fee_recipient` = 受益人（转让只改这个）。
+- skim 溢出（余额 >32）→ 按 `0x01` 进**合约资金池**（不自动分给受益人）。
+- 本金 → exit 时预支即时到受益人。
+- GB → depin api，与 L1 无关。
+
+## 合约待新增/改（实现清单）
+
+- `_transferOneNodeWallet`：改经济受益人、**不 exit**；新事件 `NodeValidatorBeneficiaryUpdated`。
+- `IBeaconDeposit(0x4242…4242).deposit` 接口 + `fundAndDepositValidators`（强校验 withdrawal==self）。
+- 账本 `stakedValidatorCountOf` / `settledPubkey[bytes32]` / `fundedDepositTotal`。
+- `requestFullExit`（受益人 EIP-712，新 typehash）+ `settleFullExitPayout`（强校验 `beneficiary==withdrawalBeneficiary`）。
+- 事件 `ValidatorDeposited` / `FullExitRequested` / `FullExitSettled` / `NodeValidatorBeneficiaryUpdated`。
+- 复用今日已加的 `receive()` + `withdrawNative` / `withdrawNativeBatch`（onlyRedeemAdmin + `nonReentrantNative`）。
+
+## 监听器待改（`validatorDepositRedeem.ts`）
+
+| 事件 | 旧 | 新 |
+|---|---|---|
+| `NodeValidatorExitRequested`（转让） | exit + 重部署 | **退役**（转让不再触发） |
+| `NodesTransferred` | 无 | **新增**：Prysm `fee_recipient` 热更新（`POST /eth/v1/validator/{pubkey}/feerecipient` 或 proposer-settings），validator 不 exit |
+| `FullExitRequested` | 无 | **新增**：exit → 对账到账 → 回报 `settleFullExitPayout` |
+
+`executeValidatorTransferExit`（exit+重部署）整体替换为轻量 `updateFeeRecipient`。
+
+## Validator listener 部署与密钥（必读）
+
+### 禁止跨机复制 `~/.master.json`
+
+见 **`beamio-no-master-json-remote-copy.mdc`**：部署脚本 **不得** 从本机 / conet.network / 任意主机 scp 或 pipe 整份 `master.json` 到 validator 节点。每台机器密钥 **仅在该机本地** 配置。
+
+### Deposit sender 私钥（`deposit_sender_private_key.txt`）为何需要
+
+当链上 emit **`ValidatorRedeemClaimed`** 且 `targetNodeIp` 匹配本机时，监听器执行 **`executeValidatorRedeem`**。**标准 append workflow（完整步骤、环境变量、验收）见 `conet-validator-redeem-listener-l1-workflow.mdc`。** 顺序包括：
+
+1. `01_generate_append_validator_deposits_listener.sh` — 生成本次 redeem 的 BLS / deposit data（withdrawal 指向 `ValidatorDepositRedeem` 合约；**不覆盖**已有 Prysm 密码文件）
+2. `fundAndDepositValidators` + **`04_submit_validator_deposits.js`** — 向 CoNET **Deposit 合约**（`0x4242…4242`）发送 **每笔 32 CNET** 的 `deposit` 交易
+3. `registerNodeValidators`（relayer / settle 钱包代付 gas）
+4. **`08_import_append_validator_keys.sh`** — import 新 keystore 进 Prysm wallet（manifest 幂等）
+5. **`08` 默认 `RELOAD_VALIDATOR_AFTER_IMPORT=YES`** — **仅 reload validator 客户端**（**不**重启 beacon / geth）
+6. ~~`05_restart_beacon_validator.sh`~~ — **默认跳过**（`CONET_VALIDATOR_SKIP_BEACON_RESTART=YES`）
+
+**第 2 步必须有一个 EOA 私钥** 在链上签名并支付 **32 × validatorCount CNET**（+ gas）。该密钥即 **deposit sender**，默认路径：
+
+```
+{CONET_VALIDATOR_NEWCONET_DIR}/secrets/deposit_sender_private_key.txt
+```
+
+环境变量覆盖：`CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE`。
+
+| 密钥 | 用途 | 能否与 deposit sender 共用 |
+|---|---|---|
+| **deposit_sender** | 仅 `IBeaconDeposit.deposit` 垫资 32 CNET/validator | —（专用） |
+| **settle_contractAdmin** | `settleFullExitPayout`、`registerNodeValidators` 等 relayer 写链 | ❌ **禁止**混用（权限过大；守则要求 deposit 专用文件） |
+| **Prysm validator wallet** | 共识层签名 attest/propose | ❌ 不同层；deposit 在 execution 层交易 |
+| **受益人 EOA** | redeem claim 签名 | ❌ 不替节点发 deposit |
+
+缺文件时 listener 仍可 **监听事件**，但 claim 执行会在 `submit-deposits` 前失败：`CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE missing`。
+
+### Listener 环境（单一事实来源）
+
+`/etc/default/conet-validator-redeem-listener`（模板：`src/x402sdk/service/conet-validator-redeem-listener.env.example`）：
+
+| 变量 | 含义 |
+|---|---|
+| `CONET_VALIDATOR_REDEEM_LISTENER=1` | 启用监听 |
+| `CONET_VALIDATOR_NODE_IP` | 本机公网 IP（与 redeem `targetNodeIp` 对齐） |
+| `CONET_VALIDATOR_NEWCONET_DIR` | CoNET 栈目录（含 `04_submit_validator_deposits.js`） |
+| `CONET_VALIDATOR_DEPOSIT_PRIVATE_KEY_FILE` | **本机** deposit 私钥路径（文件须已在该机创建） |
+| `CONET_VALIDATOR_DEPOSIT_RPC_URL` / `CONET_RPC_URL` | CoNET RPC（读事件 + 发 deposit） |
+| `CONET_VALIDATOR_KEYSTORE_PASSWORD_FILE` / `WALLET_PASSWORD_FILE` | Prysm keystore / wallet 密码（或 inline `KEYSTORE_PASSWORD` / `WALLET_PASSWORD`） |
+| `CONET_VALIDATOR_SKIP_IMPORT` | 生产须 **未设**；`YES` 仅调试 |
+| `CONET_VALIDATOR_RELOAD_VALIDATOR_AFTER_IMPORT` | 默认 **YES**（import 后仅 reload validator） |
+| `CONET_VALIDATOR_SKIP_BEACON_RESTART` | 默认 **YES**（append 不跑 `05_restart_beacon_validator.sh`） |
+
+部署：`./scripts/deployValidatorRedeemListener.sh`（**不**复制 master.json；目标机 Node.js **≥ 20**）。**Append workflow 守则：** `conet-validator-redeem-listener-l1-workflow.mdc`。
+
+## 严禁
+
+- ❌ deposit withdrawal_credentials 指向受益人（必须指向合约）
+- ❌ 转让走 exit + 重部署（应仅热更新 fee_recipient + 改 `withdrawalBeneficiary`）
+- ❌ `settleFullExitPayout` 不校验 `beneficiary == withdrawalBeneficiary`
+- ❌ exit 回流的 CNET 再次触发付款（只补池）
+- ❌ 同一 pubkey 重复结算（缺 `settledPubkey` 防重放）
+- ❌ 资金池不足仍强行预支导致负债 / 偿付崩溃
+- ❌ 未经用户明确授权重新部署 / 在 mainnet.conet.network 验证（部署须显式放行）
+
+---
+
+## 介绍人（Referrer）自动发奖 workflow
+
+### 合约拆分（EIP-170）
+
+| 合约 | 职责 |
+|---|---|
+| **`ValidatorDepositRedeem`**（Host） | redeem claim、Guardian 节点分配、`grantReferrerRewardNodes`、`getReferrerRewardNodes` |
+| **`ValidatorDepositRedeemReferrerExtension`** | 介绍人账本：绑定、累计介绍节点数、里程碑计算、回调 Host 发奖 |
+
+部署后须互相关联：
+
+1. 部署 `ValidatorDepositRedeemReferrerExtension(admin)`
+2. `extension.setRedeemHost(redeemAddress)`
+3. `redeem.setReferrerExtension(extensionAddress)`
+
+### 触发路径（同笔 claim 交易内自动完成）
+
+```
+claimRedeemFor(claimer, beneficiary, referrer, code, deadline, sig)
+  → _consumeAndEmit：beneficiary 获得 redeem 节点
+  → 若 referrer != 0：extension.onBeneficiaryClaim(beneficiary, referrer, validatorCount)
+       → referrerReferralNodeTotal[referrer] += validatorCount
+       → milestone = total / REFERRER_NODES_PER_REWARD（= 10）
+       → 若 milestone > referrerRewardMilestonePaid[referrer]：
+            extension → redeem.grantReferrerRewardNodes(referrer, milestone - paid)
+            → _appendAllocatedNodes(referrer, count, count)（validator + GB 1:1）
+            → 追加 _referrerRewardGuardianIds[referrer]
+```
+
+**无单独「发奖 API」**；x402sdk 只 relay `claimRedeemFor`，发奖在链上同步完成。
+
+### Claim 签名（破坏性变更）
+
+EIP-712 `ClaimRedeem` **必须**含 `referrer` 字段；无介绍人时 `referrer = address(0)`：
+
+```
+ClaimRedeem(claimer, codeHash, beneficiary, referrer, validatorCount, targetNodeIp, gbMiningNodeCount, deadline)
+```
+
+Cluster/Master body 须传 `referrer`（可选，默认 `0x0`）。
+
+### 链上规则
+
+| 规则 | 说明 |
+|---|---|
+| **绑定一次** | `referrerOfBeneficiary[beneficiary]` 首次 claim 写入；后续 claim 的 referrer 须一致 |
+| **禁止自介绍** | `referrer == beneficiary` revert |
+| **累计口径** | `referrerReferralNodeTotal` 按每次 claim 的 **`validatorCount`** 累加（节点套数，非人数） |
+| **不因转让扣减** | 被介绍人转让节点后，介绍人累计 **不减少** |
+| **里程碑** | 每满 **10** 累计介绍节点 → 介绍人自动获得 **1 套** validator + DePIN（含 GB mining） |
+| **可跨多档** | 单次 claim 的 `validatorCount` 大可一次 grant 多套（`milestone - paid`） |
+
+### 链上状态与事件
+
+| 状态 / 事件 | 含义 |
+|---|---|
+| `referrerOfBeneficiary[b]` | 受益人绑定的介绍人 |
+| `_referrerReferredBeneficiaries[r][]` | 介绍人下被介绍钱包列表 |
+| `referrerReferralNodeTotal[r]` | 累计介绍节点数 |
+| `referrerRewardMilestonePaid[r]` | 已兑现 milestone 档位数（= 已发奖励 **套数**） |
+| `_referrerRewardGuardianIds[r][]` | 里程碑奖励 Guardian node id（Host） |
+| `BeneficiaryReferrerBound` | 首次绑定 |
+| `ReferrerReferralNodesAccrued` | 每次累加 |
+| `ReferrerRewardMilestonePaid` | 跨档 |
+| `ReferrerRewardNodesGranted` | Host 实际分配节点 |
+
+### 读接口（RPC 直读，不经 x402sdk 聚合）
+
+| 合约 | 函数 | 返回 |
+|---|---|---|
+| Extension | `resolveReferrerDetail(referrer, offset, limit)` | 被介绍钱包[]、累计节点、已/待发奖励套数、`ReferrerRewardNodeDetail[]` |
+| Extension | `getReferrerSummary(referrer)` | 人数、累计节点、奖励进度、被介绍人**当前持有**节点总和 |
+| Extension | `referrerOfBeneficiary(beneficiary)` | 某钱包的介绍人 |
+| Host | `getReferrerRewardNodes(referrer)` | `(guardianNodeIds[], nodeWallets[], depinNodeIps[])` |
+| Host | `referrerExtension()` | Extension 地址 |
+
+`beneficiaryLimit = 0` 表示 `resolveReferrerDetail` 返回**全部**被介绍钱包。
+
+### 客户端读路径（单一事实来源）
+
+| 层 | 文件 | 入口 |
+|---|---|---|
+| **SilentPassUI** | `src/SilentPassUI/src/services/validatorWalletNodeProfile.ts` | `fetchReferrerDetail(referrer, { beneficiaryLimit: 0 })` |
+| **x402sdk**（服务端/脚本） | `src/x402sdk/src/endpoint/validatorDepositRedeem.ts` | `validatorDepositRedeemReadReferrerDetail(referrer, …)` |
+
+须遵守 `beamio-rpc-first-no-centralized-api.mdc`、`beamio-trusted-vs-untrusted-fetch.mdc`：**仅 `ok: true` 覆盖 UI**；失败保留上次可信值，不得清空或显示空态冒充「无介绍记录」。
+
+Extension 地址：`redeem.referrerExtension()` 或 env `CONET_VALIDATOR_REFERRER_EXTENSION`。
+
+---
+
+## Referrer Dashboard UI 规格（SilentPassUI）
+
+适用 **Consumer PWA** 介绍人查看「我介绍了谁、累计多少节点、已获哪些奖励节点」。**须 RPC 直读** `fetchReferrerDetail`，禁止页面内自建 HTTP 聚合或重复裸调合约。
+
+### 页面层级与路由
+
+| 项 | 约定 |
+|---|---|
+| **推荐入口** | `/wallet/conet-nodes`（`ValidatorNodeProfilePage`）内 **Referrals** 区块，或同级二级页 `/wallet/conet-nodes/referrals` |
+| **页面类型** | **二级页**（从 Wallet / CoNET Nodes 进入）→ `setShowFooter(false)`，cleanup 还原；顶栏 `BeamioCircularBackButton`（`beamio-app-page-navigation-hierarchy.mdc`） |
+| **当前登录 EOA** | `profiles[0].keyID` 即默认 `referrer` 查询地址；无 EOA 时不得进入 Dashboard |
+
+### 数据加载
+
+```typescript
+import { fetchReferrerDetail } from '@/services/validatorWalletNodeProfile'
+
+const res = await fetchReferrerDetail(referrerEoa, { beneficiaryLimit: 0 })
+if (!res.ok) { /* 保留上次可信 detail；可标 stale，禁止清空为 []/0 */ return }
+const { detail } = res
+```
+
+| `ReferrerDetail` 字段 | UI 展示（英文） | 说明 |
+|---|---|---|
+| `referredBeneficiaries` | **Referred wallets** | 被介绍 redeem 受益人 EOA 列表；每项用 `AddressCapsule`（`address-capsule-ui.mdc`） |
+| `referralNodeTotal` | **Referral nodes (total)** | 累计介绍节点数（claim 时 validatorCount 之和） |
+| `nodesPerReward` | 进度分母文案 | 通常 `10`；与 `REFERRER_NODES_PER_REWARD` 一致 |
+| `rewardNodesGranted` | **Reward nodes granted** | 已发里程碑奖励 **套数** |
+| `pendingRewardNodes` | **Pending reward nodes** | 已达 milestone 尚未 grant 的套数（链上同步 grant 后通常为 0） |
+| `rewardNodes[]` | **Granted reward nodes** | 见下表 |
+
+**`ReferrerRewardNodeDetail` 行（Granted reward nodes 列表）：**
+
+| 字段 | UI 列 / 标签 | 组件 |
+|---|---|---|
+| `nodeWallet` | **Node wallet** | `AddressCapsule`；可复制完整地址 |
+| `depinNodeIp` | **DePIN IP** | 等宽文案 + copy；与 `ValidatorNodeProfilePage` 节点行一致 |
+| `guardianNodeId` | **Guardian ID**（可选次要行） | 小字 monospace |
+
+可选补充（非 `resolveReferrerDetail` 主路径）：`fetchReferrerDashboard` 的 `referredNodesOwnedTotal` 可在 KPI 区展示 **Referred wallets' nodes (current)** — 被介绍人**当前仍持有**的节点总数（会因转让变化，与 `referralNodeTotal` 不同）。
+
+### 布局区块（自上而下）
+
+1. **KPI 行（2×2 或横滑）**  
+   - Referral nodes (total)  
+   - Reward nodes granted  
+   - Pending reward nodes  
+   - Progress：`referralNodeTotal % nodesPerReward` / `nodesPerReward` 或进度条「X / 10 until next reward」
+
+2. **Granted reward nodes**  
+   - 有 `rewardNodes.length > 0`：卡片列表（wallet + IP + 可选 guardian id）  
+   - 无奖励且 `referralNodeTotal > 0`：说明文案 *Earn 1 validator + DePIN bundle for every 10 referral nodes.*  
+   - 无任何被介绍人：*No referrals yet.*
+
+3. **Referred wallets**  
+   - `referredBeneficiaries.map` → `AddressCapsule`  
+   - 人数 >50 时可分页：`beneficiaryOffset` + `beneficiaryLimit`（默认首屏可 `limit: 50`，Refresh 拉全量 `limit: 0`）
+
+4. **Refresh**  
+   - 遵守 `ui-refresh-button-protocol.mdc`（Loader2 / Check / AlertTriangle，3s 恢复）
+
+### 空态与 trusted-fetch
+
+| 场景 | UI |
+|---|---|
+| 首次加载、无缓存、RPC 失败 | Loading 或 *Referral data unavailable*；**不得**显示 *No referrals* |
+| RPC 成功、`referredBeneficiaries.length === 0` | *No referrals yet.* |
+| 有上次可信 `detail`、本轮 RPC 失败 | 继续展示旧数据 + optional *Local data · refresh failed* |
+| Extension 未配置 | *Referral program not available*（非空列表） |
+
+### Claim 侧（介绍人绑定，非 Dashboard 但须对齐）
+
+- 被介绍人 claim redeem 时，签名/UI 须允许填写或带入 **Referrer address**（可选）；空则 `0x0`。  
+- 服务端 relay：`claimRedeemFor` body 含 `referrer`（`validatorDepositRedeem.ts`）。  
+- 同一 beneficiary 已绑定介绍人后，后续 claim **不可改** referrer。
+
+### 文案与规范
+
+- 用户可见文案 **英语**（`ui-english.mdc`）  
+- 地址 **AddressCapsule**；用户画像可用 **BeamioCapsule**（若 DB 有 tag）  
+- 数字输入不适用；B-Unit 不适用本页  
+- 子项目独立实现：bizSite / Alliance 若做 Referrer 页，**复制本读模型与 UI 语义**，勿跨 `../..` import SilentPassUI 组件
+
+### 实现检查清单
+
+- [ ] 是否只调 `fetchReferrerDetail` / `resolveReferrerDetail`（RPC），未新增读 API？  
+- [ ] 失败是否保留上次可信 detail（`beamio-trusted-vs-untrusted-fetch.mdc`）？  
+- [ ] KPI 是否区分 **referralNodeTotal**（累计）与 **referredNodesOwnedTotal**（当前持有，若展示）？  
+- [ ] 奖励列表是否展示 **nodeWallet + depinNodeIp**（+ 可选 guardianNodeId）？  
+- [ ] 二级页是否 `setShowFooter(false)` + 圆形返回？  
+- [ ] Refresh 是否遵守四态协议？  
+- [ ] Claim 集成是否含 EIP-712 `referrer` 字段？
+
+### Referrer 相关严禁
+
+- ❌ 用 HTTP/API 聚合代替 `resolveReferrerDetail` 作为 Dashboard 真相  
+- ❌ RPC 失败时把列表清空或 KPI 置 0  
+- ❌ 把 `referralNodeTotal` 与「被介绍人当前持有节点」混为一谈  
+- ❌ 期望单独「领取介绍人奖励」按钮（奖励在 claim 交易内自动 grant）  
+- ❌ 未部署 Extension / 未 `setReferrerExtension` 却展示假数据  
+- ❌ `_referrerRewardGuardianIds` 部署前的历史奖励无法通过 `getReferrerRewardNodes` 还原（须事件索引；新 grant 起可查）
+
+---
+
+## 相关守则
+
+- `beamio-rpc-first-no-centralized-api.mdc` — 链上读优先 RPC
+- `beamio-trusted-vs-untrusted-fetch.mdc` / `beamio-ai-onchain-fetch.mdc` — Referrer Dashboard 失败不覆盖可信缓存
+- `beamio-app-page-navigation-hierarchy.mdc` — Referrer 二级页 Footer / 返回钮
+- `ui-refresh-button-protocol.mdc` — Dashboard Refresh 四态
+- `address-capsule-ui.mdc` — 被介绍钱包 / node wallet 展示
+- `beamio-api-cluster-master.mdc` — 写操作 Cluster 预检 + Master pool relay（含 `claimRedeemFor` + `referrer`）
+- `critical-chain-infra-restart-requires-approval.mdc` — 重启 CoNET validator/beacon 须授权
+- `contract-deploy-must-verify.mdc` — 部署后必须验证
+- `beamio-no-master-json-remote-copy.mdc` — 禁止跨主机复制 master.json
+- `conet-validator-redeem-listener-l1-workflow.mdc` — Redeem append：import + 仅 reload validator
