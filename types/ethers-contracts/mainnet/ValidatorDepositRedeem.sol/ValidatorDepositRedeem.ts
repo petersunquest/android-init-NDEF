@@ -25,28 +25,32 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ValidatorDepositRedeemInterface extends Interface {
-    getFunction(nameOrSignature: "CONET_GB_TOTAL_TOKEN_ID" | "VALIDATOR_STAKE_WEI" | "addAdmin" | "addRedeemAdmin" | "addRedeemAdminFor" | "admins" | "beneficiaryNonces" | "cancelRedeem" | "cancelRedeemFor" | "claimRedeem" | "claimRedeemFor" | "consumeBeneficiaryNonceForMarket" | "createRedeem" | "createRedeemFor" | "depositContract" | "eip712Domain" | "exitSettledPubkey" | "fundAndDepositValidators" | "fundedDepositTotal" | "gbMiningNodeCountOf" | "gbToken" | "getBeneficiaryByNodeWallet" | "getBeneficiaryNodeBundle" | "getCancelRedeemDigest" | "getClaimRedeemDigest" | "getCreateRedeemDigest" | "getDepinBeneficiaryByIp" | "getDepinBeneficiaryByIpHash" | "getNodeByValidatorPubkey" | "getNodeByValidatorPubkeyHash" | "getNodeValidator" | "getRedeem" | "getReferrerRewardNodes" | "getRegisterNodeValidatorsDigest" | "getRequestFullExitDigest" | "getTransferNodesDigest" | "getWalletDepinNodeIps" | "grantReferrerRewardNodes" | "guardianAllocStartId" | "guardianIdBeneficiary" | "guardianIdGbMining" | "guardianNodeIpOf" | "guardianNodeWalletOf" | "guardianNodes" | "isDepinBeneficiaryOfIp" | "nextGuardianAllocId" | "nodeWalletBeneficiary" | "recordNodeValidatorExit" | "redeemAdminNonces" | "redeemAdmins" | "referrerExtension" | "registerNodeValidators" | "registerNodeValidatorsFor" | "removeAdmin" | "removeRedeemAdmin" | "removeRedeemAdminFor" | "requestFullExit" | "resolveNodeBundle" | "resolveUnifiedIncomeStats" | "rewardIndexer" | "selfWithdrawalCredentials" | "setDepositContract" | "setGuardianNodes" | "setReferrerExtension" | "setRewardIndexer" | "setTokens" | "setTransferMarket" | "settleFullExitPayout" | "stakedValidatorCountOf" | "transferMarket" | "transferNodes" | "transferOneNodeWalletForMarket" | "usdcToken" | "usdcTokenAddress" | "validatorNodeCountOf" | "walletClaimCountOf" | "withdrawNative" | "withdrawNativeBatch"): FunctionFragment;
+    getFunction(nameOrSignature: "AIRDROP_CNET_PER_NODE" | "CONET_GB_TOTAL_TOKEN_ID" | "UPGRADE_INTERFACE_VERSION" | "VALIDATOR_STAKE_WEI" | "addAdmin" | "addRedeemAdmin" | "addRedeemAdminFor" | "admins" | "airdropInfoOf" | "beneficiaryNonces" | "cancelRedeem" | "cancelRedeemFor" | "clRewardPaid" | "claimAirdropFor" | "claimRedeem" | "claimRedeemFor" | "consumeBeneficiaryNonceForMarket" | "consumedRewardEventKey" | "createRedeemFor" | "depositContract" | "exitSettledPubkey" | "fundAndDepositValidators" | "fundedDepositTotal" | "gbMiningNodeCountOf" | "gbToken" | "getBeneficiaryByNodeWallet" | "getBeneficiaryNodeBundle" | "getCancelRedeemDigest" | "getClaimRedeemDigest" | "getDepinBeneficiaryByIp" | "getNodeByValidatorPubkeyHash" | "getNodeValidator" | "getRedeem" | "getReferrerRewardNodes" | "getRequestFullExitDigest" | "getRewardPayoutStats" | "getTransferNodesDigest" | "getWalletDepinNodeIps" | "grantReferrerRewardNodes" | "guardianAllocStartId" | "guardianIdBeneficiary" | "guardianIdGbMining" | "guardianNodeIpOf" | "guardianNodeWalletOf" | "guardianNodes" | "initialize" | "nextGuardianAllocId" | "nodeValidatorBinding" | "nodeWalletBeneficiary" | "proxiableUUID" | "recordNodeValidatorExit" | "redeemAdminNonces" | "redeemAdmins" | "referrerExtension" | "registerNodeValidators" | "registerNodeValidatorsFor" | "removeAdmin" | "removeRedeemAdmin" | "removeRedeemAdminFor" | "requestFullExit" | "resolveNodeBundle" | "resolveUnifiedIncomeStats" | "rewardIndexer" | "selfWithdrawalCredentials" | "setAirdropClaimableAt" | "setDepositContract" | "setGuardianNodes" | "setReferrerExtension" | "setRewardIndexer" | "setTokens" | "setTransferMarket" | "settleFullExitPayout" | "settleNodeRewards" | "stakedValidatorCountOf" | "totalRewardPaid" | "totalStakedValidatorCount" | "transferMarket" | "transferNodes" | "transferOneGuardianIdForMarket" | "upgradeToAndCall" | "usdcToken" | "usdcTokenAddress" | "validatorNodeCountOf" | "walletClaimCountOf" | "withdrawNative" | "withdrawNativeBatch"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "DepinNodeBeneficiaryAssigned" | "DepositContractConfigured" | "EIP712DomainChanged" | "FullExitRequested" | "FullExitSettled" | "GuardianNodeAllocated" | "GuardianNodesConfigured" | "NativeReceived" | "NativeWithdrawn" | "NodeValidatorBeneficiaryUpdated" | "NodeValidatorExited" | "NodeValidatorRegistered" | "NodesTransferred" | "RedeemAdminAdded" | "RedeemAdminRemoved" | "ReferrerExtensionConfigured" | "ReferrerRewardNodesGranted" | "RewardIndexerConfigured" | "TokensConfigured" | "TransferMarketConfigured" | "ValidatorDeposited" | "ValidatorRedeemCancelled" | "ValidatorRedeemClaimed" | "ValidatorRedeemCreated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "AirdropAccrued" | "AirdropClaimableAtSet" | "AirdropClaimed" | "DepinNodeBeneficiaryAssigned" | "DepositContractConfigured" | "FullExitRequested" | "FullExitSettled" | "GuardianNodeAllocated" | "GuardianNodesConfigured" | "Initialized" | "NativeReceived" | "NativeWithdrawn" | "NodeRewardSettled" | "NodeValidatorBeneficiaryUpdated" | "NodeValidatorExited" | "NodeValidatorRegistered" | "NodesTransferred" | "RedeemAdminAdded" | "RedeemAdminRemoved" | "ReferrerExtensionConfigured" | "ReferrerRewardNodesGranted" | "RewardIndexerConfigured" | "TokensConfigured" | "TransferMarketConfigured" | "Upgraded" | "ValidatorDeposited" | "ValidatorRedeemCancelled" | "ValidatorRedeemClaimed" | "ValidatorRedeemCreated"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'CONET_GB_TOTAL_TOKEN_ID', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'AIRDROP_CNET_PER_NODE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CONET_GB_TOTAL_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'VALIDATOR_STAKE_WEI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addRedeemAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addRedeemAdminFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'airdropInfoOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'beneficiaryNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'cancelRedeem', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'cancelRedeemFor', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'clRewardPaid', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'claimAirdropFor', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimRedeem', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'claimRedeemFor', values: [AddressLike, AddressLike, string, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'consumeBeneficiaryNonceForMarket', values: [AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, AddressLike, BigNumberish, string, BigNumberish, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'createRedeemFor', values: [AddressLike, BytesLike, AddressLike, AddressLike, BigNumberish, string, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'consumedRewardEventKey', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'createRedeemFor', values: [AddressLike, BytesLike, AddressLike, AddressLike, BigNumberish, string, BigNumberish, boolean, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'depositContract', values?: undefined): string;
-encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
 encodeFunctionData(functionFragment: 'exitSettledPubkey', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'fundAndDepositValidators', values: [AddressLike[], BytesLike[], BytesLike[], BytesLike[], BytesLike[]]): string;
+encodeFunctionData(functionFragment: 'fundAndDepositValidators', values: [BigNumberish[], BytesLike[], BytesLike[], BytesLike[], BytesLike[]]): string;
 encodeFunctionData(functionFragment: 'fundedDepositTotal', values?: undefined): string;
 encodeFunctionData(functionFragment: 'gbMiningNodeCountOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'gbToken', values?: undefined): string;
@@ -54,17 +58,14 @@ encodeFunctionData(functionFragment: 'getBeneficiaryByNodeWallet', values: [Addr
 encodeFunctionData(functionFragment: 'getBeneficiaryNodeBundle', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getCancelRedeemDigest', values: [AddressLike, BytesLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getClaimRedeemDigest', values: [AddressLike, BytesLike, AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getCreateRedeemDigest', values: [AddressLike, BytesLike, AddressLike, AddressLike, BigNumberish, string, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getDepinBeneficiaryByIp', values: [string]): string;
-encodeFunctionData(functionFragment: 'getDepinBeneficiaryByIpHash', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'getNodeByValidatorPubkey', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getNodeByValidatorPubkeyHash', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'getNodeValidator', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getNodeValidator', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRedeem', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getReferrerRewardNodes', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getRegisterNodeValidatorsDigest', values: [AddressLike, AddressLike[], BytesLike[], BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getRequestFullExitDigest', values: [AddressLike, AddressLike[], BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getTransferNodesDigest', values: [AddressLike, AddressLike, AddressLike[], BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getRequestFullExitDigest', values: [AddressLike, BigNumberish[], BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getRewardPayoutStats', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getTransferNodesDigest', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getWalletDepinNodeIps', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'grantReferrerRewardNodes', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'guardianAllocStartId', values?: undefined): string;
@@ -73,34 +74,41 @@ encodeFunctionData(functionFragment: 'guardianIdGbMining', values: [BigNumberish
 encodeFunctionData(functionFragment: 'guardianNodeIpOf', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'guardianNodeWalletOf', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'guardianNodes', values?: undefined): string;
-encodeFunctionData(functionFragment: 'isDepinBeneficiaryOfIp', values: [string, AddressLike]): string;
+encodeFunctionData(functionFragment: 'initialize', values: [AddressLike, AddressLike, AddressLike, AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nextGuardianAllocId', values?: undefined): string;
+encodeFunctionData(functionFragment: 'nodeValidatorBinding', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nodeWalletBeneficiary', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'recordNodeValidatorExit', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'proxiableUUID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'recordNodeValidatorExit', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'redeemAdminNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemAdmins', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'referrerExtension', values?: undefined): string;
-encodeFunctionData(functionFragment: 'registerNodeValidators', values: [AddressLike[], BytesLike[]]): string;
-encodeFunctionData(functionFragment: 'registerNodeValidatorsFor', values: [AddressLike, AddressLike[], BytesLike[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'registerNodeValidators', values: [BigNumberish[], BytesLike[]]): string;
+encodeFunctionData(functionFragment: 'registerNodeValidatorsFor', values: [AddressLike, BigNumberish[], BytesLike[], BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'removeRedeemAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'removeRedeemAdminFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'requestFullExit', values: [AddressLike, AddressLike[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'requestFullExit', values: [AddressLike, BigNumberish[], BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'resolveNodeBundle', values: [AddressLike, string]): string;
 encodeFunctionData(functionFragment: 'resolveUnifiedIncomeStats', values: [AddressLike, string, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'rewardIndexer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'selfWithdrawalCredentials', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setAirdropClaimableAt', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setDepositContract', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setGuardianNodes', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setReferrerExtension', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setRewardIndexer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setTokens', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setTransferMarket', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'settleFullExitPayout', values: [AddressLike, AddressLike[]]): string;
+encodeFunctionData(functionFragment: 'settleFullExitPayout', values: [AddressLike, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'settleNodeRewards', values: [BigNumberish[], BigNumberish[], BytesLike[]]): string;
 encodeFunctionData(functionFragment: 'stakedValidatorCountOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'totalRewardPaid', values?: undefined): string;
+encodeFunctionData(functionFragment: 'totalStakedValidatorCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transferMarket', values?: undefined): string;
-encodeFunctionData(functionFragment: 'transferNodes', values: [AddressLike, AddressLike, AddressLike[], BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'transferOneNodeWalletForMarket', values: [AddressLike, AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'transferNodes', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'transferOneGuardianIdForMarket', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'usdcToken', values?: undefined): string;
 encodeFunctionData(functionFragment: 'usdcTokenAddress', values?: undefined): string;
 encodeFunctionData(functionFragment: 'validatorNodeCountOf', values: [AddressLike]): string;
@@ -108,22 +116,26 @@ encodeFunctionData(functionFragment: 'walletClaimCountOf', values: [AddressLike]
 encodeFunctionData(functionFragment: 'withdrawNative', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'withdrawNativeBatch', values: [AddressLike[], BigNumberish[]]): string;
 
-    decodeFunctionResult(functionFragment: 'CONET_GB_TOTAL_TOKEN_ID', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'AIRDROP_CNET_PER_NODE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CONET_GB_TOTAL_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'VALIDATOR_STAKE_WEI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addRedeemAdminFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'airdropInfoOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beneficiaryNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeemFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'clRewardPaid', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimAirdropFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimRedeemFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeBeneficiaryNonceForMarket', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumedRewardEventKey', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeemFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositContract', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'exitSettledPubkey', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fundAndDepositValidators', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fundedDepositTotal', data: BytesLike): Result;
@@ -133,16 +145,13 @@ decodeFunctionResult(functionFragment: 'getBeneficiaryByNodeWallet', data: Bytes
 decodeFunctionResult(functionFragment: 'getBeneficiaryNodeBundle', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getCancelRedeemDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getClaimRedeemDigest', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getCreateRedeemDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getDepinBeneficiaryByIp', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getDepinBeneficiaryByIpHash', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getNodeByValidatorPubkey', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getNodeByValidatorPubkeyHash', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getNodeValidator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReferrerRewardNodes', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRegisterNodeValidatorsDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRequestFullExitDigest', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getRewardPayoutStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getTransferNodesDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getWalletDepinNodeIps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'grantReferrerRewardNodes', data: BytesLike): Result;
@@ -152,9 +161,11 @@ decodeFunctionResult(functionFragment: 'guardianIdGbMining', data: BytesLike): R
 decodeFunctionResult(functionFragment: 'guardianNodeIpOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'guardianNodeWalletOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'guardianNodes', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'isDepinBeneficiaryOfIp', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'initialize', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nextGuardianAllocId', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodeValidatorBinding', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nodeWalletBeneficiary', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'proxiableUUID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordNodeValidatorExit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemAdminNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemAdmins', data: BytesLike): Result;
@@ -169,6 +180,7 @@ decodeFunctionResult(functionFragment: 'resolveNodeBundle', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'resolveUnifiedIncomeStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rewardIndexer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'selfWithdrawalCredentials', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAirdropClaimableAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDepositContract', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setGuardianNodes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setReferrerExtension', data: BytesLike): Result;
@@ -176,10 +188,14 @@ decodeFunctionResult(functionFragment: 'setRewardIndexer', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'setTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTransferMarket', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'settleFullExitPayout', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'settleNodeRewards', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'stakedValidatorCountOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalRewardPaid', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'totalStakedValidatorCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferMarket', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferNodes', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'transferOneNodeWalletForMarket', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferOneGuardianIdForMarket', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdcToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdcTokenAddress', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validatorNodeCountOf', data: BytesLike): Result;
@@ -213,6 +229,42 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
   
 
+    export namespace AirdropAccruedEvent {
+      export type InputTuple = [beneficiary: AddressLike, codeHash: BytesLike, added: BigNumberish, newTotal: BigNumberish];
+      export type OutputTuple = [beneficiary: string, codeHash: string, added: bigint, newTotal: bigint];
+      export interface OutputObject {beneficiary: string, codeHash: string, added: bigint, newTotal: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace AirdropClaimableAtSetEvent {
+      export type InputTuple = [claimableAt: BigNumberish];
+      export type OutputTuple = [claimableAt: bigint];
+      export interface OutputObject {claimableAt: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace AirdropClaimedEvent {
+      export type InputTuple = [beneficiary: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [beneficiary: string, amount: bigint];
+      export interface OutputObject {beneficiary: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace DepinNodeBeneficiaryAssignedEvent {
       export type InputTuple = [ipHash: BytesLike, beneficiary: AddressLike, conetDepinNodeIp: string];
       export type OutputTuple = [ipHash: string, beneficiary: string, conetDepinNodeIp: string];
@@ -237,22 +289,10 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
   
 
-    export namespace EIP712DomainChangedEvent {
-      export type InputTuple = [];
-      export type OutputTuple = [];
-      export interface OutputObject {};
-      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
-      export type Filter = TypedDeferredTopicFilter<Event>
-      export type Log = TypedEventLog<Event>
-      export type LogDescription = TypedLogDescription<Event>
-    }
-
-  
-
     export namespace FullExitRequestedEvent {
-      export type InputTuple = [beneficiary: AddressLike, nodeWallets: AddressLike[]];
-      export type OutputTuple = [beneficiary: string, nodeWallets: string[]];
-      export interface OutputObject {beneficiary: string, nodeWallets: string[] };
+      export type InputTuple = [beneficiary: AddressLike, guardianIds: BigNumberish[]];
+      export type OutputTuple = [beneficiary: string, guardianIds: bigint[]];
+      export interface OutputObject {beneficiary: string, guardianIds: bigint[] };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -297,6 +337,18 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
   
 
+    export namespace InitializedEvent {
+      export type InputTuple = [version: BigNumberish];
+      export type OutputTuple = [version: bigint];
+      export interface OutputObject {version: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace NativeReceivedEvent {
       export type InputTuple = [from: AddressLike, amount: BigNumberish];
       export type OutputTuple = [from: string, amount: bigint];
@@ -321,10 +373,22 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
   
 
+    export namespace NodeRewardSettledEvent {
+      export type InputTuple = [guardianId: BigNumberish, beneficiary: AddressLike, amount: BigNumberish, eventKey: BytesLike];
+      export type OutputTuple = [guardianId: bigint, beneficiary: string, amount: bigint, eventKey: string];
+      export interface OutputObject {guardianId: bigint, beneficiary: string, amount: bigint, eventKey: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace NodeValidatorBeneficiaryUpdatedEvent {
-      export type InputTuple = [nodeWallet: AddressLike, pubkeyHash: BytesLike, fromBeneficiary: AddressLike, toBeneficiary: AddressLike];
-      export type OutputTuple = [nodeWallet: string, pubkeyHash: string, fromBeneficiary: string, toBeneficiary: string];
-      export interface OutputObject {nodeWallet: string, pubkeyHash: string, fromBeneficiary: string, toBeneficiary: string };
+      export type InputTuple = [guardianId: BigNumberish, pubkeyHash: BytesLike, fromBeneficiary: AddressLike, toBeneficiary: AddressLike];
+      export type OutputTuple = [guardianId: bigint, pubkeyHash: string, fromBeneficiary: string, toBeneficiary: string];
+      export interface OutputObject {guardianId: bigint, pubkeyHash: string, fromBeneficiary: string, toBeneficiary: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -334,9 +398,9 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
   
 
     export namespace NodeValidatorExitedEvent {
-      export type InputTuple = [nodeWallet: AddressLike, pubkeyHash: BytesLike, withdrawalBeneficiary: AddressLike];
-      export type OutputTuple = [nodeWallet: string, pubkeyHash: string, withdrawalBeneficiary: string];
-      export interface OutputObject {nodeWallet: string, pubkeyHash: string, withdrawalBeneficiary: string };
+      export type InputTuple = [guardianId: BigNumberish, pubkeyHash: BytesLike, withdrawalBeneficiary: AddressLike];
+      export type OutputTuple = [guardianId: bigint, pubkeyHash: string, withdrawalBeneficiary: string];
+      export interface OutputObject {guardianId: bigint, pubkeyHash: string, withdrawalBeneficiary: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -346,9 +410,9 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
   
 
     export namespace NodeValidatorRegisteredEvent {
-      export type InputTuple = [nodeWallet: AddressLike, withdrawalBeneficiary: AddressLike, pubkeyHash: BytesLike, pubkey: BytesLike];
-      export type OutputTuple = [nodeWallet: string, withdrawalBeneficiary: string, pubkeyHash: string, pubkey: string];
-      export interface OutputObject {nodeWallet: string, withdrawalBeneficiary: string, pubkeyHash: string, pubkey: string };
+      export type InputTuple = [guardianId: BigNumberish, withdrawalBeneficiary: AddressLike, pubkeyHash: BytesLike, pubkey: BytesLike];
+      export type OutputTuple = [guardianId: bigint, withdrawalBeneficiary: string, pubkeyHash: string, pubkey: string];
+      export interface OutputObject {guardianId: bigint, withdrawalBeneficiary: string, pubkeyHash: string, pubkey: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -358,9 +422,9 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
   
 
     export namespace NodesTransferredEvent {
-      export type InputTuple = [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, nodeWallets: AddressLike[]];
-      export type OutputTuple = [fromBeneficiary: string, toBeneficiary: string, nodeWallets: string[]];
-      export interface OutputObject {fromBeneficiary: string, toBeneficiary: string, nodeWallets: string[] };
+      export type InputTuple = [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[]];
+      export type OutputTuple = [fromBeneficiary: string, toBeneficiary: string, guardianIds: bigint[]];
+      export interface OutputObject {fromBeneficiary: string, toBeneficiary: string, guardianIds: bigint[] };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -453,10 +517,22 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
   
 
+    export namespace UpgradedEvent {
+      export type InputTuple = [implementation: AddressLike];
+      export type OutputTuple = [implementation: string];
+      export interface OutputObject {implementation: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ValidatorDepositedEvent {
-      export type InputTuple = [nodeWallet: AddressLike, beneficiary: AddressLike, pubkeyHash: BytesLike, amount: BigNumberish];
-      export type OutputTuple = [nodeWallet: string, beneficiary: string, pubkeyHash: string, amount: bigint];
-      export interface OutputObject {nodeWallet: string, beneficiary: string, pubkeyHash: string, amount: bigint };
+      export type InputTuple = [guardianId: BigNumberish, beneficiary: AddressLike, pubkeyHash: BytesLike, amount: BigNumberish];
+      export type OutputTuple = [guardianId: bigint, beneficiary: string, pubkeyHash: string, amount: bigint];
+      export interface OutputObject {guardianId: bigint, beneficiary: string, pubkeyHash: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -535,9 +611,25 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     
+    AIRDROP_CNET_PER_NODE: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     CONET_GB_TOTAL_TOKEN_ID: TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >
+    
+
+    
+    UPGRADE_INTERFACE_VERSION: TypedContractMethod<
+      [],
+      [string],
       'view'
     >
     
@@ -583,6 +675,14 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
+    airdropInfoOf: TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint, bigint, bigint, bigint] & {accrued: bigint, claimed: bigint, claimable: bigint, claimableAt: bigint }],
+      'view'
+    >
+    
+
+    
     beneficiaryNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -601,6 +701,22 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
     cancelRedeemFor: TypedContractMethod<
       [admin: AddressLike, codeHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    clRewardPaid: TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    claimAirdropFor: TypedContractMethod<
+      [beneficiary: AddressLike, amount: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -631,16 +747,16 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    createRedeem: TypedContractMethod<
-      [codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
-      [void],
-      'nonpayable'
+    consumedRewardEventKey: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
     >
     
 
     
     createRedeemFor: TypedContractMethod<
-      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, airdrop: boolean, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -655,14 +771,6 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    eip712Domain: TypedContractMethod<
-      [],
-      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
-      'view'
-    >
-    
-
-    
     exitSettledPubkey: TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
@@ -672,7 +780,7 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     fundAndDepositValidators: TypedContractMethod<
-      [nodeWallets: AddressLike[], pubkeys: BytesLike[], withdrawalCredentials: BytesLike[], signatures: BytesLike[], depositDataRoots: BytesLike[], ],
+      [guardianIds: BigNumberish[], pubkeys: BytesLike[], withdrawalCredentials: BytesLike[], signatures: BytesLike[], depositDataRoots: BytesLike[], ],
       [void],
       'nonpayable'
     >
@@ -735,14 +843,6 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    getCreateRedeemDigest: TypedContractMethod<
-      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
-      [string],
-      'view'
-    >
-    
-
-    
     getDepinBeneficiaryByIp: TypedContractMethod<
       [conetDepinNodeIp: string, ],
       [string],
@@ -751,32 +851,16 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    getDepinBeneficiaryByIpHash: TypedContractMethod<
-      [ipHash: BytesLike, ],
-      [string],
-      'view'
-    >
-    
-
-    
-    getNodeByValidatorPubkey: TypedContractMethod<
-      [pubkey: BytesLike, ],
-      [string],
-      'view'
-    >
-    
-
-    
     getNodeByValidatorPubkeyHash: TypedContractMethod<
       [pubkeyHash: BytesLike, ],
-      [string],
+      [bigint],
       'view'
     >
     
 
     
     getNodeValidator: TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+      [guardianId: BigNumberish, ],
       [[string, string, bigint, bigint, boolean] & {pubkey: string, withdrawalBeneficiary: string, registeredAt: bigint, exitedAt: bigint, active: boolean }],
       'view'
     >
@@ -785,7 +869,7 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
     getRedeem: TypedContractMethod<
       [codeHash: BytesLike, ],
-      [[string, string, bigint, string, bigint, bigint, bigint, boolean, boolean] & {allowedClaimer: string, referrer: string, validatorCount: bigint, targetNodeIp: string, gbMiningNodeCount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, consumed: boolean }],
+      [[string, string, bigint, string, bigint, bigint, bigint, boolean, boolean, boolean] & {allowedClaimer: string, referrer: string, validatorCount: bigint, targetNodeIp: string, gbMiningNodeCount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, consumed: boolean, airdrop: boolean }],
       'view'
     >
     
@@ -799,24 +883,24 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    getRegisterNodeValidatorsDigest: TypedContractMethod<
-      [admin: AddressLike, nodeWallets: AddressLike[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, ],
+    getRequestFullExitDigest: TypedContractMethod<
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >
     
 
     
-    getRequestFullExitDigest: TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, ],
-      [string],
+    getRewardPayoutStats: TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint, bigint] & {stakedCount: bigint, rewardPaidTotal: bigint, contractBalance: bigint, principalReserve: bigint }],
       'view'
     >
     
 
     
     getTransferNodesDigest: TypedContractMethod<
-      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, ],
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >
@@ -887,10 +971,10 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
-    isDepinBeneficiaryOfIp: TypedContractMethod<
-      [conetDepinNodeIp: string, wallet: AddressLike, ],
-      [boolean],
-      'view'
+    initialize: TypedContractMethod<
+      [initialRedeemAdmin: AddressLike, initialContractAdmin: AddressLike, gbToken_: AddressLike, usdcToken_: AddressLike, guardianNodes_: AddressLike, guardianAllocStartId_: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -898,6 +982,14 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     nextGuardianAllocId: TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >
+    
+
+    
+    nodeValidatorBinding: TypedContractMethod<
+      [guardianId: BigNumberish, ],
+      [[string, boolean] & {pubkey: string, active: boolean }],
       'view'
     >
     
@@ -911,8 +1003,16 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
 
     
+    proxiableUUID: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     recordNodeValidatorExit: TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+      [guardianId: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -944,7 +1044,7 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     registerNodeValidators: TypedContractMethod<
-      [nodeWallets: AddressLike[], pubkeys: BytesLike[], ],
+      [guardianIds: BigNumberish[], pubkeys: BytesLike[], ],
       [void],
       'nonpayable'
     >
@@ -952,7 +1052,7 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     registerNodeValidatorsFor: TypedContractMethod<
-      [admin: AddressLike, nodeWallets: AddressLike[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [admin: AddressLike, guardianIds: BigNumberish[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -984,7 +1084,7 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     requestFullExit: TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -1019,6 +1119,14 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
       [],
       [string],
       'view'
+    >
+    
+
+    
+    setAirdropClaimableAt: TypedContractMethod<
+      [claimableAt: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -1072,7 +1180,15 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     settleFullExitPayout: TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], ],
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    settleNodeRewards: TypedContractMethod<
+      [guardianIds: BigNumberish[], amounts: BigNumberish[], eventKeys: BytesLike[], ],
       [void],
       'nonpayable'
     >
@@ -1081,6 +1197,22 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
     stakedValidatorCountOf: TypedContractMethod<
       [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalRewardPaid: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    totalStakedValidatorCount: TypedContractMethod<
+      [],
       [bigint],
       'view'
     >
@@ -1096,17 +1228,25 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     
     transferNodes: TypedContractMethod<
-      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
     
 
     
-    transferOneNodeWalletForMarket: TypedContractMethod<
-      [from: AddressLike, to: AddressLike, nodeWallet: AddressLike, ],
+    transferOneGuardianIdForMarket: TypedContractMethod<
+      [from: AddressLike, to: AddressLike, guardianId: BigNumberish, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    upgradeToAndCall: TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
     >
     
 
@@ -1161,9 +1301,19 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'CONET_GB_TOTAL_TOKEN_ID'): TypedContractMethod<
+    getFunction(nameOrSignature: 'AIRDROP_CNET_PER_NODE'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CONET_GB_TOTAL_TOKEN_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'UPGRADE_INTERFACE_VERSION'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'VALIDATOR_STAKE_WEI'): TypedContractMethod<
@@ -1191,6 +1341,11 @@ getFunction(nameOrSignature: 'admins'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'airdropInfoOf'): TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint, bigint, bigint, bigint] & {accrued: bigint, claimed: bigint, claimable: bigint, claimableAt: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'beneficiaryNonces'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -1203,6 +1358,16 @@ getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'cancelRedeemFor'): TypedContractMethod<
       [admin: AddressLike, codeHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'clRewardPaid'): TypedContractMethod<
+      [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'claimAirdropFor'): TypedContractMethod<
+      [beneficiary: AddressLike, amount: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1221,13 +1386,13 @@ getFunction(nameOrSignature: 'consumeBeneficiaryNonceForMarket'): TypedContractM
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
-      [codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
-      [void],
-      'nonpayable'
+getFunction(nameOrSignature: 'consumedRewardEventKey'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
     >;
 getFunction(nameOrSignature: 'createRedeemFor'): TypedContractMethod<
-      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, airdrop: boolean, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1236,18 +1401,13 @@ getFunction(nameOrSignature: 'depositContract'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'eip712Domain'): TypedContractMethod<
-      [],
-      [[string, string, string, bigint, string, string, bigint[]] & {fields: string, name: string, version: string, chainId: bigint, verifyingContract: string, salt: string, extensions: bigint[] }],
-      'view'
-    >;
 getFunction(nameOrSignature: 'exitSettledPubkey'): TypedContractMethod<
       [arg0: BytesLike, ],
       [boolean],
       'view'
     >;
 getFunction(nameOrSignature: 'fundAndDepositValidators'): TypedContractMethod<
-      [nodeWallets: AddressLike[], pubkeys: BytesLike[], withdrawalCredentials: BytesLike[], signatures: BytesLike[], depositDataRoots: BytesLike[], ],
+      [guardianIds: BigNumberish[], pubkeys: BytesLike[], withdrawalCredentials: BytesLike[], signatures: BytesLike[], depositDataRoots: BytesLike[], ],
       [void],
       'nonpayable'
     >;
@@ -1286,39 +1446,24 @@ getFunction(nameOrSignature: 'getClaimRedeemDigest'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'getCreateRedeemDigest'): TypedContractMethod<
-      [admin: AddressLike, codeHash: BytesLike, allowedClaimer: AddressLike, referrer: AddressLike, validatorCount: BigNumberish, targetNodeIp: string, gbMiningNodeCount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
-      [string],
-      'view'
-    >;
 getFunction(nameOrSignature: 'getDepinBeneficiaryByIp'): TypedContractMethod<
       [conetDepinNodeIp: string, ],
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'getDepinBeneficiaryByIpHash'): TypedContractMethod<
-      [ipHash: BytesLike, ],
-      [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getNodeByValidatorPubkey'): TypedContractMethod<
-      [pubkey: BytesLike, ],
-      [string],
-      'view'
-    >;
 getFunction(nameOrSignature: 'getNodeByValidatorPubkeyHash'): TypedContractMethod<
       [pubkeyHash: BytesLike, ],
-      [string],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'getNodeValidator'): TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+      [guardianId: BigNumberish, ],
       [[string, string, bigint, bigint, boolean] & {pubkey: string, withdrawalBeneficiary: string, registeredAt: bigint, exitedAt: bigint, active: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'getRedeem'): TypedContractMethod<
       [codeHash: BytesLike, ],
-      [[string, string, bigint, string, bigint, bigint, bigint, boolean, boolean] & {allowedClaimer: string, referrer: string, validatorCount: bigint, targetNodeIp: string, gbMiningNodeCount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, consumed: boolean }],
+      [[string, string, bigint, string, bigint, bigint, bigint, boolean, boolean, boolean] & {allowedClaimer: string, referrer: string, validatorCount: bigint, targetNodeIp: string, gbMiningNodeCount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, consumed: boolean, airdrop: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'getReferrerRewardNodes'): TypedContractMethod<
@@ -1326,18 +1471,18 @@ getFunction(nameOrSignature: 'getReferrerRewardNodes'): TypedContractMethod<
       [[bigint[], string[], string[]] & {guardianNodeIds: bigint[], nodeWallets: string[], depinNodeIps: string[] }],
       'view'
     >;
-getFunction(nameOrSignature: 'getRegisterNodeValidatorsDigest'): TypedContractMethod<
-      [admin: AddressLike, nodeWallets: AddressLike[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, ],
+getFunction(nameOrSignature: 'getRequestFullExitDigest'): TypedContractMethod<
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'getRequestFullExitDigest'): TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, ],
-      [string],
+getFunction(nameOrSignature: 'getRewardPayoutStats'): TypedContractMethod<
+      [],
+      [[bigint, bigint, bigint, bigint] & {stakedCount: bigint, rewardPaidTotal: bigint, contractBalance: bigint, principalReserve: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'getTransferNodesDigest'): TypedContractMethod<
-      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, ],
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >;
@@ -1381,14 +1526,19 @@ getFunction(nameOrSignature: 'guardianNodes'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'isDepinBeneficiaryOfIp'): TypedContractMethod<
-      [conetDepinNodeIp: string, wallet: AddressLike, ],
-      [boolean],
-      'view'
+getFunction(nameOrSignature: 'initialize'): TypedContractMethod<
+      [initialRedeemAdmin: AddressLike, initialContractAdmin: AddressLike, gbToken_: AddressLike, usdcToken_: AddressLike, guardianNodes_: AddressLike, guardianAllocStartId_: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'nextGuardianAllocId'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'nodeValidatorBinding'): TypedContractMethod<
+      [guardianId: BigNumberish, ],
+      [[string, boolean] & {pubkey: string, active: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'nodeWalletBeneficiary'): TypedContractMethod<
@@ -1396,8 +1546,13 @@ getFunction(nameOrSignature: 'nodeWalletBeneficiary'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'proxiableUUID'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'recordNodeValidatorExit'): TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+      [guardianId: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -1417,12 +1572,12 @@ getFunction(nameOrSignature: 'referrerExtension'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'registerNodeValidators'): TypedContractMethod<
-      [nodeWallets: AddressLike[], pubkeys: BytesLike[], ],
+      [guardianIds: BigNumberish[], pubkeys: BytesLike[], ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'registerNodeValidatorsFor'): TypedContractMethod<
-      [admin: AddressLike, nodeWallets: AddressLike[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [admin: AddressLike, guardianIds: BigNumberish[], pubkeys: BytesLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1442,7 +1597,7 @@ getFunction(nameOrSignature: 'removeRedeemAdminFor'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'requestFullExit'): TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1465,6 +1620,11 @@ getFunction(nameOrSignature: 'selfWithdrawalCredentials'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'setAirdropClaimableAt'): TypedContractMethod<
+      [claimableAt: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'setDepositContract'): TypedContractMethod<
       [depositContract_: AddressLike, ],
@@ -1497,12 +1657,27 @@ getFunction(nameOrSignature: 'setTransferMarket'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'settleFullExitPayout'): TypedContractMethod<
-      [beneficiary: AddressLike, nodeWallets: AddressLike[], ],
+      [beneficiary: AddressLike, guardianIds: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'settleNodeRewards'): TypedContractMethod<
+      [guardianIds: BigNumberish[], amounts: BigNumberish[], eventKeys: BytesLike[], ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'stakedValidatorCountOf'): TypedContractMethod<
       [arg0: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalRewardPaid'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'totalStakedValidatorCount'): TypedContractMethod<
+      [],
       [bigint],
       'view'
     >;
@@ -1512,14 +1687,19 @@ getFunction(nameOrSignature: 'transferMarket'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'transferNodes'): TypedContractMethod<
-      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, nodeWallets: AddressLike[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'transferOneNodeWalletForMarket'): TypedContractMethod<
-      [from: AddressLike, to: AddressLike, nodeWallet: AddressLike, ],
+getFunction(nameOrSignature: 'transferOneGuardianIdForMarket'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, guardianId: BigNumberish, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'upgradeToAndCall'): TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
     >;
 getFunction(nameOrSignature: 'usdcToken'): TypedContractMethod<
       [],
@@ -1554,15 +1734,19 @@ getFunction(nameOrSignature: 'withdrawNativeBatch'): TypedContractMethod<
 
     getEvent(key: 'AdminAdded'): TypedContractEvent<AdminAddedEvent.InputTuple, AdminAddedEvent.OutputTuple, AdminAddedEvent.OutputObject>;
 getEvent(key: 'AdminRemoved'): TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
+getEvent(key: 'AirdropAccrued'): TypedContractEvent<AirdropAccruedEvent.InputTuple, AirdropAccruedEvent.OutputTuple, AirdropAccruedEvent.OutputObject>;
+getEvent(key: 'AirdropClaimableAtSet'): TypedContractEvent<AirdropClaimableAtSetEvent.InputTuple, AirdropClaimableAtSetEvent.OutputTuple, AirdropClaimableAtSetEvent.OutputObject>;
+getEvent(key: 'AirdropClaimed'): TypedContractEvent<AirdropClaimedEvent.InputTuple, AirdropClaimedEvent.OutputTuple, AirdropClaimedEvent.OutputObject>;
 getEvent(key: 'DepinNodeBeneficiaryAssigned'): TypedContractEvent<DepinNodeBeneficiaryAssignedEvent.InputTuple, DepinNodeBeneficiaryAssignedEvent.OutputTuple, DepinNodeBeneficiaryAssignedEvent.OutputObject>;
 getEvent(key: 'DepositContractConfigured'): TypedContractEvent<DepositContractConfiguredEvent.InputTuple, DepositContractConfiguredEvent.OutputTuple, DepositContractConfiguredEvent.OutputObject>;
-getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
 getEvent(key: 'FullExitRequested'): TypedContractEvent<FullExitRequestedEvent.InputTuple, FullExitRequestedEvent.OutputTuple, FullExitRequestedEvent.OutputObject>;
 getEvent(key: 'FullExitSettled'): TypedContractEvent<FullExitSettledEvent.InputTuple, FullExitSettledEvent.OutputTuple, FullExitSettledEvent.OutputObject>;
 getEvent(key: 'GuardianNodeAllocated'): TypedContractEvent<GuardianNodeAllocatedEvent.InputTuple, GuardianNodeAllocatedEvent.OutputTuple, GuardianNodeAllocatedEvent.OutputObject>;
 getEvent(key: 'GuardianNodesConfigured'): TypedContractEvent<GuardianNodesConfiguredEvent.InputTuple, GuardianNodesConfiguredEvent.OutputTuple, GuardianNodesConfiguredEvent.OutputObject>;
+getEvent(key: 'Initialized'): TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
 getEvent(key: 'NativeReceived'): TypedContractEvent<NativeReceivedEvent.InputTuple, NativeReceivedEvent.OutputTuple, NativeReceivedEvent.OutputObject>;
 getEvent(key: 'NativeWithdrawn'): TypedContractEvent<NativeWithdrawnEvent.InputTuple, NativeWithdrawnEvent.OutputTuple, NativeWithdrawnEvent.OutputObject>;
+getEvent(key: 'NodeRewardSettled'): TypedContractEvent<NodeRewardSettledEvent.InputTuple, NodeRewardSettledEvent.OutputTuple, NodeRewardSettledEvent.OutputObject>;
 getEvent(key: 'NodeValidatorBeneficiaryUpdated'): TypedContractEvent<NodeValidatorBeneficiaryUpdatedEvent.InputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputObject>;
 getEvent(key: 'NodeValidatorExited'): TypedContractEvent<NodeValidatorExitedEvent.InputTuple, NodeValidatorExitedEvent.OutputTuple, NodeValidatorExitedEvent.OutputObject>;
 getEvent(key: 'NodeValidatorRegistered'): TypedContractEvent<NodeValidatorRegisteredEvent.InputTuple, NodeValidatorRegisteredEvent.OutputTuple, NodeValidatorRegisteredEvent.OutputObject>;
@@ -1574,6 +1758,7 @@ getEvent(key: 'ReferrerRewardNodesGranted'): TypedContractEvent<ReferrerRewardNo
 getEvent(key: 'RewardIndexerConfigured'): TypedContractEvent<RewardIndexerConfiguredEvent.InputTuple, RewardIndexerConfiguredEvent.OutputTuple, RewardIndexerConfiguredEvent.OutputObject>;
 getEvent(key: 'TokensConfigured'): TypedContractEvent<TokensConfiguredEvent.InputTuple, TokensConfiguredEvent.OutputTuple, TokensConfiguredEvent.OutputObject>;
 getEvent(key: 'TransferMarketConfigured'): TypedContractEvent<TransferMarketConfiguredEvent.InputTuple, TransferMarketConfiguredEvent.OutputTuple, TransferMarketConfiguredEvent.OutputObject>;
+getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
 getEvent(key: 'ValidatorDeposited'): TypedContractEvent<ValidatorDepositedEvent.InputTuple, ValidatorDepositedEvent.OutputTuple, ValidatorDepositedEvent.OutputObject>;
 getEvent(key: 'ValidatorRedeemCancelled'): TypedContractEvent<ValidatorRedeemCancelledEvent.InputTuple, ValidatorRedeemCancelledEvent.OutputTuple, ValidatorRedeemCancelledEvent.OutputObject>;
 getEvent(key: 'ValidatorRedeemClaimed'): TypedContractEvent<ValidatorRedeemClaimedEvent.InputTuple, ValidatorRedeemClaimedEvent.OutputTuple, ValidatorRedeemClaimedEvent.OutputObject>;
@@ -1589,6 +1774,18 @@ getEvent(key: 'ValidatorRedeemCreated'): TypedContractEvent<ValidatorRedeemCreat
       AdminRemoved: TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
     
 
+      'AirdropAccrued(address,bytes32,uint256,uint256)': TypedContractEvent<AirdropAccruedEvent.InputTuple, AirdropAccruedEvent.OutputTuple, AirdropAccruedEvent.OutputObject>;
+      AirdropAccrued: TypedContractEvent<AirdropAccruedEvent.InputTuple, AirdropAccruedEvent.OutputTuple, AirdropAccruedEvent.OutputObject>;
+    
+
+      'AirdropClaimableAtSet(uint64)': TypedContractEvent<AirdropClaimableAtSetEvent.InputTuple, AirdropClaimableAtSetEvent.OutputTuple, AirdropClaimableAtSetEvent.OutputObject>;
+      AirdropClaimableAtSet: TypedContractEvent<AirdropClaimableAtSetEvent.InputTuple, AirdropClaimableAtSetEvent.OutputTuple, AirdropClaimableAtSetEvent.OutputObject>;
+    
+
+      'AirdropClaimed(address,uint256)': TypedContractEvent<AirdropClaimedEvent.InputTuple, AirdropClaimedEvent.OutputTuple, AirdropClaimedEvent.OutputObject>;
+      AirdropClaimed: TypedContractEvent<AirdropClaimedEvent.InputTuple, AirdropClaimedEvent.OutputTuple, AirdropClaimedEvent.OutputObject>;
+    
+
       'DepinNodeBeneficiaryAssigned(bytes32,address,string)': TypedContractEvent<DepinNodeBeneficiaryAssignedEvent.InputTuple, DepinNodeBeneficiaryAssignedEvent.OutputTuple, DepinNodeBeneficiaryAssignedEvent.OutputObject>;
       DepinNodeBeneficiaryAssigned: TypedContractEvent<DepinNodeBeneficiaryAssignedEvent.InputTuple, DepinNodeBeneficiaryAssignedEvent.OutputTuple, DepinNodeBeneficiaryAssignedEvent.OutputObject>;
     
@@ -1597,11 +1794,7 @@ getEvent(key: 'ValidatorRedeemCreated'): TypedContractEvent<ValidatorRedeemCreat
       DepositContractConfigured: TypedContractEvent<DepositContractConfiguredEvent.InputTuple, DepositContractConfiguredEvent.OutputTuple, DepositContractConfiguredEvent.OutputObject>;
     
 
-      'EIP712DomainChanged()': TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
-      EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
-    
-
-      'FullExitRequested(address,address[])': TypedContractEvent<FullExitRequestedEvent.InputTuple, FullExitRequestedEvent.OutputTuple, FullExitRequestedEvent.OutputObject>;
+      'FullExitRequested(address,uint256[])': TypedContractEvent<FullExitRequestedEvent.InputTuple, FullExitRequestedEvent.OutputTuple, FullExitRequestedEvent.OutputObject>;
       FullExitRequested: TypedContractEvent<FullExitRequestedEvent.InputTuple, FullExitRequestedEvent.OutputTuple, FullExitRequestedEvent.OutputObject>;
     
 
@@ -1617,6 +1810,10 @@ getEvent(key: 'ValidatorRedeemCreated'): TypedContractEvent<ValidatorRedeemCreat
       GuardianNodesConfigured: TypedContractEvent<GuardianNodesConfiguredEvent.InputTuple, GuardianNodesConfiguredEvent.OutputTuple, GuardianNodesConfiguredEvent.OutputObject>;
     
 
+      'Initialized(uint64)': TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+      Initialized: TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+    
+
       'NativeReceived(address,uint256)': TypedContractEvent<NativeReceivedEvent.InputTuple, NativeReceivedEvent.OutputTuple, NativeReceivedEvent.OutputObject>;
       NativeReceived: TypedContractEvent<NativeReceivedEvent.InputTuple, NativeReceivedEvent.OutputTuple, NativeReceivedEvent.OutputObject>;
     
@@ -1625,19 +1822,23 @@ getEvent(key: 'ValidatorRedeemCreated'): TypedContractEvent<ValidatorRedeemCreat
       NativeWithdrawn: TypedContractEvent<NativeWithdrawnEvent.InputTuple, NativeWithdrawnEvent.OutputTuple, NativeWithdrawnEvent.OutputObject>;
     
 
-      'NodeValidatorBeneficiaryUpdated(address,bytes32,address,address)': TypedContractEvent<NodeValidatorBeneficiaryUpdatedEvent.InputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputObject>;
+      'NodeRewardSettled(uint256,address,uint256,bytes32)': TypedContractEvent<NodeRewardSettledEvent.InputTuple, NodeRewardSettledEvent.OutputTuple, NodeRewardSettledEvent.OutputObject>;
+      NodeRewardSettled: TypedContractEvent<NodeRewardSettledEvent.InputTuple, NodeRewardSettledEvent.OutputTuple, NodeRewardSettledEvent.OutputObject>;
+    
+
+      'NodeValidatorBeneficiaryUpdated(uint256,bytes32,address,address)': TypedContractEvent<NodeValidatorBeneficiaryUpdatedEvent.InputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputObject>;
       NodeValidatorBeneficiaryUpdated: TypedContractEvent<NodeValidatorBeneficiaryUpdatedEvent.InputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputTuple, NodeValidatorBeneficiaryUpdatedEvent.OutputObject>;
     
 
-      'NodeValidatorExited(address,bytes32,address)': TypedContractEvent<NodeValidatorExitedEvent.InputTuple, NodeValidatorExitedEvent.OutputTuple, NodeValidatorExitedEvent.OutputObject>;
+      'NodeValidatorExited(uint256,bytes32,address)': TypedContractEvent<NodeValidatorExitedEvent.InputTuple, NodeValidatorExitedEvent.OutputTuple, NodeValidatorExitedEvent.OutputObject>;
       NodeValidatorExited: TypedContractEvent<NodeValidatorExitedEvent.InputTuple, NodeValidatorExitedEvent.OutputTuple, NodeValidatorExitedEvent.OutputObject>;
     
 
-      'NodeValidatorRegistered(address,address,bytes32,bytes)': TypedContractEvent<NodeValidatorRegisteredEvent.InputTuple, NodeValidatorRegisteredEvent.OutputTuple, NodeValidatorRegisteredEvent.OutputObject>;
+      'NodeValidatorRegistered(uint256,address,bytes32,bytes)': TypedContractEvent<NodeValidatorRegisteredEvent.InputTuple, NodeValidatorRegisteredEvent.OutputTuple, NodeValidatorRegisteredEvent.OutputObject>;
       NodeValidatorRegistered: TypedContractEvent<NodeValidatorRegisteredEvent.InputTuple, NodeValidatorRegisteredEvent.OutputTuple, NodeValidatorRegisteredEvent.OutputObject>;
     
 
-      'NodesTransferred(address,address,address[])': TypedContractEvent<NodesTransferredEvent.InputTuple, NodesTransferredEvent.OutputTuple, NodesTransferredEvent.OutputObject>;
+      'NodesTransferred(address,address,uint256[])': TypedContractEvent<NodesTransferredEvent.InputTuple, NodesTransferredEvent.OutputTuple, NodesTransferredEvent.OutputObject>;
       NodesTransferred: TypedContractEvent<NodesTransferredEvent.InputTuple, NodesTransferredEvent.OutputTuple, NodesTransferredEvent.OutputObject>;
     
 
@@ -1669,7 +1870,11 @@ getEvent(key: 'ValidatorRedeemCreated'): TypedContractEvent<ValidatorRedeemCreat
       TransferMarketConfigured: TypedContractEvent<TransferMarketConfiguredEvent.InputTuple, TransferMarketConfiguredEvent.OutputTuple, TransferMarketConfiguredEvent.OutputObject>;
     
 
-      'ValidatorDeposited(address,address,bytes32,uint256)': TypedContractEvent<ValidatorDepositedEvent.InputTuple, ValidatorDepositedEvent.OutputTuple, ValidatorDepositedEvent.OutputObject>;
+      'Upgraded(address)': TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
+      Upgraded: TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
+    
+
+      'ValidatorDeposited(uint256,address,bytes32,uint256)': TypedContractEvent<ValidatorDepositedEvent.InputTuple, ValidatorDepositedEvent.OutputTuple, ValidatorDepositedEvent.OutputObject>;
       ValidatorDeposited: TypedContractEvent<ValidatorDepositedEvent.InputTuple, ValidatorDepositedEvent.OutputTuple, ValidatorDepositedEvent.OutputObject>;
     
 

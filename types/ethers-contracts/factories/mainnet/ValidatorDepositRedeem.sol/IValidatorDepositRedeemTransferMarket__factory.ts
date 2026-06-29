@@ -9,9 +9,9 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "nodeWallet",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "guardianId",
+        "type": "uint256"
       }
     ],
     "name": "nodeOrder",

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {NodeBundle} from "./ValidatorDepositRedeemTypes.sol";
+import {NodeBundle, AirdropState} from "./ValidatorDepositRedeemTypes.sol";
+import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 
 /// @dev Per-subject GB + CNET income totals (18 decimals). {cumulative} for GB beneficiary = net id=0 balance;
 ///      for GB node = gross {nodeTotalIssued}; for CNET = reward indexer cumulative.
@@ -79,6 +80,69 @@ interface IRedeemUnifiedReader {
  */
 library ValidatorDepositRedeemStatsLib {
     uint256 internal constant GB_NET_TOTAL_ID = 0;
+
+    // ---- CNET airdrop claim (offloaded from {ValidatorDepositRedeem} to stay within EIP-170) ----
+    // MUST stay byte-identical to the ClaimAirdrop type string the off-chain signer uses.
+    bytes32 private constant CLAIM_AIRDROP_TYPEHASH =
+        keccak256("ClaimAirdrop(address beneficiary,uint256 amount,uint256 nonce,uint256 deadline)");
+
+    /// @dev Emitted (via delegatecall, from the host address) when an airdrop claim is paid.
+    event AirdropClaimed(address indexed beneficiary, uint256 amount);
+
+    /// @notice ClaimAirdrop EIP-712 digest a beneficiary signs (off-chain helper; reads the host domain separator).
+    function claimAirdropDigest(
+        bytes32 domainSeparator,
+        address beneficiary,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline
+    ) external pure returns (bytes32) {
+        bytes32 sh = keccak256(abi.encode(CLAIM_AIRDROP_TYPEHASH, beneficiary, amount, nonce, deadline));
+        return keccak256(abi.encodePacked(hex"1901", domainSeparator, sh));
+    }
+
+    /**
+     * @notice Full gas-sponsored airdrop claim: expiry + nonce + EIP-712 signature checks, then pay CNET from the
+     *         host (redeem) balance and emit {AirdropClaimed}. Called via delegatecall from {ValidatorDepositRedeem}
+     *         (storage, balance, msg context, and the emitted event's address are all the host's).
+     * @dev    The host only needs to wrap this in its reentrancy guard. {nonces} is the host's shared beneficiary
+     *         nonce mapping; {s} is the host airdrop ledger.
+     * @return paid The CNET amount transferred (== amount on success).
+     */
+    function claimAirdrop(
+        AirdropState storage s,
+        mapping(address => uint256) storage nonces,
+        bytes32 domainSeparator,
+        address beneficiary,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external returns (uint256 paid) {
+        require(block.timestamp <= deadline, "ValidatorRedeem: expired");
+        require(nonces[beneficiary] == nonce, "ValidatorRedeem: bad nonce");
+        nonces[beneficiary]++;
+        bytes32 sh = keccak256(abi.encode(CLAIM_AIRDROP_TYPEHASH, beneficiary, amount, nonce, deadline));
+        bytes32 digest = keccak256(abi.encodePacked(hex"1901", domainSeparator, sh));
+        require(ECDSA.recover(digest, signature) == beneficiary, "ValidatorRedeem: bad sig");
+        paid = _settleAirdrop(s, beneficiary, amount);
+        emit AirdropClaimed(beneficiary, paid);
+    }
+
+    function _settleAirdrop(AirdropState storage s, address beneficiary, uint256 amount)
+        private
+        returns (uint256)
+    {
+        require(s.claimableAt != 0 && block.timestamp >= s.claimableAt, "ValidatorRedeem: airdrop closed");
+        require(amount > 0, "ValidatorRedeem: zero amount");
+        uint256 claimable = s.accrued[beneficiary] - s.claimed[beneficiary];
+        require(amount <= claimable, "ValidatorRedeem: exceeds claimable");
+        require(address(this).balance >= amount, "ValidatorRedeem: insufficient balance");
+        s.claimed[beneficiary] += amount;
+        (bool ok, ) = payable(beneficiary).call{value: amount}("");
+        require(ok, "ValidatorRedeem: native transfer failed");
+        return amount;
+    }
 
     function _readGbBeneficiary(IConetGB1155Income gb, address beneficiary) private view returns (IncomeTotals memory t) {
         if (address(gb) == address(0) || beneficiary == address(0)) return t;

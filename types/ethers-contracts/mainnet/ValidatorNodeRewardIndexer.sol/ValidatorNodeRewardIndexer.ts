@@ -13,9 +13,9 @@ export declare namespace ValidatorNodeRewardIndexer {
     }
 
   export interface ValidatorNodeRewardIndexerInterface extends Interface {
-    getFunction(nameOrSignature: "MAX_HOURS" | "MAX_PERIODS" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "addAdmin" | "admins" | "beneficiaryCumulativeReward" | "beneficiaryFirstHour" | "beneficiaryHourlyReward" | "beneficiaryLastHour" | "getBeneficiaryPeriodReports" | "getBeneficiaryRewardBetween" | "getBeneficiaryRewardSummary" | "getNodePeriodReports" | "getNodeRewardBetween" | "getNodeRewardSummary" | "hourBeneficiary" | "nodeCumulativeReward" | "nodeFirstHour" | "nodeHourlyReward" | "nodeLastHour" | "redeem" | "removeAdmin" | "reportNodeRewardHourly" | "setRedeem" | "totalCumulativeReward"): FunctionFragment;
+    getFunction(nameOrSignature: "MAX_HOURS" | "MAX_PERIODS" | "PERIOD_DAY" | "PERIOD_HOUR" | "PERIOD_MONTH" | "PERIOD_QUARTER" | "PERIOD_WEEK" | "PERIOD_YEAR" | "addAdmin" | "admins" | "beneficiaryCumulativeReward" | "beneficiaryFirstHour" | "beneficiaryHourlyReward" | "beneficiaryLastHour" | "beneficiaryPeriodReward" | "consumedEventKey" | "getBeneficiaryPeriodReports" | "getBeneficiaryRewardBetween" | "getBeneficiaryRewardSummary" | "getNodePeriodReports" | "getNodeRewardBetween" | "getNodeRewardSummary" | "hourBeneficiary" | "nodeCumulativeReward" | "nodeFirstHour" | "nodeHourlyReward" | "nodeLastHour" | "nodePeriodReward" | "redeem" | "removeAdmin" | "reportNodeReward" | "setRedeem" | "totalCumulativeReward"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "NodeRewardHourSet" | "RedeemConfigured"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "NodeRewardReported" | "RedeemConfigured"): EventFragment;
 
     encodeFunctionData(functionFragment: 'MAX_HOURS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_PERIODS', values?: undefined): string;
@@ -31,6 +31,8 @@ encodeFunctionData(functionFragment: 'beneficiaryCumulativeReward', values: [Add
 encodeFunctionData(functionFragment: 'beneficiaryFirstHour', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'beneficiaryHourlyReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'beneficiaryLastHour', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'beneficiaryPeriodReward', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'consumedEventKey', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getBeneficiaryPeriodReports', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeneficiaryRewardBetween', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getBeneficiaryRewardSummary', values: [AddressLike, BigNumberish]): string;
@@ -42,9 +44,10 @@ encodeFunctionData(functionFragment: 'nodeCumulativeReward', values: [AddressLik
 encodeFunctionData(functionFragment: 'nodeFirstHour', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'nodeHourlyReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nodeLastHour', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodePeriodReward', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'redeem', values?: undefined): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'reportNodeRewardHourly', values: [AddressLike[], BigNumberish[], BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'reportNodeReward', values: [BytesLike[], AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'setRedeem', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'totalCumulativeReward', values?: undefined): string;
 
@@ -62,6 +65,8 @@ decodeFunctionResult(functionFragment: 'beneficiaryCumulativeReward', data: Byte
 decodeFunctionResult(functionFragment: 'beneficiaryFirstHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beneficiaryHourlyReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beneficiaryLastHour', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'beneficiaryPeriodReward', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumedEventKey', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeneficiaryPeriodReports', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeneficiaryRewardBetween', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBeneficiaryRewardSummary', data: BytesLike): Result;
@@ -73,9 +78,10 @@ decodeFunctionResult(functionFragment: 'nodeCumulativeReward', data: BytesLike):
 decodeFunctionResult(functionFragment: 'nodeFirstHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nodeHourlyReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nodeLastHour', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nodePeriodReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'reportNodeRewardHourly', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'reportNodeReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalCumulativeReward', data: BytesLike): Result;
   }
@@ -105,10 +111,10 @@ decodeFunctionResult(functionFragment: 'totalCumulativeReward', data: BytesLike)
 
   
 
-    export namespace NodeRewardHourSetEvent {
-      export type InputTuple = [nodeWallet: AddressLike, beneficiary: AddressLike, hourId: BigNumberish, reward: BigNumberish];
-      export type OutputTuple = [nodeWallet: string, beneficiary: string, hourId: bigint, reward: bigint];
-      export interface OutputObject {nodeWallet: string, beneficiary: string, hourId: bigint, reward: bigint };
+    export namespace NodeRewardReportedEvent {
+      export type InputTuple = [nodeWallet: AddressLike, beneficiary: AddressLike, hourId: BigNumberish, amount: BigNumberish, newHourTotal: BigNumberish, eventKey: BytesLike];
+      export type OutputTuple = [nodeWallet: string, beneficiary: string, hourId: bigint, amount: bigint, newHourTotal: bigint, eventKey: string];
+      export interface OutputObject {nodeWallet: string, beneficiary: string, hourId: bigint, amount: bigint, newHourTotal: bigint, eventKey: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -275,6 +281,22 @@ decodeFunctionResult(functionFragment: 'totalCumulativeReward', data: BytesLike)
     
 
     
+    beneficiaryPeriodReward: TypedContractMethod<
+      [arg0: AddressLike, arg1: BigNumberish, arg2: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    consumedEventKey: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     getBeneficiaryPeriodReports: TypedContractMethod<
       [beneficiary: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [ValidatorNodeRewardIndexer.PeriodReportStructOutput[]],
@@ -363,6 +385,14 @@ decodeFunctionResult(functionFragment: 'totalCumulativeReward', data: BytesLike)
     
 
     
+    nodePeriodReward: TypedContractMethod<
+      [arg0: AddressLike, arg1: BigNumberish, arg2: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     redeem: TypedContractMethod<
       [],
       [string],
@@ -379,9 +409,9 @@ decodeFunctionResult(functionFragment: 'totalCumulativeReward', data: BytesLike)
     
 
     
-    reportNodeRewardHourly: TypedContractMethod<
-      [nodeWallets: AddressLike[], hourIds: BigNumberish[], hourlyRewards: BigNumberish[], ],
-      [void],
+    reportNodeReward: TypedContractMethod<
+      [eventKeys: BytesLike[], nodeWallets: AddressLike[], amounts: BigNumberish[], ],
+      [bigint],
       'nonpayable'
     >
     
@@ -475,6 +505,16 @@ getFunction(nameOrSignature: 'beneficiaryLastHour'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'beneficiaryPeriodReward'): TypedContractMethod<
+      [arg0: AddressLike, arg1: BigNumberish, arg2: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'consumedEventKey'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getBeneficiaryPeriodReports'): TypedContractMethod<
       [beneficiary: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [ValidatorNodeRewardIndexer.PeriodReportStructOutput[]],
@@ -530,6 +570,11 @@ getFunction(nameOrSignature: 'nodeLastHour'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'nodePeriodReward'): TypedContractMethod<
+      [arg0: AddressLike, arg1: BigNumberish, arg2: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'redeem'): TypedContractMethod<
       [],
       [string],
@@ -540,9 +585,9 @@ getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'reportNodeRewardHourly'): TypedContractMethod<
-      [nodeWallets: AddressLike[], hourIds: BigNumberish[], hourlyRewards: BigNumberish[], ],
-      [void],
+getFunction(nameOrSignature: 'reportNodeReward'): TypedContractMethod<
+      [eventKeys: BytesLike[], nodeWallets: AddressLike[], amounts: BigNumberish[], ],
+      [bigint],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'setRedeem'): TypedContractMethod<
@@ -558,7 +603,7 @@ getFunction(nameOrSignature: 'totalCumulativeReward'): TypedContractMethod<
 
     getEvent(key: 'AdminAdded'): TypedContractEvent<AdminAddedEvent.InputTuple, AdminAddedEvent.OutputTuple, AdminAddedEvent.OutputObject>;
 getEvent(key: 'AdminRemoved'): TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
-getEvent(key: 'NodeRewardHourSet'): TypedContractEvent<NodeRewardHourSetEvent.InputTuple, NodeRewardHourSetEvent.OutputTuple, NodeRewardHourSetEvent.OutputObject>;
+getEvent(key: 'NodeRewardReported'): TypedContractEvent<NodeRewardReportedEvent.InputTuple, NodeRewardReportedEvent.OutputTuple, NodeRewardReportedEvent.OutputObject>;
 getEvent(key: 'RedeemConfigured'): TypedContractEvent<RedeemConfiguredEvent.InputTuple, RedeemConfiguredEvent.OutputTuple, RedeemConfiguredEvent.OutputObject>;
 
     filters: {
@@ -571,8 +616,8 @@ getEvent(key: 'RedeemConfigured'): TypedContractEvent<RedeemConfiguredEvent.Inpu
       AdminRemoved: TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
     
 
-      'NodeRewardHourSet(address,address,uint256,uint256)': TypedContractEvent<NodeRewardHourSetEvent.InputTuple, NodeRewardHourSetEvent.OutputTuple, NodeRewardHourSetEvent.OutputObject>;
-      NodeRewardHourSet: TypedContractEvent<NodeRewardHourSetEvent.InputTuple, NodeRewardHourSetEvent.OutputTuple, NodeRewardHourSetEvent.OutputObject>;
+      'NodeRewardReported(address,address,uint256,uint256,uint256,bytes32)': TypedContractEvent<NodeRewardReportedEvent.InputTuple, NodeRewardReportedEvent.OutputTuple, NodeRewardReportedEvent.OutputObject>;
+      NodeRewardReported: TypedContractEvent<NodeRewardReportedEvent.InputTuple, NodeRewardReportedEvent.OutputTuple, NodeRewardReportedEvent.OutputObject>;
     
 
       'RedeemConfigured(address)': TypedContractEvent<RedeemConfiguredEvent.InputTuple, RedeemConfiguredEvent.OutputTuple, RedeemConfiguredEvent.OutputObject>;

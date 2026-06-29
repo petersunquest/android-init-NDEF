@@ -121,6 +121,10 @@ function main() {
   const conetGBUserTotal = data.ConetGB_userTotal as string | undefined;
   const epochMiningInfo = data.EpochMiningInfo as string | undefined;
   const validatorDepositRedeem = data.ValidatorDepositRedeem as string | undefined;
+  const validatorDepositRedeemDeployBlock =
+    typeof data.validatorDepositRedeemDeployBlock === "number"
+      ? data.validatorDepositRedeemDeployBlock
+      : undefined;
   const validatorDepositContractAdmin = data.validatorDepositContractAdmin as string | undefined;
   const validatorNodeRewardIndexer = data.ValidatorNodeRewardIndexer as string | undefined;
   const validatorReferrerExtension = data.ValidatorDepositRedeemReferrerExtension as string | undefined;
@@ -377,6 +381,9 @@ function main() {
     content = patchExportConstSingleQuoted(content, "CONET_GB1155", conetGB1155);
     content = patchExportConstSingleQuoted(content, "CONET_GB_TOTAL", conetGBTotal);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM", validatorDepositRedeem);
+    if (validatorDepositRedeemDeployBlock != null) {
+      content = patchNumericConst(content, "CONET_VALIDATOR_DEPOSIT_REDEEM_DEPLOY_BLOCK", validatorDepositRedeemDeployBlock);
+    }
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_CONTRACT_ADMIN", contractAdmin);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_DEPOSIT_REDEEM_ADMIN", validatorDepositRedeemAdmin);
     content = patchExportConstSingleQuoted(content, "CONET_VALIDATOR_NODE_REWARD_INDEXER", validatorNodeRewardIndexer);

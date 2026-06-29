@@ -6,20 +6,20 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IValidatorDepositRedeemHostInterface extends Interface {
-    getFunction(nameOrSignature: "beneficiaryNonces" | "consumeBeneficiaryNonceForMarket" | "nodeWalletBeneficiary" | "transferOneNodeWalletForMarket" | "usdcTokenAddress"): FunctionFragment;
+    getFunction(nameOrSignature: "beneficiaryNonces" | "consumeBeneficiaryNonceForMarket" | "guardianIdBeneficiary" | "transferOneGuardianIdForMarket" | "usdcTokenAddress"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'beneficiaryNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'consumeBeneficiaryNonceForMarket', values: [AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'nodeWalletBeneficiary', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'transferOneNodeWalletForMarket', values: [AddressLike, AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'guardianIdBeneficiary', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'transferOneGuardianIdForMarket', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'usdcTokenAddress', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'beneficiaryNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeBeneficiaryNonceForMarket', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'nodeWalletBeneficiary', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'transferOneNodeWalletForMarket', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'guardianIdBeneficiary', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferOneGuardianIdForMarket', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdcTokenAddress', data: BytesLike): Result;
   }
 
@@ -75,16 +75,16 @@ decodeFunctionResult(functionFragment: 'usdcTokenAddress', data: BytesLike): Res
     
 
     
-    nodeWalletBeneficiary: TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+    guardianIdBeneficiary: TypedContractMethod<
+      [guardianId: BigNumberish, ],
       [string],
       'view'
     >
     
 
     
-    transferOneNodeWalletForMarket: TypedContractMethod<
-      [from: AddressLike, to: AddressLike, nodeWallet: AddressLike, ],
+    transferOneGuardianIdForMarket: TypedContractMethod<
+      [from: AddressLike, to: AddressLike, guardianId: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -111,13 +111,13 @@ getFunction(nameOrSignature: 'consumeBeneficiaryNonceForMarket'): TypedContractM
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'nodeWalletBeneficiary'): TypedContractMethod<
-      [nodeWallet: AddressLike, ],
+getFunction(nameOrSignature: 'guardianIdBeneficiary'): TypedContractMethod<
+      [guardianId: BigNumberish, ],
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'transferOneNodeWalletForMarket'): TypedContractMethod<
-      [from: AddressLike, to: AddressLike, nodeWallet: AddressLike, ],
+getFunction(nameOrSignature: 'transferOneGuardianIdForMarket'): TypedContractMethod<
+      [from: AddressLike, to: AddressLike, guardianId: BigNumberish, ],
       [void],
       'nonpayable'
     >;

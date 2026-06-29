@@ -1,6 +1,6 @@
 ---
-description: CoNET L1 聆听 Validator 节点 — Redeem 成功后 append validator 标准 workflow（import + 仅 reload validator）
-globs: scripts/deployValidatorRedeemListener.sh,scripts/validator-node/**,src/x402sdk/src/endpoint/validatorDepositRedeem.ts,src/x402sdk/service/conet-validator-redeem-listener.env.example,src/x402sdk/service/systemd/conet-validator-redeem-listener.service
+description: CoNET L1 聆听 Validator 节点 — Redeem 成功后 append validator 标准 workflow（import + systemd reload validator）
+globs: scripts/deployValidatorRedeemListener.sh,scripts/validator-node/**,src/x402sdk/src/endpoint/validatorDepositRedeem.ts,src/x402sdk/service/conet-validator-redeem-listener.env.example,src/x402sdk/service/systemd/conet-*validator*
 alwaysApply: false
 ---
 
@@ -9,7 +9,7 @@ alwaysApply: false
 适用 **已运行 geth + beacon + validator，且部署了 `conet-validator-redeem-listener`** 的 CoNET L1 节点（如 `38.102.85.33`）。  
 **每次 `ValidatorRedeemClaimed` 成功后在同一机器上追加 validator 时，必须遵守本 workflow。**
 
-与 **`beamio-validator-deposit-redeem-staking-custody.mdc`**（合约/经济模型）、**`critical-chain-infra-restart-requires-approval.mdc`**（禁止擅自重启 geth/beacon）、**`beamio-no-master-json-remote-copy.mdc`**（禁止跨机复制 master.json）并存。
+与 **`beamio-validator-deposit-redeem-staking-custody.mdc`**（合约/经济模型）、**`conet-validator-redeem-listener-deploy.mdc`**（**部署 / systemd / 迁移验收**）、**`critical-chain-infra-restart-requires-approval.mdc`**（禁止擅自重启 geth/beacon）、**`beamio-no-master-json-remote-copy.mdc`**（禁止跨机复制 master.json）并存。
 
 ---
 
@@ -39,7 +39,7 @@ alwaysApply: false
 | **2** | `fundAndDepositValidators` + `04_submit_validator_deposits.js`（链上） | 合约垫资 + deposit 合约 `deposit`（32 CNET/validator） |
 | **3** | `registerNodeValidators` | relayer 写链绑定 node ↔ beneficiary |
 | **4** | **`08_import_append_validator_keys.sh`** | Import `append_validator_keys/validator_keys/*.json` → Prysm wallet；manifest 幂等 |
-| **5** | **`08` 内 `RELOAD_VALIDATOR_AFTER_IMPORT=YES`** | **仅** stop/start validator（beacon + geth 不动） |
+| **5** | **`08` 内 `RELOAD_VALIDATOR_AFTER_IMPORT=YES`** | **`systemctl stop/start conet-prysm-validator.service`**（仅 VC；beacon + geth 不动）；EXIT trap 防 stop 无 start |
 | **6** | ~~`05_restart_beacon_validator.sh`~~ | **默认跳过**（`CONET_VALIDATOR_SKIP_BEACON_RESTART=YES`） |
 
 **禁止** 把「deposit 成功」当作「已 import + 已 reload validator」。
@@ -63,7 +63,7 @@ alwaysApply: false
 | `CONET_VALIDATOR_SKIP_BEACON_RESTART` | **YES** | 设为 `NO` 才会跑 `05_restart_beacon_validator.sh`（**append 不推荐**） |
 | ~~`CONET_VALIDATOR_RUN_JOIN_SCRIPT`~~ | **已废弃** | 勿用 `03_join_v714.sh` 代替 `08_import` |
 
-Listener 部署：`./scripts/deployValidatorRedeemListener.sh`（同步 `01_*_listener.sh`、`08_import_append_validator_keys.sh` 等到 `CONET_VALIDATOR_NEWCONET_DIR`）。
+Listener 部署：**`./scripts/deployValidatorRedeemListener.sh`**（见 **`conet-validator-redeem-listener-deploy.mdc`**）。同步 `01_*_listener.sh`、`08`/`09`/`10`、`conet-prysm-validator.service`、watchdog、sudoers 到目标主机。
 
 ---
 
@@ -149,11 +149,15 @@ pgrep -af 'geth.*node-0'; pgrep -af 'beacon-chain.*node-0'
 | Listener 编排 | `src/x402sdk/src/endpoint/validatorDepositRedeem.ts` — `executeValidatorRedeem` |
 | Generate（密码保护） | `scripts/validator-node/01_generate_append_validator_deposits_listener.sh` |
 | Import + reload validator | `scripts/validator-node/08_import_append_validator_keys.sh` |
-| 部署 listener | `scripts/deployValidatorRedeemListener.sh` |
+| Ensure VC running | `scripts/validator-node/09_ensure_validator_running.sh` |
+| VC systemd ExecStart | `scripts/validator-node/10_run_prysm_validator.sh` |
+| 部署 listener + VC systemd | `scripts/deployValidatorRedeemListener.sh` |
 | Env 模板 | `src/x402sdk/service/conet-validator-redeem-listener.env.example` |
-| 仅 reload validator（systemd 节点） | `ethereum-pos-mainnet/06_restart_node*.sh` — `start_validator` / stop validator pid |
+| VC systemd unit | `src/x402sdk/service/systemd/conet-prysm-validator.service` |
 
 ## 相关守则
+
+- **`conet-validator-redeem-listener-deploy.mdc`** — 部署拓扑、迁移、sudoers、验收（**新节点必读**）
 
 - `beamio-validator-deposit-redeem-staking-custody.mdc` — 合约托管 / fee_recipient / deposit withdrawal
 - `critical-chain-infra-restart-requires-approval.mdc` — geth / beacon 重启须授权

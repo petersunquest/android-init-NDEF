@@ -97,6 +97,8 @@
     "add:business-start-ket-redeem-admin:conet": "hardhat run scripts/addBusinessStartKetRedeemAdminConet.ts --network conet",
     "verify:business-start-ket-redeem:conet": "hardhat run scripts/verifyBusinessStartKetRedeemConet.ts --network conet",
     "deploy:validator-deposit-redeem:conet": "hardhat run scripts/deployValidatorDepositRedeemToConet.ts --network conet",
+    "deploy:validator-deposit-redeem-proxy:conet": "hardhat run scripts/deployValidatorDepositRedeemProxyToConet.ts --network conet",
+    "upgrade:validator-deposit-redeem:conet": "hardhat run scripts/upgradeValidatorDepositRedeemImplConet.ts --network conet",
     "verify:validator-deposit-redeem:conet": "npx tsx scripts/verifyValidatorDepositRedeemConet.ts",
     "export:account-registry:conet:standard-json": "node scripts/exportAccountRegistryConetStandardJson.mjs",
     "verify:account-registry:conet:standard-json": "npx tsx scripts/verifyAccountRegistryConetStandardJson.ts",
@@ -116,6 +118,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.4.0",
+    "@openzeppelin/contracts-upgradeable": "^5.4.0",
     "@settle402/sdk": "github:settleonbase/x402sdk#main",
     "colors": "^1.4.0",
     "ethers": "^6.16.0",

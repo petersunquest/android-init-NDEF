@@ -66,7 +66,10 @@
     "0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab",
     "0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E",
     "0x970792658C09A96E27Fc4D8B69fF9989C2AcB50E",
-    "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC"
+    "0x02C425537E3E2C7B9F3071DdFc4E0d81DD3B2EFC",
+    "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
+    "0x7001c3637CE602aB10DE113A12aD09bD7B3Ce457",
+    "0x1488ED35054f2Eb5301E1dC14Be3D9283d10B3B5"
   ],
   "DEPRECATED_CONET_TREASURY_PEER": [
     "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39"
@@ -115,16 +118,27 @@
   "beamioUserCardUpdateLib": "0x0dd2F946D14b5b49F117cB3Ad5c35B72c1761b48",
   "beamioUserCardViewsLib": "0xeeE65DD61EB2D1188508e298b4B956EDfB82f9C6",
   "referrerRegistryLib": "0x3CC7ddD8e8F9711C4fcdA68191A6A88304E6B3CA",
-  "ValidatorDepositRedeem": "0x27d45092dA7847967aA8d3D5b490E2c5eb6c294f",
-  "validatorDepositRedeemDeployBlock": 159057,
+  "ValidatorDepositRedeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+  "validatorDepositRedeemDeployBlock": 181083,
   "validatorDepositRedeemDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "validatorDepositRedeemDeployedAt": "2026-06-28T04:21:31.634Z",
-  "validatorDepositRedeemTx": "0xc10027914dc0b8e6647334d713104f0270d63ecfb34682ab3f0d345500cc66f2",
-  "ValidatorDepositRedeemStatsLib": "0xBfbADDCE03df8323CAF9c04060979458f5504Cc7",
-  "ValidatorDepositRedeemReferrerExtension": "0xF3097FB1339DbA0135196667FA2f13B313E4d08e",
-  "ValidatorDepositRedeemTransferMarket": "0xBf024068035f5869E6968c3B68f8a91D0f75E4Af",
-  "ValidatorNodeRewardIndexer": "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
-  "validatorNodeRewardIndexerTx": "0xfc3f03b7519baf6388f84e56414e290a6af105e578b32319e37afa356344dbc4",
-  "validatorNodeRewardIndexerConfiguredAt": "2026-06-27T21:26:49.485Z",
-  "validatorDepositContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  "validatorDepositRedeemDeployedAt": "2026-06-29T17:05:19.465Z",
+  "validatorDepositRedeemTx": "0x5c54c0b86726556ed8b672bb4e180a326c43b7d2679f482283e6ae8305612cea",
+  "ValidatorDepositRedeemStatsLib": "0xD69B750f0286E507349C6dA50500E7CEa714dfC3",
+  "ValidatorDepositRedeemReferrerExtension": "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F",
+  "ValidatorDepositRedeemTransferMarket": "0xde5A9060fc3640846F1B5d5780369806F0C4dD76",
+  "ValidatorNodeRewardIndexer": "0xCA83d2d766701d3939Ef1644e2A911dc87CeA39D",
+  "validatorNodeRewardIndexerTx": "0x2a073946c31996764570eda52ae40d03006dfbc5243c5000657dadb758881391",
+  "validatorNodeRewardIndexerConfiguredAt": "2026-06-29T17:05:19.465Z",
+  "validatorDepositContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "DEPRECATED_VALIDATOR_NODE_REWARD_INDEXER": [
+    "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
+    "0x18185627F1917f996E6f5f1fB9c24A6231CcD342"
+  ],
+  "ValidatorDepositRedeemImplementation": "0x1FA6C3f59C846D943Cc7EF79ddb4d6580975D3BD",
+  "ValidatorDepositRedeemRewardLib": "0xa0d9084C3A215eEC92F3074049E53C24Bd905125",
+  "ValidatorDepositRedeemBundleLib": "0xe47cbf5855B7FaB3e18B2Ce2D940CeCc958CEcBb",
+  "ValidatorDepositRedeemTransferLib": "0x0F60e8Fb27aCE8432aE64327DF10913136006809",
+  "ValidatorDepositRedeemDepositLib": "0xb4b8e9595e45F46Ff36a579A202C82AcD5DBaAf5",
+  "ValidatorDepositRedeemExitLib": "0x6773A0e3eb64341043b8a66B064C5f008F1261f9",
+  "validatorDepositRedeemUpgradeable": true
 }

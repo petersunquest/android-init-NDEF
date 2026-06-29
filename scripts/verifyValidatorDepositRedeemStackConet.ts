@@ -25,14 +25,46 @@ const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet
 const CONET_RPC = process.env.CONET_RPC_URL || "https://publicrpc.conet.network";
 const COMPILER_VERSION = `v${BASESCAN_COMPILER_VERSION}`;
 
+const REDEEM_MAIN_SOURCE = "project/src/mainnet/ValidatorDepositRedeem.sol";
 const STATS_LIB_SOURCE = "project/src/mainnet/ValidatorDepositRedeemStatsLib.sol";
 
+const REDEEM_LINKED_LIBRARY_NAMES = [
+  "ValidatorDepositRedeemStatsLib",
+  "ValidatorDepositRedeemRewardLib",
+  "ValidatorDepositRedeemBundleLib",
+  "ValidatorDepositRedeemTransferLib",
+  "ValidatorDepositRedeemDepositLib",
+  "ValidatorDepositRedeemExitLib",
+] as const;
+
+const LIB_ROOT_SOURCES: Record<(typeof REDEEM_LINKED_LIBRARY_NAMES)[number], string> = {
+  ValidatorDepositRedeemStatsLib: STATS_LIB_SOURCE,
+  ValidatorDepositRedeemRewardLib: "project/src/mainnet/ValidatorDepositRedeemRewardLib.sol",
+  ValidatorDepositRedeemBundleLib: "project/src/mainnet/ValidatorDepositRedeemBundleLib.sol",
+  ValidatorDepositRedeemTransferLib: "project/src/mainnet/ValidatorDepositRedeemTransferLib.sol",
+  ValidatorDepositRedeemDepositLib: "project/src/mainnet/ValidatorDepositRedeemDepositLib.sol",
+  ValidatorDepositRedeemExitLib: "project/src/mainnet/ValidatorDepositRedeemExitLib.sol",
+};
+
 type DeploymentJson = {
+  upgradeable?: boolean;
+  implementation?: string;
+  initializeArgs?: {
+    initialRedeemAdmin?: string;
+    initialContractAdmin?: string;
+    gbToken?: string;
+    usdcToken?: string;
+    guardianNodes?: string;
+    guardianAllocStartId?: string | number;
+  };
   contracts?: {
     ValidatorDepositRedeemStatsLib?: { address?: string };
     ValidatorDepositRedeem?: {
       address?: string;
+      proxy?: string;
+      implementation?: string;
       initialRedeemAdmin?: string;
+      initialContractAdmin?: string;
       gbToken?: string;
       usdcToken?: string;
       guardianNodes?: string;
@@ -43,7 +75,7 @@ type DeploymentJson = {
     ValidatorDepositRedeemTransferMarket?: { address?: string; redeemHost?: string };
     ValidatorNodeRewardIndexer?: { address?: string; admin?: string; redeem?: string };
   };
-  libraryLinks?: { ValidatorDepositRedeemStatsLib?: string };
+  libraryLinks?: Record<string, string>;
   initialRedeemAdmin?: string;
   gbToken?: string;
   usdcToken?: string;
@@ -79,18 +111,37 @@ function loadDeployment(): DeploymentJson {
   return JSON.parse(fs.readFileSync(p, "utf-8")) as DeploymentJson;
 }
 
+function resolveLibraryLinks(data: DeploymentJson): Record<string, string> {
+  const out: Record<string, string> = { ...(data.libraryLinks ?? {}) };
+  for (const name of REDEEM_LINKED_LIBRARY_NAMES) {
+    const fromContracts = (data.contracts as Record<string, { address?: string }> | undefined)?.[name]?.address;
+    if (fromContracts) out[name] = fromContracts;
+  }
+  if (data.statsLib && !out.ValidatorDepositRedeemStatsLib) {
+    out.ValidatorDepositRedeemStatsLib = data.statsLib;
+  }
+  return out;
+}
+
+function libraryLinksForRedeemMain(flat: Record<string, string>): Record<string, Record<string, string>> {
+  const linked: Record<string, string> = {};
+  for (const name of REDEEM_LINKED_LIBRARY_NAMES) {
+    const addr = flat[name];
+    if (addr) linked[name] = getAddress(addr);
+  }
+  return { [REDEEM_MAIN_SOURCE]: linked };
+}
+
 function loadTargets(data: DeploymentJson): VerifyTarget[] {
   const inner = data.contracts ?? {};
-  const statsLib =
-    inner.ValidatorDepositRedeemStatsLib?.address ||
-    data.statsLib ||
-    data.libraryLinks?.ValidatorDepositRedeemStatsLib;
+  const flatLibs = resolveLibraryLinks(data);
+  const statsLib = flatLibs.ValidatorDepositRedeemStatsLib;
   const redeem = inner.ValidatorDepositRedeem;
   const ext = inner.ValidatorDepositRedeemReferrerExtension;
   const market = inner.ValidatorDepositRedeemTransferMarket;
   const rewardIdx = inner.ValidatorNodeRewardIndexer;
 
-  const ca = data.constructorArgs ?? {};
+  const ca = data.initializeArgs ?? data.constructorArgs ?? {};
   const initialRedeemAdmin = redeem?.initialRedeemAdmin ?? ca.initialRedeemAdmin ?? data.initialRedeemAdmin;
   const initialContractAdmin =
     (redeem as { initialContractAdmin?: string })?.initialContractAdmin ??
@@ -103,47 +154,70 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
   const rewardIndexerAddr =
     rewardIdx?.address ?? data.rewardIndexer ?? (data as { ValidatorNodeRewardIndexer?: string }).ValidatorNodeRewardIndexer;
 
+  const isUpgradeable = Boolean(data.upgradeable || redeem?.implementation || data.implementation);
+  const implAddrRaw = redeem?.implementation ?? data.implementation;
+
   if (!statsLib || !redeem?.address || !ext?.address || !market?.address) {
     throw new Error("部署 JSON 缺少 StatsLib / Redeem / ReferrerExtension / TransferMarket 地址");
   }
-  if (!initialRedeemAdmin || !initialContractAdmin || !gbToken || !usdcToken || !guardianNodes || guardianAllocStartId == null) {
+  if (!isUpgradeable && (!initialRedeemAdmin || !initialContractAdmin || !gbToken || !usdcToken || !guardianNodes || guardianAllocStartId == null)) {
     throw new Error("部署 JSON 缺少 Redeem constructorArgs");
   }
+  if (isUpgradeable && !implAddrRaw) {
+    throw new Error("upgradeable 部署 JSON 缺少 implementation 地址");
+  }
 
-  const redeemAdmin = getAddress(String(initialRedeemAdmin));
-  const contractAdmin = getAddress(String(initialContractAdmin));
+  const redeemAdmin = initialRedeemAdmin ? getAddress(String(initialRedeemAdmin)) : getAddress(String(ext.admin ?? "0x0000000000000000000000000000000000000000"));
+  const contractAdmin = initialContractAdmin ? getAddress(String(initialContractAdmin)) : redeemAdmin;
   const statsLibAddr = getAddress(String(statsLib));
   const redeemAddr = getAddress(redeem.address);
+  const implAddr = implAddrRaw ? getAddress(String(implAddrRaw)) : redeemAddr;
   const extAddr = getAddress(ext.address);
   const marketAddr = getAddress(market.address);
 
-  const targets: VerifyTarget[] = [
-    {
-      key: "ValidatorDepositRedeemStatsLib",
-      address: statsLibAddr,
-      rootSource: STATS_LIB_SOURCE,
-      contractName: `${STATS_LIB_SOURCE}:ValidatorDepositRedeemStatsLib`,
-    },
-    {
-      key: "ValidatorDepositRedeem",
-      address: redeemAddr,
-      rootSource: "project/src/mainnet/ValidatorDepositRedeem.sol",
-      contractName: "project/src/mainnet/ValidatorDepositRedeem.sol:ValidatorDepositRedeem",
-      constructorTypes: ["address", "address", "address", "address", "address", "uint256"],
-      constructorValues: [
-        redeemAdmin,
-        contractAdmin,
-        getAddress(String(gbToken)),
-        getAddress(String(usdcToken)),
-        getAddress(String(guardianNodes)),
-        BigInt(guardianAllocStartId),
-      ],
-      libraryLinks: {
-        [STATS_LIB_SOURCE]: {
-          ValidatorDepositRedeemStatsLib: statsLibAddr,
-        },
+  const redeemImplTarget: VerifyTarget = isUpgradeable
+    ? {
+        key: "ValidatorDepositRedeem",
+        address: implAddr,
+        rootSource: REDEEM_MAIN_SOURCE,
+        contractName: "project/src/mainnet/ValidatorDepositRedeem.sol:ValidatorDepositRedeem",
+        constructorTypes: [],
+        constructorValues: [],
+        libraryLinks: libraryLinksForRedeemMain(flatLibs),
+      }
+    : {
+        key: "ValidatorDepositRedeem",
+        address: redeemAddr,
+        rootSource: REDEEM_MAIN_SOURCE,
+        contractName: "project/src/mainnet/ValidatorDepositRedeem.sol:ValidatorDepositRedeem",
+        constructorTypes: ["address", "address", "address", "address", "address", "uint256"],
+        constructorValues: [
+          redeemAdmin,
+          contractAdmin,
+          getAddress(String(gbToken)),
+          getAddress(String(usdcToken)),
+          getAddress(String(guardianNodes)),
+          BigInt(guardianAllocStartId!),
+        ],
+        libraryLinks: libraryLinksForRedeemMain(flatLibs),
+      };
+
+  const libTargets: VerifyTarget[] = REDEEM_LINKED_LIBRARY_NAMES.flatMap((name) => {
+    const addr = flatLibs[name];
+    if (!addr) return [];
+    return [
+      {
+        key: name,
+        address: getAddress(addr),
+        rootSource: LIB_ROOT_SOURCES[name],
+        contractName: `${LIB_ROOT_SOURCES[name]}:${name}`,
       },
-    },
+    ];
+  });
+
+  const targets: VerifyTarget[] = [
+    ...libTargets,
+    redeemImplTarget,
     {
       key: "ValidatorDepositRedeemReferrerExtension",
       address: extAddr,

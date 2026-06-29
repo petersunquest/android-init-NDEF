@@ -3,15 +3,25 @@
 /* eslint-disable */
 import type * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
 export type { validatorDepositRedeemSol };
+import type * as validatorDepositRedeemBundleLibSol from './ValidatorDepositRedeemBundleLib.sol/index.js';
+export type { validatorDepositRedeemBundleLibSol };
+import type * as validatorDepositRedeemDepositLibSol from './ValidatorDepositRedeemDepositLib.sol/index.js';
+export type { validatorDepositRedeemDepositLibSol };
 import type * as validatorDepositRedeemReferrerExtensionSol from './ValidatorDepositRedeemReferrerExtension.sol/index.js';
 export type { validatorDepositRedeemReferrerExtensionSol };
 import type * as validatorDepositRedeemStatsLibSol from './ValidatorDepositRedeemStatsLib.sol/index.js';
 export type { validatorDepositRedeemStatsLibSol };
+import type * as validatorDepositRedeemTransferLibSol from './ValidatorDepositRedeemTransferLib.sol/index.js';
+export type { validatorDepositRedeemTransferLibSol };
 import type * as validatorDepositRedeemTransferMarketSol from './ValidatorDepositRedeemTransferMarket.sol/index.js';
 export type { validatorDepositRedeemTransferMarketSol };
 import type * as validatorNodeRewardIndexerSol from './ValidatorNodeRewardIndexer.sol/index.js';
 export type { validatorNodeRewardIndexerSol };
+import type * as test from './test/index.js';
+export type { test };
 export type { AccountRegistry } from './AccountRegistry.js';
 export type { AddressPGP } from './AddressPGP.js';
 export type { LayerMinusNodeRestart_V2 } from './LayerMinusNodeRestart_V2.js';
 export type { MerchantPOSManagement } from './MerchantPOSManagement.js';
+export type { ValidatorDepositRedeemExitLib } from './ValidatorDepositRedeemExitLib.js';
+export type { ValidatorDepositRedeemRewardLib } from './ValidatorDepositRedeemRewardLib.js';

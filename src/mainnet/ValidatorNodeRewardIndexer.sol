@@ -8,10 +8,12 @@ interface IValidatorDepositRedeemBeneficiary {
 
 /**
  * @title ValidatorNodeRewardIndexer
- * @notice Hourly atomic CNET reward ledger for CoNET DePIN validator nodes — per NODE and per BENEFICIARY —
- *         with day / week / month / quarter / year period statistics (BeamioIndexerDiamond / AdminStatsPeriodLib
- *         style). Kept as a standalone companion to {ValidatorDepositRedeem} so the core contract stays within
- *         the EVM contract size limit (EIP-170).
+ * @notice Event-driven atomic CNET reward ledger for CoNET DePIN validator nodes — per NODE and per BENEFICIARY —
+ *         with hour / day / week / month / quarter / year period statistics. Storage + query model is aligned
+ *         with {BeamioIndexerDiamond} (StatsFacet): each report is ACCUMULATED into the hour bucket of the
+ *         CURRENT block (`block.timestamp / 3600`), and larger periods are rolled up from the hour buckets at
+ *         read time. Kept as a standalone companion to {ValidatorDepositRedeem} so the core contract stays
+ *         within the EVM contract size limit (EIP-170).
  *
  * @dev WHY OFF-CHAIN MEASURED / RELAYER FED:
  *      Validator CNET rewards have two physical sources that the chain cannot self-attribute per node:
@@ -19,13 +21,18 @@ interface IValidatorDepositRedeemBeneficiary {
  *           (the hot-updated beneficiary wallet) — they never touch this contract.
  *        2. Consensus-layer skim returns to ValidatorDepositRedeem's 0x01 `withdrawal_credentials` WITHOUT any
  *           per-pubkey memo, so an incoming native transfer cannot be mapped to a node on-chain.
- *      Therefore the owning validator node / beacon listener measures each node's reward per UTC hour off-chain
- *      (beacon balance deltas + fee_recipient receipts) and writes it here. This ledger MOVES NO FUNDS; it is a
- *      display source for dashboards (per-node income curve + beneficiary totals).
+ *      Therefore the owning validator node / beacon listener measures each node's reward off-chain and, WHENEVER
+ *      it observes a reward event, writes the measured amount here via {reportNodeReward}. The listener NO LONGER
+ *      needs to align to UTC hours or track hour boundaries locally: the contract buckets by the block's hour and
+ *      accumulates. This ledger MOVES NO FUNDS; it is a display source for dashboards.
  *
- *      Reward "follows the node": the per-beneficiary bucket for a given (node, hour) is attributed to whoever
- *      the beneficiary was when that hour was first reported, recorded in {hourBeneficiary} so later corrections
- *      stay consistent even after a node transfer.
+ * @dev IDEMPOTENCY (aligned with BeamioIndexerDiamond.syncTokenAction txId dedup):
+ *      Each report carries a non-zero {eventKey} (e.g. keccak256(txHash, logIndex) of the observed reward event).
+ *      A given eventKey is consumed at most once, so listener restarts / reorgs / retries never double-count.
+ *
+ * @dev Reward "follows the node": the per-beneficiary credit for a (node, hour) is pinned to whoever the
+ *      beneficiary is when that hour bucket first receives a report, recorded in {hourBeneficiary}, so a node
+ *      transfer mid-window never re-attributes amounts already accumulated for that hour.
  */
 contract ValidatorNodeRewardIndexer {
     // ---- Period types (aligned with AdminStatsPeriodLib) -----------------------------------------------
@@ -45,13 +52,25 @@ contract ValidatorNodeRewardIndexer {
     /// @notice The ValidatorDepositRedeem contract used to resolve a node wallet's current beneficiary.
     IValidatorDepositRedeemBeneficiary public redeem;
 
-    // ---- Hourly ledger ---------------------------------------------------------------------------------
-    /// @notice node wallet => hourId (unix/3600) => CNET reward earned in that hour (18 decimals, absolute).
+    // ---- Hourly ledger (accumulated, BeamioIndexerDiamond style) ---------------------------------------
+    /// @notice node wallet => hourId (unix/3600) => CNET reward accumulated in that hour (18 decimals).
     mapping(address => mapping(uint256 => uint256)) public nodeHourlyReward;
     /// @notice beneficiary => hourId => aggregated CNET reward across the beneficiary's nodes in that hour.
     mapping(address => mapping(uint256 => uint256)) public beneficiaryHourlyReward;
-    /// @notice node wallet => hourId => the beneficiary credited for that hour (set on first report; stable).
+    /// @notice node wallet => hourId => the beneficiary credited for that hour (pinned on first report; stable).
     mapping(address => mapping(uint256 => address)) public hourBeneficiary;
+    /// @notice eventKey => consumed. Per-event idempotency guard (mirrors BeamioIndexerDiamond txId dedup).
+    mapping(bytes32 => bool) public consumedEventKey;
+
+    // ---- Pre-aggregated coarse buckets (O(1) reads; written alongside the hour bucket) -----------------
+    /// @notice node => periodType (DAY/WEEK/MONTH/QUARTER/YEAR) => periodId => reward accumulated in that period.
+    /// @dev    PERIOD_HOUR is intentionally NOT mirrored here; the hour granularity stays in {nodeHourlyReward}
+    ///         (kept for ABI compatibility). Every {reportNodeReward} additionally accumulates the amount into the
+    ///         DAY/WEEK/MONTH/QUARTER/YEAR bucket that contains the block's hour, so period summaries are a single
+    ///         SLOAD per period instead of an hour-by-hour scan (no eth_call gas-cap blow-up over long windows).
+    mapping(address => mapping(uint8 => mapping(uint256 => uint256))) public nodePeriodReward;
+    /// @notice beneficiary => periodType => periodId => reward accumulated across the beneficiary's nodes.
+    mapping(address => mapping(uint8 => mapping(uint256 => uint256))) public beneficiaryPeriodReward;
 
     // ---- Cumulative + bounds ---------------------------------------------------------------------------
     mapping(address => uint256) public nodeCumulativeReward;
@@ -71,12 +90,20 @@ contract ValidatorNodeRewardIndexer {
     event AdminAdded(address indexed account);
     event AdminRemoved(address indexed account);
     event RedeemConfigured(address indexed redeem);
-    /// @notice An hour bucket for a node was (re)set; {beneficiary} is the credited beneficiary for that hour.
-    event NodeRewardHourSet(
+    /// @notice A reward event was accumulated into a node's current-hour bucket.
+    /// @param nodeWallet      DePIN node operator wallet credited.
+    /// @param beneficiary     Beneficiary credited for this (node, hour) (pinned on the hour's first report).
+    /// @param hourId          UTC hour bucket (block.timestamp / 3600) the amount was added to.
+    /// @param amount          CNET amount added by this report (18 decimals).
+    /// @param newHourTotal    Running total of the node's bucket for {hourId} after this report.
+    /// @param eventKey        The consumed off-chain reward event id (idempotency key).
+    event NodeRewardReported(
         address indexed nodeWallet,
         address indexed beneficiary,
         uint256 indexed hourId,
-        uint256 reward
+        uint256 amount,
+        uint256 newHourTotal,
+        bytes32 eventKey
     );
 
     modifier onlyAdmin() {
@@ -112,34 +139,52 @@ contract ValidatorNodeRewardIndexer {
     }
 
     /**
-     * @notice Atomic hourly reward report (set-absolute per hour bucket; idempotent / crash-safe).
-     * @dev The relayer may re-send the same (node, hour) with a corrected absolute value; the per-node and
-     *      per-beneficiary cumulative + period totals are adjusted by the signed delta. The credited beneficiary
-     *      for a (node, hour) is fixed on first report (resolved from {redeem}); re-reports keep that same
-     *      beneficiary so an intervening node transfer never re-attributes already-credited hours.
-     * @param nodeWallets DePIN node operator wallets.
-     * @param hourIds UTC hour ids (unix timestamp / 3600), parallel to {nodeWallets}.
-     * @param hourlyRewards Absolute CNET reward earned by the node in that hour (18 decimals), parallel.
+     * @notice Event-driven reward report: accumulate each measured amount into the CURRENT hour bucket
+     *         (`block.timestamp / 3600`). The listener writes this whenever it observes a reward event; it does
+     *         NOT pre-aggregate by UTC hour or pass an hourId — the contract buckets by the block's hour, exactly
+     *         like {BeamioIndexerDiamond} buckets `syncTokenAction` by `block.timestamp / 3600`.
+     * @dev Idempotent per {eventKey}: a previously consumed key is skipped (no double counting on restart/reorg).
+     *      The credited beneficiary for a (node, hour) is pinned the first time that hour bucket is written
+     *      (resolved from {redeem}); later reports in the same hour keep that beneficiary so a mid-window node
+     *      transfer never re-attributes already-accumulated amounts.
+     * @param eventKeys  Non-zero unique ids of the observed reward events (e.g. keccak256(txHash, logIndex)).
+     * @param nodeWallets DePIN node operator wallets, parallel to {eventKeys}.
+     * @param amounts     CNET reward amounts to add (18 decimals), parallel.
+     * @return added      Number of entries actually applied (excludes already-consumed eventKeys).
      */
-    function reportNodeRewardHourly(
+    function reportNodeReward(
+        bytes32[] calldata eventKeys,
         address[] calldata nodeWallets,
-        uint256[] calldata hourIds,
-        uint256[] calldata hourlyRewards
-    ) external onlyAdmin {
-        uint256 n = nodeWallets.length;
+        uint256[] calldata amounts
+    ) external onlyAdmin returns (uint256 added) {
+        uint256 n = eventKeys.length;
         require(n > 0, "RewardIndexer: empty");
-        require(hourIds.length == n && hourlyRewards.length == n, "RewardIndexer: length mismatch");
+        require(nodeWallets.length == n && amounts.length == n, "RewardIndexer: length mismatch");
+        uint256 hourId = block.timestamp / 3600;
         for (uint256 i = 0; i < n; i++) {
-            _setNodeRewardHour(nodeWallets[i], hourIds[i], hourlyRewards[i]);
+            bytes32 key = eventKeys[i];
+            require(key != bytes32(0), "RewardIndexer: zero eventKey");
+            if (consumedEventKey[key]) continue; // idempotent: skip already-applied event
+            consumedEventKey[key] = true;
+            _addNodeRewardHour(nodeWallet_(nodeWallets[i]), hourId, amounts[i], key);
+            added++;
         }
     }
 
-    function _setNodeRewardHour(address nodeWallet, uint256 hourId, uint256 newReward) internal {
+    /// @dev tiny helper to validate node address once before storage writes (keeps stack small).
+    function nodeWallet_(address nodeWallet) private pure returns (address) {
         require(nodeWallet != address(0), "RewardIndexer: zero node");
-        uint256 old = nodeHourlyReward[nodeWallet][hourId];
-        if (newReward == old) return;
+        return nodeWallet;
+    }
 
-        // Resolve / pin the beneficiary credited for this (node, hour).
+    function _addNodeRewardHour(address nodeWallet, uint256 hourId, uint256 amount, bytes32 eventKey) internal {
+        if (amount == 0) {
+            // Still emit so the off-chain ledger can mark the event consumed.
+            emit NodeRewardReported(nodeWallet, hourBeneficiary[nodeWallet][hourId], hourId, 0, nodeHourlyReward[nodeWallet][hourId], eventKey);
+            return;
+        }
+
+        // Resolve / pin the beneficiary credited for this (node, hour) on its first write.
         address ben = hourBeneficiary[nodeWallet][hourId];
         if (ben == address(0)) {
             if (address(redeem) != address(0)) {
@@ -148,25 +193,20 @@ contract ValidatorNodeRewardIndexer {
             hourBeneficiary[nodeWallet][hourId] = ben; // may stay address(0) if node not yet bound
         }
 
-        // Apply node bucket + cumulative via signed delta.
-        nodeHourlyReward[nodeWallet][hourId] = newReward;
-        if (newReward > old) {
-            uint256 d = newReward - old;
-            nodeCumulativeReward[nodeWallet] += d;
-            totalCumulativeReward += d;
-            if (ben != address(0)) {
-                beneficiaryHourlyReward[ben][hourId] += d;
-                beneficiaryCumulativeReward[ben] += d;
-            }
-        } else {
-            uint256 d2 = old - newReward;
-            nodeCumulativeReward[nodeWallet] -= d2;
-            totalCumulativeReward -= d2;
-            if (ben != address(0)) {
-                beneficiaryHourlyReward[ben][hourId] -= d2;
-                beneficiaryCumulativeReward[ben] -= d2;
-            }
+        // Accumulate node bucket + cumulative.
+        uint256 newHourTotal = nodeHourlyReward[nodeWallet][hourId] + amount;
+        nodeHourlyReward[nodeWallet][hourId] = newHourTotal;
+        nodeCumulativeReward[nodeWallet] += amount;
+        totalCumulativeReward += amount;
+        if (ben != address(0)) {
+            beneficiaryHourlyReward[ben][hourId] += amount;
+            beneficiaryCumulativeReward[ben] += amount;
         }
+
+        // Mirror the amount into the coarse DAY/WEEK/MONTH/QUARTER/YEAR buckets containing this hour, so period
+        // reads stay O(1). The hour's start (hourId*3600) lies in the same calendar day/week/month/quarter/year as
+        // the block (an hour bucket never straddles a higher-period boundary), so deriving the ids from it is exact.
+        _accumulatePeriodBuckets(nodeWallet, ben, hourId * 3600, amount);
 
         // Track first/last reported hour bounds (only widen).
         uint64 h64 = uint64(hourId);
@@ -177,7 +217,53 @@ contract ValidatorNodeRewardIndexer {
             if (h64 > beneficiaryLastHour[ben]) beneficiaryLastHour[ben] = h64;
         }
 
-        emit NodeRewardHourSet(nodeWallet, ben, hourId, newReward);
+        emit NodeRewardReported(nodeWallet, ben, hourId, amount, newHourTotal, eventKey);
+    }
+
+    /// @dev Add {amount} to the DAY/WEEK/MONTH/QUARTER/YEAR buckets that contain {ts} for the node and (if set) ben.
+    function _accumulatePeriodBuckets(address nodeWallet, address ben, uint256 ts, uint256 amount) internal {
+        uint256 dayId = ts / 1 days;
+        uint256 weekId = (dayId + 3) / 7; // Monday-aligned week index (epoch day 0 = Thursday)
+        (uint256 y, uint256 m, ) = _daysToDate(dayId);
+        uint256 monthId = y * 12 + (m - 1);
+        uint256 quarterId = y * 4 + ((m - 1) / 3);
+
+        nodePeriodReward[nodeWallet][PERIOD_DAY][dayId] += amount;
+        nodePeriodReward[nodeWallet][PERIOD_WEEK][weekId] += amount;
+        nodePeriodReward[nodeWallet][PERIOD_MONTH][monthId] += amount;
+        nodePeriodReward[nodeWallet][PERIOD_QUARTER][quarterId] += amount;
+        nodePeriodReward[nodeWallet][PERIOD_YEAR][y] += amount;
+
+        if (ben != address(0)) {
+            beneficiaryPeriodReward[ben][PERIOD_DAY][dayId] += amount;
+            beneficiaryPeriodReward[ben][PERIOD_WEEK][weekId] += amount;
+            beneficiaryPeriodReward[ben][PERIOD_MONTH][monthId] += amount;
+            beneficiaryPeriodReward[ben][PERIOD_QUARTER][quarterId] += amount;
+            beneficiaryPeriodReward[ben][PERIOD_YEAR][y] += amount;
+        }
+    }
+
+    /// @dev The bucket id of the period (of {periodType}) that contains {ts}. Matches {_accumulatePeriodBuckets}.
+    function _periodId(uint256 ts, uint8 periodType) internal pure returns (uint256) {
+        if (periodType == PERIOD_HOUR) return ts / 3600;
+        if (periodType == PERIOD_DAY) return ts / 1 days;
+        if (periodType == PERIOD_WEEK) return (ts / 1 days + 3) / 7;
+        (uint256 y, uint256 m, ) = _daysToDate(ts / 1 days);
+        if (periodType == PERIOD_MONTH) return y * 12 + (m - 1);
+        if (periodType == PERIOD_QUARTER) return y * 4 + ((m - 1) / 3);
+        return y; // PERIOD_YEAR
+    }
+
+    /// @dev O(1) node period bucket read (HOUR reads the legacy hour map; others read the coarse map).
+    function _nodeBucket(address nodeWallet, uint8 periodType, uint256 periodId) internal view returns (uint256) {
+        if (periodType == PERIOD_HOUR) return nodeHourlyReward[nodeWallet][periodId];
+        return nodePeriodReward[nodeWallet][periodType][periodId];
+    }
+
+    /// @dev O(1) beneficiary period bucket read.
+    function _beneficiaryBucket(address beneficiary, uint8 periodType, uint256 periodId) internal view returns (uint256) {
+        if (periodType == PERIOD_HOUR) return beneficiaryHourlyReward[beneficiary][periodId];
+        return beneficiaryPeriodReward[beneficiary][periodType][periodId];
     }
 
     // ---- Range / period views --------------------------------------------------------------------------
@@ -269,11 +355,11 @@ contract ValidatorNodeRewardIndexer {
         view
         returns (uint256)
     {
-        uint256 start = _periodStart(anchorTs, periodType);
-        uint256 end = _periodEndFromStart(start, periodType);
+        // O(1): the whole-period total is the pre-aggregated bucket for the period containing {anchorTs}.
+        uint256 periodId = _periodId(anchorTs, periodType);
         return isBeneficiary
-            ? _aggregateBeneficiaryBetween(subject, start, end)
-            : _aggregateNodeBetween(subject, start, end);
+            ? _beneficiaryBucket(subject, periodType, periodId)
+            : _nodeBucket(subject, periodType, periodId);
     }
 
     function _periodReports(
@@ -292,9 +378,11 @@ contract ValidatorNodeRewardIndexer {
             uint256 periodEnd = _periodEndFromStart(periodStart, periodType);
             reports[i].periodStart = periodStart;
             reports[i].periodEnd = periodEnd;
+            // O(1) per period: read the pre-aggregated bucket (periodStart lies within the period).
+            uint256 periodId = _periodId(periodStart, periodType);
             reports[i].reward = isBeneficiary
-                ? _aggregateBeneficiaryBetween(subject, periodStart, periodEnd)
-                : _aggregateNodeBetween(subject, periodStart, periodEnd);
+                ? _beneficiaryBucket(subject, periodType, periodId)
+                : _nodeBucket(subject, periodType, periodId);
             periodStart = _previousPeriodStart(periodStart, periodType);
         }
     }

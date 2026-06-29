@@ -46,12 +46,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "nodeWallet",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "guardianId",
+        "type": "uint256"
       }
     ],
-    "name": "nodeWalletBeneficiary",
+    "name": "guardianIdBeneficiary",
     "outputs": [
       {
         "internalType": "address",
@@ -75,12 +75,12 @@
         "type": "address"
       },
       {
-        "internalType": "address",
-        "name": "nodeWallet",
-        "type": "address"
+        "internalType": "uint256",
+        "name": "guardianId",
+        "type": "uint256"
       }
     ],
-    "name": "transferOneNodeWalletForMarket",
+    "name": "transferOneGuardianIdForMarket",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

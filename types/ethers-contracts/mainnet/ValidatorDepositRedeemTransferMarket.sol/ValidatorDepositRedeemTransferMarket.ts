@@ -11,15 +11,15 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
     getEvent(nameOrSignatureOrTopic: "EIP712DomainChanged" | "TransferOrderCancelled" | "TransferOrderCreated" | "TransferOrderFilled"): EventFragment;
 
     encodeFunctionData(functionFragment: 'cancelTransferOrder', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'createTransferOrder', values: [AddressLike, AddressLike[], BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'createTransferOrder', values: [AddressLike, BigNumberish[], BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
 encodeFunctionData(functionFragment: 'fulfillTransferOrder', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'getCancelTransferOrderDigest', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getCreateTransferOrderDigest', values: [AddressLike, AddressLike[], BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getCreateTransferOrderDigest', values: [AddressLike, BigNumberish[], BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getFulfillTransferOrderDigest', values: [BigNumberish, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getTransferOrder', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'nextOrderId', values?: undefined): string;
-encodeFunctionData(functionFragment: 'nodeOrder', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nodeOrder', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'redeemHost', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'cancelTransferOrder', data: BytesLike): Result;
@@ -61,9 +61,9 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
   
 
     export namespace TransferOrderCreatedEvent {
-      export type InputTuple = [orderId: BigNumberish, seller: AddressLike, priceUsdc6: BigNumberish, nodeWallets: AddressLike[]];
-      export type OutputTuple = [orderId: bigint, seller: string, priceUsdc6: bigint, nodeWallets: string[]];
-      export interface OutputObject {orderId: bigint, seller: string, priceUsdc6: bigint, nodeWallets: string[] };
+      export type InputTuple = [orderId: BigNumberish, seller: AddressLike, priceUsdc6: BigNumberish, guardianIds: BigNumberish[]];
+      export type OutputTuple = [orderId: bigint, seller: string, priceUsdc6: bigint, guardianIds: bigint[]];
+      export interface OutputObject {orderId: bigint, seller: string, priceUsdc6: bigint, guardianIds: bigint[] };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -127,7 +127,7 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
 
     
     createTransferOrder: TypedContractMethod<
-      [seller: AddressLike, nodeWallets: AddressLike[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [seller: AddressLike, guardianIds: BigNumberish[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [bigint],
       'nonpayable'
     >
@@ -159,7 +159,7 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
 
     
     getCreateTransferOrderDigest: TypedContractMethod<
-      [seller: AddressLike, nodeWallets: AddressLike[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
+      [seller: AddressLike, guardianIds: BigNumberish[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >
@@ -176,7 +176,7 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
     
     getTransferOrder: TypedContractMethod<
       [orderId: BigNumberish, ],
-      [[string, string[], bigint, boolean, string, bigint, bigint] & {seller: string, nodeWallets: string[], priceUsdc6: bigint, active: boolean, buyer: string, createdAt: bigint, filledAt: bigint }],
+      [[string, bigint[], bigint, boolean, string, bigint, bigint] & {seller: string, guardianIds: bigint[], priceUsdc6: bigint, active: boolean, buyer: string, createdAt: bigint, filledAt: bigint }],
       'view'
     >
     
@@ -191,7 +191,7 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
 
     
     nodeOrder: TypedContractMethod<
-      [arg0: AddressLike, ],
+      [arg0: BigNumberish, ],
       [bigint],
       'view'
     >
@@ -214,7 +214,7 @@ decodeFunctionResult(functionFragment: 'redeemHost', data: BytesLike): Result;
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createTransferOrder'): TypedContractMethod<
-      [seller: AddressLike, nodeWallets: AddressLike[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [seller: AddressLike, guardianIds: BigNumberish[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [bigint],
       'nonpayable'
     >;
@@ -234,7 +234,7 @@ getFunction(nameOrSignature: 'getCancelTransferOrderDigest'): TypedContractMetho
       'view'
     >;
 getFunction(nameOrSignature: 'getCreateTransferOrderDigest'): TypedContractMethod<
-      [seller: AddressLike, nodeWallets: AddressLike[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
+      [seller: AddressLike, guardianIds: BigNumberish[], priceUsdc6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, ],
       [string],
       'view'
     >;
@@ -245,7 +245,7 @@ getFunction(nameOrSignature: 'getFulfillTransferOrderDigest'): TypedContractMeth
     >;
 getFunction(nameOrSignature: 'getTransferOrder'): TypedContractMethod<
       [orderId: BigNumberish, ],
-      [[string, string[], bigint, boolean, string, bigint, bigint] & {seller: string, nodeWallets: string[], priceUsdc6: bigint, active: boolean, buyer: string, createdAt: bigint, filledAt: bigint }],
+      [[string, bigint[], bigint, boolean, string, bigint, bigint] & {seller: string, guardianIds: bigint[], priceUsdc6: bigint, active: boolean, buyer: string, createdAt: bigint, filledAt: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'nextOrderId'): TypedContractMethod<
@@ -254,7 +254,7 @@ getFunction(nameOrSignature: 'nextOrderId'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'nodeOrder'): TypedContractMethod<
-      [arg0: AddressLike, ],
+      [arg0: BigNumberish, ],
       [bigint],
       'view'
     >;
@@ -279,7 +279,7 @@ getEvent(key: 'TransferOrderFilled'): TypedContractEvent<TransferOrderFilledEven
       TransferOrderCancelled: TypedContractEvent<TransferOrderCancelledEvent.InputTuple, TransferOrderCancelledEvent.OutputTuple, TransferOrderCancelledEvent.OutputObject>;
     
 
-      'TransferOrderCreated(uint256,address,uint256,address[])': TypedContractEvent<TransferOrderCreatedEvent.InputTuple, TransferOrderCreatedEvent.OutputTuple, TransferOrderCreatedEvent.OutputObject>;
+      'TransferOrderCreated(uint256,address,uint256,uint256[])': TypedContractEvent<TransferOrderCreatedEvent.InputTuple, TransferOrderCreatedEvent.OutputTuple, TransferOrderCreatedEvent.OutputObject>;
       TransferOrderCreated: TypedContractEvent<TransferOrderCreatedEvent.InputTuple, TransferOrderCreatedEvent.OutputTuple, TransferOrderCreatedEvent.OutputObject>;
     
 

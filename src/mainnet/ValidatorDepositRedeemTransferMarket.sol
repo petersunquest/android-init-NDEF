@@ -23,11 +23,11 @@ interface IValidatorDepositRedeemHost {
 
     function consumeBeneficiaryNonceForMarket(address account, uint256 nonce) external;
 
-    function nodeWalletBeneficiary(address nodeWallet) external view returns (address);
+    function guardianIdBeneficiary(uint256 guardianId) external view returns (address);
 
     function usdcTokenAddress() external view returns (address);
 
-    function transferOneNodeWalletForMarket(address from, address to, address nodeWallet) external;
+    function transferOneGuardianIdForMarket(address from, address to, uint256 guardianId) external;
 }
 
 /**
@@ -49,12 +49,14 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
     }
 
     mapping(uint256 => TransferOrder) private _orders;
-    mapping(uint256 => address[]) private _orderNodes;
-    mapping(address => uint256) public nodeOrder;
+    /// @dev orderId => Guardian node ids listed for transfer.
+    mapping(uint256 => uint256[]) private _orderNodes;
+    /// @dev Guardian node id => active orderId (0 = not listed).
+    mapping(uint256 => uint256) public nodeOrder;
     uint256 public nextOrderId;
 
     bytes32 private constant CREATE_TRANSFER_ORDER_TYPEHASH = keccak256(
-        "CreateTransferOrder(address seller,address[] nodeWallets,uint256 priceUsdc6,uint256 nonce,uint256 deadline)"
+        "CreateTransferOrder(address seller,uint256[] guardianIds,uint256 priceUsdc6,uint256 nonce,uint256 deadline)"
     );
     bytes32 private constant CANCEL_TRANSFER_ORDER_TYPEHASH = keccak256(
         "CancelTransferOrder(address seller,uint256 orderId,uint256 nonce,uint256 deadline)"
@@ -63,7 +65,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
         "FulfillTransferOrder(address buyer,uint256 orderId,uint256 nonce,uint256 deadline)"
     );
 
-    event TransferOrderCreated(uint256 indexed orderId, address indexed seller, uint256 priceUsdc6, address[] nodeWallets);
+    event TransferOrderCreated(uint256 indexed orderId, address indexed seller, uint256 priceUsdc6, uint256[] guardianIds);
     event TransferOrderCancelled(uint256 indexed orderId, address indexed seller);
     event TransferOrderFilled(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 priceUsdc6);
 
@@ -74,14 +76,14 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
 
     function createTransferOrder(
         address seller,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 priceUsdc6,
         uint256 nonce,
         uint256 deadline,
         bytes calldata signature
     ) external returns (uint256 orderId) {
         require(block.timestamp <= deadline, "TransferMarket: expired");
-        require(nodeWallets.length > 0, "TransferMarket: empty");
+        require(guardianIds.length > 0, "TransferMarket: empty");
         require(priceUsdc6 > 0, "TransferMarket: zero price");
         require(redeemHost.beneficiaryNonces(seller) == nonce, "TransferMarket: bad nonce");
 
@@ -89,7 +91,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
             abi.encode(
                 CREATE_TRANSFER_ORDER_TYPEHASH,
                 seller,
-                _hashAddressArray(nodeWallets),
+                _hashUint256Array(guardianIds),
                 priceUsdc6,
                 nonce,
                 deadline
@@ -99,13 +101,13 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
         redeemHost.consumeBeneficiaryNonceForMarket(seller, nonce);
 
         orderId = ++nextOrderId;
-        for (uint256 i = 0; i < nodeWallets.length; i++) {
-            address nodeWallet = nodeWallets[i];
-            require(nodeWallet != address(0), "TransferMarket: zero node wallet");
-            require(redeemHost.nodeWalletBeneficiary(nodeWallet) == seller, "TransferMarket: not seller node");
-            require(nodeOrder[nodeWallet] == 0, "TransferMarket: node already listed");
-            nodeOrder[nodeWallet] = orderId;
-            _orderNodes[orderId].push(nodeWallet);
+        for (uint256 i = 0; i < guardianIds.length; i++) {
+            uint256 guardianId = guardianIds[i];
+            require(guardianId != 0, "TransferMarket: zero guardian id");
+            require(redeemHost.guardianIdBeneficiary(guardianId) == seller, "TransferMarket: not seller node");
+            require(nodeOrder[guardianId] == 0, "TransferMarket: node already listed");
+            nodeOrder[guardianId] = orderId;
+            _orderNodes[orderId].push(guardianId);
         }
         _orders[orderId] = TransferOrder({
             seller: seller,
@@ -115,7 +117,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
             filledAt: 0,
             active: true
         });
-        emit TransferOrderCreated(orderId, seller, priceUsdc6, nodeWallets);
+        emit TransferOrderCreated(orderId, seller, priceUsdc6, guardianIds);
     }
 
     function cancelTransferOrder(
@@ -178,12 +180,12 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
             paySignature
         );
 
-        address[] storage nodes = _orderNodes[orderId];
+        uint256[] storage nodes = _orderNodes[orderId];
         for (uint256 i = 0; i < nodes.length; i++) {
-            address nodeWallet = nodes[i];
-            nodeOrder[nodeWallet] = 0;
-            require(redeemHost.nodeWalletBeneficiary(nodeWallet) == o.seller, "TransferMarket: node moved");
-            redeemHost.transferOneNodeWalletForMarket(o.seller, buyer, nodeWallet);
+            uint256 guardianId = nodes[i];
+            nodeOrder[guardianId] = 0;
+            require(redeemHost.guardianIdBeneficiary(guardianId) == o.seller, "TransferMarket: node moved");
+            redeemHost.transferOneGuardianIdForMarket(o.seller, buyer, guardianId);
         }
 
         o.active = false;
@@ -197,7 +199,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
         view
         returns (
             address seller,
-            address[] memory nodeWallets,
+            uint256[] memory guardianIds,
             uint256 priceUsdc6,
             bool active,
             address buyer,
@@ -211,13 +213,13 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
 
     function getCreateTransferOrderDigest(
         address seller,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 priceUsdc6,
         uint256 nonce,
         uint256 deadline
     ) external view returns (bytes32) {
         bytes32 structHash = keccak256(
-            abi.encode(CREATE_TRANSFER_ORDER_TYPEHASH, seller, _hashAddressArray(nodeWallets), priceUsdc6, nonce, deadline)
+            abi.encode(CREATE_TRANSFER_ORDER_TYPEHASH, seller, _hashUint256Array(guardianIds), priceUsdc6, nonce, deadline)
         );
         return _hashTypedDataV4(structHash);
     }
@@ -243,7 +245,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
     }
 
     function _unlockOrderNodes(uint256 orderId) internal {
-        address[] storage nodes = _orderNodes[orderId];
+        uint256[] storage nodes = _orderNodes[orderId];
         for (uint256 i = 0; i < nodes.length; i++) {
             if (nodeOrder[nodes[i]] == orderId) {
                 nodeOrder[nodes[i]] = 0;
@@ -251,11 +253,7 @@ contract ValidatorDepositRedeemTransferMarket is EIP712 {
         }
     }
 
-    function _hashAddressArray(address[] calldata arr) internal pure returns (bytes32) {
-        bytes32[] memory h = new bytes32[](arr.length);
-        for (uint256 i = 0; i < arr.length; i++) {
-            h[i] = bytes32(uint256(uint160(arr[i])));
-        }
-        return keccak256(abi.encodePacked(h));
+    function _hashUint256Array(uint256[] calldata arr) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(arr));
     }
 }

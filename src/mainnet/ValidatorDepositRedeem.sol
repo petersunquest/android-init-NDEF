@@ -1,13 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {EIP712} from "../contracts/utils/cryptography/EIP712.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 import {
     ValidatorDepositRedeemStatsLib,
     UnifiedIncomeStats
 } from "./ValidatorDepositRedeemStatsLib.sol";
-import {NodeBundle} from "./ValidatorDepositRedeemTypes.sol";
+import {ValidatorDepositRedeemRewardLib} from "./ValidatorDepositRedeemRewardLib.sol";
+import {ValidatorDepositRedeemBundleLib} from "./ValidatorDepositRedeemBundleLib.sol";
+import {NodeBundle, AirdropState, ValidatorBinding} from "./ValidatorDepositRedeemTypes.sol";
+import {ValidatorDepositRedeemTransferLib} from "./ValidatorDepositRedeemTransferLib.sol";
+import {ValidatorDepositRedeemDepositLib} from "./ValidatorDepositRedeemDepositLib.sol";
+import {ValidatorDepositRedeemExitLib} from "./ValidatorDepositRedeemExitLib.sol";
 
 /// @dev Minimal balance interface for the CoNET USDC ERC20 token.
 interface IERC20Balance {
@@ -16,9 +22,9 @@ interface IERC20Balance {
     function transferFrom(address from, address to, uint256 value) external returns (bool);
 }
 
-/// @dev Read-only slice of the transfer market (node listing guard).
+/// @dev Read-only slice of the transfer market (node listing guard, keyed by Guardian node id).
 interface IValidatorDepositRedeemTransferMarket {
-    function nodeOrder(address nodeWallet) external view returns (uint256);
+    function nodeOrder(uint256 guardianId) external view returns (uint256);
 }
 
 /// @dev Minimal balance interface for the CoNET GB ERC1155 token (ConetGB1155).
@@ -70,9 +76,16 @@ interface IValidatorDepositRedeemReferrerExtension {
  *      GB mining node count and the CoNET DePIN node IP list) so a wallet can be queried for its node profile
  *      alongside live CoNET native, GB and USDC balances via {getWalletNodeProfile}.
  */
-contract ValidatorDepositRedeem is EIP712 {
+contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     uint256 private constant _MAX_REDEEM_CODE_LEN = 512;
     uint256 private constant _MAX_IP_LEN = 64;
+
+    bytes32 private constant _EIP712_TYPE_HASH =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant _EIP712_NAME_HASH = keccak256("ValidatorDepositRedeem");
+    bytes32 private constant _EIP712_VERSION_HASH = keccak256("1");
+    bytes32 private _eip712CachedChainId;
+    bytes32 private _eip712CachedSeparator;
 
     /// @notice GB net-total token id on ConetGB1155 (id=0 is cumulative net GB, 18 decimals).
     uint256 public constant CONET_GB_TOTAL_TOKEN_ID = 0;
@@ -83,6 +96,12 @@ contract ValidatorDepositRedeem is EIP712 {
     mapping(address => bool) public admins;
     /// @notice Per-account EIP-712 nonce for {transferNodes} and transfer-order create/cancel/fulfill signatures.
     mapping(address => uint256) public beneficiaryNonces;
+
+    // ---- CNET airdrop (accrued on airdrop-flagged redeem claims; paid from this contract's CNET balance) -----
+    /// @notice CNET granted per validator node on an airdrop-flagged claim (18 decimals).
+    uint256 public constant AIRDROP_CNET_PER_NODE = 100 ether;
+    /// @dev Airdrop ledger; claim/settle logic lives in {ValidatorDepositRedeemStatsLib} (EIP-170 offload).
+    AirdropState private _air;
 
     /// @notice CoNET GB ERC1155 token (ConetGB1155); GB balance is read at id {CONET_GB_TOTAL_TOKEN_ID}.
     IERC1155Balance public gbToken;
@@ -123,20 +142,16 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @dev Parallel node operator wallets (Guardian idOwner) for {_beneficiaryGuardianIds}.
     mapping(address => address[]) private _beneficiaryGuardianNodeWallets;
 
-    /// @notice A deployed validator bound to a single DePIN node wallet (1:1). The validator pubkey is the
+    /// @notice A deployed validator bound to a single Guardian node id (1:1). The validator pubkey is the
     ///         identity used for a future exit / withdrawal; {withdrawalBeneficiary} is the current withdrawal
-    ///         target. The (DePIN node + validator) pair is the transferable unit.
-    struct ValidatorBinding {
-        bytes pubkey;                 // BLS validator pubkey (48 bytes); identity for exit/withdrawal
-        address withdrawalBeneficiary; // current withdrawal target = node's beneficiary at registration
-        uint64 registeredAt;
-        uint64 exitedAt;              // 0 until an exit is recorded (transfer step 1)
-        bool active;                  // true while running; false after exit (awaiting redeploy/transfer)
-    }
-    /// @dev DePIN node wallet => its current validator binding (1:1).
-    mapping(address => ValidatorBinding) private _nodeValidator;
-    /// @dev keccak256(validator pubkey) => DePIN node wallet (reverse lookup; permanent identity).
-    mapping(bytes32 => address) private _validatorPubkeyNode;
+    ///         target. The (Guardian node id + validator) pair is the transferable unit. Binding is keyed by
+    ///         Guardian node id (NOT operator wallet) so multiple nodes owned by the same operator EOA each
+    ///         carry their own distinct validator.
+    /// @dev Guardian node id => its current validator binding (1:1).
+    mapping(uint256 => ValidatorBinding) private _nodeValidator;
+    /// @dev keccak256(validator pubkey) => Guardian node id (reverse lookup; permanent identity). 0 = unbound
+    ///      (Guardian ids start at {guardianAllocStartId} >= 1, so 0 is a safe sentinel).
+    mapping(bytes32 => uint256) private _validatorPubkeyGuardian;
 
     // ---- Staking custody (CoNET L1) --------------------------------------------------------------------
     /// @notice CoNET L1 beacon deposit contract (0x4242…4242). This contract is the depositor + 0x01 target.
@@ -150,6 +165,15 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @dev keccak256(validator pubkey) => true once its 32-CNET principal has been paid out on full exit
     ///      (replay guard: the auto-returned 32 from the beacon chain must never trigger a second payout).
     mapping(bytes32 => bool) public exitSettledPubkey;
+
+    /// @notice Global count of validators currently staked via {fundAndDepositValidators} (principal reserve guard).
+    uint256 public totalStakedValidatorCount;
+    /// @notice Cumulative CL skim rewards paid to beneficiaries via {settleNodeRewards}.
+    uint256 public totalRewardPaid;
+    /// @notice Per-beneficiary cumulative CL skim paid via {settleNodeRewards}.
+    mapping(address => uint256) public clRewardPaid;
+    /// @dev Listener-supplied idempotency keys for {settleNodeRewards} (mirrors RewardIndexer eventKey dedup).
+    mapping(bytes32 => bool) public consumedRewardEventKey;
 
     /// @notice Companion contract holding the per-node / per-beneficiary hourly CNET reward ledger and
     ///         day/week/month/year period statistics (BeamioIndexerDiamond-style). Kept OUT of this contract
@@ -173,6 +197,9 @@ contract ValidatorDepositRedeem is EIP712 {
         uint64 validBefore;
         bool active;
         bool consumed;
+        /// @dev When true, claiming this redeem accrues a CNET airdrop entitlement of
+        ///      {AIRDROP_CNET_PER_NODE} * validatorCount to the beneficiary (claimable after {airdropClaimableAt}).
+        bool airdrop;
         string targetNodeIp;
     }
 
@@ -181,7 +208,7 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @dev See {NodeBundle} in ValidatorDepositRedeemTypes.sol (shared with stats library).
 
     bytes32 private constant CREATE_REDEEM_TYPEHASH = keccak256(
-        "CreateRedeem(address admin,bytes32 codeHash,address allowedClaimer,address referrer,uint256 validatorCount,string targetNodeIp,uint256 gbMiningNodeCount,uint256 validAfter,uint256 validBefore,uint256 nonce,uint256 deadline)"
+        "CreateRedeem(address admin,bytes32 codeHash,address allowedClaimer,address referrer,uint256 validatorCount,string targetNodeIp,uint256 gbMiningNodeCount,bool airdrop,uint256 validAfter,uint256 validBefore,uint256 nonce,uint256 deadline)"
     );
     bytes32 private constant CANCEL_REDEEM_TYPEHASH =
         keccak256("CancelRedeem(address admin,bytes32 codeHash,uint256 nonce,uint256 deadline)");
@@ -193,13 +220,13 @@ contract ValidatorDepositRedeem is EIP712 {
         "ClaimRedeem(address claimer,bytes32 codeHash,address beneficiary,address referrer,uint256 validatorCount,string targetNodeIp,uint256 gbMiningNodeCount,uint256 deadline)"
     );
     bytes32 private constant REGISTER_NODE_VALIDATORS_TYPEHASH = keccak256(
-        "RegisterNodeValidators(address admin,bytes32 nodeWalletsHash,bytes32 pubkeysHash,uint256 nonce,uint256 deadline)"
+        "RegisterNodeValidators(address admin,bytes32 guardianIdsHash,bytes32 pubkeysHash,uint256 nonce,uint256 deadline)"
     );
     bytes32 private constant TRANSFER_NODES_TYPEHASH = keccak256(
-        "TransferNodes(address fromBeneficiary,address toBeneficiary,address[] nodeWallets,uint256 nonce,uint256 deadline)"
+        "TransferNodes(address fromBeneficiary,address toBeneficiary,uint256[] guardianIds,uint256 nonce,uint256 deadline)"
     );
     bytes32 private constant REQUEST_FULL_EXIT_TYPEHASH = keccak256(
-        "RequestFullExit(address beneficiary,address[] nodeWallets,uint256 nonce,uint256 deadline)"
+        "RequestFullExit(address beneficiary,uint256[] guardianIds,uint256 nonce,uint256 deadline)"
     );
 
     event RedeemAdminAdded(address indexed account);
@@ -227,17 +254,17 @@ contract ValidatorDepositRedeem is EIP712 {
     event ValidatorRedeemCancelled(bytes32 indexed codeHash);
     /// @notice A CoNET DePIN node (IP + node wallet) is permanently bound to its beneficiary (1:1, set once).
     event DepinNodeBeneficiaryAssigned(bytes32 indexed ipHash, address indexed beneficiary, string conetDepinNodeIp);
-    /// @notice A deployed validator is registered to a DePIN node wallet, withdrawal pointing to the beneficiary.
+    /// @notice A deployed validator is registered to a Guardian node id, withdrawal pointing to the beneficiary.
     event NodeValidatorRegistered(
-        address indexed nodeWallet,
+        uint256 indexed guardianId,
         address indexed withdrawalBeneficiary,
         bytes32 indexed pubkeyHash,
         bytes pubkey
     );
     /// @notice A validator's exit was recorded on chain (transfer step 1: withdraw, then redeploy elsewhere).
-    event NodeValidatorExited(address indexed nodeWallet, bytes32 indexed pubkeyHash, address indexed withdrawalBeneficiary);
-    /// @notice The current beneficiary transferred selected DePIN node wallets to a new beneficiary.
-    event NodesTransferred(address indexed fromBeneficiary, address indexed toBeneficiary, address[] nodeWallets);
+    event NodeValidatorExited(uint256 indexed guardianId, bytes32 indexed pubkeyHash, address indexed withdrawalBeneficiary);
+    /// @notice The current beneficiary transferred selected Guardian node ids to a new beneficiary.
+    event NodesTransferred(address indexed fromBeneficiary, address indexed toBeneficiary, uint256[] guardianIds);
     /// @notice A node's existing validator must be exited so it can be redeployed with withdrawal -> new beneficiary.
     event NativeReceived(address indexed from, uint256 amount);
     /// @notice An admin transferred native CoNET (CNET) out of the contract.
@@ -245,25 +272,38 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @notice The CoNET L1 beacon deposit contract address was configured.
     event DepositContractConfigured(address indexed depositContract);
     /// @notice This contract funded + deposited 32 CNET for a validator (0x01 withdrawal target = this contract).
-    event ValidatorDeposited(address indexed nodeWallet, address indexed beneficiary, bytes32 indexed pubkeyHash, uint256 amount);
+    event ValidatorDeposited(uint256 indexed guardianId, address indexed beneficiary, bytes32 indexed pubkeyHash, uint256 amount);
     /// @notice A node's validator economic beneficiary changed via transfer (fee_recipient hot-update; NO exit).
     ///         The owning validator node listens for this and hot-updates the validator's fee_recipient.
     event NodeValidatorBeneficiaryUpdated(
-        address indexed nodeWallet,
+        uint256 indexed guardianId,
         bytes32 indexed pubkeyHash,
         address indexed fromBeneficiary,
         address toBeneficiary
     );
     /// @notice A beneficiary requested a full exit of the listed nodes' validators (withdraw 32 CNET each).
-    event FullExitRequested(address indexed beneficiary, address[] nodeWallets);
+    event FullExitRequested(address indexed beneficiary, uint256[] guardianIds);
     /// @notice The contract advanced {amount} CNET ({validatorCount}×32) to a beneficiary on full exit settle.
     event FullExitSettled(address indexed beneficiary, uint256 validatorCount, uint256 amount);
+    /// @notice CL consensus-layer skim paid to the current node beneficiary via {settleNodeRewards}.
+    event NodeRewardSettled(
+        uint256 indexed guardianId,
+        address indexed beneficiary,
+        uint256 amount,
+        bytes32 indexed eventKey
+    );
     /// @notice The companion reward indexer contract address was configured.
     event RewardIndexerConfigured(address indexed rewardIndexer);
     /// @notice Referrer extension contract configured.
     event ReferrerExtensionConfigured(address indexed referrerExtension);
     /// @notice Transfer marketplace contract configured.
     event TransferMarketConfigured(address indexed transferMarket);
+    /// @notice An airdrop-flagged redeem claim accrued CNET airdrop entitlement to a beneficiary.
+    event AirdropAccrued(address indexed beneficiary, bytes32 indexed codeHash, uint256 added, uint256 newTotal);
+    /// @notice A beneficiary claimed (received) part/all of their CNET airdrop entitlement.
+    event AirdropClaimed(address indexed beneficiary, uint256 amount);
+    /// @notice Admin set/changed the global airdrop claimable-from time.
+    event AirdropClaimableAtSet(uint64 claimableAt);
     /// @notice Referrer earned auto-allocated validator + DePIN reward nodes on this contract.
     event ReferrerRewardNodesGranted(
         address indexed referrer,
@@ -306,14 +346,22 @@ contract ValidatorDepositRedeem is EIP712 {
         if (msg.value > 0) emit NativeReceived(msg.sender, msg.value);
     }
 
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice One-time initializer for the ERC1967 proxy (not for the implementation contract).
+    function initialize(
         address initialRedeemAdmin,
         address initialContractAdmin,
         address gbToken_,
         address usdcToken_,
         address guardianNodes_,
         uint256 guardianAllocStartId_
-    ) EIP712("ValidatorDepositRedeem", "1") {
+    ) external initializer {
+        __UUPSUpgradeable_init();
+        _initEip712Domain();
         address redeemAdmin = initialRedeemAdmin == address(0) ? msg.sender : initialRedeemAdmin;
         redeemAdmins[redeemAdmin] = true;
         emit RedeemAdminAdded(redeemAdmin);
@@ -331,6 +379,28 @@ contract ValidatorDepositRedeem is EIP712 {
             nextGuardianAllocId = guardianAllocStartId_;
             emit GuardianNodesConfigured(guardianNodes_, guardianAllocStartId_, guardianAllocStartId_);
         }
+    }
+
+    function _authorizeUpgrade(address) internal override onlyAdmin {}
+
+    function _initEip712Domain() private {
+        _eip712CachedChainId = bytes32(block.chainid);
+        _eip712CachedSeparator = keccak256(
+            abi.encode(_EIP712_TYPE_HASH, _EIP712_NAME_HASH, _EIP712_VERSION_HASH, block.chainid, address(this))
+        );
+    }
+
+    function _domainSeparatorV4() internal view returns (bytes32) {
+        if (bytes32(block.chainid) == _eip712CachedChainId) {
+            return _eip712CachedSeparator;
+        }
+        return keccak256(
+            abi.encode(_EIP712_TYPE_HASH, _EIP712_NAME_HASH, _EIP712_VERSION_HASH, block.chainid, address(this))
+        );
+    }
+
+    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+        return keccak256(abi.encodePacked("\x19\x01", _domainSeparatorV4(), structHash));
     }
 
     /// @notice Configure (or update) the CoNET GB ERC1155 and USDC ERC20 token addresses used by {getWalletNodeProfile}.
@@ -386,6 +456,41 @@ contract ValidatorDepositRedeem is EIP712 {
             require(ok, "ValidatorRedeem: native transfer failed");
             emit NativeWithdrawn(to, amount);
         }
+    }
+
+    // -------------------------------------- CNET airdrop claims --------------------------------------
+
+    /// @notice Admin-only: set/change the time from which accrued CNET airdrops can be claimed (0 = closed).
+    function setAirdropClaimableAt(uint64 claimableAt) external onlyRedeemAdmin {
+        _air.claimableAt = claimableAt;
+        emit AirdropClaimableAtSet(claimableAt);
+    }
+
+    /// @notice Airdrop ledger for a beneficiary: cumulative accrued, already claimed, remaining claimable, and the
+    ///         global claim-open time (0 = closed). Single multi-return view to conserve bytecode (EIP-170).
+    function airdropInfoOf(address beneficiary)
+        external
+        view
+        returns (uint256 accrued, uint256 claimed, uint256 claimable, uint64 claimableAt)
+    {
+        accrued = _air.accrued[beneficiary];
+        claimed = _air.claimed[beneficiary];
+        claimable = accrued - claimed;
+        claimableAt = _air.claimableAt;
+    }
+
+    /// @notice Gas-sponsored (relayed) airdrop claim: the beneficiary signs EIP-712 {ClaimAirdrop}; anyone may submit.
+    /// @dev    Reuses {beneficiaryNonces} (shared beneficiary nonce space). Verify + payout offloaded to the stats lib.
+    function claimAirdropFor(
+        address beneficiary,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external nonReentrantNative {
+        ValidatorDepositRedeemStatsLib.claimAirdrop(
+            _air, beneficiaryNonces, _domainSeparatorV4(), beneficiary, amount, nonce, deadline, signature
+        );
     }
 
     /// @notice Wire GuardianNodesInfoV6 and the auto-allocation id pool (e.g. start id 100 → ids 100,101,…).
@@ -472,20 +577,20 @@ contract ValidatorDepositRedeem is EIP712 {
     //  transferred to a new beneficiary.
     // ----------------------------------------------------------------------------------------------------
 
-    /// @notice Register deployed validators (admin/relayer is a redeem admin). One validator per node wallet.
-    /// @param nodeWallets DePIN node operator wallets that already have a beneficiary (from a claim).
+    /// @notice Register deployed validators (admin/relayer is a redeem admin). One validator per Guardian node id.
+    /// @param guardianIds Guardian node ids that already have a beneficiary (from a claim).
     /// @param pubkeys     Parallel BLS validator pubkeys (48 bytes each) deployed for those nodes.
-    function registerNodeValidators(address[] calldata nodeWallets, bytes[] calldata pubkeys)
+    function registerNodeValidators(uint256[] calldata guardianIds, bytes[] calldata pubkeys)
         external
         onlyRedeemAdmin
     {
-        _registerNodeValidators(nodeWallets, pubkeys);
+        _registerNodeValidators(guardianIds, pubkeys);
     }
 
     /// @notice EIP-712 signed variant: signed by a redeem admin, relayable by any gas sponsor (x402sdk Master).
     function registerNodeValidatorsFor(
         address admin,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         bytes[] calldata pubkeys,
         uint256 nonce,
         uint256 deadline,
@@ -499,7 +604,7 @@ contract ValidatorDepositRedeem is EIP712 {
             abi.encode(
                 REGISTER_NODE_VALIDATORS_TYPEHASH,
                 admin,
-                keccak256(abi.encodePacked(nodeWallets)),
+                keccak256(abi.encodePacked(guardianIds)),
                 _hashPubkeyArray(pubkeys),
                 nonce,
                 deadline
@@ -509,18 +614,18 @@ contract ValidatorDepositRedeem is EIP712 {
         require(signer == admin, "ValidatorRedeem: bad sig");
 
         redeemAdminNonces[admin]++;
-        _registerNodeValidators(nodeWallets, pubkeys);
+        _registerNodeValidators(guardianIds, pubkeys);
     }
 
     /// @notice Record that a validator has been exited (transfer step 1). Marks the node's binding inactive
     ///         so the (node + validator) pair can be redeployed and re-pointed to a new beneficiary later.
-    function recordNodeValidatorExit(address nodeWallet) external onlyRedeemAdmin {
-        ValidatorBinding storage b = _nodeValidator[nodeWallet];
+    function recordNodeValidatorExit(uint256 guardianId) external onlyRedeemAdmin {
+        ValidatorBinding storage b = _nodeValidator[guardianId];
         require(b.pubkey.length != 0, "ValidatorRedeem: no validator");
         require(b.active, "ValidatorRedeem: already exited");
         b.active = false;
         b.exitedAt = uint64(block.timestamp);
-        emit NodeValidatorExited(nodeWallet, keccak256(b.pubkey), b.withdrawalBeneficiary);
+        emit NodeValidatorExited(guardianId, keccak256(b.pubkey), b.withdrawalBeneficiary);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -533,54 +638,35 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @notice Fund + deposit 32 CNET per validator from this contract's balance. Withdrawal credentials MUST
     ///         point to THIS contract (validated per entry). Binds each validator to its node wallet and the
     ///         node's existing beneficiary, and credits the staked-validator ledger.
-    /// @param nodeWallets DePIN node operator wallets (each must already have a beneficiary from a claim).
+    /// @param guardianIds Guardian node ids (each must already have a beneficiary from a claim).
     /// @param pubkeys Parallel 48-byte BLS validator pubkeys.
     /// @param withdrawalCredentials Parallel 32-byte withdrawal credentials; each MUST equal {selfWithdrawalCredentials}.
     /// @param signatures Parallel BLS deposit signatures (96 bytes).
     /// @param depositDataRoots Parallel deposit data roots.
     function fundAndDepositValidators(
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         bytes[] calldata pubkeys,
         bytes[] calldata withdrawalCredentials,
         bytes[] calldata signatures,
         bytes32[] calldata depositDataRoots
     ) external onlyRedeemAdmin nonReentrantNative {
         require(address(depositContract) != address(0), "ValidatorRedeem: deposit unset");
-        uint256 n = nodeWallets.length;
-        require(n > 0, "ValidatorRedeem: empty");
-        require(
-            pubkeys.length == n &&
-            withdrawalCredentials.length == n &&
-            signatures.length == n &&
-            depositDataRoots.length == n,
-            "ValidatorRedeem: length mismatch"
+        (uint256 stakedDelta, uint256 fundedDelta) = ValidatorDepositRedeemDepositLib.fundAndDepositValidators(
+            address(depositContract),
+            selfWithdrawalCredentials(),
+            VALIDATOR_STAKE_WEI,
+            guardianIdBeneficiary,
+            _nodeValidator,
+            _validatorPubkeyGuardian,
+            stakedValidatorCountOf,
+            guardianIds,
+            pubkeys,
+            withdrawalCredentials,
+            signatures,
+            depositDataRoots
         );
-        require(address(this).balance >= VALIDATOR_STAKE_WEI * n, "ValidatorRedeem: insufficient stake balance");
-
-        bytes32 selfCred = selfWithdrawalCredentials();
-        for (uint256 i = 0; i < n; i++) {
-            // Command of the custody model: withdrawal_credentials MUST point to this contract, else the
-            // 32-CNET principal could be withdrawn elsewhere and lost from custody.
-            require(withdrawalCredentials[i].length == 32, "ValidatorRedeem: bad wc length");
-            require(_bytes32FromCalldata(withdrawalCredentials[i]) == selfCred, "ValidatorRedeem: withdrawal not self");
-
-            address nodeWallet = nodeWallets[i];
-            address beneficiary = _nodeWalletBeneficiary[nodeWallet];
-            require(beneficiary != address(0), "ValidatorRedeem: node has no beneficiary");
-
-            depositContract.deposit{value: VALIDATOR_STAKE_WEI}(
-                pubkeys[i],
-                withdrawalCredentials[i],
-                signatures[i],
-                depositDataRoots[i]
-            );
-
-            // Bind validator → node (withdrawalBeneficiary = node's current beneficiary) and credit ledger.
-            _registerOneNodeValidator(nodeWallet, pubkeys[i]);
-            stakedValidatorCountOf[beneficiary] += 1;
-            fundedDepositTotal += VALIDATOR_STAKE_WEI;
-            emit ValidatorDeposited(nodeWallet, beneficiary, keccak256(pubkeys[i]), VALIDATOR_STAKE_WEI);
-        }
+        totalStakedValidatorCount += stakedDelta;
+        fundedDepositTotal += fundedDelta;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -594,84 +680,103 @@ contract ValidatorDepositRedeem is EIP712 {
     /// @notice Beneficiary requests a full exit of the listed nodes' validators. Signed by {beneficiary}, relayable.
     function requestFullExit(
         address beneficiary,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 nonce,
         uint256 deadline,
         bytes calldata signature
     ) external {
         require(block.timestamp <= deadline, "ValidatorRedeem: expired");
-        require(nodeWallets.length > 0, "ValidatorRedeem: empty");
+        require(guardianIds.length > 0, "ValidatorRedeem: empty");
         require(beneficiaryNonces[beneficiary] == nonce, "ValidatorRedeem: bad nonce");
 
         bytes32 structHash = keccak256(
-            abi.encode(REQUEST_FULL_EXIT_TYPEHASH, beneficiary, _hashAddressArray(nodeWallets), nonce, deadline)
+            abi.encode(REQUEST_FULL_EXIT_TYPEHASH, beneficiary, _hashUint256Array(guardianIds), nonce, deadline)
         );
         require(ECDSA.recover(_hashTypedDataV4(structHash), signature) == beneficiary, "ValidatorRedeem: bad sig");
         beneficiaryNonces[beneficiary]++;
 
-        for (uint256 i = 0; i < nodeWallets.length; i++) {
-            address nodeWallet = nodeWallets[i];
-            require(_nodeWalletBeneficiary[nodeWallet] == beneficiary, "ValidatorRedeem: not your node");
-            _requireNodeNotListedInMarket(nodeWallet);
-            ValidatorBinding storage b = _nodeValidator[nodeWallet];
+        for (uint256 i = 0; i < guardianIds.length; i++) {
+            uint256 guardianId = guardianIds[i];
+            require(guardianIdBeneficiary[guardianId] == beneficiary, "ValidatorRedeem: not your node");
+            _requireGuardianNotListedInMarket(guardianId);
+            ValidatorBinding storage b = _nodeValidator[guardianId];
             require(b.pubkey.length != 0 && b.active, "ValidatorRedeem: no active validator");
             require(b.withdrawalBeneficiary == beneficiary, "ValidatorRedeem: beneficiary mismatch");
             b.active = false;
             b.exitedAt = uint64(block.timestamp);
-            emit NodeValidatorExited(nodeWallet, keccak256(b.pubkey), beneficiary);
+            emit NodeValidatorExited(guardianId, keccak256(b.pubkey), beneficiary);
         }
-        emit FullExitRequested(beneficiary, nodeWallets);
+        emit FullExitRequested(beneficiary, guardianIds);
     }
 
     /// @notice Advance 32×count CNET to {beneficiary} for exited validators. Admin/relayer-only, called after
     ///         the off-chain exit is broadcast. Reverts if the pool can't cover the advance (relayer retries
     ///         once the auto-returned principal lands). Each pubkey is settled at most once (replay guard).
-    function settleFullExitPayout(address beneficiary, address[] calldata nodeWallets)
+    function settleFullExitPayout(address beneficiary, uint256[] calldata guardianIds)
         external
         onlyRedeemAdmin
         nonReentrantNative
     {
-        require(beneficiary != address(0), "ValidatorRedeem: zero beneficiary");
-        require(nodeWallets.length > 0, "ValidatorRedeem: empty");
-
-        uint256 count = 0;
-        for (uint256 i = 0; i < nodeWallets.length; i++) {
-            address nodeWallet = nodeWallets[i];
-            require(_nodeWalletBeneficiary[nodeWallet] == beneficiary, "ValidatorRedeem: not beneficiary node");
-            ValidatorBinding storage b = _nodeValidator[nodeWallet];
-            require(b.pubkey.length != 0, "ValidatorRedeem: no validator");
-            require(b.withdrawalBeneficiary == beneficiary, "ValidatorRedeem: beneficiary mismatch");
-            require(b.exitedAt != 0, "ValidatorRedeem: exit not requested");
-            bytes32 pkHash = keccak256(b.pubkey);
-            require(!exitSettledPubkey[pkHash], "ValidatorRedeem: already settled");
-            exitSettledPubkey[pkHash] = true;
-            count++;
-        }
-
-        uint256 amount = VALIDATOR_STAKE_WEI * count;
-        require(address(this).balance >= amount, "ValidatorRedeem: insufficient balance");
-
-        if (stakedValidatorCountOf[beneficiary] >= count) {
-            stakedValidatorCountOf[beneficiary] -= count;
+        uint256 settledCount = ValidatorDepositRedeemExitLib.settleFullExitPayout(
+            guardianIdBeneficiary,
+            _nodeValidator,
+            exitSettledPubkey,
+            stakedValidatorCountOf,
+            VALIDATOR_STAKE_WEI,
+            beneficiary,
+            guardianIds
+        );
+        if (totalStakedValidatorCount >= settledCount) {
+            totalStakedValidatorCount -= settledCount;
         } else {
-            stakedValidatorCountOf[beneficiary] = 0;
+            totalStakedValidatorCount = 0;
         }
+    }
 
-        (bool ok, ) = payable(beneficiary).call{value: amount}("");
-        require(ok, "ValidatorRedeem: native transfer failed");
-        emit NativeWithdrawn(beneficiary, amount);
-        emit FullExitSettled(beneficiary, count, amount);
+    /**
+     * @notice Pay CL consensus-layer skim (already received by this contract via 0x01 withdrawal credentials)
+     *         to each node's **current** beneficiary EOA. Relayer-only; idempotent per {eventKey}.
+     * @dev Principal reserve: never pay rewards from the 32×{totalStakedValidatorCount} CNET custody pool.
+     *      Ownership transfer hot-updates {guardianIdBeneficiary} so rewards automatically follow the buyer.
+     */
+    function settleNodeRewards(
+        uint256[] calldata guardianIds,
+        uint256[] calldata amounts,
+        bytes32[] calldata eventKeys
+    ) external onlyRedeemAdmin nonReentrantNative {
+        uint256 batchPaid = ValidatorDepositRedeemRewardLib.settleNodeRewards(
+            consumedRewardEventKey,
+            clRewardPaid,
+            guardianIdBeneficiary,
+            totalStakedValidatorCount,
+            guardianIds,
+            amounts,
+            eventKeys
+        );
+        totalRewardPaid += batchPaid;
+    }
+
+    /// @notice Aggregate CL reward payout stats for dashboards / reconciliation.
+    function getRewardPayoutStats()
+        external
+        view
+        returns (uint256 stakedCount, uint256 rewardPaidTotal, uint256 contractBalance, uint256 principalReserve)
+    {
+        stakedCount = totalStakedValidatorCount;
+        rewardPaidTotal = totalRewardPaid;
+        contractBalance = address(this).balance;
+        principalReserve = VALIDATOR_STAKE_WEI * totalStakedValidatorCount;
     }
 
     /// @notice EIP-712 digest the beneficiary must sign for {requestFullExit}.
     function getRequestFullExitDigest(
         address beneficiary,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 nonce,
         uint256 deadline
     ) external view returns (bytes32) {
         bytes32 structHash = keccak256(
-            abi.encode(REQUEST_FULL_EXIT_TYPEHASH, beneficiary, _hashAddressArray(nodeWallets), nonce, deadline)
+            abi.encode(REQUEST_FULL_EXIT_TYPEHASH, beneficiary, _hashUint256Array(guardianIds), nonce, deadline)
         );
         return _hashTypedDataV4(structHash);
     }
@@ -713,15 +818,15 @@ contract ValidatorDepositRedeem is EIP712 {
     }
 
     /// @notice Execute a node transfer on behalf of the transfer marketplace (order fulfilment).
-    function transferOneNodeWalletForMarket(address from, address to, address nodeWallet) external {
+    function transferOneGuardianIdForMarket(address from, address to, uint256 guardianId) external {
         require(msg.sender == transferMarket, "ValidatorRedeem: not market");
-        _transferOneNodeWallet(from, to, nodeWallet);
+        _transferOneGuardianId(from, to, guardianId);
     }
 
-    function _requireNodeNotListedInMarket(address nodeWallet) internal view {
+    function _requireGuardianNotListedInMarket(uint256 guardianId) internal view {
         if (transferMarket == address(0)) return;
         require(
-            IValidatorDepositRedeemTransferMarket(transferMarket).nodeOrder(nodeWallet) == 0,
+            IValidatorDepositRedeemTransferMarket(transferMarket).nodeOrder(guardianId) == 0,
             "ValidatorRedeem: node listed in order"
         );
     }
@@ -733,39 +838,28 @@ contract ValidatorDepositRedeem is EIP712 {
         }
     }
 
-    function _registerNodeValidators(address[] calldata nodeWallets, bytes[] calldata pubkeys) internal {
-        require(nodeWallets.length == pubkeys.length, "ValidatorRedeem: length mismatch");
-        require(nodeWallets.length > 0, "ValidatorRedeem: empty");
-        for (uint256 i = 0; i < nodeWallets.length; i++) {
-            _registerOneNodeValidator(nodeWallets[i], pubkeys[i]);
+    function _registerNodeValidators(uint256[] calldata guardianIds, bytes[] calldata pubkeys) internal {
+        require(guardianIds.length == pubkeys.length, "ValidatorRedeem: length mismatch");
+        require(guardianIds.length > 0, "ValidatorRedeem: empty");
+        for (uint256 i = 0; i < guardianIds.length; i++) {
+            _registerOneNodeValidator(guardianIds[i], pubkeys[i]);
         }
     }
 
-    function _registerOneNodeValidator(address nodeWallet, bytes calldata pubkey) internal {
-        require(nodeWallet != address(0), "ValidatorRedeem: zero node wallet");
-        require(pubkey.length == 48, "ValidatorRedeem: bad pubkey length");
-        address beneficiary = _nodeWalletBeneficiary[nodeWallet];
+    function _registerOneNodeValidator(uint256 guardianId, bytes calldata pubkey) internal {
+        require(guardianId != 0, "ValidatorRedeem: zero guardian id");
+        address beneficiary = guardianIdBeneficiary[guardianId];
         require(beneficiary != address(0), "ValidatorRedeem: node has no beneficiary");
-
         bytes32 pkHash = keccak256(pubkey);
-        address boundNode = _validatorPubkeyNode[pkHash];
-        require(boundNode == address(0) || boundNode == nodeWallet, "ValidatorRedeem: pubkey bound elsewhere");
-
-        ValidatorBinding storage b = _nodeValidator[nodeWallet];
-        // 1:1 node↔validator: only (re)register when no active validator, or idempotent same pubkey.
-        require(
-            !b.active || keccak256(b.pubkey) == pkHash,
-            "ValidatorRedeem: node already has active validator"
+        uint256 boundId = _validatorPubkeyGuardian[pkHash];
+        require(boundId == 0 || boundId == guardianId, "ValidatorRedeem: pubkey bound elsewhere");
+        ValidatorDepositRedeemDepositLib.registerOneNodeValidator(
+            _nodeValidator,
+            _validatorPubkeyGuardian,
+            guardianId,
+            beneficiary,
+            pubkey
         );
-
-        b.pubkey = pubkey;
-        b.withdrawalBeneficiary = beneficiary;
-        b.registeredAt = uint64(block.timestamp);
-        b.exitedAt = 0;
-        b.active = true;
-        _validatorPubkeyNode[pkHash] = nodeWallet;
-
-        emit NodeValidatorRegistered(nodeWallet, beneficiary, pkHash, pubkey);
     }
 
     function _hashPubkeyArray(bytes[] calldata pubkeys) internal pure returns (bytes32) {
@@ -791,7 +885,7 @@ contract ValidatorDepositRedeem is EIP712 {
     function transferNodes(
         address fromBeneficiary,
         address toBeneficiary,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 nonce,
         uint256 deadline,
         bytes calldata signature
@@ -799,7 +893,7 @@ contract ValidatorDepositRedeem is EIP712 {
         require(block.timestamp <= deadline, "ValidatorRedeem: expired");
         require(toBeneficiary != address(0), "ValidatorRedeem: zero to beneficiary");
         require(toBeneficiary != fromBeneficiary, "ValidatorRedeem: same beneficiary");
-        require(nodeWallets.length > 0, "ValidatorRedeem: empty");
+        require(guardianIds.length > 0, "ValidatorRedeem: empty");
         require(beneficiaryNonces[fromBeneficiary] == nonce, "ValidatorRedeem: bad nonce");
 
         bytes32 structHash = keccak256(
@@ -807,7 +901,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 TRANSFER_NODES_TYPEHASH,
                 fromBeneficiary,
                 toBeneficiary,
-                _hashAddressArray(nodeWallets),
+                _hashUint256Array(guardianIds),
                 nonce,
                 deadline
             )
@@ -817,18 +911,18 @@ contract ValidatorDepositRedeem is EIP712 {
 
         beneficiaryNonces[fromBeneficiary]++;
 
-        for (uint256 i = 0; i < nodeWallets.length; i++) {
-            _requireNodeNotListedInMarket(nodeWallets[i]);
-            _transferOneNodeWallet(fromBeneficiary, toBeneficiary, nodeWallets[i]);
+        for (uint256 i = 0; i < guardianIds.length; i++) {
+            _requireGuardianNotListedInMarket(guardianIds[i]);
+            _transferOneGuardianId(fromBeneficiary, toBeneficiary, guardianIds[i]);
         }
-        emit NodesTransferred(fromBeneficiary, toBeneficiary, nodeWallets);
+        emit NodesTransferred(fromBeneficiary, toBeneficiary, guardianIds);
     }
 
     /// @notice EIP-712 digest the current beneficiary must sign for {transferNodes}.
     function getTransferNodesDigest(
         address fromBeneficiary,
         address toBeneficiary,
-        address[] calldata nodeWallets,
+        uint256[] calldata guardianIds,
         uint256 nonce,
         uint256 deadline
     ) external view returns (bytes32) {
@@ -837,7 +931,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 TRANSFER_NODES_TYPEHASH,
                 fromBeneficiary,
                 toBeneficiary,
-                _hashAddressArray(nodeWallets),
+                _hashUint256Array(guardianIds),
                 nonce,
                 deadline
             )
@@ -845,144 +939,38 @@ contract ValidatorDepositRedeem is EIP712 {
         return _hashTypedDataV4(structHash);
     }
 
-    function _hashAddressArray(address[] calldata arr) internal pure returns (bytes32) {
-        bytes32[] memory h = new bytes32[](arr.length);
-        for (uint256 i = 0; i < arr.length; i++) {
-            h[i] = bytes32(uint256(uint160(arr[i])));
-        }
-        return keccak256(abi.encodePacked(h));
+    function _hashUint256Array(uint256[] calldata arr) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(arr));
     }
 
-    function _transferOneNodeWallet(address from, address to, address nodeWallet) internal {
-        require(nodeWallet != address(0), "ValidatorRedeem: zero node wallet");
-        require(_nodeWalletBeneficiary[nodeWallet] == from, "ValidatorRedeem: not from beneficiary node");
-
-        uint256[] storage fromIds = _beneficiaryGuardianIds[from];
-        address[] storage fromWallets = _beneficiaryGuardianNodeWallets[from];
-        uint256 moved = 0;
-        uint256 gbMoved = 0;
-        uint256 i = 0;
-        while (i < fromWallets.length) {
-            if (fromWallets[i] != nodeWallet) {
-                i++;
-                continue;
-            }
-            uint256 nodeId = fromIds[i];
-            guardianIdBeneficiary[nodeId] = to;
-            _beneficiaryGuardianIds[to].push(nodeId);
-            _beneficiaryGuardianNodeWallets[to].push(nodeWallet);
-            if (guardianIdGbMining[nodeId]) {
-                gbMoved++;
-            }
-
-            if (address(guardianNodes) != address(0)) {
-                string memory ip = guardianNodes.id2ip(nodeId);
-                if (bytes(ip).length != 0) {
-                    bytes32 ipKey = keccak256(bytes(ip));
-                    _depinIpBeneficiary[ipKey] = to;
-                    _removeDepinIpFromWallet(from, ipKey);
-                    _addDepinIpToWallet(to, ip, ipKey);
-                    emit DepinNodeBeneficiaryAssigned(ipKey, to, ip);
-                }
-            }
-
-            uint256 last = fromWallets.length - 1;
-            fromIds[i] = fromIds[last];
-            fromWallets[i] = fromWallets[last];
-            fromIds.pop();
-            fromWallets.pop();
-            moved++;
-            // do not advance i: a new element was swapped into slot i
-        }
-        require(moved > 0, "ValidatorRedeem: node not owned");
-
-        _nodeWalletBeneficiary[nodeWallet] = to;
-
-        // Legacy allocations (pre guardianIdGbMining): when every owned node was a GB node, move GB count 1:1.
-        if (gbMoved == 0 && moved > 0 && gbMiningNodeCountOf[from] > 0 && gbMiningNodeCountOf[from] == validatorNodeCountOf[from]) {
-            gbMoved = moved;
-        }
-
-        // Each guardian id ~ one validator node (auto-allocation assigns one id per validator).
-        if (validatorNodeCountOf[from] >= moved) {
-            validatorNodeCountOf[from] -= moved;
-        } else {
-            validatorNodeCountOf[from] = 0;
-        }
-        validatorNodeCountOf[to] += moved;
-
-        if (gbMiningNodeCountOf[from] >= gbMoved) {
-            gbMiningNodeCountOf[from] -= gbMoved;
-        } else {
-            gbMiningNodeCountOf[from] = 0;
-        }
-        gbMiningNodeCountOf[to] += gbMoved;
-
-        // Hot-update the validator's economic beneficiary WITHOUT exiting. The 32-CNET principal stays in this
-        // contract's custody (withdrawal_credentials 0x01 = this contract, immutable). Only the off-chain
-        // fee_recipient is hot-updated by the owning validator node (no exit, no redeploy, same BLS pubkey).
-        // Invariant: ValidatorBinding.withdrawalBeneficiary == fee_recipient == full-exit payout recipient.
-        ValidatorBinding storage b = _nodeValidator[nodeWallet];
-        if (b.pubkey.length != 0 && b.active) {
-            b.withdrawalBeneficiary = to;
-            emit NodeValidatorBeneficiaryUpdated(nodeWallet, keccak256(b.pubkey), from, to);
-        }
-
-        // Carry the staked-validator ledger with the node (one staked validator per active binding moved).
-        if (b.pubkey.length != 0 && b.active) {
-            if (stakedValidatorCountOf[from] > 0) {
-                stakedValidatorCountOf[from] -= 1;
-            }
-            stakedValidatorCountOf[to] += 1;
-        }
-    }
-
-    function _removeDepinIpFromWallet(address beneficiary, bytes32 ipKey) internal {
-        if (!_walletDepinIpSeen[beneficiary][ipKey]) return;
-        _walletDepinIpSeen[beneficiary][ipKey] = false;
-        string[] storage arr = _walletDepinNodeIps[beneficiary];
-        for (uint256 i = 0; i < arr.length; i++) {
-            if (keccak256(bytes(arr[i])) == ipKey) {
-                arr[i] = arr[arr.length - 1];
-                arr.pop();
-                break;
-            }
-        }
-    }
-
-    function _addDepinIpToWallet(address beneficiary, string memory ip, bytes32 ipKey) internal {
-        if (_walletDepinIpSeen[beneficiary][ipKey]) return;
-        _walletDepinIpSeen[beneficiary][ipKey] = true;
-        _walletDepinNodeIps[beneficiary].push(ip);
-    }
-
-    /// @notice Create a redeem code. ALL redeems auto-assign consecutive Guardian node ids at claim
-    ///         time (IPs + node wallets read from GuardianNodesInfoV6). No manual IP list is accepted.
-    /// @dev    The same beneficiary may be the target of many redeems; each claim appends a fresh
-    ///         consecutive block of Guardian nodes (see {_allocateGuardianNodesFromGuardian}).
-    function createRedeem(
-        bytes32 codeHash,
-        address allowedClaimer,
-        address referrer,
-        uint256 validatorCount,
-        string calldata targetNodeIp,
-        uint256 gbMiningNodeCount,
-        uint64 validAfter,
-        uint64 validBefore
-    ) external onlyRedeemAdmin {
-        _applyCreateRedeem(
-            codeHash,
-            allowedClaimer,
-            referrer,
-            validatorCount,
-            targetNodeIp,
-            gbMiningNodeCount,
-            validAfter,
-            validBefore
+    /// @dev Transfer a single Guardian node id (with its DePIN node + validator) from {from} to {to}.
+    ///      The Guardian id is the transferable unit; multiple ids sharing one operator wallet move independently.
+    function _transferOneGuardianId(address from, address to, uint256 guardianId) internal {
+        ValidatorDepositRedeemTransferLib.transferOneGuardianId(
+            guardianIdBeneficiary,
+            _beneficiaryGuardianIds,
+            _beneficiaryGuardianNodeWallets,
+            guardianIdGbMining,
+            _depinIpBeneficiary,
+            _nodeWalletBeneficiary,
+            _walletDepinIpSeen,
+            _walletDepinNodeIps,
+            validatorNodeCountOf,
+            gbMiningNodeCountOf,
+            stakedValidatorCountOf,
+            _nodeValidator,
+            address(guardianNodes),
+            from,
+            to,
+            guardianId
         );
     }
 
-    /// @notice Gas-sponsored (meta-tx) variant of {createRedeem}. Auto-allocation only.
+    /// @notice Create a redeem code (gas-sponsored meta-tx; admin signs EIP-712 {CreateRedeem}). ALL redeems
+    ///         auto-assign consecutive Guardian node ids at claim time (IPs + node wallets read from
+    ///         GuardianNodesInfoV6). No manual IP list is accepted.
+    /// @dev    The same beneficiary may be the target of many redeems; each claim appends a fresh
+    ///         consecutive block of Guardian nodes (see {_allocateGuardianNodesFromGuardian}).
     function createRedeemFor(
         address admin,
         bytes32 codeHash,
@@ -991,6 +979,7 @@ contract ValidatorDepositRedeem is EIP712 {
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
+        bool airdrop,
         uint256 validAfter,
         uint256 validBefore,
         uint256 nonce,
@@ -1012,6 +1001,7 @@ contract ValidatorDepositRedeem is EIP712 {
                 validatorCount,
                 keccak256(bytes(targetNodeIp)),
                 gbMiningNodeCount,
+                airdrop,
                 validAfter,
                 validBefore,
                 nonce,
@@ -1029,6 +1019,7 @@ contract ValidatorDepositRedeem is EIP712 {
             validatorCount,
             targetNodeIp,
             gbMiningNodeCount,
+            airdrop,
             uint64(validAfter),
             uint64(validBefore)
         );
@@ -1111,38 +1102,6 @@ contract ValidatorDepositRedeem is EIP712 {
         requestId = _consumeAndEmit(codeHash, msg.sender, beneficiary, r.referrer, r);
     }
 
-    function getCreateRedeemDigest(
-        address admin,
-        bytes32 codeHash,
-        address allowedClaimer,
-        address referrer,
-        uint256 validatorCount,
-        string calldata targetNodeIp,
-        uint256 gbMiningNodeCount,
-        uint256 validAfter,
-        uint256 validBefore,
-        uint256 nonce,
-        uint256 deadline
-    ) external view returns (bytes32) {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                CREATE_REDEEM_TYPEHASH,
-                admin,
-                codeHash,
-                allowedClaimer,
-                referrer,
-                validatorCount,
-                keccak256(bytes(targetNodeIp)),
-                gbMiningNodeCount,
-                validAfter,
-                validBefore,
-                nonce,
-                deadline
-            )
-        );
-        return _hashTypedDataV4(structHash);
-    }
-
     function getClaimRedeemDigest(
         address claimer,
         bytes32 codeHash,
@@ -1187,7 +1146,8 @@ contract ValidatorDepositRedeem is EIP712 {
             uint64 validAfter,
             uint64 validBefore,
             bool active,
-            bool consumed
+            bool consumed,
+            bool airdrop
         )
     {
         Redeem storage r = _redeems[codeHash];
@@ -1200,7 +1160,8 @@ contract ValidatorDepositRedeem is EIP712 {
             r.validAfter,
             r.validBefore,
             r.active,
-            r.consumed
+            r.consumed,
+            r.airdrop
         );
     }
 
@@ -1228,63 +1189,24 @@ contract ValidatorDepositRedeem is EIP712 {
         return _depinIpBeneficiary[keccak256(bytes(conetDepinNodeIp))];
     }
 
-    /// @notice Reverse lookup by the precomputed keccak256(bytes(ip)) hash.
-    function getDepinBeneficiaryByIpHash(bytes32 ipHash) external view returns (address beneficiary) {
-        return _depinIpBeneficiary[ipHash];
-    }
-
-    /**
-     * @notice Whether a wallet is the current beneficiary owner of the given DePIN node IP.
-     * @dev Lets callers resolve a beneficiary either from a DePIN node IP or by confirming a wallet address.
-     */
-    function isDepinBeneficiaryOfIp(string calldata conetDepinNodeIp, address wallet) external view returns (bool) {
-        return _depinIpBeneficiary[keccak256(bytes(conetDepinNodeIp))] == wallet;
-    }
-
     /// @notice Reverse lookup: the beneficiary a node operator wallet belongs to ({address(0)} if none).
     function getBeneficiaryByNodeWallet(address nodeWallet) external view returns (address beneficiary) {
         return _nodeWalletBeneficiary[nodeWallet];
     }
 
-    /// @notice The validator binding registered to a DePIN node wallet ({active}=false once exited).
-    function getNodeValidator(address nodeWallet)
+    /// @notice The validator binding registered to a Guardian node id ({active}=false once exited).
+    function getNodeValidator(uint256 guardianId)
         external
         view
         returns (bytes memory pubkey, address withdrawalBeneficiary, uint64 registeredAt, uint64 exitedAt, bool active)
     {
-        ValidatorBinding storage b = _nodeValidator[nodeWallet];
+        ValidatorBinding storage b = _nodeValidator[guardianId];
         return (b.pubkey, b.withdrawalBeneficiary, b.registeredAt, b.exitedAt, b.active);
     }
 
-    /// @notice Reverse lookup: the DePIN node wallet a validator pubkey was registered to ({address(0)} if none).
-    function getNodeByValidatorPubkey(bytes calldata pubkey) external view returns (address nodeWallet) {
-        return _validatorPubkeyNode[keccak256(pubkey)];
-    }
-
-    /// @notice Reverse lookup by precomputed pubkey hash (keccak256 of the 48-byte BLS pubkey).
-    function getNodeByValidatorPubkeyHash(bytes32 pubkeyHash) external view returns (address nodeWallet) {
-        return _validatorPubkeyNode[pubkeyHash];
-    }
-
-    /// @notice EIP-712 digest a redeem admin must sign for {registerNodeValidatorsFor}.
-    function getRegisterNodeValidatorsDigest(
-        address admin,
-        address[] calldata nodeWallets,
-        bytes[] calldata pubkeys,
-        uint256 nonce,
-        uint256 deadline
-    ) external view returns (bytes32) {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                REGISTER_NODE_VALIDATORS_TYPEHASH,
-                admin,
-                keccak256(abi.encodePacked(nodeWallets)),
-                _hashPubkeyArray(pubkeys),
-                nonce,
-                deadline
-            )
-        );
-        return _hashTypedDataV4(structHash);
+    /// @notice Reverse lookup by precomputed pubkey hash (keccak256 of the 48-byte BLS pubkey). 0 = unbound.
+    function getNodeByValidatorPubkeyHash(bytes32 pubkeyHash) external view returns (uint256 guardianId) {
+        return _validatorPubkeyGuardian[pubkeyHash];
     }
 
     /**
@@ -1338,47 +1260,25 @@ contract ValidatorDepositRedeem is EIP712 {
             );
     }
 
-    /// @dev Assemble the full {NodeBundle} for a beneficiary. Live IP / node wallet are read from Guardian.
+    /// @dev Assemble the full {NodeBundle} for a beneficiary (linked {ValidatorDepositRedeemBundleLib}).
     function _buildNodeBundle(address beneficiary) internal view returns (NodeBundle memory b) {
-        b.beneficiary = beneficiary;
-        if (beneficiary == address(0)) {
-            b.guardianNodeIds = new uint256[](0);
-            b.depinNodeIps = new string[](0);
-            b.nodeWallets = new address[](0);
-            b.validatorPubkeys = new bytes[](0);
-            b.validatorActive = new bool[](0);
-            return b;
-        }
-        uint256[] memory ids = _beneficiaryGuardianIds[beneficiary];
-        uint256 n = ids.length;
-        b.guardianNodeIds = ids;
-        b.depinNodeIps = new string[](n);
-        b.nodeWallets = new address[](n);
-        b.validatorPubkeys = new bytes[](n);
-        b.validatorActive = new bool[](n);
-        if (address(guardianNodes) != address(0)) {
-            for (uint256 i = 0; i < n; i++) {
-                uint256 nodeId = ids[i];
-                string memory ip = guardianNodes.id2ip(nodeId);
-                b.depinNodeIps[i] = ip;
-                address w = guardianNodes.idOwner(nodeId);
-                if (w == address(0) && bytes(ip).length != 0) {
-                    w = guardianNodes.ipaddress2owner(ip);
-                }
-                b.nodeWallets[i] = w;
-                if (w != address(0)) {
-                    ValidatorBinding storage vb = _nodeValidator[w];
-                    b.validatorPubkeys[i] = vb.pubkey;
-                    b.validatorActive[i] = vb.active;
-                }
-            }
-        }
-        b.validatorNodeCount = validatorNodeCountOf[beneficiary];
-        b.gbMiningNodeCount = gbMiningNodeCountOf[beneficiary];
-        b.claimCount = walletClaimCountOf[beneficiary];
-        b.nativeBalance = beneficiary.balance;
-        b.gbBalance = _safeGbBalance(beneficiary);
-        b.usdcBalance = _safeUsdcBalance(beneficiary);
+        return ValidatorDepositRedeemBundleLib.buildNodeBundle(
+            address(this),
+            address(guardianNodes),
+            address(gbToken),
+            address(usdcToken),
+            beneficiary,
+            _beneficiaryGuardianIds[beneficiary]
+        );
+    }
+
+    function nodeValidatorBinding(uint256 guardianId)
+        external
+        view
+        returns (bytes memory pubkey, bool active)
+    {
+        ValidatorBinding storage vb = _nodeValidator[guardianId];
+        return (vb.pubkey, vb.active);
     }
 
     /// @dev All redeems are auto-allocation: no IP list is stored at create; consecutive Guardian
@@ -1390,6 +1290,7 @@ contract ValidatorDepositRedeem is EIP712 {
         uint256 validatorCount,
         string calldata targetNodeIp,
         uint256 gbMiningNodeCount,
+        bool airdrop,
         uint64 validAfter,
         uint64 validBefore
     ) internal {
@@ -1413,6 +1314,7 @@ contract ValidatorDepositRedeem is EIP712 {
         r.validAfter = validAfter;
         r.validBefore = validBefore;
         r.active = true;
+        r.airdrop = airdrop;
         r.targetNodeIp = targetNodeIp;
 
         emit ValidatorRedeemCreated(
@@ -1450,6 +1352,16 @@ contract ValidatorDepositRedeem is EIP712 {
         walletClaimCountOf[beneficiary] += 1;
         string[] memory claimIps =
             _appendAllocatedNodes(beneficiary, uint256(r.validatorCount), uint256(r.gbMiningNodeCount));
+
+        // Airdrop-flagged redeem: accrue 100 CNET per validator node claimed (claimable after {airdropClaimableAt}).
+        if (r.airdrop) {
+            uint256 added = uint256(r.validatorCount) * AIRDROP_CNET_PER_NODE;
+            if (added > 0) {
+                uint256 newTotal = _air.accrued[beneficiary] + added;
+                _air.accrued[beneficiary] = newTotal;
+                emit AirdropAccrued(beneficiary, codeHash, added, newTotal);
+            }
+        }
 
         requestId = keccak256(
             abi.encode(codeHash, claimer, beneficiary, uint256(r.validatorCount), keccak256(bytes(r.targetNodeIp)))
@@ -1630,4 +1542,7 @@ contract ValidatorDepositRedeem is EIP712 {
         bytes memory b = bytes(ip);
         require(b.length > 0 && b.length <= _MAX_IP_LEN, "ValidatorRedeem: bad ip len");
     }
+
+    /// @dev Reserved storage gap for future UUPS upgrades (do not shrink without a storage layout audit).
+    uint256[46] private __gap;
 }
