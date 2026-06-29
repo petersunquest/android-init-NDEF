@@ -6,7 +6,7 @@
   "proxyPattern": "ERC1967Proxy",
   "source": "src/mainnet/ValidatorDepositRedeem.sol",
   "address": "0xc71e246DD78B37C2fABc905D340932F28F503433",
-  "implementation": "0xc8152627A557fd917FADCEa5ae8AB856bA2E8708",
+  "implementation": "0x444589535b125850dCc70f05AEa156Cc98b15BbD",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "initialContractAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
@@ -28,39 +28,39 @@
     "guardianAllocStartId": "100"
   },
   "libraryLinks": {
-    "ValidatorDepositRedeemStatsLib": "0xE329d49a88c2286A7af19c55221802D8d6E51606",
-    "ValidatorDepositRedeemRewardLib": "0x3928de09e730B909918531Ac2e213c4B4d9f4E22",
-    "ValidatorDepositRedeemBundleLib": "0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f",
-    "ValidatorDepositRedeemTransferLib": "0xE6AD09748E62852e4652A905A4B810804A33572E",
-    "ValidatorDepositRedeemDepositLib": "0x3CbF710e38CD26d5C93f520AAaEc63601d402921",
-    "ValidatorDepositRedeemExitLib": "0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229"
+    "ValidatorDepositRedeemStatsLib": "0xAc1C73f3272cede02Bb5F485aD573ace94dcFC49",
+    "ValidatorDepositRedeemRewardLib": "0x2382dB51f004aFC5e5eC3Cf067FA33eD48276911",
+    "ValidatorDepositRedeemBundleLib": "0xeC55289c8a0353113281Df41B200af0CbE96F365",
+    "ValidatorDepositRedeemTransferLib": "0x929fd0c9BE2167d56A71467bA5fe199D9Dd16f93",
+    "ValidatorDepositRedeemDepositLib": "0x971cA1649b6E12db9ef267406983D8Ff070Faa4a",
+    "ValidatorDepositRedeemExitLib": "0xD935ACedbE6733ff17ca52ca2988Ce58b727aC77"
   },
   "timestamp": "2026-06-29T17:05:19.463Z",
   "deployBlock": 181083,
   "transactionHash": "0x5c54c0b86726556ed8b672bb4e180a326c43b7d2679f482283e6ae8305612cea",
-  "implementationTransactionHash": "0xb806c1c42f0ab76094a8cfab47aeb0436e689286a536db768d8a9017f03495be",
+  "implementationTransactionHash": "0xc60cdbb245b801b5231f4247781ead89cbf957b174d68ef912c9813d80588f9e",
   "previousCanonical": "0x1488ED35054f2Eb5301E1dC14Be3D9283d10B3B5",
   "contracts": {
     "ValidatorDepositRedeemStatsLib": {
-      "address": "0xE329d49a88c2286A7af19c55221802D8d6E51606"
+      "address": "0xAc1C73f3272cede02Bb5F485aD573ace94dcFC49"
     },
     "ValidatorDepositRedeemRewardLib": {
-      "address": "0x3928de09e730B909918531Ac2e213c4B4d9f4E22"
+      "address": "0x2382dB51f004aFC5e5eC3Cf067FA33eD48276911"
     },
     "ValidatorDepositRedeemBundleLib": {
-      "address": "0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f"
+      "address": "0xeC55289c8a0353113281Df41B200af0CbE96F365"
     },
     "ValidatorDepositRedeemTransferLib": {
-      "address": "0xE6AD09748E62852e4652A905A4B810804A33572E"
+      "address": "0x929fd0c9BE2167d56A71467bA5fe199D9Dd16f93"
     },
     "ValidatorDepositRedeemDepositLib": {
-      "address": "0x3CbF710e38CD26d5C93f520AAaEc63601d402921"
+      "address": "0x971cA1649b6E12db9ef267406983D8Ff070Faa4a"
     },
     "ValidatorDepositRedeemExitLib": {
-      "address": "0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229"
+      "address": "0xD935ACedbE6733ff17ca52ca2988Ce58b727aC77"
     },
     "ValidatorDepositRedeem": {
-      "implementation": "0xc8152627A557fd917FADCEa5ae8AB856bA2E8708",
+      "implementation": "0x444589535b125850dCc70f05AEa156Cc98b15BbD",
       "proxy": "0xc71e246DD78B37C2fABc905D340932F28F503433",
       "address": "0xc71e246DD78B37C2fABc905D340932F28F503433",
       "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
@@ -93,5 +93,7 @@
   "redeemAdmins": [
     "0xEAC6AB958A113baF368D2D37EECf0492C0da2fE2"
   ],
-  "implementationUpgradedAt": "2026-06-29T19:04:31.447Z"
+  "implementationUpgradedAt": "2026-06-29T22:18:25.604Z",
+  "nativeLockFixViaAddAdminAt": "2026-06-29T22:18:25.605Z",
+  "upgradeNativeLockViaAddAdminTx": "0x9479bfb0f2bf5393520066a71bd62db6f6a00cf4adf754833d60d169de45defa"
 }

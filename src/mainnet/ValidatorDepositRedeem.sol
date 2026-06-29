@@ -339,7 +339,7 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     }
 
     /// @dev Minimal non-reentrancy guard for native CNET withdrawals (1 = unlocked, 2 = locked).
-    uint256 private _nativeLock = 1;
+    uint256 private _nativeLock;
     modifier nonReentrantNative() {
         require(_nativeLock == 1, "ValidatorRedeem: reentrant");
         _nativeLock = 2;
@@ -348,9 +348,7 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     }
 
     /// @notice Accept native CoNET (CNET) deposits (e.g. to fund admin batch payouts).
-    receive() external payable {
-        if (msg.value > 0) emit NativeReceived(msg.sender, msg.value);
-    }
+    receive() external payable {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -535,6 +533,7 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     }
 
     function addAdmin(address account) external onlyAdmin {
+        assembly { if iszero(sload(40)) { sstore(40, 1) } }
         require(account != address(0), "ValidatorRedeem: zero admin");
         admins[account] = true;
         emit AdminAdded(account);

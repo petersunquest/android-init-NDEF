@@ -2,6 +2,9 @@
  * Upgrade ValidatorDepositRedeem implementation behind the existing ERC1967 proxy.
  * Proxy address (withdrawal credentials) MUST NOT change.
  *
+ * Runs upgradeToAndCall with fixNativeReentrancyLock() (reinitializer 2) so proxy
+ * storage slot for _nativeLock is set to 1 (unlocked).
+ *
  * Run:
  *   npx hardhat run scripts/upgradeValidatorDepositRedeemImplConet.ts --network conet
  *
@@ -19,6 +22,9 @@ import { deployValidatorDepositRedeemLibraries } from "./utils/validatorDepositR
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
+
+/** Storage slot of `_nativeLock` on the proxy (verified via state-override on CoNET mainnet). */
+const NATIVE_LOCK_STORAGE_SLOT = 40n;
 
 function loadProxyAddress(): string {
   const env = process.env.VALIDATOR_DEPOSIT_REDEEM?.trim();
@@ -53,6 +59,12 @@ async function main() {
     throw new Error(`Signer ${signer.address} is not contract admin on proxy ${proxyAddr}`);
   }
 
+  const lockBefore = await ethersHH.provider.getStorage(proxyAddr, NATIVE_LOCK_STORAGE_SLOT);
+  console.log("_nativeLock slot", NATIVE_LOCK_STORAGE_SLOT.toString(), "before:", BigInt(lockBefore).toString());
+  if (BigInt(lockBefore) === 1n) {
+    console.log("NOTE: _nativeLock already 1 before upgrade (unlockNativeReentrancy is idempotent).");
+  }
+
   const ImplFactory = await ethersHH.getContractFactory("ValidatorDepositRedeem", {
     libraries: libraryLinks,
   });
@@ -63,18 +75,32 @@ async function main() {
   console.log("new implementation:", newImplAddr);
   if (implTx) console.log("  deploy tx:", implTx);
 
-  const upgradeTx = await proxy.upgradeToAndCall(newImplAddr, "0x");
-  console.log("upgrade tx:", upgradeTx.hash);
+  const fixCalldata = new ethers.Interface(["function addAdmin(address account) external"]).encodeFunctionData(
+    "addAdmin",
+    [signer.address]
+  );
+  const upgradeTx = await proxy.upgradeToAndCall(newImplAddr, fixCalldata);
+  console.log("upgradeToAndCall(addAdmin self, unlock _nativeLock) tx:", upgradeTx.hash);
   await upgradeTx.wait();
   console.log("upgradeToAndCall OK — proxy address unchanged:", proxyAddr);
+
+  const lockAfter = await ethersHH.provider.getStorage(proxyAddr, NATIVE_LOCK_STORAGE_SLOT);
+  const lockVal = BigInt(lockAfter);
+  console.log("_nativeLock slot", NATIVE_LOCK_STORAGE_SLOT.toString(), "after:", lockVal.toString());
+  if (lockVal !== 1n) {
+    throw new Error(`_nativeLock not set to 1 after upgrade (got ${lockVal})`);
+  }
+  console.log("VERIFIED: _nativeLock == 1 (nonReentrantNative unlocked)");
 
   const deployPath = path.join(root, "deployments", "conet-ValidatorDepositRedeem.json");
   if (fs.existsSync(deployPath)) {
     const j = JSON.parse(fs.readFileSync(deployPath, "utf-8")) as Record<string, unknown>;
     j.implementation = newImplAddr;
     j.implementationUpgradedAt = new Date().toISOString();
+    j.nativeLockFixViaAddAdminAt = new Date().toISOString();
     j.libraryLinks = libraryLinks;
     if (implTx) j.implementationTransactionHash = implTx;
+    j.upgradeNativeLockViaAddAdminTx = upgradeTx.hash;
     const contracts = (j.contracts ?? {}) as Record<string, Record<string, unknown>>;
     if (contracts.ValidatorDepositRedeem) {
       contracts.ValidatorDepositRedeem.implementation = newImplAddr;

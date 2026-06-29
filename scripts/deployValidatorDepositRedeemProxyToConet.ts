@@ -171,6 +171,10 @@ async function main() {
 
   const redeem = ImplFactory.attach(proxyAddr) as Awaited<ReturnType<typeof ImplFactory.deploy>>;
 
+  const unlockNativeLockTx = await redeem.addAdmin(initialContractAdmin);
+  await unlockNativeLockTx.wait();
+  console.log("redeem.addAdmin (_nativeLock=1 on new proxy) ok");
+
   const ExtFactory = await ethersHH.getContractFactory("ValidatorDepositRedeemReferrerExtension");
   const referrerExt = await ExtFactory.deploy(initialRedeemAdmin);
   await referrerExt.waitForDeployment();
