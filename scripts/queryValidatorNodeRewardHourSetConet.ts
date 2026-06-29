@@ -1,5 +1,5 @@
 /**
- * 查询 ValidatorNodeRewardIndexer 的 NodeRewardHourSet 事件与 nodeHourlyReward 读数。
+ * 查询 ValidatorNodeRewardIndexer 的 NodeRewardReported 事件与 nodeHourlyReward 读数。
  *
  * 运行:
  *   npx tsx scripts/queryValidatorNodeRewardHourSetConet.ts
@@ -35,7 +35,7 @@ async function main() {
   const latest = await provider.getBlockNumber();
   const fromBlock = Math.max(0, latest - Math.floor((sinceHours * 3600) / 12)); // ~12s blocks
 
-  const topic = id("NodeRewardHourSet(address,address,uint256,uint256)");
+  const topic = id("NodeRewardReported(address,address,uint256,uint256,uint256,bytes32)");
   const logs = await provider.getLogs({
     address: indexerAddr,
     topics: [topic],
@@ -44,12 +44,12 @@ async function main() {
   });
 
   const iface = new ethers.Interface([
-    "event NodeRewardHourSet(address indexed nodeWallet, address indexed beneficiary, uint256 indexed hourId, uint256 reward)",
+    "event NodeRewardReported(address indexed nodeWallet, address indexed beneficiary, uint256 indexed hourId, uint256 amount, uint256 newHourTotal, bytes32 eventKey)",
   ]);
 
   console.log("Indexer:", indexerAddr);
   console.log("Explorer:", `${BLOCKSCOUT}/address/${indexerAddr}#events`);
-  console.log(`Logs NodeRewardHourSet (last ~${sinceHours}h, blocks ${fromBlock}..${latest}):`, logs.length);
+  console.log(`Logs NodeRewardReported (last ~${sinceHours}h, blocks ${fromBlock}..${latest}):`, logs.length);
   console.log("");
 
   const c = new Contract(
@@ -64,24 +64,25 @@ async function main() {
     const nodeWallet = parsed.args.nodeWallet as string;
     const beneficiary = parsed.args.beneficiary as string;
     const hourId = parsed.args.hourId as bigint;
-    const reward = parsed.args.reward as bigint;
+    const amount = parsed.args.amount as bigint;
+    const newHourTotal = parsed.args.newHourTotal as bigint;
     const onChain = await c.nodeHourlyReward(nodeWallet, hourId);
     console.log(
       `block ${log.blockNumber} tx ${log.transactionHash.slice(0, 14)}…`,
       `\n  node=${nodeWallet}`,
       `\n  beneficiary=${beneficiary}`,
-      `\n  hourId=${hourId} reward=${ethers.formatEther(reward)} CNET`,
+      `\n  hourId=${hourId} amount=${ethers.formatEther(amount)} CNET newHourTotal=${ethers.formatEther(newHourTotal)} CNET`,
       `\n  nodeHourlyReward(on-chain)=${ethers.formatEther(onChain)} CNET`,
       ""
     );
   }
 
   if (!logs.length) {
-    console.log("No NodeRewardHourSet yet. Hourly reporter must:");
+    console.log("No NodeRewardReported yet. Reward reporter must:");
     console.log("  1) parse validator_deposits.json pubkeys");
-    console.log("  2) baseline at UTC hour start");
-    console.log("  3) close hour after boundary + CONET_VALIDATOR_HOURLY_REWARD_REPORT_DELAY_SEC (default 120s)");
-    console.log("Check validator logs: sudo journalctl -u conet-validator-redeem-listener -f | grep validatorRewardHourlyReporter");
+    console.log("  2) baseline balances on first tick");
+    console.log("  3) report positive CL+EL deltas via reportNodeReward(eventKey, …)");
+    console.log("Check validator logs: sudo journalctl -u conet-validator-redeem-listener -f | grep validatorRewardReporter");
   }
 }
 

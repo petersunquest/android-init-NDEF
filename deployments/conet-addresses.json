@@ -123,7 +123,7 @@
   "validatorDepositRedeemDeployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "validatorDepositRedeemDeployedAt": "2026-06-29T17:05:19.465Z",
   "validatorDepositRedeemTx": "0x5c54c0b86726556ed8b672bb4e180a326c43b7d2679f482283e6ae8305612cea",
-  "ValidatorDepositRedeemStatsLib": "0xD69B750f0286E507349C6dA50500E7CEa714dfC3",
+  "ValidatorDepositRedeemStatsLib": "0xE329d49a88c2286A7af19c55221802D8d6E51606",
   "ValidatorDepositRedeemReferrerExtension": "0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F",
   "ValidatorDepositRedeemTransferMarket": "0xde5A9060fc3640846F1B5d5780369806F0C4dD76",
   "ValidatorNodeRewardIndexer": "0xCA83d2d766701d3939Ef1644e2A911dc87CeA39D",
@@ -134,11 +134,11 @@
     "0xFD8D3237e45FaAa15b9ac884bc33e410b35ECD1C",
     "0x18185627F1917f996E6f5f1fB9c24A6231CcD342"
   ],
-  "ValidatorDepositRedeemImplementation": "0x1FA6C3f59C846D943Cc7EF79ddb4d6580975D3BD",
-  "ValidatorDepositRedeemRewardLib": "0xa0d9084C3A215eEC92F3074049E53C24Bd905125",
-  "ValidatorDepositRedeemBundleLib": "0xe47cbf5855B7FaB3e18B2Ce2D940CeCc958CEcBb",
-  "ValidatorDepositRedeemTransferLib": "0x0F60e8Fb27aCE8432aE64327DF10913136006809",
-  "ValidatorDepositRedeemDepositLib": "0xb4b8e9595e45F46Ff36a579A202C82AcD5DBaAf5",
-  "ValidatorDepositRedeemExitLib": "0x6773A0e3eb64341043b8a66B064C5f008F1261f9",
+  "ValidatorDepositRedeemImplementation": "0xc8152627A557fd917FADCEa5ae8AB856bA2E8708",
+  "ValidatorDepositRedeemRewardLib": "0x3928de09e730B909918531Ac2e213c4B4d9f4E22",
+  "ValidatorDepositRedeemBundleLib": "0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f",
+  "ValidatorDepositRedeemTransferLib": "0xE6AD09748E62852e4652A905A4B810804A33572E",
+  "ValidatorDepositRedeemDepositLib": "0x3CbF710e38CD26d5C93f520AAaEc63601d402921",
+  "ValidatorDepositRedeemExitLib": "0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229",
   "validatorDepositRedeemUpgradeable": true
 }

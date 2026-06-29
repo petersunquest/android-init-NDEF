@@ -1,5 +1,5 @@
 /**
- * 一次性链上 smoke：向 RewardIndexer 写入 1 wei 并验收 NodeRewardHourSet 事件。
+ * 一次性链上 smoke：向 RewardIndexer 写入 1 wei 并验收 NodeRewardReported 事件。
  * 仅用于部署验收；须 Settle 池钱包为 indexer admin。
  *
  * 运行（validator 主机，~/.master.json 已配置）:
@@ -92,30 +92,29 @@ async function main() {
   const provider = new ethers.JsonRpcProvider(RPC, 224422);
   const nodeWallet = await resolveNodeWallet(redeem, nodeIp);
 
-  const hourId = process.env.SMOKE_HOUR_ID
-    ? Number(process.env.SMOKE_HOUR_ID)
-    : Math.floor(Date.now() / 1000 / 3600) - 1;
+  const hourId = Math.floor(Date.now() / 1000 / 3600)
+  const eventKey = ethers.keccak256(ethers.toUtf8Bytes(`smoke-${Date.now()}-${Math.random()}`))
 
   const mod = await import(path.join(sdkRoot, "dist/endpoint/validatorDepositRedeem.js"));
-  const res = await mod.validatorRewardReportHourly([
-    { nodeWallet, hourId, hourlyReward: 1n },
+  const res = await mod.validatorRewardReport([
+    { eventKey, nodeWallet, amount: 1n },
   ]);
   if (!res.ok) throw new Error(res.error);
-  console.log("reportNodeRewardHourly ok:", res.txHash, "node=", nodeWallet, "hourId=", hourId);
+  console.log("reportNodeReward ok:", res.txHash, "node=", nodeWallet, "hourId~=", hourId);
 
   await new Promise((r) => setTimeout(r, 4000));
-  const topic = id("NodeRewardHourSet(address,address,uint256,uint256)");
+  const topic = id("NodeRewardReported(address,address,uint256,uint256,uint256,bytes32)");
   const receipt = await provider.getTransactionReceipt(res.txHash);
   const logs = (receipt?.logs ?? []).filter(
     (l) => l.address.toLowerCase() === indexer.toLowerCase() && l.topics[0] === topic
   );
-  console.log("NodeRewardHourSet logs in receipt:", logs.length);
-  if (!logs.length) throw new Error("expected NodeRewardHourSet in receipt");
+  console.log("NodeRewardReported logs in receipt:", logs.length);
+  if (!logs.length) throw new Error("expected NodeRewardReported in receipt");
 
   const c = new Contract(indexer, ["function nodeHourlyReward(address,uint256) view returns (uint256)"], provider);
   const onChain = await c.nodeHourlyReward(nodeWallet, hourId);
   console.log("nodeHourlyReward(on-chain wei):", onChain.toString());
-  if (onChain !== 1n) throw new Error(`expected 1 wei on-chain, got ${onChain}`);
+  if (onChain < 1n) throw new Error(`expected >=1 wei on-chain for current hour, got ${onChain}`);
   console.log("SMOKE OK");
 }
 

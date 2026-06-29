@@ -44,7 +44,9 @@ export default defineConfig({
     ],
   },
   solidity: {
-    version: "0.8.33",
+    // 守则 beamio-solc-compiler-version.mdc：今后新合约/新部署统一 0.8.35。
+    // 已部署的旧合约（0.8.33 / OZ ERC1967Proxy 0.8.27 等）仍由各自验证脚本钉死部署期版本。
+    version: "0.8.35",
     settings: {
       ...(beamioSolcVerifyQuoteHelperV07
         ? {}

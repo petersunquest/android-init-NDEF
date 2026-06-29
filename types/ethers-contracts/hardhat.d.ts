@@ -190,6 +190,8 @@ getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Fa
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
+getContractFactory(name: 'IUSDC', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUSDC__factory>
+getContractFactory(name: 'NodeSaleSplitter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NodeSaleSplitter__factory>
 getContractFactory(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeaconDeposit__factory>
 getContractFactory(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC1155Balance__factory>
 getContractFactory(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20Balance__factory>
@@ -403,6 +405,8 @@ getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, sig
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
+getContractAt(name: 'IUSDC', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUSDC>
+getContractAt(name: 'NodeSaleSplitter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NodeSaleSplitter>
 getContractAt(name: 'IBeaconDeposit', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeaconDeposit>
 getContractAt(name: 'IERC1155Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC1155Balance>
 getContractAt(name: 'IERC20Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20Balance>
@@ -616,6 +620,8 @@ deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | Deploy
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'IUSDC', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>
+deployContract(name: 'NodeSaleSplitter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NodeSaleSplitter>
 deployContract(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
 deployContract(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
 deployContract(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>
@@ -829,6 +835,8 @@ deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Si
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
+deployContract(name: 'IUSDC', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>
+deployContract(name: 'NodeSaleSplitter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NodeSaleSplitter>
 deployContract(name: 'IBeaconDeposit', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
 deployContract(name: 'IERC1155Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
 deployContract(name: 'IERC20Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>

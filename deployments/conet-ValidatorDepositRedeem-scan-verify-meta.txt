@@ -1,40 +1,76 @@
-# CoNET Blockscout verification — ValidatorDepositRedeem stack (mainnet.conet.network)
+# CoNET Blockscout verification — ValidatorDepositRedeem upgradeable stack (mainnet.conet.network)
 
-Verified: 2026-06-27 via `npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts`
+Verified: 2026-06-29 via `npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts`
+Upgrade (6-month linear airdrop vesting): libraries + implementation redeployed; proxy unchanged.
 
 | Contract | Address | Explorer |
 |---|---|---|
-| ValidatorDepositRedeemStatsLib | 0x0ce847c136E4eDB4289E5eA62d81A718A6753091 | https://mainnet.conet.network/address/0x0ce847c136E4eDB4289E5eA62d81A718A6753091#code |
-| ValidatorDepositRedeem | 0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E | https://mainnet.conet.network/address/0x4319A3A3572C6311BA6E7f95B07620eb0861cE2E#code |
-| ValidatorDepositRedeemReferrerExtension | 0x64D6a35874a27e78a8B89bF9a881A04fd2A3750f | https://mainnet.conet.network/address/0x64D6a35874a27e78a8B89bF9a881A04fd2A3750f#code |
-| ValidatorDepositRedeemTransferMarket | 0xE51540589975156210D5E609Efc3C6116f91A3bA | https://mainnet.conet.network/address/0xE51540589975156210D5E609Efc3C6116f91A3bA#code |
+| ValidatorDepositRedeemStatsLib | 0xE329d49a88c2286A7af19c55221802D8d6E51606 | https://mainnet.conet.network/address/0xE329d49a88c2286A7af19c55221802D8d6E51606#code |
+| ValidatorDepositRedeemRewardLib | 0x3928de09e730B909918531Ac2e213c4B4d9f4E22 | https://mainnet.conet.network/address/0x3928de09e730B909918531Ac2e213c4B4d9f4E22#code |
+| ValidatorDepositRedeemBundleLib | 0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f | https://mainnet.conet.network/address/0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f#code |
+| ValidatorDepositRedeemTransferLib | 0xE6AD09748E62852e4652A905A4B810804A33572E | https://mainnet.conet.network/address/0xE6AD09748E62852e4652A905A4B810804A33572E#code |
+| ValidatorDepositRedeemDepositLib | 0x3CbF710e38CD26d5C93f520AAaEc63601d402921 | https://mainnet.conet.network/address/0x3CbF710e38CD26d5C93f520AAaEc63601d402921#code |
+| ValidatorDepositRedeemExitLib | 0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229 | https://mainnet.conet.network/address/0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229#code |
+| ValidatorDepositRedeem (implementation) | 0xc8152627A557fd917FADCEa5ae8AB856bA2E8708 | https://mainnet.conet.network/address/0xc8152627A557fd917FADCEa5ae8AB856bA2E8708#code |
+| ValidatorDepositRedeem (ERC1967 proxy, canonical) | 0xc71e246DD78B37C2fABc905D340932F28F503433 | https://mainnet.conet.network/address/0xc71e246DD78B37C2fABc905D340932F28F503433#code |
+| ValidatorDepositRedeemReferrerExtension | 0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F | https://mainnet.conet.network/address/0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F#code |
+| ValidatorDepositRedeemTransferMarket | 0xde5A9060fc3640846F1B5d5780369806F0C4dD76 | https://mainnet.conet.network/address/0xde5A9060fc3640846F1B5d5780369806F0C4dD76#code |
+| ValidatorNodeRewardIndexer | 0xCA83d2d766701d3939Ef1644e2A911dc87CeA39D | https://mainnet.conet.network/address/0xCA83d2d766701d3939Ef1644e2A911dc87CeA39D#code |
 
-## ValidatorDepositRedeem constructor
+## Proxy note
+
+- Canonical `ValidatorDepositRedeem` address is the **ERC1967 proxy** (`0xc71e…`).
+- Proxy uses OpenZeppelin prebuilt `ERC1967Proxy` creation bytecode; Blockscout marks it `proxy_type: eip1967` and links implementation `0xc815…` (verified UUPS logic).
+- Explorer UI: use **Read as Proxy** on the proxy address to view `ValidatorDepositRedeem` ABI/source.
+
+## initialize (proxy deploy)
 
 - initialRedeemAdmin: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+- initialContractAdmin: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
 - gbToken: 0x3Dc53e528d45225e8F38c391Cc6a72CDec435748
 - usdcToken: 0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC
 - guardianNodes: 0xBC6b53065b5647261396d002bDBA0d3396E0722f
 - guardianAllocStartId: 100
 
-## Library link
+## Library links (current implementation)
 
-- ValidatorDepositRedeemStatsLib @ 0x0ce847c136E4eDB4289E5eA62d81A718A6753091
+| Library | Address |
+|---|---|
+| ValidatorDepositRedeemStatsLib | 0xE329d49a88c2286A7af19c55221802D8d6E51606 |
+| ValidatorDepositRedeemRewardLib | 0x3928de09e730B909918531Ac2e213c4B4d9f4E22 |
+| ValidatorDepositRedeemBundleLib | 0xD25eC9EF0Ce679A033ec4c13eA15806C0c2E313f |
+| ValidatorDepositRedeemTransferLib | 0xE6AD09748E62852e4652A905A4B810804A33572E |
+| ValidatorDepositRedeemDepositLib | 0x3CbF710e38CD26d5C93f520AAaEc63601d402921 |
+| ValidatorDepositRedeemExitLib | 0x9FB2AC380Ff3da204cB86bf51b0eDb33aAF13229 |
+
+## Upgrade (linear airdrop vesting, 2026-06-29)
+
+- implementationUpgradedAt: 2026-06-29T19:04:31.447Z
+- implementation deploy tx: 0xb806c1c42f0ab76094a8cfab47aeb0436e689286a536db768d8a9017f03495be
+- previous implementation: 0x1FA6C3f59C846D943Cc7EF79ddb4d6580975D3BD
 
 ## Post-deploy wiring
 
-- referrerExt.setRedeemHost(redeem)
+- referrerExt.setRedeemHost(proxy)
 - redeem.setReferrerExtension(referrerExt)
 - redeem.setTransferMarket(transferMarket)
+- redeem.setDepositContract(0x4242…4242)
+- redeem.setRewardIndexer(rewardIndexer)
+- rewardIndexer.setRedeem(proxy)
 
 ## Deprecated
 
-- Previous ValidatorDepositRedeem: 0x46CE043f029dE5A45e87BBf76A5b71E2c7140dab (no referrer / transfer market split)
+- Previous canonical (non-upgradeable): 0x1488ED35054f2Eb5301E1dC14Be3D9283d10B3B5
+- Previous implementation (pre-vesting upgrade): 0x1FA6C3f59C846D943Cc7EF79ddb4d6580975D3BD
+- Previous StatsLib (pre-vesting upgrade): 0xD69B750f0286E507349C6dA50500E7CEa714dfC3
 
 ## Verify command
 
 ```bash
 npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts
+# single contract:
+npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts ValidatorDepositRedeem
+npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts ValidatorDepositRedeemStatsLib
 ```
 
-Deploy tx: 0x758caacea0fcc29f88df0a4942a1367e7b5be8c985ffa3c40a3a50939c72499c
+Proxy deploy tx: 0x5c54c0b86726556ed8b672bb4e180a326c43b7d2679f482283e6ae8305612cea (block 181083)

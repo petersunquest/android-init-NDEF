@@ -23,12 +23,14 @@ PRYSM_VALIDATOR_BINARY="${PRYSM_VALIDATOR_BINARY:-./dependencies/prysm-v7.1.5/va
 [[ -x "$PRYSM_VALIDATOR_BINARY" ]] || { echo "ERROR: missing validator binary: $PRYSM_VALIDATOR_BINARY" >&2; exit 1; }
 
 echo "Voluntary exit pubkey=${PUBKEY} beacon=127.0.0.1:${PRYSM_BEACON_RPC_PORT}"
-"$PRYSM_VALIDATOR_BINARY" accounts voluntary-exit \
+"$PRYSM_VALIDATOR_BINARY" \
+	--chain-config-file="$CHAIN_CONFIG_FILE" \
+	--accept-terms-of-use \
+	accounts voluntary-exit \
 	--beacon-rpc-provider="127.0.0.1:${PRYSM_BEACON_RPC_PORT}" \
 	--wallet-dir="$VALIDATOR_WALLET_DIR" \
 	--wallet-password-file="$WALLET_PASSWORD_FILE" \
 	--public-keys="$PUBKEY" \
-	--chain-config-file="$CHAIN_CONFIG_FILE" \
-	--accept-terms-of-use
+	--force-exit
 
 echo "Voluntary exit submitted for ${PUBKEY}"

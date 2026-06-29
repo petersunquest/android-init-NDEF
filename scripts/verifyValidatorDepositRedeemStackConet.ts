@@ -10,11 +10,13 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { AbiCoder, getAddress } from "ethers";
+import { AbiCoder, getAddress, Interface } from "ethers";
 import { fileURLToPath } from "url";
 import {
   BASESCAN_COMPILER_VERSION,
+  collectSources,
   exportBasescanStandardJsonFromRoot,
+  type SourceMap,
 } from "./basescanStandardJsonShared.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -24,9 +26,17 @@ const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://mainnet.con
 const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet.network").replace(/\/$/, "");
 const CONET_RPC = process.env.CONET_RPC_URL || "https://publicrpc.conet.network";
 const COMPILER_VERSION = `v${BASESCAN_COMPILER_VERSION}`;
+/** OpenZeppelin prebuilt ERC1967Proxy artifact (npm @openzeppelin/contracts build/) */
+const OZ_ERC1967_PROXY_COMPILER_VERSION = "v0.8.27+commit.40a35a09";
 
 const REDEEM_MAIN_SOURCE = "project/src/mainnet/ValidatorDepositRedeem.sol";
 const STATS_LIB_SOURCE = "project/src/mainnet/ValidatorDepositRedeemStatsLib.sol";
+const ERC1967_PROXY_OZ_ABS = path.join(
+  root,
+  "node_modules/@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol"
+);
+const ERC1967_PROXY_CONTRACT_NAME =
+  "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy";
 
 const REDEEM_LINKED_LIBRARY_NAMES = [
   "ValidatorDepositRedeemStatsLib",
@@ -103,6 +113,10 @@ type VerifyTarget = {
   constructorTypes?: string[];
   constructorValues?: unknown[];
   libraryLinks?: Record<string, Record<string, string>>;
+  /** OpenZeppelin npm source (not under project/) */
+  ozAbsPath?: string;
+  /** Override Blockscout compiler_version (OZ proxy uses prebuilt artifact solc) */
+  compilerVersion?: string;
 };
 
 function loadDeployment(): DeploymentJson {
@@ -215,9 +229,38 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
     ];
   });
 
+  const initIface = new Interface([
+    "function initialize(address initialRedeemAdmin, address initialContractAdmin, address gbToken, address usdcToken, address guardianNodes, uint256 guardianAllocStartId)",
+  ]);
+  const proxyInitData =
+    isUpgradeable && gbToken && usdcToken && guardianNodes && guardianAllocStartId != null
+      ? initIface.encodeFunctionData("initialize", [
+          redeemAdmin,
+          contractAdmin,
+          getAddress(String(gbToken)),
+          getAddress(String(usdcToken)),
+          getAddress(String(guardianNodes)),
+          BigInt(guardianAllocStartId),
+        ])
+      : "0x";
+
   const targets: VerifyTarget[] = [
     ...libTargets,
     redeemImplTarget,
+    ...(isUpgradeable && redeemAddr !== implAddr && proxyInitData !== "0x"
+      ? [
+          {
+            key: "ValidatorDepositRedeemProxy",
+            address: redeemAddr,
+            rootSource: ERC1967_PROXY_CONTRACT_NAME,
+            contractName: ERC1967_PROXY_CONTRACT_NAME,
+            constructorTypes: ["address", "bytes"],
+            constructorValues: [implAddr, proxyInitData],
+            ozAbsPath: ERC1967_PROXY_OZ_ABS,
+            compilerVersion: OZ_ERC1967_PROXY_COMPILER_VERSION,
+          } satisfies VerifyTarget,
+        ]
+      : []),
     {
       key: "ValidatorDepositRedeemReferrerExtension",
       address: extAddr,
@@ -276,16 +319,39 @@ async function rpcHasCode(address: string): Promise<boolean> {
 
 async function checkVerified(address: string): Promise<boolean> {
   const res = await fetch(`${BLOCKSCOUT_API}/v2/smart-contracts/${address}`);
-  if (!res.ok) return false;
-  const data = (await res.json()) as { is_verified?: boolean; source_code?: string | null };
-  return Boolean(data.is_verified || data.source_code);
+  if (res.ok) {
+    const data = (await res.json()) as {
+      is_verified?: boolean;
+      source_code?: string | null;
+      proxy_type?: string;
+      implementations?: Array<{ address_hash: string }>;
+    };
+    if (data.is_verified || data.source_code) return true;
+    if (data.proxy_type === "eip1967" && data.implementations?.length) {
+      for (const impl of data.implementations) {
+        const implRes = await fetch(`${BLOCKSCOUT_API}/v2/smart-contracts/${impl.address_hash}`);
+        if (!implRes.ok) continue;
+        const implData = (await implRes.json()) as { is_verified?: boolean };
+        if (implData.is_verified) return true;
+      }
+    }
+  }
+  const legRes = await fetch(
+    `${BLOCKSCOUT_UI}/api?module=contract&action=getsourcecode&address=${address}`
+  );
+  if (legRes.ok) {
+    const leg = (await legRes.json()) as { result?: Array<{ ABI?: string; ContractName?: string }> };
+    const row = leg.result?.[0];
+    if (row?.ABI && row.ABI !== "Contract source code not verified" && row.ContractName) return true;
+  }
+  return false;
 }
 
 async function submitVerify(target: VerifyTarget, standardJson: string): Promise<void> {
   const ctor = constructorArgsHex(target);
   const url = `${BLOCKSCOUT_API}/v2/smart-contracts/${target.address}/verification/via/standard-input`;
   const form = new FormData();
-  form.set("compiler_version", COMPILER_VERSION);
+  form.set("compiler_version", target.compilerVersion ?? COMPILER_VERSION);
   form.set("contract_name", target.contractName);
   form.set("autodetect_constructor_args", "false");
   form.set("constructor_args", ctor);
@@ -323,16 +389,60 @@ async function waitVerified(address: string): Promise<void> {
   throw new Error(`验证轮询超时: ${address}`);
 }
 
+function buildOzProxyStandardJsonSettings() {
+  return {
+    metadata: {
+      bytecodeHash: "none" as const,
+    },
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+    evmVersion: "cancun" as const,
+    viaIR: false,
+    remappings: [] as string[],
+    outputSelection: {
+      "*": {
+        "": ["ast"],
+        "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "evm.methodIdentifiers", "metadata"],
+      },
+    },
+  };
+}
+
+function exportOzStandardJson(absEntry: string): {
+  standardJson: { language: string; sources: SourceMap; settings: ReturnType<typeof buildOzProxyStandardJsonSettings> };
+} {
+  if (!fs.existsSync(absEntry)) {
+    throw new Error(`OpenZeppelin 源码不存在: ${absEntry}（请先 npm install）`);
+  }
+  const sources: SourceMap = {};
+  collectSources(root, absEntry, sources);
+  return {
+    standardJson: {
+      language: "Solidity",
+      sources,
+      settings: buildOzProxyStandardJsonSettings(),
+    },
+  };
+}
+
 async function verifyTarget(target: VerifyTarget): Promise<void> {
   if (!(await rpcHasCode(target.address))) {
     throw new Error(`链上无 code: ${target.address}`);
   }
   if (await checkVerified(target.address)) {
-    console.log(`已验证: ${BLOCKSCOUT_UI}/address/${target.address}#code`);
+    const proxyNote =
+      target.key === "ValidatorDepositRedeemProxy"
+        ? "（EIP-1967 proxy，Read as Proxy → 已验证 implementation）"
+        : "";
+    console.log(`已验证${proxyNote}: ${BLOCKSCOUT_UI}/address/${target.address}#code`);
     return;
   }
 
-  const { standardJson } = exportBasescanStandardJsonFromRoot(root, target.rootSource);
+  const { standardJson } = target.ozAbsPath
+    ? exportOzStandardJson(target.ozAbsPath)
+    : exportBasescanStandardJsonFromRoot(root, target.rootSource);
   if (target.libraryLinks) {
     (standardJson.settings as Record<string, unknown>).libraries = target.libraryLinks;
   }

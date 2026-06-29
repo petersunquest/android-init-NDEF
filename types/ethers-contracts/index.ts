@@ -336,6 +336,10 @@ export type { LayerMinusNodeRestart_V2 } from './mainnet/LayerMinusNodeRestart_V
 export { LayerMinusNodeRestart_V2__factory } from './factories/mainnet/LayerMinusNodeRestart_V2__factory.js';
 export type { MerchantPOSManagement } from './mainnet/MerchantPOSManagement.js';
 export { MerchantPOSManagement__factory } from './factories/mainnet/MerchantPOSManagement__factory.js';
+export type { IUSDC } from './mainnet/NodeSaleSplitter.sol/IUSDC.js';
+export { IUSDC__factory } from './factories/mainnet/NodeSaleSplitter.sol/IUSDC__factory.js';
+export type { NodeSaleSplitter } from './mainnet/NodeSaleSplitter.sol/NodeSaleSplitter.js';
+export { NodeSaleSplitter__factory } from './factories/mainnet/NodeSaleSplitter.sol/NodeSaleSplitter__factory.js';
 export type { IBeaconDeposit } from './mainnet/ValidatorDepositRedeem.sol/IBeaconDeposit.js';
 export { IBeaconDeposit__factory } from './factories/mainnet/ValidatorDepositRedeem.sol/IBeaconDeposit__factory.js';
 export type { IERC1155Balance } from './mainnet/ValidatorDepositRedeem.sol/IERC1155Balance.js';

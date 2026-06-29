@@ -117,7 +117,8 @@ library ValidatorDepositRedeemStatsLib {
         uint256 amount,
         uint256 nonce,
         uint256 deadline,
-        bytes calldata signature
+        bytes calldata signature,
+        uint256 vestingDuration
     ) external returns (uint256 paid) {
         require(block.timestamp <= deadline, "ValidatorRedeem: expired");
         require(nonces[beneficiary] == nonce, "ValidatorRedeem: bad nonce");
@@ -125,17 +126,33 @@ library ValidatorDepositRedeemStatsLib {
         bytes32 sh = keccak256(abi.encode(CLAIM_AIRDROP_TYPEHASH, beneficiary, amount, nonce, deadline));
         bytes32 digest = keccak256(abi.encodePacked(hex"1901", domainSeparator, sh));
         require(ECDSA.recover(digest, signature) == beneficiary, "ValidatorRedeem: bad sig");
-        paid = _settleAirdrop(s, beneficiary, amount);
+        paid = _settleAirdrop(s, beneficiary, amount, vestingDuration);
         emit AirdropClaimed(beneficiary, paid);
     }
 
-    function _settleAirdrop(AirdropState storage s, address beneficiary, uint256 amount)
+    /// @dev Linearly-vested CNET airdrop amount for a beneficiary at the current block time.
+    ///      0 before the start; full accrued once start + {vestingDuration} has elapsed.
+    function _vestedAirdrop(AirdropState storage s, address beneficiary, uint256 vestingDuration)
+        private
+        view
+        returns (uint256)
+    {
+        uint64 startAt = s.claimableAt;
+        if (startAt == 0 || block.timestamp < uint256(startAt)) return 0;
+        uint256 accrued = s.accrued[beneficiary];
+        uint256 elapsed = block.timestamp - uint256(startAt);
+        if (vestingDuration == 0 || elapsed >= vestingDuration) return accrued;
+        return (accrued * elapsed) / vestingDuration;
+    }
+
+    function _settleAirdrop(AirdropState storage s, address beneficiary, uint256 amount, uint256 vestingDuration)
         private
         returns (uint256)
     {
         require(s.claimableAt != 0 && block.timestamp >= s.claimableAt, "ValidatorRedeem: airdrop closed");
         require(amount > 0, "ValidatorRedeem: zero amount");
-        uint256 claimable = s.accrued[beneficiary] - s.claimed[beneficiary];
+        uint256 vested = _vestedAirdrop(s, beneficiary, vestingDuration);
+        uint256 claimable = vested > s.claimed[beneficiary] ? vested - s.claimed[beneficiary] : 0;
         require(amount <= claimable, "ValidatorRedeem: exceeds claimable");
         require(address(this).balance >= amount, "ValidatorRedeem: insufficient balance");
         s.claimed[beneficiary] += amount;

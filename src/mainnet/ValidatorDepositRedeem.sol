@@ -100,6 +100,11 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     // ---- CNET airdrop (accrued on airdrop-flagged redeem claims; paid from this contract's CNET balance) -----
     /// @notice CNET granted per validator node on an airdrop-flagged claim (18 decimals).
     uint256 public constant AIRDROP_CNET_PER_NODE = 100 ether;
+    /// @notice Linear vesting window for accrued CNET airdrops: tokens unlock linearly from {airdropClaimableAt}
+    ///         over this duration (6 months = 180 days). Before the start nothing is claimable; after start + this
+    ///         duration the full accrued amount is claimable. Fixed protocol constant (kept internal for EIP-170;
+    ///         clients render the 180-day schedule against the on-chain {airdropClaimableAt} start).
+    uint64 internal constant AIRDROP_VESTING_DURATION = 180 days;
     /// @dev Airdrop ledger; claim/settle logic lives in {ValidatorDepositRedeemStatsLib} (EIP-170 offload).
     AirdropState private _air;
 
@@ -198,7 +203,8 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
         bool active;
         bool consumed;
         /// @dev When true, claiming this redeem accrues a CNET airdrop entitlement of
-        ///      {AIRDROP_CNET_PER_NODE} * validatorCount to the beneficiary (claimable after {airdropClaimableAt}).
+        ///      {AIRDROP_CNET_PER_NODE} * validatorCount to the beneficiary, vesting linearly over
+        ///      {AIRDROP_VESTING_DURATION} from {airdropClaimableAt}.
         bool airdrop;
         string targetNodeIp;
     }
@@ -466,8 +472,9 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
         emit AirdropClaimableAtSet(claimableAt);
     }
 
-    /// @notice Airdrop ledger for a beneficiary: cumulative accrued, already claimed, remaining claimable, and the
-    ///         global claim-open time (0 = closed). Single multi-return view to conserve bytecode (EIP-170).
+    /// @notice Airdrop ledger for a beneficiary: cumulative accrued, already claimed, currently releasable
+    ///         (vested − claimed, per {AIRDROP_VESTING_DURATION} linear schedule), and the vesting start time
+    ///         (0 = not open). Single multi-return view to conserve bytecode (EIP-170).
     function airdropInfoOf(address beneficiary)
         external
         view
@@ -475,11 +482,19 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     {
         accrued = _air.accrued[beneficiary];
         claimed = _air.claimed[beneficiary];
-        claimable = accrued - claimed;
         claimableAt = _air.claimableAt;
+        uint256 vested;
+        if (claimableAt != 0 && block.timestamp >= uint256(claimableAt)) {
+            uint256 elapsed = block.timestamp - uint256(claimableAt);
+            uint256 dur = uint256(AIRDROP_VESTING_DURATION);
+            vested = elapsed >= dur ? accrued : (accrued * elapsed) / dur;
+        }
+        claimable = vested > claimed ? vested - claimed : 0;
     }
 
-    /// @notice Gas-sponsored (relayed) airdrop claim: the beneficiary signs EIP-712 {ClaimAirdrop}; anyone may submit.
+    /// @notice Airdrop claim: the beneficiary signs EIP-712 {ClaimAirdrop}; the tx may be self-submitted by the
+    ///         beneficiary (they pay gas) or relayed by anyone (gas-sponsored). Only the vested-and-unclaimed
+    ///         portion (linear over {AIRDROP_VESTING_DURATION} from {airdropClaimableAt}) is payable.
     /// @dev    Reuses {beneficiaryNonces} (shared beneficiary nonce space). Verify + payout offloaded to the stats lib.
     function claimAirdropFor(
         address beneficiary,
@@ -489,7 +504,15 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
         bytes calldata signature
     ) external nonReentrantNative {
         ValidatorDepositRedeemStatsLib.claimAirdrop(
-            _air, beneficiaryNonces, _domainSeparatorV4(), beneficiary, amount, nonce, deadline, signature
+            _air,
+            beneficiaryNonces,
+            _domainSeparatorV4(),
+            beneficiary,
+            amount,
+            nonce,
+            deadline,
+            signature,
+            AIRDROP_VESTING_DURATION
         );
     }
 
