@@ -119,13 +119,14 @@ echo "==> Install validator helper scripts into ${VALIDATOR_NEWCONET_DIR}"
 rsync "${RSYNC_FLAGS[@]}" \
 	"$VALIDATOR_NODE_SCRIPTS/01_generate_append_validator_deposits_listener.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/06_exit_validator.sh" \
+	"$VALIDATOR_NODE_SCRIPTS/06_restart_node8533.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/07_update_fee_recipient.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/08_import_append_validator_keys.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/09_ensure_validator_running.sh" \
 	"$VALIDATOR_NODE_SCRIPTS/10_run_prysm_validator.sh" \
 	"${SSH_TARGET}:${VALIDATOR_NEWCONET_DIR}/"
 if [[ "$DRY_RUN" -eq 0 ]]; then
-	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/01_generate_append_validator_deposits_listener.sh' '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh' '${VALIDATOR_NEWCONET_DIR}/08_import_append_validator_keys.sh' '${VALIDATOR_NEWCONET_DIR}/09_ensure_validator_running.sh' '${VALIDATOR_NEWCONET_DIR}/10_run_prysm_validator.sh'"
+	ssh "$SSH_TARGET" "chmod +x '${VALIDATOR_NEWCONET_DIR}/01_generate_append_validator_deposits_listener.sh' '${VALIDATOR_NEWCONET_DIR}/06_exit_validator.sh' '${VALIDATOR_NEWCONET_DIR}/06_restart_node8533.sh' '${VALIDATOR_NEWCONET_DIR}/07_update_fee_recipient.sh' '${VALIDATOR_NEWCONET_DIR}/08_import_append_validator_keys.sh' '${VALIDATOR_NEWCONET_DIR}/09_ensure_validator_running.sh' '${VALIDATOR_NEWCONET_DIR}/10_run_prysm_validator.sh'"
 fi
 
 KEYSTORE_PW_FILE="${VALIDATOR_NEWCONET_DIR}/secrets/validator_keystore_password.txt"
@@ -299,8 +300,8 @@ REMOTE
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
-	echo "==> Prysm import backfill skipped (run manually after wallet passwords verified):"
-	echo "    ssh ${SSH_TARGET} 'cd ${VALIDATOR_NEWCONET_DIR} && ./08_import_append_validator_keys.sh'"
+	echo "==> Sync append validator keys into Prysm wallet (post-deploy backfill)"
+	ssh "$SSH_TARGET" "cd '${VALIDATOR_NEWCONET_DIR}' && RELOAD_VALIDATOR_AFTER_IMPORT=YES ./08_import_append_validator_keys.sh --sync-import && sudo -n systemctl restart '${PRYSM_VALIDATOR_SYSTEMD_UNIT}'"
 fi
 
 if [[ "$SKIP_RESTART" -eq 0 && "$DRY_RUN" -eq 0 ]]; then

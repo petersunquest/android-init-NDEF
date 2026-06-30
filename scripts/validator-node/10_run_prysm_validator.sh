@@ -9,6 +9,9 @@ require_exec "$PRYSM_VALIDATOR_BINARY"
 require_file "$CHAIN_CONFIG_FILE"
 WALLET_PASSWORD_FILE="$(resolve_password_file "${WALLET_PASSWORD:-}" "$WALLET_PASSWORD_FILE")"
 
+# Every systemd start: import any missing append keystores before loading wallet (no double reload).
+RELOAD_VALIDATOR_AFTER_IMPORT=NO sync_import_cli
+
 exec "$PRYSM_VALIDATOR_BINARY" \
 	--beacon-rpc-provider="127.0.0.1:${PRYSM_BEACON_RPC_PORT}" \
 	--datadir="$VALIDATOR_DATA_DIR" \

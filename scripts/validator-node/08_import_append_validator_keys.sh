@@ -16,6 +16,8 @@ cd "$PROJECT_DIR"
 NETWORK_DIR="${NETWORK_DIR:-./network}"
 NODE_DIR="${NODE_DIR:-$NETWORK_DIR/node-0}"
 VALIDATOR_KEYS_SOURCE_DIR="${VALIDATOR_KEYS_SOURCE_DIR:-./append_validator_keys}"
+# Persistent archive survives 01_generate REPLACE wipe of append_validator_keys/
+VALIDATOR_KEYS_ARCHIVE_DIR="${VALIDATOR_KEYS_ARCHIVE_DIR:-./append_validator_keys_archive}"
 
 KEYSTORE_PASSWORD_FILE="${KEYSTORE_PASSWORD_FILE:-./secrets/validator_keystore_password.txt}"
 WALLET_PASSWORD_FILE="${WALLET_PASSWORD_FILE:-./secrets/prysm_wallet_password.txt}"
@@ -150,6 +152,7 @@ import_one_keystore() {
 
 	if [[ "$status" -eq 0 ]] || import_log_is_duplicate "$log_file"; then
 		append_manifest "$base"
+		archive_imported_keystore "$keystore"
 		echo "  ok: $base"
 		return 0
 	fi
@@ -202,6 +205,7 @@ PY
 
 	if [[ "$status" -eq 0 ]] || import_log_is_duplicate "$log_file"; then
 		append_manifest "$base"
+		archive_imported_keystore "$keystore"
 		echo "  ok (private key): $base"
 		return 0
 	fi
@@ -211,15 +215,92 @@ PY
 	return 1
 }
 
+collect_append_keystore_paths() {
+	local -a paths=()
+	local dir
+	for dir in "$VALIDATOR_KEYS_SOURCE_DIR" "$VALIDATOR_KEYS_ARCHIVE_DIR"; do
+		[[ -d "$dir" ]] || continue
+		while IFS= read -r keystore; do
+			[[ -n "$keystore" ]] || continue
+			paths+=("$keystore")
+		done < <(find "$dir" -maxdepth 10 -type f -name 'keystore-*.json' | sort -u -V)
+	done
+	printf '%s\n' "${paths[@]}"
+}
+
+archive_imported_keystore() {
+	local keystore="$1"
+	local base dest
+	base="$(basename "$keystore")"
+	dest="$VALIDATOR_KEYS_ARCHIVE_DIR/$base"
+	mkdir -p "$VALIDATOR_KEYS_ARCHIVE_DIR"
+	if [[ ! -f "$dest" ]]; then
+		cp "$keystore" "$dest"
+		chmod 600 "$dest" 2>/dev/null || true
+	fi
+}
+
+count_wallet_accounts() {
+	local raw count
+	raw="$("$PRYSM_VALIDATOR_BINARY" accounts list \
+		--wallet-dir="$VALIDATOR_WALLET_DIR" \
+		--wallet-password-file="$WALLET_PASSWORD_FILE" 2>/dev/null || true)"
+	count="$(printf '%s\n' "$raw" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | grep -c '^Account ' || true)"
+	if [[ "${count:-0}" -gt 0 ]]; then
+		echo "$count"
+		return 0
+	fi
+	# Prysm locks the wallet while the validator client is running; accounts list then omits Account rows.
+	if validator_client_running; then
+		count_manifest_entries
+		return 0
+	fi
+	echo 0
+}
+
+count_manifest_entries() {
+	if [[ ! -f "$IMPORT_MANIFEST" ]]; then
+		echo 0
+		return 0
+	fi
+	grep -cve '^\s*$' "$IMPORT_MANIFEST" 2>/dev/null || echo 0
+}
+
+verify_wallet_accounts_vs_manifest() {
+	local wallet_count manifest_count min_expected
+	wallet_count="$(count_wallet_accounts)"
+	manifest_count="$(count_manifest_entries)"
+	min_expected="$manifest_count"
+	if [[ "$min_expected" -lt 1 ]]; then
+		min_expected=1
+	fi
+	if [[ "$wallet_count" -lt "$min_expected" ]]; then
+		if [[ "$wallet_count" -eq 0 ]] && validator_client_running && [[ "$manifest_count" -ge "$min_expected" ]]; then
+			echo "OK: wallet locked by running validator; manifest_entries=$manifest_count (accounts list unavailable)"
+			return 0
+		fi
+		die "Prysm wallet has $wallet_count account(s) but import manifest expects at least $min_expected (manifest=$IMPORT_MANIFEST)"
+	fi
+	echo "OK: wallet accounts=$wallet_count manifest_entries=$manifest_count"
+}
+
 import_all_append_keystores() {
 	local imported=0
 	local skipped=0
 	local failed=0
+	local allow_empty_sources="${1:-NO}"
 
-	mapfile -t keystores < <(find "$VALIDATOR_KEYS_SOURCE_DIR" -maxdepth 10 -type f -name 'keystore-*.json' | sort -V)
-	[[ "${#keystores[@]}" -gt 0 ]] || die "No keystore-*.json under $VALIDATOR_KEYS_SOURCE_DIR"
+	mapfile -t keystores < <(collect_append_keystore_paths)
+	if [[ "${#keystores[@]}" -eq 0 ]]; then
+		if [[ "${allow_empty_sources^^}" == "YES" ]]; then
+			echo "No keystore-*.json under $VALIDATOR_KEYS_SOURCE_DIR or $VALIDATOR_KEYS_ARCHIVE_DIR; verifying existing wallet only."
+			verify_wallet_accounts_vs_manifest
+			return 0
+		fi
+		die "No keystore-*.json under $VALIDATOR_KEYS_SOURCE_DIR (or archive $VALIDATOR_KEYS_ARCHIVE_DIR)"
+	fi
 
-	echo "Found ${#keystores[@]} keystore file(s) under $VALIDATOR_KEYS_SOURCE_DIR"
+	echo "Found ${#keystores[@]} keystore file(s) under $VALIDATOR_KEYS_SOURCE_DIR (+ archive $VALIDATOR_KEYS_ARCHIVE_DIR)"
 
 	for keystore in "${keystores[@]}"; do
 		local base
@@ -240,6 +321,24 @@ import_all_append_keystores() {
 
 	echo "Import summary: imported=$imported skipped=$skipped failed=$failed manifest=$IMPORT_MANIFEST"
 	[[ "$failed" -eq 0 ]] || die "$failed keystore import(s) failed"
+	verify_wallet_accounts_vs_manifest
+}
+
+sync_import_cli() {
+	echo "============================================================"
+	echo "Sync append validator keys into Prysm wallet (no reload)"
+	echo "============================================================"
+	require_exec "$PRYSM_VALIDATOR_BINARY"
+	require_file "$CHAIN_CONFIG_FILE"
+	local keystore_pw_file wallet_pw_file
+	keystore_pw_file="$(resolve_password_file "${KEYSTORE_PASSWORD:-}" "$KEYSTORE_PASSWORD_FILE")"
+	wallet_pw_file="$(resolve_password_file "${WALLET_PASSWORD:-}" "$WALLET_PASSWORD_FILE")"
+	KEYSTORE_PASSWORD_FILE="$keystore_pw_file"
+	WALLET_PASSWORD_FILE="$wallet_pw_file"
+	ensure_wallet
+	seed_manifest_from_legacy_marker
+	import_all_append_keystores YES
+	echo "Sync import done."
 }
 
 validator_client_running() {
@@ -434,8 +533,15 @@ main() {
 		echo "Skipping validator reload (RELOAD_VALIDATOR_AFTER_IMPORT=$RELOAD_VALIDATOR_AFTER_IMPORT)"
 	fi
 
+	verify_wallet_accounts_vs_manifest
 	echo "Done."
 }
+
+if [[ "${1:-}" == "--sync-import" ]]; then
+	shift
+	sync_import_cli "$@"
+	exit 0
+fi
 
 if [[ "${1:-}" == "--ensure-running" ]]; then
 	shift
