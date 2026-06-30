@@ -1,0 +1,132 @@
+---
+description: 全项目链上写交易须按签名者 nonce 车道 FIFO 入队；禁止并发 sendTransaction 抢 nonce
+alwaysApply: true
+---
+
+# 链上写交易：串行排队（全局）
+
+凡 **发送链上交易**（`sendTransaction`、`contract.write`、`tx.wait()` 直至 receipt 确认，含代付 gas relay），**必须**通过排队系统执行，**禁止**对同一签名者（EOA / relayer 热钱包）并发送 tx。
+
+与 **`beamio-api-cluster-master.mdc`**（Master 业务 pool + `Settle_ContractPool` 多钱包并行）互补：本守则规定 **单钱包 nonce 车道** 的 FIFO 语义；Master 守则规定 **多钱包** 如何并行。
+
+---
+
+## 核心规则
+
+1. **入队**：任何链上写路径在 `sendTransaction` / 合约写方法调用前，必须把「整段写操作（含 `await tx.wait()`）」包在 **车道队列** 任务里。
+2. **FIFO**：同一车道内严格先进先出；**任意时刻最多一个 in-flight 写任务**。
+3. **出队 / 删除**：任务开始执行时从等待队列 `shift` 移除；**成功或失败后**才算完成，不得遗留幽灵任务。
+4. **车道（lane）= 签名者维度**：
+   - 推荐：`onchainTxLaneForSigner(eoaAddress)` → `eoa:0x…`
+   - 单进程单热钱包 daemon：可用进程级常量（如 `CONET_VALIDATOR_NODE_ONCHAIN_LANE`）
+   - **不同 EOA 可并行**（各自车道）；**同一 EOA 必须串行**
+5. **禁止** `void sendTx()`、`Promise.all` 多个同 signer 写、live 事件与 backfill **并发** 对同一钱包送 tx。
+
+---
+
+## 适用场景
+
+| 场景 | 排队方式 |
+|---|---|
+| **x402sdk Master** | 业务 `*Pool` FIFO + `Settle_ContractPool.shift`/`unshift`（每任务一钱包）— 见 `beamio-api-cluster-master.mdc` |
+| **Validator listener daemon** | `enqueueOnchainTxWork(CONET_VALIDATOR_NODE_ONCHAIN_LANE, …)` — claim / fundAndDeposit / fullExit / CL payout 共用车道 |
+| **定时 daemon 扫链写合约** | 写任务入队；tick 仍须 `beamio-interval-daemon-no-overlap.mdc`（读可并发，写入队） |
+| **客户端 PWA / bizSite** | 用户 EOA 签名由钱包 nonce 管理；**服务端代付**路径仍须 Master pool，不得绕过 |
+| **脚本 / 部署** | 同一 deployer 连续 deploy 须串行或显式 nonce 管理；推荐单脚本顺序 `await` |
+
+---
+
+## 标准实现（x402sdk / Node）
+
+**单一事实来源模块：** `src/x402sdk/src/onchainTxSerialQueue.ts`
+
+```typescript
+import {
+  enqueueOnchainTxWork,
+  waitForOnchainTxQueue,
+  waitForAllOnchainTxQueues,
+  CONET_VALIDATOR_NODE_ONCHAIN_LANE,
+  onchainTxLaneForSigner,
+} from '../onchainTxSerialQueue'
+
+// 整段写操作（含 receipt）入队
+await enqueueOnchainTxWork(
+  onchainTxLaneForSigner(admin.address),
+  'fundAndDepositValidators',
+  async () => {
+    const tx = await contract.fundAndDepositValidators!(...)
+    await tx.wait()
+  },
+  '[myDaemon]'
+)
+
+// SIGTERM 前等待车道清空
+await waitForOnchainTxQueue(CONET_VALIDATOR_NODE_ONCHAIN_LANE)
+```
+
+### 任务边界
+
+- ✅ 入队函数内：`estimateGas`（可选）→ `send` / 合约写 → **`await tx.wait()`** → 依赖 receipt 的后续一步
+- ✅ 共用本地资源（如 `validator_deposits.json`、Prysm import）的 **整段 claim 流水线** 可与 tx 同车道打包
+- ❌ 仅预检 / `eth_call` / `staticCall` — **不入队**（只读无 nonce）
+- ❌ 入队任务内再 `void` 第二个未入队的同 signer 写
+
+### 日志（推荐）
+
+- 入队：`tx queue +{label} lane={laneKey} waiting=N`
+- 开始：`tx start {label} (queued Xms; N behind)`
+- 关闭：`waitForOnchainTxQueue` 超时须打 `ALERT` 级日志
+
+---
+
+## 与 Master Pool 的关系
+
+| 层 | 职责 |
+|---|---|
+| **业务 pool** | HTTP / 事件任务 FIFO |
+| **`Settle_ContractPool`** | 多 relayer 钱包；**每任务借一个钱包**，`finally` 归还 |
+| **本守则（单钱包车道）** | 同一钱包上 **禁止** 并发 tx；listener 单 redeem-admin 时整进程一条车道 |
+
+新增 Master `*PoolPress` 时：**仍须** `Settle_ContractPool` shift/unshift；**不得**对同一 `SC` 并发两笔 tx。
+
+---
+
+## 参考实现
+
+| 模块 | 路径 |
+|---|---|
+| 通用车道队列 | `src/x402sdk/src/onchainTxSerialQueue.ts` |
+| Validator claim / deposit | `src/x402sdk/src/endpoint/validatorDepositRedeem.ts` — `enqueueListenerOnchainWork` |
+| CL skim payout | `src/x402sdk/src/endpoint/validatorClRewardPayoutReporter.ts` |
+| Daemon 优雅关闭 | `src/x402sdk/src/endpoint/validatorDepositRedeemListenerDaemon.ts` — `waitForListenerSerialQueue` |
+| Master 多钱包 pool | `src/x402sdk/src/MemberCard.ts` — `*PoolPress` + `Settle_ContractPool` |
+
+---
+
+## AI 检查清单
+
+- [ ] 新增链上写是否包在 `enqueueOnchainTxWork` / Master `*Pool` + `Settle_ContractPool`？
+- [ ] 同一 signer 是否存在 `void`  fire-and-forget 写或并行 `Promise.all` 写？
+- [ ] 任务是否含 **`await tx.wait()`** 后才算完成？
+- [ ] live + backfill / 多事件是否会并发抢 nonce？
+- [ ] daemon SIGTERM 是否 `waitForOnchainTxQueue` / `waitForAllOnchainTxQueues`？
+- [ ] 车道 key 是否按 **签名者** 区分（非按事件类型随意共用车道）？
+
+---
+
+## 严禁
+
+- ❌ 同一热钱包并发 `fundAndDepositValidators` / `claimRedeemFor` relay / 任意写而不入队
+- ❌ 仅用 `inFlight` Set 防重复 **同一 requestId**，却允许多 **不同** claim 并发写
+- ❌ 队列任务未完成就 `shift` 后丢失 Promise（须 resolve/reject 调用方）
+- ❌ 为「更快」跳过 `tx.wait()` 即标记成功并出队下一任务（除非产品明确 accept 未确认风险并文档化）
+- ❌ 在 `setInterval` 周期内直接送 tx（须 `setTimeout` 链 + 写路径入队，见 `beamio-no-setinterval.mdc`）
+
+---
+
+## 相关守则
+
+- `beamio-api-cluster-master.mdc` — Cluster 预检 + Master 业务 pool + Settle 多钱包
+- `beamio-interval-daemon-no-overlap.mdc` — daemon tick 不与写队列混淆：tick 串行，写车道 FIFO
+- `conet-validator-redeem-listener-l1-workflow.mdc` — validator append workflow
+- `beamio-entrypoint-confirmed-return-protocol.mdc` — HTTP 边界在 receipt 后；队列内仍须 wait receipt

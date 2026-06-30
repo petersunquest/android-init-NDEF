@@ -9,7 +9,7 @@ alwaysApply: false
 适用 **已运行 geth + beacon + validator，且部署了 `conet-validator-redeem-listener`** 的 CoNET L1 节点（如 `38.102.85.33`）。  
 **每次 `ValidatorRedeemClaimed` 成功后在同一机器上追加 validator 时，必须遵守本 workflow。**
 
-与 **`beamio-validator-deposit-redeem-staking-custody.mdc`**（合约/经济模型）、**`conet-validator-redeem-listener-deploy.mdc`**（**部署 / systemd / 迁移验收**）、**`critical-chain-infra-restart-requires-approval.mdc`**（禁止擅自重启 geth/beacon）、**`beamio-no-master-json-remote-copy.mdc`**（禁止跨机复制 master.json）并存。
+与 **`beamio-validator-deposit-redeem-staking-custody.mdc`**（合约/经济模型）、**`conet-validator-redeem-listener-deploy.mdc`**（**部署 / systemd / 迁移验收**）、**`beamio-onchain-tx-serial-queue.mdc`**（claim / deposit 链上写 FIFO 入队）、**`critical-chain-infra-restart-requires-approval.mdc`**（禁止擅自重启 geth/beacon）、**`beamio-no-master-json-remote-copy.mdc`**（禁止跨机复制 master.json）并存。
 
 ---
 
@@ -43,6 +43,8 @@ alwaysApply: false
 | **6** | ~~`05_restart_beacon_validator.sh`~~ | **默认跳过**（`CONET_VALIDATOR_SKIP_BEACON_RESTART=YES`） |
 
 **禁止** 把「deposit 成功」当作「已 import + 已 reload validator」。
+
+**链上写串行**：同一 validator 节点上多个 `ValidatorRedeemClaimed` / CL payout **不得**并发 `fundAndDepositValidators` 等同 signer 写；须走 `enqueueOnchainTxWork(CONET_VALIDATOR_NODE_ONCHAIN_LANE, …)`（见 **`beamio-onchain-tx-serial-queue.mdc`**）。
 
 ---
 
