@@ -7,6 +7,7 @@ export * as buintRedeemAirdropSol from './BuintRedeemAirdrop.sol/index.js';
 export * as businessStartKetRedeemSol from './BusinessStartKetRedeem.sol/index.js';
 export * as conetTreasuryPeerSol from './ConetTreasuryPeer.sol/index.js';
 export * as gbSol from './GB.sol/index.js';
+export * as gbTokenSol from './GBToken.sol/index.js';
 export * as baseTreasurySol from './baseTreasury.sol/index.js';
 export * as businessStartKetSol from './businessStartKet.sol/index.js';
 export * as conetTreasurySol from './conetTreasury.sol/index.js';

@@ -6,4 +6,6 @@ export type { IBUnitAirdrop } from './IBUnitAirdrop.js';
 export type { IBurnableFactoryERC20 } from './IBurnableFactoryERC20.js';
 export type { IConetGB1155 } from './IConetGB1155.js';
 export type { IConetTreasuryPeerView } from './IConetTreasuryPeerView.js';
+export type { IERC20 } from './IERC20.js';
+export type { IERC3009BytesSig } from './IERC3009BytesSig.js';
 export type { IMintableERC20 } from './IMintableERC20.js';

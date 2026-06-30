@@ -1,0 +1,13 @@
+{
+  "name": "CONET GB",
+  "symbol": "GB",
+  "decimals": 9,
+  "description": "CONET GB — DePIN bandwidth token (9 decimals, 1 GB = 1e9). Gasless via EIP-2612 permit & EIP-3009. Same address on CoNET and Base via CREATE2; decentralized 2/3 validator-vote cross-chain bridge.",
+  "image": "https://assets.conet.network/gb/erc20/GB.png",
+  "external_url": "https://conet.network",
+  "links": {
+    "homepage": "https://conet.network",
+    "explorer_conet": "https://scan.conet.network/token/0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
+    "explorer_base": "https://basescan.org/token/0xbeEbE03943b55e67373796ddc7314fC76f5b5911"
+  }
+}

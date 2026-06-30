@@ -1,8 +1,11 @@
 {
   "network": "base",
   "chainId": 8453,
-  "deployedAt": "2026-06-15T09:17:00.000Z",
-  "ConetTreasury": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
+  "deployedAt": "2026-06-29T21:50:00.000Z",
+  "ConetTreasury": "0x30a9251bC24df235BdCB6F20933f74d6EFc247a8",
+  "ConetTreasuryDeployTx": "0x96a1c75506b82501e3aa446c02ac1c6d0edb67ea3485de07bda3b6b9b15db237",
+  "ConetTreasuryNote": "2026-06-29 重新 CREATE2 部署（新增 voteErc20Transfer 任意 ERC20 投票出金）；旧址 0xc6e6… 已弃用",
+  "ConetTreasuryLegacy": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
   "ConetTreasuryPeer": "0xCF26c1686aC5E01e37B72017E575511C42cad29f",
   "wrappedConet": "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39",
   "BUint": "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f",
@@ -10,5 +13,6 @@
   "ConetGB_total": "0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11",
   "ConetGB_userTotal": "0x5663d651783364325045f061d93d05808c231163",
   "peerChainIdsRegistered": ["224422"],
-  "verifyBundle": "deployments/base-ConetTreasuryStack-verify-bundle.json"
+  "verifyBundle": "deployments/base-ConetTreasuryStack-verify-bundle.json",
+  "MIGRATION_WARNING": "Peer/wrappedConet/BUint/ConetGB* 仍绑定旧 treasury 0xc6e6…（Peer.treasury immutable；FactoryERC20/BUint/GB 的 minter=旧 treasury，immutable）。新 treasury 0x30a9… 可独立接收并投票出金任意 ERC20，但 peerModule=0、且非现有这些 token 的 minter。如需新 treasury 接管 mint/peer，必须用新 treasury 重新部署 Peer 与各 factory token（地址会随之改变）并 setPeerModule。"
 }

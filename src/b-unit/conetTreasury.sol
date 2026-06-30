@@ -6,8 +6,14 @@ import {FactoryERC20} from "./FactoryERC20.sol";
 
 /**
  * @title ConetTreasury
- * @dev 跨链去中心化国库（各链 Nick CREATE2 同址）。miner 2/3 投票后执行 mint/burn/airdrop。
+ * @dev 跨链去中心化「单一国库」（各链 Nick CREATE2 同址）。miner 2/3 投票后执行 mint/burn/airdrop。
  *      跨链 peer 桥（wCNET / BUint / GB / wrapped ERC20）见 ConetTreasuryPeer（CREATE2 同址）。
+ *      入金：receive() 收原生 ETH；depositWith3009Authorization 收任意 ERC20（EIP-3009 离线签字）；
+ *           purchaseBUnitWith3009Authorization 收 USDC 并 emit BUnitPurchased（CoNET-SI 监听铸 B-Unit）。
+ *      出金：voteErc20Transfer*（miner 2/3 + EIP-712 离线签字）转出任意 ERC20（含 Circle USDC）；
+ *           token == address(0) 表示原生 ETH 出金（同一投票轨，取代旧 BaseTreasury ETH 投票）。
+ *      注：受 EIP-170 24576 字节限制，未保留 BaseTreasury 的 approve-deposit / VRS 变体（无调用方），能力不减。
+ *      本合约取代旧 BaseTreasury（功能超集），原 BaseTreasury / 旧 ConetTreasury 已弃用。
  */
 
 // --- 工厂创建的 ERC20 模板 ---
@@ -20,6 +26,25 @@ interface IMintableERC20 {
 
 interface IBurnableFactoryERC20 {
     function burnFrom(address account, uint256 amount) external;
+}
+
+/// @dev 任意 ERC20 出金：从本合约余额 transfer（非工厂 mint）。
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 value) external returns (bool);
+}
+
+/// @dev EIP-3009: bytes 格式签名（USDC 等使用）。离线入金 / 购买 B-Unit 走此接口。
+interface IERC3009BytesSig {
+    function transferWithAuthorization(
+        address from,
+        address to,
+        uint256 value,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 nonce,
+        bytes calldata signature
+    ) external;
 }
 
 interface IBUnitAirdrop {
@@ -97,6 +122,19 @@ contract ConetTreasury {
     event GBRevokeVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
     event GBRevokeExecuted(bytes32 indexed txHash, address from, uint256 amountGB18);
     event PeerModuleUpdated(address indexed oldPeer, address indexed newPeer);
+    /// @dev 任意 ERC20 出金：miner 2/3 通过后从本合约余额 transfer
+    event Erc20TransferProposalCreated(
+        bytes32 indexed txHash,
+        address indexed token,
+        address recipient,
+        uint256 amount,
+        address indexed firstVoter
+    );
+    event Erc20TransferVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
+    event Erc20TransferExecuted(bytes32 indexed txHash, address indexed token, address recipient, uint256 amount);
+    /// @dev 入金事件（与旧 BaseTreasury 签名一致，CoNET-SI / 客户端监听器无需改协议）
+    event ETHDeposited(address indexed depositor, uint256 amount);
+    event BUnitPurchased(address indexed user, address indexed usdc, uint256 amount);
 
     error NotMiner();
     error AlreadyVoted();
@@ -111,6 +149,8 @@ contract ConetTreasury {
     error BUnitAirdropNotSet();
     error ConetGBNotSet();
     error EmptyTokenMetadata();
+    error InsufficientBalance();
+    error TransferFailed();
 
     address public peerModule;
     address public bunitAirdrop;
@@ -183,6 +223,18 @@ contract ConetTreasury {
     mapping(bytes32 => GBRevokeProposal) public gbRevokeProposals;
     mapping(bytes32 => mapping(address => bool)) public hasVotedGBRevoke;
 
+    /// @dev 任意 ERC20 出金投票：从本合约余额 transfer 给 recipient（token 可为 Circle USDC 等外部 ERC20）
+    struct Erc20TransferProposal {
+        address token;
+        address recipient;
+        uint256 amount;
+        uint256 voteCount;
+        bool executed;
+    }
+
+    mapping(bytes32 => Erc20TransferProposal) public erc20TransferProposals;
+    mapping(bytes32 => mapping(address => bool)) public hasVotedErc20Transfer;
+
     /// @dev USDC 兑换 B-Unit 统计：经 miner 投票执行的 airdrop 累计 B-Unit 总量 (6 位精度)
     uint256 public totalUsdc2BUnit;
 
@@ -197,6 +249,10 @@ contract ConetTreasury {
         keccak256("Burn(address user,address token,uint256 amount,uint256 nonce,uint256 deadline)");
     bytes32 private constant VOTE_AIRDROP_TYPEHASH =
         keccak256("VoteAirdropBUnit(address miner,address claimant,uint256 nonce,uint256 deadline,uint256 voteDeadline)");
+    bytes32 private constant VOTE_ERC20_TRANSFER_TYPEHASH =
+        keccak256(
+            "VoteErc20Transfer(address miner,bytes32 txHash,address token,address recipient,uint256 amount,uint256 deadline)"
+        );
     bytes32 public immutable DOMAIN_SEPARATOR;
 
     mapping(address => uint256) public burnNonces;
@@ -594,6 +650,147 @@ contract ConetTreasury {
     }
 
     // ==========================================
+    // 任意 ERC20 出金：miner 2/3 投票后从本合约余额 transfer（含 Circle USDC 等）
+    // ==========================================
+
+    /**
+     * @dev Miner 对「从本合约余额转出任意 ERC20 或原生 ETH」投票。txHash 为关联链上业务交易 hash（幂等键）。
+     *      token 可为任意 ERC20（含非工厂创建的 Circle USDC）；token == address(0) 表示原生 ETH。
+     *      与上方工厂 token mint 的 {vote} 独立。
+     */
+    function voteErc20Transfer(bytes32 txHash, address token, address recipient, uint256 amount) external onlyMiner {
+        if (hasVotedErc20Transfer[txHash][msg.sender]) revert AlreadyVoted();
+        _applyErc20TransferVote(msg.sender, txHash, token, recipient, amount);
+    }
+
+    /**
+     * @dev Miner 离线签字 ERC20 出金投票。任何人可代为提交并代付 gas。
+     *      EIP-712 types: VoteErc20Transfer(miner, txHash, token, recipient, amount, deadline)
+     */
+    function voteErc20TransferWithSignature(
+        address miner,
+        bytes32 txHash,
+        address token,
+        address recipient,
+        uint256 amount,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (!_isMiner[miner]) revert NotMiner();
+        if (hasVotedErc20Transfer[txHash][miner]) revert AlreadyVoted();
+
+        bytes32 structHash = keccak256(
+            abi.encode(VOTE_ERC20_TRANSFER_TYPEHASH, miner, txHash, token, recipient, amount, deadline)
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+        address signer = ECDSA.recover(digest, signature);
+        if (signer != miner) revert InvalidSignature();
+
+        _applyErc20TransferVote(miner, txHash, token, recipient, amount);
+    }
+
+    // 注：ERC20/ETH 出金的 EIP-712 digest 由链下用 DOMAIN_SEPARATOR + VOTE_ERC20_TRANSFER_TYPEHASH 自行计算
+    // （ethers TypedDataEncoder），不再提供 on-chain getErc20TransferVoteDigest（节省 bytecode，EIP-170）。
+
+    function executeErc20Transfer(bytes32 txHash) external {
+        _executeErc20Transfer(txHash);
+    }
+
+    function _applyErc20TransferVote(
+        address miner,
+        bytes32 txHash,
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal {
+        // token == address(0) 表示原生 ETH 出金；非零为 ERC20（含 Circle USDC）
+        if (recipient == address(0)) revert InvalidTarget();
+        if (amount == 0) revert InvalidAmount();
+
+        Erc20TransferProposal storage p = erc20TransferProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+
+        if (p.amount == 0) {
+            p.token = token;
+            p.recipient = recipient;
+            p.amount = amount;
+            p.voteCount = 1;
+            emit Erc20TransferProposalCreated(txHash, token, recipient, amount, miner);
+        } else {
+            if (p.token != token || p.recipient != recipient || p.amount != amount) revert ProposalMismatch();
+            p.voteCount++;
+        }
+
+        hasVotedErc20Transfer[txHash][miner] = true;
+        emit Erc20TransferVoted(txHash, miner, p.voteCount);
+
+        if (p.voteCount >= requiredVotes()) {
+            _executeErc20Transfer(txHash);
+        }
+    }
+
+    function _executeErc20Transfer(bytes32 txHash) internal {
+        Erc20TransferProposal storage p = erc20TransferProposals[txHash];
+        if (p.executed) revert ProposalAlreadyExecuted();
+        if (p.amount == 0) revert ProposalNotExecutable();
+        if (p.voteCount < requiredVotes()) revert ProposalNotExecutable();
+
+        p.executed = true;
+        if (p.token == address(0)) {
+            // 原生 ETH 出金
+            if (address(this).balance < p.amount) revert InsufficientBalance();
+            (bool ok, ) = payable(p.recipient).call{value: p.amount}("");
+            if (!ok) revert TransferFailed();
+        } else {
+            if (IERC20(p.token).balanceOf(address(this)) < p.amount) revert InsufficientBalance();
+            if (!IERC20(p.token).transfer(p.recipient, p.amount)) revert TransferFailed();
+        }
+        emit Erc20TransferExecuted(txHash, p.token, p.recipient, p.amount);
+    }
+
+    // getErc20TransferProposal 已由 public mapping erc20TransferProposals(txHash) 自动 getter 提供，无需重复（EIP-170）。
+
+    // 余额查询用链下 RPC：ERC20.balanceOf(treasury) / provider.getBalance(treasury)。
+    // 不再提供 on-chain erc20Balance / ethBalance view（节省 bytecode，EIP-170）。
+
+    // ==========================================
+    // 入金（取代旧 BaseTreasury）：原生 ETH / ERC20 / EIP-3009 离线
+    // ==========================================
+
+    /// @dev 接收原生 ETH。直接转账时触发 ETHDeposited。
+    receive() external payable {
+        if (msg.value > 0) emit ETHDeposited(msg.sender, msg.value);
+    }
+
+    // 通用 ERC20 入金可直接 transfer 到本合约地址（落入余额，经 voteErc20Transfer 出金）。
+    // 任意 ERC20 也可直接 transfer 进来。若需 EIP-3009 离线入金，使用 purchaseBUnitWith3009Authorization（USDC）。
+
+    // ==========================================
+    // 购买 B-Unit（USDC → 本合约 + emit BUnitPurchased，CoNET-SI 监听铸 B-Unit）
+    // ==========================================
+
+    /// @dev 离线签字购买 B-Unit（EIP-3009 bytes 签名）。任何人可代付 gas。
+    ///      服务端 MemberCard.purchaseBUnitFromBaseProcess 调用本函数。
+    function purchaseBUnitWith3009Authorization(
+        address from,
+        address usdc,
+        uint256 amount,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 nonce,
+        bytes calldata signature
+    ) external {
+        if (usdc == address(0) || from == address(0)) revert InvalidTarget();
+        if (amount == 0) revert InvalidAmount();
+        IERC3009BytesSig(usdc).transferWithAuthorization(
+            from, address(this), amount, validAfter, validBefore, nonce, signature
+        );
+        emit BUnitPurchased(from, usdc, amount);
+    }
+
+
+    // ==========================================
     // USDC 购买 B-Unit 投票：miner 监听 Base BUnitPurchased，用 txHash + to 证明
     // ==========================================
 
@@ -862,14 +1059,7 @@ contract ConetTreasury {
         emit FactoryBurnExecuted(txHash, p.token, p.account, p.amount);
     }
 
-    function getFactoryBurnProposal(bytes32 txHash)
-        external
-        view
-        returns (address token, address account, uint256 amount, uint256 voteCount, bool executed)
-    {
-        FactoryBurnProposal storage p = factoryBurnProposals[txHash];
-        return (p.token, p.account, p.amount, p.voteCount, p.executed);
-    }
+    // getFactoryBurnProposal 已由 public mapping factoryBurnProposals(txHash) 自动 getter 提供（EIP-170）。
 
     // ==========================================
     // 跨链桥：B-Unit burn（miner 2/3 → BUnitAirdrop.consumeFromUser）

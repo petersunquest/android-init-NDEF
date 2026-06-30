@@ -242,6 +242,8 @@ export type { FactoryERC20 } from './b-unit/FactoryERC20.js';
 export { FactoryERC20__factory } from './factories/b-unit/FactoryERC20__factory.js';
 export type { ConetGB1155 } from './b-unit/GB.sol/ConetGB1155.js';
 export { ConetGB1155__factory } from './factories/b-unit/GB.sol/ConetGB1155__factory.js';
+export type { GBToken } from './b-unit/GBToken.sol/GBToken.js';
+export { GBToken__factory } from './factories/b-unit/GBToken.sol/GBToken__factory.js';
 export type { GuardianNodesInfoV6 } from './b-unit/GuardianNodesInfoV6.js';
 export { GuardianNodesInfoV6__factory } from './factories/b-unit/GuardianNodesInfoV6__factory.js';
 export type { TreasuryCreate2Lib } from './b-unit/TreasuryCreate2Lib.js';

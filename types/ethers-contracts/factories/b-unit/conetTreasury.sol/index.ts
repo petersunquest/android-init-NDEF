@@ -6,4 +6,6 @@ export { IBUnitAirdrop__factory } from './IBUnitAirdrop__factory.js';
 export { IBurnableFactoryERC20__factory } from './IBurnableFactoryERC20__factory.js';
 export { IConetGB1155__factory } from './IConetGB1155__factory.js';
 export { IConetTreasuryPeerView__factory } from './IConetTreasuryPeerView__factory.js';
+export { IERC20__factory } from './IERC20__factory.js';
+export { IERC3009BytesSig__factory } from './IERC3009BytesSig__factory.js';
 export { IMintableERC20__factory } from './IMintableERC20__factory.js';

@@ -6,42 +6,42 @@ This ensures the JSON files are extremely small (under 100 KB), compile instantl
 
 ## ConetTreasury
 Address: 0xc6e615431BC0c0c65E09e04877a08AC927A30242
-Upload JSON: deployments/base-ConetTreasury-standard-input-FULL-FORM.json (58.3 KB)
+Upload JSON: deployments/base-ConetTreasury-standard-input-FULL-FORM.json (200.0 KB)
 Contract Name: project/src/b-unit/conetTreasury.sol:ConetTreasury
 Constructor Arguments (no 0x): 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 
 ## ConetTreasuryPeer
 Address: 0xCF26c1686aC5E01e37B72017E575511C42cad29f
-Upload JSON: deployments/base-ConetTreasuryPeer-standard-input-FULL-FORM.json (25.8 KB)
+Upload JSON: deployments/base-ConetTreasuryPeer-standard-input-FULL-FORM.json (170.8 KB)
 Contract Name: project/src/b-unit/ConetTreasuryPeer.sol:ConetTreasuryPeer
 Constructor Arguments (no 0x): 000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242
 
 ## FactoryERC20
 Address: 0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39
-Upload JSON: deployments/base-FactoryERC20-standard-input-FULL-FORM.json (4.2 KB)
+Upload JSON: deployments/base-FactoryERC20-standard-input-FULL-FORM.json (149.1 KB)
 Contract Name: project/src/b-unit/FactoryERC20.sol:FactoryERC20
 Constructor Arguments (no 0x): 000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000012000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242000000000000000000000000000000000000000000000000000000000000000d5772617070656420436f4e455400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000577434e4554000000000000000000000000000000000000000000000000000000
 
 ## BeamioBUnits
 Address: 0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f
-Upload JSON: deployments/base-BeamioBUnits-standard-input-FULL-FORM.json (15.9 KB)
+Upload JSON: deployments/base-BeamioBUnits-standard-input-FULL-FORM.json (162.2 KB)
 Contract Name: project/src/b-unit/BUint.sol:BeamioBUnits
 Constructor Arguments (no 0x): 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 
 ## ConetGB1155
 Address: 0xcA423EEBC09d09834dC9CA28861798B3321893ab
-Upload JSON: deployments/base-ConetGB1155-standard-input-FULL-FORM.json (203.0 KB)
+Upload JSON: deployments/base-ConetGB1155-standard-input-FULL-FORM.json (355.8 KB)
 Contract Name: project/src/b-unit/GB.sol:ConetGB1155
 Constructor Arguments (no 0x): 000000000000000000000000000000000000000000000000000000006a141da0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 
 ## ConetGB_total
 Address: 0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11
-Upload JSON: deployments/base-ConetGB_total-standard-input-FULL-FORM.json (205.0 KB)
+Upload JSON: deployments/base-ConetGB_total-standard-input-FULL-FORM.json (357.8 KB)
 Contract Name: project/src/b-unit/gbTotal.sol:ConetGB_total
 Constructor Arguments (no 0x): 000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab
 
 ## ConetGB_userTotal
 Address: 0x5663d651783364325045f061d93d05808c231163
-Upload JSON: deployments/base-ConetGB_userTotal-standard-input-FULL-FORM.json (204.0 KB)
+Upload JSON: deployments/base-ConetGB_userTotal-standard-input-FULL-FORM.json (356.8 KB)
 Contract Name: project/src/b-unit/gbUserTotal.sol:ConetGB_userTotal
 Constructor Arguments (no 0x): 000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab

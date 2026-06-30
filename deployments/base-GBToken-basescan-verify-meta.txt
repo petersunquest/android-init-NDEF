@@ -1,0 +1,6 @@
+GBToken verification
+Address: 0xbeEbE03943b55e67373796ddc7314fC76f5b5911
+Contract: project/src/b-unit/GBToken.sol:GBToken
+Compiler: v0.8.35+commit.47b9dedd
+Sources: 14
+Constructor Args ABI-encoded: 00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1

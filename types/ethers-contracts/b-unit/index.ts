@@ -13,6 +13,8 @@ import type * as conetTreasuryPeerSol from './ConetTreasuryPeer.sol/index.js';
 export type { conetTreasuryPeerSol };
 import type * as gbSol from './GB.sol/index.js';
 export type { gbSol };
+import type * as gbTokenSol from './GBToken.sol/index.js';
+export type { gbTokenSol };
 import type * as baseTreasurySol from './baseTreasury.sol/index.js';
 export type { baseTreasurySol };
 import type * as businessStartKetSol from './businessStartKet.sol/index.js';

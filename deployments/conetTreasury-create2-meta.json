@@ -1,13 +1,12 @@
 {
-  "predictedAddress": "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795",
+  "predictedAddress": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
   "initialMiner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
   "salt": "0x0d0e7b3190abfdc68d91aab78d038a8027e4ea1659e8710b7e5889aa14e6c8a5",
-  "initCodeHash": "0x0e9957434f292097fbf90ab343a67697507c96af8d2fe4e909cdff49c80e16f9",
-  "updatedAt": "2026-06-27T02:23:55.738Z",
+  "initCodeHash": "0x63b6cca1e243dee233a9a0186344af7d231dfc83d94c8485f3f4c6a8159ba8fe",
+  "updatedAt": "2026-06-29T22:48:07.815Z",
   "create2Salt": "0x0d0e7b3190abfdc68d91aab78d038a8027e4ea1659e8710b7e5889aa14e6c8a5",
   "deployments": {
-    "8453": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
-    "224422": "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795"
+    "8453": "0xa311c8fBE7CafC611603Ee925465A62493B73B30"
   }
 }

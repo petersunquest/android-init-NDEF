@@ -1,0 +1,30 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "contract": "NodeSaleSplitter",
+  "upgradeable": true,
+  "proxyPattern": "ERC1967Proxy",
+  "source": "src/mainnet/NodeSaleSplitter.sol",
+  "address": "0x648D628e05DaD493dcECf8C8cDDb4E8867635d49",
+  "implementation": "0x28097dF1c3ad73013287D1B43CA7d28644f95Ecf",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "treasury": "0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58",
+  "serverFeeRecipient": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "nodePriceUsdc6": "1250000000",
+  "serverFeeUsdc6": "120000000",
+  "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initializeArgs": {
+    "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "treasury": "0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58",
+    "serverFeeRecipient": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "nodePriceUsdc6": "1250000000",
+    "serverFeeUsdc6": "120000000",
+    "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "compiler": "0.8.35+commit.47b9dedd",
+  "timestamp": "2026-06-29T20:04:01.742Z",
+  "deployBlock": 47987046,
+  "transactionHash": "0x5b9ad8dc6f86f4f6e9d3a02e65536c9758159b99f326611076a1e136cdfa96ed",
+  "implementationTransactionHash": "0xfc7fcc116b40c1f6e7785226d630ceb10ba1d29681f8ea426c36799c338dc9bf"
+}

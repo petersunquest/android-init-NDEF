@@ -26,6 +26,13 @@ const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://mainnet.con
 const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet.network").replace(/\/$/, "");
 const CONET_RPC = process.env.CONET_RPC_URL || "https://publicrpc.conet.network";
 const COMPILER_VERSION = `v${BASESCAN_COMPILER_VERSION}`;
+/**
+ * Implementation + linked libraries were redeployed 2026-06-29 under solc 0.8.35
+ * (UUPS upgrade + _nativeLock fix). ReferrerExtension / TransferMarket / RewardIndexer
+ * remain at the original 0.8.33 deployment, so they keep COMPILER_VERSION (0.8.33).
+ * On-chain solc markers confirm this split (impl/libs tail 0x000823 = 0.8.35; the others 0x000821 = 0.8.33).
+ */
+const REDEEM_IMPL_AND_LIBS_COMPILER_VERSION = "v0.8.35+commit.47b9dedd";
 /** OpenZeppelin prebuilt ERC1967Proxy artifact (npm @openzeppelin/contracts build/) */
 const OZ_ERC1967_PROXY_COMPILER_VERSION = "v0.8.27+commit.40a35a09";
 
@@ -198,6 +205,7 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
         constructorTypes: [],
         constructorValues: [],
         libraryLinks: libraryLinksForRedeemMain(flatLibs),
+        compilerVersion: REDEEM_IMPL_AND_LIBS_COMPILER_VERSION,
       }
     : {
         key: "ValidatorDepositRedeem",
@@ -225,6 +233,7 @@ function loadTargets(data: DeploymentJson): VerifyTarget[] {
         address: getAddress(addr),
         rootSource: LIB_ROOT_SOURCES[name],
         contractName: `${LIB_ROOT_SOURCES[name]}:${name}`,
+        compilerVersion: REDEEM_IMPL_AND_LIBS_COMPILER_VERSION,
       },
     ];
   });
@@ -378,6 +387,58 @@ async function submitVerify(target: VerifyTarget, standardJson: string): Promise
   }
 }
 
+/**
+ * Legacy /api verifysourcecode submission. Required for the OZ prebuilt ERC1967Proxy:
+ * the v2 standard-input endpoint on this Blockscout only accepts a full bytecode match,
+ * but the prebuilt proxy's ipfs metadata hash cannot be reproduced from our standard JSON
+ * (OZ built it with different input source keys). The legacy endpoint accepts a partial
+ * (metadata-stripped) match, which is correct here since the runtime code matches exactly.
+ */
+async function submitVerifyLegacy(target: VerifyTarget, standardJson: string): Promise<void> {
+  const ctor = constructorArgsHex(target);
+  const body = new URLSearchParams();
+  body.set("addressHash", target.address);
+  body.set("contractaddress", target.address);
+  body.set("contractname", target.contractName);
+  body.set("compilerversion", target.compilerVersion ?? COMPILER_VERSION);
+  body.set("codeformat", "solidity-standard-json-input");
+  body.set("sourceCode", standardJson);
+  body.set("contractSourceCode", standardJson);
+  body.set("constructorArguments", ctor);
+  body.set("autodetectConstructorArguments", "false");
+
+  console.log(`\nPOST (legacy) ${target.key} @ ${target.address}`);
+  console.log("  contract_name:", target.contractName);
+  if (ctor) console.log("  constructor_args:", ctor);
+
+  const res = await fetch(`${BLOCKSCOUT_UI}/api?module=contract&action=verifysourcecode`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  const out = (await res.json()) as { status?: string; result?: string; message?: string };
+  console.log(" ", JSON.stringify(out));
+  const guid = out.result;
+  if (out.status !== "1" || !guid) {
+    throw new Error(`legacy 提交失败: ${out.message ?? out.result ?? "unknown"}`);
+  }
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 4000));
+    const c = await fetch(
+      `${BLOCKSCOUT_UI}/api?module=contract&action=checkverifystatus&guid=${guid}`
+    );
+    const ct = (await c.json()) as { result?: string };
+    if (/pass|verified|already/i.test(ct.result ?? "")) {
+      console.log(`✅ 已验证: ${BLOCKSCOUT_UI}/address/${target.address}#code`);
+      return;
+    }
+    if (/fail|error/i.test(ct.result ?? "")) {
+      throw new Error(`legacy 验证失败: ${ct.result}`);
+    }
+  }
+  throw new Error(`legacy 验证轮询超时: ${target.address}`);
+}
+
 async function waitVerified(address: string): Promise<void> {
   for (let i = 0; i < 40; i++) {
     if (await checkVerified(address)) {
@@ -390,9 +451,14 @@ async function waitVerified(address: string): Promise<void> {
 }
 
 function buildOzProxyStandardJsonSettings() {
+  // Must mirror the @openzeppelin/contracts@5.4.0 prebuilt build/contracts/ERC1967Proxy.json
+  // settings (solc 0.8.27, optimizer runs 200, default ipfs metadata, no viaIR, cancun).
+  // Using bytecodeHash "none" omits the trailing CBOR metadata entirely, so the compiled
+  // length no longer matches on-chain (which carries the 51-byte ipfs metadata) and even a
+  // partial match fails. Keep "ipfs" so Blockscout can match the runtime code.
   return {
     metadata: {
-      bytecodeHash: "none" as const,
+      bytecodeHash: "ipfs" as const,
     },
     optimizer: {
       enabled: true,
@@ -427,11 +493,26 @@ function exportOzStandardJson(absEntry: string): {
   };
 }
 
+/**
+ * Self-verification only: the proxy address must have its OWN ERC1967Proxy bytecode
+ * verified, not merely point to a verified implementation. checkVerified() returns true
+ * for any eip1967 proxy whose impl is verified, which would skip submitting the proxy's
+ * own source — so the skip decision uses this stricter check.
+ */
+async function isAddressSelfVerified(address: string): Promise<boolean> {
+  // Only trust the v2 self flags. The legacy getsourcecode endpoint returns the
+  // implementation ABI for an eip1967 proxy, which would falsely mark the proxy verified.
+  const res = await fetch(`${BLOCKSCOUT_API}/v2/smart-contracts/${address}`);
+  if (!res.ok) return false;
+  const data = (await res.json()) as { is_verified?: boolean; source_code?: string | null };
+  return Boolean(data.is_verified || data.source_code);
+}
+
 async function verifyTarget(target: VerifyTarget): Promise<void> {
   if (!(await rpcHasCode(target.address))) {
     throw new Error(`链上无 code: ${target.address}`);
   }
-  if (await checkVerified(target.address)) {
+  if (await isAddressSelfVerified(target.address)) {
     const proxyNote =
       target.key === "ValidatorDepositRedeemProxy"
         ? "（EIP-1967 proxy，Read as Proxy → 已验证 implementation）"
@@ -445,6 +526,11 @@ async function verifyTarget(target: VerifyTarget): Promise<void> {
     : exportBasescanStandardJsonFromRoot(root, target.rootSource);
   if (target.libraryLinks) {
     (standardJson.settings as Record<string, unknown>).libraries = target.libraryLinks;
+  }
+  if (target.ozAbsPath) {
+    // OZ prebuilt proxy: legacy endpoint (partial-match tolerant) — see submitVerifyLegacy.
+    await submitVerifyLegacy(target, JSON.stringify(standardJson));
+    return;
   }
   await submitVerify(target, JSON.stringify(standardJson));
   await waitVerified(target.address);

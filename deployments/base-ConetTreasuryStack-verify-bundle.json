@@ -1,7 +1,7 @@
 {
   "network": "base",
   "chainId": 8453,
-  "generatedAt": "2026-06-15T19:37:18.077Z",
+  "generatedAt": "2026-06-29T21:44:45.950Z",
   "exportMode": "build-info-full",
   "reference": "deployments/base-BeamioUserCard-standard-input-FULL.json",
   "contracts": [

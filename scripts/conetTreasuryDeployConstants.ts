@@ -17,15 +17,35 @@ export const CONET_TREASURY_CREATE2_SALT = id("beamio.conet_treasury.v1");
 /**
  * 当前 bytecode 下 CREATE2 预测同址（各链 Nick factory + 同 initCode）。
  * bytecode 变更后须重跑 predictCrossChainAssets.ts / predictConetTreasuryCreate2Address.ts。
+ *
+ * 2026-06-29（统一国库）：在 ERC20 投票出金基础上合并 BaseTreasury 全部入金能力
+ * （receive ETH、purchaseBUnitWith3009Authorization → BUnitPurchased）并把原生 ETH 出金
+ * 并入 voteErc20Transfer（token == address(0)）。bytecode 变更，预测地址改为下列新址。
+ * 已在 Base(8453) 部署，deploy tx 0xffd21164afe1c331470a9e92e9d273d8aaf8d176d1c1547f9bc3ca8ad9fe3ffb，
+ * block 47991996，initCodeHash 0x63b6cca1e243dee233a9a0186344af7d231dfc83d94c8485f3f4c6a8159ba8fe。
+ * 作为唯一国库（BaseTreasury 0x5c64…、旧 ConetTreasury 0xc6e6… / 0x30a9… 均弃用）。
+ * CoNET L1(224422) 须用同脚本 --network conet 部署同址后才有 code。
  */
 export const CONET_TREASURY_CREATE2_PREDICTED = getAddress(
+  "0xa311c8fBE7CafC611603Ee925465A62493B73B30"
+);
+/** @deprecated 旧 ConetTreasury（无 ERC20 投票出金），已被 CONET_TREASURY_CREATE2_PREDICTED 取代 */
+export const CONET_TREASURY_CREATE2_PREDICTED_LEGACY = getAddress(
   "0xc6e615431BC0c0c65E09e04877a08AC927A30242"
+);
+/** @deprecated 仅加 ERC20 投票出金的中间版（未合并 BaseTreasury 入金），已被统一国库 0xa311… 取代 */
+export const CONET_TREASURY_CREATE2_PREDICTED_LEGACY_V2 = getAddress(
+  "0x30a9251bC24df235BdCB6F20933f74d6EFc247a8"
 );
 
 /** Peer 桥模块 CREATE2 salt（constructor 固定链接 Treasury 同址） */
 export const CONET_TREASURY_PEER_CREATE2_SALT = id("beamio.conet_treasury_peer.v1");
 
-/** 须与 CONET_TREASURY_CREATE2_PREDICTED 一致后再预测；见 predictCrossChainAssets.ts */
+/**
+ * ⚠️ 下列 Peer / wCNET 地址绑定的是 *旧* treasury 0xc6e6…（Peer constructor immutable treasury）。
+ * 统一国库 0xa311… 若需 mint/peer 能力，须用新 treasury 重新预测并部署 Peer 栈（地址会随之改变），
+ * 并完成 BUint/GB/wCNET minter 重绑；见 deployConetTreasuryCreate2 + configureConetTreasuryOnConet。
+ */
 export const CONET_TREASURY_PEER_CREATE2_PREDICTED = getAddress(
   "0xCF26c1686aC5E01e37B72017E575511C42cad29f"
 );

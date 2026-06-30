@@ -1,9 +1,9 @@
 Contract Name: project/src/b-unit/gbUserTotal.sol:ConetGB_userTotal
 Address: 0x5663d651783364325045f061d93d05808c231163
 Constructor Args ABI-encoded: 0x000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab
-Standard JSON: deployments/base-ConetGB_userTotal-standard-input-FULL.json (1.44 MB — build-info FULL，与 BeamioUserCard 同款)
+Standard JSON: deployments/base-ConetGB_userTotal-standard-input-FULL.json (1.71 MB — build-info FULL，与 BeamioUserCard 同款)
 Network: base (chainId 8453)
-Generated: 2026-06-15T19:37:18.077Z
+Generated: 2026-06-29T21:44:45.949Z
 Compiler: v0.8.33+commit.64118f21
 Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
 

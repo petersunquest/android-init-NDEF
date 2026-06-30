@@ -1,0 +1,48 @@
+NodeSaleSplitter — BaseScan 验证元数据
+======================================
+
+合约: src/mainnet/NodeSaleSplitter.sol
+网络: Base (chainId 8453)
+模式: UUPS upgradeable（ERC1967 代理；canonical 地址即代理地址）
+
+部署:
+  npx hardhat run scripts/deployNodeSaleSplitterToBase.ts --network base
+验证:
+  BASESCAN_API_KEY=... npx tsx scripts/verifyNodeSaleSplitterBaseScan.ts
+
+地址（部署后回填，见 deployments/base-NodeSaleSplitter.json）:
+  proxy (canonical):  0x648D628e05DaD493dcECf8C8cDDb4E8867635d49
+  implementation:     0x28097dF1c3ad73013287D1B43CA7d28644f95Ecf
+  deploy block:       47987046
+  proxy tx:           0x5b9ad8dc6f86f4f6e9d3a02e65536c9758159b99f326611076a1e136cdfa96ed
+  impl tx:            0xfc7fcc116b40c1f6e7785226d630ceb10ba1d29681f8ea426c36799c338dc9bf
+
+实现合约（NodeSaleSplitter）验证参数:
+  Type:             Solidity (Standard-Json-Input)
+  Compiler:         v0.8.35+commit.47b9dedd        # 守则 beamio-solc-compiler-version.mdc
+  Contract Name:    project/src/mainnet/NodeSaleSplitter.sol:NodeSaleSplitter
+  Constructor Args: (空 — UUPS impl 构造器仅 _disableInitializers)
+  Standard JSON:    递归依赖剪枝 FULL-FORM（exportBasescanStandardJsonFromRoot）
+  settings:         viaIR=true, optimizer.runs=0, evmVersion=cancun, bytecodeHash=none, revertStrings=strip
+                    outputSelection 通配符 "*"（BaseScan UI 兼容）
+
+ERC1967 代理（OpenZeppelin @5.4.0 预编译）验证参数:
+  Compiler:         v0.8.27+commit.40a35a09
+  Contract Name:    @openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy
+  settings:         viaIR=false, optimizer.runs=200, evmVersion=cancun, bytecodeHash=none
+  Constructor Args: abi.encode(address implementation, bytes initData)
+                    initData = initialize(usdc, treasury, serverFeeRecipient, nodePriceUsdc6, serverFeeUsdc6, admin)
+  说明:             若 Etherscan 重编版本不匹配，可在 BaseScan 用 "Is this a proxy?" 自动识别 EIP-1967 implementation。
+
+initialize 参数（默认）:
+  usdc                = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913  (Base USDC)
+  treasury            = 0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58  (BASE_TREASURY)
+  serverFeeRecipient  = 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+  nodePriceUsdc6      = 1250000000   (1250 USDC)
+  serverFeeUsdc6      = 120000000    (120 USDC)
+  admin               = settle_contractAdmin[0]（部署者；后续 setAdmin 加入 Master relayer）
+
+拆账语义:
+  每节点 gross = 1370 USDC = 1250 (→treasury) + 120 (→serverFeeRecipient)
+  Method B（主）: x402 facilitator settle 全额到代理 → admin 调 distribute(nodeCount, claimAddress, purchaseRef)
+  Method A（原子）: purchaseNodes(...) 用 EIP-3009 receiveWithAuthorization 收款并即时拆账（permissionless）

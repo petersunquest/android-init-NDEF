@@ -12,6 +12,8 @@
  *                                 走 SC.walletConet 发出的全部 CoNET 链交易）
  *   - beamio_Admins[]          （x402sdk db.ts 的 followByAdmin / setNameHashBase64 /
  *                                 addPublicPGPByAdmin / addRoute / setBuintFee 等）
+ *   - newFaucetAdmin[]         （CoNET-DL ticket/profile/transferCCNTP 等 Cancun 链管理钱包；
+ *                                 如 ticket(newFaucetAdmin[2])、transferCCNTP(newFaucetAdmin[5])）
  *
  * 必须覆盖 settle_contractAdmin / beamio_Admins —— 否则 chain restart 后这两类钱包
  * 余额为 0，会出现：
@@ -70,6 +72,7 @@ type MasterJson = {
   GB_airdrop?: string;
   settle_contractAdmin?: string[];
   beamio_Admins?: string[];
+  newFaucetAdmin?: string[];
   admin?: string[];
 };
 
@@ -140,12 +143,14 @@ function loadCoNETDLManagerAddresses(): ManagerEntry[] {
     { source: "settle_contractAdmin", pks: Array.isArray(raw.settle_contractAdmin) ? raw.settle_contractAdmin : [] },
     // x402sdk db.ts: followByAdmin / setNameHashBase64 / addPublicPGPByAdmin / addRoute 等。
     { source: "beamio_Admins", pks: Array.isArray(raw.beamio_Admins) ? raw.beamio_Admins : [] },
+    // CoNET-DL Cancun 链 ticket / profile / transferCCNTP 等管理钱包（newFaucetAdmin[2] ticket 等）
+    { source: "newFaucetAdmin", pks: Array.isArray(raw.newFaucetAdmin) ? raw.newFaucetAdmin : [] },
   ];
 
   const total = buckets.reduce((n, b) => n + b.pks.length, 0);
   if (!total) {
     throw new Error(
-      `${MASTER_JSON} 中未找到 initManager / ETH_Manager / epochManagre / GB_airdrop / settle_contractAdmin / beamio_Admins`
+      `${MASTER_JSON} 中未找到 initManager / ETH_Manager / epochManagre / GB_airdrop / settle_contractAdmin / beamio_Admins / newFaucetAdmin`
     );
   }
 

@@ -135,6 +135,8 @@ getContractFactory(name: 'EIP1155Permit3009', signerOrOptions?: ethers.Signer | 
 getContractFactory(name: 'EIP20Permit3009', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.EIP20Permit3009__factory>
 getContractFactory(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.FactoryERC20__factory>
 getContractFactory(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB1155__factory>
+getContractFactory(name: 'GBToken', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GBToken__factory>
+getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
 getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
 getContractFactory(name: 'TreasuryCreate2Lib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryCreate2Lib__factory>
 getContractFactory(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BaseTreasury__factory>
@@ -147,6 +149,8 @@ getContractFactory(name: 'IBUnitAirdrop', signerOrOptions?: ethers.Signer | Fact
 getContractFactory(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBurnableFactoryERC20__factory>
 getContractFactory(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetGB1155__factory>
 getContractFactory(name: 'IConetTreasuryPeerView', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryPeerView__factory>
+getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
+getContractFactory(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC3009BytesSig__factory>
 getContractFactory(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IMintableERC20__factory>
 getContractFactory(name: 'ConetGB_total', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB_total__factory>
 getContractFactory(name: 'ConetGB_userTotal', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB_userTotal__factory>
@@ -350,6 +354,8 @@ getContractAt(name: 'EIP1155Permit3009', address: string | ethers.Addressable, s
 getContractAt(name: 'EIP20Permit3009', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.EIP20Permit3009>
 getContractAt(name: 'FactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.FactoryERC20>
 getContractAt(name: 'ConetGB1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB1155>
+getContractAt(name: 'GBToken', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GBToken>
+getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
 getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
 getContractAt(name: 'TreasuryCreate2Lib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryCreate2Lib>
 getContractAt(name: 'BaseTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BaseTreasury>
@@ -362,6 +368,8 @@ getContractAt(name: 'IBUnitAirdrop', address: string | ethers.Addressable, signe
 getContractAt(name: 'IBurnableFactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBurnableFactoryERC20>
 getContractAt(name: 'IConetGB1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetGB1155>
 getContractAt(name: 'IConetTreasuryPeerView', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryPeerView>
+getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
+getContractAt(name: 'IERC3009BytesSig', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC3009BytesSig>
 getContractAt(name: 'IMintableERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IMintableERC20>
 getContractAt(name: 'ConetGB_total', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB_total>
 getContractAt(name: 'ConetGB_userTotal', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB_userTotal>
@@ -565,6 +573,8 @@ deployContract(name: 'EIP1155Permit3009', signerOrOptions?: ethers.Signer | Depl
 deployContract(name: 'EIP20Permit3009', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP20Permit3009>
 deployContract(name: 'FactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
+deployContract(name: 'GBToken', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GBToken>
+deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'TreasuryCreate2Lib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCreate2Lib>
 deployContract(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
@@ -577,6 +587,8 @@ deployContract(name: 'IBUnitAirdrop', signerOrOptions?: ethers.Signer | DeployCo
 deployContract(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
 deployContract(name: 'IConetGB1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155>
 deployContract(name: 'IConetTreasuryPeerView', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryPeerView>
+deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
+deployContract(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
 deployContract(name: 'IMintableERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
 deployContract(name: 'ConetGB_total', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_total>
 deployContract(name: 'ConetGB_userTotal', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_userTotal>
@@ -780,6 +792,8 @@ deployContract(name: 'EIP1155Permit3009', args: any[], signerOrOptions?: ethers.
 deployContract(name: 'EIP20Permit3009', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.EIP20Permit3009>
 deployContract(name: 'FactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.FactoryERC20>
 deployContract(name: 'ConetGB1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
+deployContract(name: 'GBToken', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GBToken>
+deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'TreasuryCreate2Lib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCreate2Lib>
 deployContract(name: 'BaseTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
@@ -792,6 +806,8 @@ deployContract(name: 'IBUnitAirdrop', args: any[], signerOrOptions?: ethers.Sign
 deployContract(name: 'IBurnableFactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
 deployContract(name: 'IConetGB1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetGB1155>
 deployContract(name: 'IConetTreasuryPeerView', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryPeerView>
+deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
+deployContract(name: 'IERC3009BytesSig', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
 deployContract(name: 'IMintableERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IMintableERC20>
 deployContract(name: 'ConetGB_total', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_total>
 deployContract(name: 'ConetGB_userTotal', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB_userTotal>

@@ -136,18 +136,19 @@ function consumeFuel(address user, uint256 amount) external onlyAdmin {
 
 | 合约 | 地址 | 说明 |
 |------|------|------|
-| **BaseTreasury** | `0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58` | Base 国库，接收 ETH/ERC20，miner 2/3 投票转出 |
+| **ConetTreasury** (CREATE2 统一国库) | `0xa311c8fBE7CafC611603Ee925465A62493B73B30` | 已部署；USDC 入金 + BUnitPurchased + 投票出金 ETH/ERC20 |
+| ~~BaseTreasury~~ | `0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58` | **已弃用** |
 
-Explorer: https://basescan.org/address/0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58
+Explorer: https://basescan.org/address/0xa311c8fBE7CafC611603Ee925465A62493B73B30
 
 ### 6.2 CoNET 主网 (chainId 224422)
 
 **RPC：** `https://mainnet-rpc1.conet.network`  
-**说明：** 链已重 genesis；下列 Treasury 为 **CREATE2 预测同址**，须 `deployConetTreasuryCreate2.ts` 首次部署后才有链上代码。
+**说明：** 统一国库 CREATE2 同址 `0xa311…3B30`（Base 已部署；CoNET 须 `deployConetTreasuryCreate2.ts --network conet`）。
 
 | 合约 | 地址 | 说明 |
 |------|------|------|
-| **ConetTreasury** (CREATE2) | `0x0Fa8213c0e7f749B68107900338f3a767086f351` | 已部署；miner 2/3 投票 mint / peer wrapped |
+| **ConetTreasury** (CREATE2) | `0xa311c8fBE7CafC611603Ee925465A62493B73B30` | 与 Base 同址；miner 投票 mint / peer / B-Unit airdrop |
 | **conetUSDC** (legacy createERC20) | `0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa` | Treasury 工厂发行 USDC |
 | **Wrapped Base USDC** (CREATE2) | `0x24E259c5Ae58B73587F293524d59309E0832C60f` | peer deposit → mint 包装币 |
 | **BUnitAirdrop** | （见 `deployments/conet-addresses.json`） | B-Unit 空投与 USDC 购买入口 |

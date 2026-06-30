@@ -1,0 +1,23 @@
+{
+  "contract": "GBToken",
+  "source": "src/b-unit/GBToken.sol",
+  "predictedAddress": "0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
+  "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "create2Salt": "0x43aefeabd2f6b7e9fd1566ddbc9bbf04642de5830cb44afa0710539bfe599f7e",
+  "initCodeHash": "0x42e127096f2fcd3d01ff61da2d988e63b9389d3d95c5fc01b29a1a23f17547fc",
+  "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "decimals": 9,
+  "deployments": {
+    "224422": {
+      "address": "0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
+      "block": 187079,
+      "tx": "0x8e85a9331b2ad02a23661d4679a49cb156866d615aaf32b81f1f841a38b0cf1d"
+    },
+    "8453": {
+      "address": "0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
+      "block": 47999702,
+      "tx": "0x71513ec955f4cb3370bc734a9c8e8026edfbe096b281ef434fd4d7222f73df11"
+    }
+  },
+  "updatedAt": "2026-06-30T03:15:00.000Z"
+}

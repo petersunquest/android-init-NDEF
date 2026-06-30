@@ -96,6 +96,17 @@
   "ConetGB1155": "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748",
   "ConetGB_total": "0x949ed49faB0e999f685f16e09Cf5EaaF4090F290",
   "ConetGB_userTotal": "0x40435307b533c5bd8349368f27BaaDA13678657C",
+  "_GBToken_comment": "9位ERC20 GB（可转账/gasless/投票跨链桥），与作为miner记账的ConetGB1155并存。CREATE2同址（CoNET/Base），salt beamio.gb.erc20.v1；部署: scripts/deployGBTokenCreate2.ts",
+  "GBTokenERC20": "0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
+  "GBTokenERC20DeployMode": "CREATE2_deployed",
+  "GBTokenERC20ConetTx": "0x8e85a9331b2ad02a23661d4679a49cb156866d615aaf32b81f1f841a38b0cf1d",
+  "GBTokenERC20BaseTx": "0x71513ec955f4cb3370bc734a9c8e8026edfbe096b281ef434fd4d7222f73df11",
+  "GBTokenERC20MetadataUrl": "https://assets.conet.network/gb/erc20/metadata.json",
+  "GBTokenERC20IconUrl": "https://assets.conet.network/gb/erc20/GB-256.png",
+  "GBTokenERC20AssetsHost": "38.102.126.50 (assets.conet.network, /var/www/assets/gb/erc20, Cloudflare 橙云代理)",
+  "GBTokenERC20MetadataMirror": "https://mainnet.conet.network/gb/erc20/metadata.json (38.102.126.30 镜像)",
+  "GBTokenERC20Decimals": 9,
+  "GBTokenERC20Salt": "beamio.gb.erc20.v1",
   "DEPRECATED_CONET_GB1155": [
     "0xcA423EEBC09d09834dC9CA28861798B3321893ab"
   ],
