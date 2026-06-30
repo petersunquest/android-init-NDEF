@@ -23,7 +23,7 @@ Beamio 的 API 服务器**必须**遵守 cluster/master 协议。**请勿违反�
 
 ## 链上写操作：Pool 队列 + 多钱包并行（nonce 原则）
 
-> **全局总则**：`beamio-onchain-tx-serial-queue.mdc` — 凡链上写交易须 FIFO 入队；**同一签名者**禁止并发送 tx。本节为 Master **多钱包** pool 专项。
+> **全局总则**：`beamio-onchain-tx-serial-queue.mdc` — 链上写须排队；**单钱包** FIFO 串行，**多签字钱包**用 `push`/`shift`/`unshift` 钱包池并行提速。本节为 Master 标准实现。
 
 凡 Master 侧**发送链上交易**的写操作，必须遵守下列执行模型（与 `createCardPoolPress`、`cardRedeemPoolPress` 一致）。
 

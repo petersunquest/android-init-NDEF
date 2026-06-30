@@ -1,26 +1,86 @@
 ---
-description: 全项目链上写交易须按签名者 nonce 车道 FIFO 入队；禁止并发 sendTransaction 抢 nonce
+description: 全项目链上写交易须排队；单钱包 FIFO 串行，多签字钱包可用 push/shift 钱包池并行提速
 alwaysApply: true
 ---
 
-# 链上写交易：串行排队（全局）
+# 链上写交易：排队系统（全局）
 
-凡 **发送链上交易**（`sendTransaction`、`contract.write`、`tx.wait()` 直至 receipt 确认，含代付 gas relay），**必须**通过排队系统执行，**禁止**对同一签名者（EOA / relayer 热钱包）并发送 tx。
+凡 **发送链上交易**（`sendTransaction`、`contract.write`、`tx.wait()` 直至 receipt 确认，含代付 gas relay），**必须**通过 **排队系统** 执行，**禁止**对同一签名者（EOA / relayer 热钱包）并发送 tx。
 
-与 **`beamio-api-cluster-master.mdc`**（Master 业务 pool + `Settle_ContractPool` 多钱包并行）互补：本守则规定 **单钱包 nonce 车道** 的 FIFO 语义；Master 守则规定 **多钱包** 如何并行。
+排队系统分 **两层**，可组合使用：
+
+| 层 | 目的 | 语义 |
+|---|---|---|
+| **① 业务任务队列** | 有序处理业务 | `push` 入队 → `shift` 取任务（FIFO） |
+| **② 签名者维度** | 隔离 nonce | **单钱包** 串行车道；**多钱包** 可并行 |
+
+**提速原则**：持有 **多个** 可签字热钱包时，用 **钱包池 `push`/`shift`/`unshift`** 把并行度提高到「钱包数量」；**不得**用多钱包绕过业务顺序或双持同一钱包。
+
+与 **`beamio-api-cluster-master.mdc`**（Master `*Pool` + `Settle_ContractPool`）为同一模型的服务端标准实现。
 
 ---
 
 ## 核心规则
 
-1. **入队**：任何链上写路径在 `sendTransaction` / 合约写方法调用前，必须把「整段写操作（含 `await tx.wait()`）」包在 **车道队列** 任务里。
-2. **FIFO**：同一车道内严格先进先出；**任意时刻最多一个 in-flight 写任务**。
-3. **出队 / 删除**：任务开始执行时从等待队列 `shift` 移除；**成功或失败后**才算完成，不得遗留幽灵任务。
-4. **车道（lane）= 签名者维度**：
-   - 推荐：`onchainTxLaneForSigner(eoaAddress)` → `eoa:0x…`
-   - 单进程单热钱包 daemon：可用进程级常量（如 `CONET_VALIDATOR_NODE_ONCHAIN_LANE`）
-   - **不同 EOA 可并行**（各自车道）；**同一 EOA 必须串行**
-5. **禁止** `void sendTx()`、`Promise.all` 多个同 signer 写、live 事件与 backfill **并发** 对同一钱包送 tx。
+### A. 单签字钱包 → 单车道 FIFO（必须串行）
+
+1. **入队**：链上写须包在 **车道队列** 任务内（含 `await tx.wait()`）。
+2. **FIFO**：同一车道任意时刻 **最多一个 in-flight** 写。
+3. **出队**：任务开始执行时 `shift` 移出等待队列；**成功或失败** 后任务结束。
+4. **车道 key** = 签名者：`onchainTxLaneForSigner(eoa)` → `eoa:0x…`；单热钱包 daemon 可用进程级常量（如 `CONET_VALIDATOR_NODE_ONCHAIN_LANE`）。
+5. **禁止** 同 signer 上 `void sendTx()`、`Promise.all` 多笔写、live + backfill 并发抢 nonce。
+
+### B. 多签字钱包 → 钱包池 `push`/`shift` 并行（推荐提速）
+
+当服务配置 **≥2 个** 独立签字 EOA（各自 nonce 链）时：
+
+1. **钱包池**：`WalletPool: Signer[]`，启动时 `push` 填入全部可用签字钱包（或从 `Settle_ContractPool` 初始化）。
+2. **借钱包**：每个写任务 **`const sc = WalletPool.shift()`**；池空则 **延迟重试**（`setTimeout` 链），**禁止**忙等或双持。
+3. **还钱包**：`try/finally` 内 **`WalletPool.unshift(sc)`**，无论 tx 成功或失败都必须归还。
+4. **并行度**：不同任务占用 **不同** `sc` 时可 **同时** `sendTransaction`；**同一 `sc` 仍须串行**（一个 worker 持有时不得第二笔写）。
+5. **业务池 + 钱包池**（Master 标准）：
+   - 业务 `requestPool.push(task)` → `kickPoolPress()` 可启多个 worker；
+   - 每 worker：`shift` 一条业务任务 + `shift` 一个钱包 → 写链 → `finally` 还钱包 → `schedule` 下一条。
+6. **不得** 为并行把 **同一私钥** 注册进池两次；不得 `shift` 后 early-return 路径漏 `unshift`。
+
+```typescript
+// 多钱包并行模板（与 Settle_ContractPool / *PoolPress 一致）
+export async function examplePoolPress() {
+  const task = businessPool.shift()
+  if (!task) return
+  const sc = signerPool.shift()
+  if (!sc) {
+    businessPool.unshift(task)
+    return setTimeout(() => kickPoolPress(), 3000)
+  }
+  try {
+    const tx = await contract.write(sc.wallet)
+    await tx.wait()
+    task.resolve(tx.hash)
+  } catch (e) {
+    task.reject(e)
+  } finally {
+    signerPool.unshift(sc) // 必须归还
+    schedulePoolPress()
+  }
+}
+
+function kickPoolPress() {
+  // 每个空闲钱包可各跑一个 worker → 多笔 tx 并行
+  while (signerPool.length > 0 && businessPool.length > 0) {
+    examplePoolPress().catch(log)
+  }
+}
+```
+
+### C. 何时用哪种
+
+| 条件 | 做法 |
+|---|---|
+| 仅 **1** 个热钱包 | `enqueueOnchainTxWork(lane, …)` 单车道 FIFO |
+| **≥2** 个热钱包、吞吐优先 | 业务 `push`/`shift` + 钱包池 `shift`/`unshift` 并行 |
+| 共用本地资源（`validator_deposits.json`、Prysm import） | 资源敏感段仍可用 **单进程车道** 串行；仅 **纯链上写** 段用多钱包池 |
+| 客户端用户 EOA | 钱包自管 nonce；**服务端代付** 仍须 ① 或 ② |
 
 ---
 
@@ -28,11 +88,11 @@ alwaysApply: true
 
 | 场景 | 排队方式 |
 |---|---|
-| **x402sdk Master** | 业务 `*Pool` FIFO + `Settle_ContractPool.shift`/`unshift`（每任务一钱包）— 见 `beamio-api-cluster-master.mdc` |
-| **Validator listener daemon** | `enqueueOnchainTxWork(CONET_VALIDATOR_NODE_ONCHAIN_LANE, …)` — claim / fundAndDeposit / fullExit / CL payout 共用车道 |
-| **定时 daemon 扫链写合约** | 写任务入队；tick 仍须 `beamio-interval-daemon-no-overlap.mdc`（读可并发，写入队） |
-| **客户端 PWA / bizSite** | 用户 EOA 签名由钱包 nonce 管理；**服务端代付**路径仍须 Master pool，不得绕过 |
-| **脚本 / 部署** | 同一 deployer 连续 deploy 须串行或显式 nonce 管理；推荐单脚本顺序 `await` |
+| **x402sdk Master** | 业务 `*Pool` **`push`/`shift`** + **`Settle_ContractPool` `shift`/`unshift`**（多钱包并行）— 见 `beamio-api-cluster-master.mdc` |
+| **Validator listener（单 redeem-admin）** | `enqueueOnchainTxWork(CONET_VALIDATOR_NODE_ONCHAIN_LANE, …)` 单车道；若增第二签字钱包须改 **per-signer lane** 或钱包池 |
+| **定时 daemon 扫链写合约** | 写任务入队；多钱包时用池并行；tick 须 `beamio-interval-daemon-no-overlap.mdc` |
+| **客户端 PWA / bizSite** | 用户 EOA 由钱包管 nonce；服务端代付走 Master 钱包池 |
+| **脚本 / 部署** | 单 deployer 串行；多 deployer 可各启 worker + 各钱包池 |
 
 ---
 
@@ -79,15 +139,17 @@ await waitForOnchainTxQueue(CONET_VALIDATOR_NODE_ONCHAIN_LANE)
 
 ---
 
-## 与 Master Pool 的关系
+## 与 Master / 钱包池的关系
 
-| 层 | 职责 |
-|---|---|
-| **业务 pool** | HTTP / 事件任务 FIFO |
-| **`Settle_ContractPool`** | 多 relayer 钱包；**每任务借一个钱包**，`finally` 归还 |
-| **本守则（单钱包车道）** | 同一钱包上 **禁止** 并发 tx；listener 单 redeem-admin 时整进程一条车道 |
+| 层 | 结构 | 并行 |
+|---|---|---|
+| **业务 pool** | `push(task)` / `shift()` | 可多 worker 同时 dequeue **不同** 任务 |
+| **签字钱包池** | `Settle_ContractPool`：`shift(sc)` → 写链 → `finally { unshift(sc) }` | **钱包数 N ⇒ 最多 N 笔 tx 并行** |
+| **单钱包车道** | `enqueueOnchainTxWork(lane, …)` | 并行度 1 |
 
-新增 Master `*PoolPress` 时：**仍须** `Settle_ContractPool` shift/unshift；**不得**对同一 `SC` 并发两笔 tx。
+新增 Master `*PoolPress`：**必须** 业务 pool + `Settle_ContractPool` shift/unshift；**不得**对同一 `sc` 并发两笔 tx。
+
+扩容检查：增加 `beamio_Admins` / settle 钱包后，确认 pool 初始化 `push` 全部地址且 worker 在池非空时 `kick` 多路。
 
 ---
 
@@ -105,24 +167,27 @@ await waitForOnchainTxQueue(CONET_VALIDATOR_NODE_ONCHAIN_LANE)
 
 ## AI 检查清单
 
-- [ ] 新增链上写是否包在 `enqueueOnchainTxWork` / Master `*Pool` + `Settle_ContractPool`？
-- [ ] 同一 signer 是否存在 `void`  fire-and-forget 写或并行 `Promise.all` 写？
-- [ ] 任务是否含 **`await tx.wait()`** 后才算完成？
-- [ ] live + backfill / 多事件是否会并发抢 nonce？
-- [ ] daemon SIGTERM 是否 `waitForOnchainTxQueue` / `waitForAllOnchainTxQueues`？
-- [ ] 车道 key 是否按 **签名者** 区分（非按事件类型随意共用车道）？
+- [ ] 链上写是否入队（单车道 **或** 业务 pool + 钱包池）？
+- [ ] **多钱包**场景是否 `shift` 借钱包、`finally` **`unshift` 归还**？
+- [ ] 池空时是否 **delay 重试**，而非并发双持同一钱包？
+- [ ] 同一 signer 是否无 `void` / `Promise.all` 并行写？
+- [ ] 任务是否 **`await tx.wait()`** 后才算完成并释放钱包？
+- [ ] live + backfill 是否会抢同一 nonce？
+- [ ] SIGTERM 是否 `waitForOnchainTxQueue` / 等待业务池 + 在途 tx 结束？
+- [ ] 增钱包后是否更新 pool 初始化与 `kick` 并行度？
 
 ---
 
 ## 严禁
 
-- ❌ 同一热钱包并发 `fundAndDepositValidators` / `claimRedeemFor` relay / 任意写而不入队
-- ❌ 仅用 `inFlight` Set 防重复 **同一 requestId**，却允许多 **不同** claim 并发写
-- ❌ 队列任务未完成就 `shift` 后丢失 Promise（须 resolve/reject 调用方）
-- ❌ 为「更快」跳过 `tx.wait()` 即标记成功并出队下一任务（除非产品明确 accept 未确认风险并文档化）
-- ❌ 在 `setInterval` 周期内直接送 tx（须 `setTimeout` 链 + 写路径入队，见 `beamio-no-setinterval.mdc`）
-
----
+- ❌ 同一热钱包并发写而不入队 / 不借还钱包池
+- ❌ `shift` 钱包后 early-return **漏 `unshift`**
+- ❌ 同一私钥在池内出现两次以「伪造并行」
+- ❌ 仅用 `inFlight` Set 防重复 requestId，却允许多 claim 并发抢同一 nonce
+- ❌ 队列任务 `shift` 后丢失 Promise（须 resolve/reject）
+- ❌ 为「更快」跳过 `tx.wait()` 即还钱包、启下一任务
+- ❌ `setInterval` 周期内裸送 tx（须 `setTimeout` 链 + 排队，见 `beamio-no-setinterval.mdc`）
+- ❌ 有多钱包仍强制全局单车道，导致 **不必要** 吞吐瓶颈（资源互斥段除外）
 
 ## 相关守则
 
