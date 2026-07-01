@@ -1,0 +1,47 @@
+---
+description: Validator CL skim payout 扫块 — scanTargetBlock 上界与每 tick 块数上限（extends 全局补扫守则）
+globs: src/x402sdk/src/endpoint/validatorClRewardPayoutReporter.ts,src/x402sdk/service/conet-validator-redeem-listener.env.example
+alwaysApply: false
+---
+
+# CL Skim Payout 扫块守则
+
+**本守则为 `beamio-chain-listener-block-scan-ceiling.mdc` 在 CL consensus-layer withdrawal → `settleNodeRewards` 路径上的专项实现。** 全局下界/上界/禁止追 live head 规则以全局守则为准。
+
+---
+
+## 为何需要专项守则
+
+- CL payout 的 `settleNodeRewards` 与 redeem **claim** 共用 **`CONET_VALIDATOR_NODE_ONCHAIN_LANE`**（`beamio-onchain-tx-serial-queue.mdc`）。
+- 旧实现每 tick `while (from <= liveHead)` 扫到链头 → 大量链上写排队 → **claim 长时间饥饿**。
+
+---
+
+## 实现要求（单一事实来源）
+
+`src/x402sdk/src/endpoint/validatorClRewardPayoutReporter.ts`：
+
+| 项 | 约定 |
+|---|---|
+| Floor | `CONET_VALIDATOR_CL_REWARD_PAYOUT_DEPLOY_BLOCK` / proxy deploy block |
+| State | `lastProcessedBlock` + **`scanTargetBlock`** → `CONET_VALIDATOR_CL_REWARD_PAYOUT_STATE_FILE` |
+| 新会话 | `lastProcessed >= scanTarget` 后，`scanTargetBlock = liveHead` |
+| Catch-up | `lastProcessed < scanTarget` 时只扫向 **persisted** `scanTargetBlock` |
+| 每 tick 上限 | `CHUNKS_PER_TICK`（默认 **1**）× `CHUNK_BLOCKS`（默认 **32**） |
+
+Env：`CONET_VALIDATOR_CL_REWARD_PAYOUT_CHUNKS_PER_TICK=1`（见 `conet-validator-redeem-listener.env.example`）。
+
+---
+
+## 严禁
+
+- ❌ 单 tick 内扫描至当前 live head 的 `while` 循环
+- ❌ catch-up 中途用新 `getBlockNumber()` 替换 `scanTargetBlock`
+- ❌ 低于 deploy block 的 `fromBlock`
+
+---
+
+## 相关
+
+- **`beamio-chain-listener-block-scan-ceiling.mdc`** — 全局补扫上界/下界
+- `conet-validator-redeem-listener-l1-workflow.mdc` — listener 部署与 append workflow

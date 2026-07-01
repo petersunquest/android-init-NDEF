@@ -159,8 +159,9 @@ pgrep -af 'geth.*node-0'; pgrep -af 'beacon-chain.*node-0'
 
 ## 相关守则
 
+- **`beamio-chain-listener-block-scan-ceiling.mdc`** — **全局**补扫下界/上界（deploy block + scanTargetBlock，禁止每 tick 追到链头）
 - **`conet-validator-redeem-listener-deploy.mdc`** — 部署拓扑、迁移、sudoers、验收（**新节点必读**）
-- **`beamio-validator-cl-reward-payout-scan.mdc`** — CL skim 扫块：`scanTargetBlock` 上界、重启 catch-up、每 tick 块数上限（避免阻塞 claim 队列）
+- **`beamio-validator-cl-reward-payout-scan.mdc`** — CL skim 扫块专项（extends 全局守则）
 
 - `beamio-validator-deposit-redeem-staking-custody.mdc` — 合约托管 / fee_recipient / deposit withdrawal
 - `critical-chain-infra-restart-requires-approval.mdc` — geth / beacon 重启须授权

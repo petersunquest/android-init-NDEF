@@ -1,0 +1,88 @@
+---
+description: 链上事件/日志补扫全局守则 — 下界=合约部署块，上界=监听中断块，禁止每轮补扫追到链头
+globs: src/x402sdk/src/endpoint/**,scripts/**/*Listener*,scripts/**/*Daemon*,scripts/**/*Backfill*
+alwaysApply: true
+---
+
+# 链上监听 / 遗漏区块补扫：扫描上界与下界（全局）
+
+凡 **eth_getLogs / eth_getBlock / 按块扫描** 用于补扫「监听中断期间遗漏的链上事件」的 daemon、listener、reporter，**无论何种情况** 须遵守本守则。
+
+---
+
+## 核心铁律
+
+1. **下界（floor）**：扫描起点 **不得低于** 目标合约（或代理）的 **部署块**（`CONET_*_DEPLOY_BLOCK` / `chainAddresses` / `deployments`）。不得用 `0` 或任意更早块做 routine 补扫。
+2. **上界（ceiling）**：补扫 **只扫到「上一次监听被中断」时的块高**（`scanTargetBlock` / `checkpointBlock` / 会话快照链头），**不得**在单次 catch-up 或每个 tick 内 **无休止追到当前 live chain head**。
+3. **会话语义**：
+   - **新会话**：已追上 persisted `scanTargetBlock`（`lastProcessedBlock >= scanTargetBlock`）后，下一 tick 才允许把 **当前** live head 快照为 **新的** `scanTargetBlock`。
+   - **catch-up 中**：`lastProcessedBlock < scanTargetBlock` 时 **冻结** 上界；**禁止** 每 tick 用 `getBlockNumber()` 替换/抬高 `scanTargetBlock` 并扩展扫描区间。
+4. **分 tick 推进**：每 tick 最多处理 `CHUNKS_PER_TICK × CHUNK_BLOCKS`（或等价 `LOG_CHUNK` 上限），避免一轮 tick 独占进程/RPC/链上队列。
+
+---
+
+## 状态持久化（必须）
+
+Checkpoint / state 文件须同时记录：
+
+| 字段 | 含义 |
+|---|---|
+| `lastProcessedBlock` | 已成功处理到的最高块 |
+| `scanTargetBlock` | 本会话补扫上界（监听中断或 attach live 前快照的 head） |
+
+**禁止** 仅存 `lastProcessedBlock` 却在 incremental 补扫里 `from = prior + 1 .. liveHead`。
+
+---
+
+## 典型边界定义
+
+| 场景 | `scanTargetBlock` 如何定 |
+|---|---|
+| Daemon **冷启动** attach live 前 | `head` at attach → live 从 `head+1`；bootstrap 补扫 `prior+1 .. head` |
+| **Filter 失效 / 重建 live** | 重建时刻的 `head` 为新的中断上界 |
+| **进程 SIGTERM 后重启** | 读盘 `scanTargetBlock`；若 catch-up 未完成则 **继续扫向该上界**，不直接跳到新 head |
+| Catch-up **完成** 后 | 下一 tick：`scanTargetBlock = 新 live head`，再小步推进 |
+
+---
+
+## 参考实现
+
+| 模块 | 文件 | State 文件 |
+|---|---|---|
+| **Redeem listener** eth_getLogs | `src/x402sdk/src/endpoint/validatorDepositRedeem.ts` | `~/.conet-validator-redeem-listener-block.json` |
+| **CL skim payout** eth_getBlock withdrawals | `src/x402sdk/src/endpoint/validatorClRewardPayoutReporter.ts` | `~/.conet-validator-cl-reward-payout-state.json` |
+
+专项细则（须 **extends** 本守则，不得与之冲突）：
+
+- **`beamio-validator-cl-reward-payout-scan.mdc`** — CL payout 块/chunk 默认值与 claim 队列关系
+
+Env 模板：`src/x402sdk/service/conet-validator-redeem-listener.env.example`
+
+---
+
+## AI 检查清单
+
+- [ ] 补扫 `fromBlock` 是否 `>=` 合约 deploy block floor？
+- [ ] catch-up 是否使用 persisted **`scanTargetBlock`** 上界，而非每 tick `toBlock = getBlockNumber()`？
+- [ ] 是否在 `lastProcessed < scanTarget` 期间 **禁止** 用新 live head 替换 `scanTargetBlock`？
+- [ ] 是否每 tick 有块数/chunk 上限？
+- [ ] 新 listener / daemon 是否写入 deploy floor + scanTarget + lastProcessed 三件套语义？
+
+---
+
+## 严禁
+
+- ❌ `while (from <= liveHead)` 单 tick 扫到链头（尤其与链上写共用 FIFO 队列时）
+- ❌ 每次 periodic 补扫都把 `toBlock` 设为当前 head，导致重启后 backlog 与 live 混扫、永不「收口」
+- ❌ 补扫起点低于合约部署块（除显式 one-time 历史迁移且文档化）
+- ❌ 无 `scanTargetBlock`、仅靠 `lastProcessed + 1 .. head` 的 incremental 逻辑
+- ❌ 为「追最新」在 catch-up 中途抬高扫描上界
+
+---
+
+## 相关守则
+
+- `beamio-onchain-tx-serial-queue.mdc` — 补扫触发的链上写须入队；避免单 tick 扫块拖死 claim
+- `beamio-interval-daemon-no-overlap.mdc` — tick 串行、禁止重叠
+- `conet-validator-redeem-listener-l1-workflow.mdc` — redeem listener 运维
+- `beamio-validator-cl-reward-payout-scan.mdc` — CL payout 专项
