@@ -1,9 +1,7 @@
-import { IpfsImg } from '@/components/IpfsImg'
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 import { Check, Copy, Share2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
-/** iOS `POSCouponClaimShareSheet` */
+/** iOS `POSCouponClaimShareSheet` — link + copy/share only (no QR). */
 export function CouponClaimShareSheet({
 	couponTitle,
 	claimUrl,
@@ -13,18 +11,7 @@ export function CouponClaimShareSheet({
 	claimUrl: string
 	onClose: () => void
 }) {
-	const [qrDataUrl, setQrDataUrl] = useState('')
 	const [copied, setCopied] = useState(false)
-
-	useEffect(() => {
-		let cancelled = false
-		void QRCode.toDataURL(claimUrl, { margin: 1, width: 210 }).then((url) => {
-			if (!cancelled) setQrDataUrl(url)
-		})
-		return () => {
-			cancelled = true
-		}
-	}, [claimUrl])
 
 	useEffect(() => {
 		const prev = document.body.style.overflow
@@ -70,7 +57,7 @@ export function CouponClaimShareSheet({
 			>
 				<div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
 					<h2 id="coupon-claim-sheet-title" className="text-base font-semibold text-slate-900">
-						Coupon Claim QR
+						Share coupon claim
 					</h2>
 					<button
 						type="button"
@@ -83,17 +70,7 @@ export function CouponClaimShareSheet({
 				</div>
 
 				<div className="overflow-y-auto px-4 py-4">
-					<div className="flex flex-col items-center gap-4">
-						{qrDataUrl ? (
-							<IpfsImg
-								src={qrDataUrl}
-								alt="Claim QR code"
-								className="h-[210px] w-[210px] rounded-[18px] border border-slate-200 bg-white p-2.5"
-							/>
-						) : (
-							<div className="h-[210px] w-[210px] animate-pulse rounded-[18px] bg-slate-100" />
-						)}
-
+					<div className="flex flex-col items-stretch gap-4">
 						<div className="w-full rounded-[14px] bg-slate-100 p-3.5 text-left">
 							<p className="text-[17px] font-semibold text-slate-900">{couponTitle}</p>
 							<p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">
