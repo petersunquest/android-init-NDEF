@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# 在 CoNET Blockscout 数据库登记 GBToken 名称/符号/decimals/icon（自托管 scan 用）。
-# 运行: bash scripts/registerGBTokenBlockscoutConet.sh
+# 在 CoNET Blockscout 数据库登记 GBToken 名称/符号/decimals/icon。
+# 运行: GB_TOKEN_ADDRESS=0xC3EF... bash scripts/registerGBTokenBlockscoutConet.sh
 set -euo pipefail
 HOST="${GB_BLOCKSCOUT_HOST:-38.102.126.30}"
-ADDR_HEX="beebe03943b55e67373796ddc7314fc76f5b5911"
+ADDR="${GB_TOKEN_ADDRESS:-0xC3EF02DaE632b4C10abB66e07d92a387c10838D8}"
+ADDR_HEX="${ADDR#0x}"
+ADDR_HEX="$(echo "$ADDR_HEX" | tr '[:upper:]' '[:lower:]')"
 ICON_URL="${GB_TOKEN_ICON_URL:-https://mainnet.conet.network/gb/erc20/GB-256.png}"
 
 ssh -o BatchMode=yes "root@${HOST}" bash -s <<REMOTE
@@ -18,4 +20,4 @@ ON CONFLICT (contract_address_hash) DO UPDATE SET
 SELECT name, symbol, decimals, icon_url FROM tokens WHERE contract_address_hash = decode('${ADDR_HEX}','hex');
 "
 REMOTE
-echo "API: https://mainnet.conet.network/api/v2/tokens/0x${ADDR_HEX}"
+echo "API: https://mainnet.conet.network/api/v2/tokens/${ADDR}"

@@ -6,4 +6,5 @@ export { IActionFacet__factory } from './IActionFacet__factory.js';
 export { IBeamioBUnits__factory } from './IBeamioBUnits__factory.js';
 export { IBeamioIndexerDiamond__factory } from './IBeamioIndexerDiamond__factory.js';
 export { IBeamioQuoteHelper__factory } from './IBeamioQuoteHelper__factory.js';
+export { IBeamioUserCardBUnitInstallAttribution__factory } from './IBeamioUserCardBUnitInstallAttribution__factory.js';
 export { IConetTreasury__factory } from './IConetTreasury__factory.js';

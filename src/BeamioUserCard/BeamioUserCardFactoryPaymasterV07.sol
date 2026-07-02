@@ -911,4 +911,18 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
 
         IBeamioUserCardForFactory(cardAddr).clearAdminMintCounterForSubordinate(subordinate, signer);
     }
+
+    /// @notice Paymaster relays arbitrary card calldata with factory as gateway (module fallback / gateway-only selectors).
+    function gatewayInvokeCard(address cardAddr, bytes calldata data) external onlyPaymaster returns (bytes memory) {
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (IBeamioUserCardForFactory(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
+        (bool ok, bytes memory ret) = cardAddr.call(data);
+        if (!ok) {
+            if (ret.length > 0) {
+                assembly { revert(add(ret, 32), mload(ret)) }
+            }
+            revert BM_CallFailed();
+        }
+        return ret;
+    }
 }

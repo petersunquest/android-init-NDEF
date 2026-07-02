@@ -1,4 +1,6 @@
 /**
+ * @deprecated 使用 deployErc20UupsCreate2.ts（UUPS impl + proxy；canonical = proxy 地址不变）。
+ *
  * 使用 CREATE2 在任意链部署 BeamioBUnits，predicted address 仅依赖：
  *   Nick factory 地址 + BUINT_CREATE2_SALT + initCode(initialAdmin)
  *

@@ -1,0 +1,5 @@
+FactoryERC20Upgradeable UUPS implementation verification
+Contract: project/src/b-unit/FactoryERC20Upgradeable.sol:FactoryERC20Upgradeable
+Compiler: v0.8.35+commit.47b9dedd
+Sources: 20
+Constructor Args ABI-encoded: (none — UUPS impl uses _disableInitializers only)

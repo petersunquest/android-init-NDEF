@@ -6,14 +6,18 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioBUnitsBridgeInterface extends Interface {
-    getFunction(nameOrSignature: "consumeFuel" | "mintPaid"): FunctionFragment;
+    getFunction(nameOrSignature: "bridgeableBalanceOf" | "consumeFuel" | "consumePaidFuel" | "mintPaid"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'bridgeableBalanceOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'consumePaidFuel', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPaid', values: [AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'bridgeableBalanceOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumePaidFuel', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
   }
 
@@ -53,7 +57,23 @@ decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
 
     
     
+    bridgeableBalanceOf: TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     consumeFuel: TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    consumePaidFuel: TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'
@@ -71,7 +91,17 @@ decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
+    getFunction(nameOrSignature: 'bridgeableBalanceOf'): TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'consumePaidFuel'): TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'

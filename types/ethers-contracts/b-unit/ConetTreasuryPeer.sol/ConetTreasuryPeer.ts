@@ -6,79 +6,141 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ConetTreasuryPeerInterface extends Interface {
-    getFunction(nameOrSignature: "BUINT_PEER_TOKEN" | "CONET_CHAIN_ID" | "GB_PEER_TOKEN" | "NATIVE_PEER_TOKEN" | "buint" | "burnBUintForBridge" | "burnGBForBridge" | "burnWrappedConetForBridge" | "conetGB" | "deployWrappedToken" | "depositNative" | "executePeerDepositMint" | "getPeerDepositProposal" | "getPeerTokenMeta" | "hasVotedPeerDeposit" | "isCanonicalPeerToken" | "isPeerTokenRegistered" | "isWrappedConetToken" | "peerChainIdOf" | "peerDepositProposals" | "peerTokenOf" | "predictWrappedConetNative" | "predictWrappedToken" | "registerPeerBUintBridge" | "registerPeerBridgeAssets" | "registerPeerGBBridge" | "registerPeerToken" | "registerWrappedConetNative" | "requiredVotes" | "setBUint" | "setConetGB" | "treasury" | "voteMintFromPeerDeposit" | "withdrawNative" | "wrappedConet" | "wrappedTokenCount"): FunctionFragment;
+    getFunction(nameOrSignature: "BUINT_PEER_TOKEN" | "CANONICAL_BUINT_ERC20" | "CANONICAL_GB_ERC20" | "CANONICAL_NONE" | "CANONICAL_USDC_ERC20" | "CANONICAL_WCNET_ERC20" | "CONET_CHAIN_ID" | "GB_PEER_TOKEN" | "NATIVE_ASSET_BUINT" | "NATIVE_ASSET_GB" | "NATIVE_ASSET_WCNET" | "NATIVE_PEER_TOKEN" | "USDC_TO_BUNIT_RATE" | "availableOutboundUsdc" | "bridgeNativeAsset" | "bridgeStableSwap" | "buint" | "burnBUintForBridge" | "burnGBForBridge" | "burnUsdcForBridge" | "burnWrappedConetForBridge" | "canonicalErc20Kind" | "conetGB" | "deployWrappedToken" | "depositNative" | "executePeerDepositMint" | "gbTokenErc20" | "getPeerDepositProposal" | "getPeerTokenMeta" | "hasVotedPeerDeposit" | "isCanonicalPeerToken" | "isNativeCrossChainToken" | "isPeerTokenRegistered" | "isWrappedConetToken" | "nativeAssetToken" | "peerChainIdOf" | "peerDepositProposals" | "peerTokenOf" | "predictWrappedConetNative" | "predictWrappedToken" | "previewStableSwapOutbound" | "quoteStableSwap" | "registerCanonicalErc20Peer" | "registerPeerBUintBridge" | "registerPeerBridgeAssets" | "registerPeerGBBridge" | "registerPeerNativeBridgeAssets" | "registerPeerStableSwapAssets" | "registerPeerToken" | "registerWrappedConetNative" | "replenishUsdcOutboundBalance" | "requiredVotes" | "setBUint" | "setConetGB" | "setGbTokenErc20" | "setUsdc6PerFullGb" | "setUsdcErc20" | "setUsdcOutboundBalance" | "treasury" | "usdc6PerFullGb" | "usdcErc20" | "usdcOutboundBalance" | "voteMintFromPeerCredit" | "voteMintFromPeerDeposit" | "withdrawNative" | "wrappedConet" | "wrappedTokenCount"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "BUintBridgeOut" | "BUintUpdated" | "ConetGBUpdated" | "GBBridgeOut" | "GBIssueExecuted" | "MintExecuted" | "NativeDeposited" | "NativeWithdrawn" | "PeerCanonicalAssetRegistered" | "PeerDepositExecuted" | "PeerDepositProposalCreated" | "PeerDepositVoted" | "PeerTokenRegistered" | "WrappedConetBridgeOut" | "WrappedTokenDeployed"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "BUintBridgeOut" | "BUintUpdated" | "ConetGBUpdated" | "GBBridgeOut" | "GBIssueExecuted" | "GbTokenErc20Updated" | "MintExecuted" | "NativeAssetBridgeOut" | "NativeDeposited" | "NativeWithdrawn" | "PeerCanonicalAssetRegistered" | "PeerDepositExecuted" | "PeerDepositProposalCreated" | "PeerDepositVoted" | "PeerTokenRegistered" | "StableSwapBridgeOut" | "Usdc6PerFullGbUpdated" | "UsdcBridgeOut" | "UsdcErc20Updated" | "UsdcOutboundBalanceConsumed" | "UsdcOutboundBalanceReplenished" | "UsdcOutboundBalanceSet" | "WrappedConetBridgeOut" | "WrappedTokenDeployed"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BUINT_PEER_TOKEN', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CANONICAL_BUINT_ERC20', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CANONICAL_GB_ERC20', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CANONICAL_NONE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CANONICAL_USDC_ERC20', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CANONICAL_WCNET_ERC20', values?: undefined): string;
 encodeFunctionData(functionFragment: 'CONET_CHAIN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'GB_PEER_TOKEN', values?: undefined): string;
+encodeFunctionData(functionFragment: 'NATIVE_ASSET_BUINT', values?: undefined): string;
+encodeFunctionData(functionFragment: 'NATIVE_ASSET_GB', values?: undefined): string;
+encodeFunctionData(functionFragment: 'NATIVE_ASSET_WCNET', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NATIVE_PEER_TOKEN', values?: undefined): string;
+encodeFunctionData(functionFragment: 'USDC_TO_BUNIT_RATE', values?: undefined): string;
+encodeFunctionData(functionFragment: 'availableOutboundUsdc', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'bridgeNativeAsset', values: [BigNumberish, BigNumberish, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'bridgeStableSwap', values: [BigNumberish, BigNumberish, BigNumberish, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'buint', values?: undefined): string;
 encodeFunctionData(functionFragment: 'burnBUintForBridge', values: [BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'burnGBForBridge', values: [BigNumberish, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'burnUsdcForBridge', values: [BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'burnWrappedConetForBridge', values: [BigNumberish, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'canonicalErc20Kind', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'conetGB', values?: undefined): string;
 encodeFunctionData(functionFragment: 'deployWrappedToken', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'depositNative', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executePeerDepositMint', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'gbTokenErc20', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getPeerDepositProposal', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getPeerTokenMeta', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'hasVotedPeerDeposit', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isCanonicalPeerToken', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'isNativeCrossChainToken', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isPeerTokenRegistered', values: [BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isWrappedConetToken', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'nativeAssetToken', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'peerChainIdOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'peerDepositProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'peerTokenOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'predictWrappedConetNative', values?: undefined): string;
 encodeFunctionData(functionFragment: 'predictWrappedToken', values: [BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'previewStableSwapOutbound', values: [BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'quoteStableSwap', values: [BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'registerCanonicalErc20Peer', values: [BigNumberish, AddressLike, BigNumberish, string, string, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'registerPeerBUintBridge', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'registerPeerBridgeAssets', values: [BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'registerPeerGBBridge', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'registerPeerNativeBridgeAssets', values: [BigNumberish[], AddressLike, AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'registerPeerStableSwapAssets', values: [BigNumberish[], AddressLike, AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'registerPeerToken', values: [BigNumberish, AddressLike, string, string, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'registerWrappedConetNative', values?: undefined): string;
+encodeFunctionData(functionFragment: 'replenishUsdcOutboundBalance', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'requiredVotes', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setBUint', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setConetGB', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setGbTokenErc20', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setUsdc6PerFullGb', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setUsdcErc20', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setUsdcOutboundBalance', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'treasury', values?: undefined): string;
+encodeFunctionData(functionFragment: 'usdc6PerFullGb', values?: undefined): string;
+encodeFunctionData(functionFragment: 'usdcErc20', values?: undefined): string;
+encodeFunctionData(functionFragment: 'usdcOutboundBalance', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteMintFromPeerCredit', values: [BytesLike, BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'voteMintFromPeerDeposit', values: [BytesLike, BigNumberish, AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'withdrawNative', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'wrappedConet', values?: undefined): string;
 encodeFunctionData(functionFragment: 'wrappedTokenCount', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'BUINT_PEER_TOKEN', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CANONICAL_BUINT_ERC20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CANONICAL_GB_ERC20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CANONICAL_NONE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CANONICAL_USDC_ERC20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CANONICAL_WCNET_ERC20', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'CONET_CHAIN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'GB_PEER_TOKEN', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'NATIVE_ASSET_BUINT', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'NATIVE_ASSET_GB', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'NATIVE_ASSET_WCNET', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'NATIVE_PEER_TOKEN', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'USDC_TO_BUNIT_RATE', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'availableOutboundUsdc', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bridgeNativeAsset', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bridgeStableSwap', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'buint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnBUintForBridge', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnGBForBridge', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnUsdcForBridge', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnWrappedConetForBridge', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'canonicalErc20Kind', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'conetGB', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'deployWrappedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'depositNative', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executePeerDepositMint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'gbTokenErc20', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getPeerDepositProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getPeerTokenMeta', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasVotedPeerDeposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isCanonicalPeerToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'isNativeCrossChainToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isPeerTokenRegistered', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isWrappedConetToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'nativeAssetToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'peerChainIdOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'peerDepositProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'peerTokenOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'predictWrappedConetNative', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'predictWrappedToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'previewStableSwapOutbound', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'quoteStableSwap', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'registerCanonicalErc20Peer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerPeerBUintBridge', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerPeerBridgeAssets', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerPeerGBBridge', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'registerPeerNativeBridgeAssets', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'registerPeerStableSwapAssets', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerPeerToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerWrappedConetNative', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'replenishUsdcOutboundBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requiredVotes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBUint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setConetGB', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setGbTokenErc20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setUsdc6PerFullGb', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setUsdcErc20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setUsdcOutboundBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'treasury', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usdc6PerFullGb', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usdcErc20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usdcOutboundBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteMintFromPeerCredit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteMintFromPeerDeposit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'withdrawNative', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'wrappedConet', data: BytesLike): Result;
@@ -146,10 +208,34 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
 
   
 
+    export namespace GbTokenErc20UpdatedEvent {
+      export type InputTuple = [oldToken: AddressLike, newToken: AddressLike];
+      export type OutputTuple = [oldToken: string, newToken: string];
+      export interface OutputObject {oldToken: string, newToken: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace MintExecutedEvent {
       export type InputTuple = [token: AddressLike, to: AddressLike, amount: BigNumberish];
       export type OutputTuple = [token: string, to: string, amount: bigint];
       export interface OutputObject {token: string, to: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace NativeAssetBridgeOutEvent {
+      export type InputTuple = [nativeAsset: BigNumberish, user: AddressLike, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike];
+      export type OutputTuple = [nativeAsset: bigint, user: string, amount: bigint, destinationChainId: bigint, recipient: string];
+      export interface OutputObject {nativeAsset: bigint, user: string, amount: bigint, destinationChainId: bigint, recipient: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -242,6 +328,90 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
 
   
 
+    export namespace StableSwapBridgeOutEvent {
+      export type InputTuple = [user: AddressLike, burnAssetKind: BigNumberish, burnAmount: BigNumberish, creditAssetKind: BigNumberish, creditAmount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike];
+      export type OutputTuple = [user: string, burnAssetKind: bigint, burnAmount: bigint, creditAssetKind: bigint, creditAmount: bigint, destinationChainId: bigint, recipient: string];
+      export interface OutputObject {user: string, burnAssetKind: bigint, burnAmount: bigint, creditAssetKind: bigint, creditAmount: bigint, destinationChainId: bigint, recipient: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace Usdc6PerFullGbUpdatedEvent {
+      export type InputTuple = [usdc6PerFullGb: BigNumberish];
+      export type OutputTuple = [usdc6PerFullGb: bigint];
+      export interface OutputObject {usdc6PerFullGb: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UsdcBridgeOutEvent {
+      export type InputTuple = [user: AddressLike, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike];
+      export type OutputTuple = [user: string, amount: bigint, destinationChainId: bigint, recipient: string];
+      export interface OutputObject {user: string, amount: bigint, destinationChainId: bigint, recipient: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UsdcErc20UpdatedEvent {
+      export type InputTuple = [oldToken: AddressLike, newToken: AddressLike];
+      export type OutputTuple = [oldToken: string, newToken: string];
+      export interface OutputObject {oldToken: string, newToken: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UsdcOutboundBalanceConsumedEvent {
+      export type InputTuple = [destinationChainId: BigNumberish, amount: BigNumberish, balance: BigNumberish];
+      export type OutputTuple = [destinationChainId: bigint, amount: bigint, balance: bigint];
+      export interface OutputObject {destinationChainId: bigint, amount: bigint, balance: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UsdcOutboundBalanceReplenishedEvent {
+      export type InputTuple = [destinationChainId: BigNumberish, added: BigNumberish, balance: BigNumberish];
+      export type OutputTuple = [destinationChainId: bigint, added: bigint, balance: bigint];
+      export interface OutputObject {destinationChainId: bigint, added: bigint, balance: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UsdcOutboundBalanceSetEvent {
+      export type InputTuple = [destinationChainId: BigNumberish, balance: BigNumberish];
+      export type OutputTuple = [destinationChainId: bigint, balance: bigint];
+      export interface OutputObject {destinationChainId: bigint, balance: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace WrappedConetBridgeOutEvent {
       export type InputTuple = [user: AddressLike, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike];
       export type OutputTuple = [user: string, amount: bigint, destinationChainId: bigint, recipient: string];
@@ -308,6 +478,46 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    CANONICAL_BUINT_ERC20: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CANONICAL_GB_ERC20: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CANONICAL_NONE: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CANONICAL_USDC_ERC20: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    CANONICAL_WCNET_ERC20: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     CONET_CHAIN_ID: TypedContractMethod<
       [],
       [bigint],
@@ -324,10 +534,66 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    NATIVE_ASSET_BUINT: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    NATIVE_ASSET_GB: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    NATIVE_ASSET_WCNET: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     NATIVE_PEER_TOKEN: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    USDC_TO_BUNIT_RATE: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    availableOutboundUsdc: TypedContractMethod<
+      [destinationChainId: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    bridgeNativeAsset: TypedContractMethod<
+      [nativeAsset: BigNumberish, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    bridgeStableSwap: TypedContractMethod<
+      [burnAssetKind: BigNumberish, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, creditAssetKind: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -356,10 +622,26 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    burnUsdcForBridge: TypedContractMethod<
+      [amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     burnWrappedConetForBridge: TypedContractMethod<
       [amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    canonicalErc20Kind: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [bigint],
+      'view'
     >
     
 
@@ -396,9 +678,17 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    gbTokenErc20: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     getPeerDepositProposal: TypedContractMethod<
       [depositTxHash: BytesLike, ],
-      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      [[bigint, string, string, bigint, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, creditAssetKind: bigint, voteCount: bigint, executed: boolean }],
       'view'
     >
     
@@ -428,6 +718,14 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    isNativeCrossChainToken: TypedContractMethod<
+      [token: AddressLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     isPeerTokenRegistered: TypedContractMethod<
       [peerChainId: BigNumberish, peerToken: AddressLike, ],
       [boolean],
@@ -444,6 +742,14 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    nativeAssetToken: TypedContractMethod<
+      [nativeAsset: BigNumberish, ],
+      [[string, bigint] & {token: string, decimals: bigint }],
+      'view'
+    >
+    
+
+    
     peerChainIdOf: TypedContractMethod<
       [wrappedToken: AddressLike, ],
       [bigint],
@@ -454,7 +760,7 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
     peerDepositProposals: TypedContractMethod<
       [arg0: BytesLike, ],
-      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      [[bigint, string, string, bigint, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, creditAssetKind: bigint, voteCount: bigint, executed: boolean }],
       'view'
     >
     
@@ -484,6 +790,30 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    previewStableSwapOutbound: TypedContractMethod<
+      [burnAssetKind: BigNumberish, burnAmount: BigNumberish, destinationChainId: BigNumberish, creditAssetKind: BigNumberish, ],
+      [[bigint, bigint, boolean] & {creditAmount: bigint, availableUsdc6: bigint, sufficient: boolean }],
+      'view'
+    >
+    
+
+    
+    quoteStableSwap: TypedContractMethod<
+      [burnAssetKind: BigNumberish, burnAmount: BigNumberish, creditAssetKind: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    registerCanonicalErc20Peer: TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, kind: BigNumberish, name_: string, symbol_: string, decimals_: BigNumberish, ],
+      [string],
+      'nonpayable'
+    >
+    
+
+    
     registerPeerBUintBridge: TypedContractMethod<
       [peerChainId: BigNumberish, ],
       [void],
@@ -508,6 +838,22 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    registerPeerNativeBridgeAssets: TypedContractMethod<
+      [peerChainIds: BigNumberish[], peerGbErc20: AddressLike, peerBuintErc20: AddressLike, peerWcnetErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    registerPeerStableSwapAssets: TypedContractMethod<
+      [peerChainIds: BigNumberish[], peerGbErc20: AddressLike, peerBuintErc20: AddressLike, peerUsdcErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     registerPeerToken: TypedContractMethod<
       [peerChainId: BigNumberish, peerToken: AddressLike, name_: string, symbol_: string, decimals_: BigNumberish, ],
       [string],
@@ -519,6 +865,14 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     registerWrappedConetNative: TypedContractMethod<
       [],
       [string],
+      'nonpayable'
+    >
+    
+
+    
+    replenishUsdcOutboundBalance: TypedContractMethod<
+      [destinationChainId: BigNumberish, amount: BigNumberish, ],
+      [void],
       'nonpayable'
     >
     
@@ -548,10 +902,74 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
     
 
     
+    setGbTokenErc20: TypedContractMethod<
+      [_gbTokenErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setUsdc6PerFullGb: TypedContractMethod<
+      [rate: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setUsdcErc20: TypedContractMethod<
+      [_usdcErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setUsdcOutboundBalance: TypedContractMethod<
+      [destinationChainId: BigNumberish, balance: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     treasury: TypedContractMethod<
       [],
       [string],
       'view'
+    >
+    
+
+    
+    usdc6PerFullGb: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    usdcErc20: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    usdcOutboundBalance: TypedContractMethod<
+      [arg0: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    voteMintFromPeerCredit: TypedContractMethod<
+      [depositTxHash: BytesLike, sourceChainId: BigNumberish, sourcePeerToken: AddressLike, recipient: AddressLike, creditAmount: BigNumberish, creditAssetKind: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -595,6 +1013,31 @@ decodeFunctionResult(functionFragment: 'wrappedTokenCount', data: BytesLike): Re
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'CANONICAL_BUINT_ERC20'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CANONICAL_GB_ERC20'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CANONICAL_NONE'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CANONICAL_USDC_ERC20'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CANONICAL_WCNET_ERC20'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'CONET_CHAIN_ID'): TypedContractMethod<
       [],
       [bigint],
@@ -605,10 +1048,45 @@ getFunction(nameOrSignature: 'GB_PEER_TOKEN'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'NATIVE_ASSET_BUINT'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'NATIVE_ASSET_GB'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'NATIVE_ASSET_WCNET'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'NATIVE_PEER_TOKEN'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'USDC_TO_BUNIT_RATE'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'availableOutboundUsdc'): TypedContractMethod<
+      [destinationChainId: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'bridgeNativeAsset'): TypedContractMethod<
+      [nativeAsset: BigNumberish, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'bridgeStableSwap'): TypedContractMethod<
+      [burnAssetKind: BigNumberish, amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, creditAssetKind: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'buint'): TypedContractMethod<
       [],
@@ -625,10 +1103,20 @@ getFunction(nameOrSignature: 'burnGBForBridge'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'burnUsdcForBridge'): TypedContractMethod<
+      [amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'burnWrappedConetForBridge'): TypedContractMethod<
       [amount: BigNumberish, destinationChainId: BigNumberish, recipient: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'canonicalErc20Kind'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'conetGB'): TypedContractMethod<
       [],
@@ -650,9 +1138,14 @@ getFunction(nameOrSignature: 'executePeerDepositMint'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'gbTokenErc20'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getPeerDepositProposal'): TypedContractMethod<
       [depositTxHash: BytesLike, ],
-      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      [[bigint, string, string, bigint, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, creditAssetKind: bigint, voteCount: bigint, executed: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'getPeerTokenMeta'): TypedContractMethod<
@@ -670,6 +1163,11 @@ getFunction(nameOrSignature: 'isCanonicalPeerToken'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'isNativeCrossChainToken'): TypedContractMethod<
+      [token: AddressLike, ],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'isPeerTokenRegistered'): TypedContractMethod<
       [peerChainId: BigNumberish, peerToken: AddressLike, ],
       [boolean],
@@ -680,6 +1178,11 @@ getFunction(nameOrSignature: 'isWrappedConetToken'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'nativeAssetToken'): TypedContractMethod<
+      [nativeAsset: BigNumberish, ],
+      [[string, bigint] & {token: string, decimals: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'peerChainIdOf'): TypedContractMethod<
       [wrappedToken: AddressLike, ],
       [bigint],
@@ -687,7 +1190,7 @@ getFunction(nameOrSignature: 'peerChainIdOf'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'peerDepositProposals'): TypedContractMethod<
       [arg0: BytesLike, ],
-      [[bigint, string, string, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
+      [[bigint, string, string, bigint, bigint, bigint, boolean] & {peerChainId: bigint, peerToken: string, recipient: string, amount: bigint, creditAssetKind: bigint, voteCount: bigint, executed: boolean }],
       'view'
     >;
 getFunction(nameOrSignature: 'peerTokenOf'): TypedContractMethod<
@@ -705,6 +1208,21 @@ getFunction(nameOrSignature: 'predictWrappedToken'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'previewStableSwapOutbound'): TypedContractMethod<
+      [burnAssetKind: BigNumberish, burnAmount: BigNumberish, destinationChainId: BigNumberish, creditAssetKind: BigNumberish, ],
+      [[bigint, bigint, boolean] & {creditAmount: bigint, availableUsdc6: bigint, sufficient: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'quoteStableSwap'): TypedContractMethod<
+      [burnAssetKind: BigNumberish, burnAmount: BigNumberish, creditAssetKind: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'registerCanonicalErc20Peer'): TypedContractMethod<
+      [peerChainId: BigNumberish, peerToken: AddressLike, kind: BigNumberish, name_: string, symbol_: string, decimals_: BigNumberish, ],
+      [string],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'registerPeerBUintBridge'): TypedContractMethod<
       [peerChainId: BigNumberish, ],
       [void],
@@ -720,6 +1238,16 @@ getFunction(nameOrSignature: 'registerPeerGBBridge'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'registerPeerNativeBridgeAssets'): TypedContractMethod<
+      [peerChainIds: BigNumberish[], peerGbErc20: AddressLike, peerBuintErc20: AddressLike, peerWcnetErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'registerPeerStableSwapAssets'): TypedContractMethod<
+      [peerChainIds: BigNumberish[], peerGbErc20: AddressLike, peerBuintErc20: AddressLike, peerUsdcErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'registerPeerToken'): TypedContractMethod<
       [peerChainId: BigNumberish, peerToken: AddressLike, name_: string, symbol_: string, decimals_: BigNumberish, ],
       [string],
@@ -728,6 +1256,11 @@ getFunction(nameOrSignature: 'registerPeerToken'): TypedContractMethod<
 getFunction(nameOrSignature: 'registerWrappedConetNative'): TypedContractMethod<
       [],
       [string],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'replenishUsdcOutboundBalance'): TypedContractMethod<
+      [destinationChainId: BigNumberish, amount: BigNumberish, ],
+      [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'requiredVotes'): TypedContractMethod<
@@ -745,10 +1278,50 @@ getFunction(nameOrSignature: 'setConetGB'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setGbTokenErc20'): TypedContractMethod<
+      [_gbTokenErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setUsdc6PerFullGb'): TypedContractMethod<
+      [rate: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setUsdcErc20'): TypedContractMethod<
+      [_usdcErc20: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setUsdcOutboundBalance'): TypedContractMethod<
+      [destinationChainId: BigNumberish, balance: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'treasury'): TypedContractMethod<
       [],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'usdc6PerFullGb'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'usdcErc20'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'usdcOutboundBalance'): TypedContractMethod<
+      [arg0: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'voteMintFromPeerCredit'): TypedContractMethod<
+      [depositTxHash: BytesLike, sourceChainId: BigNumberish, sourcePeerToken: AddressLike, recipient: AddressLike, creditAmount: BigNumberish, creditAssetKind: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'voteMintFromPeerDeposit'): TypedContractMethod<
       [depositTxHash: BytesLike, peerChainId: BigNumberish, peerToken: AddressLike, recipient: AddressLike, amount: BigNumberish, ],
@@ -776,7 +1349,9 @@ getEvent(key: 'BUintUpdated'): TypedContractEvent<BUintUpdatedEvent.InputTuple, 
 getEvent(key: 'ConetGBUpdated'): TypedContractEvent<ConetGBUpdatedEvent.InputTuple, ConetGBUpdatedEvent.OutputTuple, ConetGBUpdatedEvent.OutputObject>;
 getEvent(key: 'GBBridgeOut'): TypedContractEvent<GBBridgeOutEvent.InputTuple, GBBridgeOutEvent.OutputTuple, GBBridgeOutEvent.OutputObject>;
 getEvent(key: 'GBIssueExecuted'): TypedContractEvent<GBIssueExecutedEvent.InputTuple, GBIssueExecutedEvent.OutputTuple, GBIssueExecutedEvent.OutputObject>;
+getEvent(key: 'GbTokenErc20Updated'): TypedContractEvent<GbTokenErc20UpdatedEvent.InputTuple, GbTokenErc20UpdatedEvent.OutputTuple, GbTokenErc20UpdatedEvent.OutputObject>;
 getEvent(key: 'MintExecuted'): TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
+getEvent(key: 'NativeAssetBridgeOut'): TypedContractEvent<NativeAssetBridgeOutEvent.InputTuple, NativeAssetBridgeOutEvent.OutputTuple, NativeAssetBridgeOutEvent.OutputObject>;
 getEvent(key: 'NativeDeposited'): TypedContractEvent<NativeDepositedEvent.InputTuple, NativeDepositedEvent.OutputTuple, NativeDepositedEvent.OutputObject>;
 getEvent(key: 'NativeWithdrawn'): TypedContractEvent<NativeWithdrawnEvent.InputTuple, NativeWithdrawnEvent.OutputTuple, NativeWithdrawnEvent.OutputObject>;
 getEvent(key: 'PeerCanonicalAssetRegistered'): TypedContractEvent<PeerCanonicalAssetRegisteredEvent.InputTuple, PeerCanonicalAssetRegisteredEvent.OutputTuple, PeerCanonicalAssetRegisteredEvent.OutputObject>;
@@ -784,6 +1359,13 @@ getEvent(key: 'PeerDepositExecuted'): TypedContractEvent<PeerDepositExecutedEven
 getEvent(key: 'PeerDepositProposalCreated'): TypedContractEvent<PeerDepositProposalCreatedEvent.InputTuple, PeerDepositProposalCreatedEvent.OutputTuple, PeerDepositProposalCreatedEvent.OutputObject>;
 getEvent(key: 'PeerDepositVoted'): TypedContractEvent<PeerDepositVotedEvent.InputTuple, PeerDepositVotedEvent.OutputTuple, PeerDepositVotedEvent.OutputObject>;
 getEvent(key: 'PeerTokenRegistered'): TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
+getEvent(key: 'StableSwapBridgeOut'): TypedContractEvent<StableSwapBridgeOutEvent.InputTuple, StableSwapBridgeOutEvent.OutputTuple, StableSwapBridgeOutEvent.OutputObject>;
+getEvent(key: 'Usdc6PerFullGbUpdated'): TypedContractEvent<Usdc6PerFullGbUpdatedEvent.InputTuple, Usdc6PerFullGbUpdatedEvent.OutputTuple, Usdc6PerFullGbUpdatedEvent.OutputObject>;
+getEvent(key: 'UsdcBridgeOut'): TypedContractEvent<UsdcBridgeOutEvent.InputTuple, UsdcBridgeOutEvent.OutputTuple, UsdcBridgeOutEvent.OutputObject>;
+getEvent(key: 'UsdcErc20Updated'): TypedContractEvent<UsdcErc20UpdatedEvent.InputTuple, UsdcErc20UpdatedEvent.OutputTuple, UsdcErc20UpdatedEvent.OutputObject>;
+getEvent(key: 'UsdcOutboundBalanceConsumed'): TypedContractEvent<UsdcOutboundBalanceConsumedEvent.InputTuple, UsdcOutboundBalanceConsumedEvent.OutputTuple, UsdcOutboundBalanceConsumedEvent.OutputObject>;
+getEvent(key: 'UsdcOutboundBalanceReplenished'): TypedContractEvent<UsdcOutboundBalanceReplenishedEvent.InputTuple, UsdcOutboundBalanceReplenishedEvent.OutputTuple, UsdcOutboundBalanceReplenishedEvent.OutputObject>;
+getEvent(key: 'UsdcOutboundBalanceSet'): TypedContractEvent<UsdcOutboundBalanceSetEvent.InputTuple, UsdcOutboundBalanceSetEvent.OutputTuple, UsdcOutboundBalanceSetEvent.OutputObject>;
 getEvent(key: 'WrappedConetBridgeOut'): TypedContractEvent<WrappedConetBridgeOutEvent.InputTuple, WrappedConetBridgeOutEvent.OutputTuple, WrappedConetBridgeOutEvent.OutputObject>;
 getEvent(key: 'WrappedTokenDeployed'): TypedContractEvent<WrappedTokenDeployedEvent.InputTuple, WrappedTokenDeployedEvent.OutputTuple, WrappedTokenDeployedEvent.OutputObject>;
 
@@ -809,8 +1391,16 @@ getEvent(key: 'WrappedTokenDeployed'): TypedContractEvent<WrappedTokenDeployedEv
       GBIssueExecuted: TypedContractEvent<GBIssueExecutedEvent.InputTuple, GBIssueExecutedEvent.OutputTuple, GBIssueExecutedEvent.OutputObject>;
     
 
+      'GbTokenErc20Updated(address,address)': TypedContractEvent<GbTokenErc20UpdatedEvent.InputTuple, GbTokenErc20UpdatedEvent.OutputTuple, GbTokenErc20UpdatedEvent.OutputObject>;
+      GbTokenErc20Updated: TypedContractEvent<GbTokenErc20UpdatedEvent.InputTuple, GbTokenErc20UpdatedEvent.OutputTuple, GbTokenErc20UpdatedEvent.OutputObject>;
+    
+
       'MintExecuted(address,address,uint256)': TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
       MintExecuted: TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
+    
+
+      'NativeAssetBridgeOut(uint8,address,uint256,uint256,address)': TypedContractEvent<NativeAssetBridgeOutEvent.InputTuple, NativeAssetBridgeOutEvent.OutputTuple, NativeAssetBridgeOutEvent.OutputObject>;
+      NativeAssetBridgeOut: TypedContractEvent<NativeAssetBridgeOutEvent.InputTuple, NativeAssetBridgeOutEvent.OutputTuple, NativeAssetBridgeOutEvent.OutputObject>;
     
 
       'NativeDeposited(address,uint256)': TypedContractEvent<NativeDepositedEvent.InputTuple, NativeDepositedEvent.OutputTuple, NativeDepositedEvent.OutputObject>;
@@ -839,6 +1429,34 @@ getEvent(key: 'WrappedTokenDeployed'): TypedContractEvent<WrappedTokenDeployedEv
 
       'PeerTokenRegistered(uint256,address,string,string,uint8,address)': TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
       PeerTokenRegistered: TypedContractEvent<PeerTokenRegisteredEvent.InputTuple, PeerTokenRegisteredEvent.OutputTuple, PeerTokenRegisteredEvent.OutputObject>;
+    
+
+      'StableSwapBridgeOut(address,uint8,uint256,uint8,uint256,uint256,address)': TypedContractEvent<StableSwapBridgeOutEvent.InputTuple, StableSwapBridgeOutEvent.OutputTuple, StableSwapBridgeOutEvent.OutputObject>;
+      StableSwapBridgeOut: TypedContractEvent<StableSwapBridgeOutEvent.InputTuple, StableSwapBridgeOutEvent.OutputTuple, StableSwapBridgeOutEvent.OutputObject>;
+    
+
+      'Usdc6PerFullGbUpdated(uint256)': TypedContractEvent<Usdc6PerFullGbUpdatedEvent.InputTuple, Usdc6PerFullGbUpdatedEvent.OutputTuple, Usdc6PerFullGbUpdatedEvent.OutputObject>;
+      Usdc6PerFullGbUpdated: TypedContractEvent<Usdc6PerFullGbUpdatedEvent.InputTuple, Usdc6PerFullGbUpdatedEvent.OutputTuple, Usdc6PerFullGbUpdatedEvent.OutputObject>;
+    
+
+      'UsdcBridgeOut(address,uint256,uint256,address)': TypedContractEvent<UsdcBridgeOutEvent.InputTuple, UsdcBridgeOutEvent.OutputTuple, UsdcBridgeOutEvent.OutputObject>;
+      UsdcBridgeOut: TypedContractEvent<UsdcBridgeOutEvent.InputTuple, UsdcBridgeOutEvent.OutputTuple, UsdcBridgeOutEvent.OutputObject>;
+    
+
+      'UsdcErc20Updated(address,address)': TypedContractEvent<UsdcErc20UpdatedEvent.InputTuple, UsdcErc20UpdatedEvent.OutputTuple, UsdcErc20UpdatedEvent.OutputObject>;
+      UsdcErc20Updated: TypedContractEvent<UsdcErc20UpdatedEvent.InputTuple, UsdcErc20UpdatedEvent.OutputTuple, UsdcErc20UpdatedEvent.OutputObject>;
+    
+
+      'UsdcOutboundBalanceConsumed(uint256,uint256,uint256)': TypedContractEvent<UsdcOutboundBalanceConsumedEvent.InputTuple, UsdcOutboundBalanceConsumedEvent.OutputTuple, UsdcOutboundBalanceConsumedEvent.OutputObject>;
+      UsdcOutboundBalanceConsumed: TypedContractEvent<UsdcOutboundBalanceConsumedEvent.InputTuple, UsdcOutboundBalanceConsumedEvent.OutputTuple, UsdcOutboundBalanceConsumedEvent.OutputObject>;
+    
+
+      'UsdcOutboundBalanceReplenished(uint256,uint256,uint256)': TypedContractEvent<UsdcOutboundBalanceReplenishedEvent.InputTuple, UsdcOutboundBalanceReplenishedEvent.OutputTuple, UsdcOutboundBalanceReplenishedEvent.OutputObject>;
+      UsdcOutboundBalanceReplenished: TypedContractEvent<UsdcOutboundBalanceReplenishedEvent.InputTuple, UsdcOutboundBalanceReplenishedEvent.OutputTuple, UsdcOutboundBalanceReplenishedEvent.OutputObject>;
+    
+
+      'UsdcOutboundBalanceSet(uint256,uint256)': TypedContractEvent<UsdcOutboundBalanceSetEvent.InputTuple, UsdcOutboundBalanceSetEvent.OutputTuple, UsdcOutboundBalanceSetEvent.OutputObject>;
+      UsdcOutboundBalanceSet: TypedContractEvent<UsdcOutboundBalanceSetEvent.InputTuple, UsdcOutboundBalanceSetEvent.OutputTuple, UsdcOutboundBalanceSetEvent.OutputObject>;
     
 
       'WrappedConetBridgeOut(address,uint256,uint256,address)': TypedContractEvent<WrappedConetBridgeOutEvent.InputTuple, WrappedConetBridgeOutEvent.OutputTuple, WrappedConetBridgeOutEvent.OutputObject>;

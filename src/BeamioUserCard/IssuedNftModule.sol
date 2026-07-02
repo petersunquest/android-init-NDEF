@@ -375,7 +375,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         return IssuedNftStorage.layout().issuedNftUserSigClaimUsed[key];
     }
 
-    function _initializeIssuedNftStatTokens(IssuedNftStorage.Layout storage l, uint256 parentTokenId) private {
+    function _initializeIssuedNftStatTokens(IssuedNftStorage.Layout storage l, uint256 parentTokenId) internal virtual {
         _initializeIssuedNftStatToken(l, parentTokenId, parentTokenId + COUPON_REFERRAL_CLICK_OFFSET, STAT_KIND_REFERRAL_CLICK);
         _initializeIssuedNftStatToken(l, parentTokenId, parentTokenId + COUPON_REFERRAL_CLAIM_OFFSET, STAT_KIND_REFERRAL_CLAIM);
         _initializeIssuedNftStatToken(l, parentTokenId, parentTokenId + COUPON_REFERRAL_BURN_OFFSET, STAT_KIND_REFERRAL_BURN);
@@ -387,7 +387,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         uint256 parentTokenId,
         uint256 statTokenId,
         uint8 statKind
-    ) private {
+    ) internal {
         l.issuedNftMaxSupply[statTokenId] = type(uint256).max;
         l.issuedNftIsStatToken[statTokenId] = true;
         l.issuedNftStatParentTokenId[statTokenId] = parentTokenId;
@@ -395,14 +395,14 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         emit IssuedNftStatTokenInitialized(statTokenId, parentTokenId, statKind);
     }
 
-    function _requireRealIssuedNft(uint256 tokenId) private view {
+    function _requireRealIssuedNft(uint256 tokenId) internal view {
         IssuedNftStorage.Layout storage l = IssuedNftStorage.layout();
         if (tokenId < ISSUED_NFT_START_ID) revert UC_InvalidTokenId(tokenId, ISSUED_NFT_START_ID);
         if (l.issuedNftMaxSupply[tokenId] == 0) revert UC_InvalidTokenId(tokenId, 0);
         if (l.issuedNftIsStatToken[tokenId]) revert UC_InvalidTokenId(tokenId, 0);
     }
 
-    function _requireStatToken(uint256 tokenId) private view {
+    function _requireStatToken(uint256 tokenId) internal view {
         if (!IssuedNftStorage.layout().issuedNftIsStatToken[tokenId]) revert UC_InvalidTokenId(tokenId, 0);
     }
 

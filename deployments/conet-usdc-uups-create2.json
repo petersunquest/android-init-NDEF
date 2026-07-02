@@ -1,0 +1,11 @@
+{
+  "network": "8453",
+  "deployer": "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+  "impl": "0xc68322E4822f7ECAd168a3E95BB00E7cA00688a3",
+  "proxy": "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134",
+  "minter": "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795",
+  "name": "CONET USDC",
+  "symbol": "USDC",
+  "decimals": "6",
+  "deployedAt": "2026-07-01T15:47:51.470Z"
+}

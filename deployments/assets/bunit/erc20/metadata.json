@@ -1,0 +1,12 @@
+{
+  "name": "Beamio Units",
+  "symbol": "B-UNITS",
+  "decimals": 6,
+  "description": "Beamio B-Units — protocol fuel on CoNET (6 decimals). Free pool (rewards) and paid pool (USDC-backed); P2P transfer uses paid pool only. Gasless via EIP-2612 permit and EIP-3009. UUPS proxy — same address on CoNET and Base via CREATE2.",
+  "image": "https://mainnet.conet.network/bunit/erc20/BUNIT.png",
+  "external_url": "https://beamio.app",
+  "links": {
+    "homepage": "https://beamio.app",
+    "explorer_conet": "https://mainnet.conet.network/token/0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae"
+  }
+}

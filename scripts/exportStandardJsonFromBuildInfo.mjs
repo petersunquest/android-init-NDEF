@@ -102,6 +102,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/IssuedNftModule.sol",
     contractName: "BeamioUserCardIssuedNftModuleV1",
   },
+  BeamioUserCardIssuedNftModuleV2: {
+    sourceKey: "project/src/BeamioUserCard/IssuedNftModuleV2.sol",
+    contractName: "BeamioUserCardIssuedNftModuleV2",
+  },
   BeamioQuoteHelperV07: {
     sourceKey: "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol",
     contractName: "BeamioQuoteHelperV07",
@@ -114,6 +118,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV1",
   },
+  BeamioUserCardAdminStatsQueryModuleV2: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV2.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV2",
+  },
   GovernanceModule: {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
@@ -125,6 +133,10 @@ const CONFIG = {
   ChargeRewardModule: {
     sourceKey: "project/src/BeamioUserCard/ChargeRewardModule.sol",
     contractName: "BeamioUserCardChargeRewardModuleV1",
+  },
+  BeamioUserCardChargeRewardModuleV2: {
+    sourceKey: "project/src/BeamioUserCard/ChargeRewardModuleV2.sol",
+    contractName: "BeamioUserCardChargeRewardModuleV2",
   },
   RedeemModule: {
     sourceKey: "project/src/BeamioUserCard/RedeemModule.sol",
@@ -165,6 +177,10 @@ const CONFIG = {
   FactoryERC20: {
     sourceKey: "project/src/b-unit/FactoryERC20.sol",
     contractName: "FactoryERC20",
+  },
+  FactoryERC20Upgradeable: {
+    sourceKey: "project/src/b-unit/FactoryERC20Upgradeable.sol",
+    contractName: "FactoryERC20Upgradeable",
   },
   BeamioBUnits: {
     sourceKey: "project/src/b-unit/BUint.sol",

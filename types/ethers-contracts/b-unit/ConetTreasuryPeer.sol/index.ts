@@ -7,4 +7,6 @@ export type { IBurnableFactoryERC20 } from './IBurnableFactoryERC20.js';
 export type { IConetGB1155 } from './IConetGB1155.js';
 export type { IConetTreasuryFactoryMinter } from './IConetTreasuryFactoryMinter.js';
 export type { IConetTreasuryGovernance } from './IConetTreasuryGovernance.js';
+export type { IERC20Balance } from './IERC20Balance.js';
+export type { IGBTokenErc20Bridge } from './IGBTokenErc20Bridge.js';
 export type { IMintableERC20 } from './IMintableERC20.js';

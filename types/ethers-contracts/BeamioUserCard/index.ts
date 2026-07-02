@@ -3,6 +3,8 @@
 /* eslint-disable */
 import type * as adminStatsQueryModuleSol from './AdminStatsQueryModule.sol/index.js';
 export type { adminStatsQueryModuleSol };
+import type * as adminStatsQueryModuleV2Sol from './AdminStatsQueryModuleV2.sol/index.js';
+export type { adminStatsQueryModuleV2Sol };
 import type * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export type { beamioErc1155LogicSol };
 import type * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
@@ -17,12 +19,16 @@ import type * as beamioUserCardReferrerLibSol from './BeamioUserCardReferrerLib.
 export type { beamioUserCardReferrerLibSol };
 import type * as chargeRewardModuleSol from './ChargeRewardModule.sol/index.js';
 export type { chargeRewardModuleSol };
+import type * as chargeRewardModuleV2Sol from './ChargeRewardModuleV2.sol/index.js';
+export type { chargeRewardModuleV2Sol };
 import type * as faucetModuleSol from './FaucetModule.sol/index.js';
 export type { faucetModuleSol };
 import type * as governanceModuleSol from './GovernanceModule.sol/index.js';
 export type { governanceModuleSol };
 import type * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export type { issuedNftModuleSol };
+import type * as issuedNftModuleV2Sol from './IssuedNftModuleV2.sol/index.js';
+export type { issuedNftModuleV2Sol };
 import type * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js';
 export type { membershipStatsModuleSol };
 import type * as membershipStatsQueryModuleSol from './MembershipStatsQueryModule.sol/index.js';

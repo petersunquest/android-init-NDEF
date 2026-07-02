@@ -2,7 +2,7 @@
 
 **文档状态**: 技术架构草案 (Technical Draft)
 
-**目标**: 在完全兼容 ERC-20 接口标准的前提下，实现「不可转账」、「双水池记账」与「节点分润计算」。
+**目标**: 在完全兼容 ERC-20 接口标准的前提下，实现「免费池不可转、付费池可转」、「双水池记账」与「节点分润计算」。
 
 ## 0. 权限模型 (Admin Group)
 
@@ -61,18 +61,17 @@ function balanceOf(address account) public view override returns (uint256) {
 
 > 注：像 CashTree 五折大宗采购的「买赠模式」，财库合约会在一笔交易内同时调用这两个函数，各铸币 50 万。
 
-## 3. 阻断灰产：灵魂绑定与防转移 (Soulbound Override)
+## 3. 转账规则：免费池锁定，付费池可转
 
-为了彻底切断羊毛党的刷号归集路径，我们必须「阉割」标准 ERC-20 的转账功能，使其变成一种介于 ERC-20 和 SBT (灵魂绑定代币) 之间的资产。
+- **freePool（免费池）**：不可 `transfer` / `transferFrom` / EIP-3009 转让（防羊毛归集）。
+- **paidPool（付费池）**：USDC 购买、本链 swap、跨链入桥记入 paidPool；可通过标准 `transfer` / `transferFrom` 及 EIP-3009 在地址间转让。
+- 转账仅移动 **paidPool**；若 `paidPool` 不足则 revert，**不会**动用 freePool 凑数。
+- `bridgeableBalanceOf` = 当前可跨链 / 可转让的 paid 余额。
 
 ```solidity
-// 重写转账函数，直接阻断 C 端用户之间的转账
 function transfer(address to, uint256 amount) public override returns (bool) {
-    revert("B-Units: Peer-to-peer transfers are locked for security.");
-}
-
-function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
-    revert("B-Units: Delegated transfers are locked.");
+    _transferPaidOnly(msg.sender, to, amount); // 仅 paidPool
+    return true;
 }
 ```
 
@@ -159,3 +158,19 @@ Explorer: https://basescan.org/address/0xa311c8fBE7CafC611603Ee925465A62493B73B3
 **部署顺序：** `deployConetTreasuryCreate2` → `configureConetTreasuryOnConet` → `registerTreasuryPeerUsdc` → `deployTreasuryWrappedToken`
 
 Explorer: https://mainnet.conet.network
+
+---
+
+## 7. ConetTreasury 跨链 / Swap 使用说明（UI · API）
+
+国库 **跨链 burn、稳定币/GB/B-Unit 兑换跨链、CoNET USDC 出桥流动性** 的完整协议见：
+
+**[`conet-treasury-cross-chain-usage.md`](./conet-treasury-cross-chain-usage.md)**
+
+要点：
+
+- 用户跨链接口在 **`ConetTreasuryPeer`**（非 Treasury 本体）
+- **同资产 1:1**：`bridgeNativeAsset` → Relayer `voteMintFromPeerDeposit`
+- **兑换跨链**：`bridgeStableSwap` + `quoteStableSwap` → Relayer `voteMintFromPeerCredit`
+- **CoNET 出 USDC**（含 GB/B-Unit 换对端 USDC）：burn 前检查 `usdcOutboundBalance`；UI 用 `previewStableSwapOutbound`
+- Relayer 细则：`scripts/conetTreasury-relayer-validator.md`

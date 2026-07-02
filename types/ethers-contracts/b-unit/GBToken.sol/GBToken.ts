@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface GBTokenInterface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "addAdmin" | "addValidator" | "admins" | "airdrop" | "airdropEqual" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "bridgeMintProposals" | "bridgeOut" | "bridgeOutNonce" | "bridgePaused" | "bridgeValidators" | "burn" | "burnFrom" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "contractURI" | "decimals" | "eip712Domain" | "executeBridgeMint" | "getBridgeMintProposal" | "hasVotedBridgeMint" | "mint" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "removeAdmin" | "removeValidator" | "requiredVotes" | "setBridgePaused" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "validatorCount" | "voteBridgeMint"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "UPGRADE_INTERFACE_VERSION" | "addAdmin" | "addValidator" | "admins" | "airdrop" | "airdropEqual" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "balanceOfAll" | "bridgeMintProposals" | "bridgeOut" | "bridgeOutNonce" | "bridgePaused" | "bridgeValidators" | "bridgeableBalanceOf" | "burn" | "burnFrom" | "burnPaidFrom" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "contractURI" | "decimals" | "eip712Domain" | "executeBridgeMint" | "getBridgeMintProposal" | "hasVotedBridgeMint" | "initialize" | "mint" | "mintPaid" | "mintReward" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "proxiableUUID" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "removeAdmin" | "removeValidator" | "requiredVotes" | "setBridgePaused" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "upgradeToAndCall" | "validatorCount" | "voteBridgeMint"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "Airdrop" | "Approval" | "AuthorizationUsed" | "BridgeMintExecuted" | "BridgeMintProposed" | "BridgeMintVoted" | "BridgeOut" | "BridgePausedSet" | "EIP712DomainChanged" | "Transfer" | "ValidatorAdded" | "ValidatorRemoved"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "Airdrop" | "Approval" | "AuthorizationUsed" | "BridgeMintExecuted" | "BridgeMintProposed" | "BridgeMintVoted" | "BridgeOut" | "BridgePausedSet" | "EIP712DomainChanged" | "Initialized" | "MintPaid" | "MintReward" | "Transfer" | "Upgraded" | "ValidatorAdded" | "ValidatorRemoved"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addValidator', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
@@ -20,13 +21,16 @@ encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressL
 encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'authorizationState', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'balanceOfAll', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'bridgeMintProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOut', values: [BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOutNonce', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgePaused', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bridgeValidators', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'bridgeableBalanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'burn', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnFrom', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'burnPaidFrom', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', values: [AddressLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'contractURI', values?: undefined): string;
@@ -35,11 +39,15 @@ encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string
 encodeFunctionData(functionFragment: 'executeBridgeMint', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'getBridgeMintProposal', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'hasVotedBridgeMint', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'initialize', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'mint', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintPaid', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'name', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'proxiableUUID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
@@ -52,10 +60,12 @@ encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumber
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'validatorCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'voteBridgeMint', values: [BytesLike, BigNumberish, AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addValidator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
@@ -65,13 +75,16 @@ decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'authorizationState', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'balanceOfAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeMintProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOut', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOutNonce', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgePaused', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeValidators', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bridgeableBalanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burn', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnFrom', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnPaidFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'contractURI', data: BytesLike): Result;
@@ -80,11 +93,15 @@ decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeBridgeMint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getBridgeMintProposal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasVotedBridgeMint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'initialize', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'proxiableUUID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
@@ -97,6 +114,7 @@ decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validatorCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Result;
   }
@@ -234,10 +252,58 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
 
   
 
+    export namespace InitializedEvent {
+      export type InputTuple = [version: BigNumberish];
+      export type OutputTuple = [version: bigint];
+      export interface OutputObject {version: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace MintPaidEvent {
+      export type InputTuple = [to: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [to: string, amount: bigint];
+      export interface OutputObject {to: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace MintRewardEvent {
+      export type InputTuple = [to: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [to: string, amount: bigint];
+      export interface OutputObject {to: string, amount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace TransferEvent {
       export type InputTuple = [from: AddressLike, to: AddressLike, value: BigNumberish];
       export type OutputTuple = [from: string, to: string, value: bigint];
       export interface OutputObject {from: string, to: string, value: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace UpgradedEvent {
+      export type InputTuple = [implementation: AddressLike];
+      export type OutputTuple = [implementation: string];
+      export interface OutputObject {implementation: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -305,6 +371,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     
     
     DOMAIN_SEPARATOR: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    UPGRADE_INTERFACE_VERSION: TypedContractMethod<
       [],
       [string],
       'view'
@@ -384,6 +458,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     
 
     
+    balanceOfAll: TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >
+    
+
+    
     bridgeMintProposals: TypedContractMethod<
       [arg0: BytesLike, ],
       [[bigint, string, bigint, bigint, boolean] & {srcChainId: bigint, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
@@ -424,6 +506,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     
 
     
+    bridgeableBalanceOf: TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     burn: TypedContractMethod<
       [amount: BigNumberish, ],
       [void],
@@ -433,6 +523,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
 
     
     burnFrom: TypedContractMethod<
+      [account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    burnPaidFrom: TypedContractMethod<
       [account: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -504,7 +602,31 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     
 
     
+    initialize: TypedContractMethod<
+      [initialAdmin: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     mint: TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    mintPaid: TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    mintReward: TypedContractMethod<
       [to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -540,6 +662,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
       [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    proxiableUUID: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -640,6 +770,14 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     
 
     
+    upgradeToAndCall: TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
+    >
+    
+
+    
     validatorCount: TypedContractMethod<
       [],
       [bigint],
@@ -659,6 +797,11 @@ decodeFunctionResult(functionFragment: 'voteBridgeMint', data: BytesLike): Resul
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'UPGRADE_INTERFACE_VERSION'): TypedContractMethod<
       [],
       [string],
       'view'
@@ -708,6 +851,11 @@ getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'balanceOfAll'): TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'bridgeMintProposals'): TypedContractMethod<
       [arg0: BytesLike, ],
       [[bigint, string, bigint, bigint, boolean] & {srcChainId: bigint, recipient: string, amount: bigint, voteCount: bigint, executed: boolean }],
@@ -733,12 +881,22 @@ getFunction(nameOrSignature: 'bridgeValidators'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'bridgeableBalanceOf'): TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'burn'): TypedContractMethod<
       [amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'burnFrom'): TypedContractMethod<
+      [account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'burnPaidFrom'): TypedContractMethod<
       [account: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -783,7 +941,22 @@ getFunction(nameOrSignature: 'hasVotedBridgeMint'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'initialize'): TypedContractMethod<
+      [initialAdmin: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'mint'): TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'mintPaid'): TypedContractMethod<
+      [to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'mintReward'): TypedContractMethod<
       [to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -807,6 +980,11 @@ getFunction(nameOrSignature: 'permit(address,address,uint256,uint256,uint8,bytes
       [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'proxiableUUID'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)'): TypedContractMethod<
       [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
@@ -868,6 +1046,11 @@ getFunction(nameOrSignature: 'transferWithAuthorization(address,address,uint256,
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'upgradeToAndCall'): TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
+    >;
 getFunction(nameOrSignature: 'validatorCount'): TypedContractMethod<
       [],
       [bigint],
@@ -890,7 +1073,11 @@ getEvent(key: 'BridgeMintVoted'): TypedContractEvent<BridgeMintVotedEvent.InputT
 getEvent(key: 'BridgeOut'): TypedContractEvent<BridgeOutEvent.InputTuple, BridgeOutEvent.OutputTuple, BridgeOutEvent.OutputObject>;
 getEvent(key: 'BridgePausedSet'): TypedContractEvent<BridgePausedSetEvent.InputTuple, BridgePausedSetEvent.OutputTuple, BridgePausedSetEvent.OutputObject>;
 getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+getEvent(key: 'Initialized'): TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+getEvent(key: 'MintPaid'): TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
+getEvent(key: 'MintReward'): TypedContractEvent<MintRewardEvent.InputTuple, MintRewardEvent.OutputTuple, MintRewardEvent.OutputObject>;
 getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
+getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
 getEvent(key: 'ValidatorAdded'): TypedContractEvent<ValidatorAddedEvent.InputTuple, ValidatorAddedEvent.OutputTuple, ValidatorAddedEvent.OutputObject>;
 getEvent(key: 'ValidatorRemoved'): TypedContractEvent<ValidatorRemovedEvent.InputTuple, ValidatorRemovedEvent.OutputTuple, ValidatorRemovedEvent.OutputObject>;
 
@@ -940,8 +1127,24 @@ getEvent(key: 'ValidatorRemoved'): TypedContractEvent<ValidatorRemovedEvent.Inpu
       EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
     
 
+      'Initialized(uint64)': TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+      Initialized: TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+    
+
+      'MintPaid(address,uint256)': TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
+      MintPaid: TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
+    
+
+      'MintReward(address,uint256)': TypedContractEvent<MintRewardEvent.InputTuple, MintRewardEvent.OutputTuple, MintRewardEvent.OutputObject>;
+      MintReward: TypedContractEvent<MintRewardEvent.InputTuple, MintRewardEvent.OutputTuple, MintRewardEvent.OutputObject>;
+    
+
       'Transfer(address,address,uint256)': TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
       Transfer: TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
+    
+
+      'Upgraded(address)': TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
+      Upgraded: TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
     
 
       'ValidatorAdded(address)': TypedContractEvent<ValidatorAddedEvent.InputTuple, ValidatorAddedEvent.OutputTuple, ValidatorAddedEvent.OutputObject>;

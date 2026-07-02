@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioBUnitsInterface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "addAdmin" | "admins" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "balanceOfAll" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "consumeFuel" | "decimals" | "eip712Domain" | "getDailyReport" | "getHourlyReport" | "getMonthlyReport" | "getQuarterlyReport" | "getWeeklyReport" | "getYearlyReport" | "mintCombo" | "mintPaid" | "mintReward" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "removeAdmin" | "symbol" | "totalFreeBurned" | "totalPaidBurned" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "UPGRADE_INTERFACE_VERSION" | "addAdmin" | "admins" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "balanceOfAll" | "bridgeableBalanceOf" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "consumeFuel" | "consumePaidFuel" | "contractURI" | "decimals" | "eip712Domain" | "getDailyReport" | "getHourlyReport" | "getMonthlyReport" | "getQuarterlyReport" | "getWeeklyReport" | "getYearlyReport" | "initialize" | "mintCombo" | "mintPaid" | "mintReward" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "proxiableUUID" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "removeAdmin" | "symbol" | "totalFreeBurned" | "totalPaidBurned" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "upgradeToAndCall"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "Approval" | "AuthorizationUsed" | "EIP712DomainChanged" | "FuelConsumed" | "MintPaid" | "MintReward" | "NodeYieldGenerated" | "Transfer"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "Approval" | "AuthorizationUsed" | "EIP712DomainChanged" | "FuelConsumed" | "Initialized" | "MintPaid" | "MintReward" | "NodeYieldGenerated" | "Transfer" | "Upgraded"): EventFragment;
 
     encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
+encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'allowance', values: [AddressLike, AddressLike]): string;
@@ -18,9 +19,12 @@ encodeFunctionData(functionFragment: 'approve', values: [AddressLike, BigNumberi
 encodeFunctionData(functionFragment: 'authorizationState', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'balanceOfAll', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'bridgeableBalanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', values: [AddressLike, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'consumePaidFuel', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'contractURI', values?: undefined): string;
 encodeFunctionData(functionFragment: 'decimals', values?: undefined): string;
 encodeFunctionData(functionFragment: 'eip712Domain', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getDailyReport', values: [BigNumberish]): string;
@@ -29,6 +33,7 @@ encodeFunctionData(functionFragment: 'getMonthlyReport', values: [BigNumberish])
 encodeFunctionData(functionFragment: 'getQuarterlyReport', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getWeeklyReport', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getYearlyReport', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'initialize', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintCombo', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintPaid', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintReward', values: [AddressLike, BigNumberish]): string;
@@ -36,6 +41,7 @@ encodeFunctionData(functionFragment: 'name', values?: undefined): string;
 encodeFunctionData(functionFragment: 'nonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'proxiableUUID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
@@ -47,8 +53,10 @@ encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumber
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'DOMAIN_SEPARATOR', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'allowance', data: BytesLike): Result;
@@ -56,9 +64,12 @@ decodeFunctionResult(functionFragment: 'approve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'authorizationState', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfAll', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'bridgeableBalanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelAuthorization(address,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumePaidFuel', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'contractURI', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'decimals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'eip712Domain', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getDailyReport', data: BytesLike): Result;
@@ -67,6 +78,7 @@ decodeFunctionResult(functionFragment: 'getMonthlyReport', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'getQuarterlyReport', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getWeeklyReport', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getYearlyReport', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'initialize', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintCombo', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPaid', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintReward', data: BytesLike): Result;
@@ -74,6 +86,7 @@ decodeFunctionResult(functionFragment: 'name', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'proxiableUUID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
@@ -85,6 +98,7 @@ decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Result;
   }
 
   
@@ -160,6 +174,18 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
 
   
 
+    export namespace InitializedEvent {
+      export type InputTuple = [version: BigNumberish];
+      export type OutputTuple = [version: bigint];
+      export interface OutputObject {version: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace MintPaidEvent {
       export type InputTuple = [to: AddressLike, amount: BigNumberish];
       export type OutputTuple = [to: string, amount: bigint];
@@ -208,6 +234,18 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
 
   
 
+    export namespace UpgradedEvent {
+      export type InputTuple = [implementation: AddressLike];
+      export type OutputTuple = [implementation: string];
+      export interface OutputObject {implementation: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
   export interface BeamioBUnits extends BaseContract {
     
     connect(runner?: ContractRunner | null): BeamioBUnits;
@@ -243,6 +281,14 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
     
     
     DOMAIN_SEPARATOR: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    UPGRADE_INTERFACE_VERSION: TypedContractMethod<
       [],
       [string],
       'view'
@@ -306,6 +352,14 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
     
 
     
+    bridgeableBalanceOf: TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": TypedContractMethod<
       [authorizer: AddressLike, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
@@ -326,6 +380,22 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'
+    >
+    
+
+    
+    consumePaidFuel: TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    contractURI: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -394,6 +464,14 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
     
 
     
+    initialize: TypedContractMethod<
+      [initialAdmin: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     mintCombo: TypedContractMethod<
       [to: AddressLike, paidAmount: BigNumberish, rewardAmount: BigNumberish, ],
       [void],
@@ -446,6 +524,14 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
       [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    proxiableUUID: TypedContractMethod<
+      [],
+      [string],
+      'view'
     >
     
 
@@ -507,17 +593,17 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
 
     
     transfer: TypedContractMethod<
-      [arg0: AddressLike, arg1: BigNumberish, ],
+      [to: AddressLike, value: BigNumberish, ],
       [boolean],
-      'view'
+      'nonpayable'
     >
     
 
     
     transferFrom: TypedContractMethod<
-      [arg0: AddressLike, arg1: AddressLike, arg2: BigNumberish, ],
+      [from: AddressLike, to: AddressLike, value: BigNumberish, ],
       [boolean],
-      'view'
+      'nonpayable'
     >
     
 
@@ -537,10 +623,23 @@ decodeFunctionResult(functionFragment: 'transferWithAuthorization(address,addres
     >
     
 
+    
+    upgradeToAndCall: TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'DOMAIN_SEPARATOR'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'UPGRADE_INTERFACE_VERSION'): TypedContractMethod<
       [],
       [string],
       'view'
@@ -580,6 +679,11 @@ getFunction(nameOrSignature: 'balanceOfAll'): TypedContractMethod<
       [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
       'view'
     >;
+getFunction(nameOrSignature: 'bridgeableBalanceOf'): TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)'): TypedContractMethod<
       [authorizer: AddressLike, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
@@ -594,6 +698,16 @@ getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'consumePaidFuel'): TypedContractMethod<
+      [user: AddressLike, amount: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'contractURI'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'decimals'): TypedContractMethod<
       [],
@@ -635,6 +749,11 @@ getFunction(nameOrSignature: 'getYearlyReport'): TypedContractMethod<
       [[bigint, bigint] & {mint: bigint, burn: bigint }],
       'view'
     >;
+getFunction(nameOrSignature: 'initialize'): TypedContractMethod<
+      [initialAdmin: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'mintCombo'): TypedContractMethod<
       [to: AddressLike, paidAmount: BigNumberish, rewardAmount: BigNumberish, ],
       [void],
@@ -669,6 +788,11 @@ getFunction(nameOrSignature: 'permit(address,address,uint256,uint256,uint8,bytes
       [owner: AddressLike, spender: AddressLike, value: BigNumberish, deadline: BigNumberish, v: BigNumberish, r: BytesLike, s: BytesLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'proxiableUUID'): TypedContractMethod<
+      [],
+      [string],
+      'view'
     >;
 getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)'): TypedContractMethod<
       [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
@@ -706,14 +830,14 @@ getFunction(nameOrSignature: 'totalSupply'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'transfer'): TypedContractMethod<
-      [arg0: AddressLike, arg1: BigNumberish, ],
+      [to: AddressLike, value: BigNumberish, ],
       [boolean],
-      'view'
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'transferFrom'): TypedContractMethod<
-      [arg0: AddressLike, arg1: AddressLike, arg2: BigNumberish, ],
+      [from: AddressLike, to: AddressLike, value: BigNumberish, ],
       [boolean],
-      'view'
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)'): TypedContractMethod<
       [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, signature: BytesLike, ],
@@ -725,6 +849,11 @@ getFunction(nameOrSignature: 'transferWithAuthorization(address,address,uint256,
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'upgradeToAndCall'): TypedContractMethod<
+      [newImplementation: AddressLike, data: BytesLike, ],
+      [void],
+      'payable'
+    >;
 
     getEvent(key: 'AdminAdded'): TypedContractEvent<AdminAddedEvent.InputTuple, AdminAddedEvent.OutputTuple, AdminAddedEvent.OutputObject>;
 getEvent(key: 'AdminRemoved'): TypedContractEvent<AdminRemovedEvent.InputTuple, AdminRemovedEvent.OutputTuple, AdminRemovedEvent.OutputObject>;
@@ -732,10 +861,12 @@ getEvent(key: 'Approval'): TypedContractEvent<ApprovalEvent.InputTuple, Approval
 getEvent(key: 'AuthorizationUsed'): TypedContractEvent<AuthorizationUsedEvent.InputTuple, AuthorizationUsedEvent.OutputTuple, AuthorizationUsedEvent.OutputObject>;
 getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
 getEvent(key: 'FuelConsumed'): TypedContractEvent<FuelConsumedEvent.InputTuple, FuelConsumedEvent.OutputTuple, FuelConsumedEvent.OutputObject>;
+getEvent(key: 'Initialized'): TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
 getEvent(key: 'MintPaid'): TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
 getEvent(key: 'MintReward'): TypedContractEvent<MintRewardEvent.InputTuple, MintRewardEvent.OutputTuple, MintRewardEvent.OutputObject>;
 getEvent(key: 'NodeYieldGenerated'): TypedContractEvent<NodeYieldGeneratedEvent.InputTuple, NodeYieldGeneratedEvent.OutputTuple, NodeYieldGeneratedEvent.OutputObject>;
 getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
+getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
 
     filters: {
       
@@ -763,6 +894,10 @@ getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, Transfer
       FuelConsumed: TypedContractEvent<FuelConsumedEvent.InputTuple, FuelConsumedEvent.OutputTuple, FuelConsumedEvent.OutputObject>;
     
 
+      'Initialized(uint64)': TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+      Initialized: TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
+    
+
       'MintPaid(address,uint256)': TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
       MintPaid: TypedContractEvent<MintPaidEvent.InputTuple, MintPaidEvent.OutputTuple, MintPaidEvent.OutputObject>;
     
@@ -777,6 +912,10 @@ getEvent(key: 'Transfer'): TypedContractEvent<TransferEvent.InputTuple, Transfer
 
       'Transfer(address,address,uint256)': TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
       Transfer: TypedContractEvent<TransferEvent.InputTuple, TransferEvent.OutputTuple, TransferEvent.OutputObject>;
+    
+
+      'Upgraded(address)': TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
+      Upgraded: TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
     
     };
   }

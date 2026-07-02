@@ -6,6 +6,16 @@ import {IERC20} from "../contracts/token/ERC20/IERC20.sol";
 import {EIP712} from "../contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 
+/// @dev 商家卡 fallback → ChargeRewardModuleV2.recordBUnitInstallAttribution
+interface IBeamioUserCardBUnitInstallAttribution {
+    function recordBUnitInstallAttribution(
+        address claimant,
+        address referrer,
+        uint8 targetKind,
+        uint256 issuedParentId
+    ) external;
+}
+
 /**
  * @title BUnitAirdrop
  * @dev 管理 B-Units 空投，每个钱包仅可申领一次 20 BUint（免费池）。
@@ -243,12 +253,28 @@ contract BUnitAirdrop is Ownable, EIP712 {
 
     bytes32 private constant CLAIM_TYPEHASH =
         keccak256("ClaimAirdrop(address claimant,uint256 nonce,uint256 deadline)");
+    bytes32 private constant CLAIM_V2_TYPEHASH = keccak256(
+        "ClaimAirdropV2(address claimant,uint256 nonce,uint256 deadline,address merchantCard,uint256 targetTokenId,address referrer)"
+    );
+
+    uint256 private constant ISSUED_NFT_START_ID = 100_000_000_000;
+    uint8 private constant TARGET_GLOBAL_ONLY = 0;
+    uint8 private constant TARGET_MERCHANT_CARD_COUPON = 1;
+    uint8 private constant TARGET_ISSUED_COUPON = 2;
 
     event AdminAdded(address indexed account);
     event AdminRemoved(address indexed account);
     event BeamioIndexerDiamondUpdated(address indexed oldIndexer, address indexed newIndexer);
     event Claimed(address indexed account, uint256 amount);
     event ClaimedFor(address indexed account, uint256 amount, address indexed relayer);
+    event ClaimedWithAttribution(
+        address indexed account,
+        uint256 amount,
+        address indexed merchantCard,
+        uint256 targetTokenId,
+        address indexed referrer
+    );
+    event MerchantInstallAttributionFailed(address indexed merchantCard, address indexed account, bytes reason);
     event ConsumedAndAirdropped(
         address indexed user,
         uint256 bunitBurned,
@@ -441,12 +467,48 @@ contract BUnitAirdrop is Ownable, EIP712 {
         return _hashTypedDataV4(structHash);
     }
 
+    /// @dev claimForV2 / claimWithAttribution 的 EIP-712 摘要（含商家卡归因）。
+    function getClaimV2Digest(
+        address claimant,
+        uint256 nonce,
+        uint256 deadline,
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer
+    ) public view returns (bytes32) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                CLAIM_V2_TYPEHASH, claimant, nonce, deadline, merchantCard, targetTokenId, referrer
+            )
+        );
+        return _hashTypedDataV4(structHash);
+    }
+
     /**
      * @dev 申领 20 BUint（免费池）。每账号仅可申领一次，用户自付 gas。
      */
     function claim() external {
-        _doClaim(msg.sender);
+        _doClaim(msg.sender, address(0), 0, address(0));
         emit Claimed(msg.sender, claimAmount);
+    }
+
+    /**
+     * @dev 申领并归因到商家卡社交「安装」统计（首次 claim 成功时回调商家卡）。
+     * @param merchantCard 商户程序卡地址；0 表示无归因
+     * @param targetTokenId 0=卡级；>= ISSUED_NFT_START_ID=单张 issued 券
+     * @param referrer 转发者 EOA；0 表示无 ref
+     */
+    function claimWithAttribution(
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer
+    ) external {
+        _doClaim(msg.sender, merchantCard, targetTokenId, referrer);
+        if (merchantCard != address(0)) {
+            emit ClaimedWithAttribution(msg.sender, claimAmount, merchantCard, targetTokenId, referrer);
+        } else {
+            emit Claimed(msg.sender, claimAmount);
+        }
     }
 
     /**
@@ -471,14 +533,51 @@ contract BUnitAirdrop is Ownable, EIP712 {
         if (signer != claimant) revert InvalidSignature();
 
         claimNonces[claimant]++;
-        _doClaim(claimant);
+        _doClaim(claimant, address(0), 0, address(0));
+        emit ClaimedFor(claimant, claimAmount, msg.sender);
+    }
+
+    /**
+     * @dev 离线签字代领（含商家卡 + ref 归因）。EIP-712 ClaimAirdropV2。
+     */
+    function claimForV2(
+        address claimant,
+        uint256 nonce,
+        uint256 deadline,
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer,
+        bytes calldata signature
+    ) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (claimNonces[claimant] != nonce) revert InvalidSignature();
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                CLAIM_V2_TYPEHASH, claimant, nonce, deadline, merchantCard, targetTokenId, referrer
+            )
+        );
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = ECDSA.recover(digest, signature);
+        if (signer != claimant) revert InvalidSignature();
+
+        claimNonces[claimant]++;
+        _doClaim(claimant, merchantCard, targetTokenId, referrer);
+        if (merchantCard != address(0)) {
+            emit ClaimedWithAttribution(claimant, claimAmount, merchantCard, targetTokenId, referrer);
+        }
         emit ClaimedFor(claimant, claimAmount, msg.sender);
     }
 
     /**
      * @dev 执行申领逻辑：校验未领过，mintReward（免费池）给 account。成功后向 BeamioIndexerDiamond 记账。
      */
-    function _doClaim(address account) internal {
+    function _doClaim(
+        address account,
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer
+    ) internal {
         if (hasClaimed[account]) revert ClaimNotAvailable();
 
         hasClaimed[account] = true;
@@ -492,6 +591,35 @@ contract BUnitAirdrop is Ownable, EIP712 {
         if (!ok) revert TransferFailed();
 
         _indexClaimToBeamioIndexer(account);
+
+        if (merchantCard != address(0)) {
+            _callbackMerchantInstallAttribution(account, merchantCard, targetTokenId, referrer);
+        }
+    }
+
+    function _resolveInstallTargetKind(uint256 targetTokenId) private pure returns (uint8 targetKind, uint256 issuedParentId) {
+        if (targetTokenId == 0) {
+            return (TARGET_MERCHANT_CARD_COUPON, 0);
+        }
+        if (targetTokenId >= ISSUED_NFT_START_ID) {
+            return (TARGET_ISSUED_COUPON, targetTokenId);
+        }
+        return (TARGET_GLOBAL_ONLY, 0);
+    }
+
+    /// @dev 回调商家卡记「安装」event；失败不 revert claim（与 indexer 记账一致）。
+    function _callbackMerchantInstallAttribution(
+        address account,
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer
+    ) internal {
+        (uint8 targetKind, uint256 issuedParentId) = _resolveInstallTargetKind(targetTokenId);
+        try IBeamioUserCardBUnitInstallAttribution(merchantCard).recordBUnitInstallAttribution(
+            account, referrer, targetKind, issuedParentId
+        ) {} catch (bytes memory reason) {
+            emit MerchantInstallAttributionFailed(merchantCard, account, reason);
+        }
     }
 
     /**

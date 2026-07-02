@@ -7,4 +7,6 @@ export { IBurnableFactoryERC20__factory } from './IBurnableFactoryERC20__factory
 export { IConetGB1155__factory } from './IConetGB1155__factory.js';
 export { IConetTreasuryFactoryMinter__factory } from './IConetTreasuryFactoryMinter__factory.js';
 export { IConetTreasuryGovernance__factory } from './IConetTreasuryGovernance__factory.js';
+export { IERC20Balance__factory } from './IERC20Balance__factory.js';
+export { IGBTokenErc20Bridge__factory } from './IGBTokenErc20Bridge__factory.js';
 export { IMintableERC20__factory } from './IMintableERC20__factory.js';

@@ -8,11 +8,27 @@ export const BUINT_INITIAL_ADMIN = getAddress(
   "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
 );
 
-/** CREATE2 salt：固定字符串，各链相同 */
-export const BUINT_CREATE2_SALT = id("beamio.bunits.v1");
+/** CREATE2 salt：v2 = 付费池可 P2P 转账 */
+export const BUINT_CREATE2_SALT = id("beamio.bunits.v2");
 
-/** 当前 bytecode（含 EIP-2612/EIP-3009）+ Nick factory 下各链同址预测 */
+/** @deprecated v1（transfer 全锁） */
+export const BUINT_CREATE2_SALT_V1 = id("beamio.bunits.v1");
+
+/** @deprecated 直连 v2（非 UUPS）；canonical 见 BUINT_UUPS_PROXY_PREDICTED */
 export const BUINT_CREATE2_PREDICTED = getAddress(
+  "0x4289601782F7a5572fF9409DdbBE4572107CcdA9"
+);
+
+export {
+  BUINT_UUPS_IMPL_PREDICTED,
+  BUINT_UUPS_PROXY_PREDICTED,
+} from "./erc20UupsDeployConstants.js";
+
+/** UUPS canonical（跨链 Nick CREATE2 proxy 同址） */
+export { BUINT_UUPS_PROXY_PREDICTED as BUINT_CANONICAL_ADDRESS } from "./erc20UupsDeployConstants.js";
+
+/** @deprecated v1（transfer 全锁） */
+export const BUINT_CREATE2_PREDICTED_V1 = getAddress(
   "0xa354CC4c414568Dd14F6d63b53013f35483427f0"
 );
 

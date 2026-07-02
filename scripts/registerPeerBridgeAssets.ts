@@ -1,15 +1,17 @@
 /**
- * 配置 ConetTreasuryPeer 跨链 canonical 资产（wCNET / BUint / GB peer 注册 + 指针）。
+ * 配置 ConetTreasuryPeer 跨链资产（原生 trio + 稳定币互换 USDC/GB/B-Unit）。
  *
- * 运行（各链 miner 执行）:
+ * 默认 USE_NATIVE_CANONICAL=1：
+ *   - registerPeerNativeBridgeAssets（GB / B-Unit / wCNET 同址）
+ *   - registerPeerStableSwapAssets（对端链 GB / B-Unit / USDC）
+ *
+ * 环境变量：
+ *   USDC6_PER_FULL_GB — GB 标价（USDC6 每 1 整 GB）；例 0.01 USDC/GB → 10000
+ *   SKIP_STABLE_SWAP=1 — 跳过稳定币互换登记
+ *
+ * 运行:
  *   npx hardhat run scripts/registerPeerBridgeAssets.ts --network conet
  *   npx hardhat run scripts/registerPeerBridgeAssets.ts --network base
- *
- * 环境变量:
- *   CONET_TREASURY_PEER — Peer 地址（默认 CONET_TREASURY_PEER_CREATE2_PREDICTED）
- *   PEER_CHAIN_IDS — 逗号分隔对端 chainId，默认 CoNET↔Base
- *   BUINT_ADDRESS / GB_ADDRESS — CREATE2 同址（默认由 predict 常量）
- *   SKIP_WCNET=1 / SKIP_BUINT=1 / SKIP_GB=1 — 跳过单项
  */
 
 import { network as networkModule } from "hardhat";
@@ -18,14 +20,20 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import {
   BASE_MAINNET_CHAIN_ID,
+  BASE_USDC,
   CONET_CHAIN_ID,
   CONET_TREASURY_PEER_CREATE2_PREDICTED,
+  CONET_USDC,
+  NATIVE_CROSS_CHAIN_BUINT,
+  NATIVE_CROSS_CHAIN_GB,
+  NATIVE_CROSS_CHAIN_WCNET,
 } from "./conetTreasuryDeployConstants.js";
-import { BUINT_CREATE2_PREDICTED } from "./bunitDeployConstants.js";
-import { GB_CREATE2_PREDICTED } from "./gbDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+/** 默认 0.01 USDC / 1 GB → usdc6PerFullGb = 10000 */
+const DEFAULT_USDC6_PER_FULL_GB = 10_000n;
 
 function resolvePeerAddress(ethers: { getAddress: (a: string) => string }): string {
   if (process.env.CONET_TREASURY_PEER?.trim()) {
@@ -49,6 +57,32 @@ function parsePeerChainIds(localChainId: bigint): bigint[] {
   throw new Error(`请设置 PEER_CHAIN_IDS（当前 chainId ${localChainId} 无默认对端）`);
 }
 
+function resolveWcnetAddress(ethers: { getAddress: (a: string) => string }): string {
+  return ethers.getAddress(process.env.WCNET_ADDRESS?.trim() || NATIVE_CROSS_CHAIN_WCNET);
+}
+
+/** 本链 canonical USDC */
+function resolveLocalUsdc(ethers: { getAddress: (a: string) => string }, chainId: bigint): string {
+  if (chainId === CONET_CHAIN_ID) {
+    return ethers.getAddress(process.env.CONET_USDC?.trim() || CONET_USDC);
+  }
+  if (chainId === BASE_MAINNET_CHAIN_ID) {
+    return ethers.getAddress(process.env.BASE_USDC?.trim() || BASE_USDC);
+  }
+  throw new Error(`未配置 chainId ${chainId} 的 local USDC`);
+}
+
+/** 对端链 USDC（peer 登记用） */
+function resolvePeerUsdc(ethers: { getAddress: (a: string) => string }, localChainId: bigint): string {
+  if (localChainId === CONET_CHAIN_ID) {
+    return ethers.getAddress(process.env.BASE_USDC?.trim() || BASE_USDC);
+  }
+  if (localChainId === BASE_MAINNET_CHAIN_ID) {
+    return ethers.getAddress(process.env.CONET_USDC?.trim() || CONET_USDC);
+  }
+  throw new Error(`未配置 chainId ${localChainId} 的 peer USDC`);
+}
+
 async function main() {
   const { ethers } = await networkModule.connect();
   const [signer] = await ethers.getSigners();
@@ -57,6 +91,7 @@ async function main() {
   const net = await ethers.provider.getNetwork();
   const peerAddr = resolvePeerAddress(ethers);
   const peerChainIds = parsePeerChainIds(net.chainId);
+  const useNative = process.env.USE_NATIVE_CANONICAL !== "0";
 
   const peer = await ethers.getContractAt("ConetTreasuryPeer", peerAddr, signer);
 
@@ -68,44 +103,54 @@ async function main() {
   console.log("peer:", peerAddr);
   console.log("peerChainIds:", peerChainIds.map(String).join(", "));
 
-  if (process.env.SKIP_WCNET !== "1" && net.chainId === CONET_CHAIN_ID) {
+  const gbToken = ethers.getAddress(process.env.GB_TOKEN_ERC20?.trim() || NATIVE_CROSS_CHAIN_GB);
+  const buintToken = ethers.getAddress(process.env.BUINT_ADDRESS?.trim() || NATIVE_CROSS_CHAIN_BUINT);
+  const localUsdc = resolveLocalUsdc(ethers, net.chainId);
+  const peerUsdc = resolvePeerUsdc(ethers, net.chainId);
+
+  if (process.env.SKIP_POINTERS !== "1") {
+    console.log("\n→ setBUint / setGbTokenErc20 / setUsdcErc20");
+    await (await peer.setBUint(buintToken)).wait();
+    await (await peer.setGbTokenErc20(gbToken)).wait();
+    await (await peer.setUsdcErc20(localUsdc)).wait();
+    console.log("   local USDC:", localUsdc);
+
+    const rateRaw = process.env.USDC6_PER_FULL_GB?.trim();
+    const rate = rateRaw ? BigInt(rateRaw) : DEFAULT_USDC6_PER_FULL_GB;
+    console.log("→ setUsdc6PerFullGb(", rate.toString(), ")");
+    await (await peer.setUsdc6PerFullGb(rate)).wait();
+  }
+
+  if (process.env.SKIP_WCNET !== "1") {
     console.log("\n→ registerWrappedConetNative()");
-    const tx = await peer.registerWrappedConetNative();
-    await tx.wait();
+    await (await peer.registerWrappedConetNative()).wait();
     console.log("   wrappedConet:", await peer.wrappedConet());
   }
 
-  const buintAddr = process.env.BUINT_ADDRESS?.trim() || BUINT_CREATE2_PREDICTED;
-  if (process.env.SKIP_BUINT !== "1") {
-    console.log("\n→ setBUint(", buintAddr, ")");
-    const tx = await peer.setBUint(buintAddr);
-    await tx.wait();
-  }
-
-  const gbAddr = process.env.GB_ADDRESS?.trim() || GB_CREATE2_PREDICTED;
-  if (process.env.SKIP_GB !== "1") {
-    const gbCode = await ethers.provider.getCode(gbAddr);
-    if (gbCode === "0x" || gbCode.length <= 2) {
-      console.warn("\n→ 跳过 setConetGB：", gbAddr, "链上无 code（先 deployGBStackCreate2.ts）");
-    } else {
-      console.log("\n→ setConetGB(", gbAddr, ")");
-      const tx = await peer.setConetGB(gbAddr);
-      await tx.wait();
-    }
-  }
-
+  const wcnetToken = resolveWcnetAddress(ethers);
   const ids = peerChainIds.map((id) => id.toString());
-  console.log("\n→ registerPeerBridgeAssets([", ids.join(", "), "])");
-  const txReg = await peer.registerPeerBridgeAssets(ids);
-  await txReg.wait();
 
-  for (const pid of peerChainIds) {
-    const buintToken = await peer.BUINT_PEER_TOKEN();
-    const gbToken = await peer.GB_PEER_TOKEN();
-    const buintOk = await peer.isPeerTokenRegistered(pid, buintToken);
-    const gbOk = await peer.isPeerTokenRegistered(pid, gbToken);
-    console.log(`   peer ${pid}: BUint registered=${buintOk}, GB registered=${gbOk}`);
+  if (useNative) {
+    console.log("\n→ registerPeerNativeBridgeAssets");
+    await (await peer.registerPeerNativeBridgeAssets(ids, gbToken, buintToken, wcnetToken)).wait();
+
+    if (process.env.SKIP_STABLE_SWAP !== "1") {
+      console.log("\n→ registerPeerStableSwapAssets（USDC/GB/B-Unit 互换 peer）");
+      console.log("   peer GB:  ", gbToken);
+      console.log("   peer BUnit:", buintToken);
+      console.log("   peer USDC:", peerUsdc);
+      await (await peer.registerPeerStableSwapAssets(ids, gbToken, buintToken, peerUsdc)).wait();
+    }
+  } else {
+    console.log("\n→ registerPeerBridgeAssets legacy");
+    await (await peer.registerPeerBridgeAssets(ids)).wait();
   }
+
+  console.log("\n跨链入口:");
+  console.log("  同资产: bridgeNativeAsset(1|2|3, amount, destChainId, recipient)");
+  console.log("  兑换:   bridgeStableSwap(burnKind, amount, destChainId, recipient, creditKind)");
+  console.log("          burnKind/creditKind: 1=GB, 2=USDC, 3=B-Unit");
+  console.log("  预览:   quoteStableSwap(burnKind, amount, creditKind)");
 }
 
 main().catch((e) => {

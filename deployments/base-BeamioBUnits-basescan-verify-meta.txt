@@ -1,27 +1,5 @@
-Contract Name: project/src/b-unit/BUint.sol:BeamioBUnits
-Address: 0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f
-Constructor Args ABI-encoded: 0x00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
-Standard JSON: deployments/base-BeamioBUnits-standard-input-FULL.json (1.71 MB — build-info FULL，与 BeamioUserCard 同款)
-Network: base (chainId 8453)
-Generated: 2026-06-29T21:44:45.753Z
-Compiler: v0.8.33+commit.64118f21
-Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
-
-Regenerate (与 BeamioUserCard 相同流程):
-  npm run clean && npm run compile
-  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioBUnits --full
-  或: node scripts/exportConetTreasuryStackStandardJson.mjs
-
-BaseScan UI:
-  1) Solidity (Standard-Json-Input)
-  2) Compiler v0.8.33+commit.64118f21
-  3) Upload base-BeamioBUnits-standard-input-FULL.json（须 ~1 MB+，勿用 ~79 KB 旧子集）
-  4) Contract Name（若 UI 有该字段）:
-     project/src/b-unit/BUint.sol:BeamioBUnits
-  5) Constructor Arguments (no 0x):
-     00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
-
-CLI（推荐 — 显式 contractname）:
-  BASESCAN_API_KEY=... npx tsx scripts/verifyConetTreasuryStackBaseScan.ts BeamioBUnits
-
-禁止: settings.compilationTarget（BaseScan Unknown key）；勿用未 --full 的 build-info 子集。
+BeamioBUnits UUPS implementation verification
+Contract: project/src/b-unit/BUint.sol:BeamioBUnits
+Compiler: v0.8.35+commit.47b9dedd
+Sources: 20
+Constructor Args ABI-encoded: (none — UUPS impl uses _disableInitializers only)

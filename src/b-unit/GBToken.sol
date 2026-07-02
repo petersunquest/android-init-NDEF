@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {EIP20Permit3009} from "./EIP20Permit3009.sol";
+import {EIP20Permit3009Upgradeable} from "./EIP20Permit3009Upgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /**
  * @title GBToken — CONET GB（9 位 ERC20，跨链同址）
@@ -11,15 +12,15 @@ import {EIP20Permit3009} from "./EIP20Permit3009.sol";
  *   1. 9 位精度：1 GB = 1e9（与 CoNET DePIN「1 byte = 1 最小单位、1e9 bytes = 1 GB」口径一致）。
  *   2. Gasless 代付：继承 {EIP20Permit3009}，支持 EIP-2612 permit 与 EIP-3009
  *      transferWithAuthorization / receiveWithAuthorization（用户离线签字，由 relayer 代付 gas）。
- *   3. 跨链同址：constructor 仅取 initialAdmin（各链相同），配合 Nick CREATE2 factory + 固定 salt
- *      + 编译期 bytecodeHash=none，使 CoNET(224422) 与 Base(8453) 等任意 L1 上地址一致。
- *   4. Admin 空投：admin 角色可 mint / 批量 airdrop。
- *   5. 去中心化投票跨链桥（对称，CoNET ↔ Base 同一套逻辑）：
- *        - 源链：持有人 bridgeOut() 焚烧本链 GB，emit BridgeOut；
+ *   3. 跨链同址：implementation + ERC1967Proxy 均 Nick CREATE2 固定 salt；**canonical 地址 = 代理**。
+ *   4. Admin 空投：admin 角色 mintReward / 批量 airdrop → **免费池**；mintPaid → **付费池**（USDC/跨链入桥）。
+ *   5. P2P 转账：`transfer` / `transferFrom` / EIP-3009 可移动 **freePool 与 paidPool**（跨链/swap 仍仅认 paidPool）。
+ *   6. 去中心化投票跨链桥（对称，CoNET ↔ Base 同一套逻辑）：
+ *        - 源链：持有人 bridgeOut() 焚烧本链 **paidPool** GB，emit BridgeOut；
  *        - 目标链：bridge validator 对源链 burn txHash 投票 voteBridgeMint()，
- *          达到 2/3 阈值后 mint 等额 GB 给 recipient（executeBridgeMint）。
+ *          达到 2/3 阈值后 **mintPaid** 等额 GB 给 recipient（executeBridgeMint）。
  *      validators 由 admin 维护（与 ConetTreasury miners 同模式）；阈值 = ceil(2/3 * validatorCount)。
- *   6. Explorer 元数据：name/symbol/decimals 为链上常量，Blockscout / scan 直接读取；
+ *   7. Explorer 元数据：name/symbol/decimals 为链上常量，Blockscout / scan 直接读取；
  *      contractURI() 额外提供含 GB 图片的合约级 JSON，供支持的钱包/浏览器展示。
  */
 interface IERC20 {
@@ -34,7 +35,7 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract GBToken is IERC20, EIP20Permit3009 {
+contract GBToken is IERC20, EIP20Permit3009Upgradeable, UUPSUpgradeable {
     // ---------------------------------------------------------------------
     // ERC20 metadata（Blockscout / scan 读取）
     // ---------------------------------------------------------------------
@@ -44,7 +45,13 @@ contract GBToken is IERC20, EIP20Permit3009 {
     uint8 public constant decimals = 9;
 
     uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
+
+    /// @dev 双池账本：freePool 空投/奖励；paidPool USDC 背书 / 跨链 mint（与 BeamioBUnits 语义对齐）。
+    struct GbBalance {
+        uint128 freePool;
+        uint128 paidPool;
+    }
+    mapping(address => GbBalance) private _gbBalances;
     mapping(address => mapping(address => uint256)) private _allowances;
 
     // ---------------------------------------------------------------------
@@ -87,6 +94,8 @@ contract GBToken is IERC20, EIP20Permit3009 {
     event ValidatorRemoved(address indexed account);
     event BridgePausedSet(bool paused);
     event Airdrop(address indexed operator, uint256 recipients, uint256 totalAmount);
+    event MintReward(address indexed to, uint256 amount);
+    event MintPaid(address indexed to, uint256 amount);
 
     /// @notice 源链出桥：本链 GB 已焚烧，等待目标链投票铸造
     event BridgeOut(
@@ -119,6 +128,8 @@ contract GBToken is IERC20, EIP20Permit3009 {
     error NotExecutable();
     error NoValidators();
 
+    error InsufficientPaidBalance();
+
     modifier onlyAdmin() {
         if (!admins[msg.sender]) revert NotAdmin();
         _;
@@ -129,11 +140,20 @@ contract GBToken is IERC20, EIP20Permit3009 {
         _;
     }
 
-    constructor(address initialAdmin) EIP20Permit3009("CONET GB") {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    function initialize(address initialAdmin) external initializer {
+        __EIP20Permit3009_init("CONET GB");
+        __UUPSUpgradeable_init();
         if (initialAdmin == address(0)) revert ZeroAddress();
         admins[initialAdmin] = true;
         emit AdminAdded(initialAdmin);
     }
+
+    function _authorizeUpgrade(address) internal view override onlyAdmin {}
 
     // ---------------------------------------------------------------------
     // ERC20 标准接口
@@ -143,7 +163,21 @@ contract GBToken is IERC20, EIP20Permit3009 {
     }
 
     function balanceOf(address account) public view override returns (uint256) {
-        return _balances[account];
+        GbBalance storage bal = _gbBalances[account];
+        return uint256(bal.freePool) + uint256(bal.paidPool);
+    }
+
+    /// @dev 返回 free / paid 明细；`bridgeableBalanceOf` = paid。
+    function balanceOfAll(address account) external view returns (uint256 total, uint256 free, uint256 paid) {
+        GbBalance storage bal = _gbBalances[account];
+        free = uint256(bal.freePool);
+        paid = uint256(bal.paidPool);
+        total = free + paid;
+    }
+
+    /// @dev 可跨链 / 法币背书 GB（仅 paidPool）。
+    function bridgeableBalanceOf(address account) external view returns (uint256) {
+        return uint256(_gbBalances[account].paidPool);
     }
 
     function allowance(address owner, address spender) public view override returns (uint256) {
@@ -173,34 +207,73 @@ contract GBToken is IERC20, EIP20Permit3009 {
         return true;
     }
 
-    function _transfer(address from, address to, uint256 value) internal {
+    function _transferPools(address from, address to, uint256 value) internal {
         if (from == address(0) || to == address(0)) revert ZeroAddress();
-        uint256 bal = _balances[from];
-        if (bal < value) revert InsufficientBalance();
-        unchecked {
-            _balances[from] = bal - value;
-            _balances[to] += value;
+        GbBalance storage fromBal = _gbBalances[from];
+        GbBalance storage toBal = _gbBalances[to];
+        uint256 totalBal = uint256(fromBal.freePool) + uint256(fromBal.paidPool);
+        if (totalBal < value) revert InsufficientBalance();
+
+        if (fromBal.freePool >= value) {
+            if (uint256(toBal.freePool) + value > type(uint128).max) revert InvalidAmount();
+            fromBal.freePool -= uint128(value);
+            toBal.freePool += uint128(value);
+        } else {
+            uint256 freePart = uint256(fromBal.freePool);
+            uint256 paidPart = value - freePart;
+            if (uint256(toBal.paidPool) + paidPart > type(uint128).max) revert InvalidAmount();
+            if (uint256(toBal.freePool) + freePart > type(uint128).max) revert InvalidAmount();
+            fromBal.freePool = 0;
+            fromBal.paidPool -= uint128(paidPart);
+            toBal.freePool += uint128(freePart);
+            toBal.paidPool += uint128(paidPart);
         }
         emit Transfer(from, to, value);
     }
 
-    function _mint(address to, uint256 amount) internal {
+    function _mintReward(address to, uint256 amount) internal {
         if (to == address(0)) revert ZeroAddress();
+        if (amount > type(uint128).max) revert InvalidAmount();
+        _gbBalances[to].freePool += uint128(amount);
         _totalSupply += amount;
-        unchecked {
-            _balances[to] += amount;
-        }
+        emit MintReward(to, amount);
         emit Transfer(address(0), to, amount);
     }
 
-    function _burn(address from, uint256 amount) internal {
-        uint256 bal = _balances[from];
-        if (bal < amount) revert InsufficientBalance();
-        unchecked {
-            _balances[from] = bal - amount;
-            _totalSupply -= amount;
+    function _mintPaid(address to, uint256 amount) internal {
+        if (to == address(0)) revert ZeroAddress();
+        if (amount > type(uint128).max) revert InvalidAmount();
+        _gbBalances[to].paidPool += uint128(amount);
+        _totalSupply += amount;
+        emit MintPaid(to, amount);
+        emit Transfer(address(0), to, amount);
+    }
+
+    function _burnWaterfall(address from, uint256 amount) internal {
+        GbBalance storage bal = _gbBalances[from];
+        uint256 totalBal = uint256(bal.freePool) + uint256(bal.paidPool);
+        if (totalBal < amount) revert InsufficientBalance();
+        if (bal.freePool >= amount) {
+            bal.freePool -= uint128(amount);
+        } else {
+            uint256 remaining = amount - uint256(bal.freePool);
+            bal.freePool = 0;
+            bal.paidPool -= uint128(remaining);
         }
+        _totalSupply -= amount;
         emit Transfer(from, address(0), amount);
+    }
+
+    function _burnPaidOnly(address from, uint256 amount) internal {
+        GbBalance storage bal = _gbBalances[from];
+        if (uint256(bal.paidPool) < amount) revert InsufficientPaidBalance();
+        bal.paidPool -= uint128(amount);
+        _totalSupply -= amount;
+        emit Transfer(from, address(0), amount);
+    }
+
+    function _transfer(address from, address to, uint256 value) internal {
+        _transferPools(from, to, value);
     }
 
     // ---------------------------------------------------------------------
@@ -264,31 +337,44 @@ contract GBToken is IERC20, EIP20Permit3009 {
     }
 
     // ---------------------------------------------------------------------
-    // Admin 铸币 / 空投
+    // Admin 铸币 / 空投（免费池 vs 付费池）
     // ---------------------------------------------------------------------
-    function mint(address to, uint256 amount) external onlyAdmin {
+    /// @dev 空投 / 奖励 → 免费池（与 B-Unit `mintReward` 一致）。
+    function mintReward(address to, uint256 amount) external onlyAdmin {
         if (amount == 0) revert InvalidAmount();
-        _mint(to, amount);
+        _mintReward(to, amount);
     }
 
-    /// @notice admin 批量空投。amounts 单位为最小单位（1 GB = 1e9）。
+    /// @dev USDC 购买 / 跨链入桥 → 付费池（与 B-Unit `mintPaid` 一致）。
+    function mintPaid(address to, uint256 amount) external onlyAdmin {
+        if (amount == 0) revert InvalidAmount();
+        _mintPaid(to, amount);
+    }
+
+    /// @dev 兼容旧脚本：等同 `mintReward`（免费池）。
+    function mint(address to, uint256 amount) external onlyAdmin {
+        if (amount == 0) revert InvalidAmount();
+        _mintReward(to, amount);
+    }
+
+    /// @notice admin 批量空投 → 免费池。amounts 单位为最小单位（1 GB = 1e9）。
     function airdrop(address[] calldata recipients, uint256[] calldata amounts) external onlyAdmin {
         uint256 len = recipients.length;
         if (len != amounts.length) revert LengthMismatch();
         uint256 total;
         for (uint256 i = 0; i < len; i++) {
-            _mint(recipients[i], amounts[i]);
+            _mintReward(recipients[i], amounts[i]);
             total += amounts[i];
         }
         emit Airdrop(msg.sender, len, total);
     }
 
-    /// @notice admin 等额空投（每个地址同一数量）。
+    /// @notice admin 等额空投 → 免费池。
     function airdropEqual(address[] calldata recipients, uint256 amountEach) external onlyAdmin {
         if (amountEach == 0) revert InvalidAmount();
         uint256 len = recipients.length;
         for (uint256 i = 0; i < len; i++) {
-            _mint(recipients[i], amountEach);
+            _mintReward(recipients[i], amountEach);
         }
         emit Airdrop(msg.sender, len, amountEach * len);
     }
@@ -298,7 +384,7 @@ contract GBToken is IERC20, EIP20Permit3009 {
     // ---------------------------------------------------------------------
     function burn(uint256 amount) external {
         if (amount == 0) revert InvalidAmount();
-        _burn(msg.sender, amount);
+        _burnWaterfall(msg.sender, amount);
     }
 
     function burnFrom(address account, uint256 amount) external {
@@ -310,7 +396,13 @@ contract GBToken is IERC20, EIP20Permit3009 {
                 _allowances[account][msg.sender] = current - amount;
             }
         }
-        _burn(account, amount);
+        _burnWaterfall(account, amount);
+    }
+
+    /// @dev 跨链 / 法币路径：仅焚烧 paidPool（Peer admin 调用）。
+    function burnPaidFrom(address account, uint256 amount) external onlyAdmin {
+        if (amount == 0) revert InvalidAmount();
+        _burnPaidOnly(account, amount);
     }
 
     // ---------------------------------------------------------------------
@@ -328,7 +420,7 @@ contract GBToken is IERC20, EIP20Permit3009 {
         if (recipient == address(0)) revert ZeroAddress();
         if (destChainId == block.chainid) revert SameChain();
         if (bridgePaused) revert BridgeIsPaused();
-        _burn(msg.sender, amount);
+        _burnPaidOnly(msg.sender, amount);
         uint256 n = ++bridgeOutNonce;
         emit BridgeOut(msg.sender, recipient, amount, block.chainid, destChainId, n);
     }
@@ -387,7 +479,7 @@ contract GBToken is IERC20, EIP20Permit3009 {
         if (p.executed) revert AlreadyExecuted();
         if (p.voteCount < requiredVotes() || p.voteCount == 0) revert NotExecutable();
         p.executed = true;
-        _mint(p.recipient, p.amount);
+        _mintPaid(p.recipient, p.amount);
         emit BridgeMintExecuted(srcTxHash, p.recipient, p.amount);
     }
 
@@ -399,4 +491,6 @@ contract GBToken is IERC20, EIP20Permit3009 {
         BridgeMintProposal storage p = bridgeMintProposals[srcTxHash];
         return (p.srcChainId, p.recipient, p.amount, p.voteCount, p.executed);
     }
+
+    uint256[50] private __gap;
 }

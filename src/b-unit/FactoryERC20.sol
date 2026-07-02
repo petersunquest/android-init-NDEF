@@ -3,8 +3,8 @@ pragma solidity ^0.8.20;
 
 import {EIP20Permit3009} from "./EIP20Permit3009.sol";
 
-/// @dev ConetTreasury / ConetTreasuryPeer CREATE2 包装 ERC20 模板；minter 为 Treasury 同址。
-///      支持 EIP-2612 permit 与 EIP-3009 transferWithAuthorization（CoNET-USDC / wCNET / wrapped ERC20）。
+/// @dev 遗留非升级模板：仅 `ConetTreasury.createERC20` 动态部署用。
+///      新 canonical USDC / wCNET 请用 `FactoryERC20Upgradeable` + CREATE2 代理（`deployErc20UupsCreate2.ts`）。
 contract FactoryERC20 is EIP20Permit3009 {
     string private _name;
     string private _symbol;

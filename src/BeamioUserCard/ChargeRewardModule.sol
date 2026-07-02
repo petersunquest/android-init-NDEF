@@ -73,8 +73,13 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
 
     function mintChargeRewardByGateway(address userEOA, uint256 amountFiat6, uint8 chargeCurrency)
         external
+        virtual
         onlyGateway
     {
+        _mintChargeRewardByGateway(userEOA, amountFiat6, chargeCurrency);
+    }
+
+    function _mintChargeRewardByGateway(address userEOA, uint256 amountFiat6, uint8 chargeCurrency) internal virtual {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (amountFiat6 == 0) revert UC_AmountZero();
         uint8 cardCurrency = IUserCardCurrency(address(this)).currency();

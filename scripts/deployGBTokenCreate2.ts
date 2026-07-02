@@ -1,4 +1,6 @@
 /**
+ * @deprecated 使用 deployErc20UupsCreate2.ts TOKEN=gb（UUPS impl + proxy）。
+ *
  * 用 Nick CREATE2 在任意 L1 部署 GBToken（9 位 ERC20 GB），各链同址。
  *
  * 运行:

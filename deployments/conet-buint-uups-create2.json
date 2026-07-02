@@ -1,0 +1,8 @@
+{
+  "network": "8453",
+  "deployer": "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+  "impl": "0x6a35EA52ddBeACcA2Fd21A7542AC9f2652a30c1D",
+  "proxy": "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+  "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "deployedAt": "2026-07-01T15:47:45.629Z"
+}

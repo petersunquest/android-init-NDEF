@@ -117,7 +117,11 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
     }
 
     /// @dev Keep selector classification out of BeamioUserCard runtime so the card stays below EIP-170.
-    function selectorModuleKind(bytes4 sel) external pure returns (uint8) {
+    function selectorModuleKind(bytes4 sel) external pure virtual returns (uint8) {
+        return _selectorModuleKindV1(sel);
+    }
+
+    function _selectorModuleKindV1(bytes4 sel) internal pure virtual returns (uint8) {
         if (
             sel == bytes4(keccak256("getAdminHourlyData(address,uint256)"))
                 || sel == bytes4(keccak256("getGlobalStatsFull(uint8,uint256,uint256)"))

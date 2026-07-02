@@ -1,0 +1,46 @@
+{
+  "timestamp": "2026-07-02T09:08:14.913Z",
+  "execute": true,
+  "relayer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "rows": [
+    {
+      "card": "0xc06055AEEd896F832e602a5876D2Dbe1CB365A8A",
+      "owner": "0xA2d21FBd33F7D754D8d7A53fe2B4e5C39A008a1F",
+      "initializedBefore": false,
+      "initializedAfter": true,
+      "action": "sent",
+      "method": "directAdmin",
+      "txHash": "0x8b0a9cf17518d23d358dfe42899047c615aeae419e309956ffcee9df8d5285a8"
+    },
+    {
+      "card": "0xB24D242A320b8dd756572b410645FE41Cd07FC8C",
+      "owner": "0x9c51997f8b2402b99B69E7d074b167EeC896AE97",
+      "initializedBefore": false,
+      "initializedAfter": false,
+      "action": "error",
+      "error": "无可用路径：relayer 非卡 admin；factory 无 gatewayInvokeCard；未提供匹配的 OWNER_PRIVATE_KEY / OWNER_KEYS_FILE"
+    },
+    {
+      "card": "0xafE482D2612327a0D723544B9fB713C514a793a2",
+      "owner": "0x11C7668ef364Bc98A25f339ECfbDfb07b5e4C990",
+      "initializedBefore": false,
+      "initializedAfter": false,
+      "action": "error",
+      "error": "无可用路径：relayer 非卡 admin；factory 无 gatewayInvokeCard；未提供匹配的 OWNER_PRIVATE_KEY / OWNER_KEYS_FILE"
+    },
+    {
+      "card": "0xD9fEdE7e4A53F5D4d2c5256B393F031159568596",
+      "owner": "0xc0A94777B46e541D01a3BdD4c0c99246De4b99e1",
+      "initializedBefore": false,
+      "initializedAfter": false,
+      "action": "error",
+      "error": "无可用路径：relayer 非卡 admin；factory 无 gatewayInvokeCard；未提供匹配的 OWNER_PRIVATE_KEY / OWNER_KEYS_FILE"
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "initializedAfter": 1,
+    "pending": 3,
+    "errors": 3
+  }
+}

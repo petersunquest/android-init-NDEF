@@ -38,21 +38,53 @@ export const CONET_TREASURY_CREATE2_PREDICTED_LEGACY_V2 = getAddress(
   "0x30a9251bC24df235BdCB6F20933f74d6EFc247a8"
 );
 
-/** Peer 桥模块 CREATE2 salt（constructor 固定链接 Treasury 同址） */
-export const CONET_TREASURY_PEER_CREATE2_SALT = id("beamio.conet_treasury_peer.v1");
+/** Peer 桥模块 CREATE2 salt（v3：+ StableSwapLib + 本链 USDC swap + GB/B-Unit paidPool） */
+export const CONET_TREASURY_PEER_CREATE2_SALT = id("beamio.conet_treasury_peer.v3");
 
-/**
- * ⚠️ 下列 Peer / wCNET 地址绑定的是 *旧* treasury 0xc6e6…（Peer constructor immutable treasury）。
- * 统一国库 0xa311… 若需 mint/peer 能力，须用新 treasury 重新预测并部署 Peer 栈（地址会随之改变），
- * 并完成 BUint/GB/wCNET minter 重绑；见 deployConetTreasuryCreate2 + configureConetTreasuryOnConet。
- */
+/** @deprecated v2 Peer（无 StableSwapLib / 无本链 swap） */
+export const CONET_TREASURY_PEER_CREATE2_SALT_V2 = id("beamio.conet_treasury_peer.v2");
+
+/** @deprecated v1 Peer（无 ERC20 canonical / 无 WrappedLib） */
+export const CONET_TREASURY_PEER_CREATE2_SALT_V1 = id("beamio.conet_treasury_peer.v1");
+
+/** ConetTreasuryPeerWrappedLib CREATE2 salt（Peer 链接库，各链须先部署同址） */
+export const CONET_TREASURY_PEER_WRAPPED_LIB_CREATE2_SALT = id("beamio.conet_treasury_peer_wrapped_lib.v1");
+
+/** ConetTreasuryPeerStableSwapLib CREATE2 salt（换汇 + stable burn/mint 逻辑库） */
+export const CONET_TREASURY_PEER_STABLE_SWAP_LIB_CREATE2_SALT = id(
+  "beamio.conet_treasury_peer_stable_swap_lib.v1"
+);
+
+/** v2 Peer（ERC20 canonical + WrappedLib）；运行 predictCrossChainAssets.ts 复核 */
+export const CONET_TREASURY_PEER_WRAPPED_LIB_CREATE2_PREDICTED = getAddress(
+  "0xCED9De89917eB957aF6371a3c9b45af21d68A0Ed"
+);
+
+/** v3 Peer（StableSwapLib + 本链 USDC↔GB/B-Unit）；运行 predictCrossChainAssets.ts 复核 */
+export const CONET_TREASURY_PEER_STABLE_SWAP_LIB_CREATE2_PREDICTED = getAddress(
+  "0xcEC3A86C05b58239B937f17B75b459bD79e3bB95"
+);
+
 export const CONET_TREASURY_PEER_CREATE2_PREDICTED = getAddress(
+  "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5"
+);
+
+/** @deprecated v2 Peer（0x30338D…，无 StableSwapLib / 本链 swap） */
+export const CONET_TREASURY_PEER_CREATE2_PREDICTED_V2 = getAddress(
+  "0x30338D2933604440d2f31169B37AE07F3EFA2d5b"
+);
+
+/** 默认 GB 标价：0.01 USDC / 1 GB → usdc6PerFullGb = 10000（miner 可 setUsdc6PerFullGb 调整） */
+export const DEFAULT_USDC6_PER_FULL_GB = 10_000n;
+
+/** v1 Peer（legacy B001/B002，无 ERC20 canonical） */
+export const CONET_TREASURY_PEER_CREATE2_PREDICTED_V1 = getAddress(
   "0xCF26c1686aC5E01e37B72017E575511C42cad29f"
 );
 
 /** Wrapped wCNET CREATE2（minter = Treasury 同址） */
 export const WRAPPED_CONET_CREATE2_PREDICTED = getAddress(
-  "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39"
+  "0x35bFAD2832E916e54474c4ca9DBd71843C539503"
 );
 
 /** 与 conetTreasury.sol BUINT_PEER_TOKEN 一致（跨链 voteMintFromPeerDeposit 键） */
@@ -81,6 +113,41 @@ export const WRAPPED_CONET_DECIMALS = 18;
 
 /** Base 主网 USDC */
 export const BASE_USDC = getAddress("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+
+/** CoNET 链 canonical USDC（FactoryERC20Upgradeable UUPS proxy；跨链同址） */
+export const CONET_USDC = getAddress("0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134");
+
+/** @deprecated Treasury 内 FactoryERC20 直连 conet-USDC */
+export const CONET_USDC_LEGACY = getAddress("0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC");
+
+/** CoNET / Base 同址 GBToken UUPS proxy（9 decimals；free+paid 可 transfer） */
+export const GB_TOKEN_ERC20_CREATE2_PREDICTED = getAddress(
+  "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
+);
+
+/** @deprecated 直连 GB v2（非 UUPS） */
+export const GB_TOKEN_ERC20_CREATE2_PREDICTED_LEGACY = getAddress(
+  "0xBDa7cC31E791B74a5d51f88383deBe57D2696cef"
+);
+
+/** @deprecated v1 GBToken（free+paid 均可 transfer） */
+export const GB_TOKEN_ERC20_CREATE2_PREDICTED_V1 = getAddress(
+  "0xd0A7BBD309A3E776A696c1495dEA4dcEDc9111b9"
+);
+
+/**
+ * 原生跨链 trio：CoNET / Base CREATE2 同址；`bridgeNativeAsset` / relayer `peerToken` 均用此地址。
+ */
+export const NATIVE_CROSS_CHAIN_GB = GB_TOKEN_ERC20_CREATE2_PREDICTED;
+export const NATIVE_CROSS_CHAIN_BUINT = getAddress(
+  "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae"
+);
+
+/** @deprecated 直连 B-Unit v2 */
+export const NATIVE_CROSS_CHAIN_BUINT_LEGACY = getAddress(
+  "0x4289601782F7a5572fF9409DdbBE4572107CcdA9"
+);
+export const NATIVE_CROSS_CHAIN_WCNET = WRAPPED_CONET_CREATE2_PREDICTED;
 
 /** 与 conetTreasury.sol `_wrappedSalt` 前缀一致 */
 export const WRAPPED_ERC20_SALT_PREFIX = "beamio.wrapped.erc20.v1";

@@ -193,6 +193,7 @@ node src/CoNET-SI/scripts/check-getAllNodes.mjs
 | CoNET 后置 | `configureConetTreasuryOnConet.ts` |
 | wCNET + BUint + GB peer 登记 | `registerPeerBridgeAssets.ts`、`registerWrappedConetNative.ts`（**Peer** 合约） |
 | Relayer 编程 | **`conetTreasury-relayer-validator.md`** |
+| **UI / API 跨链 Swap 协议** | **`src/b-unit/conet-treasury-cross-chain-usage.md`** |
 | Blockscout 验证 | `npx tsx scripts/verifyConetTreasuryStackOnScan.ts` |
 
 > **已拆分**：`ConetTreasury` ~18KB + `ConetTreasuryPeer` ~15KB，均可 EIP-170 部署。旧单合约 `0x0Fa8213c…` 无 Peer 模块，跨链须迁新 CREATE2 栈。
