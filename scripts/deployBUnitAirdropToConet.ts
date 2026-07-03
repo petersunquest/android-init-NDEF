@@ -23,13 +23,14 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
+import { BUINT_UUPS_PROXY_PREDICTED } from "./erc20UupsDeployConstants.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ADDRESSES_PATH = path.join(__dirname, "..", "deployments", "conet-addresses.json");
 const BUINT_JSON_PATH = path.join(__dirname, "..", "deployments", "conet-BUint.json");
-const CANONICAL_BUINT = "0xC97CEbb4DF827cB2D1453A9Df7FEf6dADa1C16Ad";
+const CANONICAL_BUINT = BUINT_UUPS_PROXY_PREDICTED;
 
 function loadBuintAddress(): string {
   if (process.env.BUINT_ADDRESS) return process.env.BUINT_ADDRESS;

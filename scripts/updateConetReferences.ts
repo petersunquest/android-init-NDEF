@@ -519,6 +519,37 @@ function main() {
     console.log("[3] 已更新 bizSite chainAddresses.ts");
   }
 
+  // 3b. config/contract-addresses.ts（根仓 fallback 与 conet-addresses.json 对齐）
+  const rootContractAddrsPath = path.join(__dirname, "..", "config", "contract-addresses.ts");
+  if (fs.existsSync(rootContractAddrsPath) && buint) {
+    let content = fs.readFileSync(rootContractAddrsPath, "utf-8");
+    content = content.replace(
+      /export const CONET_BUINT = conet\.BUint \?\? '0x[a-fA-F0-9]{40}'/,
+      `export const CONET_BUINT = conet.BUint ?? '${buint}'`
+    );
+    content = content.replace(
+      /export const CONET_BUNIT_AIRDROP_ADDRESS = conet\.BUnitAirdrop \?\? '0x[a-fA-F0-9]{40}'/,
+      `export const CONET_BUNIT_AIRDROP_ADDRESS = conet.BUnitAirdrop ?? '${bunitAirdrop}'`
+    );
+    content = content.replace(
+      /export const CONET_BUINT_REDEEM_AIRDROP = conet\.BuintRedeemAirdrop \?\? '0x[a-fA-F0-9]{40}'/,
+      `export const CONET_BUINT_REDEEM_AIRDROP = conet.BuintRedeemAirdrop ?? '${buintRedeem}'`
+    );
+    fs.writeFileSync(rootContractAddrsPath, content);
+    console.log("[3b] 已更新 config/contract-addresses.ts");
+  }
+
+  // 3c. Alliance chainAddresses.ts（独立子项目 CoNET BUint 常量）
+  const allianceChainPath = path.join(__dirname, "..", "src", "Alliance", "src", "config", "chainAddresses.ts");
+  if (fs.existsSync(allianceChainPath) && buint) {
+    let content = fs.readFileSync(allianceChainPath, "utf-8");
+    content = patchExportConstSingleQuoted(content, "CONET_BUINT", buint);
+    content = patchExportConstSingleQuoted(content, "CONET_BUNIT_AIRDROP_ADDRESS", bunitAirdrop);
+    content = patchExportConstSingleQuoted(content, "CONET_BUINT_REDEEM_AIRDROP", buintRedeem);
+    fs.writeFileSync(allianceChainPath, content);
+    console.log("[3c] 已更新 Alliance chainAddresses.ts");
+  }
+
   // 4. src/b-unit/readme.md
   const readmePath = path.join(__dirname, "..", "src", "b-unit", "readme.md");
   if (fs.existsSync(readmePath)) {
