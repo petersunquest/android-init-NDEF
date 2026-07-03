@@ -9,7 +9,7 @@ import { ethers } from "ethers";
 
 const INDEXER = "0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe";
 const BUINT = "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae";
-const BUNIT_AIRDROP = "0xb9cf45AF87b16853c8F48a16b0495F030309e70f";
+const BUNIT_AIRDROP = "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8";
 
 const ABI = [
   "function getAccountTransactionsPaged(address account, uint256 offset, uint256 limit) view returns (tuple(bytes32 id, bytes32 originalPaymentHash, uint256 chainId, bytes32 txCategory, string displayJson, uint64 timestamp, address payer, address payee, uint256 finalRequestAmountFiat6, uint256 finalRequestAmountUSDC6, bool isAAAccount, tuple(uint16 gasChainType, uint256 gasWei, uint256 gasUSDC6, uint256 serviceUSDC6, uint256 bServiceUSDC6, uint256 bServiceUnits6, address feePayer) fees, tuple(uint256 requestAmountFiat6, uint256 requestAmountUSDC6, uint8 currencyFiat, uint256 discountAmountFiat6, uint16 discountRateBps, uint256 taxAmountFiat6, uint16 taxRateBps, string afterNotePayer, string afterNotePayee) meta, bool exists)[] page)",

@@ -1,5 +1,5 @@
 import { network as networkModule } from "hardhat";
-const BUNIT_AIRDROP = "0xb9cf45AF87b16853c8F48a16b0495F030309e70f";
+const BUNIT_AIRDROP = "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8";
 async function main() {
   const { ethers } = await networkModule.connect();
   const airdrop = await ethers.getContractAt("BUnitAirdrop", BUNIT_AIRDROP);

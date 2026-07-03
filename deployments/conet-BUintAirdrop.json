@@ -18,17 +18,16 @@
     "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
     "0xee73178EE888363C84713434D1570749eaeB880d"
   ],
-  "timestamp": "2026-06-27T02:44:07.695Z",
+  "timestamp": "2026-07-03T21:27:43.237Z",
   "contracts": {
     "BUint": {
       "address": "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
-      "legacyAddressAtDeploy": "0xa354CC4c414568Dd14F6d63b53013f35483427f0",
       "admins": [
-        "0xb9cf45AF87b16853c8F48a16b0495F030309e70f"
+        "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8"
       ]
     },
     "BUnitAirdrop": {
-      "address": "0xb9cf45AF87b16853c8F48a16b0495F030309e70f",
+      "address": "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8",
       "dailyClaimLimit": "20e6",
       "beamioIndexerDiamond": "0x6113fE738489c0aB64B4606Ce333aD29b44ED0C4",
       "admins": [

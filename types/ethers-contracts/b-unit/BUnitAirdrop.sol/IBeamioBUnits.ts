@@ -6,27 +6,15 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioBUnitsInterface extends Interface {
-    getFunction(nameOrSignature: "consumeFuel" | "getDailyReport" | "getHourlyReport" | "getMonthlyReport" | "getQuarterlyReport" | "getWeeklyReport" | "getYearlyReport" | "totalFreeBurned" | "totalPaidBurned"): FunctionFragment;
+    getFunction(nameOrSignature: "consumeFuel" | "totalFreeBurned" | "totalPaidBurned"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getDailyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getHourlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getMonthlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getQuarterlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getWeeklyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getYearlyReport', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalFreeBurned', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalPaidBurned', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getDailyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getHourlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getMonthlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getQuarterlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getWeeklyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getYearlyReport', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalFreeBurned', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Result;
   }
@@ -75,54 +63,6 @@ decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Resu
     
 
     
-    getDailyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
-    getHourlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
-    getMonthlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
-    getQuarterlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
-    getWeeklyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
-    getYearlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >
-    
-
-    
     totalFreeBurned: TypedContractMethod<
       [],
       [bigint],
@@ -145,36 +85,6 @@ decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Resu
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'
-    >;
-getFunction(nameOrSignature: 'getDailyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getHourlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getMonthlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getQuarterlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getWeeklyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getYearlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [[bigint, bigint] & {mint: bigint, burn: bigint }],
-      'view'
     >;
 getFunction(nameOrSignature: 'totalFreeBurned'): TypedContractMethod<
       [],

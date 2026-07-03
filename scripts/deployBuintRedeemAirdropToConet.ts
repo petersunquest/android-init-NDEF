@@ -160,6 +160,14 @@ async function main() {
   const addrData = fs.existsSync(ADDRESSES_PATH)
     ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8"))
     : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224422" };
+  const prevRedeem = addrData.BuintRedeemAirdrop as string | undefined;
+  if (
+    prevRedeem &&
+    prevRedeem.toLowerCase() !== redeemAddress.toLowerCase() &&
+    !addrData.BuintRedeemAirdropLegacy
+  ) {
+    addrData.BuintRedeemAirdropLegacy = prevRedeem;
+  }
   addrData.BuintRedeemAirdrop = redeemAddress;
   if (!addrData.BUint) addrData.BUint = BUINT_ADDRESS;
   fs.writeFileSync(ADDRESSES_PATH, JSON.stringify(addrData, null, 2) + "\n", "utf-8");

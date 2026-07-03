@@ -4,7 +4,7 @@
  */
 import { ethers } from "ethers";
 
-const BUNIT_AIRDROP = "0xb9cf45AF87b16853c8F48a16b0495F030309e70f";
+const BUNIT_AIRDROP = "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8";
 const CONET_RPC = process.env.CONET_RPC || "https://rpc1.conet.network";
 
 async function main() {

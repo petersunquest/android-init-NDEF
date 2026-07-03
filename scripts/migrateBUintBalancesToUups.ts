@@ -101,11 +101,22 @@ async function main() {
       skipped++;
       continue;
     }
-    freeSum += free;
-    paidSum += paid;
-    console.log(`  ${addr} free=${free} paid=${paid} (api value=${row.value})`);
+    const [, newFree, newPaid] = await buint.balanceOfAll(addr);
+    // 仅补差额，避免已部分迁移账户被二次 mintCombo 双倍入账
+    const freeDelta = free > newFree ? free - newFree : 0n;
+    const paidDelta = paid > newPaid ? paid - newPaid : 0n;
+    if (freeDelta === 0n && paidDelta === 0n) {
+      console.log(`  ${addr} already covered on proxy (legacy free=${free} paid=${paid}; new free=${newFree} paid=${newPaid})`);
+      skipped++;
+      continue;
+    }
+    freeSum += freeDelta;
+    paidSum += paidDelta;
+    console.log(
+      `  ${addr} mint freeDelta=${freeDelta} paidDelta=${paidDelta} (legacy free=${free} paid=${paid}; new free=${newFree} paid=${newPaid})`
+    );
     if (!dryRun) {
-      const tx = await buint.mintCombo(addr, paid, free);
+      const tx = await buint.mintCombo(addr, paidDelta, freeDelta);
       console.log("    tx:", tx.hash);
       await tx.wait();
     }

@@ -254,7 +254,7 @@ export const BASE_TREASURY = '0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58'
     if (m) BASE_CCSA_CARD = m[1];
   }
 
-  let CONET_BUNIT_AIRDROP = "0xb9cf45AF87b16853c8F48a16b0495F030309e70f";
+  let CONET_BUNIT_AIRDROP = "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8";
   const conetAddrPath = path.join(deploymentsDir, "conet-addresses.json");
   if (fs.existsSync(conetAddrPath)) {
     const conetData = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8"));

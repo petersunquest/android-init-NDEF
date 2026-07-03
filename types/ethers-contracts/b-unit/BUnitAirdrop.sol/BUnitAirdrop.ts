@@ -14,18 +14,8 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
     export type CardBalanceStructOutput = [card: string, tokenId: bigint, balanceE6: bigint] & {card: string, tokenId: bigint, balanceE6: bigint }
   
 
-    export type KindBurnDetailStruct = {kind: BigNumberish, amount: BigNumberish, count: BigNumberish, gas: BigNumberish, gasUSDC: BigNumberish}
-
-    export type KindBurnDetailStructOutput = [kind: bigint, amount: bigint, count: bigint, gas: bigint, gasUSDC: bigint] & {kind: bigint, amount: bigint, count: bigint, gas: bigint, gasUSDC: bigint }
-  
-
-    export type PeriodSummaryStruct = {airdropCount: BigNumberish, burnCount: BigNumberish, gas: BigNumberish, gasUSDC: BigNumberish, bunitMint: BigNumberish, bunitBurn: BigNumberish, kindBurns: KindBurnDetailStruct[]}
-
-    export type PeriodSummaryStructOutput = [airdropCount: bigint, burnCount: bigint, gas: bigint, gasUSDC: bigint, bunitMint: bigint, bunitBurn: bigint, kindBurns: KindBurnDetailStructOutput[]] & {airdropCount: bigint, burnCount: bigint, gas: bigint, gasUSDC: bigint, bunitMint: bigint, bunitBurn: bigint, kindBurns: KindBurnDetailStructOutput[] }
-  
-
   export interface BUnitAirdropInterface extends Interface {
-    getFunction(nameOrSignature: "BUNIT_TO_USDC_RATE" | "USDC_TO_BUNIT_RATE" | "addAdmin" | "admins" | "airdropCount" | "beamioIndexerDiamond" | "bunit" | "burnCount" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimNonces" | "claimWithAttribution" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "eip712Domain" | "getAirdropStats" | "getAllKinds" | "getAllKindsWithNames" | "getBUnitBalance" | "getBUnitReport" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getBurnStats" | "getClaimDigest" | "getClaimV2Digest" | "getCumulativeKindBurns" | "getCumulativeReport" | "getCumulativeReportFull" | "getDailyKindBurns" | "getDailyReport" | "getDailyReportFull" | "getEventStats" | "getHourlyKindBurns" | "getHourlyReport" | "getHourlyReportFull" | "getKindName" | "getMonthlyKindBurns" | "getMonthlyReport" | "getMonthlyReportFull" | "getQuarterlyKindBurns" | "getQuarterlyReport" | "getQuarterlyReportFull" | "getWeeklyKindBurns" | "getWeeklyReport" | "getWeeklyReportFull" | "getYearlyKindBurns" | "getYearlyReport" | "getYearlyReportFull" | "hasClaimed" | "mintForUsdcPurchase" | "owner" | "quoteHelper" | "registerKind" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "setClaimAmount" | "setConetTreasuryAndUsdc" | "setQuoteHelper" | "totalBaseGas" | "totalBaseGasUSDC" | "totalFreeAirdropped" | "totalPaidAirdropped" | "transferOwnership" | "withdrawUsdc"): FunctionFragment;
+    getFunction(nameOrSignature: "BUNIT_TO_USDC_RATE" | "USDC_TO_BUNIT_RATE" | "addAdmin" | "admins" | "airdropCount" | "beamioIndexerDiamond" | "bunit" | "burnCount" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimNonces" | "claimWithAttribution" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "eip712Domain" | "getAirdropStats" | "getAllKinds" | "getAllKindsWithNames" | "getBUnitBalance" | "getBUnitReport" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getBurnStats" | "getClaimDigest" | "getClaimV2Digest" | "getEventStats" | "getKindName" | "hasClaimed" | "mintForUsdcPurchase" | "owner" | "quoteHelper" | "registerKind" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "setClaimAmount" | "setConetTreasuryAndUsdc" | "setQuoteHelper" | "totalBaseGas" | "totalBaseGasUSDC" | "totalFreeAirdropped" | "totalPaidAirdropped" | "transferOwnership" | "withdrawUsdc"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "BeamioIndexerDiamondUpdated" | "ClaimAmountUpdated" | "Claimed" | "ClaimedFor" | "ClaimedWithAttribution" | "ConetTreasuryAndUsdcUpdated" | "ConsumedAndAirdropped" | "EIP712DomainChanged" | "IndexerSyncFailed" | "KindRegistered" | "MerchantInstallAttributionFailed" | "OwnershipTransferred" | "QuoteHelperUpdated" | "WithdrewUsdc"): EventFragment;
 
@@ -57,29 +47,8 @@ encodeFunctionData(functionFragment: 'getBeamioUserCardBalancesFromCatalog', val
 encodeFunctionData(functionFragment: 'getBurnStats', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getClaimDigest', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getClaimV2Digest', values: [AddressLike, BigNumberish, BigNumberish, AddressLike, BigNumberish, AddressLike]): string;
-encodeFunctionData(functionFragment: 'getCumulativeKindBurns', values: [BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getCumulativeReport', values?: undefined): string;
-encodeFunctionData(functionFragment: 'getCumulativeReportFull', values: [BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getDailyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getDailyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getDailyReportFull', values: [BigNumberish, BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'getEventStats', values?: undefined): string;
-encodeFunctionData(functionFragment: 'getHourlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getHourlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getHourlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'getKindName', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getMonthlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getMonthlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getMonthlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getQuarterlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getQuarterlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getQuarterlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getWeeklyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getWeeklyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getWeeklyReportFull', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getYearlyKindBurns', values: [BigNumberish, BigNumberish[]]): string;
-encodeFunctionData(functionFragment: 'getYearlyReport', values: [BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getYearlyReportFull', values: [BigNumberish, BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'hasClaimed', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintForUsdcPurchase', values: [AddressLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
@@ -126,29 +95,8 @@ decodeFunctionResult(functionFragment: 'getBeamioUserCardBalancesFromCatalog', d
 decodeFunctionResult(functionFragment: 'getBurnStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getClaimDigest', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getClaimV2Digest', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getCumulativeKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getCumulativeReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getCumulativeReportFull', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getDailyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getDailyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getDailyReportFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getEventStats', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getHourlyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getHourlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getHourlyReportFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getKindName', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getMonthlyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getMonthlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getMonthlyReportFull', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getQuarterlyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getQuarterlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getQuarterlyReportFull', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getWeeklyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getWeeklyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getWeeklyReportFull', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getYearlyKindBurns', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getYearlyReport', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getYearlyReportFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hasClaimed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
@@ -619,54 +567,6 @@ decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
     
 
     
-    getCumulativeKindBurns: TypedContractMethod<
-      [kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getCumulativeReport: TypedContractMethod<
-      [],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getCumulativeReportFull: TypedContractMethod<
-      [kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getDailyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getDailyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getDailyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
     getEventStats: TypedContractMethod<
       [],
       [[bigint, bigint, bigint, bigint] & {_airdropCount: bigint, _burnCount: bigint, _totalBaseGas: bigint, _totalBaseGasUSDC: bigint }],
@@ -675,129 +575,9 @@ decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
     
 
     
-    getHourlyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getHourlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getHourlyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
     getKindName: TypedContractMethod<
       [kind: BigNumberish, ],
       [string],
-      'view'
-    >
-    
-
-    
-    getMonthlyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getMonthlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getMonthlyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getQuarterlyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getQuarterlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getQuarterlyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getWeeklyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getWeeklyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getWeeklyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getYearlyKindBurns: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >
-    
-
-    
-    getYearlyReport: TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >
-    
-
-    
-    getYearlyReportFull: TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
       'view'
     >
     
@@ -1081,119 +861,14 @@ getFunction(nameOrSignature: 'getClaimV2Digest'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'getCumulativeKindBurns'): TypedContractMethod<
-      [kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getCumulativeReport'): TypedContractMethod<
-      [],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getCumulativeReportFull'): TypedContractMethod<
-      [kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getDailyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getDailyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getDailyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
 getFunction(nameOrSignature: 'getEventStats'): TypedContractMethod<
       [],
       [[bigint, bigint, bigint, bigint] & {_airdropCount: bigint, _burnCount: bigint, _totalBaseGas: bigint, _totalBaseGasUSDC: bigint }],
       'view'
     >;
-getFunction(nameOrSignature: 'getHourlyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getHourlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getHourlyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
 getFunction(nameOrSignature: 'getKindName'): TypedContractMethod<
       [kind: BigNumberish, ],
       [string],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getMonthlyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getMonthlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getMonthlyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getQuarterlyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getQuarterlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getQuarterlyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getWeeklyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getWeeklyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getWeeklyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getYearlyKindBurns'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [KindBurnDetailStructOutput[]],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getYearlyReport'): TypedContractMethod<
-      [n: BigNumberish, ],
-      [PeriodSummaryStructOutput],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getYearlyReportFull'): TypedContractMethod<
-      [n: BigNumberish, kinds: BigNumberish[], ],
-      [[PeriodSummaryStructOutput, KindBurnDetailStructOutput[]] & {summary: PeriodSummaryStructOutput, kindBurns: KindBurnDetailStructOutput[] }],
       'view'
     >;
 getFunction(nameOrSignature: 'hasClaimed'): TypedContractMethod<

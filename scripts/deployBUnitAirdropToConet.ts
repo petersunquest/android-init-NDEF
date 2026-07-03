@@ -142,8 +142,16 @@ async function main() {
   fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
   console.log("\n[4] saved:", outPath);
 
-  // 5. 更新 conet-addresses.json
+  // 5. 更新 conet-addresses.json（保留旧 airdrop 供停用脚本使用）
   const addrData = fs.existsSync(ADDRESSES_PATH) ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8")) : { _comment: "CoNET mainnet 合约地址权威配置", network: "conet", chainId: "224422" };
+  const prevAirdrop = addrData.BUnitAirdrop as string | undefined;
+  if (
+    prevAirdrop &&
+    prevAirdrop.toLowerCase() !== airdropAddress.toLowerCase() &&
+    !addrData.BUnitAirdropLegacy
+  ) {
+    addrData.BUnitAirdropLegacy = prevAirdrop;
+  }
   addrData.BUnitAirdrop = airdropAddress;
   if (!addrData.BUint) addrData.BUint = BUINT_ADDRESS;
   fs.writeFileSync(ADDRESSES_PATH, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
