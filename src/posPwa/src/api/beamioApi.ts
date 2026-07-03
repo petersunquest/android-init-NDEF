@@ -54,7 +54,7 @@ export async function fetchRegistryOwnerByAccountName(
 	normalizedHandle: string,
 ): Promise<string | null | undefined> {
 	const name = normalizeRegistryHandle(normalizedHandle)
-	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) return undefined
+	if (!name || !/^[a-zA-Z0-9_.]{3,26}$/.test(name)) return undefined
 	const hex = await ethCallRegistry(
 		registryIface.encodeFunctionData('getOwnerByAccountName', [name]),
 	)
@@ -79,7 +79,7 @@ export async function probeBeamioTagRegistration(
 	walletAddress?: string,
 ): Promise<BeamioTagRegistrationProbe> {
 	const name = normalizeRegistryHandle(normalizedHandle)
-	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) {
+	if (!name || !/^[a-zA-Z0-9_.]{3,26}$/.test(name)) {
 		return { ok: false, reason: 'invalid' }
 	}
 	const owner = await fetchRegistryOwnerByAccountName(name)

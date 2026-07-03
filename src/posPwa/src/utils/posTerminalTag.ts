@@ -22,7 +22,7 @@ export async function resolveFirstAvailablePosTerminalTag(
 
 	for (let n = 1; n <= 9999; n++) {
 		const candidate = assemblePosTerminalBeamioTag(parentRaw, n)
-		if (!/^[a-zA-Z0-9_.]{3,20}$/.test(candidate)) continue
+		if (!/^[a-zA-Z0-9_.]{3,26}$/.test(candidate)) continue
 		const avail = await isAvailableWithRetries(candidate, isAvailable)
 		if (avail === true) return candidate
 		if (avail === false) continue

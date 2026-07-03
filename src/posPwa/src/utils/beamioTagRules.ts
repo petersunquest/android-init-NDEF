@@ -1,5 +1,5 @@
-/** Beamio tag input rules — align Android `BeamioTagRules`. */
-const ALLOWED = /^[a-zA-Z0-9_.]{3,20}$/
+/** Beamio tag input rules — align Cluster `/addUser` (3–26). */
+const ALLOWED = /^[a-zA-Z0-9_.]{3,26}$/
 
 export function normalizeBeamioTagInput(raw: string): string {
 	let s = raw.trim()
@@ -16,7 +16,7 @@ export function localValidateBeamioTag(raw: string): { ok: boolean; value: strin
 	const value = normalizeBeamioTagInput(raw)
 	if (!value) return { ok: false, value, message: 'Please enter a business handle' }
 	if (!ALLOWED.test(value)) {
-		return { ok: false, value, message: 'Use 3–20 letters, numbers, dots, or underscores' }
+		return { ok: false, value, message: 'Use 3–26 letters, numbers, dots, or underscores' }
 	}
 	return { ok: true, value, message: '' }
 }
