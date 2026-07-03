@@ -186,6 +186,14 @@ const CONFIG = {
     sourceKey: "project/src/b-unit/BUint.sol",
     contractName: "BeamioBUnits",
   },
+  BUnitAirdrop: {
+    sourceKey: "project/src/b-unit/BUnitAirdrop.sol",
+    contractName: "BUnitAirdrop",
+  },
+  BuintRedeemAirdrop: {
+    sourceKey: "project/src/b-unit/BuintRedeemAirdrop.sol",
+    contractName: "BuintRedeemAirdrop",
+  },
   ConetGB1155: {
     sourceKey: "project/src/b-unit/GB.sol",
     contractName: "ConetGB1155",
