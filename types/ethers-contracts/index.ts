@@ -66,6 +66,12 @@ export type { IUserCardCtx } from './BeamioUserCard/AdminStatsQueryModule.sol/IU
 export { IUserCardCtx__factory } from './factories/BeamioUserCard/AdminStatsQueryModule.sol/IUserCardCtx__factory.js';
 export type { BeamioUserCardAdminStatsQueryModuleV2 } from './BeamioUserCard/AdminStatsQueryModuleV2.sol/BeamioUserCardAdminStatsQueryModuleV2.js';
 export { BeamioUserCardAdminStatsQueryModuleV2__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV2.sol/BeamioUserCardAdminStatsQueryModuleV2__factory.js';
+export type { BeamioUserCardAdminStatsQueryModuleV3 } from './BeamioUserCard/AdminStatsQueryModuleV3.sol/BeamioUserCardAdminStatsQueryModuleV3.js';
+export { BeamioUserCardAdminStatsQueryModuleV3__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV3.sol/BeamioUserCardAdminStatsQueryModuleV3__factory.js';
+export type { IBeamioAccountFactoryResolve } from './BeamioUserCard/AdminStatsQueryModuleV3.sol/IBeamioAccountFactoryResolve.js';
+export { IBeamioAccountFactoryResolve__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV3.sol/IBeamioAccountFactoryResolve__factory.js';
+export type { ICardProgramHoldingsView } from './BeamioUserCard/AdminStatsQueryModuleV3.sol/ICardProgramHoldingsView.js';
+export { ICardProgramHoldingsView__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV3.sol/ICardProgramHoldingsView__factory.js';
 export type { BeamioERC1155Logic } from './BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic.js';
 export { BeamioERC1155Logic__factory } from './factories/BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic__factory.js';
 export type { IBeamioAccountFactoryV07 } from './BeamioUserCard/BeamioERC1155Logic.sol/IBeamioAccountFactoryV07.js';
@@ -148,6 +154,8 @@ export type { BeamioUserCardChargeRewardModuleV1 } from './BeamioUserCard/Charge
 export { BeamioUserCardChargeRewardModuleV1__factory } from './factories/BeamioUserCard/ChargeRewardModule.sol/BeamioUserCardChargeRewardModuleV1__factory.js';
 export type { IUserCardCurrency } from './BeamioUserCard/ChargeRewardModule.sol/IUserCardCurrency.js';
 export { IUserCardCurrency__factory } from './factories/BeamioUserCard/ChargeRewardModule.sol/IUserCardCurrency__factory.js';
+export type { IUserCardFactoryPaymasterStatus } from './BeamioUserCard/ChargeRewardModule.sol/IUserCardFactoryPaymasterStatus.js';
+export { IUserCardFactoryPaymasterStatus__factory } from './factories/BeamioUserCard/ChargeRewardModule.sol/IUserCardFactoryPaymasterStatus__factory.js';
 export type { BeamioUserCardChargeRewardModuleV2 } from './BeamioUserCard/ChargeRewardModuleV2.sol/BeamioUserCardChargeRewardModuleV2.js';
 export { BeamioUserCardChargeRewardModuleV2__factory } from './factories/BeamioUserCard/ChargeRewardModuleV2.sol/BeamioUserCardChargeRewardModuleV2__factory.js';
 export type { ICardPoints } from './BeamioUserCard/ChargeRewardModuleV2.sol/ICardPoints.js';

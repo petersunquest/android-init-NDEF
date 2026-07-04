@@ -55,7 +55,16 @@ async function deployNick(
   } catch {
     console.warn(`${label}: estimateGas 失败，使用默认 gasLimit`);
   }
-  const tx = await deployer.sendTransaction({ to: factoryAddress, data, gasLimit });
+  const fee = await ethers.provider.getFeeData();
+  const maxFeePerGas = ((fee.maxFeePerGas ?? 1_000_000_000n) * 3n) / 1n;
+  const maxPriorityFeePerGas = ((fee.maxPriorityFeePerGas ?? 100_000_000n) * 3n) / 1n;
+  const tx = await deployer.sendTransaction({
+    to: factoryAddress,
+    data,
+    gasLimit,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  });
   console.log(`${label} deploy tx:`, tx.hash);
   await tx.wait();
   const code = await ethers.provider.getCode(predicted);

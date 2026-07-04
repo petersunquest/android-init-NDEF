@@ -6,6 +6,7 @@ import "./BeamioCurrency.sol";
 import "./Errors.sol";
 import "./GovernanceStorage.sol";
 import "./BeamioUserCardAdminPartyMixin.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -204,7 +205,7 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard, Beami
 
     function _mintMembershipNft(address acct, uint256 tierIndexOrMax, uint256 attr, uint256 expiry) internal returns (uint256 newId) {
         newId = _currentIndex++;
-        _mint(acct, newId, 1, "");
+        BeamioUserCardModuleMintLib.cardMint(acct, newId, 1);
         expiresAt[newId] = expiry;
         attributes[newId] = attr;
         tokenTierIndexOrMax[newId] = tierIndexOrMax;

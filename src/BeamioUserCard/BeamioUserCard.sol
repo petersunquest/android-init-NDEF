@@ -901,6 +901,10 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
         _mint(to, id, amount, "");
     }
 
+    function cardSelfBurn(address from, uint256 id, uint256 amount) external onlySelf {
+        _burn(from, id, amount);
+    }
+
     function cardSelfCallModule(uint8 kind, bytes calldata data) external onlySelf returns (bytes memory) {
         return _callModule(kind, data);
     }

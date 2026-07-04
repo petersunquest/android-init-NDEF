@@ -4,3 +4,4 @@
 export { BeamioUserCardChargeRewardModuleV1__factory } from './BeamioUserCardChargeRewardModuleV1__factory.js';
 export { IUserCardCtx__factory } from './IUserCardCtx__factory.js';
 export { IUserCardCurrency__factory } from './IUserCardCurrency__factory.js';
+export { IUserCardFactoryPaymasterStatus__factory } from './IUserCardFactoryPaymasterStatus__factory.js';

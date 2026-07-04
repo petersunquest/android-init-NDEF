@@ -12,7 +12,7 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
     uint8 private constant ROUTE_CHARGE_REWARD = 5;
     uint8 private constant ROUTE_INVALID = type(uint8).max;
 
-    function selectorModuleKind(bytes4 sel) external pure override returns (uint8) {
+    function selectorModuleKind(bytes4 sel) public pure virtual override returns (uint8) {
         uint8 v2 = _selectorModuleKindV2(sel);
         if (v2 != ROUTE_INVALID) return v2;
         return super._selectorModuleKindV1(sel);

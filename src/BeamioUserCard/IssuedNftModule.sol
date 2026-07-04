@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "./Errors.sol";
 import "./IssuedNftStorage.sol";
 import "./BeamioERC1155Logic.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 import "../contracts/token/ERC1155/ERC1155.sol";
 
 interface IUserCardCtx {
@@ -136,7 +137,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         if (maxSupply == 0) revert UC_InvalidTokenId(tokenId, 0);
         _requireRealIssuedNft(tokenId);
 
-        _burn(holder, tokenId, amount);
+        BeamioUserCardModuleMintLib.cardBurn(holder, tokenId, amount);
         emit IssuedNftBurned(tokenId, holder, amount);
     }
 
@@ -200,7 +201,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         if (wallet == address(0)) revert BM_ZeroAddress();
         if (amount == 0) revert UC_AmountZero();
         uint8 statKind = _cardReferralStatKind(tokenId);
-        _mint(wallet, tokenId, amount, "");
+        BeamioUserCardModuleMintLib.cardMint(wallet, tokenId, amount);
         emit ReferralStatRecorded(tokenId, wallet, statKind, amount);
     }
 
@@ -214,7 +215,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         _requireRealIssuedNft(tokenId);
         statTokenId = _issuedNftReferralStatTokenId(tokenId, statKind);
         _requireStatToken(statTokenId);
-        _mint(wallet, statTokenId, amount, "");
+        BeamioUserCardModuleMintLib.cardMint(wallet, statTokenId, amount);
         emit ReferralStatRecorded(statTokenId, wallet, statKind, amount);
     }
 
@@ -232,7 +233,7 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         l.issuedNftTrafficGB18[tokenId] += trafficGB18;
         IssuedNftStorage.UserContentStats storage u = l.issuedNftUserContentStats[tokenId][wallet];
         u.trafficGB18 += trafficGB18;
-        _mint(wallet, statTokenId, trafficGB18, "");
+        BeamioUserCardModuleMintLib.cardMint(wallet, statTokenId, trafficGB18);
         emit ReferralStatRecorded(statTokenId, wallet, STAT_KIND_TRAFFIC, trafficGB18);
     }
 

@@ -1,42 +1,28 @@
 Contract Name: project/src/b-unit/conetTreasury.sol:ConetTreasury
 Address: 0xa311c8fBE7CafC611603Ee925465A62493B73B30
 Constructor Args ABI-encoded: 0x00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
-Standard JSON (FULL): deployments/base-ConetTreasury-standard-input-FULL.json (~1.72 MB — build-info FULL，与 BeamioUserCard 同款)
-Standard JSON (FORM, UI 首选): deployments/base-ConetTreasury-standard-input-FULL-FORM.json (~200 KB，剪枝，BaseScan UI 秒过)
+Standard JSON: deployments/base-ConetTreasury-standard-input-FULL.json (1.81 MB — build-info FULL，与 BeamioUserCard 同款)
 Network: base (chainId 8453)
-Deploy tx: 0xffd21164afe1c331470a9e92e9d273d8aaf8d176d1c1547f9bc3ca8ad9fe3ffb
-Deploy block: 47991996
-Generated: 2026-06-29 (统一国库：voteErc20Transfer 任意 ERC20/原生 ETH 投票出金 + receive ETH + purchaseBUnitWith3009Authorization)
+Generated: 2026-07-04T07:37:41.158Z
 Compiler: v0.8.35+commit.47b9dedd
 Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
-Runtime bytecode: 24566 bytes（EIP-170 限内，余 10 bytes）
-initCodeHash: 0x63b6cca1e243dee233a9a0186344af7d231dfc83d94c8485f3f4c6a8159ba8fe（本地 FORM 编译已校验 == 链上）
 
-本合约为 BaseTreasury 的统一替代国库（单一国库）。在旧 ConetTreasury 基础上：
-  - 合并 BaseTreasury 入金：receive() 收原生 ETH；purchaseBUnitWith3009Authorization(bytes) 收 USDC 并 emit BUnitPurchased（CoNET-SI / bizSite 兼容）
-  - 去中心化出金：voteErc20Transfer / voteErc20TransferWithSignature / executeErc20Transfer
-    统一处理任意 ERC20（token != 0）与原生 ETH（token == address(0)）投票出金
-  - 保留跨链同址 + mint/burn（Peer）治理轨道
-bytecode 变更历史：
-  0xc6e615431BC0c0c65E09e04877a08AC927A30242（最初，无 ERC20 投票出金，弃用）
-  0x30a9251bC24df235BdCB6F20933f74d6EFc247a8（仅加 ERC20 投票出金，弃用）
-  0xa311c8fBE7CafC611603Ee925465A62493B73B30（当前：合并 BaseTreasury 全功能）
-
-Regenerate:
+Regenerate (与 BeamioUserCard 相同流程):
   npm run clean && npm run compile
   node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasury --full
-  node scripts/exportConetTreasuryStackBaseScanFormJson.mjs   # 生成 FORM
+  或: node scripts/exportConetTreasuryStackStandardJson.mjs
+  再: node scripts/exportConetTreasuryStackBaseScanFormJson.mjs
 
-BaseScan UI（无需 API key）:
+BaseScan UI:
   1) Solidity (Standard-Json-Input)
   2) Compiler v0.8.35+commit.47b9dedd
-  3) Upload base-ConetTreasury-standard-input-FULL-FORM.json（首选；或 FULL）
+  3) Upload base-ConetTreasury-standard-input-FULL.json（须 ~1 MB+，勿用 ~79 KB 旧子集）
   4) Contract Name（若 UI 有该字段）:
      project/src/b-unit/conetTreasury.sol:ConetTreasury
   5) Constructor Arguments (no 0x):
      00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 
-CLI:
+CLI（推荐 — 显式 contractname）:
   BASESCAN_API_KEY=... npx tsx scripts/verifyConetTreasuryStackBaseScan.ts ConetTreasury
 
 禁止: settings.compilationTarget（BaseScan Unknown key）；勿用未 --full 的 build-info 子集。

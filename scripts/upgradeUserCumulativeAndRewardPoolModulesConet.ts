@@ -2,6 +2,10 @@
  * 部署 IssuedNft V2 + ChargeReward V2 + AdminStatsQuery V2（用户累计统计 + #13 奖励池 + Plan A 用户点赞），
  * 并更新 CoNET Factory 三处 default 模块绑定。不重发商户卡、不重部署 Factory 本体。
  *
+ * Stat mint/burn 经 BeamioUserCardModuleMintLib → cardSelfMint / cardSelfBurn（维护 TotalSupplyStorage）。
+ * 已部署商户卡须 bytecode 含 cardSelfMint（V27+ 有）；cardSelfBurn 需新版主卡 initCode（Unlike 路径）。
+ * 仅 mint 的 KPI（点赞等）在旧卡上可随本脚本生效；burn 统计需新发卡或主卡 bytecode 升级。
+ *
  * Plan A：`IssuedNftModuleV2.applyUserLikeWithSignature` — 用户 EIP-712 点赞/取消，Master 直调 card（无需 gatewayInvokeCard）。
  *
  * 运行:
@@ -255,12 +259,13 @@ async function main() {
     console.log("写入", conetAddressesPath);
   }
 
-  console.log("\n下一步 Blockscout 验证:");
+  console.log("\n下一步 Blockscout 验证（见 .cursor/rules/conet-mainnet-blockscout-verify.mdc）:");
   console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV2 --full");
   console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardChargeRewardModuleV2 --full");
   console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardAdminStatsQueryModuleV2 --full");
+  console.log("  node scripts/exportConetUserCardModuleV2VerifyBuildinfo.mjs");
   console.log(
-    "  CONET_VERIFY_ONLY=BeamioUserCardIssuedNftModuleV2,BeamioUserCardChargeRewardModuleV2,BeamioUserCardAdminStatsQueryModuleV2 npx tsx scripts/verifyConetUserCardModulesOnScan.ts",
+    "  CONET_VERIFY_POLL_MAX=180 CONET_VERIFY_ONLY=BeamioUserCardIssuedNftModuleV2,BeamioUserCardChargeRewardModuleV2,BeamioUserCardAdminStatsQueryModuleV2 npx tsx scripts/verifyConetUserCardModulesOnScan.ts",
   );
 }
 

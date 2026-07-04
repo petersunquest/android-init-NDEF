@@ -6,6 +6,7 @@ import "./BeamioUserCardTypes.sol";
 /// @dev Self-call hooks for external runtime libraries (msg.sender must be address(this)).
 interface IBeamioUserCardSelfDelegate {
     function cardSelfMint(address to, uint256 id, uint256 amount) external;
+    function cardSelfBurn(address from, uint256 id, uint256 amount) external;
     function cardSelfCallModule(uint8 kind, bytes calldata data) external returns (bytes memory);
     function cardSelfGovernanceDelegate(address module, bytes calldata data) external returns (bool);
     function cardSelfAppendMembershipNftIfMissing(address acct, uint256 id) external;

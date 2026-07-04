@@ -5,6 +5,8 @@ import type * as adminStatsQueryModuleSol from './AdminStatsQueryModule.sol/inde
 export type { adminStatsQueryModuleSol };
 import type * as adminStatsQueryModuleV2Sol from './AdminStatsQueryModuleV2.sol/index.js';
 export type { adminStatsQueryModuleV2Sol };
+import type * as adminStatsQueryModuleV3Sol from './AdminStatsQueryModuleV3.sol/index.js';
+export type { adminStatsQueryModuleV3Sol };
 import type * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export type { beamioErc1155LogicSol };
 import type * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';

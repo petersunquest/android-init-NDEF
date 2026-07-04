@@ -41,6 +41,12 @@ contract FactoryERC20Upgradeable is EIP20Permit3009Upgradeable, UUPSUpgradeable 
         require(msg.sender == minter, "FactoryERC20: caller is not minter");
     }
 
+    /// @notice 迁移 minter（如国库同址升级后）。仅当前 minter 可调。
+    function setMinter(address newMinter) external onlyMinter {
+        require(newMinter != address(0), "FactoryERC20: zero minter");
+        minter = newMinter;
+    }
+
     modifier onlyMinter() {
         require(msg.sender == minter, "FactoryERC20: caller is not minter");
         _;

@@ -7,6 +7,7 @@ import "./GovernanceStorage.sol";
 import "./BeamioUserCardTransferLib.sol";
 import "./BeamioUserCardReferrerLib.sol";
 import "./IBeamioUserCardSelfDelegate.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 import "../contracts/token/ERC1155/ERC1155.sol";
 
 interface IUserCardCtx {
@@ -16,6 +17,11 @@ interface IUserCardCtx {
 
 interface IUserCardCurrency {
     function currency() external view returns (uint8);
+}
+
+/// @dev CoNET UserCard Factory：relayer AA 经 EntryPoint execute(card,…) 时 msg.sender 为 AA 地址，须 isPaymaster 放行。
+interface IUserCardFactoryPaymasterStatus {
+    function isPaymaster(address account) external view returns (bool);
 }
 
 /**
@@ -48,6 +54,20 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
     modifier onlyGateway() {
         if (msg.sender != IUserCardCtx(address(this)).factoryGateway()) revert UC_UnauthorizedGateway();
         _;
+    }
+
+    /// @notice Factory gateway 或 Factory 登记的 paymaster（含 relayer AA）可调用，等价于 gatewayInvokeCard 直调卡。
+    modifier onlyGatewayOrFactoryPaymaster() {
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        if (msg.sender == gw) {
+            _;
+            return;
+        }
+        if (IUserCardFactoryPaymasterStatus(gw).isPaymaster(msg.sender)) {
+            _;
+            return;
+        }
+        revert UC_UnauthorizedGateway();
     }
 
     modifier onlyAdmin() {
@@ -90,7 +110,7 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
 
         address gw = IUserCardCtx(address(this)).factoryGateway();
         address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
-        _mint(acct, CHARGE_REWARD_TOKEN_ID, reward, "");
+        BeamioUserCardModuleMintLib.cardMint(acct, CHARGE_REWARD_TOKEN_ID, reward);
         emit ChargeRewardAirdropped(userEOA, acct, chargeCurrency, amountFiat6, reward);
         BeamioUserCardReferrerLib.mintReferrerRewardIfConfigured(
             IBeamioUserCardSelfDelegate(address(this)), acct, reward
@@ -107,7 +127,7 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         if (amount > bal) revert UC_InsufficientBalance(acct, CHARGE_REWARD_TOKEN_ID, bal, amount);
         if (amount == 0) revert UC_AmountZero();
 
-        _burn(acct, CHARGE_REWARD_TOKEN_ID, amount);
+        BeamioUserCardModuleMintLib.cardBurn(acct, CHARGE_REWARD_TOKEN_ID, amount);
         emit AdminChargeRewardBurned(acct, amount);
     }
 

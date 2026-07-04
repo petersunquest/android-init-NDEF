@@ -6,6 +6,7 @@ import "./IssuedNftStorage.sol";
 import "./Errors.sol";
 import "./UserCumulativeStatLib.sol";
 import "./RewardPoolStorage.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "../contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -157,23 +158,23 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
                 revert UC_InvalidCumulativeTarget(targetKind, issuedParentId);
             }
             globalStatTokenId = UserCumulativeStatLib.globalStatTokenId(metricKind);
-            _mint(wallet, globalStatTokenId, delta, "");
+            BeamioUserCardModuleMintLib.cardMint(wallet, globalStatTokenId, delta);
             scopedStatTokenId = 0;
             emit UserCumulativeStatRecorded(wallet, metricKind, targetKind, 0, globalStatTokenId, 0, delta);
             return (globalStatTokenId, 0);
         }
 
         globalStatTokenId = UserCumulativeStatLib.globalStatTokenId(metricKind);
-        _mint(wallet, globalStatTokenId, delta, "");
+        BeamioUserCardModuleMintLib.cardMint(wallet, globalStatTokenId, delta);
 
         if (targetKind == UserCumulativeStatLib.TARGET_MERCHANT_CARD_COUPON) {
             scopedStatTokenId = UserCumulativeStatLib.merchantCardStatTokenId(metricKind);
-            _mint(wallet, scopedStatTokenId, delta, "");
+            BeamioUserCardModuleMintLib.cardMint(wallet, scopedStatTokenId, delta);
         } else if (targetKind == UserCumulativeStatLib.TARGET_ISSUED_COUPON) {
             _requireRealIssuedNft(issuedParentId);
             scopedStatTokenId = UserCumulativeStatLib.issuedCouponStatTokenId(issuedParentId, metricKind);
             _requireStatToken(scopedStatTokenId);
-            _mint(wallet, scopedStatTokenId, delta, "");
+            BeamioUserCardModuleMintLib.cardMint(wallet, scopedStatTokenId, delta);
         } else {
             revert UC_InvalidCumulativeTarget(targetKind, issuedParentId);
         }
@@ -212,7 +213,7 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
             globalStatTokenId = UserCumulativeStatLib.globalStatTokenId(metricKind);
             uint256 bal = balanceOf(wallet, globalStatTokenId);
             if (delta > bal) revert UC_InsufficientBalance(wallet, globalStatTokenId, bal, delta);
-            _burn(wallet, globalStatTokenId, delta);
+            BeamioUserCardModuleMintLib.cardBurn(wallet, globalStatTokenId, delta);
             scopedStatTokenId = 0;
             emit UserCumulativeStatRevoked(wallet, metricKind, targetKind, 0, globalStatTokenId, 0, delta);
             return (globalStatTokenId, 0);
@@ -222,21 +223,21 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
         {
             uint256 balG = balanceOf(wallet, globalStatTokenId);
             if (delta > balG) revert UC_InsufficientBalance(wallet, globalStatTokenId, balG, delta);
-            _burn(wallet, globalStatTokenId, delta);
+            BeamioUserCardModuleMintLib.cardBurn(wallet, globalStatTokenId, delta);
         }
 
         if (targetKind == UserCumulativeStatLib.TARGET_MERCHANT_CARD_COUPON) {
             scopedStatTokenId = UserCumulativeStatLib.merchantCardStatTokenId(metricKind);
             uint256 balS = balanceOf(wallet, scopedStatTokenId);
             if (delta > balS) revert UC_InsufficientBalance(wallet, scopedStatTokenId, balS, delta);
-            _burn(wallet, scopedStatTokenId, delta);
+            BeamioUserCardModuleMintLib.cardBurn(wallet, scopedStatTokenId, delta);
         } else if (targetKind == UserCumulativeStatLib.TARGET_ISSUED_COUPON) {
             _requireRealIssuedNft(issuedParentId);
             scopedStatTokenId = UserCumulativeStatLib.issuedCouponStatTokenId(issuedParentId, metricKind);
             _requireStatToken(scopedStatTokenId);
             uint256 balS = balanceOf(wallet, scopedStatTokenId);
             if (delta > balS) revert UC_InsufficientBalance(wallet, scopedStatTokenId, balS, delta);
-            _burn(wallet, scopedStatTokenId, delta);
+            BeamioUserCardModuleMintLib.cardBurn(wallet, scopedStatTokenId, delta);
         } else {
             revert UC_InvalidCumulativeTarget(targetKind, issuedParentId);
         }

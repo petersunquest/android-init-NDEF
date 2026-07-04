@@ -122,6 +122,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV2.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV2",
   },
+  BeamioUserCardAdminStatsQueryModuleV3: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV3.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV3",
+  },
   GovernanceModule: {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
@@ -346,15 +350,27 @@ function artifactPathForConfig(config) {
 }
 
 function readUserCardLibraryAddresses() {
+  const out = {};
   const p = path.join(__dirname, "../deployments/base-BeamioUserCardLibraries.json");
-  if (!fs.existsSync(p)) return {};
-  const j = JSON.parse(fs.readFileSync(p, "utf-8"));
-  const contracts = j.contracts ?? {};
-  return Object.fromEntries(
-    Object.entries(contracts)
-      .filter(([, value]) => value?.address)
-      .map(([name, value]) => [name, value.address])
-  );
+  if (fs.existsSync(p)) {
+    const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+    const contracts = j.contracts ?? {};
+    for (const [name, value] of Object.entries(contracts)) {
+      if (value?.address) out[name] = value.address;
+    }
+  }
+  // ConetTreasuryPeer CREATE2 libs（同址 CoNET/Base）
+  const peerMetaPath = path.join(__dirname, "../deployments/conetTreasuryPeer-create2-meta.json");
+  if (fs.existsSync(peerMetaPath)) {
+    const peerMeta = JSON.parse(fs.readFileSync(peerMetaPath, "utf-8"));
+    if (peerMeta.wrappedLibAddress) {
+      out.ConetTreasuryPeerWrappedLib = peerMeta.wrappedLibAddress;
+    }
+    if (peerMeta.stableSwapLibAddress) {
+      out.ConetTreasuryPeerStableSwapLib = peerMeta.stableSwapLibAddress;
+    }
+  }
+  return out;
 }
 
 const artifactPath = artifactPathForConfig(cfg);

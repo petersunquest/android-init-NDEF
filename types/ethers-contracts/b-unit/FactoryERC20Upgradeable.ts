@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface FactoryERC20UpgradeableInterface extends Interface {
-    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "UPGRADE_INTERFACE_VERSION" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "burnFrom" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "decimals" | "eip712Domain" | "initialize" | "mint" | "minter" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "proxiableUUID" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "upgradeToAndCall"): FunctionFragment;
+    getFunction(nameOrSignature: "DOMAIN_SEPARATOR" | "UPGRADE_INTERFACE_VERSION" | "allowance" | "approve" | "authorizationState" | "balanceOf" | "burnFrom" | "cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)" | "cancelAuthorization(address,bytes32,bytes)" | "decimals" | "eip712Domain" | "initialize" | "mint" | "minter" | "name" | "nonces" | "permit(address,address,uint256,uint256,bytes)" | "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)" | "proxiableUUID" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "setMinter" | "symbol" | "totalSupply" | "transfer" | "transferFrom" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)" | "transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)" | "upgradeToAndCall"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "Approval" | "AuthorizationUsed" | "EIP712DomainChanged" | "Initialized" | "Transfer" | "Upgraded"): EventFragment;
 
@@ -31,6 +31,7 @@ encodeFunctionData(functionFragment: 'permit(address,address,uint256,uint256,uin
 encodeFunctionData(functionFragment: 'proxiableUUID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'setMinter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalSupply', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
@@ -60,6 +61,7 @@ decodeFunctionResult(functionFragment: 'permit(address,address,uint256,uint256,u
 decodeFunctionResult(functionFragment: 'proxiableUUID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setMinter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalSupply', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
@@ -344,6 +346,14 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     
 
     
+    setMinter: TypedContractMethod<
+      [newMinter: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     symbol: TypedContractMethod<
       [],
       [string],
@@ -504,6 +514,11 @@ getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,u
     >;
 getFunction(nameOrSignature: 'receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)'): TypedContractMethod<
       [from: AddressLike, to: AddressLike, value: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, nonce: BytesLike, v: BigNumberish, r: BytesLike, s: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setMinter'): TypedContractMethod<
+      [newMinter: AddressLike, ],
       [void],
       'nonpayable'
     >;

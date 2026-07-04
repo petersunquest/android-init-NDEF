@@ -23,16 +23,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 const deploymentsDir = path.join(root, "deployments");
 
-const TREASURY = getAddress("0xc6e615431BC0c0c65E09e04877a08AC927A30242");
-const PEER = getAddress("0xCF26c1686aC5E01e37B72017E575511C42cad29f");
-const WCNET = getAddress("0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39");
-const BUINT = getAddress("0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f");
-const GB = getAddress("0xcA423EEBC09d09834dC9CA28861798B3321893ab");
-const GB_TOTAL = getAddress("0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11");
-const GB_USER_TOTAL = getAddress("0x5663d651783364325045f061d93d05808c231163");
+/** 跨链同址栈（CoNET + Base CREATE2） */
+const TREASURY = getAddress("0xa311c8fBE7CafC611603Ee925465A62493B73B30");
+const PEER = getAddress("0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5");
+const WCNET = getAddress("0x35bFAD2832E916e54474c4ca9DBd71843C539503");
+const CONET_USDC = getAddress("0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3");
+const BUINT = getAddress("0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae");
+const GB_TOKEN = getAddress("0xC3EF02DaE632b4C10abB66e07d92a387c10838D8");
 const INITIAL_MINER = getAddress("0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1");
-const GB_START_TIME = 1779703200n;
-const GB_START_HOUR_ID = 1n;
+const CONET_USDC_IMPL = getAddress("0x81880438bF3E7672192771EB1599C15d2014F166");
 
 const STACK = [
   {
@@ -57,32 +56,11 @@ const STACK = [
     constructorValues: ["Wrapped CoNET", "wCNET", 18, TREASURY],
   },
   {
-    exportKey: "BeamioBUnits",
-    label: "BeamioBUnits",
-    address: BUINT,
-    constructorTypes: ["address"],
-    constructorValues: [INITIAL_MINER],
-  },
-  {
-    exportKey: "ConetGB1155",
-    label: "ConetGB1155",
-    address: GB,
-    constructorTypes: ["uint64", "uint256", "address"],
-    constructorValues: [GB_START_TIME, GB_START_HOUR_ID, INITIAL_MINER],
-  },
-  {
-    exportKey: "ConetGB_total",
-    label: "ConetGB_total",
-    address: GB_TOTAL,
-    constructorTypes: ["address"],
-    constructorValues: [GB],
-  },
-  {
-    exportKey: "ConetGB_userTotal",
-    label: "ConetGB_userTotal",
-    address: GB_USER_TOTAL,
-    constructorTypes: ["address"],
-    constructorValues: [GB],
+    exportKey: "FactoryERC20Upgradeable",
+    label: "CONET-USDC-impl",
+    address: CONET_USDC_IMPL,
+    constructorTypes: [],
+    constructorValues: [],
   },
 ];
 
@@ -90,10 +68,10 @@ const CONTRACT_NAME_MAP = {
   ConetTreasury: ["project/src/b-unit/conetTreasury.sol", "ConetTreasury"],
   ConetTreasuryPeer: ["project/src/b-unit/ConetTreasuryPeer.sol", "ConetTreasuryPeer"],
   FactoryERC20: ["project/src/b-unit/FactoryERC20.sol", "FactoryERC20"],
-  BeamioBUnits: ["project/src/b-unit/BUint.sol", "BeamioBUnits"],
-  ConetGB1155: ["project/src/b-unit/GB.sol", "ConetGB1155"],
-  ConetGB_total: ["project/src/b-unit/gbTotal.sol", "ConetGB_total"],
-  ConetGB_userTotal: ["project/src/b-unit/gbUserTotal.sol", "ConetGB_userTotal"],
+  FactoryERC20Upgradeable: [
+    "project/src/b-unit/FactoryERC20Upgradeable.sol",
+    "FactoryERC20Upgradeable",
+  ],
 };
 
 function encodeConstructorArgs(types, values) {
@@ -129,17 +107,18 @@ function writeMeta(item, contractName) {
     `Standard JSON: ${jsonRel} (${sizeMb} MB — build-info FULL，与 BeamioUserCard 同款)`,
     "Network: base (chainId 8453)",
     `Generated: ${new Date().toISOString()}`,
-    "Compiler: v0.8.33+commit.64118f21",
+    "Compiler: v0.8.35+commit.47b9dedd",
     "Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none",
     "",
     "Regenerate (与 BeamioUserCard 相同流程):",
     "  npm run clean && npm run compile",
     `  node scripts/exportStandardJsonFromBuildInfo.mjs ${item.exportKey} --full`,
     "  或: node scripts/exportConetTreasuryStackStandardJson.mjs",
+    "  再: node scripts/exportConetTreasuryStackBaseScanFormJson.mjs",
     "",
     "BaseScan UI:",
     "  1) Solidity (Standard-Json-Input)",
-    "  2) Compiler v0.8.33+commit.64118f21",
+    "  2) Compiler v0.8.35+commit.47b9dedd",
     `  3) Upload ${path.basename(jsonRel)}（须 ~1 MB+，勿用 ~79 KB 旧子集）`,
     "  4) Contract Name（若 UI 有该字段）:",
     `     ${contractName}`,

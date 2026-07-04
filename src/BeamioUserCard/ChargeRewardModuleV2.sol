@@ -7,6 +7,7 @@ import "./RewardPoolStorage.sol";
 import "./UserCumulativeStatLib.sol";
 import "./BeamioUserCardTransferLib.sol";
 import "./IssuedNftStorage.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 
 interface ICardPoints {
     function balanceOf(address account, uint256 id) external view returns (uint256);
@@ -126,7 +127,7 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         uint256 budget13PerUnit,
         uint8 cumulativeTargetKind,
         uint256 cumulativeIssuedParentId
-    ) external onlyGateway returns (uint256 budget13Added) {
+    ) external onlyGatewayOrFactoryPaymaster returns (uint256 budget13Added) {
         if (payerEOA == address(0)) revert BM_ZeroAddress();
         if (amount == 0) revert UC_AmountZero();
         if (budget13PerUnit == 0) revert UC_AmountZero();
@@ -138,15 +139,15 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         if (assetKind == RewardPoolStorage.ASSET_CHARGE_REWARD2) {
             uint256 bal = balanceOf(payerAcct, CHARGE_REWARD_TOKEN_ID);
             if (amount > bal) revert UC_InsufficientBalance(payerAcct, CHARGE_REWARD_TOKEN_ID, bal, amount);
-            _burn(payerAcct, CHARGE_REWARD_TOKEN_ID, amount);
+            BeamioUserCardModuleMintLib.cardBurn(payerAcct, CHARGE_REWARD_TOKEN_ID, amount);
         } else if (assetKind == RewardPoolStorage.ASSET_VOUCHER13) {
             uint256 bal = balanceOf(payerAcct, REWARD_VOUCHER_TOKEN_ID);
             if (amount > bal) revert UC_InsufficientBalance(payerAcct, REWARD_VOUCHER_TOKEN_ID, bal, amount);
-            _burn(payerAcct, REWARD_VOUCHER_TOKEN_ID, amount);
+            BeamioUserCardModuleMintLib.cardBurn(payerAcct, REWARD_VOUCHER_TOKEN_ID, amount);
         } else if (assetKind == RewardPoolStorage.ASSET_POINTS0) {
             uint256 bal = ICardPoints(address(this)).balanceOf(payerAcct, POINTS_ID);
             if (amount > bal) revert UC_InsufficientBalance(payerAcct, POINTS_ID, bal, amount);
-            _burn(payerAcct, POINTS_ID, amount);
+            BeamioUserCardModuleMintLib.cardBurn(payerAcct, POINTS_ID, amount);
             RewardPoolStorage.layout().escrowPoints6 += amount;
         } else {
             revert UC_AmountZero();
@@ -168,7 +169,7 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         uint8 cumulativeTargetKind,
         uint256 cumulativeIssuedParentId,
         uint256 cumulativeDelta
-    ) external onlyGateway returns (uint256 actorMinted, uint256 refMinted) {
+    ) external onlyGatewayOrFactoryPaymaster returns (uint256 actorMinted, uint256 refMinted) {
         RewardPoolStorage.Layout storage l = RewardPoolStorage.layout();
         RewardPoolStorage.EventRewardRule storage rule = l.rules[ruleId];
         if (!rule.active) revert UC_RewardRuleInactive(ruleId);
@@ -180,12 +181,12 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         if (l.rewardMintBudget13 < need) revert UC_RewardBudgetInsufficient(need, l.rewardMintBudget13);
 
         if (actorWallet != address(0) && rule.actorMint13 > 0) {
-            _mint(actorWallet, REWARD_VOUCHER_TOKEN_ID, rule.actorMint13, "");
+            BeamioUserCardModuleMintLib.cardMint(actorWallet, REWARD_VOUCHER_TOKEN_ID, rule.actorMint13);
             actorMinted = rule.actorMint13;
             emit RewardVoucher13Minted(actorWallet, actorMinted, ruleId);
         }
         if (refWallet != address(0) && rule.refMint13 > 0) {
-            _mint(refWallet, REWARD_VOUCHER_TOKEN_ID, rule.refMint13, "");
+            BeamioUserCardModuleMintLib.cardMint(refWallet, REWARD_VOUCHER_TOKEN_ID, rule.refMint13);
             refMinted = rule.refMint13;
             emit RewardVoucher13Minted(refWallet, refMinted, ruleId);
         }
@@ -214,7 +215,7 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         _mintCumulativeStat(acct, UserCumulativeStatLib.METRIC_CHARGE, UserCumulativeStatLib.TARGET_GLOBAL_ONLY, 0, amountFiat6);
     }
 
-    function recordTopupCumulativeStat(address userEOA, uint256 points6) external onlyGateway {
+    function recordTopupCumulativeStat(address userEOA, uint256 points6) external onlyGatewayOrFactoryPaymaster {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         if (points6 == 0) revert UC_AmountZero();
         address gw = IUserCardCtx(address(this)).factoryGateway();
@@ -262,13 +263,13 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
     ) private {
         if (!RewardPoolStorage.layout().cardUserStatTokensInitialized) return;
         uint256 globalId = UserCumulativeStatLib.globalStatTokenId(metricKind);
-        _mint(wallet, globalId, delta, "");
+        BeamioUserCardModuleMintLib.cardMint(wallet, globalId, delta);
         if (targetKind == UserCumulativeStatLib.TARGET_MERCHANT_CARD_COUPON) {
-            _mint(wallet, UserCumulativeStatLib.merchantCardStatTokenId(metricKind), delta, "");
+            BeamioUserCardModuleMintLib.cardMint(wallet, UserCumulativeStatLib.merchantCardStatTokenId(metricKind), delta);
         } else if (targetKind == UserCumulativeStatLib.TARGET_ISSUED_COUPON && issuedParentId != 0) {
             uint256 scoped = UserCumulativeStatLib.issuedCouponStatTokenId(issuedParentId, metricKind);
             if (IssuedNftStorage.layout().issuedNftIsStatToken[scoped]) {
-                _mint(wallet, scoped, delta, "");
+                BeamioUserCardModuleMintLib.cardMint(wallet, scoped, delta);
             }
         }
     }

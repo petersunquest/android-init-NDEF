@@ -1,25 +1,26 @@
 Contract Name: project/src/b-unit/ConetTreasuryPeer.sol:ConetTreasuryPeer
-Address: 0xCF26c1686aC5E01e37B72017E575511C42cad29f
-Constructor Args ABI-encoded: 0x000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242
-Standard JSON: deployments/base-ConetTreasuryPeer-standard-input-FULL.json (1.71 MB — build-info FULL，与 BeamioUserCard 同款)
+Address: 0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5
+Constructor Args ABI-encoded: 0x000000000000000000000000a311c8fbe7cafc611603ee925465a62493b73b30
+Standard JSON: deployments/base-ConetTreasuryPeer-standard-input-FULL.json (1.81 MB — build-info FULL，与 BeamioUserCard 同款)
 Network: base (chainId 8453)
-Generated: 2026-06-29T21:44:45.621Z
-Compiler: v0.8.33+commit.64118f21
+Generated: 2026-07-04T07:37:41.226Z
+Compiler: v0.8.35+commit.47b9dedd
 Optimization: enabled, runs 0, viaIR true, evmVersion cancun, bytecodeHash none
 
 Regenerate (与 BeamioUserCard 相同流程):
   npm run clean && npm run compile
   node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasuryPeer --full
   或: node scripts/exportConetTreasuryStackStandardJson.mjs
+  再: node scripts/exportConetTreasuryStackBaseScanFormJson.mjs
 
 BaseScan UI:
   1) Solidity (Standard-Json-Input)
-  2) Compiler v0.8.33+commit.64118f21
+  2) Compiler v0.8.35+commit.47b9dedd
   3) Upload base-ConetTreasuryPeer-standard-input-FULL.json（须 ~1 MB+，勿用 ~79 KB 旧子集）
   4) Contract Name（若 UI 有该字段）:
      project/src/b-unit/ConetTreasuryPeer.sol:ConetTreasuryPeer
   5) Constructor Arguments (no 0x):
-     000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242
+     000000000000000000000000a311c8fbe7cafc611603ee925465a62493b73b30
 
 CLI（推荐 — 显式 contractname）:
   BASESCAN_API_KEY=... npx tsx scripts/verifyConetTreasuryStackBaseScan.ts ConetTreasuryPeer

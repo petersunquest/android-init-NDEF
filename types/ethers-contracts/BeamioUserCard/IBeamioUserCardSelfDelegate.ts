@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioUserCardSelfDelegateInterface extends Interface {
-    getFunction(nameOrSignature: "cardSelfAppendMembershipNftIfMissing" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType"): FunctionFragment;
+    getFunction(nameOrSignature: "cardSelfAppendMembershipNftIfMissing" | "cardSelfBurn" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'cardSelfAppendMembershipNftIfMissing', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'cardSelfBurn', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfCallModule', values: [BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'cardSelfCurrencyType', values?: undefined): string;
 encodeFunctionData(functionFragment: 'cardSelfEmitAdminPointsMinted', values: [AddressLike, BigNumberish]): string;
@@ -36,6 +37,7 @@ encodeFunctionData(functionFragment: 'cardSelfTransferPointsUpdate', values: [Ad
 encodeFunctionData(functionFragment: 'cardSelfUpgradeType', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'cardSelfAppendMembershipNftIfMissing', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cardSelfBurn', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfCallModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfCurrencyType', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfEmitAdminPointsMinted', data: BytesLike): Result;
@@ -99,6 +101,14 @@ decodeFunctionResult(functionFragment: 'cardSelfUpgradeType', data: BytesLike): 
     
     cardSelfAppendMembershipNftIfMissing: TypedContractMethod<
       [acct: AddressLike, id: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    cardSelfBurn: TypedContractMethod<
+      [from: AddressLike, id: BigNumberish, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -293,6 +303,11 @@ decodeFunctionResult(functionFragment: 'cardSelfUpgradeType', data: BytesLike): 
 
     getFunction(nameOrSignature: 'cardSelfAppendMembershipNftIfMissing'): TypedContractMethod<
       [acct: AddressLike, id: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'cardSelfBurn'): TypedContractMethod<
+      [from: AddressLike, id: BigNumberish, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >;

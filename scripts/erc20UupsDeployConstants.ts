@@ -13,9 +13,12 @@ export const CONET_USDC_TOKEN_NAME = "CONET USDC";
 export const CONET_USDC_TOKEN_SYMBOL = "USDC";
 export const CONET_USDC_TOKEN_DECIMALS = 6;
 
-/** 当前 CoNET 已部署 ConetTreasury（mintFactoryToken 调用方）；见 deployments/conet-addresses.json */
+/**
+ * CONET-USDC minter = 跨链同址 ConetTreasury（CREATE2 `0xa311…`）。
+ * 旧 minter `0x6dC6…` 已废弃；改 minter 会改变 proxy CREATE2 地址（initialize 含 minter）。
+ */
 export const CONET_USDC_MINTER = getAddress(
-  "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795"
+  "0xa311c8fBE7CafC611603Ee925465A62493B73B30"
 );
 
 /** BeamioBUnits implementation CREATE2 salt */
@@ -28,9 +31,9 @@ export const GBTOKEN_IMPL_CREATE2_SALT = id("beamio.gb.erc20.impl.v1");
 /** GBToken proxy */
 export const GBTOKEN_PROXY_CREATE2_SALT = id("beamio.gb.erc20.proxy.v1");
 
-/** conet-USDC FactoryERC20Upgradeable */
-export const CONET_USDC_IMPL_CREATE2_SALT = id("beamio.conet_usdc.impl.v1");
-export const CONET_USDC_PROXY_CREATE2_SALT = id("beamio.conet_usdc.proxy.v1");
+/** conet-USDC FactoryERC20Upgradeable（v2：minter = 同址 Treasury 0xa311…） */
+export const CONET_USDC_IMPL_CREATE2_SALT = id("beamio.conet_usdc.impl.v2");
+export const CONET_USDC_PROXY_CREATE2_SALT = id("beamio.conet_usdc.proxy.v2");
 
 /** @deprecated 直连部署 v2（非 UUPS） */
 export const BUINT_CREATE2_SALT_LEGACY = id("beamio.bunits.v2");
@@ -51,8 +54,8 @@ export const GBTOKEN_UUPS_PROXY_PREDICTED = getAddress(
   "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
 );
 export const CONET_USDC_UUPS_IMPL_PREDICTED = getAddress(
-  "0xc68322E4822f7ECAd168a3E95BB00E7cA00688a3"
+  "0x81880438bF3E7672192771EB1599C15d2014F166"
 );
 export const CONET_USDC_UUPS_PROXY_PREDICTED = getAddress(
-  "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134"
+  "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
 );

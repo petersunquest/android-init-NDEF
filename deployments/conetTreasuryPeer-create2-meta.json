@@ -6,9 +6,9 @@
   "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
   "deployments": {
     "8453": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5",
-    "224422": "0xC6Df4c6a76313630C5D63f6F69554237084bB4D5"
+    "224422": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5"
   },
-  "updatedAt": "2026-07-01T15:45:39.065Z",
+  "updatedAt": "2026-07-04T07:16:01.974Z",
   "wrappedLibAddress": "0xCED9De89917eB957aF6371a3c9b45af21d68A0Ed",
   "stableSwapLibAddress": "0xcEC3A86C05b58239B937f17B75b459bD79e3bB95",
   "wrappedLibSalt": "0xdb4330a6f882bf0ac585e6650c616b79a38eb46f23bceb29725ba9dee46e2df4",

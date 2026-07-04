@@ -1,14 +1,14 @@
 {
   "network": "base",
   "chainId": 8453,
-  "generatedAt": "2026-06-29T21:44:45.950Z",
+  "generatedAt": "2026-07-04T07:37:41.364Z",
   "exportMode": "build-info-full",
   "reference": "deployments/base-BeamioUserCard-standard-input-FULL.json",
   "contracts": [
     {
       "exportKey": "ConetTreasury",
       "label": "ConetTreasury",
-      "address": "0xc6e615431BC0c0c65E09e04877a08AC927A30242",
+      "address": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
       "constructorTypes": [
         "address"
       ],
@@ -22,21 +22,21 @@
     {
       "exportKey": "ConetTreasuryPeer",
       "label": "ConetTreasuryPeer",
-      "address": "0xCF26c1686aC5E01e37B72017E575511C42cad29f",
+      "address": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5",
       "constructorTypes": [
         "address"
       ],
       "constructorValues": [
-        "0xc6e615431BC0c0c65E09e04877a08AC927A30242"
+        "0xa311c8fBE7CafC611603Ee925465A62493B73B30"
       ],
       "contractName": "project/src/b-unit/ConetTreasuryPeer.sol:ConetTreasuryPeer",
       "jsonRel": "deployments/base-ConetTreasuryPeer-standard-input-FULL.json",
-      "constructorArgs": "0x000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242"
+      "constructorArgs": "0x000000000000000000000000a311c8fbe7cafc611603ee925465a62493b73b30"
     },
     {
       "exportKey": "FactoryERC20",
       "label": "wCNET",
-      "address": "0x429FBf063d6deAbA08a8Ca2566c9b6797ea9Eb39",
+      "address": "0x35bFAD2832E916e54474c4ca9DBd71843C539503",
       "constructorTypes": [
         "string",
         "string",
@@ -47,71 +47,21 @@
         "Wrapped CoNET",
         "wCNET",
         18,
-        "0xc6e615431BC0c0c65E09e04877a08AC927A30242"
+        "0xa311c8fBE7CafC611603Ee925465A62493B73B30"
       ],
       "contractName": "project/src/b-unit/FactoryERC20.sol:FactoryERC20",
       "jsonRel": "deployments/base-FactoryERC20-standard-input-FULL.json",
-      "constructorArgs": "0x000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000012000000000000000000000000c6e615431bc0c0c65e09e04877a08ac927a30242000000000000000000000000000000000000000000000000000000000000000d5772617070656420436f4e455400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000577434e4554000000000000000000000000000000000000000000000000000000"
+      "constructorArgs": "0x000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000012000000000000000000000000a311c8fbe7cafc611603ee925465a62493b73b30000000000000000000000000000000000000000000000000000000000000000d5772617070656420436f4e455400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000577434e4554000000000000000000000000000000000000000000000000000000"
     },
     {
-      "exportKey": "BeamioBUnits",
-      "label": "BeamioBUnits",
-      "address": "0xf5484F11b7De647E17aea1089e3CbD6BF15dfC0f",
-      "constructorTypes": [
-        "address"
-      ],
-      "constructorValues": [
-        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
-      ],
-      "contractName": "project/src/b-unit/BUint.sol:BeamioBUnits",
-      "jsonRel": "deployments/base-BeamioBUnits-standard-input-FULL.json",
-      "constructorArgs": "0x00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1"
-    },
-    {
-      "exportKey": "ConetGB1155",
-      "label": "ConetGB1155",
-      "address": "0xcA423EEBC09d09834dC9CA28861798B3321893ab",
-      "constructorTypes": [
-        "uint64",
-        "uint256",
-        "address"
-      ],
-      "constructorValues": [
-        "1779703200",
-        "1",
-        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
-      ],
-      "contractName": "project/src/b-unit/GB.sol:ConetGB1155",
-      "jsonRel": "deployments/base-ConetGB1155-standard-input-FULL.json",
-      "constructorArgs": "0x000000000000000000000000000000000000000000000000000000006a141da0000000000000000000000000000000000000000000000000000000000000000100000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1"
-    },
-    {
-      "exportKey": "ConetGB_total",
-      "label": "ConetGB_total",
-      "address": "0x96CF03e7ea65CE9954Fe206DA7bEC797427adD11",
-      "constructorTypes": [
-        "address"
-      ],
-      "constructorValues": [
-        "0xcA423EEBC09d09834dC9CA28861798B3321893ab"
-      ],
-      "contractName": "project/src/b-unit/gbTotal.sol:ConetGB_total",
-      "jsonRel": "deployments/base-ConetGB_total-standard-input-FULL.json",
-      "constructorArgs": "0x000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab"
-    },
-    {
-      "exportKey": "ConetGB_userTotal",
-      "label": "ConetGB_userTotal",
-      "address": "0x5663d651783364325045f061d93d05808c231163",
-      "constructorTypes": [
-        "address"
-      ],
-      "constructorValues": [
-        "0xcA423EEBC09d09834dC9CA28861798B3321893ab"
-      ],
-      "contractName": "project/src/b-unit/gbUserTotal.sol:ConetGB_userTotal",
-      "jsonRel": "deployments/base-ConetGB_userTotal-standard-input-FULL.json",
-      "constructorArgs": "0x000000000000000000000000ca423eebc09d09834dc9ca28861798b3321893ab"
+      "exportKey": "FactoryERC20Upgradeable",
+      "label": "CONET-USDC-impl",
+      "address": "0x81880438bF3E7672192771EB1599C15d2014F166",
+      "constructorTypes": [],
+      "constructorValues": [],
+      "contractName": "project/src/b-unit/FactoryERC20Upgradeable.sol:FactoryERC20Upgradeable",
+      "jsonRel": "deployments/base-FactoryERC20Upgradeable-standard-input-FULL.json",
+      "constructorArgs": "(none)"
     }
   ]
 }

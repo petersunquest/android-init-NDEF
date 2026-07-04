@@ -1,26 +1,37 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "timestamp": "2026-07-02T15:26:43.632Z",
+  "timestamp": "2026-07-02T17:00:13.761Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "modules": {
     "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
-    "issuedNftModule": "0x48842f53e8518BAa289C747528F88893ddB6435D",
+    "issuedNftModule": "0x298575C23e18188cD5e5032936F97a919594e87D",
     "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
     "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
     "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
-    "adminStatsQueryModule": "0x9a026971F555C45FfB3A1e2f880D0bE8Ec110199",
-    "chargeRewardModule": "0x484185656CbD7ec5557eA751d7dE270AA25a49fD"
+    "adminStatsQueryModule": "0xC37D2308b291d0a310A33e2479Ce2908c3eF6138",
+    "chargeRewardModule": "0xdc2160E85F37Ab920A2083Fa6F813B7A5a1d061f"
   },
   "replaced": {
-    "issuedNftModule": "0xCD4efA30E0453748992B54a9a429618B8FaE0409",
-    "chargeRewardModule": "0xa2e9B8565DAc4e3bEc0e6b3d72B1459a2955C067",
-    "adminStatsQueryModule": "0x2E5a85D38B916Dd3B9EC93021d1934c455F6A090"
+    "issuedNftModule": "0x48842f53e8518BAa289C747528F88893ddB6435D",
+    "chargeRewardModule": "0x31737bb0744E6ffa3eB0618bc8bc2B9a9BFAbcAa",
+    "adminStatsQueryModule": "0x9a026971F555C45FfB3A1e2f880D0bE8Ec110199"
   },
   "version": "v2-user-cumulative-reward-pool",
   "checks": {
     "recordUserCumulativeStatRoutedToIssuedNft": true,
     "dispatchEventReward13RoutedToChargeReward": true
+  },
+  "chargeRewardPaymasterRelayUpgrade": {
+    "network": "conet",
+    "chainId": "224422",
+    "timestamp": "2026-07-02T23:45:19.595Z",
+    "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+    "chargeRewardModule": "0xdc2160E85F37Ab920A2083Fa6F813B7A5a1d061f",
+    "replacedChargeRewardModule": "0x31737bb0744E6ffa3eB0618bc8bc2B9a9BFAbcAa",
+    "version": "v2-charge-reward-paymaster-relay",
+    "note": "dispatchEventReward13 / purchaseRewardProgram / recordTopupCumulativeStat allow Factory isPaymaster (relayer AA)"
   }
 }

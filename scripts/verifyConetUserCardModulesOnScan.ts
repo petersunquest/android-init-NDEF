@@ -1,18 +1,23 @@
 /**
  * 在 CoNET Blockscout (mainnet.conet.network) 验证 UserCard 模块栈。
  *
- * V2 模块（IssuedNft / ChargeReward / AdminStatsQuery V2）默认使用
- * deployments/conet-*-verify-buildinfo.json（build-info 剪枝，与链上 bytecode 一致），
- * 仅走 Blockscout v2 standard-input API（legacy 对 build-info 包常报 Unable to verify）。
+ * 守则: .cursor/rules/conet-mainnet-blockscout-verify.mdc
+ *
+ * 提交前须 regenerate 并本地 bytecode 预检:
+ *   node scripts/exportConetUserCardModuleV2VerifyBuildinfo.mjs
+ *
+ * V2 模块默认使用 deployments/conet-*-verify-buildinfo.json（FULL build-info 递归剪枝），
+ * 仅走 Blockscout v2 standard-input API（legacy 对 build-info 包常失败 — 勿 fallback）。
  *
  * 运行:
  *   npx tsx scripts/verifyConetUserCardModulesOnScan.ts
- *   npx tsx scripts/verifyConetUserCardModulesOnScan.ts AdminStatsQueryModule
+ *   CONET_VERIFY_POLL_MAX=180 CONET_VERIFY_ONLY=BeamioUserCardIssuedNftModuleV2 npx tsx scripts/verifyConetUserCardModulesOnScan.ts
  *
  * 环境变量:
- *   CONET_BLOCKSCOUT_API — 默认 https://scan.conet.network/api
+ *   CONET_BLOCKSCOUT_API — 默认 https://mainnet.conet.network/api
  *   CONET_RPC_URL — 默认 https://publicrpc.conet.network
  *   CONET_VERIFY_ONLY — 仅验证指定 exportKey 或地址
+ *   CONET_VERIFY_POLL_MAX — 轮询次数（默认 90，每次 4s；Blockscout 忙时用 180）
  */
 
 import * as fs from "fs";
@@ -175,6 +180,15 @@ function buildTargets(): VerifyTarget[] {
       ],
     },
     {
+      exportKey: "BeamioUserCardAdminStatsQueryModuleV3",
+      address: m.adminStatsQueryModule,
+      rootSource: "project/src/BeamioUserCard/AdminStatsQueryModuleV3.sol",
+      contractNames: [
+        "project/src/BeamioUserCard/AdminStatsQueryModuleV3.sol:BeamioUserCardAdminStatsQueryModuleV3",
+        "BeamioUserCardAdminStatsQueryModuleV3",
+      ],
+    },
+    {
       exportKey: "ModuleRouterLib",
       address: libs.moduleRouterLib,
       rootSource: "project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol",
@@ -212,6 +226,7 @@ const V2_BUILDINFO_JSON: Record<string, string> = {
   BeamioUserCardIssuedNftModuleV2: "conet-IssuedNftModuleV2-verify-buildinfo.json",
   BeamioUserCardChargeRewardModuleV2: "conet-ChargeRewardModuleV2-verify-buildinfo.json",
   BeamioUserCardAdminStatsQueryModuleV2: "conet-AdminStatsQueryModuleV2-verify-buildinfo.json",
+  BeamioUserCardAdminStatsQueryModuleV3: "conet-AdminStatsQueryModuleV3-verify-buildinfo.json",
 };
 
 function usesBuildInfoVerifyJson(exportKey: string): boolean {
@@ -231,6 +246,7 @@ function fullJsonPathForTarget(exportKey: string): string | null {
     BeamioUserCardIssuedNftModuleV2: "conet-IssuedNftModuleV2-standard-input-FULL-FORM.json",
     BeamioUserCardChargeRewardModuleV2: "conet-ChargeRewardModuleV2-standard-input-FULL-FORM.json",
     BeamioUserCardAdminStatsQueryModuleV2: "conet-AdminStatsQueryModuleV2-standard-input-FULL-FORM.json",
+    BeamioUserCardAdminStatsQueryModuleV3: "conet-AdminStatsQueryModuleV3-standard-input-FULL-FORM.json",
   };
   const file = map[exportKey];
   if (!file) return null;
@@ -240,6 +256,7 @@ function fullJsonPathForTarget(exportKey: string): string | null {
     BeamioUserCardIssuedNftModuleV2: "base-BeamioUserCardIssuedNftModuleV2-standard-input-FULL.json",
     BeamioUserCardChargeRewardModuleV2: "conet-BeamioUserCardChargeRewardModuleV2-standard-input-FULL-linked.json",
     BeamioUserCardAdminStatsQueryModuleV2: "base-BeamioUserCardAdminStatsQueryModuleV2-standard-input-FULL.json",
+    BeamioUserCardAdminStatsQueryModuleV3: "base-BeamioUserCardAdminStatsQueryModuleV3-standard-input-FULL.json",
   };
   const fb = fallback[exportKey];
   if (!fb) return null;
@@ -371,7 +388,8 @@ async function submitVerify(target: VerifyTarget, standardJson: string, contract
 }
 
 async function waitVerified(address: string, label: string): Promise<boolean> {
-  for (let i = 0; i < 90; i++) {
+  const pollMax = Math.max(30, Number(process.env.CONET_VERIFY_POLL_MAX || 90) || 90);
+  for (let i = 0; i < pollMax; i++) {
     if (await checkVerified(address)) {
       console.log(`  ✅ ${label}: ${BLOCKSCOUT_UI}/address/${address}#code`);
       return true;

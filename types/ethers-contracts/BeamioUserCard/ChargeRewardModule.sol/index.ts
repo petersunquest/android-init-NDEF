@@ -4,3 +4,4 @@
 export type { BeamioUserCardChargeRewardModuleV1 } from './BeamioUserCardChargeRewardModuleV1.js';
 export type { IUserCardCtx } from './IUserCardCtx.js';
 export type { IUserCardCurrency } from './IUserCardCurrency.js';
+export type { IUserCardFactoryPaymasterStatus } from './IUserCardFactoryPaymasterStatus.js';

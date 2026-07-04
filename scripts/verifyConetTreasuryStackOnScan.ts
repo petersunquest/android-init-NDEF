@@ -20,17 +20,10 @@ import {
   CONET_TREASURY_CREATE2_PREDICTED,
   CONET_TREASURY_INITIAL_MINER,
   CONET_TREASURY_PEER_CREATE2_PREDICTED,
+  CONET_USDC,
   WRAPPED_CONET_CREATE2_PREDICTED,
 } from "./conetTreasuryDeployConstants.js";
-import { BUINT_CREATE2_PREDICTED, BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
-import {
-  GB_CREATE2_PREDICTED,
-  GB_INITIAL_ADMIN,
-  GB_START_HOUR_ID,
-  GB_START_TIME,
-  GB_TOTAL_CREATE2_PREDICTED,
-  GB_USER_TOTAL_CREATE2_PREDICTED,
-} from "./gbDeployConstants.js";
+import { CONET_USDC_UUPS_IMPL_PREDICTED } from "./erc20UupsDeployConstants.js";
 import {
   BASESCAN_COMPILER_VERSION,
   exportBasescanStandardJsonFromRoot,
@@ -40,8 +33,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const root = path.join(__dirname, "..");
 
-const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://scan.conet.network/api").replace(/\/$/, "");
-const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
+const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://mainnet.conet.network/api").replace(/\/$/, "");
+const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet.network").replace(/\/$/, "");
 
 type VerifyTarget = {
   label: string;
@@ -69,10 +62,10 @@ function loadTargets(): VerifyTarget[] {
     CONET_TREASURY_PEER_CREATE2_PREDICTED;
 
   const addrJson = readJsonMeta("conet-addresses.json");
-  const conetUsdc = (addrJson?.conetUsdc as string) || undefined;
-  const wrappedConet =
-    (readJsonMeta("conetTreasury-wrapped-conet-meta.json")?.deployments as Record<string, string>)?.["224422"] ||
-    WRAPPED_CONET_CREATE2_PREDICTED;
+  const conetUsdc = (addrJson?.conetUsdc as string) || CONET_USDC;
+  const wrappedConet = (addrJson?.wrappedConet as string) || WRAPPED_CONET_CREATE2_PREDICTED;
+  const usdcImpl =
+    (addrJson?.ConetUsdcUupsImpl as string) || CONET_USDC_UUPS_IMPL_PREDICTED;
 
   const targets: VerifyTarget[] = [
     {
@@ -100,49 +93,17 @@ function loadTargets(): VerifyTarget[] {
       constructorValues: ["Wrapped CoNET", "wCNET", 18, treasuryAddr],
     },
     {
-      label: "BeamioBUnits",
-      address: String(addrJson?.BUint || BUINT_CREATE2_PREDICTED),
-      contractName: "BeamioBUnits",
-      sourceKey: "project/src/b-unit/BUint.sol",
-      constructorTypes: ["address"],
-      constructorValues: [BUINT_INITIAL_ADMIN],
-    },
-    {
-      label: "ConetGB1155",
-      address: String(addrJson?.ConetGB1155 || GB_CREATE2_PREDICTED),
-      contractName: "ConetGB1155",
-      sourceKey: "project/src/b-unit/GB.sol",
-      constructorTypes: ["uint64", "uint256", "address"],
-      constructorValues: [GB_START_TIME, GB_START_HOUR_ID, GB_INITIAL_ADMIN],
-    },
-    {
-      label: "ConetGB_total",
-      address: String(addrJson?.ConetGB_total || GB_TOTAL_CREATE2_PREDICTED),
-      contractName: "ConetGB_total",
-      sourceKey: "project/src/b-unit/gbTotal.sol",
-      constructorTypes: ["address"],
-      constructorValues: [addrJson?.ConetGB1155 || GB_CREATE2_PREDICTED],
-    },
-    {
-      label: "ConetGB_userTotal",
-      address: String(addrJson?.ConetGB_userTotal || GB_USER_TOTAL_CREATE2_PREDICTED),
-      contractName: "ConetGB_userTotal",
-      sourceKey: "project/src/b-unit/gbUserTotal.sol",
-      constructorTypes: ["address"],
-      constructorValues: [addrJson?.ConetGB1155 || GB_CREATE2_PREDICTED],
+      label: "CONET-USDC-impl",
+      address: String(usdcImpl),
+      contractName: "FactoryERC20Upgradeable",
+      sourceKey: "project/src/b-unit/FactoryERC20Upgradeable.sol",
+      constructorTypes: [],
+      constructorValues: [],
     },
   ];
 
-  if (conetUsdc) {
-    targets.push({
-      label: "conetUSDC",
-      address: conetUsdc,
-      contractName: "FactoryERC20",
-      sourceKey: "project/src/b-unit/FactoryERC20.sol",
-      constructorTypes: ["string", "string", "uint8", "address"],
-      constructorValues: ["USD Coin", "USDC", 6, treasuryAddr],
-    });
-  }
+  // CONET-USDC proxy (ERC1967) 用 scripts/verifyErc20UupsUsdcConet.ts 单独验证
+  void conetUsdc;
 
   return targets;
 }

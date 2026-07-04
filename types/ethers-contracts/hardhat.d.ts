@@ -38,6 +38,9 @@ getContractFactory(name: 'IBeamioAccountAssetBalanceV07', signerOrOptions?: ethe
 getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1__factory>
 getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCtx__factory>
 getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV2__factory>
+getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV3', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV3__factory>
+getContractFactory(name: 'IBeamioAccountFactoryResolve', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountFactoryResolve__factory>
+getContractFactory(name: 'ICardProgramHoldingsView', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ICardProgramHoldingsView__factory>
 getContractFactory(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioERC1155Logic__factory>
 getContractFactory(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountFactoryV07__factory>
 getContractFactory(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioFactoryOracle__factory>
@@ -83,6 +86,7 @@ getContractFactory(name: 'BeamioUserCardViewsLib', signerOrOptions?: ethers.Sign
 getContractFactory(name: 'BeamioUserCardChargeRewardModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1__factory>
 getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCtx__factory>
 getContractFactory(name: 'IUserCardCurrency', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCurrency__factory>
+getContractFactory(name: 'IUserCardFactoryPaymasterStatus', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardFactoryPaymasterStatus__factory>
 getContractFactory(name: 'BeamioUserCardChargeRewardModuleV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV2__factory>
 getContractFactory(name: 'ICardPoints', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ICardPoints__factory>
 getContractFactory(name: 'BeamioUserCardFaucetModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardFaucetModuleV1__factory>
@@ -269,6 +273,9 @@ getContractAt(name: 'IBeamioAccountAssetBalanceV07', address: string | ethers.Ad
 getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCtx>
 getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV2>
+getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV3', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV3>
+getContractAt(name: 'IBeamioAccountFactoryResolve', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryResolve>
+getContractAt(name: 'ICardProgramHoldingsView', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ICardProgramHoldingsView>
 getContractAt(name: 'BeamioERC1155Logic', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioERC1155Logic>
 getContractAt(name: 'IBeamioAccountFactoryV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryV07>
 getContractAt(name: 'IBeamioFactoryOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioFactoryOracle>
@@ -314,6 +321,7 @@ getContractAt(name: 'BeamioUserCardViewsLib', address: string | ethers.Addressab
 getContractAt(name: 'BeamioUserCardChargeRewardModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCtx>
 getContractAt(name: 'IUserCardCurrency', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCurrency>
+getContractAt(name: 'IUserCardFactoryPaymasterStatus', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardFactoryPaymasterStatus>
 getContractAt(name: 'BeamioUserCardChargeRewardModuleV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardChargeRewardModuleV2>
 getContractAt(name: 'ICardPoints', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ICardPoints>
 getContractAt(name: 'BeamioUserCardFaucetModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardFaucetModuleV1>
@@ -500,6 +508,9 @@ deployContract(name: 'IBeamioAccountAssetBalanceV07', signerOrOptions?: ethers.S
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV2>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV3', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV3>
+deployContract(name: 'IBeamioAccountFactoryResolve', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryResolve>
+deployContract(name: 'ICardProgramHoldingsView', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardProgramHoldingsView>
 deployContract(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>
@@ -545,6 +556,7 @@ deployContract(name: 'BeamioUserCardViewsLib', signerOrOptions?: ethers.Signer |
 deployContract(name: 'BeamioUserCardChargeRewardModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IUserCardCurrency', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCurrency>
+deployContract(name: 'IUserCardFactoryPaymasterStatus', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryPaymasterStatus>
 deployContract(name: 'BeamioUserCardChargeRewardModuleV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV2>
 deployContract(name: 'ICardPoints', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardPoints>
 deployContract(name: 'BeamioUserCardFaucetModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardFaucetModuleV1>
@@ -731,6 +743,9 @@ deployContract(name: 'IBeamioAccountAssetBalanceV07', args: any[], signerOrOptio
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV1>
 deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV2>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV3', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV3>
+deployContract(name: 'IBeamioAccountFactoryResolve', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryResolve>
+deployContract(name: 'ICardProgramHoldingsView', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardProgramHoldingsView>
 deployContract(name: 'BeamioERC1155Logic', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>
@@ -776,6 +791,7 @@ deployContract(name: 'BeamioUserCardViewsLib', args: any[], signerOrOptions?: et
 deployContract(name: 'BeamioUserCardChargeRewardModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IUserCardCurrency', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCurrency>
+deployContract(name: 'IUserCardFactoryPaymasterStatus', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryPaymasterStatus>
 deployContract(name: 'BeamioUserCardChargeRewardModuleV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV2>
 deployContract(name: 'ICardPoints', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardPoints>
 deployContract(name: 'BeamioUserCardFaucetModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardFaucetModuleV1>

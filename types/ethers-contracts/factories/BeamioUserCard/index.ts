@@ -3,6 +3,7 @@
 /* eslint-disable */
 export * as adminStatsQueryModuleSol from './AdminStatsQueryModule.sol/index.js';
 export * as adminStatsQueryModuleV2Sol from './AdminStatsQueryModuleV2.sol/index.js';
+export * as adminStatsQueryModuleV3Sol from './AdminStatsQueryModuleV3.sol/index.js';
 export * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
 export * as beamioUserCardBaseSol from './BeamioUserCardBase.sol/index.js';
