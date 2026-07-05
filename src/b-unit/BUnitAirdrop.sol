@@ -86,6 +86,12 @@ interface IBeamioBUnits {
     function totalFreeBurned() external view returns (uint256);
     function totalPaidBurned() external view returns (uint256);
     function consumeFuel(address user, uint256 amount) external returns (uint256 paidBurned);
+    function balanceOfAll(address account) external view returns (uint256 total, uint256 free, uint256 paid);
+}
+
+/// @dev Beamio Smart Wallet (AA)：mint 到 AA 时校验 owner 为签名 EOA。
+interface IBeamioAccountOwner {
+    function owner() external view returns (address);
 }
 
 interface IConetTreasury {
@@ -180,6 +186,7 @@ contract BUnitAirdrop is Ownable, EIP712 {
     event BeamioIndexerDiamondUpdated(address indexed oldIndexer, address indexed newIndexer);
     event Claimed(address indexed account, uint256 amount);
     event ClaimedFor(address indexed account, uint256 amount, address indexed relayer);
+    event FreePoolRelocated(address indexed eoaOwner, address indexed aaAccount, uint256 amount);
     event ClaimedWithAttribution(
         address indexed account,
         uint256 amount,
@@ -215,6 +222,7 @@ contract BUnitAirdrop is Ownable, EIP712 {
     error InvalidSignature();
     error SignatureExpired();
     error InvalidConfig();
+    error InvalidBeneficiary();
 
     constructor(address _bunit, address initialOwner) Ownable(initialOwner) EIP712("BUnitAirdrop", "1") {
         bunit = IERC20(_bunit);
@@ -344,6 +352,49 @@ contract BUnitAirdrop is Ownable, EIP712 {
     }
 
     /**
+     * @dev 离线签字代领：EIP-712 仍签 `claimantEoa`（EOA），B-Unit mint 至 `beneficiary`（EOA 或其 Beamio AA）。
+     *      申领资格（hasClaimed / claimNonces）按 EOA 计，Smart Wallet 用户可将燃料存入 AA。
+     */
+    function claimForWithBeneficiary(
+        address claimantEoa,
+        address beneficiary,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        if (block.timestamp > deadline) revert SignatureExpired();
+        if (claimNonces[claimantEoa] != nonce) revert InvalidSignature();
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_TYPEHASH, claimantEoa, nonce, deadline)
+        );
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = ECDSA.recover(digest, signature);
+        if (signer != claimantEoa) revert InvalidSignature();
+
+        _validateMintBeneficiary(claimantEoa, beneficiary);
+
+        claimNonces[claimantEoa]++;
+        _doClaimToBeneficiary(claimantEoa, beneficiary, address(0), 0, address(0));
+        emit ClaimedFor(beneficiary, claimAmount, msg.sender);
+    }
+
+    /**
+     * @dev 将 EOA 免费池 B-Unit 迁至其 Beamio AA（已 claim 至 EOA 的历史用户一次性迁移）。
+     */
+    function relocateFreePoolToOwnerBeamioAa(address eoaOwner, address aaAccount) external onlyAdmin {
+        _validateMintBeneficiary(eoaOwner, aaAccount);
+        (, uint256 free, ) = IBeamioBUnits(address(bunit)).balanceOfAll(eoaOwner);
+        if (free == 0) return;
+        IBeamioBUnits(address(bunit)).consumeFuel(eoaOwner, free);
+        (bool ok,) = address(bunit).call(
+            abi.encodeWithSignature("mintReward(address,uint256)", aaAccount, free)
+        );
+        if (!ok) revert TransferFailed();
+        emit FreePoolRelocated(eoaOwner, aaAccount, free);
+    }
+
+    /**
      * @dev 离线签字代领（含商家卡 + ref 归因）。EIP-712 ClaimAirdropV2。
      */
     function claimForV2(
@@ -400,6 +451,43 @@ contract BUnitAirdrop is Ownable, EIP712 {
 
         if (merchantCard != address(0)) {
             _callbackMerchantInstallAttribution(account, merchantCard, targetTokenId, referrer);
+        }
+    }
+
+    /// @dev mint 受益方须为 eligibleAccount 本人或其 owner()==eligibleAccount 的 Beamio AA。
+    function _validateMintBeneficiary(address eligibleAccount, address beneficiary) internal view {
+        if (beneficiary == eligibleAccount) return;
+        if (beneficiary.code.length == 0) revert InvalidBeneficiary();
+        address o = IBeamioAccountOwner(beneficiary).owner();
+        if (o != eligibleAccount) revert InvalidBeneficiary();
+    }
+
+    /**
+     * @dev 申领资格按 eligibleAccount（EOA）；mint 至 mintTo（EOA 或 AA）。
+     */
+    function _doClaimToBeneficiary(
+        address eligibleAccount,
+        address mintTo,
+        address merchantCard,
+        uint256 targetTokenId,
+        address referrer
+    ) internal {
+        if (hasClaimed[eligibleAccount]) revert ClaimNotAvailable();
+
+        hasClaimed[eligibleAccount] = true;
+        totalFreeAirdropped += claimAmount;
+        airdropCount++;
+        _recordAirdrop();
+
+        (bool ok,) = address(bunit).call(
+            abi.encodeWithSignature("mintReward(address,uint256)", mintTo, claimAmount)
+        );
+        if (!ok) revert TransferFailed();
+
+        _indexClaimToBeamioIndexer(mintTo);
+
+        if (merchantCard != address(0)) {
+            _callbackMerchantInstallAttribution(mintTo, merchantCard, targetTokenId, referrer);
         }
     }
 
