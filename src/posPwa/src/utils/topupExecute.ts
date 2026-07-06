@@ -198,6 +198,18 @@ export async function executeNfcTopup(params: {
 	const currency =
 		(await fetchCardCurrencyCode(infra)) ?? 'CAD'
 
+	// Align with chargeExecute: provision EOA + AA before prepare on unbound NFC tags
+	if (params.target.uid && params.target.sun) {
+		const preAssets = await fetchUIDAssets({
+			uid: params.target.uid,
+			merchantInfraCard: infra,
+			sun: params.target.sun,
+		})
+		if (!preAssets?.ok) {
+			return { status: 'error', message: preAssets?.error ?? 'Query failed' }
+		}
+	}
+
 	const prepBody = {
 		amount: params.apiAmount,
 		currency,
