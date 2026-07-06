@@ -108,6 +108,18 @@ export function parseTopupPromotionFromMetadata(
 	return null
 }
 
+function parseLegacyBonusRulesFromRecord(
+	rec: Record<string, unknown> | null | undefined,
+): RechargeBonusRule[] {
+	if (!rec) return []
+	const raw = rec.bonusRules ?? rec.bonusRule
+	if (!Array.isArray(raw)) {
+		const one = parseOneLegacyRule(raw)
+		return one ? [one] : []
+	}
+	return raw.map(parseOneLegacyRule).filter(Boolean) as RechargeBonusRule[]
+}
+
 export function parseRechargeBonusRulesFromMetadata(
 	meta: Record<string, unknown> | null | undefined,
 ): RechargeBonusRule[] {
@@ -117,12 +129,13 @@ export function parseRechargeBonusRulesFromMetadata(
 		const rule = topupPromotionToRechargeBonusRule(promo)
 		return rule ? [rule] : []
 	}
-	const raw = meta.bonusRules ?? meta.bonusRule
-	if (!Array.isArray(raw)) {
-		const one = parseOneLegacyRule(raw)
-		return one ? [one] : []
+	const rootRules = parseLegacyBonusRulesFromRecord(meta)
+	if (rootRules.length > 0) return rootRules
+	const stm = meta.shareTokenMetadata
+	if (stm && typeof stm === 'object') {
+		return parseLegacyBonusRulesFromRecord(stm as Record<string, unknown>)
 	}
-	return raw.map(parseOneLegacyRule).filter(Boolean) as RechargeBonusRule[]
+	return []
 }
 
 export function selectProgramRechargeBonusRule(
