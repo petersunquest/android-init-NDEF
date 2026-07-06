@@ -42,6 +42,8 @@ library IssuedNftStorage {
         mapping(uint256 => uint256) issuedNftCommentCount;
         mapping(bytes32 => bool) issuedNftSharedByWallet;
         mapping(bytes32 => bool) issuedNftLikedByWallet;
+        /// @dev Plan A social exchange: keyed by keccak256(abi.encode(userEOA, nonce))
+        mapping(bytes32 => bool) usedSocialExchangeClaimSigNonces;
     }
 
     function layout() internal pure returns (Layout storage l) {

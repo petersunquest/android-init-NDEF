@@ -13,6 +13,11 @@ interface ICardPoints {
     function balanceOf(address account, uint256 id) external view returns (uint256);
 }
 
+interface IERC20Minimal {
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
+
 /**
  * @title BeamioUserCardChargeRewardModuleV2
  * @notice Kind 5 extension: #13 reward pool, event dispatch, burn-funded programs, charge/topup cumulative.
@@ -37,6 +42,12 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         uint8 targetKind,
         uint256 issuedParentId
     );
+    event SocialExchangeUsdcEscrowFunded(address indexed payerEOA, uint256 amount6, uint256 escrowAfter);
+    event SocialPointsBurnedForExchange(address indexed userEOA, address indexed userAcct, uint256 pointsCost);
+    event SocialExchangeUsdcPaid(address indexed userEOA, uint256 usdcReward6, uint256 escrowAfter);
+
+    /// @dev CoNET mainnet CONET-USDC (6 decimals); merchant program cards are CoNET-only.
+    address public constant CONET_USDC_TOKEN = 0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3;
 
     address public bunitAirdropCaller;
 
@@ -221,6 +232,41 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         address gw = IUserCardCtx(address(this)).factoryGateway();
         address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
         _mintCumulativeStat(acct, UserCumulativeStatLib.METRIC_TOPUP, UserCumulativeStatLib.TARGET_GLOBAL_ONLY, 0, points6);
+    }
+
+    /// @notice Merchant owner funds CONET-USDC escrow for social-points → USDC exchange activities.
+    function fundSocialExchangeUsdcEscrow(address payerEOA, uint256 amount6) external onlyGatewayOrFactoryPaymaster {
+        if (payerEOA == address(0)) revert BM_ZeroAddress();
+        if (amount6 == 0) revert UC_AmountZero();
+        bool ok = IERC20Minimal(CONET_USDC_TOKEN).transferFrom(payerEOA, address(this), amount6);
+        if (!ok) revert UC_AmountZero();
+        RewardPoolStorage.Layout storage l = RewardPoolStorage.layout();
+        l.escrowUsdc6 += amount6;
+        emit SocialExchangeUsdcEscrowFunded(payerEOA, amount6, l.escrowUsdc6);
+    }
+
+    /// @notice Burn #13 social points from user AA account before social exchange claim completes.
+    function burnSocialPointsFromUserForExchange(address userEOA, uint256 pointsCost) external onlyGatewayOrFactoryPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (pointsCost == 0) revert UC_AmountZero();
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
+        uint256 bal = balanceOf(acct, REWARD_VOUCHER_TOKEN_ID);
+        if (pointsCost > bal) revert UC_InsufficientBalance(acct, REWARD_VOUCHER_TOKEN_ID, bal, pointsCost);
+        BeamioUserCardModuleMintLib.cardBurn(acct, REWARD_VOUCHER_TOKEN_ID, pointsCost);
+        emit SocialPointsBurnedForExchange(userEOA, acct, pointsCost);
+    }
+
+    /// @notice Pay CONET-USDC from card escrow to user EOA after social points burn (USDC exchange activity).
+    function payoutSocialExchangeUsdcToUser(address userEOA, uint256 usdcReward6) external onlyGatewayOrFactoryPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (usdcReward6 == 0) revert UC_AmountZero();
+        RewardPoolStorage.Layout storage l = RewardPoolStorage.layout();
+        if (l.escrowUsdc6 < usdcReward6) revert UC_RewardBudgetInsufficient(usdcReward6, l.escrowUsdc6);
+        l.escrowUsdc6 -= usdcReward6;
+        bool ok = IERC20Minimal(CONET_USDC_TOKEN).transfer(userEOA, usdcReward6);
+        if (!ok) revert UC_AmountZero();
+        emit SocialExchangeUsdcPaid(userEOA, usdcReward6, l.escrowUsdc6);
     }
 
     function _recordPurchaseCumulative(

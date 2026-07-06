@@ -184,6 +184,28 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         emit IssuedNftMinted(tokenId, recipientAcct, amount);
     }
 
+    /// @notice Social exchange USDC path: one claim per userEOA per activity tokenId; increments supply without minting coupon NFT.
+    function validateAndRecordSocialExchangeUsdcClaim(address userEOA, uint256 tokenId) external onlyGateway {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (tokenId < ISSUED_NFT_START_ID) revert UC_InvalidTokenId(tokenId, ISSUED_NFT_START_ID);
+
+        IssuedNftStorage.Layout storage l = IssuedNftStorage.layout();
+        bytes32 claimKey = keccak256(abi.encode(userEOA, tokenId));
+        if (l.issuedNftUserSigClaimUsed[claimKey]) revert UC_IssuedNftSigClaimAlreadyUsed(userEOA, tokenId);
+
+        uint256 price = l.issuedNftPriceInCurrency6[tokenId];
+        if (price != 0) revert UC_IssuedNftSigClaimNotFree(tokenId, price);
+
+        uint256 maxSupply = l.issuedNftMaxSupply[tokenId];
+        if (maxSupply == 0) revert UC_InvalidTokenId(tokenId, 0);
+        _requireRealIssuedNft(tokenId);
+        uint256 cnt = l.issuedNftMintedCount[tokenId];
+        if (cnt + 1 > maxSupply) revert UC_InsufficientBalance(address(this), tokenId, maxSupply - cnt, 1);
+
+        l.issuedNftUserSigClaimUsed[claimKey] = true;
+        l.issuedNftMintedCount[tokenId] = cnt + 1;
+    }
+
     /// @notice 检查 issued NFT 是否在有效期内
     function isIssuedNftValid(uint256 tokenId) external view returns (bool) {
         if (tokenId < ISSUED_NFT_START_ID) return false;

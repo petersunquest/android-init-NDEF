@@ -33,6 +33,12 @@ import "./IBeamioUserCardNftInventory.sol";
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
 import "../contracts/utils/ReentrancyGuard.sol";
+import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "../contracts/utils/cryptography/MessageHashUtils.sol";
+
+interface IBeamioUserCardFactoryEip712Domain {
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+}
 
 // 注意：IBeamioFactoryOracle, IBeamioAccountFactoryV07 已在 BeamioERC1155Logic.sol 中定义（资金流已移至 Factory）
 // 其余模块 interface 见 BeamioUserCardInterfaces.sol
@@ -43,6 +49,10 @@ import "../contracts/utils/ReentrancyGuard.sol";
 
 contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSelfDelegate, IBeamioUserCardNftInventory {
     using BeamioCurrency for *;
+
+    bytes32 private constant CLAIM_SOCIAL_EXCHANGE_TYPEHASH = keccak256(
+        "ClaimSocialExchange(address cardAddress,uint256 tokenId,uint256 pointsCost,uint256 usdcReward6,uint256 deadline,bytes32 nonce)"
+    );
 
     // ===== Versioning =====
     uint256 public constant VERSION = 27;
@@ -602,6 +612,113 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
     function mintIssuedNftByUserSigClaim(address userEOA, uint256 tokenId) external onlyAuthorizedGateway nonReentrant {
         BeamioUserCardIssuedNftGatewayLib.mintIssuedNftByUserSigClaim(
             IBeamioUserCardSelfDelegate(address(this)), userEOA, tokenId
+        );
+    }
+
+    /// @notice Plan A (CoNET): user EIP-712 social exchange when Factory lacks `claimSocialExchangeWithUserSig`.
+    /// @dev Relayer AA (Factory paymaster) calls card directly; burn uses ChargeReward paymaster gate; mint/record via cardSelfCallModule.
+    function claimSocialExchangeWithUserSignature(
+        address userEOA,
+        uint256 tokenId,
+        uint256 pointsCost,
+        uint256 usdcReward6,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external nonReentrant {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (pointsCost == 0) revert UC_AmountZero();
+
+        address gw = factoryGateway();
+        if (gw == address(0)) revert BM_ZeroAddress();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey]) revert UC_NonceUsed();
+        IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_SOCIAL_EXCHANGE_TYPEHASH, address(this), tokenId, pointsCost, usdcReward6, deadline, nonce)
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(
+            IBeamioUserCardFactoryEip712Domain(gw).DOMAIN_SEPARATOR(),
+            structHash
+        );
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        BeamioUserCardIssuedNftGatewayLib.requireIssuedNftValid(tokenId);
+
+        _callModule(
+            MODULE_CHARGE_REWARD,
+            abi.encodeWithSelector(
+                IBeamioChargeRewardModuleV2SocialExchange.burnSocialPointsFromUserForExchange.selector,
+                userEOA,
+                pointsCost
+            )
+        );
+
+        if (usdcReward6 > 0) {
+            _callModule(
+                MODULE_CHARGE_REWARD,
+                abi.encodeWithSelector(
+                    IBeamioChargeRewardModuleV2SocialExchange.payoutSocialExchangeUsdcToUser.selector,
+                    userEOA,
+                    usdcReward6
+                )
+            );
+            IBeamioUserCardSelfDelegate(address(this)).cardSelfCallModule(
+                MODULE_ISSUED_NFT,
+                abi.encodeWithSelector(
+                    IBeamioIssuedNftModuleV1.validateAndRecordSocialExchangeUsdcClaim.selector, userEOA, tokenId
+                )
+            );
+        } else {
+            BeamioUserCardIssuedNftGatewayLib.mintIssuedNftByUserSigClaim(
+                IBeamioUserCardSelfDelegate(address(this)), userEOA, tokenId
+            );
+        }
+    }
+
+    function recordSocialExchangeUsdcClaim(address userEOA, uint256 tokenId) external onlyAuthorizedGateway nonReentrant {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        _callModule(
+            MODULE_ISSUED_NFT,
+            abi.encodeWithSelector(
+                IBeamioIssuedNftModuleV1.validateAndRecordSocialExchangeUsdcClaim.selector, userEOA, tokenId
+            )
+        );
+    }
+
+    function burnSocialPointsForExchange(address userEOA, uint256 pointsCost) external onlyAuthorizedGateway nonReentrant {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        _callModule(
+            MODULE_CHARGE_REWARD,
+            abi.encodeWithSelector(
+                IBeamioChargeRewardModuleV2SocialExchange.burnSocialPointsFromUserForExchange.selector,
+                userEOA,
+                pointsCost
+            )
+        );
+    }
+
+    function payoutSocialExchangeUsdc(address userEOA, uint256 usdcReward6) external onlyAuthorizedGateway nonReentrant {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        _callModule(
+            MODULE_CHARGE_REWARD,
+            abi.encodeWithSelector(
+                IBeamioChargeRewardModuleV2SocialExchange.payoutSocialExchangeUsdcToUser.selector, userEOA, usdcReward6
+            )
+        );
+    }
+
+    function fundSocialExchangeUsdcEscrow(address payerEOA, uint256 amount6) external onlyAuthorizedGateway nonReentrant {
+        if (payerEOA == address(0)) revert BM_ZeroAddress();
+        _callModule(
+            MODULE_CHARGE_REWARD,
+            abi.encodeWithSelector(
+                IBeamioChargeRewardModuleV2SocialExchange.fundSocialExchangeUsdcEscrow.selector, payerEOA, amount6
+            )
         );
     }
 

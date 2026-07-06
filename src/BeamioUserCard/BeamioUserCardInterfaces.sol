@@ -133,6 +133,7 @@ interface IBeamioIssuedNftModuleV1 {
     function validateAndRecordMintIssuedNft(address acct, uint256 tokenId, uint256 amount) external;
     /// @notice Exactly 1 NFT; per userEOA per tokenId at most once; maxSupply enforced
     function validateAndRecordMintIssuedNftUserSigClaim(address userEOA, address recipientAcct, uint256 tokenId) external;
+    function validateAndRecordSocialExchangeUsdcClaim(address userEOA, uint256 tokenId) external;
     function recordCardReferralStat(address wallet, uint256 tokenId, uint256 amount) external;
     function recordIssuedNftReferralStat(uint256 tokenId, address wallet, uint8 statKind, uint256 amount) external returns (uint256 statTokenId);
     function recordIssuedNftTraffic(uint256 tokenId, address wallet, uint256 trafficGB18) external returns (uint256 statTokenId);
@@ -169,6 +170,12 @@ interface IBeamioChargeRewardModuleV1 {
     function previewChargeRewardAmount(uint256 amountFiat6) external view returns (uint256);
     function mintChargeRewardByGateway(address userEOA, uint256 amountFiat6, uint8 chargeCurrency) external;
     function burnChargeRewardByAdmin(address target, uint256 amount) external;
+}
+
+interface IBeamioChargeRewardModuleV2SocialExchange {
+    function fundSocialExchangeUsdcEscrow(address payerEOA, uint256 amount6) external;
+    function burnSocialPointsFromUserForExchange(address userEOA, uint256 pointsCost) external;
+    function payoutSocialExchangeUsdcToUser(address userEOA, uint256 usdcReward6) external;
 }
 
 interface IBeamioGovernanceModuleV1 {

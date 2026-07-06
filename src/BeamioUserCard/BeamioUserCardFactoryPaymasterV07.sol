@@ -44,6 +44,9 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes32 public constant CLAIM_ISSUED_NFT_TYPEHASH = keccak256(
         "ClaimIssuedNft(address cardAddress,uint256 tokenId,uint256 deadline,bytes32 nonce)"
     );
+    bytes32 public constant CLAIM_SOCIAL_EXCHANGE_TYPEHASH = keccak256(
+        "ClaimSocialExchange(address cardAddress,uint256 tokenId,uint256 pointsCost,uint256 usdcReward6,uint256 deadline,bytes32 nonce)"
+    );
     bytes32 private constant PURCHASE_ISSUED_NFT_WITH_POINTS_TYPEHASH = keccak256(
         "PurchaseIssuedNftWithPoints(address cardAddress,uint256 tokenId,uint256 amount,address payeeEOA,uint256 deadline,bytes32 nonce)"
     );
@@ -691,6 +694,50 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (!_isIssuedNftValid(cardAddr, tokenId)) revert UC_IssuedNftInactive(tokenId);
 
         card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+
+        emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
+    }
+
+    /// @notice User EIP-712 social exchange: burn #13 then mint coupon OR pay CONET-USDC from card escrow.
+    function claimSocialExchangeWithUserSig(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        uint256 pointsCost,
+        uint256 usdcReward6,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external onlyPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (pointsCost == 0) revert UC_AmountZero();
+
+        IBeamioUserCardForFactory card = IBeamioUserCardForFactory(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (usedIssuedNftClaimSigNonces[nonceKey]) revert UC_NonceUsed();
+        usedIssuedNftClaimSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_SOCIAL_EXCHANGE_TYPEHASH, cardAddr, tokenId, pointsCost, usdcReward6, deadline, nonce)
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        if (!_isIssuedNftValid(cardAddr, tokenId)) revert UC_IssuedNftInactive(tokenId);
+
+        card.burnSocialPointsForExchange(userEOA, pointsCost);
+
+        if (usdcReward6 > 0) {
+            card.payoutSocialExchangeUsdc(userEOA, usdcReward6);
+            card.recordSocialExchangeUsdcClaim(userEOA, tokenId);
+        } else {
+            card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+        }
 
         emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
     }

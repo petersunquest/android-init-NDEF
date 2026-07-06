@@ -25,6 +25,10 @@ interface IBeamioUserCardForFactory {
     function mintFaucetByGateway(address userEOA, uint256 id, uint256 amount6) external;
     function mintIssuedNftByGateway(address userEOA, uint256 tokenId, uint256 amount) external;
     function mintIssuedNftByUserSigClaim(address userEOA, uint256 tokenId) external;
+    function recordSocialExchangeUsdcClaim(address userEOA, uint256 tokenId) external;
+    function burnSocialPointsForExchange(address userEOA, uint256 pointsCost) external;
+    function payoutSocialExchangeUsdc(address userEOA, uint256 usdcReward6) external;
+    function fundSocialExchangeUsdcEscrow(address payerEOA, uint256 amount6) external;
     function purchaseIssuedNftWithPointsCharge(address userEOA, uint256 tokenId, uint256 amount, address payee) external;
 
     function clearAdminMintCounterForSubordinate(address subordinate, address authorizer) external;
