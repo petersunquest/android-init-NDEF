@@ -2,7 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
   
     export type NFTDetailStruct = {tokenId: BigNumberish, attribute: BigNumberish, tierIndexOrMax: BigNumberish, expiry: BigNumberish, isExpired: boolean}
 
@@ -23,7 +23,7 @@ export declare namespace FaucetStorage {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfBurn" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "name" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "symbol" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "burnSocialPointsForExchange" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfBurn" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "claimSocialExchangeWithUserSignature" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "fundSocialExchangeUsdcEscrow" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "name" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "payoutSocialExchangeUsdc" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "recordSocialExchangeUsdcClaim" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "symbol" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "ChargeRewardAirdropped" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "IssuedNftPurchasedWithPointsCharge" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "RefereeReferrerUpdated" | "RefereeRegistered" | "RefereeUnregistered" | "ReferrerRewardMinted" | "ReferrerRewardRatioUpdated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -47,6 +47,7 @@ encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): stri
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'burnPointsByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'burnSocialPointsForExchange', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfAppendMembershipNftIfMissing', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfBurn', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfCallModule', values: [BigNumberish, BytesLike]): string;
@@ -72,6 +73,7 @@ encodeFunctionData(functionFragment: 'cardSelfRequirePointsMintAllowsFirstMember
 encodeFunctionData(functionFragment: 'cardSelfToAccount', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardSelfTransferPointsUpdate', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfUpgradeType', values?: undefined): string;
+encodeFunctionData(functionFragment: 'claimSocialExchangeWithUserSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'clearAdminMintCounterForSubordinate', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'clearRefereeReferrer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
@@ -84,6 +86,7 @@ encodeFunctionData(functionFragment: 'expirySeconds', values?: undefined): strin
 encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'faucetByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'faucetConfig', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'gateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnershipByEOA', values: [AddressLike]): string;
@@ -114,6 +117,7 @@ encodeFunctionData(functionFragment: 'nftInventoryAt', values: [AddressLike, Big
 encodeFunctionData(functionFragment: 'nftInventoryLength', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'nftTierIndexOrMax', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+encodeFunctionData(functionFragment: 'payoutSocialExchangeUsdc', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'pointsBalanceOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'pointsUnitPriceInCurrencyE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'previewReferrerRewardFromChargeReward', values: [BigNumberish]): string;
@@ -121,6 +125,7 @@ encodeFunctionData(functionFragment: 'purchaseIssuedNftWithPointsCharge', values
 encodeFunctionData(functionFragment: 'quoteIssuedNftPurchasePoints6', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordAdminBurnForStats', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordAdminMintForStats', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordSocialExchangeUsdcClaim', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'redeemAdminByGateway', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemBatchByGateway', values: [string[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemByGateway', values: [string, AddressLike]): string;
@@ -183,6 +188,7 @@ decodeFunctionResult(functionFragment: 'attributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnPointsByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnSocialPointsForExchange', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfAppendMembershipNftIfMissing', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfBurn', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfCallModule', data: BytesLike): Result;
@@ -208,6 +214,7 @@ decodeFunctionResult(functionFragment: 'cardSelfRequirePointsMintAllowsFirstMemb
 decodeFunctionResult(functionFragment: 'cardSelfToAccount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfTransferPointsUpdate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfUpgradeType', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimSocialExchangeWithUserSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'clearAdminMintCounterForSubordinate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'clearRefereeReferrer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
@@ -220,6 +227,7 @@ decodeFunctionResult(functionFragment: 'expirySeconds', data: BytesLike): Result
 decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetConfig', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'gateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnershipByEOA', data: BytesLike): Result;
@@ -250,6 +258,7 @@ decodeFunctionResult(functionFragment: 'nftInventoryAt', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'nftInventoryLength', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'nftTierIndexOrMax', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'payoutSocialExchangeUsdc', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsBalanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsUnitPriceInCurrencyE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'previewReferrerRewardFromChargeReward', data: BytesLike): Result;
@@ -257,6 +266,7 @@ decodeFunctionResult(functionFragment: 'purchaseIssuedNftWithPointsCharge', data
 decodeFunctionResult(functionFragment: 'quoteIssuedNftPurchasePoints6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordAdminBurnForStats', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordAdminMintForStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordSocialExchangeUsdcClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemAdminByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemBatchByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemByGateway', data: BytesLike): Result;
@@ -903,6 +913,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    burnSocialPointsForExchange: TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     cardSelfAppendMembershipNftIfMissing: TypedContractMethod<
       [acct: AddressLike, id: BigNumberish, ],
       [void],
@@ -1103,6 +1121,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    claimSocialExchangeWithUserSignature: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     clearAdminMintCounterForSubordinate: TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -1195,6 +1221,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [id: BigNumberish, ],
       [FaucetStorage.FaucetConfigStructOutput],
       'view'
+    >
+    
+
+    
+    fundSocialExchangeUsdcEscrow: TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -1439,6 +1473,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    payoutSocialExchangeUsdc: TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     pointsBalanceOf: TypedContractMethod<
       [user: AddressLike, ],
       [bigint],
@@ -1489,6 +1531,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     recordAdminMintForStats: TypedContractMethod<
       [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    recordSocialExchangeUsdcClaim: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -1925,6 +1975,11 @@ getFunction(nameOrSignature: 'burnPointsByAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'burnSocialPointsForExchange'): TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'cardSelfAppendMembershipNftIfMissing'): TypedContractMethod<
       [acct: AddressLike, id: BigNumberish, ],
       [void],
@@ -2050,6 +2105,11 @@ getFunction(nameOrSignature: 'cardSelfUpgradeType'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'claimSocialExchangeWithUserSignature'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'clearAdminMintCounterForSubordinate'): TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -2109,6 +2169,11 @@ getFunction(nameOrSignature: 'faucetConfig'): TypedContractMethod<
       [id: BigNumberish, ],
       [FaucetStorage.FaucetConfigStructOutput],
       'view'
+    >;
+getFunction(nameOrSignature: 'fundSocialExchangeUsdcEscrow'): TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'gateway'): TypedContractMethod<
       [],
@@ -2260,6 +2325,11 @@ getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'payoutSocialExchangeUsdc'): TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'pointsBalanceOf'): TypedContractMethod<
       [user: AddressLike, ],
       [bigint],
@@ -2292,6 +2362,11 @@ getFunction(nameOrSignature: 'recordAdminBurnForStats'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'recordAdminMintForStats'): TypedContractMethod<
       [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordSocialExchangeUsdcClaim'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >;

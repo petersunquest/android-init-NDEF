@@ -52,6 +52,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "userEOA",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pointsCost",
+        "type": "uint256"
+      }
+    ],
+    "name": "burnSocialPointsForExchange",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "subordinate",
         "type": "address"
       },
@@ -151,6 +169,24 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "payerEOA",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount6",
+        "type": "uint256"
+      }
+    ],
+    "name": "fundSocialExchangeUsdcEscrow",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -315,6 +351,24 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "userEOA",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "usdcReward6",
+        "type": "uint256"
+      }
+    ],
+    "name": "payoutSocialExchangeUsdc",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "pointsUnitPriceInCurrencyE6",
     "outputs": [
@@ -369,6 +423,24 @@
       }
     ],
     "name": "recordAdminBurnForStats",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "userEOA",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "recordSocialExchangeUsdcClaim",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

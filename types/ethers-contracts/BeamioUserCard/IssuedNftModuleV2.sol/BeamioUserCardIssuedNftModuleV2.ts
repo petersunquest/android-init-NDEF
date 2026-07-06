@@ -6,13 +6,14 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardIssuedNftModuleV2Interface extends Interface {
-    getFunction(nameOrSignature: "CARD_REFERRAL_BURN_TOKEN_ID" | "CARD_REFERRAL_CLAIM_TOKEN_ID" | "CARD_REFERRAL_CLICK_TOKEN_ID" | "COUPON_REFERRAL_BURN_OFFSET" | "COUPON_REFERRAL_CLAIM_OFFSET" | "COUPON_REFERRAL_CLICK_OFFSET" | "ISSUED_NFT_TRAFFIC_OFFSET" | "RECORD_USER_LIKE_TYPEHASH" | "STAT_KIND_REFERRAL_BURN" | "STAT_KIND_REFERRAL_CLAIM" | "STAT_KIND_REFERRAL_CLICK" | "STAT_KIND_TRAFFIC" | "applyUserLikeWithSignature" | "balanceOf" | "balanceOfBatch" | "bootstrapIssuedNftV2StatTokens" | "burnIssuedNftByGateway" | "burnUserCumulativeStatByGateway" | "cardUserCumulativeStatTokensInitialized" | "createIssuedNft" | "initializeCardUserCumulativeStatTokens" | "isApprovedForAll" | "isIssuedNftStatToken" | "isIssuedNftValid" | "issuedNftContentStats" | "issuedNftLikedByWallet" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftReferralStatTokenId" | "issuedNftSharedByWallet" | "issuedNftSharedMetadataHash" | "issuedNftSocialStats" | "issuedNftStatTokenInfo" | "issuedNftTrafficStatTokenId" | "issuedNftUserContentStats" | "issuedNftUserSigClaimUsed" | "recordCardReferralStat" | "recordIssuedNftAccess" | "recordIssuedNftComment" | "recordIssuedNftPurchase" | "recordIssuedNftReferralStat" | "recordIssuedNftShare" | "recordIssuedNftTraffic" | "recordUserCumulativeStat" | "resolveUserCumulativeStatTokenId" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setIssuedNftLike" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
+    getFunction(nameOrSignature: "CARD_REFERRAL_BURN_TOKEN_ID" | "CARD_REFERRAL_CLAIM_TOKEN_ID" | "CARD_REFERRAL_CLICK_TOKEN_ID" | "CLAIM_SOCIAL_EXCHANGE_TYPEHASH" | "COUPON_REFERRAL_BURN_OFFSET" | "COUPON_REFERRAL_CLAIM_OFFSET" | "COUPON_REFERRAL_CLICK_OFFSET" | "ISSUED_NFT_TRAFFIC_OFFSET" | "RECORD_USER_LIKE_TYPEHASH" | "STAT_KIND_REFERRAL_BURN" | "STAT_KIND_REFERRAL_CLAIM" | "STAT_KIND_REFERRAL_CLICK" | "STAT_KIND_TRAFFIC" | "applyUserLikeWithSignature" | "balanceOf" | "balanceOfBatch" | "bootstrapIssuedNftV2StatTokens" | "burnIssuedNftByGateway" | "burnUserCumulativeStatByGateway" | "cardUserCumulativeStatTokensInitialized" | "claimSocialExchangeWithUserSignature" | "createIssuedNft" | "initializeCardUserCumulativeStatTokens" | "isApprovedForAll" | "isIssuedNftStatToken" | "isIssuedNftValid" | "issuedNftContentStats" | "issuedNftLikedByWallet" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftReferralStatTokenId" | "issuedNftSharedByWallet" | "issuedNftSharedMetadataHash" | "issuedNftSocialStats" | "issuedNftStatTokenInfo" | "issuedNftTrafficStatTokenId" | "issuedNftUserContentStats" | "issuedNftUserSigClaimUsed" | "recordCardReferralStat" | "recordIssuedNftAccess" | "recordIssuedNftComment" | "recordIssuedNftPurchase" | "recordIssuedNftReferralStat" | "recordIssuedNftShare" | "recordIssuedNftTraffic" | "recordUserCumulativeStat" | "resolveUserCumulativeStatTokenId" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setIssuedNftLike" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim" | "validateAndRecordSocialExchangeUsdcClaim"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "CardUserCumulativeStatTokensInitialized" | "IssuedNftAccessRecorded" | "IssuedNftBurned" | "IssuedNftCommentRecorded" | "IssuedNftCreated" | "IssuedNftLikeUpdated" | "IssuedNftMinted" | "IssuedNftPurchaseRecorded" | "IssuedNftShareRecorded" | "IssuedNftStatTokenInitialized" | "ReferralStatRecorded" | "TransferBatch" | "TransferSingle" | "URI" | "UserCumulativeStatRecorded" | "UserCumulativeStatRevoked" | "UserLikeAppliedWithSignature"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "CardUserCumulativeStatTokensInitialized" | "IssuedNftAccessRecorded" | "IssuedNftBurned" | "IssuedNftCommentRecorded" | "IssuedNftCreated" | "IssuedNftLikeUpdated" | "IssuedNftMinted" | "IssuedNftPurchaseRecorded" | "IssuedNftShareRecorded" | "IssuedNftStatTokenInitialized" | "ReferralStatRecorded" | "SocialExchangeClaimedWithSignature" | "TransferBatch" | "TransferSingle" | "URI" | "UserCumulativeStatRecorded" | "UserCumulativeStatRevoked" | "UserLikeAppliedWithSignature"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CARD_REFERRAL_BURN_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'CARD_REFERRAL_CLAIM_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'CARD_REFERRAL_CLICK_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CLAIM_SOCIAL_EXCHANGE_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'COUPON_REFERRAL_BURN_OFFSET', values?: undefined): string;
 encodeFunctionData(functionFragment: 'COUPON_REFERRAL_CLAIM_OFFSET', values?: undefined): string;
 encodeFunctionData(functionFragment: 'COUPON_REFERRAL_CLICK_OFFSET', values?: undefined): string;
@@ -29,6 +30,7 @@ encodeFunctionData(functionFragment: 'bootstrapIssuedNftV2StatTokens', values: [
 encodeFunctionData(functionFragment: 'burnIssuedNftByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnUserCumulativeStatByGateway', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardUserCumulativeStatTokensInitialized', values?: undefined): string;
+encodeFunctionData(functionFragment: 'claimSocialExchangeWithUserSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createIssuedNft', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'initializeCardUserCumulativeStatTokens', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
@@ -63,10 +65,12 @@ encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): 
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNft', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'validateAndRecordSocialExchangeUsdcClaim', values: [AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CARD_REFERRAL_BURN_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'CARD_REFERRAL_CLAIM_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'CARD_REFERRAL_CLICK_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CLAIM_SOCIAL_EXCHANGE_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_BURN_OFFSET', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_CLAIM_OFFSET', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'COUPON_REFERRAL_CLICK_OFFSET', data: BytesLike): Result;
@@ -83,6 +87,7 @@ decodeFunctionResult(functionFragment: 'bootstrapIssuedNftV2StatTokens', data: B
 decodeFunctionResult(functionFragment: 'burnIssuedNftByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnUserCumulativeStatByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardUserCumulativeStatTokensInitialized', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimSocialExchangeWithUserSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'initializeCardUserCumulativeStatTokens', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
@@ -117,6 +122,7 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'validateAndRecordSocialExchangeUsdcClaim', data: BytesLike): Result;
   }
 
   
@@ -264,6 +270,18 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
 
   
 
+    export namespace SocialExchangeClaimedWithSignatureEvent {
+      export type InputTuple = [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, nonce: BytesLike];
+      export type OutputTuple = [userEOA: string, tokenId: bigint, pointsCost: bigint, usdcReward6: bigint, nonce: string];
+      export interface OutputObject {userEOA: string, tokenId: bigint, pointsCost: bigint, usdcReward6: bigint, nonce: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace TransferBatchEvent {
       export type InputTuple = [operator: AddressLike, from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[]];
       export type OutputTuple = [operator: string, from: string, to: string, ids: bigint[], values: bigint[]];
@@ -394,6 +412,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     
 
     
+    CLAIM_SOCIAL_EXCHANGE_TYPEHASH: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     COUPON_REFERRAL_BURN_OFFSET: TypedContractMethod<
       [],
       [bigint],
@@ -518,6 +544,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
       [],
       [boolean],
       'view'
+    >
+    
+
+    
+    claimSocialExchangeWithUserSignature: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -793,6 +827,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     >
     
 
+    
+    validateAndRecordSocialExchangeUsdcClaim: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -809,6 +851,11 @@ getFunction(nameOrSignature: 'CARD_REFERRAL_CLAIM_TOKEN_ID'): TypedContractMetho
 getFunction(nameOrSignature: 'CARD_REFERRAL_CLICK_TOKEN_ID'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'CLAIM_SOCIAL_EXCHANGE_TYPEHASH'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'COUPON_REFERRAL_BURN_OFFSET'): TypedContractMethod<
@@ -890,6 +937,11 @@ getFunction(nameOrSignature: 'cardUserCumulativeStatTokensInitialized'): TypedCo
       [],
       [boolean],
       'view'
+    >;
+getFunction(nameOrSignature: 'claimSocialExchangeWithUserSignature'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'createIssuedNft'): TypedContractMethod<
       [title: BytesLike, validAfter: BigNumberish, validBefore: BigNumberish, maxSupply: BigNumberish, priceInCurrency6: BigNumberish, sharedMetadataHash: BytesLike, ],
@@ -1061,6 +1113,11 @@ getFunction(nameOrSignature: 'validateAndRecordMintIssuedNftUserSigClaim'): Type
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'validateAndRecordSocialExchangeUsdcClaim'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
     getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
 getEvent(key: 'CardUserCumulativeStatTokensInitialized'): TypedContractEvent<CardUserCumulativeStatTokensInitializedEvent.InputTuple, CardUserCumulativeStatTokensInitializedEvent.OutputTuple, CardUserCumulativeStatTokensInitializedEvent.OutputObject>;
@@ -1074,6 +1131,7 @@ getEvent(key: 'IssuedNftPurchaseRecorded'): TypedContractEvent<IssuedNftPurchase
 getEvent(key: 'IssuedNftShareRecorded'): TypedContractEvent<IssuedNftShareRecordedEvent.InputTuple, IssuedNftShareRecordedEvent.OutputTuple, IssuedNftShareRecordedEvent.OutputObject>;
 getEvent(key: 'IssuedNftStatTokenInitialized'): TypedContractEvent<IssuedNftStatTokenInitializedEvent.InputTuple, IssuedNftStatTokenInitializedEvent.OutputTuple, IssuedNftStatTokenInitializedEvent.OutputObject>;
 getEvent(key: 'ReferralStatRecorded'): TypedContractEvent<ReferralStatRecordedEvent.InputTuple, ReferralStatRecordedEvent.OutputTuple, ReferralStatRecordedEvent.OutputObject>;
+getEvent(key: 'SocialExchangeClaimedWithSignature'): TypedContractEvent<SocialExchangeClaimedWithSignatureEvent.InputTuple, SocialExchangeClaimedWithSignatureEvent.OutputTuple, SocialExchangeClaimedWithSignatureEvent.OutputObject>;
 getEvent(key: 'TransferBatch'): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
 getEvent(key: 'TransferSingle'): TypedContractEvent<TransferSingleEvent.InputTuple, TransferSingleEvent.OutputTuple, TransferSingleEvent.OutputObject>;
 getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
@@ -1129,6 +1187,10 @@ getEvent(key: 'UserLikeAppliedWithSignature'): TypedContractEvent<UserLikeApplie
 
       'ReferralStatRecorded(uint256,address,uint8,uint256)': TypedContractEvent<ReferralStatRecordedEvent.InputTuple, ReferralStatRecordedEvent.OutputTuple, ReferralStatRecordedEvent.OutputObject>;
       ReferralStatRecorded: TypedContractEvent<ReferralStatRecordedEvent.InputTuple, ReferralStatRecordedEvent.OutputTuple, ReferralStatRecordedEvent.OutputObject>;
+    
+
+      'SocialExchangeClaimedWithSignature(address,uint256,uint256,uint256,bytes32)': TypedContractEvent<SocialExchangeClaimedWithSignatureEvent.InputTuple, SocialExchangeClaimedWithSignatureEvent.OutputTuple, SocialExchangeClaimedWithSignatureEvent.OutputObject>;
+      SocialExchangeClaimedWithSignature: TypedContractEvent<SocialExchangeClaimedWithSignatureEvent.InputTuple, SocialExchangeClaimedWithSignatureEvent.OutputTuple, SocialExchangeClaimedWithSignatureEvent.OutputObject>;
     
 
       'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;

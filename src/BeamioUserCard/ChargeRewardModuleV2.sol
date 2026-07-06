@@ -189,7 +189,7 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         if (actorWallet != address(0) && rule.actorMint13 > 0) need += rule.actorMint13;
         if (refWallet != address(0) && rule.refMint13 > 0) need += rule.refMint13;
         if (need == 0) return (0, 0);
-        if (l.rewardMintBudget13 < need) revert UC_RewardBudgetInsufficient(need, l.rewardMintBudget13);
+        // Social promotion #13 rewards are minted on event (no pre-funded rewardMintBudget13 required).
 
         if (actorWallet != address(0) && rule.actorMint13 > 0) {
             BeamioUserCardModuleMintLib.cardMint(actorWallet, REWARD_VOUCHER_TOKEN_ID, rule.actorMint13);
@@ -201,7 +201,6 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
             refMinted = rule.refMint13;
             emit RewardVoucher13Minted(refWallet, refMinted, ruleId);
         }
-        l.rewardMintBudget13 -= need;
 
         if (cumulativeDelta > 0 && actorWallet != address(0)) {
             _recordEventCumulative(

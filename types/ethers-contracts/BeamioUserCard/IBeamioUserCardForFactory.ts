@@ -13,16 +13,18 @@ export declare namespace FaucetStorage {
     }
 
   export interface IBeamioUserCardForFactoryInterface extends Interface {
-    getFunction(nameOrSignature: "adminParent" | "appendTier" | "clearAdminMintCounterForSubordinate" | "currency" | "factoryGateway" | "faucetConfig" | "isAdmin" | "issuedNftPriceInCurrency6" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByUserSigClaim" | "mintPointsByAdminWithOperator" | "mintPointsByGatewayWithOperator" | "owner" | "pointsUnitPriceInCurrencyE6" | "purchaseIssuedNftWithPointsCharge" | "recordAdminBurnForStats" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "resetAdminLimitByAdmin"): FunctionFragment;
+    getFunction(nameOrSignature: "adminParent" | "appendTier" | "burnSocialPointsForExchange" | "clearAdminMintCounterForSubordinate" | "currency" | "factoryGateway" | "faucetConfig" | "fundSocialExchangeUsdcEscrow" | "isAdmin" | "issuedNftPriceInCurrency6" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByUserSigClaim" | "mintPointsByAdminWithOperator" | "mintPointsByGatewayWithOperator" | "owner" | "payoutSocialExchangeUsdc" | "pointsUnitPriceInCurrencyE6" | "purchaseIssuedNftWithPointsCharge" | "recordAdminBurnForStats" | "recordSocialExchangeUsdcClaim" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "resetAdminLimitByAdmin"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'adminParent', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'appendTier', values: [BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'burnSocialPointsForExchange', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'clearAdminMintCounterForSubordinate', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'currency', values?: undefined): string;
 encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'faucetConfig', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'issuedNftPriceInCurrency6', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintFaucetByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
@@ -31,9 +33,11 @@ encodeFunctionData(functionFragment: 'mintIssuedNftByUserSigClaim', values: [Add
 encodeFunctionData(functionFragment: 'mintPointsByAdminWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintPointsByGatewayWithOperator', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
+encodeFunctionData(functionFragment: 'payoutSocialExchangeUsdc', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'pointsUnitPriceInCurrencyE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'purchaseIssuedNftWithPointsCharge', values: [AddressLike, BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'recordAdminBurnForStats', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordSocialExchangeUsdcClaim', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'redeemAdminByGateway', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemBatchByGateway', values: [string[], AddressLike]): string;
 encodeFunctionData(functionFragment: 'redeemByGateway', values: [string, AddressLike]): string;
@@ -42,10 +46,12 @@ encodeFunctionData(functionFragment: 'resetAdminLimitByAdmin', values: [AddressL
 
     decodeFunctionResult(functionFragment: 'adminParent', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'appendTier', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnSocialPointsForExchange', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'clearAdminMintCounterForSubordinate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'currency', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetConfig', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuedNftPriceInCurrency6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintFaucetByGateway', data: BytesLike): Result;
@@ -54,9 +60,11 @@ decodeFunctionResult(functionFragment: 'mintIssuedNftByUserSigClaim', data: Byte
 decodeFunctionResult(functionFragment: 'mintPointsByAdminWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintPointsByGatewayWithOperator', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'payoutSocialExchangeUsdc', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsUnitPriceInCurrencyE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'purchaseIssuedNftWithPointsCharge', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordAdminBurnForStats', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordSocialExchangeUsdcClaim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemAdminByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemBatchByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemByGateway', data: BytesLike): Result;
@@ -116,6 +124,14 @@ decodeFunctionResult(functionFragment: 'resetAdminLimitByAdmin', data: BytesLike
     
 
     
+    burnSocialPointsForExchange: TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     clearAdminMintCounterForSubordinate: TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -144,6 +160,14 @@ decodeFunctionResult(functionFragment: 'resetAdminLimitByAdmin', data: BytesLike
       [id: BigNumberish, ],
       [FaucetStorage.FaucetConfigStructOutput],
       'view'
+    >
+    
+
+    
+    fundSocialExchangeUsdcEscrow: TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -212,6 +236,14 @@ decodeFunctionResult(functionFragment: 'resetAdminLimitByAdmin', data: BytesLike
     
 
     
+    payoutSocialExchangeUsdc: TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     pointsUnitPriceInCurrencyE6: TypedContractMethod<
       [],
       [bigint],
@@ -230,6 +262,14 @@ decodeFunctionResult(functionFragment: 'resetAdminLimitByAdmin', data: BytesLike
     
     recordAdminBurnForStats: TypedContractMethod<
       [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    recordSocialExchangeUsdcClaim: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -288,6 +328,11 @@ getFunction(nameOrSignature: 'appendTier'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'burnSocialPointsForExchange'): TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'clearAdminMintCounterForSubordinate'): TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -307,6 +352,11 @@ getFunction(nameOrSignature: 'faucetConfig'): TypedContractMethod<
       [id: BigNumberish, ],
       [FaucetStorage.FaucetConfigStructOutput],
       'view'
+    >;
+getFunction(nameOrSignature: 'fundSocialExchangeUsdcEscrow'): TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'isAdmin'): TypedContractMethod<
       [account: AddressLike, ],
@@ -348,6 +398,11 @@ getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'payoutSocialExchangeUsdc'): TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'pointsUnitPriceInCurrencyE6'): TypedContractMethod<
       [],
       [bigint],
@@ -360,6 +415,11 @@ getFunction(nameOrSignature: 'purchaseIssuedNftWithPointsCharge'): TypedContract
     >;
 getFunction(nameOrSignature: 'recordAdminBurnForStats'): TypedContractMethod<
       [admin: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordSocialExchangeUsdcClaim'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >;

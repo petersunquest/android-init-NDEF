@@ -6,15 +6,17 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioBUnitsInterface extends Interface {
-    getFunction(nameOrSignature: "consumeFuel" | "totalFreeBurned" | "totalPaidBurned"): FunctionFragment;
+    getFunction(nameOrSignature: "balanceOfAll" | "consumeFuel" | "totalFreeBurned" | "totalPaidBurned"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'balanceOfAll', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'consumeFuel', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalFreeBurned', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalPaidBurned', values?: undefined): string;
 
-    decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'balanceOfAll', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'consumeFuel', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalFreeBurned', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Result;
   }
@@ -55,6 +57,14 @@ decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Resu
 
     
     
+    balanceOfAll: TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >
+    
+
+    
     consumeFuel: TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
@@ -81,7 +91,12 @@ decodeFunctionResult(functionFragment: 'totalPaidBurned', data: BytesLike): Resu
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
+    getFunction(nameOrSignature: 'balanceOfAll'): TypedContractMethod<
+      [account: AddressLike, ],
+      [[bigint, bigint, bigint] & {total: bigint, free: bigint, paid: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'consumeFuel'): TypedContractMethod<
       [user: AddressLike, amount: BigNumberish, ],
       [bigint],
       'nonpayable'

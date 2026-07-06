@@ -27,6 +27,13 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                 || sel == bytes4(keccak256("resolveUserCumulativeStatTokenId(uint8,uint8,uint256)"))
                 || sel == bytes4(keccak256("bootstrapIssuedNftV2StatTokens(uint256)"))
                 || sel == bytes4(keccak256("applyUserLikeWithSignature(address,uint8,uint256,bool,uint256,bytes32,bytes)"))
+                || sel
+                    == bytes4(
+                        keccak256(
+                            "claimSocialExchangeWithUserSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)"
+                        )
+                    )
+                || sel == bytes4(keccak256("validateAndRecordSocialExchangeUsdcClaim(address,uint256)"))
         ) {
             return ROUTE_ISSUED_NFT;
         }
@@ -43,6 +50,9 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                 || sel == bytes4(keccak256("setBunitAirdropCaller(address)"))
                 || sel == bytes4(keccak256("bunitAirdropCaller()"))
                 || sel == bytes4(keccak256("recordBUnitInstallAttribution(address,address,uint8,uint256)"))
+                || sel == bytes4(keccak256("fundSocialExchangeUsdcEscrow(address,uint256)"))
+                || sel == bytes4(keccak256("burnSocialPointsFromUserForExchange(address,uint256)"))
+                || sel == bytes4(keccak256("payoutSocialExchangeUsdcToUser(address,uint256)"))
         ) {
             return ROUTE_CHARGE_REWARD;
         }

@@ -1,9 +1,9 @@
 /**
- * 社交积分兑换（Social Exchange）：重部署 IssuedNft V2 + ChargeReward V2，
- * 更新 CoNET Factory 两处 default 模块绑定。不重部署 Factory 本体。
+ * 社交积分兑换（Social Exchange）：重部署 IssuedNft V2 + ChargeReward V2 + AdminStatsQuery V3，
+ * 更新 CoNET Factory 三处 default 模块绑定。不重部署 Factory 本体与商家卡地址。
  *
- * CoNET Factory 尚无 `claimSocialExchangeWithUserSig` 时，Master 走 Plan A：
- * `BeamioUserCard.claimSocialExchangeWithUserSignature` + relayer AA EntryPoint 直调 card。
+ * CoNET Factory 尚无 `claimSocialExchangeWithUserSig` 时，Master 走 Plan A fallback：
+ * relayer AA 直调 merchant card `claimSocialExchangeWithUserSignature` → card fallback → IssuedNftModuleV2。
  *
  * 运行:
  *   npm run clean && npm run compile
@@ -67,8 +67,10 @@ async function main() {
     "function owner() view returns (address)",
     "function defaultIssuedNftModule() view returns (address)",
     "function defaultChargeRewardModule() view returns (address)",
+    "function defaultAdminStatsQueryModule() view returns (address)",
     "function setIssuedNftModule(address m) external",
     "function setChargeRewardModule(address m) external",
+    "function setAdminStatsQueryModule(address m) external",
   ];
   const factoryReader = new hhEthers.Contract(factoryAddress, factoryReaderAbi, provider);
 
@@ -85,6 +87,7 @@ async function main() {
 
   const oldIssued = (await factoryReader.defaultIssuedNftModule()) as string;
   const oldCharge = (await factoryReader.defaultChargeRewardModule()) as string;
+  const oldAdminStats = (await factoryReader.defaultAdminStatsQueryModule()) as string;
 
   const addrPath = path.join(__dirname, "..", "deployments", "conet-addresses.json");
   const addrData = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, string>;
@@ -99,6 +102,7 @@ async function main() {
   console.log("signer", signerAddress);
   console.log("replacing IssuedNft:", oldIssued);
   console.log("replacing ChargeReward:", oldCharge);
+  console.log("replacing AdminStatsQuery:", oldAdminStats);
 
   const IssuedFactory = await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV2");
   const ChargeFactory = await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV2", {
@@ -110,15 +114,19 @@ async function main() {
 
   const preIssued = process.env.ISSUED_NFT_MODULE_ADDRESS?.trim();
   const preCharge = process.env.CHARGE_REWARD_MODULE_ADDRESS?.trim();
+  const preAdminStats = process.env.ADMIN_STATS_QUERY_MODULE_ADDRESS?.trim();
   let newIssuedAddr: string;
   let newChargeAddr: string;
+  let newAdminStatsAddr: string;
 
-  if (preIssued && hhEthers.isAddress(preIssued) && preCharge && hhEthers.isAddress(preCharge)) {
+  if (preIssued && hhEthers.isAddress(preIssued) && preCharge && hhEthers.isAddress(preCharge) && preAdminStats && hhEthers.isAddress(preAdminStats)) {
     newIssuedAddr = hhEthers.getAddress(preIssued);
     newChargeAddr = hhEthers.getAddress(preCharge);
+    newAdminStatsAddr = hhEthers.getAddress(preAdminStats);
     console.log("\n↪️  复用已部署模块（跳过 deploy）");
     console.log("   IssuedNftModuleV2:", newIssuedAddr);
     console.log("   ChargeRewardModuleV2:", newChargeAddr);
+    console.log("   AdminStatsQueryModuleV3:", newAdminStatsAddr);
   } else {
     const issued = await IssuedFactory.connect(signer).deploy(txOverrides);
     await issued.waitForDeployment();
@@ -128,8 +136,14 @@ async function main() {
     await charge.waitForDeployment();
     newChargeAddr = await charge.getAddress();
 
+    const AdminStatsFactory = await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV3");
+    const adminStats = await AdminStatsFactory.connect(signer).deploy(txOverrides);
+    await adminStats.waitForDeployment();
+    newAdminStatsAddr = await adminStats.getAddress();
+
     console.log("\n✅ new IssuedNftModuleV2:", newIssuedAddr);
     console.log("✅ new ChargeRewardModuleV2:", newChargeAddr);
+    console.log("✅ new AdminStatsQueryModuleV3:", newAdminStatsAddr);
   }
 
   const chargeIface = new hhEthers.Interface([
@@ -152,23 +166,79 @@ async function main() {
 
   const issuedIface = new hhEthers.Interface([
     "function validateAndRecordSocialExchangeUsdcClaim(address,uint256)",
+    "function claimSocialExchangeWithUserSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)",
   ]);
   const usdcSel = issuedIface.getFunction("validateAndRecordSocialExchangeUsdcClaim(address,uint256)")?.selector;
+  const claimSel = issuedIface.getFunction(
+    "claimSocialExchangeWithUserSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)",
+  )?.selector;
   const issuedCode = await provider.getCode(newIssuedAddr);
   if (!usdcSel || !issuedCode.toLowerCase().includes(usdcSel.slice(2).toLowerCase())) {
     throw new Error("IssuedNftModuleV2 缺少 validateAndRecordSocialExchangeUsdcClaim");
   }
+  if (!claimSel || !issuedCode.toLowerCase().includes(claimSel.slice(2).toLowerCase())) {
+    throw new Error("IssuedNftModuleV2 缺少 claimSocialExchangeWithUserSignature");
+  }
   console.log("IssuedNft validateAndRecordSocialExchangeUsdcClaim ok:", usdcSel);
+  console.log("IssuedNft claimSocialExchangeWithUserSignature ok:", claimSel);
+
+  const routeAbi = ["function selectorModuleKind(bytes4) view returns (uint8)"];
+  const routeReader = new hhEthers.Contract(newAdminStatsAddr, routeAbi, provider);
+  const routeChecks: Array<{ label: string; signature: string; expected: number }> = [
+    {
+      label: "claimSocialExchangeWithUserSignature -> ISSUED_NFT",
+      signature: "claimSocialExchangeWithUserSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)",
+      expected: 2,
+    },
+    {
+      label: "validateAndRecordSocialExchangeUsdcClaim -> ISSUED_NFT",
+      signature: "validateAndRecordSocialExchangeUsdcClaim(address,uint256)",
+      expected: 2,
+    },
+    {
+      label: "fundSocialExchangeUsdcEscrow -> CHARGE_REWARD",
+      signature: "fundSocialExchangeUsdcEscrow(address,uint256)",
+      expected: 5,
+    },
+    {
+      label: "burnSocialPointsFromUserForExchange -> CHARGE_REWARD",
+      signature: "burnSocialPointsFromUserForExchange(address,uint256)",
+      expected: 5,
+    },
+    {
+      label: "payoutSocialExchangeUsdcToUser -> CHARGE_REWARD",
+      signature: "payoutSocialExchangeUsdcToUser(address,uint256)",
+      expected: 5,
+    },
+    {
+      label: "applyUserLikeWithSignature -> ISSUED_NFT (regression)",
+      signature: "applyUserLikeWithSignature(address,uint8,uint256,bool,uint256,bytes32,bytes)",
+      expected: 2,
+    },
+  ];
+  for (const c of routeChecks) {
+    const sel = hhEthers.id(c.signature).slice(0, 10) as `0x${string}`;
+    const route = Number(await routeReader.selectorModuleKind(sel));
+    console.log(`AdminStats selectorModuleKind ${c.label}:`, route, `(expected ${c.expected})`);
+    if (route !== c.expected) {
+      throw new Error(`AdminStats 路由校验失败: ${c.signature} => ${route}, expected ${c.expected}`);
+    }
+  }
 
   const factory = new hhEthers.Contract(factoryAddress, factoryReaderAbi, signer);
   await (await factory.setIssuedNftModule(newIssuedAddr, txOverrides)).wait();
   await (await factory.setChargeRewardModule(newChargeAddr, txOverrides)).wait();
+  await (await factory.setAdminStatsQueryModule(newAdminStatsAddr, txOverrides)).wait();
 
   const boundIssued = (await factory.defaultIssuedNftModule()) as string;
   const boundCharge = (await factory.defaultChargeRewardModule()) as string;
+  const boundAdminStats = (await factory.defaultAdminStatsQueryModule()) as string;
   if (boundIssued.toLowerCase() !== newIssuedAddr.toLowerCase()) throw new Error("setIssuedNftModule 未生效");
   if (boundCharge.toLowerCase() !== newChargeAddr.toLowerCase()) throw new Error("setChargeRewardModule 未生效");
-  console.log("Factory 已绑定 IssuedNft + ChargeReward 模块并已验证");
+  if (boundAdminStats.toLowerCase() !== newAdminStatsAddr.toLowerCase()) {
+    throw new Error("setAdminStatsQueryModule 未生效");
+  }
+  console.log("Factory 已绑定 IssuedNft + ChargeReward + AdminStats 模块并已验证");
 
   const deploymentsDir = path.join(__dirname, "..", "deployments");
   const modulesPath = path.join(deploymentsDir, "conet-UserCardModules.json");
@@ -189,14 +259,16 @@ async function main() {
       ...((prev.modules as Record<string, string>) ?? {}),
       issuedNftModule: newIssuedAddr,
       chargeRewardModule: newChargeAddr,
+      adminStatsQueryModule: newAdminStatsAddr,
     },
     replaced: {
       ...((prev.replaced as Record<string, string>) ?? {}),
       issuedNftModule: oldIssued,
       chargeRewardModule: oldCharge,
+      adminStatsQueryModule: oldAdminStats,
     },
-    version: "v4-social-exchange",
-    note: "Social exchange USDC escrow / burn #13 / USDC payout; Plan A card claimSocialExchangeWithUserSignature when Factory lacks claimSocialExchangeWithUserSig",
+    version: "v5-social-exchange-fallback",
+    note: "Social exchange: AdminStats fallback routes + IssuedNftModuleV2.claimSocialExchangeWithUserSignature for legacy merchant cards",
   };
   fs.writeFileSync(modulesPath, JSON.stringify(moduleSnapshot, null, 2));
   fs.writeFileSync(outPath, JSON.stringify(moduleSnapshot, null, 2));
@@ -207,6 +279,7 @@ async function main() {
     const data = JSON.parse(fs.readFileSync(addrPath, "utf-8"));
     data.issuedNftModule = newIssuedAddr;
     data.chargeRewardModule = newChargeAddr;
+    data.adminStatsQueryModule = newAdminStatsAddr;
     fs.writeFileSync(addrPath, JSON.stringify(data, null, 2) + "\n", "utf-8");
     console.log("更新", addrPath);
   }
@@ -214,9 +287,10 @@ async function main() {
   console.log("\n下一步 Blockscout 验证:");
   console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV2 --full");
   console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardChargeRewardModuleV2 --full");
+  console.log("  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardAdminStatsQueryModuleV3 --full");
   console.log("  node scripts/exportConetUserCardModuleV2VerifyBuildinfo.mjs");
   console.log(
-    "  CONET_VERIFY_POLL_MAX=180 CONET_VERIFY_ONLY=BeamioUserCardIssuedNftModuleV2,BeamioUserCardChargeRewardModuleV2 npx tsx scripts/verifyConetUserCardModulesOnScan.ts",
+    "  CONET_VERIFY_POLL_MAX=180 CONET_VERIFY_ONLY=BeamioUserCardIssuedNftModuleV2,BeamioUserCardChargeRewardModuleV2,BeamioUserCardAdminStatsQueryModuleV3 npx tsx scripts/verifyConetUserCardModulesOnScan.ts",
   );
   console.log("\n同步 ABI / 新发卡 initCode:");
   console.log("  node scripts/syncBeamioUserCardToX402sdk.mjs");

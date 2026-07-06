@@ -303,17 +303,18 @@ async function checkVerified(address: string): Promise<boolean> {
       source_code?: string | null;
     };
     if (data.is_verified || data.is_partially_verified) return true;
-    if (typeof data.source_code === "string" && data.source_code.length > 10) return true;
   }
   const legacy = await fetch(
     `${BLOCKSCOUT_API}?module=contract&action=getsourcecode&address=${address}`,
   );
   if (!legacy.ok) return false;
-  const leg = (await legacy.json()) as { result?: Array<{ SourceCode?: string; ABI?: string }> };
+  const leg = (await legacy.json()) as { result?: Array<{ SourceCode?: string; ABI?: string; ContractName?: string }> };
   const row = leg.result?.[0];
   const src = row?.SourceCode ?? "";
   const abi = row?.ABI ?? "";
-  return src.length > 10 || (abi.length > 10 && abi !== "Contract source code not verified");
+  const name = row?.ContractName ?? "";
+  if (!name || name === "Contract source code not verified") return false;
+  return src.length > 10 && abi.length > 10 && abi !== "Contract source code not verified";
 }
 
 async function submitVerifyLegacy(target: VerifyTarget, standardJson: string, contractName: string): Promise<void> {

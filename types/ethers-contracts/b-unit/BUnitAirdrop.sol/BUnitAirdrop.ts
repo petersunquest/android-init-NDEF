@@ -15,9 +15,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BUnitAirdropInterface extends Interface {
-    getFunction(nameOrSignature: "BUNIT_TO_USDC_RATE" | "USDC_TO_BUNIT_RATE" | "addAdmin" | "admins" | "airdropCount" | "beamioIndexerDiamond" | "bunit" | "burnCount" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimNonces" | "claimWithAttribution" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "eip712Domain" | "getAirdropStats" | "getAllKinds" | "getAllKindsWithNames" | "getBUnitBalance" | "getBUnitReport" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getBurnStats" | "getClaimDigest" | "getClaimV2Digest" | "getEventStats" | "getKindName" | "hasClaimed" | "mintForUsdcPurchase" | "owner" | "quoteHelper" | "registerKind" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "setClaimAmount" | "setConetTreasuryAndUsdc" | "setQuoteHelper" | "totalBaseGas" | "totalBaseGasUSDC" | "totalFreeAirdropped" | "totalPaidAirdropped" | "transferOwnership" | "withdrawUsdc"): FunctionFragment;
+    getFunction(nameOrSignature: "BUNIT_TO_USDC_RATE" | "USDC_TO_BUNIT_RATE" | "addAdmin" | "admins" | "airdropCount" | "beamioIndexerDiamond" | "bunit" | "burnCount" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimForWithBeneficiary" | "claimNonces" | "claimWithAttribution" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "eip712Domain" | "getAirdropStats" | "getAllKinds" | "getAllKindsWithNames" | "getBUnitBalance" | "getBUnitReport" | "getBeamioUserCardBalances" | "getBeamioUserCardBalancesFromCatalog" | "getBurnStats" | "getClaimDigest" | "getClaimV2Digest" | "getEventStats" | "getKindName" | "hasClaimed" | "mintForUsdcPurchase" | "owner" | "quoteHelper" | "registerKind" | "relocateFreePoolToOwnerBeamioAa" | "removeAdmin" | "renounceOwnership" | "setBeamioIndexerDiamond" | "setClaimAmount" | "setConetTreasuryAndUsdc" | "setQuoteHelper" | "totalBaseGas" | "totalBaseGasUSDC" | "totalFreeAirdropped" | "totalPaidAirdropped" | "transferOwnership" | "withdrawUsdc"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "BeamioIndexerDiamondUpdated" | "ClaimAmountUpdated" | "Claimed" | "ClaimedFor" | "ClaimedWithAttribution" | "ConetTreasuryAndUsdcUpdated" | "ConsumedAndAirdropped" | "EIP712DomainChanged" | "IndexerSyncFailed" | "KindRegistered" | "MerchantInstallAttributionFailed" | "OwnershipTransferred" | "QuoteHelperUpdated" | "WithdrewUsdc"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "BeamioIndexerDiamondUpdated" | "ClaimAmountUpdated" | "Claimed" | "ClaimedFor" | "ClaimedWithAttribution" | "ConetTreasuryAndUsdcUpdated" | "ConsumedAndAirdropped" | "EIP712DomainChanged" | "FreePoolRelocated" | "IndexerSyncFailed" | "KindRegistered" | "MerchantInstallAttributionFailed" | "OwnershipTransferred" | "QuoteHelperUpdated" | "WithdrewUsdc"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BUNIT_TO_USDC_RATE', values?: undefined): string;
 encodeFunctionData(functionFragment: 'USDC_TO_BUNIT_RATE', values?: undefined): string;
@@ -31,6 +31,7 @@ encodeFunctionData(functionFragment: 'claim', values?: undefined): string;
 encodeFunctionData(functionFragment: 'claimAmount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'claimFor', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimForV2', values: [AddressLike, BigNumberish, BigNumberish, AddressLike, BigNumberish, AddressLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'claimForWithBeneficiary', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'claimWithAttribution', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'conetTreasury', values?: undefined): string;
@@ -54,6 +55,7 @@ encodeFunctionData(functionFragment: 'mintForUsdcPurchase', values: [AddressLike
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 encodeFunctionData(functionFragment: 'quoteHelper', values?: undefined): string;
 encodeFunctionData(functionFragment: 'registerKind', values: [BigNumberish, string]): string;
+encodeFunctionData(functionFragment: 'relocateFreePoolToOwnerBeamioAa', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'removeAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'setBeamioIndexerDiamond', values: [AddressLike]): string;
@@ -79,6 +81,7 @@ decodeFunctionResult(functionFragment: 'claim', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimForV2', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimForWithBeneficiary', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimWithAttribution', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'conetTreasury', data: BytesLike): Result;
@@ -102,6 +105,7 @@ decodeFunctionResult(functionFragment: 'mintForUsdcPurchase', data: BytesLike): 
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'quoteHelper', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerKind', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'relocateFreePoolToOwnerBeamioAa', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'removeAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBeamioIndexerDiamond', data: BytesLike): Result;
@@ -229,6 +233,18 @@ decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
       export type InputTuple = [];
       export type OutputTuple = [];
       export interface OutputObject {};
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace FreePoolRelocatedEvent {
+      export type InputTuple = [eoaOwner: AddressLike, aaAccount: AddressLike, amount: BigNumberish];
+      export type OutputTuple = [eoaOwner: string, aaAccount: string, amount: bigint];
+      export interface OutputObject {eoaOwner: string, aaAccount: string, amount: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -439,6 +455,14 @@ decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
     
 
     
+    claimForWithBeneficiary: TypedContractMethod<
+      [claimantEoa: AddressLike, beneficiary: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     claimNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -623,6 +647,14 @@ decodeFunctionResult(functionFragment: 'withdrawUsdc', data: BytesLike): Result;
     
 
     
+    relocateFreePoolToOwnerBeamioAa: TypedContractMethod<
+      [eoaOwner: AddressLike, aaAccount: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     removeAdmin: TypedContractMethod<
       [account: AddressLike, ],
       [void],
@@ -781,6 +813,11 @@ getFunction(nameOrSignature: 'claimForV2'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'claimForWithBeneficiary'): TypedContractMethod<
+      [claimantEoa: AddressLike, beneficiary: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'claimNonces'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -896,6 +933,11 @@ getFunction(nameOrSignature: 'registerKind'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'relocateFreePoolToOwnerBeamioAa'): TypedContractMethod<
+      [eoaOwner: AddressLike, aaAccount: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'removeAdmin'): TypedContractMethod<
       [account: AddressLike, ],
       [void],
@@ -967,6 +1009,7 @@ getEvent(key: 'ClaimedWithAttribution'): TypedContractEvent<ClaimedWithAttributi
 getEvent(key: 'ConetTreasuryAndUsdcUpdated'): TypedContractEvent<ConetTreasuryAndUsdcUpdatedEvent.InputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputTuple, ConetTreasuryAndUsdcUpdatedEvent.OutputObject>;
 getEvent(key: 'ConsumedAndAirdropped'): TypedContractEvent<ConsumedAndAirdroppedEvent.InputTuple, ConsumedAndAirdroppedEvent.OutputTuple, ConsumedAndAirdroppedEvent.OutputObject>;
 getEvent(key: 'EIP712DomainChanged'): TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+getEvent(key: 'FreePoolRelocated'): TypedContractEvent<FreePoolRelocatedEvent.InputTuple, FreePoolRelocatedEvent.OutputTuple, FreePoolRelocatedEvent.OutputObject>;
 getEvent(key: 'IndexerSyncFailed'): TypedContractEvent<IndexerSyncFailedEvent.InputTuple, IndexerSyncFailedEvent.OutputTuple, IndexerSyncFailedEvent.OutputObject>;
 getEvent(key: 'KindRegistered'): TypedContractEvent<KindRegisteredEvent.InputTuple, KindRegisteredEvent.OutputTuple, KindRegisteredEvent.OutputObject>;
 getEvent(key: 'MerchantInstallAttributionFailed'): TypedContractEvent<MerchantInstallAttributionFailedEvent.InputTuple, MerchantInstallAttributionFailedEvent.OutputTuple, MerchantInstallAttributionFailedEvent.OutputObject>;
@@ -1014,6 +1057,10 @@ getEvent(key: 'WithdrewUsdc'): TypedContractEvent<WithdrewUsdcEvent.InputTuple, 
 
       'EIP712DomainChanged()': TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
       EIP712DomainChanged: TypedContractEvent<EIP712DomainChangedEvent.InputTuple, EIP712DomainChangedEvent.OutputTuple, EIP712DomainChangedEvent.OutputObject>;
+    
+
+      'FreePoolRelocated(address,address,uint256)': TypedContractEvent<FreePoolRelocatedEvent.InputTuple, FreePoolRelocatedEvent.OutputTuple, FreePoolRelocatedEvent.OutputObject>;
+      FreePoolRelocated: TypedContractEvent<FreePoolRelocatedEvent.InputTuple, FreePoolRelocatedEvent.OutputTuple, FreePoolRelocatedEvent.OutputObject>;
     
 
       'IndexerSyncFailed(bytes32,string)': TypedContractEvent<IndexerSyncFailedEvent.InputTuple, IndexerSyncFailedEvent.OutputTuple, IndexerSyncFailedEvent.OutputObject>;

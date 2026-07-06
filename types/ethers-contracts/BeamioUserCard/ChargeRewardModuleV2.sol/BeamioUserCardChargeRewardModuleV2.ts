@@ -6,22 +6,26 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardChargeRewardModuleV2Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "chargeRewardRatioE6" | "configureEventRewardRule" | "dispatchEventReward13" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "SocialExchangeUsdcEscrowFunded" | "SocialExchangeUsdcPaid" | "SocialPointsBurnedForExchange" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'CONET_USDC_TOKEN', values?: undefined): string;
 encodeFunctionData(functionFragment: 'REWARD_VOUCHER_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'bunitAirdropCaller', values?: undefined): string;
 encodeFunctionData(functionFragment: 'burnChargeRewardByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'burnSocialPointsFromUserForExchange', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'chargeRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'configureEventRewardRule', values: [BigNumberish, boolean, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'dispatchEventReward13', values: [BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRewardRule', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintChargeRewardByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'payoutSocialExchangeUsdcToUser', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'previewChargeRewardAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'purchaseRewardProgram', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordBUnitInstallAttribution', values: [AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
@@ -39,17 +43,21 @@ encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): 
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'CONET_USDC_TOKEN', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'REWARD_VOUCHER_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunitAirdropCaller', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnChargeRewardByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnSocialPointsFromUserForExchange', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'chargeRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'configureEventRewardRule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dispatchEventReward13', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRewardRule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintChargeRewardByGateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'payoutSocialExchangeUsdcToUser', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'previewChargeRewardAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'purchaseRewardProgram', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordBUnitInstallAttribution', data: BytesLike): Result;
@@ -164,6 +172,42 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
   
 
+    export namespace SocialExchangeUsdcEscrowFundedEvent {
+      export type InputTuple = [payerEOA: AddressLike, amount6: BigNumberish, escrowAfter: BigNumberish];
+      export type OutputTuple = [payerEOA: string, amount6: bigint, escrowAfter: bigint];
+      export interface OutputObject {payerEOA: string, amount6: bigint, escrowAfter: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace SocialExchangeUsdcPaidEvent {
+      export type InputTuple = [userEOA: AddressLike, usdcReward6: BigNumberish, escrowAfter: BigNumberish];
+      export type OutputTuple = [userEOA: string, usdcReward6: bigint, escrowAfter: bigint];
+      export interface OutputObject {userEOA: string, usdcReward6: bigint, escrowAfter: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace SocialPointsBurnedForExchangeEvent {
+      export type InputTuple = [userEOA: AddressLike, userAcct: AddressLike, pointsCost: BigNumberish];
+      export type OutputTuple = [userEOA: string, userAcct: string, pointsCost: bigint];
+      export interface OutputObject {userEOA: string, userAcct: string, pointsCost: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace TransferBatchEvent {
       export type InputTuple = [operator: AddressLike, from: AddressLike, to: AddressLike, ids: BigNumberish[], values: BigNumberish[]];
       export type OutputTuple = [operator: string, from: string, to: string, ids: bigint[], values: bigint[]];
@@ -242,6 +286,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    CONET_USDC_TOKEN: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     REWARD_VOUCHER_TOKEN_ID: TypedContractMethod<
       [],
       [bigint],
@@ -282,6 +334,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    burnSocialPointsFromUserForExchange: TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     chargeRewardRatioE6: TypedContractMethod<
       [],
       [bigint],
@@ -306,6 +366,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    fundSocialExchangeUsdcEscrow: TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     getRewardRule: TypedContractMethod<
       [ruleId: BigNumberish, ],
       [[boolean, bigint, bigint, bigint, bigint, bigint] & {active: boolean, eventKind: bigint, targetKind: bigint, issuedParentId: bigint, actorMint13: bigint, refMint13: bigint }],
@@ -324,6 +392,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     mintChargeRewardByGateway: TypedContractMethod<
       [userEOA: AddressLike, amountFiat6: BigNumberish, chargeCurrency: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    payoutSocialExchangeUsdcToUser: TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -457,6 +533,11 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'CONET_USDC_TOKEN'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'REWARD_VOUCHER_TOKEN_ID'): TypedContractMethod<
       [],
       [bigint],
@@ -482,6 +563,11 @@ getFunction(nameOrSignature: 'burnChargeRewardByAdmin'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'burnSocialPointsFromUserForExchange'): TypedContractMethod<
+      [userEOA: AddressLike, pointsCost: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'chargeRewardRatioE6'): TypedContractMethod<
       [],
       [bigint],
@@ -497,6 +583,11 @@ getFunction(nameOrSignature: 'dispatchEventReward13'): TypedContractMethod<
       [[bigint, bigint] & {actorMinted: bigint, refMinted: bigint }],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'fundSocialExchangeUsdcEscrow'): TypedContractMethod<
+      [payerEOA: AddressLike, amount6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'getRewardRule'): TypedContractMethod<
       [ruleId: BigNumberish, ],
       [[boolean, bigint, bigint, bigint, bigint, bigint] & {active: boolean, eventKind: bigint, targetKind: bigint, issuedParentId: bigint, actorMint13: bigint, refMint13: bigint }],
@@ -509,6 +600,11 @@ getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'mintChargeRewardByGateway'): TypedContractMethod<
       [userEOA: AddressLike, amountFiat6: BigNumberish, chargeCurrency: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'payoutSocialExchangeUsdcToUser'): TypedContractMethod<
+      [userEOA: AddressLike, usdcReward6: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -596,6 +692,9 @@ getEvent(key: 'ChargeRewardRatioUpdated'): TypedContractEvent<ChargeRewardRatioU
 getEvent(key: 'RewardProgramFunded'): TypedContractEvent<RewardProgramFundedEvent.InputTuple, RewardProgramFundedEvent.OutputTuple, RewardProgramFundedEvent.OutputObject>;
 getEvent(key: 'RewardRuleConfigured'): TypedContractEvent<RewardRuleConfiguredEvent.InputTuple, RewardRuleConfiguredEvent.OutputTuple, RewardRuleConfiguredEvent.OutputObject>;
 getEvent(key: 'RewardVoucher13Minted'): TypedContractEvent<RewardVoucher13MintedEvent.InputTuple, RewardVoucher13MintedEvent.OutputTuple, RewardVoucher13MintedEvent.OutputObject>;
+getEvent(key: 'SocialExchangeUsdcEscrowFunded'): TypedContractEvent<SocialExchangeUsdcEscrowFundedEvent.InputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputObject>;
+getEvent(key: 'SocialExchangeUsdcPaid'): TypedContractEvent<SocialExchangeUsdcPaidEvent.InputTuple, SocialExchangeUsdcPaidEvent.OutputTuple, SocialExchangeUsdcPaidEvent.OutputObject>;
+getEvent(key: 'SocialPointsBurnedForExchange'): TypedContractEvent<SocialPointsBurnedForExchangeEvent.InputTuple, SocialPointsBurnedForExchangeEvent.OutputTuple, SocialPointsBurnedForExchangeEvent.OutputObject>;
 getEvent(key: 'TransferBatch'): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
 getEvent(key: 'TransferSingle'): TypedContractEvent<TransferSingleEvent.InputTuple, TransferSingleEvent.OutputTuple, TransferSingleEvent.OutputObject>;
 getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
@@ -632,6 +731,18 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'RewardVoucher13Minted(address,uint256,uint256)': TypedContractEvent<RewardVoucher13MintedEvent.InputTuple, RewardVoucher13MintedEvent.OutputTuple, RewardVoucher13MintedEvent.OutputObject>;
       RewardVoucher13Minted: TypedContractEvent<RewardVoucher13MintedEvent.InputTuple, RewardVoucher13MintedEvent.OutputTuple, RewardVoucher13MintedEvent.OutputObject>;
+    
+
+      'SocialExchangeUsdcEscrowFunded(address,uint256,uint256)': TypedContractEvent<SocialExchangeUsdcEscrowFundedEvent.InputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputObject>;
+      SocialExchangeUsdcEscrowFunded: TypedContractEvent<SocialExchangeUsdcEscrowFundedEvent.InputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputTuple, SocialExchangeUsdcEscrowFundedEvent.OutputObject>;
+    
+
+      'SocialExchangeUsdcPaid(address,uint256,uint256)': TypedContractEvent<SocialExchangeUsdcPaidEvent.InputTuple, SocialExchangeUsdcPaidEvent.OutputTuple, SocialExchangeUsdcPaidEvent.OutputObject>;
+      SocialExchangeUsdcPaid: TypedContractEvent<SocialExchangeUsdcPaidEvent.InputTuple, SocialExchangeUsdcPaidEvent.OutputTuple, SocialExchangeUsdcPaidEvent.OutputObject>;
+    
+
+      'SocialPointsBurnedForExchange(address,address,uint256)': TypedContractEvent<SocialPointsBurnedForExchangeEvent.InputTuple, SocialPointsBurnedForExchangeEvent.OutputTuple, SocialPointsBurnedForExchangeEvent.OutputObject>;
+      SocialPointsBurnedForExchange: TypedContractEvent<SocialPointsBurnedForExchangeEvent.InputTuple, SocialPointsBurnedForExchangeEvent.OutputTuple, SocialPointsBurnedForExchangeEvent.OutputObject>;
     
 
       'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;

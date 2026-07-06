@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardIssuedNftModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "CARD_REFERRAL_BURN_TOKEN_ID" | "CARD_REFERRAL_CLAIM_TOKEN_ID" | "CARD_REFERRAL_CLICK_TOKEN_ID" | "COUPON_REFERRAL_BURN_OFFSET" | "COUPON_REFERRAL_CLAIM_OFFSET" | "COUPON_REFERRAL_CLICK_OFFSET" | "ISSUED_NFT_TRAFFIC_OFFSET" | "STAT_KIND_REFERRAL_BURN" | "STAT_KIND_REFERRAL_CLAIM" | "STAT_KIND_REFERRAL_CLICK" | "STAT_KIND_TRAFFIC" | "balanceOf" | "balanceOfBatch" | "burnIssuedNftByGateway" | "createIssuedNft" | "isApprovedForAll" | "isIssuedNftStatToken" | "isIssuedNftValid" | "issuedNftContentStats" | "issuedNftLikedByWallet" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftReferralStatTokenId" | "issuedNftSharedByWallet" | "issuedNftSharedMetadataHash" | "issuedNftSocialStats" | "issuedNftStatTokenInfo" | "issuedNftTrafficStatTokenId" | "issuedNftUserContentStats" | "issuedNftUserSigClaimUsed" | "recordCardReferralStat" | "recordIssuedNftAccess" | "recordIssuedNftComment" | "recordIssuedNftPurchase" | "recordIssuedNftReferralStat" | "recordIssuedNftShare" | "recordIssuedNftTraffic" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setIssuedNftLike" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim"): FunctionFragment;
+    getFunction(nameOrSignature: "CARD_REFERRAL_BURN_TOKEN_ID" | "CARD_REFERRAL_CLAIM_TOKEN_ID" | "CARD_REFERRAL_CLICK_TOKEN_ID" | "COUPON_REFERRAL_BURN_OFFSET" | "COUPON_REFERRAL_CLAIM_OFFSET" | "COUPON_REFERRAL_CLICK_OFFSET" | "ISSUED_NFT_TRAFFIC_OFFSET" | "STAT_KIND_REFERRAL_BURN" | "STAT_KIND_REFERRAL_CLAIM" | "STAT_KIND_REFERRAL_CLICK" | "STAT_KIND_TRAFFIC" | "balanceOf" | "balanceOfBatch" | "burnIssuedNftByGateway" | "createIssuedNft" | "isApprovedForAll" | "isIssuedNftStatToken" | "isIssuedNftValid" | "issuedNftContentStats" | "issuedNftLikedByWallet" | "issuedNftMaxSupply" | "issuedNftMintedCount" | "issuedNftReferralStatTokenId" | "issuedNftSharedByWallet" | "issuedNftSharedMetadataHash" | "issuedNftSocialStats" | "issuedNftStatTokenInfo" | "issuedNftTrafficStatTokenId" | "issuedNftUserContentStats" | "issuedNftUserSigClaimUsed" | "recordCardReferralStat" | "recordIssuedNftAccess" | "recordIssuedNftComment" | "recordIssuedNftPurchase" | "recordIssuedNftReferralStat" | "recordIssuedNftShare" | "recordIssuedNftTraffic" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setIssuedNftLike" | "supportsInterface" | "uri" | "validateAndRecordMintIssuedNft" | "validateAndRecordMintIssuedNftUserSigClaim" | "validateAndRecordSocialExchangeUsdcClaim"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ApprovalForAll" | "IssuedNftAccessRecorded" | "IssuedNftBurned" | "IssuedNftCommentRecorded" | "IssuedNftCreated" | "IssuedNftLikeUpdated" | "IssuedNftMinted" | "IssuedNftPurchaseRecorded" | "IssuedNftShareRecorded" | "IssuedNftStatTokenInitialized" | "ReferralStatRecorded" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -55,6 +55,7 @@ encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): 
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNft', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'validateAndRecordSocialExchangeUsdcClaim', values: [AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CARD_REFERRAL_BURN_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'CARD_REFERRAL_CLAIM_TOKEN_ID', data: BytesLike): Result;
@@ -101,6 +102,7 @@ decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNft', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigClaim', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'validateAndRecordSocialExchangeUsdcClaim', data: BytesLike): Result;
   }
 
   
@@ -665,6 +667,14 @@ decodeFunctionResult(functionFragment: 'validateAndRecordMintIssuedNftUserSigCla
     >
     
 
+    
+    validateAndRecordSocialExchangeUsdcClaim: TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -890,6 +900,11 @@ getFunction(nameOrSignature: 'validateAndRecordMintIssuedNft'): TypedContractMet
     >;
 getFunction(nameOrSignature: 'validateAndRecordMintIssuedNftUserSigClaim'): TypedContractMethod<
       [userEOA: AddressLike, recipientAcct: AddressLike, tokenId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'validateAndRecordSocialExchangeUsdcClaim'): TypedContractMethod<
+      [userEOA: AddressLike, tokenId: BigNumberish, ],
       [void],
       'nonpayable'
     >;

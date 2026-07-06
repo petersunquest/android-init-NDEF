@@ -3,3 +3,4 @@
 /* eslint-disable */
 export { BeamioUserCardChargeRewardModuleV2__factory } from './BeamioUserCardChargeRewardModuleV2__factory.js';
 export { ICardPoints__factory } from './ICardPoints__factory.js';
+export { IERC20Minimal__factory } from './IERC20Minimal__factory.js';

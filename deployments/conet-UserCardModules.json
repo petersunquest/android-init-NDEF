@@ -1,29 +1,29 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "timestamp": "2026-07-06T14:04:25.607Z",
+  "timestamp": "2026-07-06T14:28:43.747Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "modules": {
     "redeemModule": "0xf661cFEad8c1A0d8d500A645D041E8fe489Cc53f",
-    "issuedNftModule": "0xF55E7f66788F480CA550E2318B93C3C601C40F17",
+    "issuedNftModule": "0xCe7979eBb62605fd67BC3f8cDc4c33A678eD32Bd",
     "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
     "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
     "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
-    "adminStatsQueryModule": "0xefFbaE56298241334BD5B066157e0290657E150e",
-    "chargeRewardModule": "0xa44614BbdfFaacf57e555676699b4109A1b64134"
+    "adminStatsQueryModule": "0x68F16862373BE916E68aCFF3049E6Bd6eaF74921",
+    "chargeRewardModule": "0x8c9c959f16df3B84875F29B818B5824cb5045202"
   },
   "replaced": {
-    "issuedNftModule": "0x298575C23e18188cD5e5032936F97a919594e87D",
-    "chargeRewardModule": "0xdc2160E85F37Ab920A2083Fa6F813B7A5a1d061f",
-    "adminStatsQueryModule": "0xC37D2308b291d0a310A33e2479Ce2908c3eF6138"
+    "issuedNftModule": "0xF55E7f66788F480CA550E2318B93C3C601C40F17",
+    "chargeRewardModule": "0xa44614BbdfFaacf57e555676699b4109A1b64134",
+    "adminStatsQueryModule": "0xefFbaE56298241334BD5B066157e0290657E150e"
   },
-  "version": "v4-social-exchange",
+  "version": "v5-social-exchange-fallback",
   "checks": {
     "userHasAnyProgramAssetRoutedToStatsQuery": true,
     "smokeCard": "0xB24D242A320b8dd756572b410645FE41Cd07FC8C",
     "smokeEoa": "0x4728BEeFa5b68E87a611EEC6965f5C5f9b2D5060",
     "smokeResult": true
   },
-  "note": "Social exchange USDC escrow / burn #13 / USDC payout; Plan A card claimSocialExchangeWithUserSignature when Factory lacks claimSocialExchangeWithUserSig"
+  "note": "Social exchange: AdminStats fallback routes + IssuedNftModuleV2.claimSocialExchangeWithUserSignature for legacy merchant cards"
 }

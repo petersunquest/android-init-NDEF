@@ -7,6 +7,8 @@ import "./Errors.sol";
 import "./UserCumulativeStatLib.sol";
 import "./RewardPoolStorage.sol";
 import "./BeamioUserCardModuleMintLib.sol";
+import "./IBeamioUserCardSelfDelegate.sol";
+import "./BeamioUserCardInterfaces.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "../contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -19,8 +21,14 @@ interface IBeamioUserCardFactoryEip712 {
  * @notice Kind 2 extension: user cumulative stats (L0/L1/L2) without new module kind.
  */
 contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
+    uint8 private constant MODULE_ISSUED_NFT = 2;
+    uint8 private constant MODULE_CHARGE_REWARD = 5;
+
     bytes32 public constant RECORD_USER_LIKE_TYPEHASH = keccak256(
         "RecordUserLike(address cardAddress,address userEOA,uint8 targetKind,uint256 issuedParentId,bool liked,uint256 deadline,bytes32 nonce)"
+    );
+    bytes32 public constant CLAIM_SOCIAL_EXCHANGE_TYPEHASH = keccak256(
+        "ClaimSocialExchange(address cardAddress,uint256 tokenId,uint256 pointsCost,uint256 usdcReward6,uint256 deadline,bytes32 nonce)"
     );
 
     event CardUserCumulativeStatTokensInitialized();
@@ -48,6 +56,13 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
         uint256 globalStatTokenId,
         uint256 scopedStatTokenId,
         uint256 delta
+    );
+    event SocialExchangeClaimedWithSignature(
+        address indexed userEOA,
+        uint256 indexed tokenId,
+        uint256 pointsCost,
+        uint256 usdcReward6,
+        bytes32 nonce
     );
 
     function initializeCardUserCumulativeStatTokens() external onlyOwnerAdminOrGateway {
@@ -127,6 +142,104 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
             (globalStatTokenId, scopedStatTokenId) = _burnUserLikeStat(userEOA, metricKind, targetKind, issuedParentId, delta);
         }
         emit UserLikeAppliedWithSignature(userEOA, targetKind, issuedParentId, liked, nonce);
+    }
+
+    /// @notice Plan A (CoNET legacy cards): user EIP-712 social exchange via card fallback → this module.
+    /// @dev Relayer AA calls merchant card; AdminStats routes selector here. Burn/payout delegatecall ChargeReward module.
+    function claimSocialExchangeWithUserSignature(
+        address userEOA,
+        uint256 tokenId,
+        uint256 pointsCost,
+        uint256 usdcReward6,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (pointsCost == 0) revert UC_AmountZero();
+
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        if (gw == address(0)) revert BM_ZeroAddress();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey]) revert UC_NonceUsed();
+        IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_SOCIAL_EXCHANGE_TYPEHASH, address(this), tokenId, pointsCost, usdcReward6, deadline, nonce)
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(
+            IBeamioUserCardFactoryEip712(gw).DOMAIN_SEPARATOR(),
+            structHash
+        );
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        _requireIssuedNftActive(tokenId);
+
+        _delegateChargeModule(
+            abi.encodeWithSelector(
+                IBeamioChargeRewardModuleV2SocialExchange.burnSocialPointsFromUserForExchange.selector,
+                userEOA,
+                pointsCost
+            )
+        );
+
+        if (usdcReward6 > 0) {
+            _delegateChargeModule(
+                abi.encodeWithSelector(
+                    IBeamioChargeRewardModuleV2SocialExchange.payoutSocialExchangeUsdcToUser.selector,
+                    userEOA,
+                    usdcReward6
+                )
+            );
+            IBeamioUserCardSelfDelegate(address(this)).cardSelfCallModule(
+                MODULE_ISSUED_NFT,
+                abi.encodeWithSelector(
+                    IBeamioIssuedNftModuleV1.validateAndRecordSocialExchangeUsdcClaim.selector, userEOA, tokenId
+                )
+            );
+        } else {
+            address acct = IBeamioUserCardSelfDelegate(address(this)).cardSelfToAccount(userEOA);
+            IBeamioUserCardSelfDelegate(address(this)).cardSelfCallModule(
+                MODULE_ISSUED_NFT,
+                abi.encodeWithSelector(
+                    IBeamioIssuedNftModuleV1.validateAndRecordMintIssuedNftUserSigClaim.selector,
+                    userEOA,
+                    acct,
+                    tokenId
+                )
+            );
+            IBeamioUserCardSelfDelegate(address(this)).cardSelfMint(acct, tokenId, 1);
+            IBeamioUserCardSelfDelegate(address(this)).cardSelfEmitIssuedNftMinted(tokenId, acct, 1);
+        }
+
+        emit SocialExchangeClaimedWithSignature(userEOA, tokenId, pointsCost, usdcReward6, nonce);
+    }
+
+    function _delegateChargeModule(bytes memory data) internal {
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        address chargeModule = IBeamioUserCardFactoryPaymasterV07(gw).defaultModule(MODULE_CHARGE_REWARD);
+        if (chargeModule == address(0)) revert UC_ModuleZero(MODULE_CHARGE_REWARD);
+        (bool ok, bytes memory ret) = chargeModule.delegatecall(data);
+        if (!ok) _revertDelegate(ret);
+    }
+
+    function _revertDelegate(bytes memory data) internal pure {
+        if (data.length > 0) {
+            assembly {
+                revert(add(data, 32), mload(data))
+            }
+        }
+        revert UC_RedeemDelegateFailed(data);
+    }
+
+    function _requireIssuedNftActive(uint256 tokenId) internal view {
+        (bool ok, bytes memory ret) = address(this).staticcall(
+            abi.encodeWithSelector(IBeamioIssuedNftModuleV1.isIssuedNftValid.selector, tokenId)
+        );
+        if (!ok || ret.length < 32 || !abi.decode(ret, (bool))) revert UC_IssuedNftInactive(tokenId);
     }
 
     /// @notice Record user cumulative stats. Topup/charge use targetKind=TARGET_GLOBAL_ONLY.

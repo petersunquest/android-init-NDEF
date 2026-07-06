@@ -3,3 +3,4 @@
 /* eslint-disable */
 export type { BeamioUserCardChargeRewardModuleV2 } from './BeamioUserCardChargeRewardModuleV2.js';
 export type { ICardPoints } from './ICardPoints.js';
+export type { IERC20Minimal } from './IERC20Minimal.js';
