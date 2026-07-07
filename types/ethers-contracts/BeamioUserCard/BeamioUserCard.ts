@@ -2,7 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
-import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
+import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../common.js"
   
     export type NFTDetailStruct = {tokenId: BigNumberish, attribute: BigNumberish, tierIndexOrMax: BigNumberish, expiry: BigNumberish, isExpired: boolean}
 
@@ -23,7 +23,7 @@ export declare namespace FaucetStorage {
     }
 
   export interface BeamioUserCardInterface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "burnSocialPointsForExchange" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfBurn" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "claimSocialExchangeWithUserSignature" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "fundSocialExchangeUsdcEscrow" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "name" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "payoutSocialExchangeUsdc" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "recordSocialExchangeUsdcClaim" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "symbol" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "REFERRER_REWARD_TOKEN_ID" | "VERSION" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "adminParent" | "appendTier" | "approveProposal" | "approveProposalByGateway" | "attributes" | "balanceOf" | "balanceOfBatch" | "burnPointsByAdmin" | "burnSocialPointsForExchange" | "cardSelfAppendMembershipNftIfMissing" | "cardSelfBurn" | "cardSelfCallModule" | "cardSelfCurrencyType" | "cardSelfEmitAdminPointsMinted" | "cardSelfEmitChargeRewardAirdropped" | "cardSelfEmitFaucetClaimed" | "cardSelfEmitIssuedNftMinted" | "cardSelfEmitIssuedNftPurchasedWithPointsCharge" | "cardSelfEmitPointsMintedByGateway" | "cardSelfEmitReferrerRewardMinted" | "cardSelfGovernanceDelegate" | "cardSelfHasValidCard" | "cardSelfMembershipFlowTotals" | "cardSelfMint" | "cardSelfOwner" | "cardSelfPointsUnitPriceInCurrencyE6" | "cardSelfRecordAdminMembershipFlow" | "cardSelfRecordAdminRedeemMint" | "cardSelfRecordAdminStatsMint" | "cardSelfRecordAdminUsdcMint" | "cardSelfRequirePointsMintAllowsFirstMembership" | "cardSelfToAccount" | "cardSelfTransferPointsUpdate" | "cardSelfUpgradeType" | "clearAdminMintCounterForSubordinate" | "clearRefereeReferrer" | "createProposal" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "faucetByGateway" | "faucetConfig" | "fundSocialExchangeUsdcEscrow" | "gateway" | "getOwnership" | "getOwnershipByEOA" | "isAdmin" | "isApprovedForAll" | "isPointsTransferRecipientAllowed" | "isRegisteredReferee" | "issuedNftPriceInCurrency6" | "issuedNftSharedMetadataHash" | "metadataBaseURI" | "mintFaucetByGateway" | "mintIssuedNftByGateway" | "mintIssuedNftByOwner" | "mintIssuedNftByUserSigClaim" | "mintMemberCardByAdmin" | "mintPointsByAdmin" | "mintPointsByAdminWithOperator" | "mintPointsByGateway" | "mintPointsByGatewayWithOperator" | "mintPointsOpenContainerRelay" | "name" | "nftAttributes" | "nftExpiresAt" | "nftInventoryAt" | "nftInventoryLength" | "nftTierIndexOrMax" | "owner" | "payoutSocialExchangeUsdc" | "pointsBalanceOf" | "pointsUnitPriceInCurrencyE6" | "previewReferrerRewardFromChargeReward" | "purchaseIssuedNftWithPointsCharge" | "quoteIssuedNftPurchasePoints6" | "recordAdminBurnForStats" | "recordAdminMintForStats" | "recordSocialExchangeUsdcClaim" | "redeemAdminByGateway" | "redeemBatchByGateway" | "redeemByGateway" | "redeemPoolByGateway" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerRewardFromChargeRewardRatioE6" | "referrerTotalCount" | "registerReferee" | "registeredRefereeTotalCount" | "renounceOwnership" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setDefaultAttr" | "setExpirySeconds" | "setPointsUnitPrice" | "setRefereeReferrer" | "setReferrerRewardRatio" | "setTiers" | "setTransferWhitelist" | "setTransferWhitelistEnabled" | "supportsInterface" | "symbol" | "tiers" | "tiersLength" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "totalSupply()" | "totalSupply(uint256)" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "unregisterReferee" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "AdminPointsBurned" | "AdminPointsMinted" | "ApprovalForAll" | "ChargeRewardAirdropped" | "DefaultAttrUpdated" | "ExpirySecondsUpdated" | "FaucetClaimed" | "FaucetConfigUpdated" | "IssuedNftCreated" | "IssuedNftMinted" | "IssuedNftPurchasedWithPointsCharge" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "PointsMintedByGateway" | "PointsPurchasedWithUSDC" | "PointsUnitPriceUpdated" | "ProposalApproved" | "ProposalCreated" | "ProposalExecuted" | "RedeemCancelled" | "RedeemCreated" | "RefereeReferrerUpdated" | "RefereeRegistered" | "RefereeUnregistered" | "ReferrerRewardMinted" | "ReferrerRewardRatioUpdated" | "TierAppended" | "TiersUpdated" | "TransferBatch" | "TransferSingle" | "TransferWhitelistEnabledUpdated" | "URI"): EventFragment;
 
@@ -73,7 +73,6 @@ encodeFunctionData(functionFragment: 'cardSelfRequirePointsMintAllowsFirstMember
 encodeFunctionData(functionFragment: 'cardSelfToAccount', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardSelfTransferPointsUpdate', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfUpgradeType', values?: undefined): string;
-encodeFunctionData(functionFragment: 'claimSocialExchangeWithUserSignature', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'clearAdminMintCounterForSubordinate', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'clearRefereeReferrer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'createProposal', values: [BytesLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
@@ -90,9 +89,6 @@ encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [Ad
 encodeFunctionData(functionFragment: 'gateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'getOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getOwnershipByEOA', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'getRefereesByReferrerPage', values: [AddressLike, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getReferrersPage', values: [BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'getRegisteredRefereesPage', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isPointsTransferRecipientAllowed', values: [AddressLike]): string;
@@ -154,6 +150,7 @@ encodeFunctionData(functionFragment: 'setTransferWhitelistEnabled', values: [boo
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'symbol', values?: undefined): string;
 encodeFunctionData(functionFragment: 'tiers', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'tiersLength', values?: undefined): string;
 encodeFunctionData(functionFragment: 'tokenTierIndexOrMax', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'totalActiveMemberships', values?: undefined): string;
 encodeFunctionData(functionFragment: 'totalMembershipIssued', values?: undefined): string;
@@ -214,7 +211,6 @@ decodeFunctionResult(functionFragment: 'cardSelfRequirePointsMintAllowsFirstMemb
 decodeFunctionResult(functionFragment: 'cardSelfToAccount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfTransferPointsUpdate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cardSelfUpgradeType', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'claimSocialExchangeWithUserSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'clearAdminMintCounterForSubordinate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'clearRefereeReferrer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createProposal', data: BytesLike): Result;
@@ -231,9 +227,6 @@ decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: Byt
 decodeFunctionResult(functionFragment: 'gateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getOwnershipByEOA', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRefereesByReferrerPage', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getReferrersPage', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'getRegisteredRefereesPage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isPointsTransferRecipientAllowed', data: BytesLike): Result;
@@ -295,6 +288,7 @@ decodeFunctionResult(functionFragment: 'setTransferWhitelistEnabled', data: Byte
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'symbol', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tiers', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'tiersLength', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'tokenTierIndexOrMax', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalActiveMemberships', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalMembershipIssued', data: BytesLike): Result;
@@ -1121,14 +1115,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
-    claimSocialExchangeWithUserSignature: TypedContractMethod<
-      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
-      [void],
-      'nonpayable'
-    >
-    
-
-    
     clearAdminMintCounterForSubordinate: TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -1252,30 +1238,6 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     getOwnershipByEOA: TypedContractMethod<
       [userEOA: AddressLike, ],
       [[bigint, NFTDetailStructOutput[]] & {pt: bigint, nfts: NFTDetailStructOutput[] }],
-      'view'
-    >
-    
-
-    
-    getRefereesByReferrerPage: TypedContractMethod<
-      [referrerAA: AddressLike, offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint[], bigint, bigint] & {referees: string[], refereeChargeTotals6: bigint[], total: bigint, nextOffset: bigint }],
-      'view'
-    >
-    
-
-    
-    getReferrersPage: TypedContractMethod<
-      [offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint[], bigint, bigint] & {referrers: string[], referrerRewardBalances: bigint[], total: bigint, nextOffset: bigint }],
-      'view'
-    >
-    
-
-    
-    getRegisteredRefereesPage: TypedContractMethod<
-      [offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint, bigint] & {referees: string[], total: bigint, nextOffset: bigint }],
       'view'
     >
     
@@ -1769,6 +1731,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    tiersLength: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     tokenTierIndexOrMax: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -2105,11 +2075,6 @@ getFunction(nameOrSignature: 'cardSelfUpgradeType'): TypedContractMethod<
       [bigint],
       'view'
     >;
-getFunction(nameOrSignature: 'claimSocialExchangeWithUserSignature'): TypedContractMethod<
-      [userEOA: AddressLike, tokenId: BigNumberish, pointsCost: BigNumberish, usdcReward6: BigNumberish, deadline: BigNumberish, nonce: BytesLike, userSignature: BytesLike, ],
-      [void],
-      'nonpayable'
-    >;
 getFunction(nameOrSignature: 'clearAdminMintCounterForSubordinate'): TypedContractMethod<
       [subordinate: AddressLike, authorizer: AddressLike, ],
       [void],
@@ -2188,21 +2153,6 @@ getFunction(nameOrSignature: 'getOwnership'): TypedContractMethod<
 getFunction(nameOrSignature: 'getOwnershipByEOA'): TypedContractMethod<
       [userEOA: AddressLike, ],
       [[bigint, NFTDetailStructOutput[]] & {pt: bigint, nfts: NFTDetailStructOutput[] }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRefereesByReferrerPage'): TypedContractMethod<
-      [referrerAA: AddressLike, offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint[], bigint, bigint] & {referees: string[], refereeChargeTotals6: bigint[], total: bigint, nextOffset: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getReferrersPage'): TypedContractMethod<
-      [offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint[], bigint, bigint] & {referrers: string[], referrerRewardBalances: bigint[], total: bigint, nextOffset: bigint }],
-      'view'
-    >;
-getFunction(nameOrSignature: 'getRegisteredRefereesPage'): TypedContractMethod<
-      [offset: BigNumberish, pageSize: BigNumberish, ],
-      [[string[], bigint, bigint] & {referees: string[], total: bigint, nextOffset: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'isAdmin'): TypedContractMethod<
@@ -2508,6 +2458,11 @@ getFunction(nameOrSignature: 'symbol'): TypedContractMethod<
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'tiersLength'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'tokenTierIndexOrMax'): TypedContractMethod<

@@ -86,6 +86,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol",
     contractName: "BeamioUserCardViewsLib",
   },
+  BeamioUserCardMembershipGateLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardMembershipGateLib.sol",
+    contractName: "BeamioUserCardMembershipGateLib",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
@@ -357,6 +361,29 @@ function readUserCardLibraryAddresses() {
     const contracts = j.contracts ?? {};
     for (const [name, value] of Object.entries(contracts)) {
       if (value?.address) out[name] = value.address;
+    }
+  }
+  // CoNET 224422 部署的 linked lib（验证商户卡 runtime 须用链上实际地址，覆盖 Base 表）
+  const conetPath = path.join(__dirname, "../deployments/conet-addresses.json");
+  if (fs.existsSync(conetPath)) {
+    const c = JSON.parse(fs.readFileSync(conetPath, "utf-8"));
+    const conetLibKeyToName = {
+      beamioUserCardFormattingLib: "BeamioUserCardFormattingLib",
+      beamioUserCardTransferLib: "BeamioUserCardTransferLib",
+      beamioUserCardAdminGatewayLib: "BeamioUserCardAdminGatewayLib",
+      beamioUserCardFaucetGatewayLib: "BeamioUserCardFaucetGatewayLib",
+      beamioUserCardGatewayMintLib: "BeamioUserCardGatewayMintLib",
+      beamioUserCardGovernanceLib: "BeamioUserCardGovernanceLib",
+      beamioUserCardIssuedNftGatewayLib: "BeamioUserCardIssuedNftGatewayLib",
+      beamioUserCardModuleRouterLib: "BeamioUserCardModuleRouterLib",
+      beamioUserCardRedeemGatewayLib: "BeamioUserCardRedeemGatewayLib",
+      beamioUserCardReferrerLib: "BeamioUserCardReferrerLib",
+      beamioUserCardUpdateLib: "BeamioUserCardUpdateLib",
+      beamioUserCardViewsLib: "BeamioUserCardViewsLib",
+      beamioUserCardMembershipGateLib: "BeamioUserCardMembershipGateLib",
+    };
+    for (const [key, libName] of Object.entries(conetLibKeyToName)) {
+      if (c[key]) out[libName] = c[key];
     }
   }
   // ConetTreasuryPeer CREATE2 libs（同址 CoNET/Base）

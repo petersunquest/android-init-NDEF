@@ -151,6 +151,7 @@ async function main() {
               BeamioUserCardReferrerLib: addrData.beamioUserCardReferrerLib,
               BeamioUserCardUpdateLib: addrData.beamioUserCardUpdateLib,
               BeamioUserCardViewsLib: addrData.beamioUserCardViewsLib,
+              BeamioUserCardMembershipGateLib: addrData.beamioUserCardMembershipGateLib,
               ReferrerRegistryLib: addrData.referrerRegistryLib,
             };
           })()

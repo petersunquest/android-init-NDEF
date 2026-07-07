@@ -28,17 +28,13 @@ import "./BeamioUserCardGovernanceLib.sol";
 import "./BeamioUserCardViewsLib.sol";
 import "./BeamioUserCardModuleRouterLib.sol";
 import "./BeamioUserCardAdminGatewayLib.sol";
+import "./BeamioUserCardMembershipGateLib.sol";
+import "./IBeamioUserCardMembershipGateView.sol";
 import "./IBeamioUserCardNftInventory.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
 import "../contracts/utils/ReentrancyGuard.sol";
-import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "../contracts/utils/cryptography/MessageHashUtils.sol";
-
-interface IBeamioUserCardFactoryEip712Domain {
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
-}
 
 // 注意：IBeamioFactoryOracle, IBeamioAccountFactoryV07 已在 BeamioERC1155Logic.sol 中定义（资金流已移至 Factory）
 // 其余模块 interface 见 BeamioUserCardInterfaces.sol
@@ -50,12 +46,8 @@ interface IBeamioUserCardFactoryEip712Domain {
 contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSelfDelegate, IBeamioUserCardNftInventory {
     using BeamioCurrency for *;
 
-    bytes32 private constant CLAIM_SOCIAL_EXCHANGE_TYPEHASH = keccak256(
-        "ClaimSocialExchange(address cardAddress,uint256 tokenId,uint256 pointsCost,uint256 usdcReward6,uint256 deadline,bytes32 nonce)"
-    );
-
     // ===== Versioning =====
-    uint256 public constant VERSION = 27;
+    uint256 public constant VERSION = 28;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -615,71 +607,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
         );
     }
 
-    /// @notice Plan A (CoNET): user EIP-712 social exchange when Factory lacks `claimSocialExchangeWithUserSig`.
-    /// @dev Relayer AA (Factory paymaster) calls card directly; burn uses ChargeReward paymaster gate; mint/record via cardSelfCallModule.
-    function claimSocialExchangeWithUserSignature(
-        address userEOA,
-        uint256 tokenId,
-        uint256 pointsCost,
-        uint256 usdcReward6,
-        uint256 deadline,
-        bytes32 nonce,
-        bytes calldata userSignature
-    ) external nonReentrant {
-        if (userEOA == address(0)) revert BM_ZeroAddress();
-        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
-        if (pointsCost == 0) revert UC_AmountZero();
-
-        address gw = factoryGateway();
-        if (gw == address(0)) revert BM_ZeroAddress();
-
-        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
-        if (IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey]) revert UC_NonceUsed();
-        IssuedNftStorage.layout().usedSocialExchangeClaimSigNonces[nonceKey] = true;
-
-        bytes32 structHash = keccak256(
-            abi.encode(CLAIM_SOCIAL_EXCHANGE_TYPEHASH, address(this), tokenId, pointsCost, usdcReward6, deadline, nonce)
-        );
-        bytes32 digest = MessageHashUtils.toTypedDataHash(
-            IBeamioUserCardFactoryEip712Domain(gw).DOMAIN_SEPARATOR(),
-            structHash
-        );
-        address signer = ECDSA.recover(digest, userSignature);
-        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
-
-        BeamioUserCardIssuedNftGatewayLib.requireIssuedNftValid(tokenId);
-
-        _callModule(
-            MODULE_CHARGE_REWARD,
-            abi.encodeWithSelector(
-                IBeamioChargeRewardModuleV2SocialExchange.burnSocialPointsFromUserForExchange.selector,
-                userEOA,
-                pointsCost
-            )
-        );
-
-        if (usdcReward6 > 0) {
-            _callModule(
-                MODULE_CHARGE_REWARD,
-                abi.encodeWithSelector(
-                    IBeamioChargeRewardModuleV2SocialExchange.payoutSocialExchangeUsdcToUser.selector,
-                    userEOA,
-                    usdcReward6
-                )
-            );
-            IBeamioUserCardSelfDelegate(address(this)).cardSelfCallModule(
-                MODULE_ISSUED_NFT,
-                abi.encodeWithSelector(
-                    IBeamioIssuedNftModuleV1.validateAndRecordSocialExchangeUsdcClaim.selector, userEOA, tokenId
-                )
-            );
-        } else {
-            BeamioUserCardIssuedNftGatewayLib.mintIssuedNftByUserSigClaim(
-                IBeamioUserCardSelfDelegate(address(this)), userEOA, tokenId
-            );
-        }
-    }
-
     function recordSocialExchangeUsdcClaim(address userEOA, uint256 tokenId) external onlyAuthorizedGateway nonReentrant {
         if (userEOA == address(0)) revert BM_ZeroAddress();
         _callModule(
@@ -807,48 +734,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
         return BeamioUserCardReferrerLib.registeredRefereeTotalCount();
     }
 
-    /// @notice Paginated referrer list for this card. `pageSize` capped at 100; `nextOffset` for follow-up pages.
-    /// @dev `referrerRewardBalances[i]` is token #1 (`REFERRER_REWARD_TOKEN_ID`) balance of `referrers[i]`.
-    function getReferrersPage(uint256 offset, uint256 pageSize)
-        external
-        view
-        returns (
-            address[] memory referrers,
-            uint256[] memory referrerRewardBalances,
-            uint256 total,
-            uint256 nextOffset
-        )
-    {
-        return BeamioUserCardReferrerLib.getReferrersPage(offset, pageSize);
-    }
-
-    /// @notice Paginated downline referees for one referrer AA.
-    /// @dev `refereeChargeTotals6[i]` is cumulative token #0 charge volume for `referees[i]` (6 decimals).
-    function getRefereesByReferrerPage(address referrerAA, uint256 offset, uint256 pageSize)
-        external
-        view
-        returns (
-            address[] memory referees,
-            uint256[] memory refereeChargeTotals6,
-            uint256 total,
-            uint256 nextOffset
-        )
-    {
-        return BeamioUserCardReferrerLib.getRefereesByReferrerPage(referrerAA, offset, pageSize);
-    }
-
     /// @notice Lifetime cumulative token #0 charge volume for a referee AA (6 decimals).
     function refereeChargePointsTotal6(address refereeAA) external view returns (uint256) {
         return ReferrerStorage.layout().refereeChargePointsTotal6[refereeAA];
-    }
-
-    /// @notice Paginated all registered referee AAs (optional helper for sync/indexers).
-    function getRegisteredRefereesPage(uint256 offset, uint256 pageSize)
-        external
-        view
-        returns (address[] memory referees, uint256 total, uint256 nextOffset)
-    {
-        return BeamioUserCardReferrerLib.getRegisteredRefereesPage(offset, pageSize);
     }
 
     /// @notice E6 ratio: token #1 minted per token #2 charge-reward; 1_000_000 = 1:1; 0 = disabled.
@@ -944,38 +832,14 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
     }
 
     // ==========================================================
-    // Membership helpers
+    // Membership helpers (IBeamioUserCardMembershipGateView + BeamioUserCardMembershipGateLib)
     // ==========================================================
-    function _tierIndexWithMinThreshold() internal view returns (uint256) {
-        if (tiers.length == 0) return type(uint256).max;
-        uint256 idx = 0;
-        uint256 minVal = tiers[0].minUsdc6;
-        for (uint256 i = 1; i < tiers.length; i++) {
-            if (tiers[i].minUsdc6 < minVal) {
-                minVal = tiers[i].minUsdc6;
-                idx = i;
-            }
-        }
-        return idx;
+    function tiersLength() external view returns (uint256) {
+        return tiers.length;
     }
 
-    function _isExpired(uint256 tokenId) internal view returns (bool) {
-        uint256 exp = expiresAt[tokenId];
-        return (exp != 0 && block.timestamp > exp);
-    }
-
-    function _hasValidCard(address acct) internal view returns (bool) {
-        uint256 id = activeMembershipId[acct];
-        return (id != 0 && balanceOf(acct, id) > 0 && !_isExpired(id));
-    }
-
-    /// @dev 无有效会员且配置了 tiers 时，points mint 须 ≥ 最低档门槛，否则整笔 revert（避免先 mint points 再拒发卡）
-    function _requirePointsMintAllowsFirstMembership(address acct, uint256 points6) internal view {
-        if (points6 == 0) return;
-        if (_hasValidCard(acct)) return;
-        if (tiers.length == 0) return;
-        uint256 lowIdx = _tierIndexWithMinThreshold();
-        if (points6 < tiers[lowIdx].minUsdc6) revert UC_BelowMinThreshold();
+    function _membershipGateView() private view returns (IBeamioUserCardMembershipGateView) {
+        return IBeamioUserCardMembershipGateView(address(this));
     }
 
     function _membershipFlowTotals() internal view returns (uint256 issued, uint256 upgraded) {
@@ -1051,11 +915,11 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard, IBeamioUserCardSel
     }
 
     function cardSelfRequirePointsMintAllowsFirstMembership(address acct, uint256 points6) external view onlySelf {
-        _requirePointsMintAllowsFirstMembership(acct, points6);
+        BeamioUserCardMembershipGateLib.requirePointsMintAllowsFirstMembership(_membershipGateView(), acct, points6);
     }
 
     function cardSelfHasValidCard(address acct) external view onlySelf returns (bool) {
-        return _hasValidCard(acct);
+        return BeamioUserCardMembershipGateLib.hasValidCard(_membershipGateView(), acct);
     }
 
     function cardSelfToAccount(address eoa) external view onlySelf returns (address) {

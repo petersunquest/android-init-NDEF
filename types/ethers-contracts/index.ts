@@ -88,10 +88,8 @@ export type { BeamioQuoteHelperV07 } from './BeamioUserCard/BeamioQuoteHelperV07
 export { BeamioQuoteHelperV07__factory } from './factories/BeamioUserCard/BeamioQuoteHelperV07.sol/BeamioQuoteHelperV07__factory.js';
 export type { IBeamioOracle } from './BeamioUserCard/BeamioQuoteHelperV07.sol/IBeamioOracle.js';
 export { IBeamioOracle__factory } from './factories/BeamioUserCard/BeamioQuoteHelperV07.sol/IBeamioOracle__factory.js';
-export type { BeamioUserCard } from './BeamioUserCard/BeamioUserCard.sol/BeamioUserCard.js';
-export { BeamioUserCard__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/BeamioUserCard__factory.js';
-export type { IBeamioUserCardFactoryEip712Domain } from './BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryEip712Domain.js';
-export { IBeamioUserCardFactoryEip712Domain__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardFactoryEip712Domain__factory.js';
+export type { BeamioUserCard } from './BeamioUserCard/BeamioUserCard.js';
+export { BeamioUserCard__factory } from './factories/BeamioUserCard/BeamioUserCard__factory.js';
 export type { BeamioUserCardBase } from './BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase.js';
 export { BeamioUserCardBase__factory } from './factories/BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase__factory.js';
 export type { IBeamioGatewayAAFactoryGetter } from './BeamioUserCard/BeamioUserCardBase.sol/IBeamioGatewayAAFactoryGetter.js';
@@ -140,6 +138,8 @@ export type { IBeamioUserCardWhitelist } from './BeamioUserCard/BeamioUserCardIn
 export { IBeamioUserCardWhitelist__factory } from './factories/BeamioUserCard/BeamioUserCardInterfaces.sol/IBeamioUserCardWhitelist__factory.js';
 export type { BeamioUserCardIssuedNftGatewayLib } from './BeamioUserCard/BeamioUserCardIssuedNftGatewayLib.js';
 export { BeamioUserCardIssuedNftGatewayLib__factory } from './factories/BeamioUserCard/BeamioUserCardIssuedNftGatewayLib__factory.js';
+export type { BeamioUserCardMembershipGateLib } from './BeamioUserCard/BeamioUserCardMembershipGateLib.js';
+export { BeamioUserCardMembershipGateLib__factory } from './factories/BeamioUserCard/BeamioUserCardMembershipGateLib__factory.js';
 export type { BeamioUserCardModuleRouterLib } from './BeamioUserCard/BeamioUserCardModuleRouterLib.js';
 export { BeamioUserCardModuleRouterLib__factory } from './factories/BeamioUserCard/BeamioUserCardModuleRouterLib__factory.js';
 export type { BeamioUserCardPlaceholder } from './BeamioUserCard/BeamioUserCardPlaceholder.js';
@@ -172,6 +172,8 @@ export type { BeamioUserCardGovernanceModuleV1 } from './BeamioUserCard/Governan
 export { BeamioUserCardGovernanceModuleV1__factory } from './factories/BeamioUserCard/GovernanceModule.sol/BeamioUserCardGovernanceModuleV1__factory.js';
 export type { IBeamioUserCardForFactory } from './BeamioUserCard/IBeamioUserCardForFactory.js';
 export { IBeamioUserCardForFactory__factory } from './factories/BeamioUserCard/IBeamioUserCardForFactory__factory.js';
+export type { IBeamioUserCardMembershipGateView } from './BeamioUserCard/IBeamioUserCardMembershipGateView.js';
+export { IBeamioUserCardMembershipGateView__factory } from './factories/BeamioUserCard/IBeamioUserCardMembershipGateView__factory.js';
 export type { IBeamioUserCardNftInventory } from './BeamioUserCard/IBeamioUserCardNftInventory.js';
 export { IBeamioUserCardNftInventory__factory } from './factories/BeamioUserCard/IBeamioUserCardNftInventory__factory.js';
 export type { IBeamioUserCardSelfDelegate } from './BeamioUserCard/IBeamioUserCardSelfDelegate.js';

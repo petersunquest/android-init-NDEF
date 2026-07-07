@@ -15,6 +15,7 @@ export type BeamioUserCardLibraryAddresses = {
   BeamioUserCardGovernanceLib: string;
   BeamioUserCardIssuedNftGatewayLib: string;
   BeamioUserCardModuleRouterLib: string;
+  BeamioUserCardMembershipGateLib: string;
   BeamioUserCardRedeemGatewayLib: string;
   BeamioUserCardReferrerLib: string;
   BeamioUserCardTransferLib: string;
@@ -51,6 +52,7 @@ export const BEAMIO_USER_CARD_LIBRARY_NAMES = [
   "BeamioUserCardGatewayMintLib",
   "BeamioUserCardGovernanceLib",
   "BeamioUserCardModuleRouterLib",
+  "BeamioUserCardMembershipGateLib",
   "BeamioUserCardRedeemGatewayLib",
   "BeamioUserCardUpdateLib",
   "BeamioUserCardViewsLib",

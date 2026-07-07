@@ -22,10 +22,25 @@ async function main() {
   const addrPath = path.join(__dirname, "..", "deployments", "conet-addresses.json");
   const addrData = JSON.parse(fs.readFileSync(addrPath, "utf-8")) as Record<string, string>;
 
-  const existing = {
+  const existing: Partial<import("./beamioUserCardLibraries.js").BeamioUserCardLibraryAddresses> = {
     BeamioUserCardFormattingLib: addrData.beamioUserCardFormattingLib,
     BeamioUserCardTransferLib: addrData.beamioUserCardTransferLib,
+    BeamioUserCardAdminGatewayLib: addrData.beamioUserCardAdminGatewayLib,
+    BeamioUserCardFaucetGatewayLib: addrData.beamioUserCardFaucetGatewayLib,
+    BeamioUserCardGatewayMintLib: addrData.beamioUserCardGatewayMintLib,
+    BeamioUserCardGovernanceLib: addrData.beamioUserCardGovernanceLib,
+    BeamioUserCardIssuedNftGatewayLib: addrData.beamioUserCardIssuedNftGatewayLib,
+    BeamioUserCardModuleRouterLib: addrData.beamioUserCardModuleRouterLib,
+    BeamioUserCardRedeemGatewayLib: addrData.beamioUserCardRedeemGatewayLib,
+    BeamioUserCardReferrerLib: addrData.beamioUserCardReferrerLib,
+    BeamioUserCardUpdateLib: addrData.beamioUserCardUpdateLib,
+    BeamioUserCardViewsLib: addrData.beamioUserCardViewsLib,
+    BeamioUserCardMembershipGateLib: addrData.beamioUserCardMembershipGateLib,
+    ReferrerRegistryLib: addrData.referrerRegistryLib,
   };
+  for (const k of Object.keys(existing) as (keyof typeof existing)[]) {
+    if (!existing[k]) delete existing[k];
+  }
 
   console.log("Deployer:", deployer.address);
   console.log("Reusing:", existing);
@@ -45,6 +60,7 @@ async function main() {
     beamioUserCardReferrerLib: libs.BeamioUserCardReferrerLib,
     beamioUserCardUpdateLib: libs.BeamioUserCardUpdateLib,
     beamioUserCardViewsLib: libs.BeamioUserCardViewsLib,
+    beamioUserCardMembershipGateLib: libs.BeamioUserCardMembershipGateLib,
     referrerRegistryLib: libs.ReferrerRegistryLib,
   };
 

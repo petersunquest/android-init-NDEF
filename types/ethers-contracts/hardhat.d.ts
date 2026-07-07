@@ -50,7 +50,6 @@ getContractFactory(name: 'BeamioOracle', signerOrOptions?: ethers.Signer | Facto
 getContractFactory(name: 'BeamioQuoteHelperV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioQuoteHelperV07__factory>
 getContractFactory(name: 'IBeamioOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioOracle__factory>
 getContractFactory(name: 'BeamioUserCard', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCard__factory>
-getContractFactory(name: 'IBeamioUserCardFactoryEip712Domain', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardFactoryEip712Domain__factory>
 getContractFactory(name: 'BeamioUserCardBase', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardBase__factory>
 getContractFactory(name: 'IBeamioGatewayAAFactoryGetter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter__factory>
 getContractFactory(name: 'IBeamioMembershipStatsModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1__factory>
@@ -78,6 +77,7 @@ getContractFactory(name: 'IBeamioUserCardFactoryPaymasterV07', signerOrOptions?:
 getContractFactory(name: 'IBeamioUserCardSelectorRouter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardSelectorRouter__factory>
 getContractFactory(name: 'IBeamioUserCardWhitelist', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardWhitelist__factory>
 getContractFactory(name: 'BeamioUserCardIssuedNftGatewayLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardIssuedNftGatewayLib__factory>
+getContractFactory(name: 'BeamioUserCardMembershipGateLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardMembershipGateLib__factory>
 getContractFactory(name: 'BeamioUserCardModuleRouterLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardModuleRouterLib__factory>
 getContractFactory(name: 'BeamioUserCardPlaceholder', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardPlaceholder__factory>
 getContractFactory(name: 'BeamioUserCardRedeemGatewayLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardRedeemGatewayLib__factory>
@@ -97,6 +97,7 @@ getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | Facto
 getContractFactory(name: 'BeamioUserCardGovernanceModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardGovernanceModuleV1__factory>
 getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCtx__factory>
 getContractFactory(name: 'IBeamioUserCardForFactory', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardForFactory__factory>
+getContractFactory(name: 'IBeamioUserCardMembershipGateView', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardMembershipGateView__factory>
 getContractFactory(name: 'IBeamioUserCardNftInventory', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardNftInventory__factory>
 getContractFactory(name: 'IBeamioUserCardSelfDelegate', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardSelfDelegate__factory>
 getContractFactory(name: 'BeamioUserCardIssuedNftModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardIssuedNftModuleV1__factory>
@@ -289,7 +290,6 @@ getContractAt(name: 'BeamioOracle', address: string | ethers.Addressable, signer
 getContractAt(name: 'BeamioQuoteHelperV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioQuoteHelperV07>
 getContractAt(name: 'IBeamioOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioOracle>
 getContractAt(name: 'BeamioUserCard', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCard>
-getContractAt(name: 'IBeamioUserCardFactoryEip712Domain', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardFactoryEip712Domain>
 getContractAt(name: 'BeamioUserCardBase', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardBase>
 getContractAt(name: 'IBeamioGatewayAAFactoryGetter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 getContractAt(name: 'IBeamioMembershipStatsModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioMembershipStatsModuleV1>
@@ -317,6 +317,7 @@ getContractAt(name: 'IBeamioUserCardFactoryPaymasterV07', address: string | ethe
 getContractAt(name: 'IBeamioUserCardSelectorRouter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardSelectorRouter>
 getContractAt(name: 'IBeamioUserCardWhitelist', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardWhitelist>
 getContractAt(name: 'BeamioUserCardIssuedNftGatewayLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardIssuedNftGatewayLib>
+getContractAt(name: 'BeamioUserCardMembershipGateLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardMembershipGateLib>
 getContractAt(name: 'BeamioUserCardModuleRouterLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardModuleRouterLib>
 getContractAt(name: 'BeamioUserCardPlaceholder', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardPlaceholder>
 getContractAt(name: 'BeamioUserCardRedeemGatewayLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardRedeemGatewayLib>
@@ -336,6 +337,7 @@ getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer
 getContractAt(name: 'BeamioUserCardGovernanceModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardGovernanceModuleV1>
 getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCtx>
 getContractAt(name: 'IBeamioUserCardForFactory', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardForFactory>
+getContractAt(name: 'IBeamioUserCardMembershipGateView', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardMembershipGateView>
 getContractAt(name: 'IBeamioUserCardNftInventory', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardNftInventory>
 getContractAt(name: 'IBeamioUserCardSelfDelegate', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardSelfDelegate>
 getContractAt(name: 'BeamioUserCardIssuedNftModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardIssuedNftModuleV1>
@@ -528,7 +530,6 @@ deployContract(name: 'BeamioOracle', signerOrOptions?: ethers.Signer | DeployCon
 deployContract(name: 'BeamioQuoteHelperV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioQuoteHelperV07>
 deployContract(name: 'IBeamioOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioOracle>
 deployContract(name: 'BeamioUserCard', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCard>
-deployContract(name: 'IBeamioUserCardFactoryEip712Domain', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryEip712Domain>
 deployContract(name: 'BeamioUserCardBase', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardBase>
 deployContract(name: 'IBeamioGatewayAAFactoryGetter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 deployContract(name: 'IBeamioMembershipStatsModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1>
@@ -556,6 +557,7 @@ deployContract(name: 'IBeamioUserCardFactoryPaymasterV07', signerOrOptions?: eth
 deployContract(name: 'IBeamioUserCardSelectorRouter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardSelectorRouter>
 deployContract(name: 'IBeamioUserCardWhitelist', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardWhitelist>
 deployContract(name: 'BeamioUserCardIssuedNftGatewayLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardIssuedNftGatewayLib>
+deployContract(name: 'BeamioUserCardMembershipGateLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardMembershipGateLib>
 deployContract(name: 'BeamioUserCardModuleRouterLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardModuleRouterLib>
 deployContract(name: 'BeamioUserCardPlaceholder', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardPlaceholder>
 deployContract(name: 'BeamioUserCardRedeemGatewayLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardRedeemGatewayLib>
@@ -575,6 +577,7 @@ deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployCon
 deployContract(name: 'BeamioUserCardGovernanceModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardGovernanceModuleV1>
 deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IBeamioUserCardForFactory', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardForFactory>
+deployContract(name: 'IBeamioUserCardMembershipGateView', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardMembershipGateView>
 deployContract(name: 'IBeamioUserCardNftInventory', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardNftInventory>
 deployContract(name: 'IBeamioUserCardSelfDelegate', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardSelfDelegate>
 deployContract(name: 'BeamioUserCardIssuedNftModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardIssuedNftModuleV1>
@@ -767,7 +770,6 @@ deployContract(name: 'BeamioOracle', args: any[], signerOrOptions?: ethers.Signe
 deployContract(name: 'BeamioQuoteHelperV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioQuoteHelperV07>
 deployContract(name: 'IBeamioOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioOracle>
 deployContract(name: 'BeamioUserCard', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCard>
-deployContract(name: 'IBeamioUserCardFactoryEip712Domain', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryEip712Domain>
 deployContract(name: 'BeamioUserCardBase', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardBase>
 deployContract(name: 'IBeamioGatewayAAFactoryGetter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 deployContract(name: 'IBeamioMembershipStatsModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1>
@@ -795,6 +797,7 @@ deployContract(name: 'IBeamioUserCardFactoryPaymasterV07', args: any[], signerOr
 deployContract(name: 'IBeamioUserCardSelectorRouter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardSelectorRouter>
 deployContract(name: 'IBeamioUserCardWhitelist', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardWhitelist>
 deployContract(name: 'BeamioUserCardIssuedNftGatewayLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardIssuedNftGatewayLib>
+deployContract(name: 'BeamioUserCardMembershipGateLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardMembershipGateLib>
 deployContract(name: 'BeamioUserCardModuleRouterLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardModuleRouterLib>
 deployContract(name: 'BeamioUserCardPlaceholder', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardPlaceholder>
 deployContract(name: 'BeamioUserCardRedeemGatewayLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardRedeemGatewayLib>
@@ -814,6 +817,7 @@ deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signe
 deployContract(name: 'BeamioUserCardGovernanceModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardGovernanceModuleV1>
 deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IBeamioUserCardForFactory', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardForFactory>
+deployContract(name: 'IBeamioUserCardMembershipGateView', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardMembershipGateView>
 deployContract(name: 'IBeamioUserCardNftInventory', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardNftInventory>
 deployContract(name: 'IBeamioUserCardSelfDelegate', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardSelfDelegate>
 deployContract(name: 'BeamioUserCardIssuedNftModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardIssuedNftModuleV1>

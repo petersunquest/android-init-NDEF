@@ -17,9 +17,9 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
 
-const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://scan.conet.network/api").replace(/\/$/, "");
-const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://scan.conet.network").replace(/\/$/, "");
-const COMPILER = `v${BASESCAN_COMPILER_VERSION}`;
+const BLOCKSCOUT_API = (process.env.CONET_BLOCKSCOUT_API || "https://mainnet.conet.network/api").replace(/\/$/, "");
+const BLOCKSCOUT_UI = (process.env.CONET_BLOCKSCOUT_UI || "https://mainnet.conet.network").replace(/\/$/, "");
+const COMPILER = `v${process.env.CONET_SOLC_VERSION || BASESCAN_COMPILER_VERSION}`;
 
 type Target = {
   label: string;
@@ -83,6 +83,9 @@ function buildTargets(userCard: string): Target[] {
     "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol": {
       BeamioUserCardViewsLib: libs.beamioUserCardViewsLib,
     },
+    "project/src/BeamioUserCard/BeamioUserCardMembershipGateLib.sol": {
+      BeamioUserCardMembershipGateLib: libs.beamioUserCardMembershipGateLib,
+    },
   };
 
   return [
@@ -122,14 +125,29 @@ function buildTargets(userCard: string): Target[] {
 async function checkVerified(address: string): Promise<boolean> {
   const res = await fetch(`${BLOCKSCOUT_API}/v2/smart-contracts/${address}`);
   if (!res.ok) return false;
-  const data = (await res.json()) as { is_verified?: boolean; source_code?: string | null };
-  return Boolean(data.is_verified || data.source_code);
+  const data = (await res.json()) as {
+    is_verified?: boolean;
+    is_partially_verified?: boolean;
+    source_code?: string | null;
+  };
+  return Boolean(data.is_verified || data.is_partially_verified || data.source_code);
 }
 
 async function submit(target: Target): Promise<void> {
-  const { standardJson, sourceCount } = exportBasescanStandardJsonFromRoot(root, target.rootSource);
-  if (target.libraryLinks) {
-    standardJson.settings.libraries = target.libraryLinks;
+  let standardJson: { language: string; sources: unknown; settings: Record<string, unknown> };
+  let sourceCount: number;
+  const buildinfoRel = process.env.CONET_VERIFY_BUILDINFO_JSON;
+  if (buildinfoRel && target.label === "BeamioUserCard") {
+    const buildinfoPath = path.isAbsolute(buildinfoRel) ? buildinfoRel : path.join(root, buildinfoRel);
+    standardJson = JSON.parse(fs.readFileSync(buildinfoPath, "utf-8"));
+    sourceCount = Object.keys((standardJson as { sources: Record<string, unknown> }).sources).length;
+  } else {
+    const exported = exportBasescanStandardJsonFromRoot(root, target.rootSource);
+    standardJson = exported.standardJson;
+    sourceCount = exported.sourceCount;
+    if (target.libraryLinks) {
+      standardJson.settings.libraries = target.libraryLinks;
+    }
   }
   const json = JSON.stringify(standardJson);
   const ctor =
@@ -159,7 +177,8 @@ async function submit(target: Target): Promise<void> {
 }
 
 async function waitVerified(address: string, label: string): Promise<boolean> {
-  for (let i = 0; i < 40; i++) {
+  const max = Number(process.env.CONET_VERIFY_POLL_MAX || "90");
+  for (let i = 0; i < max; i++) {
     if (await checkVerified(address)) {
       console.log(`  ✅ ${label}: ${BLOCKSCOUT_UI}/address/${address}#code`);
       return true;
@@ -176,10 +195,20 @@ async function main() {
     throw new Error("请设置 CONET_USER_CARD_ADDRESS");
   }
 
+  const only = (process.env.CONET_VERIFY_ONLY || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   console.log("CoNET UserCard verify @", getAddress(userCard));
   console.log("API:", BLOCKSCOUT_API);
+  console.log("Compiler:", COMPILER);
 
   for (const t of buildTargets(userCard)) {
+    if (only.length > 0 && !only.includes(t.label)) {
+      console.log(`⏭️ ${t.label} (CONET_VERIFY_ONLY)`);
+      continue;
+    }
     if (await checkVerified(t.address)) {
       console.log(`⏭️ ${t.label} 已验证`);
       continue;
