@@ -46,3 +46,4 @@ Thumbs.db
 !.cursor/rules/beamio-onchain-tx-serial-queue.mdc
 !.cursor/rules/beamio-chain-listener-block-scan-ceiling.mdc
 !.cursor/rules/beamio-validator-cl-reward-payout-scan.mdc
+!.cursor/rules/beamio-social-promotion-card-vs-coupon.mdc

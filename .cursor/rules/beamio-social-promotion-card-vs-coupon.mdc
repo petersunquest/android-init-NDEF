@@ -1,0 +1,108 @@
+---
+description: Social Promotion 商户卡级（全局 L1）与优惠券级（每张券 L2）完全分离；CoNET 券级须 owner executeForOwner
+globs: src/bizSite/**/*.{ts,tsx},src/x402sdk/**/*.ts
+alwaysApply: true
+---
+
+# Social Promotion：商户卡级 vs 优惠券级（完全分离）
+
+## 核心规则
+
+**商户程序卡「全局 Social Promotion」与「每张已发行优惠券的 Social Promotion」是两套独立产品语义、独立 metadata、独立链上 ruleId 空间。** 不得混用 API、不得共用 ruleId 1/2/3 写券级规则、不得在一次保存里用卡级函数配置券级奖励。
+
+| 维度 | **商户卡级（全局）** | **优惠券级（按券）** |
+|---|---|---|
+| 作用范围 | 整张 `BeamioUserCard` / 商户 Discover 卡 | **仅一张**已发行券（`issuedTokenId`） |
+| UI / metadata | `card.meta.socialPromotion` | `coupons[].socialPromotion`（按 `couponId`） |
+| 事件 | `linkClick`、`like`、**`topup`** | `linkClick`、`like`、**`claim`**、**`burn`** |
+| 链上 `ruleId` | 固定 **1 / 2 / 3** | 由 **`issuedTokenId` + event slot** 推导（见下） |
+| `targetKind` | L1 商户卡（top-up 为 L0 global） | **L2 已发行券**（`UC_TARGET_ISSUED_COUPON = 2`） |
+| `issuedParentId` | **`0`**（卡级） | **= 该券 `issuedTokenId`** |
+| bizSite 写链 | `applySocialPromotionOnChainRules` | `applyCouponSocialPromotionOnChainRules` |
+| CoNET 写链路径 | **须** `ownerPrivateKey` → `executeForOwner`（Factory 无 `gatewayInvokeCard`） | **须** `ownerPrivateKey` → `executeForOwner`（**禁止**仅 gateway 写券级 `configureEventRewardRule`） |
+
+## 券级 ruleId（单一事实来源）
+
+实现：`src/bizSite/src/utils/programSocialPromotion.ts` — `couponSocialPromotionRuleIdForEvent`
+
+| event | slot | ruleId 公式（示例 `issuedTokenId=100000000000`） |
+|---|---|---|
+| linkClick | 0 | `issuedTokenId` → `100000000000` |
+| like | 1 | `issuedTokenId * 100 + 1` → `10000000000001` |
+| claim | 2 | `+ 2` |
+| burn | 3 | `+ 3` |
+
+**严禁**把券级配置写到 ruleId **1 / 2 / 3**（那是卡级全局槽位）。
+
+## 卡级 ruleId
+
+| ruleId | 事件 |
+|---|---|
+| `1` | 商户卡 link click |
+| `2` | 商户卡 top-up |
+| `3` | 商户卡 like |
+
+常量：`SOCIAL_PROMOTION_LINK_CLICK_RULE_ID` / `TOPUP` / `LIKE`（`programSocialPromotion.ts`）。
+
+## CoNET 写链（Plan A + owner 签名）
+
+CoNET Factory（`CONET_CARD_FACTORY`）**无** `gatewayInvokeCard`。`configureEventRewardRule` 仅 **`onlyOwnerOrGateway`** 可调：
+
+- **Relayer AA 直调卡**（gateway pool Plan A fallback）→ **`BM_NotAuthorized()`**
+- **正确路径**：商户 **卡 owner** EIP-712 签 `executeForOwner` → Master EntryPoint relay
+
+| 层级 | 解锁钱包 | 函数 |
+|---|---|---|
+| 卡级 | **必须**（保存 / 清除 Social Promotion） | `applySocialPromotionOnChainRules({ ownerPrivateKey })` |
+| 券级 | **必须**（保存券 Social Promotion 且链上需更新时） | `applyCouponSocialPromotionOnChainRules({ issuedTokenId, socialPromotion, ownerPrivateKey })` |
+
+bizSite 取钥：`getSessionPrivateKeyArmor() ?? profiles?.[0]?.privateKeyArmor`（见 `beamio-private-key-session-memory-only.mdc` — 仅 bizSite 会话内存，不落盘）。
+
+## 已发行券：只改当前券、跳过已匹配链上状态
+
+1. **每次券级写链只传一个 `issuedTokenId`** + 该券的 `socialPromotion` payload；**不得**批量用卡级 batch 覆盖多券。
+2. 写链前 **`getRewardRule(ruleId)`** 比对 intent；已匹配 → **跳过 tx**（不碰其它券、不重写卡级 1/2/3）。
+3. **`assertCouponSocialPromotionIntents`**（`beamioCardSocialPromotionRules.ts`）：`targetKind === L2`、`issuedParentId === issuedTokenId`、ruleId ≠ 1/2/3。
+4. 改券 A 的 Social Promotion **不得**改变券 B 或卡级全局规则；**不得**改合约地址或 `issuedTokenId`。
+
+## metadata 与链上分离
+
+- **metadata / DB**（`updateCardShareMetadata`、`syncIssuedCouponSocialPromotion`）可在 HTTP 层成功。
+- **链上奖励激活**须 `configureEventRewardRule` 成功；**metadata  alone 不激活奖励**。
+- 排查时：卡级 executeForOwner 成功 **≠** 券级成功；日志里 `ruleId=3` 是 **卡级 like**，不是券 `100000000000`。
+
+## 参考实现
+
+| 模块 | 路径 |
+|---|---|
+| 卡级 / 券级写链 | `src/bizSite/src/utils/beamioCardSocialPromotionRules.ts` |
+| ruleId / draft | `src/bizSite/src/utils/programSocialPromotion.ts` |
+| 链上读 / intent | `src/bizSite/src/utils/beamioCardSocialPromotionChain.ts` |
+| 卡级编辑器 | `biz.tsx` — `submitCardIssuanceSocialPromotionEditor` |
+| 券级编辑器 | `biz.tsx` — `submitCardIssuanceCouponSocialPromotionEditor`、券 Save 内 `socialPromoChanged` |
+| CoNET gateway pool | `src/x402sdk/src/userCumulativeStatRewardPoolMaster.ts` |
+
+## AI 检查清单
+
+- [ ] 券级任务是否只用 `applyCouponSocialPromotionOnChainRules` + **该券** `issuedTokenId`？
+- [ ] 是否 **未** 用卡级 ruleId 1/2/3 或 `applySocialPromotionOnChainRules` 配置单券 claim/burn？
+- [ ] CoNET 写链是否传 **`ownerPrivateKey`**（券级与卡级）？
+- [ ] 是否 **未** 假设 gateway `cardConfigureEventRewardRuleGateway` 在 CoNET 上可写 `configureEventRewardRule`？
+- [ ] 已发行券链上已匹配时是否 **跳过** 多余 tx？
+- [ ] 文档 / 日志是否区分「卡级 global」与「券级 per issuedTokenId」？
+
+## 严禁
+
+- ❌ 券级 Social Promotion 走 `applySocialPromotionOnChainRules` 或卡级 ruleId 1/2/3
+- ❌ 卡级 top-up 事件套到券级（券级无 top-up；券级用 claim/burn）
+- ❌ 仅 gateway / relayer 直调写券级 `configureEventRewardRule`（CoNET 上 `BM_NotAuthorized`）
+- ❌ 无 owner 解锁仍声称券级链上规则已更新
+- ❌ 把同一会话卡级 executeForOwner 成功误判为「某张券 Social Promotion 成功」
+- ❌ 一次改动覆盖多张券 rule 或修改已发行券的 `issuedTokenId` / 卡地址
+
+## 相关守则
+
+- `beamio-merchant-card-conet-only-no-base-factory.mdc` — 商户卡 CoNET + Plan A
+- `beamio-user-cumulative-stat-total-supply-ui.mdc` — L1/L2 stat token 语义
+- `beamio-private-key-session-memory-only.mdc` — bizSite owner 签名为会话内存
+- `beamio-card-account-extension-boundary.mdc` — Card + Module 扩展
