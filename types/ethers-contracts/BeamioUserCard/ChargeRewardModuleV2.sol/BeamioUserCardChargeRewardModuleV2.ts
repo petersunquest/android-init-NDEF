@@ -4,9 +4,16 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
   
+export declare namespace BeamioUserCardChargeRewardModuleV2 {
+      
+    export type EventRewardRuleConfigStruct = {ruleId: BigNumberish, active: boolean, eventKind: BigNumberish, targetKind: BigNumberish, issuedParentId: BigNumberish, actorMint13: BigNumberish, refMint13: BigNumberish}
+
+    export type EventRewardRuleConfigStructOutput = [ruleId: bigint, active: boolean, eventKind: bigint, targetKind: bigint, issuedParentId: bigint, actorMint13: bigint, refMint13: bigint] & {ruleId: bigint, active: boolean, eventKind: bigint, targetKind: bigint, issuedParentId: bigint, actorMint13: bigint, refMint13: bigint }
+  
+    }
 
   export interface BeamioUserCardChargeRewardModuleV2Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "configureEventRewardRulesBatch" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "SocialExchangeUsdcEscrowFunded" | "SocialExchangeUsdcPaid" | "SocialPointsBurnedForExchange" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -20,6 +27,7 @@ encodeFunctionData(functionFragment: 'burnChargeRewardByAdmin', values: [Address
 encodeFunctionData(functionFragment: 'burnSocialPointsFromUserForExchange', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'chargeRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'configureEventRewardRule', values: [BigNumberish, boolean, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'configureEventRewardRulesBatch', values: [BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[]]): string;
 encodeFunctionData(functionFragment: 'dispatchEventReward13', values: [BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRewardRule', values: [BigNumberish]): string;
@@ -52,6 +60,7 @@ decodeFunctionResult(functionFragment: 'burnChargeRewardByAdmin', data: BytesLik
 decodeFunctionResult(functionFragment: 'burnSocialPointsFromUserForExchange', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'chargeRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'configureEventRewardRule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'configureEventRewardRulesBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dispatchEventReward13', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRewardRule', data: BytesLike): Result;
@@ -358,6 +367,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    configureEventRewardRulesBatch: TypedContractMethod<
+      [configs: BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     dispatchEventReward13: TypedContractMethod<
       [ruleId: BigNumberish, actorWallet: AddressLike, refWallet: AddressLike, cumulativeTargetKind: BigNumberish, cumulativeIssuedParentId: BigNumberish, cumulativeDelta: BigNumberish, ],
       [[bigint, bigint] & {actorMinted: bigint, refMinted: bigint }],
@@ -575,6 +592,11 @@ getFunction(nameOrSignature: 'chargeRewardRatioE6'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'configureEventRewardRule'): TypedContractMethod<
       [ruleId: BigNumberish, active: boolean, eventKind: BigNumberish, targetKind: BigNumberish, issuedParentId: BigNumberish, actorMint13: BigNumberish, refMint13: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'configureEventRewardRulesBatch'): TypedContractMethod<
+      [configs: BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[], ],
       [void],
       'nonpayable'
     >;

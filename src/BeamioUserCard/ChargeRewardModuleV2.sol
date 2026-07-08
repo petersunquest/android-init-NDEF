@@ -105,7 +105,18 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         return (r.active, r.eventKind, r.targetKind, r.issuedParentId, r.actorMint13, r.refMint13);
     }
 
-    function configureEventRewardRule(
+    struct EventRewardRuleConfig {
+        uint256 ruleId;
+        bool active;
+        uint8 eventKind;
+        uint8 targetKind;
+        uint256 issuedParentId;
+        uint256 actorMint13;
+        uint256 refMint13;
+    }
+
+    function _writeEventRewardRule(
+        RewardPoolStorage.Layout storage l,
         uint256 ruleId,
         bool active,
         uint8 eventKind,
@@ -113,9 +124,8 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         uint256 issuedParentId,
         uint256 actorMint13,
         uint256 refMint13
-    ) external onlyOwnerOrGateway {
-        RewardPoolStorage.Layout storage l = RewardPoolStorage.layout();
-        uint256 id = ruleId;
+    ) private returns (uint256 id) {
+        id = ruleId;
         if (id == 0) {
             id = ++l.nextRuleId;
         }
@@ -128,6 +138,52 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
             refMint13: refMint13
         });
         emit RewardRuleConfigured(id, eventKind, targetKind, issuedParentId);
+    }
+
+    function configureEventRewardRule(
+        uint256 ruleId,
+        bool active,
+        uint8 eventKind,
+        uint8 targetKind,
+        uint256 issuedParentId,
+        uint256 actorMint13,
+        uint256 refMint13
+    ) external onlyOwnerOrGateway {
+        _writeEventRewardRule(
+            RewardPoolStorage.layout(),
+            ruleId,
+            active,
+            eventKind,
+            targetKind,
+            issuedParentId,
+            actorMint13,
+            refMint13
+        );
+    }
+
+    /// @notice Batch configure event reward rules in one card call (one executeForOwner / gateway relay).
+    function configureEventRewardRulesBatch(EventRewardRuleConfig[] calldata configs)
+        external
+        onlyOwnerOrGateway
+    {
+        RewardPoolStorage.Layout storage l = RewardPoolStorage.layout();
+        uint256 len = configs.length;
+        for (uint256 i = 0; i < len; ) {
+            EventRewardRuleConfig calldata c = configs[i];
+            _writeEventRewardRule(
+                l,
+                c.ruleId,
+                c.active,
+                c.eventKind,
+                c.targetKind,
+                c.issuedParentId,
+                c.active ? c.actorMint13 : 0,
+                c.active ? c.refMint13 : 0
+            );
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @notice Fund #13 mint budget. #2/#13 burn immediately (not recycled). #0 credits escrow + budget.

@@ -44,6 +44,12 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                 || sel == bytes4(keccak256("rewardEscrowPoints6()"))
                 || sel == bytes4(keccak256("getRewardRule(uint256)"))
                 || sel == bytes4(keccak256("configureEventRewardRule(uint256,bool,uint8,uint8,uint256,uint256,uint256)"))
+                || sel
+                    == bytes4(
+                        keccak256(
+                            "configureEventRewardRulesBatch((uint256,bool,uint8,uint8,uint256,uint256,uint256)[])"
+                        )
+                    )
                 || sel == bytes4(keccak256("purchaseRewardProgram(address,uint8,uint256,uint256,uint8,uint256)"))
                 || sel == bytes4(keccak256("dispatchEventReward13(uint256,address,address,uint8,uint256,uint256)"))
                 || sel == bytes4(keccak256("recordTopupCumulativeStat(address,uint256)"))
