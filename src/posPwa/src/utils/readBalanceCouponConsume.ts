@@ -94,6 +94,7 @@ export async function consumeMerchantCouponFromRead(params: {
 		nonce: prep.nonce,
 		adminSignature,
 		signerEOA: signerEOA ?? undefined,
+		userEOA: user,
 	})
 	if (!submit) {
 		return { status: 'error', message: 'Coupon consume failed.' }

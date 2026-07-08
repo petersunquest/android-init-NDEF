@@ -27,6 +27,9 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
     bytes32 public constant RECORD_USER_LIKE_TYPEHASH = keccak256(
         "RecordUserLike(address cardAddress,address userEOA,uint8 targetKind,uint256 issuedParentId,bool liked,uint256 deadline,bytes32 nonce)"
     );
+    bytes32 public constant RECORD_DISCOVER_SHARE_CLICK_TYPEHASH = keccak256(
+        "RecordDiscoverShareClick(address cardAddress,address actorEOA,address refWallet,uint8 targetKind,uint256 issuedParentId,uint256 deadline,bytes32 nonce)"
+    );
     bytes32 public constant CLAIM_SOCIAL_EXCHANGE_TYPEHASH = keccak256(
         "ClaimSocialExchange(address cardAddress,uint256 tokenId,uint256 pointsCost,uint256 usdcReward6,uint256 deadline,bytes32 nonce)"
     );
@@ -37,6 +40,13 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
         uint8 indexed targetKind,
         uint256 indexed issuedParentId,
         bool liked,
+        bytes32 nonce
+    );
+    event DiscoverShareClickAppliedWithSignature(
+        address indexed actorEOA,
+        address indexed refWallet,
+        uint8 indexed targetKind,
+        uint256 issuedParentId,
         bytes32 nonce
     );
     event UserCumulativeStatRecorded(
@@ -142,6 +152,71 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
             (globalStatTokenId, scopedStatTokenId) = _burnUserLikeStat(userEOA, metricKind, targetKind, issuedParentId, delta);
         }
         emit UserLikeAppliedWithSignature(userEOA, targetKind, issuedParentId, liked, nonce);
+    }
+
+    /// @notice Plan A: Discover share-link click (USER_CLICK + REF_CLICK) without Factory `gatewayInvokeCard`.
+    /// @dev Domain verifyingContract = card `factoryGateway()` (CoNET Factory DOMAIN_SEPARATOR).
+    ///      `refWallet` may be zero; REF_CLICK credits referrer when non-zero and distinct from actor.
+    function applyDiscoverShareClickWithSignature(
+        address actorEOA,
+        address refWallet,
+        uint8 targetKind,
+        uint256 issuedParentId,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external returns (uint256 userClickScopedTokenId, uint256 refClickScopedTokenId) {
+        if (actorEOA == address(0)) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (!RewardPoolStorage.layout().cardUserStatTokensInitialized) revert UC_UserStatNotInitialized();
+        if (targetKind != UserCumulativeStatLib.TARGET_MERCHANT_CARD_COUPON
+            && targetKind != UserCumulativeStatLib.TARGET_ISSUED_COUPON) {
+            revert UC_InvalidCumulativeTarget(targetKind, issuedParentId);
+        }
+
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        if (gw == address(0)) revert BM_ZeroAddress();
+
+        RewardPoolStorage.Layout storage rp = RewardPoolStorage.layout();
+        bytes32 nonceKey = keccak256(abi.encode(actorEOA, nonce));
+        if (rp.usedDiscoverShareClickNonces[nonceKey]) revert UC_NonceUsed();
+        rp.usedDiscoverShareClickNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                RECORD_DISCOVER_SHARE_CLICK_TYPEHASH,
+                address(this),
+                actorEOA,
+                refWallet,
+                targetKind,
+                issuedParentId,
+                deadline,
+                nonce
+            )
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(
+            IBeamioUserCardFactoryEip712(gw).DOMAIN_SEPARATOR(),
+            structHash
+        );
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != actorEOA) revert UC_InvalidSignature(signer, actorEOA);
+
+        (, userClickScopedTokenId) = _recordUserLikeStat(
+            actorEOA,
+            UserCumulativeStatLib.METRIC_USER_CLICK,
+            targetKind,
+            issuedParentId,
+            1
+        );
+        address refRecipient = (refWallet != address(0) && refWallet != actorEOA) ? refWallet : actorEOA;
+        (, refClickScopedTokenId) = _recordUserLikeStat(
+            refRecipient,
+            UserCumulativeStatLib.METRIC_REF_CLICK,
+            targetKind,
+            issuedParentId,
+            1
+        );
+        emit DiscoverShareClickAppliedWithSignature(actorEOA, refWallet, targetKind, issuedParentId, nonce);
     }
 
     /// @notice Plan A (CoNET legacy cards): user EIP-712 social exchange via card fallback → this module.

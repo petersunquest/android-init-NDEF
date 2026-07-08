@@ -7,6 +7,7 @@
  * 仅 mint 的 KPI（点赞等）在旧卡上可随本脚本生效；burn 统计需新发卡或主卡 bytecode 升级。
  *
  * Plan A：`IssuedNftModuleV2.applyUserLikeWithSignature` — 用户 EIP-712 点赞/取消，Master 直调 card（无需 gatewayInvokeCard）。
+ * Plan A：`IssuedNftModuleV2.applyDiscoverShareClickWithSignature` — Discover 分享点击（USER_CLICK + REF_CLICK），Master 直调 card。
  *
  * 运行:
  *   npx hardhat run scripts/upgradeUserCumulativeAndRewardPoolModulesConet.ts --network conet
@@ -184,9 +185,15 @@ async function main() {
       expected: ROUTE_ISSUED_NFT,
     },
     {
-      label: "mintChargeRewardByGateway (V1 fallback)",
-      signature: "mintChargeRewardByGateway(address,uint256,uint8)",
-      expected: ROUTE_CHARGE_REWARD,
+      label: "applyUserLikeWithSignature -> ISSUED_NFT",
+      signature: "applyUserLikeWithSignature(address,uint8,uint256,bool,uint256,bytes32,bytes)",
+      expected: ROUTE_ISSUED_NFT,
+    },
+    {
+      label: "applyDiscoverShareClickWithSignature -> ISSUED_NFT",
+      signature:
+        "applyDiscoverShareClickWithSignature(address,address,uint8,uint256,uint256,bytes32,bytes)",
+      expected: ROUTE_ISSUED_NFT,
     },
   ];
 

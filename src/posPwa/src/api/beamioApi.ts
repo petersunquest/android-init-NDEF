@@ -1193,6 +1193,8 @@ export async function cardCouponPosConsumeSubmit(params: {
 	nonce: string
 	adminSignature: string
 	signerEOA?: string
+	/** Customer EOA — actor for coupon burn #13 dispatch on Master. */
+	userEOA?: string
 }): Promise<CardCouponPosConsumeSubmitResult | null> {
 	const card = params.cardAddress.trim()
 	const data = params.data.trim()
@@ -1210,6 +1212,8 @@ export async function cardCouponPosConsumeSubmit(params: {
 	}
 	const signerEOA = params.signerEOA?.trim()
 	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	const userEOA = params.userEOA?.trim()
+	if (isPlausibleEvmAddress(userEOA)) body.userEOA = userEOA!
 	try {
 		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumeSubmit`, {
 			method: 'POST',

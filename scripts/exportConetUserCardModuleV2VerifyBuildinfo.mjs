@@ -147,11 +147,11 @@ const targets = [
     libraryLinks: libLinks,
   },
   {
-    label: "AdminStatsQueryModuleV3",
-    fullRel: "deployments/base-BeamioUserCardAdminStatsQueryModuleV3-standard-input-FULL.json",
-    outRel: "deployments/conet-AdminStatsQueryModuleV3-verify-buildinfo.json",
-    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV3.sol",
-    contractName: "BeamioUserCardAdminStatsQueryModuleV3",
+    label: "AdminStatsQueryModuleV2",
+    fullRel: "deployments/base-BeamioUserCardAdminStatsQueryModuleV2-standard-input-FULL.json",
+    outRel: "deployments/conet-AdminStatsQueryModuleV2-verify-buildinfo.json",
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV2.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV2",
     address: addr.adminStatsQueryModule,
   },
 ];

@@ -31,6 +31,8 @@ library RewardPoolStorage {
         mapping(uint256 => EventRewardRule) rules;
         /// @dev Plan A user-like EIP-712 nonces (key = keccak256(userEOA, nonce)).
         mapping(bytes32 => bool) usedRecordUserLikeNonces;
+        /// @dev Plan A Discover share-click EIP-712 nonces (key = keccak256(actorEOA, nonce)).
+        mapping(bytes32 => bool) usedDiscoverShareClickNonces;
     }
 
     function layout() internal pure returns (Layout storage l) {

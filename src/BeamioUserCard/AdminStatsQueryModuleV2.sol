@@ -30,6 +30,12 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                 || sel
                     == bytes4(
                         keccak256(
+                            "applyDiscoverShareClickWithSignature(address,address,uint8,uint256,uint256,bytes32,bytes)"
+                        )
+                    )
+                || sel
+                    == bytes4(
+                        keccak256(
                             "claimSocialExchangeWithUserSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)"
                         )
                     )
