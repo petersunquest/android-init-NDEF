@@ -85,7 +85,7 @@ decodeFunctionResult(functionFragment: 'tiersLength', data: BytesLike): Result;
     
     tiers: TypedContractMethod<
       [index: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >
     
@@ -118,7 +118,7 @@ getFunction(nameOrSignature: 'expiresAt'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<
       [index: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'tiersLength'): TypedContractMethod<

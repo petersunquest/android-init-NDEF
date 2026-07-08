@@ -25,9 +25,9 @@ library BeamioUserCardMembershipGateLib {
         uint256 len = card.tiersLength();
         if (len == 0) return type(uint256).max;
         idx = 0;
-        (uint256 minVal,,,) = card.tiers(0);
+        (uint256 minVal,,) = card.tiers(0);
         for (uint256 i = 1; i < len; i++) {
-            (uint256 m,,,) = card.tiers(i);
+            (uint256 m,,) = card.tiers(i);
             if (m < minVal) {
                 minVal = m;
                 idx = i;
@@ -53,7 +53,7 @@ library BeamioUserCardMembershipGateLib {
         if (_hasValidCard(card, acct)) return;
         if (card.tiersLength() == 0) return;
         uint256 lowIdx = _tierIndexWithMinThreshold(card);
-        (uint256 minUsdc6,,,) = card.tiers(lowIdx);
+        (uint256 minUsdc6,,) = card.tiers(lowIdx);
         if (points6 < minUsdc6) revert UC_BelowMinThreshold();
     }
 }

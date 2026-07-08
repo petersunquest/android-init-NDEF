@@ -14,5 +14,5 @@ interface IBeamioUserCardMembershipGateView {
     function tiers(uint256 index)
         external
         view
-        returns (uint256 minUsdc6, uint256 attr, uint256 tierExpirySeconds, bool upgradeByBalance);
+        returns (uint256 minUsdc6, uint256 attr, uint256 tierExpirySeconds);
 }

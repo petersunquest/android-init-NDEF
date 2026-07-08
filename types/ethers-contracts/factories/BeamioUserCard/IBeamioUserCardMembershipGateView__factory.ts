@@ -92,11 +92,6 @@
         "internalType": "uint256",
         "name": "tierExpirySeconds",
         "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "upgradeByBalance",
-        "type": "bool"
       }
     ],
     "stateMutability": "view",
