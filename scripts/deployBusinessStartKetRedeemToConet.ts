@@ -128,11 +128,28 @@ async function main() {
   fs.writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n", "utf-8");
   console.log("\nsaved:", outPath);
 
+  const prevRedeem = typeof addrData.BusinessStartKetRedeem === "string" ? addrData.BusinessStartKetRedeem : "";
+  if (prevRedeem && ethers.isAddress(prevRedeem) && ethers.getAddress(prevRedeem) !== ethers.getAddress(redeemAddr)) {
+    const depList: string[] = Array.isArray(addrData.DEPRECATED_BusinessStartKetRedeem)
+      ? addrData.DEPRECATED_BusinessStartKetRedeem
+      : [];
+    const prevN = ethers.getAddress(prevRedeem);
+    if (!depList.some((a) => ethers.getAddress(a) === prevN)) {
+      depList.push(prevN);
+    }
+    addrData.DEPRECATED_BusinessStartKetRedeem = depList;
+    console.log("deprecated previous BusinessStartKetRedeem:", prevN);
+  }
+
   addrData.BusinessStartKetRedeem = redeemAddr;
   fs.writeFileSync(addrPath, JSON.stringify(addrData, null, 2) + "\n", "utf-8");
   console.log("updated conet-addresses.json BusinessStartKetRedeem:", redeemAddr);
-  console.log("\n下一步: npx tsx scripts/verifyBusinessStartKetStackOnScan.ts BusinessStartKetRedeem");
-  console.log("并同步 src/x402sdk/src/chainAddresses.ts CONET_BUSINESS_START_KET_REDEEM");
+  console.log("\n下一步:");
+  console.log("  1) 同步 src/x402sdk/src/chainAddresses.ts CONET_BUSINESS_START_KET_REDEEM =", redeemAddr);
+  console.log("  2) npx tsx scripts/verifyBusinessStartKetStackOnScan.ts BusinessStartKetRedeem");
+  console.log("  3) 对已在旧 redeem(0xf548 buint) 领 B-Unit 的用户:");
+  console.log("     MIGRATE_BUINT_ACCOUNTS=0x… npx hardhat run scripts/migrateLegacyBuintBalancesToCanonicalConet.ts --network conet");
+  console.log("  4) ./scripts/deployBeamioApi.sh");
 }
 
 main().catch((e) => {

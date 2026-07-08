@@ -113,7 +113,7 @@
   ],
   "BuintRedeemAirdrop": "0x74Fc5C1f105E64663689692e3240127DdE649AF1",
   "BusinessStartKet": "0xAcf20dbb4DE0992d8947Ef00b505bBc17E6A03b2",
-  "BusinessStartKetRedeem": "0xe9CeDC2c9F7DE7c0e6d1f1ba1F7e7126F0F1D3c8",
+  "BusinessStartKetRedeem": "0x02F98E8A2066F15F83E7758c5230398027D29f56",
   "GuardianNodesInfoV6": "0xBC6b53065b5647261396d002bDBA0d3396E0722f",
   "AddressPGP": "0x684b0ac760cEE9c9b85de36d69746420648Cf9e2",
   "AccountRegistry": "0xfFDc8d2021A41F4638Cb3eCf58B5155383EE9f6d",
@@ -187,5 +187,8 @@
   "validatorDepositRedeemUpgradeable": true,
   "BUnitAirdropLegacy": "0xb9cf45AF87b16853c8F48a16b0495F030309e70f",
   "BuintRedeemAirdropLegacy": "0x02e954D352EB4C687AB066f0967E35D41E7721b6",
-  "beamioUserCardMembershipGateLib": "0x6E7AA181F0b9bEE53f263bd343E558957291f957"
+  "beamioUserCardMembershipGateLib": "0x6E7AA181F0b9bEE53f263bd343E558957291f957",
+  "DEPRECATED_BusinessStartKetRedeem": [
+    "0xe9CeDC2c9F7DE7c0e6d1f1ba1F7e7126F0F1D3c8"
+  ]
 }
