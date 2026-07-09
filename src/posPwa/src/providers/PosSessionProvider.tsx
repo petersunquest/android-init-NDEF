@@ -32,6 +32,7 @@ import {
 	resolveAdminProfileFromCardAdminInfo,
 	resolveParentWorkspaceProfile,
 } from '@/utils/posHomeAdminProfile'
+import { clearPermissionAutoSent } from '@/conet/posTerminalPermissionChat'
 import {
 	parseMerchantInfraCardFromMyPos,
 	resolvePosTerminalAccessAllowed,
@@ -68,6 +69,11 @@ interface PosContextValue {
 	activeCoupons: MerchantActiveIssuedCoupon[] | null
 	activeCouponsLoaded: boolean
 	showPermissionGate: boolean
+	/**
+	 * Trusted chain/API says this terminal is not owner/admin on the merchant program card
+	 * (removed from admin list or never approved). Permission Gate should re-request owner approval.
+	 */
+	adminAccessRevoked: boolean
 	/** SilentPassUI `isInitialLoading` — true until first `checkStorage` boot finishes. */
 	isBootLoading: boolean
 	bootPhase: PosBootPhase | null
@@ -103,6 +109,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [pointSystemEnabled, setPointSystemEnabled] = useState(true)
 	const [activeCoupons, setActiveCoupons] = useState<MerchantActiveIssuedCoupon[] | null>(null)
 	const [showPermissionGate, setShowPermissionGate] = useState(false)
+	const [adminAccessRevoked, setAdminAccessRevoked] = useState(false)
 	const [isBootLoading, setIsBootLoading] = useState(true)
 	const [bootPhase, setBootPhase] = useState<PosBootPhase | null>(null)
 	const refreshGen = useRef(0)
@@ -110,9 +117,13 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 	const admitProgramCardAccess = useCallback(() => {
 		setShowPermissionGate(false)
+		setAdminAccessRevoked(false)
 		setBootPhase('home')
 		const w = walletAddress
-		if (w) posHomeTrustedCache.savePermissionGranted(w, true)
+		if (w) {
+			posHomeTrustedCache.savePermissionGranted(w, true)
+			posHomeTrustedCache.saveAdminAccessRevoked(w, false)
+		}
 	}, [walletAddress])
 
 	const setParentBeamioTag = useCallback((tag: string) => {
@@ -180,10 +191,28 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		if (infra) {
 			const access = await resolvePosTerminalAccessAllowed(infra, wallet, adminInfo)
 			if (gen !== refreshGen.current) return
-			if (access === true || access === false) {
-				setShowPermissionGate(!access)
-				posHomeTrustedCache.savePermissionGranted(wallet, access)
-				setBootPhase(access ? 'home' : 'permission')
+			if (access === true) {
+				setShowPermissionGate(false)
+				setAdminAccessRevoked(false)
+				posHomeTrustedCache.savePermissionGranted(wallet, true)
+				posHomeTrustedCache.saveAdminAccessRevoked(wallet, false)
+				setBootPhase('home')
+			} else if (access === false) {
+				// Not on merchant card admin list (or removed) — force re-request owner POS permission.
+				const wasGranted = posHomeTrustedCache.loadPermissionGranted(wallet) === true
+				const wasRevoked = posHomeTrustedCache.loadAdminAccessRevoked(wallet)
+				setShowPermissionGate(true)
+				setAdminAccessRevoked(wasGranted || wasRevoked)
+				if (wasGranted) {
+					// Transition granted → denied: clear auto-sent once so Permission Gate re-requests.
+					posHomeTrustedCache.saveAdminAccessRevoked(wallet, true)
+					clearPermissionAutoSent(wallet.toLowerCase())
+				} else if (!wasRevoked) {
+					// Never approved / first trusted deny — keep waiting for first approval (no revoke banner).
+					posHomeTrustedCache.saveAdminAccessRevoked(wallet, false)
+				}
+				posHomeTrustedCache.savePermissionGranted(wallet, false)
+				setBootPhase('permission')
 			}
 			if (adminInfo?.ok) {
 				const chainAdminEoa =
@@ -325,6 +354,10 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				} else if (permCached === false) {
 					setShowPermissionGate(true)
 				}
+				if (posHomeTrustedCache.loadAdminAccessRevoked(addr)) {
+					setAdminAccessRevoked(true)
+					clearPermissionAutoSent(addr.toLowerCase())
+				}
 
 				await refreshHomeRef.current()
 				if (cancelled) return
@@ -356,8 +389,10 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			posHomeTrustedCache.saveRegisteredTag(params.wallet, params.accountName)
 			posHomeTrustedCache.saveParentTag(params.wallet, params.parentTag)
 			setShowPermissionGate(true)
+			setAdminAccessRevoked(false)
 			setBootPhase('permission')
 			posHomeTrustedCache.savePermissionGranted(params.wallet, false)
+			posHomeTrustedCache.saveAdminAccessRevoked(params.wallet, false)
 			void (async () => {
 				const parentResolved = await resolveParentWorkspaceProfile(params.parentTag)
 				if (parentResolved) {
@@ -398,6 +433,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			activeCoupons,
 			activeCouponsLoaded: activeCoupons !== null,
 			showPermissionGate,
+			adminAccessRevoked,
 			isBootLoading,
 			bootPhase,
 			refreshHome,
@@ -425,6 +461,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			pointSystemEnabled,
 			activeCoupons,
 			showPermissionGate,
+			adminAccessRevoked,
 			isBootLoading,
 			bootPhase,
 			refreshHome,

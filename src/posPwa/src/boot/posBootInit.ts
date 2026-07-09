@@ -38,17 +38,18 @@ export async function runPosBootWalletCheck(): Promise<{
 	}
 }
 
-/** Resolve post-boot route from trusted admin flag + local perm cache. */
+/** Resolve post-boot route from trusted admin flag + local perm cache.
+ * Trusted `accessGranted === false` (not on merchant card admin list) always wins over stale perm cache.
+ */
 export function resolvePosBootPhase(params: {
 	hasStoredWallet: boolean
 	accessGranted: boolean | null
 	permCached: boolean | null
 }): PosBootPhase {
 	if (!params.hasStoredWallet) return 'no_wallet'
-	if (params.accessGranted === true || params.permCached === true) return 'home'
 	if (params.accessGranted === false || params.permCached === false) return 'permission'
+	if (params.accessGranted === true || params.permCached === true) return 'home'
 	// Untrusted chain/API — prefer last trusted cache; default to permission (safe wait).
-	if (params.permCached === true) return 'home'
 	return 'permission'
 }
 

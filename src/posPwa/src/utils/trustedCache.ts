@@ -188,6 +188,27 @@ export const posHomeTrustedCache = {
 		}
 	},
 
+	/** True when terminal was previously approved then removed from merchant card admin list. */
+	loadAdminAccessRevoked(wallet: string): boolean {
+		try {
+			return localStorage.getItem(key('adminRevoked', normWallet(wallet))) === '1'
+		} catch {
+			return false
+		}
+	},
+
+	saveAdminAccessRevoked(wallet: string, revoked: boolean): void {
+		try {
+			if (revoked) {
+				localStorage.setItem(key('adminRevoked', normWallet(wallet)), '1')
+			} else {
+				localStorage.removeItem(key('adminRevoked', normWallet(wallet)))
+			}
+		} catch {
+			/* ignore */
+		}
+	},
+
 	loadPointSystemEnabled(wallet: string, infraCard: string): boolean | null {
 		try {
 			const v = localStorage.getItem(

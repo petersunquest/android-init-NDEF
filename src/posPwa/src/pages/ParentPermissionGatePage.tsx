@@ -1,9 +1,10 @@
-import { Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Loader2, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import {
+	clearPermissionAutoSent,
 	loadPermissionAutoSent,
 	savePermissionAutoSent,
 	sendPosTerminalPermissionRequest,
@@ -25,13 +26,15 @@ export function ParentPermissionGatePage() {
 		terminalProfile,
 		registeredBeamioTag,
 		showPermissionGate,
+		adminAccessRevoked,
 	} = usePosSession()
 	const { tickInFlight, lastSuccessfulTickAt } = usePosDataDaemon()
 	const [lastResendAt, setLastResendAt] = useState<number | null>(null)
 	const [resendBusy, setResendBusy] = useState(false)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [statusError, setStatusError] = useState(false)
-	const autoSendStarted = useRef(false)
+	/** Tracks last wallet we auto-sent for; reset when admin revoked clears auto-sent flag. */
+	const autoSendWalletRef = useRef<string | null>(null)
 
 	const checking =
 		showPermissionGate && (tickInFlight || lastSuccessfulTickAt === null)
@@ -62,7 +65,9 @@ export function ParentPermissionGatePage() {
 			setStatusMessage(
 				manualResend
 					? 'Sending approval request via CoNET chat…'
-					: 'Registering CoNET chat keys and sending approval request…',
+					: adminAccessRevoked
+						? 'Access was removed. Re-registering CoNET chat keys and requesting POS permission again…'
+						: 'Registering CoNET chat keys and sending approval request…',
 			)
 			const result = await sendPosTerminalPermissionRequest({
 				walletPrivateKeyHex: pk,
@@ -80,7 +85,9 @@ export function ParentPermissionGatePage() {
 				setStatusMessage(
 					manualResend
 						? 'Approval request sent again via CoNET chat.'
-						: 'A permission request was sent to your workspace parent via CoNET chat.',
+						: adminAccessRevoked
+							? 'A new POS permission request was sent to your workspace parent via CoNET chat.'
+							: 'A permission request was sent to your workspace parent via CoNET chat.',
 				)
 				return true
 			}
@@ -88,7 +95,13 @@ export function ParentPermissionGatePage() {
 			setStatusMessage(result.error)
 			return false
 		},
-		[walletAddress, parentBeamioTag, childBeamioTag, parentProfile?.address],
+		[
+			walletAddress,
+			parentBeamioTag,
+			childBeamioTag,
+			parentProfile?.address,
+			adminAccessRevoked,
+		],
 	)
 
 	useEffect(() => {
@@ -97,13 +110,21 @@ export function ParentPermissionGatePage() {
 		}
 	}, [walletAddress, navigate])
 
+	// When admin access is revoked, clear auto-sent so we re-request owner approval.
 	useEffect(() => {
-		if (!walletAddress || !parentBeamioTag || autoSendStarted.current) return
+		if (!walletAddress || !adminAccessRevoked) return
+		clearPermissionAutoSent(walletAddress.toLowerCase())
+		autoSendWalletRef.current = null
+	}, [walletAddress, adminAccessRevoked])
+
+	useEffect(() => {
+		if (!walletAddress || !parentBeamioTag) return
 		const wl = walletAddress.toLowerCase()
 		if (loadPermissionAutoSent(wl)) return
+		if (autoSendWalletRef.current === wl) return
 
 		let cancelled = false
-		autoSendStarted.current = true
+		autoSendWalletRef.current = wl
 
 		void (async () => {
 			// iOS POS waits until `walletPrivateKeyHex != nil` before auto-send; native Keychain can lag after createWallet.
@@ -117,15 +138,19 @@ export function ParentPermissionGatePage() {
 			if (!pk) {
 				setStatusError(true)
 				setStatusMessage('Wallet signing key is unavailable in this session.')
+				autoSendWalletRef.current = null
 				return
 			}
-			await dispatchPermissionRequest(false)
+			const ok = await dispatchPermissionRequest(false)
+			if (!ok && !cancelled) {
+				autoSendWalletRef.current = null
+			}
 		})()
 
 		return () => {
 			cancelled = true
 		}
-	}, [walletAddress, parentBeamioTag, dispatchPermissionRequest])
+	}, [walletAddress, parentBeamioTag, adminAccessRevoked, dispatchPermissionRequest])
 
 	async function onResend() {
 		if (lastResendAt && Date.now() - lastResendAt < RESEND_COOLDOWN_MS) return
@@ -155,21 +180,36 @@ export function ParentPermissionGatePage() {
 				<div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue">
 					{checking ? (
 						<Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+					) : adminAccessRevoked ? (
+						<ShieldAlert className="h-8 w-8 text-amber-600" aria-hidden />
 					) : (
 						<ShieldCheck className="h-8 w-8" aria-hidden />
 					)}
 				</div>
 				<h1 className="mt-6 text-center text-2xl font-black text-mkt-onSurface">
-					Waiting for workspace approval
+					{adminAccessRevoked
+						? 'POS permission required again'
+						: 'Waiting for workspace approval'}
 				</h1>
 				<p className="mt-3 text-center text-sm leading-relaxed text-mkt-onSurfaceVariant">
-					Your terminal wallet was created. The merchant workspace{' '}
-					<span className="font-semibold text-mkt-onSurface">@{parentBeamioTag}</span> must approve
-					this device before you can use Home.
+					{adminAccessRevoked ? (
+						<>
+							This terminal is no longer an admin on the merchant program card for{' '}
+							<span className="font-semibold text-mkt-onSurface">@{parentBeamioTag}</span>.
+							Request POS permission from the workspace owner again before using Home.
+						</>
+					) : (
+						<>
+							Your terminal wallet was created. The merchant workspace{' '}
+							<span className="font-semibold text-mkt-onSurface">@{parentBeamioTag}</span> must
+							approve this device before you can use Home.
+						</>
+					)}
 				</p>
 				<p className="mt-4 text-center text-xs text-mkt-onSurfaceVariant">
-					A secure CoNET chat message was sent to the workspace owner. Global data refresh checks
-					approval every few seconds. You can resend if needed.
+					{adminAccessRevoked
+						? 'A new CoNET chat permission request is sent automatically. Global refresh checks admin status every few seconds. You can resend if needed.'
+						: 'A secure CoNET chat message was sent to the workspace owner. Global data refresh checks approval every few seconds. You can resend if needed.'}
 				</p>
 
 				{statusMessage ? (

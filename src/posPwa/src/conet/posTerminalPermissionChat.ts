@@ -78,3 +78,12 @@ export function savePermissionAutoSent(walletLower: string): void {
 		/* ignore */
 	}
 }
+
+/** Clear so Permission Gate will auto-send again (admin revoked / not on card admin list). */
+export function clearPermissionAutoSent(walletLower: string): void {
+	try {
+		localStorage.removeItem(permissionAutoSentCacheKey(walletLower))
+	} catch {
+		/* ignore */
+	}
+}
