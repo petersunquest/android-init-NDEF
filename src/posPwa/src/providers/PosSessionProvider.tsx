@@ -138,6 +138,26 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 		const posRes = await fetchMyPosAddress(wallet)
 		if (gen !== refreshGen.current) return
+
+		const forcePermissionReRequest = (opts?: { revokedBanner?: boolean }) => {
+			const showRevoked = opts?.revokedBanner !== false
+			setMerchantInfraCard(null)
+			posHomeTrustedCache.removeInfraCard(wallet)
+			setShowPermissionGate(true)
+			setAdminAccessRevoked(showRevoked)
+			posHomeTrustedCache.saveAdminAccessRevoked(wallet, showRevoked)
+			posHomeTrustedCache.savePermissionGranted(wallet, false)
+			clearPermissionAutoSent(wallet.toLowerCase())
+			setBootPhase('permission')
+			setHomeStatsLoaded(true)
+		}
+
+		// Trusted: API rejected blacklisted / non-latest owner card binding — force re-request.
+		if (posRes?.requiresPermissionReRequest === true) {
+			forcePermissionReRequest({ revokedBanner: true })
+			return
+		}
+
 		let infra = merchantInfraCard
 		const parsedInfra = parseMerchantInfraCardFromMyPos(posRes)
 		if (parsedInfra) {
@@ -147,6 +167,20 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		}
 		if (posRes?.currency) setCurrency(posRes.currency)
 
+		// Trusted 404 (no binding): clear stale local infra and return to permission if needed.
+		if (posRes?.ok === false && !parsedInfra) {
+			const wasGranted = posHomeTrustedCache.loadPermissionGranted(wallet) === true
+			const hadInfra =
+				Boolean(merchantInfraCard) || Boolean(posHomeTrustedCache.loadInfraCard(wallet))
+			if (wasGranted || hadInfra) {
+				forcePermissionReRequest({ revokedBanner: true })
+				return
+			}
+			setHomeStatsLoaded(true)
+			return
+		}
+
+		// Untrusted myPosAddress (null): keep last trusted infra; do not clear.
 		if (!infra) {
 			setHomeStatsLoaded(true)
 			return

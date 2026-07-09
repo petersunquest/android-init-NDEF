@@ -203,8 +203,26 @@ export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressRes
 	try {
 		const params = new URLSearchParams({ wallet })
 		const res = await fetch(`${BEAMIO_API}/api/myPosAddress?${params}`)
-		if (!res.ok) return null
-		return (await res.json()) as MyPosAddressResponse
+		const json = (await res.json().catch(() => null)) as MyPosAddressResponse | null
+		if (!res.ok) {
+			if (json && typeof json === 'object' && json.requiresPermissionReRequest === true) {
+				return {
+					ok: false,
+					requiresPermissionReRequest: true,
+					reason: json.reason,
+					staleCardAddress: json.staleCardAddress,
+					latestCardAddress: json.latestCardAddress,
+					error: json.error,
+				}
+			}
+			// Trusted empty: terminal has no DB binding (not a network failure).
+			if (res.status === 404) {
+				return { ok: false }
+			}
+			return null
+		}
+		if (!json || typeof json !== 'object') return null
+		return json
 	} catch {
 		return null
 	}

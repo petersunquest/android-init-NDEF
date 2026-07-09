@@ -148,6 +148,14 @@ export const posHomeTrustedCache = {
 		}
 	},
 
+	removeInfraCard(wallet: string): void {
+		try {
+			localStorage.removeItem(key('infra', normWallet(wallet)))
+		} catch {
+			/* ignore */
+		}
+	},
+
 	loadPosLedger(wallet: string, infraCard: string): PosLedgerSnapshot | null {
 		try {
 			const raw = localStorage.getItem(key('ledger', normWallet(wallet), normInfra(infraCard)))

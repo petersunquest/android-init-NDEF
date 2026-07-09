@@ -54,6 +54,12 @@ export interface MyPosAddressResponse {
 	myPosAddress?: string
 	merchantInfraCard?: string
 	currency?: string
+	/** Trusted: API cleared stale/blacklisted binding — POS must re-request permission. */
+	requiresPermissionReRequest?: boolean
+	reason?: 'blacklisted' | 'stale_owner_card' | string
+	staleCardAddress?: string
+	latestCardAddress?: string
+	error?: string
 	terminalMetadata?: {
 		handle?: string
 		deviceName?: string
