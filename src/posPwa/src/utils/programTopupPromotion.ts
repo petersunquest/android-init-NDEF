@@ -29,6 +29,10 @@ function parseYmd(raw: unknown): string | undefined {
 	return t
 }
 
+function approxEq(a: number, b: number): boolean {
+	return Math.abs(a - b) < 0.005
+}
+
 export function formatLocalYmd(d: Date = new Date()): string {
 	const y = d.getFullYear()
 	const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -62,13 +66,36 @@ function parseOneLegacyRule(row: unknown): RechargeBonusRule | null {
 	return { paymentAmount: pay, bonusValue: bonus, bonusProportional: prop }
 }
 
+/**
+ * Heal legacy buggy encode: percent + unscaled bonusValue === rewardValue → fixed.
+ */
+function healTopupPromotionRewardType(
+	promo: TopupPromotionMetadata,
+	legacyBonus?: RechargeBonusRule | null,
+): TopupPromotionMetadata {
+	if (promo.rewardType !== 'percent') return promo
+	const min = promo.minimumTopupAmount
+	const reward = promo.rewardValue
+	const scaled = Math.round(min * reward) / 100
+	if (!legacyBonus) return promo
+	const bv = legacyBonus.bonusValue
+	if (!legacyBonus.bonusProportional && approxEq(bv, reward)) {
+		return { ...promo, rewardType: 'fixed' }
+	}
+	if (legacyBonus.bonusProportional && approxEq(bv, reward) && !approxEq(bv, scaled)) {
+		return { ...promo, rewardType: 'fixed' }
+	}
+	return promo
+}
+
 function normalizeTopupPromotion(raw: Record<string, unknown>): TopupPromotionMetadata | null {
 	const min = parseAmount(raw.minimumTopupAmount ?? raw.minimum_topup_amount)
 	const reward = parseAmount(raw.rewardValue ?? raw.reward_value)
 	if (min == null || reward == null) return null
 	const rewardTypeRaw = String(raw.rewardType ?? raw.reward_type ?? '').trim().toLowerCase()
+	// Missing / unknown → fixed (not percent).
 	const rewardType: TopupPromotionRewardType =
-		rewardTypeRaw === 'fixed' ? 'fixed' : rewardTypeRaw === 'percent' ? 'percent' : 'percent'
+		rewardTypeRaw === 'percent' ? 'percent' : 'fixed'
 	return {
 		enabled: raw.enabled === false ? false : true,
 		validFrom: parseYmd(raw.validFrom ?? raw.valid_from),
@@ -79,30 +106,57 @@ function normalizeTopupPromotion(raw: Record<string, unknown>): TopupPromotionMe
 	}
 }
 
+/**
+ * Canonical → POS recharge rule.
+ * - fixed: flat bonusValue
+ * - percent: bonusValue = paymentAmount * rewardValue / 100, proportional
+ */
 export function topupPromotionToRechargeBonusRule(
 	promo: TopupPromotionMetadata,
 ): RechargeBonusRule | null {
 	if (!isTopupPromotionActive(promo)) return null
+	if (promo.rewardType === 'percent') {
+		const bonusValue = Math.round(promo.minimumTopupAmount * promo.rewardValue) / 100
+		if (bonusValue <= 0) return null
+		return {
+			paymentAmount: promo.minimumTopupAmount,
+			bonusValue,
+			bonusProportional: true,
+		}
+	}
 	return {
 		paymentAmount: promo.minimumTopupAmount,
 		bonusValue: promo.rewardValue,
-		bonusProportional: promo.rewardType === 'percent',
+		bonusProportional: false,
 	}
+}
+
+function firstLegacyBonus(meta: Record<string, unknown>): RechargeBonusRule | null {
+	const raw = meta.bonusRules ?? meta.bonusRule
+	if (Array.isArray(raw)) return parseOneLegacyRule(raw[0])
+	return parseOneLegacyRule(raw)
 }
 
 export function parseTopupPromotionFromMetadata(
 	meta: Record<string, unknown> | null | undefined,
 ): TopupPromotionMetadata | null {
 	if (!meta) return null
+	const legacyRoot = firstLegacyBonus(meta)
+	const stm = meta.shareTokenMetadata
+	const legacyStm =
+		stm && typeof stm === 'object' ? firstLegacyBonus(stm as Record<string, unknown>) : null
+	const legacy = legacyRoot ?? legacyStm
+
 	const direct = meta.topupPromotion
 	if (direct && typeof direct === 'object') {
-		return normalizeTopupPromotion(direct as Record<string, unknown>)
+		const normalized = normalizeTopupPromotion(direct as Record<string, unknown>)
+		return normalized ? healTopupPromotionRewardType(normalized, legacy) : null
 	}
-	const stm = meta.shareTokenMetadata
 	if (stm && typeof stm === 'object') {
 		const nested = (stm as Record<string, unknown>).topupPromotion
 		if (nested && typeof nested === 'object') {
-			return normalizeTopupPromotion(nested as Record<string, unknown>)
+			const normalized = normalizeTopupPromotion(nested as Record<string, unknown>)
+			return normalized ? healTopupPromotionRewardType(normalized, legacy) : null
 		}
 	}
 	return null
