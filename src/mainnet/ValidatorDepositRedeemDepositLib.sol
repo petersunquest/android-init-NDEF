@@ -58,32 +58,51 @@ library ValidatorDepositRedeemDepositLib {
         require(address(this).balance >= validatorStakeWei * n, "ValidatorRedeem: insufficient stake balance");
 
         for (uint256 i = 0; i < n; i++) {
-            require(withdrawalCredentials[i].length == 32, "ValidatorRedeem: bad wc length");
-            require(_bytes32FromCalldata(withdrawalCredentials[i]) == selfCred, "ValidatorRedeem: withdrawal not self");
-
-            uint256 guardianId = guardianIds[i];
-            address beneficiary = guardianIdBeneficiary[guardianId];
-            require(beneficiary != address(0), "ValidatorRedeem: node has no beneficiary");
-
-            depositContract.deposit{value: validatorStakeWei}(
+            (uint256 stakedInc, uint256 fundedInc) = _fundOneGuardianDeposit(
+                depositContract,
+                selfCred,
+                validatorStakeWei,
+                guardianIdBeneficiary,
+                nodeValidator,
+                validatorPubkeyGuardian,
+                stakedValidatorCountOf,
+                guardianIds[i],
                 pubkeys[i],
                 withdrawalCredentials[i],
                 signatures[i],
                 depositDataRoots[i]
             );
-
-            _registerOneNodeValidator(
-                nodeValidator,
-                validatorPubkeyGuardian,
-                guardianId,
-                beneficiary,
-                pubkeys[i]
-            );
-            stakedValidatorCountOf[beneficiary] += 1;
-            stakedCountDelta += 1;
-            fundedDelta += validatorStakeWei;
-            emit ValidatorDeposited(guardianId, beneficiary, keccak256(pubkeys[i]), validatorStakeWei);
+            stakedCountDelta += stakedInc;
+            fundedDelta += fundedInc;
         }
+    }
+
+    function _fundOneGuardianDeposit(
+        IBeaconDepositFund depositContract,
+        bytes32 selfCred,
+        uint256 validatorStakeWei,
+        mapping(uint256 => address) storage guardianIdBeneficiary,
+        mapping(uint256 => ValidatorBinding) storage nodeValidator,
+        mapping(bytes32 => uint256) storage validatorPubkeyGuardian,
+        mapping(address => uint256) storage stakedValidatorCountOf,
+        uint256 guardianId,
+        bytes calldata pubkey,
+        bytes calldata withdrawalCredentials,
+        bytes calldata signature,
+        bytes32 depositDataRoot
+    ) private returns (uint256 stakedInc, uint256 fundedInc) {
+        require(withdrawalCredentials.length == 32, "ValidatorRedeem: bad wc length");
+        require(_bytes32FromCalldata(withdrawalCredentials) == selfCred, "ValidatorRedeem: withdrawal not self");
+
+        address beneficiary = guardianIdBeneficiary[guardianId];
+        require(beneficiary != address(0), "ValidatorRedeem: node has no beneficiary");
+
+        depositContract.deposit{value: validatorStakeWei}(pubkey, withdrawalCredentials, signature, depositDataRoot);
+
+        _registerOneNodeValidator(nodeValidator, validatorPubkeyGuardian, guardianId, beneficiary, pubkey);
+        stakedValidatorCountOf[beneficiary] += 1;
+        emit ValidatorDeposited(guardianId, beneficiary, keccak256(pubkey), validatorStakeWei);
+        return (1, validatorStakeWei);
     }
 
     function _registerOneNodeValidator(

@@ -1,0 +1,21 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "ConetLabMiningPool",
+  "upgradeable": true,
+  "proxyPattern": "ERC1967Proxy",
+  "source": "src/mainnet/ConetLabMiningPool.sol",
+  "address": "0x32bE583C8e778FFfC5107BF34820c2B225336201",
+  "proxy": "0x32bE583C8e778FFfC5107BF34820c2B225336201",
+  "implementation": "0x98962C9a8eB80F20a194057686AC151018031166",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "compiler": "0.8.35+commit.47b9dedd",
+  "timestamp": "2026-07-09T22:40:43.946Z",
+  "deployBlock": 326705,
+  "transactionHash": "0xdb524b017c2c82927e845397dbace74280162ae78f4c735ea8b853b4adbf50b8",
+  "implementationTransactionHash": "0x9adc3de89909739c9b9747cfd9633013fb527f2e711c38979708cc96fd6ca850"
+}

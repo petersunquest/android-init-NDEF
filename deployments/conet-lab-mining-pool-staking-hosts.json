@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "description": "CoNET Lab manual staking VA hosts — wc→ValidatorDepositRedeem, fee_recipient→ConetLabMiningPool. Pubkeys aggregated by scripts/aggregateLabMiningPoolPubkeys.mjs (current + legacy backup = 2 sets / host)",
+  "redeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+  "miningPool": "0x32bE583C8e778FFfC5107BF34820c2B225336201",
+  "selfWithdrawalCredentials": "0x010000000000000000000000c71e246dd78b37c2fabc905d340932f28f503433",
+  "walletSets": 2,
+  "includeLegacyDepositBackups": true,
+  "expectedValidatorCount": 4000,
+  "activeValidatorsPerWave": 2000,
+  "sshUser": "peter",
+  "newconetDir": "/home/peter/ethereum-pos-mainnet",
+  "depositJsonFile": "validator_deposits.json",
+  "hosts": [
+    { "ip": "74.208.224.45", "count": 136 },
+    { "ip": "207.90.192.71", "count": 136 },
+    { "ip": "216.225.202.82", "count": 288 },
+    { "ip": "216.225.197.3", "count": 288 },
+    { "ip": "216.225.202.22", "count": 288 },
+    { "ip": "216.225.202.23", "count": 288 },
+    { "ip": "38.102.126.50", "count": 288 },
+    { "ip": "38.102.126.30", "count": 288 }
+  ]
+}

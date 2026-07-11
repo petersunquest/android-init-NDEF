@@ -2,4 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export { IGuardianNodesTransferReader__factory } from './IGuardianNodesTransferReader__factory.js';
+export { ITransferMarketGuard__factory } from './ITransferMarketGuard__factory.js';
 export { ValidatorDepositRedeemTransferLib__factory } from './ValidatorDepositRedeemTransferLib__factory.js';

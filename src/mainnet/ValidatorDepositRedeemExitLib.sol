@@ -10,6 +10,19 @@ import {ValidatorBinding} from "./ValidatorDepositRedeemTypes.sol";
 library ValidatorDepositRedeemExitLib {
     event NativeWithdrawn(address indexed to, uint256 amount);
     event FullExitSettled(address indexed beneficiary, uint256 validatorCount, uint256 amount);
+    event NodeValidatorExited(uint256 indexed guardianId, bytes32 indexed pubkeyHash, address withdrawalBeneficiary);
+
+    function recordNodeValidatorExit(
+        mapping(uint256 => ValidatorBinding) storage nodeValidator,
+        uint256 guardianId
+    ) external {
+        ValidatorBinding storage b = nodeValidator[guardianId];
+        require(b.pubkey.length != 0, "ValidatorRedeem: no validator");
+        require(b.active, "ValidatorRedeem: already exited");
+        b.active = false;
+        b.exitedAt = uint64(block.timestamp);
+        emit NodeValidatorExited(guardianId, keccak256(b.pubkey), b.withdrawalBeneficiary);
+    }
 
     function settleFullExitPayout(
         mapping(uint256 => address) storage guardianIdBeneficiary,

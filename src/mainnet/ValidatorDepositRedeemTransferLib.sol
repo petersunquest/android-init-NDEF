@@ -7,6 +7,10 @@ interface IGuardianNodesTransferReader {
     function id2ip(uint256 id) external view returns (string memory);
 }
 
+interface ITransferMarketGuard {
+    function nodeOrder(uint256 guardianId) external view returns (uint256);
+}
+
 /**
  * @title ValidatorDepositRedeemTransferLib
  * @notice External library: hot-transfer one Guardian node id between beneficiaries (EIP-170 offload).
@@ -38,6 +42,44 @@ library ValidatorDepositRedeemTransferLib {
         address to,
         uint256 guardianId
     ) external {
+        _transferOneGuardianId(
+            guardianIdBeneficiary,
+            beneficiaryGuardianIds,
+            beneficiaryGuardianNodeWallets,
+            guardianIdGbMining,
+            depinIpBeneficiary,
+            nodeWalletBeneficiary,
+            walletDepinIpSeen,
+            walletDepinNodeIps,
+            validatorNodeCountOf,
+            gbMiningNodeCountOf,
+            stakedValidatorCountOf,
+            nodeValidator,
+            guardianNodes,
+            from,
+            to,
+            guardianId
+        );
+    }
+
+    function _transferOneGuardianId(
+        mapping(uint256 => address) storage guardianIdBeneficiary,
+        mapping(address => uint256[]) storage beneficiaryGuardianIds,
+        mapping(address => address[]) storage beneficiaryGuardianNodeWallets,
+        mapping(uint256 => bool) storage guardianIdGbMining,
+        mapping(bytes32 => address) storage depinIpBeneficiary,
+        mapping(address => address) storage nodeWalletBeneficiary,
+        mapping(address => mapping(bytes32 => bool)) storage walletDepinIpSeen,
+        mapping(address => string[]) storage walletDepinNodeIps,
+        mapping(address => uint256) storage validatorNodeCountOf,
+        mapping(address => uint256) storage gbMiningNodeCountOf,
+        mapping(address => uint256) storage stakedValidatorCountOf,
+        mapping(uint256 => ValidatorBinding) storage nodeValidator,
+        address guardianNodes,
+        address from,
+        address to,
+        uint256 guardianId
+    ) internal {
         require(guardianId != 0, "ValidatorRedeem: zero guardian id");
         require(guardianIdBeneficiary[guardianId] == from, "ValidatorRedeem: not from beneficiary node");
 
@@ -107,6 +149,56 @@ library ValidatorDepositRedeemTransferLib {
                 stakedValidatorCountOf[from] -= 1;
             }
             stakedValidatorCountOf[to] += 1;
+        }
+    }
+
+    function transferGuardianIdsFrom(
+        mapping(uint256 => address) storage guardianIdBeneficiary,
+        mapping(address => uint256[]) storage beneficiaryGuardianIds,
+        mapping(address => address[]) storage beneficiaryGuardianNodeWallets,
+        mapping(uint256 => bool) storage guardianIdGbMining,
+        mapping(bytes32 => address) storage depinIpBeneficiary,
+        mapping(address => address) storage nodeWalletBeneficiary,
+        mapping(address => mapping(bytes32 => bool)) storage walletDepinIpSeen,
+        mapping(address => string[]) storage walletDepinNodeIps,
+        mapping(address => uint256) storage validatorNodeCountOf,
+        mapping(address => uint256) storage gbMiningNodeCountOf,
+        mapping(address => uint256) storage stakedValidatorCountOf,
+        mapping(uint256 => ValidatorBinding) storage nodeValidator,
+        address guardianNodes,
+        address transferMarket,
+        address fromBeneficiary,
+        address toBeneficiary,
+        uint256[] calldata guardianIds
+    ) external {
+        require(toBeneficiary != address(0), "ValidatorRedeem: zero to beneficiary");
+        require(toBeneficiary != fromBeneficiary, "ValidatorRedeem: same beneficiary");
+        require(guardianIds.length > 0, "ValidatorRedeem: empty");
+        for (uint256 i = 0; i < guardianIds.length; i++) {
+            if (transferMarket != address(0)) {
+                require(
+                    ITransferMarketGuard(transferMarket).nodeOrder(guardianIds[i]) == 0,
+                    "ValidatorRedeem: node listed in order"
+                );
+            }
+            _transferOneGuardianId(
+                guardianIdBeneficiary,
+                beneficiaryGuardianIds,
+                beneficiaryGuardianNodeWallets,
+                guardianIdGbMining,
+                depinIpBeneficiary,
+                nodeWalletBeneficiary,
+                walletDepinIpSeen,
+                walletDepinNodeIps,
+                validatorNodeCountOf,
+                gbMiningNodeCountOf,
+                stakedValidatorCountOf,
+                nodeValidator,
+                guardianNodes,
+                fromBeneficiary,
+                toBeneficiary,
+                guardianIds[i]
+            );
         }
     }
 

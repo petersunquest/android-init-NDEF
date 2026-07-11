@@ -1,0 +1,10 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol:BeamioUserCardUpdateLib
+Address: 0x269eEf460A5256bB81660CDD1325AE2A6D9f39Cb
+Compiler: v0.8.35+commit.47b9dedd
+Standard JSON: deployments/conet-UpdateLib-verify-buildinfo.json
+Network: CoNET mainnet (chainId 224422)
+Linked Libraries:
+- BeamioUserCardReferrerLib: 0x9aBB24d2a3760241a22616DECedA7ab04B452345
+- BeamioUserCardTransferLib: 0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664
+Verified: 2026-07-08 (partial match, Blockscout v2)
+Verify script: scripts/verifyConetUpdateLibOnScan.ts

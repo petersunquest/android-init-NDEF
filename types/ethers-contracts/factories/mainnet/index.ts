@@ -3,9 +3,11 @@
 /* eslint-disable */
 export * as nodeSaleSplitterSol from './NodeSaleSplitter.sol/index.js';
 export * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
+export * as validatorDepositRedeemAllocLibSol from './ValidatorDepositRedeemAllocLib.sol/index.js';
 export * as validatorDepositRedeemBundleLibSol from './ValidatorDepositRedeemBundleLib.sol/index.js';
 export * as validatorDepositRedeemDepositLibSol from './ValidatorDepositRedeemDepositLib.sol/index.js';
 export * as validatorDepositRedeemReferrerExtensionSol from './ValidatorDepositRedeemReferrerExtension.sol/index.js';
+export * as validatorDepositRedeemReleaseLibSol from './ValidatorDepositRedeemReleaseLib.sol/index.js';
 export * as validatorDepositRedeemStatsLibSol from './ValidatorDepositRedeemStatsLib.sol/index.js';
 export * as validatorDepositRedeemTransferLibSol from './ValidatorDepositRedeemTransferLib.sol/index.js';
 export * as validatorDepositRedeemTransferMarketSol from './ValidatorDepositRedeemTransferMarket.sol/index.js';
@@ -13,6 +15,7 @@ export * as validatorNodeRewardIndexerSol from './ValidatorNodeRewardIndexer.sol
 export * as test from './test/index.js';
 export { AccountRegistry__factory } from './AccountRegistry__factory.js';
 export { AddressPGP__factory } from './AddressPGP__factory.js';
+export { ConetLabMiningPool__factory } from './ConetLabMiningPool__factory.js';
 export { LayerMinusNodeRestart_V2__factory } from './LayerMinusNodeRestart_V2__factory.js';
 export { MerchantPOSManagement__factory } from './MerchantPOSManagement__factory.js';
 export { ValidatorDepositRedeemExitLib__factory } from './ValidatorDepositRedeemExitLib__factory.js';

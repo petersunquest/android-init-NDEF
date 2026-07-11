@@ -14,6 +14,8 @@ import {NodeBundle, AirdropState, ValidatorBinding} from "./ValidatorDepositRede
 import {ValidatorDepositRedeemTransferLib} from "./ValidatorDepositRedeemTransferLib.sol";
 import {ValidatorDepositRedeemDepositLib} from "./ValidatorDepositRedeemDepositLib.sol";
 import {ValidatorDepositRedeemExitLib} from "./ValidatorDepositRedeemExitLib.sol";
+import {ValidatorDepositRedeemReleaseLib} from "./ValidatorDepositRedeemReleaseLib.sol";
+import {ValidatorDepositRedeemAllocLib} from "./ValidatorDepositRedeemAllocLib.sol";
 
 /// @dev Minimal balance interface for the CoNET USDC ERC20 token.
 interface IERC20Balance {
@@ -134,9 +136,9 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     IGuardianNodesInfoV6 public guardianNodes;
     /// @notice First Guardian node id eligible for auto allocation (e.g. 100).
     uint256 public guardianAllocStartId;
-    /// @notice Next Guardian node id to assign on auto-allocate claim (monotonic, no skip).
+    /// @notice Upper bound for Guardian id hole-scan; extends when no free ids below this value.
     uint256 public nextGuardianAllocId;
-    /// @dev Guardian node id => beneficiary; permanent once set (no beneficiary revoke).
+    /// @dev Guardian node id => beneficiary; zero when released back to the free pool.
     mapping(uint256 => address) public guardianIdBeneficiary;
     /// @dev Guardian node id => participates in GB mining (first {gbMiningNodeCount} ids per claim batch).
     mapping(uint256 => bool) public guardianIdGbMining;
@@ -642,12 +644,56 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     /// @notice Record that a validator has been exited (transfer step 1). Marks the node's binding inactive
     ///         so the (node + validator) pair can be redeployed and re-pointed to a new beneficiary later.
     function recordNodeValidatorExit(uint256 guardianId) external onlyRedeemAdmin {
-        ValidatorBinding storage b = _nodeValidator[guardianId];
-        require(b.pubkey.length != 0, "ValidatorRedeem: no validator");
-        require(b.active, "ValidatorRedeem: already exited");
-        b.active = false;
-        b.exitedAt = uint64(block.timestamp);
-        emit NodeValidatorExited(guardianId, keccak256(b.pubkey), b.withdrawalBeneficiary);
+        ValidatorDepositRedeemExitLib.recordNodeValidatorExit(_nodeValidator, guardianId);
+    }
+
+    /// @notice Redeem-admin: release Guardian ids back to the free pool (clears beneficiary + DePIN IP slot).
+    function adminReleaseGuardianIds(address from, uint256[] calldata guardianIds) external onlyRedeemAdmin {
+        ValidatorDepositRedeemReleaseLib.releaseGuardianIdsFrom(
+            guardianIdBeneficiary,
+            _beneficiaryGuardianIds,
+            _beneficiaryGuardianNodeWallets,
+            guardianIdGbMining,
+            _depinIpBeneficiary,
+            _nodeWalletBeneficiary,
+            _walletDepinIpSeen,
+            _walletDepinNodeIps,
+            validatorNodeCountOf,
+            gbMiningNodeCountOf,
+            _nodeValidator,
+            address(guardianNodes),
+            transferMarket,
+            from,
+            guardianIds
+        );
+    }
+
+    /// @notice Redeem-admin: transfer Guardian ids without beneficiary EIP-712.
+    function adminTransferGuardianIds(
+        address fromBeneficiary,
+        address toBeneficiary,
+        uint256[] calldata guardianIds
+    ) external onlyRedeemAdmin {
+        ValidatorDepositRedeemTransferLib.transferGuardianIdsFrom(
+            guardianIdBeneficiary,
+            _beneficiaryGuardianIds,
+            _beneficiaryGuardianNodeWallets,
+            guardianIdGbMining,
+            _depinIpBeneficiary,
+            _nodeWalletBeneficiary,
+            _walletDepinIpSeen,
+            _walletDepinNodeIps,
+            validatorNodeCountOf,
+            gbMiningNodeCountOf,
+            stakedValidatorCountOf,
+            _nodeValidator,
+            address(guardianNodes),
+            transferMarket,
+            fromBeneficiary,
+            toBeneficiary,
+            guardianIds
+        );
+        emit NodesTransferred(fromBeneficiary, toBeneficiary, guardianIds);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -1461,58 +1507,34 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
         validatorNodeCountOf[beneficiary] += validatorCount;
         gbMiningNodeCountOf[beneficiary] += gbMiningCount;
         ips = _allocateGuardianNodesFromGuardian(beneficiary, validatorCount);
-        _markGbMiningOnLatestNodes(beneficiary, validatorCount, gbMiningCount);
+        ValidatorDepositRedeemAllocLib.markGbMiningOnLatestNodes(
+            _beneficiaryGuardianIds,
+            guardianIdGbMining,
+            beneficiary,
+            validatorCount,
+            gbMiningCount
+        );
         _accrueWalletDepinNodeIpsMemory(beneficiary, ips);
     }
 
-    /// @dev Mark the first {gbCount} guardian ids in the latest {validatorCount} allocation batch as GB mining nodes.
-    function _markGbMiningOnLatestNodes(address beneficiary, uint256 validatorCount, uint256 gbCount) internal {
-        if (gbCount == 0 || validatorCount == 0) return;
-        uint256[] storage ids = _beneficiaryGuardianIds[beneficiary];
-        require(ids.length >= validatorCount, "ValidatorRedeem: alloc mismatch");
-        uint256 start = ids.length - validatorCount;
-        uint256 mark = gbCount > validatorCount ? validatorCount : gbCount;
-        for (uint256 j = 0; j < mark; j++) {
-            guardianIdGbMining[ids[start + j]] = true;
-        }
-    }
-
-    /// @dev Assign the next {count} consecutive Guardian node ids; permanent, no beneficiary revoke.
+    /// @dev Assign the next {count} Guardian node ids; lowest free id in [guardianAllocStartId, nextGuardianAllocId) first.
     function _allocateGuardianNodesFromGuardian(address beneficiary, uint256 count)
         internal
         returns (string[] memory ips)
     {
-        require(address(guardianNodes) != address(0), "ValidatorRedeem: guardian unset");
-        ips = new string[](count);
-        for (uint256 i = 0; i < count; i++) {
-            uint256 nodeId = nextGuardianAllocId;
-            nextGuardianAllocId++;
-            require(nodeId >= guardianAllocStartId, "ValidatorRedeem: before pool start");
-            require(guardianIdBeneficiary[nodeId] == address(0), "ValidatorRedeem: id taken");
-
-            string memory ip = guardianNodes.id2ip(nodeId);
-            require(bytes(ip).length != 0, "ValidatorRedeem: guardian id missing ip");
-            require(guardianNodes.ipaddressExisting(ip), "ValidatorRedeem: ip not on guardian");
-
-            address nodeWallet = guardianNodes.idOwner(nodeId);
-            if (nodeWallet == address(0)) {
-                nodeWallet = guardianNodes.ipaddress2owner(ip);
-            }
-            require(nodeWallet != address(0), "ValidatorRedeem: no node wallet");
-
-            // DePIN uniqueness is per-IP in {_accrueOneDepinIp}. Many Guardian ids may share one
-            // operator EOA; do not block a new beneficiary when the operator wallet is already bound.
-            if (_nodeWalletBeneficiary[nodeWallet] == address(0)) {
-                _nodeWalletBeneficiary[nodeWallet] = beneficiary;
-            }
-
-            guardianIdBeneficiary[nodeId] = beneficiary;
-            _beneficiaryGuardianIds[beneficiary].push(nodeId);
-            _beneficiaryGuardianNodeWallets[beneficiary].push(nodeWallet);
-
-            ips[i] = ip;
-            emit GuardianNodeAllocated(nodeId, beneficiary, ip, nodeWallet);
-        }
+        uint256 newNext;
+        (ips, newNext) = ValidatorDepositRedeemAllocLib.allocateGuardianNodesFromGuardian(
+            guardianIdBeneficiary,
+            _beneficiaryGuardianIds,
+            _beneficiaryGuardianNodeWallets,
+            _nodeWalletBeneficiary,
+            address(guardianNodes),
+            guardianAllocStartId,
+            nextGuardianAllocId,
+            beneficiary,
+            count
+        );
+        nextGuardianAllocId = newNext;
     }
 
     function _accrueWalletDepinNodeIpsMemory(address beneficiary, string[] memory ips) internal {
@@ -1524,7 +1546,7 @@ contract ValidatorDepositRedeem is Initializable, UUPSUpgradeable {
     function _accrueOneDepinIp(address beneficiary, string memory ip) internal {
         bytes32 key = keccak256(bytes(ip));
         address previous = _depinIpBeneficiary[key];
-        // Permanent 1:1 — an IP belongs to exactly one beneficiary forever (no reassignment).
+        // 1:1 while occupied; cleared to zero on {adminReleaseGuardianIds}.
         require(previous == address(0) || previous == beneficiary, "ValidatorRedeem: ip other beneficiary");
         if (previous == address(0)) {
             _depinIpBeneficiary[key] = beneficiary;

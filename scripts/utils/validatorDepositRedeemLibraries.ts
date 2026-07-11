@@ -7,6 +7,8 @@ export const VALIDATOR_DEPOSIT_REDEEM_LIBRARY_NAMES = [
   "ValidatorDepositRedeemTransferLib",
   "ValidatorDepositRedeemDepositLib",
   "ValidatorDepositRedeemExitLib",
+  "ValidatorDepositRedeemReleaseLib",
+  "ValidatorDepositRedeemAllocLib",
 ] as const;
 
 export type ValidatorDepositRedeemLibraryName = (typeof VALIDATOR_DEPOSIT_REDEEM_LIBRARY_NAMES)[number];

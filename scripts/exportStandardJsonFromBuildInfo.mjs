@@ -214,6 +214,10 @@ const CONFIG = {
     sourceKey: "project/src/b-unit/gbUserTotal.sol",
     contractName: "ConetGB_userTotal",
   },
+  ConetLabMiningPool: {
+    sourceKey: "project/src/mainnet/ConetLabMiningPool.sol",
+    contractName: "ConetLabMiningPool",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");

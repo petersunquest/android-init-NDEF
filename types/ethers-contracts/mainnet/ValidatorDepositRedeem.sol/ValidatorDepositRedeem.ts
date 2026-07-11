@@ -25,7 +25,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ValidatorDepositRedeemInterface extends Interface {
-    getFunction(nameOrSignature: "AIRDROP_CNET_PER_NODE" | "CONET_GB_TOTAL_TOKEN_ID" | "UPGRADE_INTERFACE_VERSION" | "VALIDATOR_STAKE_WEI" | "addAdmin" | "addRedeemAdmin" | "addRedeemAdminFor" | "admins" | "airdropInfoOf" | "beneficiaryNonces" | "cancelRedeem" | "cancelRedeemFor" | "clRewardPaid" | "claimAirdropFor" | "claimRedeem" | "claimRedeemFor" | "consumeBeneficiaryNonceForMarket" | "consumedRewardEventKey" | "createRedeemFor" | "depositContract" | "exitSettledPubkey" | "fundAndDepositValidators" | "fundedDepositTotal" | "gbMiningNodeCountOf" | "gbToken" | "getBeneficiaryByNodeWallet" | "getBeneficiaryNodeBundle" | "getCancelRedeemDigest" | "getClaimRedeemDigest" | "getDepinBeneficiaryByIp" | "getNodeByValidatorPubkeyHash" | "getNodeValidator" | "getRedeem" | "getReferrerRewardNodes" | "getRequestFullExitDigest" | "getRewardPayoutStats" | "getTransferNodesDigest" | "getWalletDepinNodeIps" | "grantReferrerRewardNodes" | "guardianAllocStartId" | "guardianIdBeneficiary" | "guardianIdGbMining" | "guardianNodeIpOf" | "guardianNodeWalletOf" | "guardianNodes" | "initialize" | "nextGuardianAllocId" | "nodeValidatorBinding" | "nodeWalletBeneficiary" | "proxiableUUID" | "recordNodeValidatorExit" | "redeemAdminNonces" | "redeemAdmins" | "referrerExtension" | "registerNodeValidators" | "registerNodeValidatorsFor" | "removeAdmin" | "removeRedeemAdmin" | "removeRedeemAdminFor" | "requestFullExit" | "resolveNodeBundle" | "resolveUnifiedIncomeStats" | "rewardIndexer" | "selfWithdrawalCredentials" | "setAirdropClaimableAt" | "setDepositContract" | "setGuardianNodes" | "setReferrerExtension" | "setRewardIndexer" | "setTokens" | "setTransferMarket" | "settleFullExitPayout" | "settleNodeRewards" | "stakedValidatorCountOf" | "totalRewardPaid" | "totalStakedValidatorCount" | "transferMarket" | "transferNodes" | "transferOneGuardianIdForMarket" | "upgradeToAndCall" | "usdcToken" | "usdcTokenAddress" | "validatorNodeCountOf" | "walletClaimCountOf" | "withdrawNative" | "withdrawNativeBatch"): FunctionFragment;
+    getFunction(nameOrSignature: "AIRDROP_CNET_PER_NODE" | "CONET_GB_TOTAL_TOKEN_ID" | "UPGRADE_INTERFACE_VERSION" | "VALIDATOR_STAKE_WEI" | "addAdmin" | "addRedeemAdmin" | "addRedeemAdminFor" | "adminReleaseGuardianIds" | "adminTransferGuardianIds" | "admins" | "airdropInfoOf" | "beneficiaryNonces" | "cancelRedeem" | "cancelRedeemFor" | "clRewardPaid" | "claimAirdropFor" | "claimRedeem" | "claimRedeemFor" | "consumeBeneficiaryNonceForMarket" | "consumedRewardEventKey" | "createRedeemFor" | "depositContract" | "exitSettledPubkey" | "fundAndDepositValidators" | "fundedDepositTotal" | "gbMiningNodeCountOf" | "gbToken" | "getBeneficiaryByNodeWallet" | "getBeneficiaryNodeBundle" | "getCancelRedeemDigest" | "getClaimRedeemDigest" | "getDepinBeneficiaryByIp" | "getNodeByValidatorPubkeyHash" | "getNodeValidator" | "getRedeem" | "getReferrerRewardNodes" | "getRequestFullExitDigest" | "getRewardPayoutStats" | "getTransferNodesDigest" | "getWalletDepinNodeIps" | "grantReferrerRewardNodes" | "guardianAllocStartId" | "guardianIdBeneficiary" | "guardianIdGbMining" | "guardianNodeIpOf" | "guardianNodeWalletOf" | "guardianNodes" | "initialize" | "nextGuardianAllocId" | "nodeValidatorBinding" | "nodeWalletBeneficiary" | "proxiableUUID" | "recordNodeValidatorExit" | "redeemAdminNonces" | "redeemAdmins" | "referrerExtension" | "registerNodeValidators" | "registerNodeValidatorsFor" | "removeAdmin" | "removeRedeemAdmin" | "removeRedeemAdminFor" | "requestFullExit" | "resolveNodeBundle" | "resolveUnifiedIncomeStats" | "rewardIndexer" | "selfWithdrawalCredentials" | "setAirdropClaimableAt" | "setDepositContract" | "setGuardianNodes" | "setReferrerExtension" | "setRewardIndexer" | "setTokens" | "setTransferMarket" | "settleFullExitPayout" | "settleNodeRewards" | "stakedValidatorCountOf" | "totalRewardPaid" | "totalStakedValidatorCount" | "transferMarket" | "transferNodes" | "transferOneGuardianIdForMarket" | "upgradeToAndCall" | "usdcToken" | "usdcTokenAddress" | "validatorNodeCountOf" | "walletClaimCountOf" | "withdrawNative" | "withdrawNativeBatch"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminAdded" | "AdminRemoved" | "AirdropAccrued" | "AirdropClaimableAtSet" | "AirdropClaimed" | "DepinNodeBeneficiaryAssigned" | "DepositContractConfigured" | "FullExitRequested" | "FullExitSettled" | "GuardianNodeAllocated" | "GuardianNodesConfigured" | "Initialized" | "NativeReceived" | "NativeWithdrawn" | "NodeRewardSettled" | "NodeValidatorBeneficiaryUpdated" | "NodeValidatorExited" | "NodeValidatorRegistered" | "NodesTransferred" | "RedeemAdminAdded" | "RedeemAdminRemoved" | "ReferrerExtensionConfigured" | "ReferrerRewardNodesGranted" | "RewardIndexerConfigured" | "TokensConfigured" | "TransferMarketConfigured" | "Upgraded" | "ValidatorDeposited" | "ValidatorRedeemCancelled" | "ValidatorRedeemClaimed" | "ValidatorRedeemCreated"): EventFragment;
 
@@ -36,6 +36,8 @@ encodeFunctionData(functionFragment: 'VALIDATOR_STAKE_WEI', values?: undefined):
 encodeFunctionData(functionFragment: 'addAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addRedeemAdmin', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'addRedeemAdminFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'adminReleaseGuardianIds', values: [AddressLike, BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'adminTransferGuardianIds', values: [AddressLike, AddressLike, BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'airdropInfoOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'beneficiaryNonces', values: [AddressLike]): string;
@@ -123,6 +125,8 @@ decodeFunctionResult(functionFragment: 'VALIDATOR_STAKE_WEI', data: BytesLike): 
 decodeFunctionResult(functionFragment: 'addAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addRedeemAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addRedeemAdminFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminReleaseGuardianIds', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminTransferGuardianIds', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'airdropInfoOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beneficiaryNonces', data: BytesLike): Result;
@@ -661,6 +665,22 @@ decodeFunctionResult(functionFragment: 'withdrawNativeBatch', data: BytesLike): 
     
     addRedeemAdminFor: TypedContractMethod<
       [admin: AddressLike, account: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    adminReleaseGuardianIds: TypedContractMethod<
+      [from: AddressLike, guardianIds: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    adminTransferGuardianIds: TypedContractMethod<
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], ],
       [void],
       'nonpayable'
     >
@@ -1333,6 +1353,16 @@ getFunction(nameOrSignature: 'addRedeemAdmin'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'addRedeemAdminFor'): TypedContractMethod<
       [admin: AddressLike, account: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminReleaseGuardianIds'): TypedContractMethod<
+      [from: AddressLike, guardianIds: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminTransferGuardianIds'): TypedContractMethod<
+      [fromBeneficiary: AddressLike, toBeneficiary: AddressLike, guardianIds: BigNumberish[], ],
       [void],
       'nonpayable'
     >;

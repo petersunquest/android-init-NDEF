@@ -52,6 +52,8 @@ const REDEEM_LINKED_LIBRARY_NAMES = [
   "ValidatorDepositRedeemTransferLib",
   "ValidatorDepositRedeemDepositLib",
   "ValidatorDepositRedeemExitLib",
+  "ValidatorDepositRedeemReleaseLib",
+  "ValidatorDepositRedeemAllocLib",
 ] as const;
 
 const LIB_ROOT_SOURCES: Record<(typeof REDEEM_LINKED_LIBRARY_NAMES)[number], string> = {
@@ -61,6 +63,8 @@ const LIB_ROOT_SOURCES: Record<(typeof REDEEM_LINKED_LIBRARY_NAMES)[number], str
   ValidatorDepositRedeemTransferLib: "project/src/mainnet/ValidatorDepositRedeemTransferLib.sol",
   ValidatorDepositRedeemDepositLib: "project/src/mainnet/ValidatorDepositRedeemDepositLib.sol",
   ValidatorDepositRedeemExitLib: "project/src/mainnet/ValidatorDepositRedeemExitLib.sol",
+  ValidatorDepositRedeemReleaseLib: "project/src/mainnet/ValidatorDepositRedeemReleaseLib.sol",
+  ValidatorDepositRedeemAllocLib: "project/src/mainnet/ValidatorDepositRedeemAllocLib.sol",
 };
 
 type DeploymentJson = {

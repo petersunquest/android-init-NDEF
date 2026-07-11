@@ -122,6 +122,13 @@ async function main() {
     }
     fs.writeFileSync(addrPath, JSON.stringify(merged, null, 2) + "\n", "utf-8");
   }
+
+  console.log("\n--- Next: Blockscout verify (same task) ---");
+  console.log("CONET_VERIFY_POLL_MAX=180 npx tsx scripts/verifyValidatorDepositRedeemStackConet.ts");
+  console.log("\n--- Next: ops runbook ---");
+  console.log("See scripts/RUNBOOK-ValidatorDepositRedeem-guardian-recycle.md");
+  console.log("  node scripts/releaseMiningPoolGuardianDePIN207.mjs");
+  console.log("  node scripts/remediateGuardian477To341.mjs");
 }
 
 main().catch((e) => {

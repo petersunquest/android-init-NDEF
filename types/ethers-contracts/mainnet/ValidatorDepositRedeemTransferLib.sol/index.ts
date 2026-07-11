@@ -2,4 +2,5 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { IGuardianNodesTransferReader } from './IGuardianNodesTransferReader.js';
+export type { ITransferMarketGuard } from './ITransferMarketGuard.js';
 export type { ValidatorDepositRedeemTransferLib } from './ValidatorDepositRedeemTransferLib.js';
