@@ -244,6 +244,102 @@ export function parseOpenContainerPaymentQr(content: string): OpenContainerParse
 	return { payload: null, rejectReason: 'neither open relay nor closed relay' }
 }
 
+export type CheckBalanceEntryQrKind = 'identity_link' | 'offline_container'
+
+export interface CheckBalanceEntryQrClassification {
+	kind: CheckBalanceEntryQrKind
+	identity: CustomerIdentity
+	/** Full parsed payment root when kind === offline_container. */
+	offlineContainerPayload?: Record<string, unknown>
+	/** Signature present and deadline not passed (any chain sub-payload). */
+	offlineContainerValid?: boolean
+}
+
+function offlineContainerDeadlineSec(payload: Record<string, unknown>): number {
+	const dl = optString(payload.deadline).trim()
+	const vb = optString(payload.validBefore).trim()
+	const n = Number(dl || vb)
+	return Number.isFinite(n) ? Math.floor(n) : 0
+}
+
+/** True when offline signed container deadline/validBefore is missing or already passed. */
+export function isOfflineContainerExpired(payload: Record<string, unknown>): boolean {
+	const sec = offlineContainerDeadlineSec(payload)
+	if (sec <= 0) return true
+	return sec <= Math.floor(Date.now() / 1000)
+}
+
+function offlineSignedLeafPayload(payload: Record<string, unknown>): boolean {
+	const account = optString(payload.account).trim()
+	const signature = optString(payload.signature).trim()
+	return Boolean(account && signature)
+}
+
+function isOfflineContainerRootValid(root: Record<string, unknown>): boolean {
+	const payloads = root.openContainerPayloads
+	if (payloads && typeof payloads === 'object' && !Array.isArray(payloads)) {
+		const p = payloads as Record<string, unknown>
+		for (const sub of [p.conet, p.base]) {
+			if (!sub || typeof sub !== 'object' || Array.isArray(sub)) continue
+			const leaf = sub as Record<string, unknown>
+			if (offlineSignedLeafPayload(leaf) && !isOfflineContainerExpired(leaf)) return true
+		}
+		return false
+	}
+	return offlineSignedLeafPayload(root) && !isOfflineContainerExpired(root)
+}
+
+function accountFromOfflineContainerRoot(root: Record<string, unknown>): string {
+	const direct = optString(root.account).trim()
+	if (isEthAddress(direct)) return direct
+	const payloads = root.openContainerPayloads
+	if (payloads && typeof payloads === 'object' && !Array.isArray(payloads)) {
+		const p = payloads as Record<string, unknown>
+		for (const sub of [p.conet, p.base]) {
+			if (!sub || typeof sub !== 'object' || Array.isArray(sub)) continue
+			const acct = optString((sub as Record<string, unknown>).account).trim()
+			if (isEthAddress(acct)) return acct
+		}
+	}
+	return ''
+}
+
+/**
+ * Check Balance entry QR: identity link (topup/tag) vs offline signed OpenContainer/Container.
+ */
+export function classifyCheckBalanceEntryQr(text: string): CheckBalanceEntryQrClassification | null {
+	const trimmed = trimBom(text)
+	if (!trimmed) return null
+
+	const link = customerLinkUrl(trimmed)
+	if (link) {
+		const beamioTag = parseBeamioTab(link)
+		const wallet = parseBeamioWallet(link)
+		if (beamioTag || wallet) {
+			return { kind: 'identity_link', identity: { beamioTag, wallet } }
+		}
+	}
+
+	const payment = parseOpenContainerPaymentQr(trimmed)
+	if (payment.payload) {
+		const root = payment.payload
+		const account = accountFromOfflineContainerRoot(root)
+		if (!isEthAddress(account)) return null
+		return {
+			kind: 'offline_container',
+			identity: { wallet: account },
+			offlineContainerPayload: root,
+			offlineContainerValid: isOfflineContainerRootValid(root),
+		}
+	}
+
+	const identity = parseCustomerIdentity(trimmed)
+	if (identity && customerIdentityHasTarget(identity)) {
+		return { kind: 'identity_link', identity }
+	}
+	return null
+}
+
 /** iOS `humanizeQrError` for payment QR parse failures. */
 export function humanizeQrPaymentError(reason: string | undefined): string {
 	const r = reason?.trim() ?? ''

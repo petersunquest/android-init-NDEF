@@ -15,6 +15,7 @@ import { usePosSession } from '@/providers/PosSessionProvider'
 import type { MerchantClaimableCouponItem, MerchantCouponBalanceItem, UIDAssetsResult } from '@/types/pos'
 import { runCheckBalanceFlow } from '@/utils/checkBalanceFlow'
 import type { CheckBalanceNfcScanContext } from '@/utils/checkBalanceFlow'
+import { fetchMerchantCardCouponBurnSupported } from '@/api/beamioApi'
 import {
 	deductChargeRewardPoints6,
 	deductCustomerTargetFromAssets,
@@ -35,6 +36,11 @@ import {
 	completeCouponSurrenderViaOpenContainer,
 	consumeMerchantCouponFromRead,
 } from '@/utils/readBalanceCouponConsume'
+import {
+	assetsForCheckBalanceCouponDisplay,
+	checkBalanceHasStoredValidOfflineContainer,
+	type CheckBalanceQrContext,
+} from '@/utils/readBalanceCouponDisplay'
 import { runPosChargeScanFlow } from '@/utils/posScanFlow'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa'
@@ -42,6 +48,8 @@ import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa
 export interface CheckBalanceLocationState {
 	assets?: UIDAssetsResult
 	nfcScan?: CheckBalanceNfcScanContext
+	qrClassification?: CheckBalanceQrContext
+	merchantSupportsBurn?: boolean | null
 }
 
 type Phase = 'loading' | 'result' | 'deduct-amount' | 'deduct-executing' | 'deduct-success'
@@ -65,6 +73,12 @@ export function CheckBalancePage() {
 	const [nfcScan, setNfcScan] = useState<CheckBalanceNfcScanContext | undefined>(
 		navState?.nfcScan,
 	)
+	const [qrClassification, setQrClassification] = useState<CheckBalanceQrContext>(
+		navState?.qrClassification ?? null,
+	)
+	const [merchantSupportsBurn, setMerchantSupportsBurn] = useState<boolean | null>(
+		navState?.merchantSupportsBurn ?? null,
+	)
 	const [claimInFlightId, setClaimInFlightId] = useState<string | null>(null)
 	const [claimSucceededId, setClaimSucceededId] = useState<string | null>(null)
 	const [consumeInFlightId, setConsumeInFlightId] = useState<string | null>(null)
@@ -83,6 +97,17 @@ export function CheckBalancePage() {
 	}, [couponToast])
 
 	useEffect(() => {
+		if (!assets?.ok || !infraCard || merchantSupportsBurn !== null) return
+		let cancelled = false
+		void fetchMerchantCardCouponBurnSupported(infraCard).then((supported) => {
+			if (!cancelled && supported !== null) setMerchantSupportsBurn(supported)
+		})
+		return () => {
+			cancelled = true
+		}
+	}, [assets?.ok, infraCard, merchantSupportsBurn])
+
+	useEffect(() => {
 		if (phase !== 'loading' || assets?.ok || flowStartedRef.current) return
 		flowStartedRef.current = true
 
@@ -95,10 +120,17 @@ export function CheckBalancePage() {
 			if (outcome.status === 'success') {
 				setAssets(outcome.assets)
 				setNfcScan(outcome.nfcScan)
+				setQrClassification(outcome.qrClassification ?? null)
+				setMerchantSupportsBurn(outcome.merchantSupportsBurn)
 				setPhase('result')
 				navigate(POS_HOME_ROUTES.checkBalance, {
 					replace: true,
-					state: { assets: outcome.assets, nfcScan: outcome.nfcScan },
+					state: {
+						assets: outcome.assets,
+						nfcScan: outcome.nfcScan,
+						qrClassification: outcome.qrClassification ?? null,
+						merchantSupportsBurn: outcome.merchantSupportsBurn,
+					},
 				})
 				return
 			}
@@ -119,10 +151,15 @@ export function CheckBalancePage() {
 			setAssets(next)
 			navigate(POS_HOME_ROUTES.checkBalance, {
 				replace: true,
-				state: { assets: next, nfcScan },
+				state: {
+					assets: next,
+					nfcScan,
+					qrClassification,
+					merchantSupportsBurn,
+				},
 			})
 		},
-		[navigate, nfcScan],
+		[navigate, nfcScan, qrClassification, merchantSupportsBurn],
 	)
 
 	const handleClaimCoupon = useCallback(
@@ -186,11 +223,18 @@ export function CheckBalancePage() {
 			setConsumeInFlightId(rowId)
 
 			const signerEOA = await resolvePosTerminalSignerEoa(walletAddress)
+			const posOp = signerEOA ?? walletAddress?.trim() ?? ''
+			const storedOfflinePayload = checkBalanceHasStoredValidOfflineContainer(qrClassification)
+				? qrClassification.offlineContainerPayload
+				: null
 			const result = await consumeMerchantCouponFromRead({
 				assets,
 				coupon,
 				signerEOA,
 				claimSucceededId,
+				storedOfflineContainerPayload: storedOfflinePayload,
+				posOperator: posOp || null,
+				merchantInfraCard: infraCard || coupon.cardAddress,
 			})
 
 			if (result.status === 'needs_pay_qr') {
@@ -216,7 +260,6 @@ export function CheckBalancePage() {
 					setCouponToast({ kind: 'error', text: scan.message })
 					return
 				}
-				const posOp = signerEOA ?? walletAddress?.trim() ?? ''
 				if (!posOp) {
 					setConsumeInFlightId(null)
 					setCouponToast({ kind: 'error', text: 'Terminal wallet not configured.' })
@@ -257,7 +300,7 @@ export function CheckBalancePage() {
 			if (result.clearClaimSucceededId) setClaimSucceededId(null)
 			setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
 		},
-		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, infraCard, syncAssets, walletAddress],
+		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, infraCard, qrClassification, syncAssets, walletAddress],
 	)
 
 	const runDeductFromReadBalance = useCallback(
@@ -341,6 +384,10 @@ export function CheckBalancePage() {
 	}
 
 	const vm = readBalanceResultViewModel(assets, infraCard, pointSystemEnabled)
+	const couponDisplayAssets = assetsForCheckBalanceCouponDisplay(assets, {
+		merchantSupportsBurn,
+		qrContext: qrClassification,
+	})
 	const deductBusy =
 		claimInFlightId != null || consumeInFlightId != null || phase !== 'result'
 
@@ -379,7 +426,7 @@ export function CheckBalancePage() {
 							caddBalance={vm.caddBal}
 						/>
 						<ReadBalanceCouponsSection
-							assets={assets}
+							assets={couponDisplayAssets}
 							activeCoupons={activeCoupons}
 							claimInFlightId={claimInFlightId}
 							claimSucceededId={claimSucceededId}

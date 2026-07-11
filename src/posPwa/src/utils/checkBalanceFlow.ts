@@ -1,7 +1,8 @@
-import { fetchUIDAssets, fetchWalletAssetsForRead } from '@/api/beamioApi'
+import { fetchUIDAssets, fetchWalletAssetsForRead, fetchMerchantCardCouponBurnSupported } from '@/api/beamioApi'
 import type { UIDAssetsResult } from '@/types/pos'
 import { isNfcUid14Hex, normalizeNfcUid14 } from '@/utils/nfcUid'
 import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
+import type { CheckBalanceEntryQrClassification } from '@/utils/beamioQrIdentity'
 
 export type CheckBalanceNfcScanContext = {
 	uid: string
@@ -9,7 +10,13 @@ export type CheckBalanceNfcScanContext = {
 }
 
 export type CheckBalanceFlowResult =
-	| { status: 'success'; assets: UIDAssetsResult; nfcScan?: CheckBalanceNfcScanContext }
+	| {
+			status: 'success'
+			assets: UIDAssetsResult
+			nfcScan?: CheckBalanceNfcScanContext
+			qrClassification?: CheckBalanceEntryQrClassification | null
+			merchantSupportsBurn: boolean | null
+	  }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -36,16 +43,20 @@ async function queryAssetsFromNfc(
 		detail.sun && isNfcUid14Hex(uid)
 			? { uid: normalizeNfcUid14(uid), sun: detail.sun }
 			: undefined
+	const merchantSupportsBurn = await fetchMerchantCardCouponBurnSupported(merchantInfraCard)
 	return {
 		status: 'success',
 		assets: result,
 		nfcScan,
+		qrClassification: null,
+		merchantSupportsBurn,
 	}
 }
 
 async function queryAssetsFromQrIdentity(
 	identity: { beamioTag?: string; wallet?: string },
 	merchantInfraCard: string,
+	qrClassification: CheckBalanceEntryQrClassification | null,
 ): Promise<CheckBalanceFlowResult> {
 	let result: UIDAssetsResult | null = null
 	if (identity.beamioTag?.trim()) {
@@ -65,7 +76,13 @@ async function queryAssetsFromQrIdentity(
 	if (!result.ok) {
 		return { status: 'error', message: result.error?.trim() || 'Query failed.' }
 	}
-	return { status: 'success', assets: result }
+	const merchantSupportsBurn = await fetchMerchantCardCouponBurnSupported(merchantInfraCard)
+	return {
+		status: 'success',
+		assets: result,
+		qrClassification,
+		merchantSupportsBurn,
+	}
 }
 
 /** Headless Check Balance: native NFC → (dismiss) native QR → result or home. */
@@ -80,7 +97,7 @@ export async function runCheckBalanceFlow(merchantInfraCard: string): Promise<Ch
 		return queryAssetsFromNfc(scan.detail, infra)
 	}
 	if (scan.status === 'qr') {
-		return queryAssetsFromQrIdentity(scan.identity, infra)
+		return queryAssetsFromQrIdentity(scan.identity, infra, scan.qrClassification)
 	}
 	if (scan.status === 'aborted') {
 		return { status: 'aborted' }

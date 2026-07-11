@@ -917,6 +917,25 @@ export async function fetchWalletAssetsForRead(params: {
 	}
 }
 
+/** Chain bytecode probe: merchant card supports issued NFT burn (cardSelfBurn). */
+export async function fetchMerchantCardCouponBurnSupported(
+	cardAddress: string,
+): Promise<boolean | null> {
+	const card = cardAddress.trim()
+	if (!card) return null
+	try {
+		const res = await fetch(
+			`${BEAMIO_API}/api/merchantCardCouponBurnSupported?cardAddress=${encodeURIComponent(card)}`,
+		)
+		if (!res.ok) return null
+		const json = (await res.json()) as { success?: boolean; supportsBurn?: boolean }
+		if (!json.success) return null
+		return json.supportsBurn === true
+	} catch {
+		return null
+	}
+}
+
 export interface CardCouponPosClaimResult {
 	success: boolean
 	txHash?: string

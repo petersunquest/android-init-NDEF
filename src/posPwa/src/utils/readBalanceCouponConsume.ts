@@ -128,14 +128,25 @@ export async function completeCouponSurrenderViaOpenContainer(params: {
 	}
 }
 
-/** Full POS consume flow: prepare → burn OR openContainer surrender (scan Pay QR). */
+/** Full POS consume flow: prepare → burn OR openContainer surrender (reuse entry offline QR when present). */
 export async function consumeMerchantCouponFromRead(params: {
 	assets: UIDAssetsResult
 	coupon: MerchantCouponBalanceItem
 	signerEOA?: string | null
 	claimSucceededId?: string | null
+	storedOfflineContainerPayload?: Record<string, unknown> | null
+	posOperator?: string | null
+	merchantInfraCard?: string | null
 }): Promise<ConsumeMerchantCouponResult> {
-	const { assets, coupon, signerEOA, claimSucceededId } = params
+	const {
+		assets,
+		coupon,
+		signerEOA,
+		claimSucceededId,
+		storedOfflineContainerPayload,
+		posOperator,
+		merchantInfraCard,
+	} = params
 	const user = readBalanceClaimUserEoa(assets)
 	if (!isPlausibleEvmAddress(user)) {
 		return { status: 'error', message: 'Invalid user account for consume.' }
@@ -164,16 +175,28 @@ export async function consumeMerchantCouponFromRead(params: {
 		if (!userAccount || !tokenId) {
 			return { status: 'error', message: 'Consume prepare missing surrender fields.' }
 		}
+		const surrender: OpenContainerSurrenderPrep = {
+			cardAddress,
+			couponId: coupon.couponId,
+			userEOA: user,
+			userAccount,
+			tokenId,
+			amount,
+		}
+		if (storedOfflineContainerPayload && posOperator?.trim()) {
+			return completeCouponSurrenderViaOpenContainer({
+				assets,
+				coupon,
+				surrender,
+				openContainerPayload: storedOfflineContainerPayload,
+				posOperator: posOperator.trim(),
+				merchantInfraCard: merchantInfraCard?.trim() || cardAddress,
+				claimSucceededId,
+			})
+		}
 		return {
 			status: 'needs_pay_qr',
-			surrender: {
-				cardAddress,
-				couponId: coupon.couponId,
-				userEOA: user,
-				userAccount,
-				tokenId,
-				amount,
-			},
+			surrender,
 		}
 	}
 

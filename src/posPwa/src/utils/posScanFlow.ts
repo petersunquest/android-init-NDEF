@@ -15,14 +15,19 @@ import {
 import {
 	customerIdentityHasTarget,
 	humanizeQrPaymentError,
-	parseCustomerIdentity,
+	classifyCheckBalanceEntryQr,
 	parseOpenContainerPaymentQr,
+	type CheckBalanceEntryQrClassification,
 	type CustomerIdentity,
 } from '@/utils/beamioQrIdentity'
 
 export type PosScanFlowResult =
 	| { status: 'nfc'; detail: CashTreesNfcDetail }
-	| { status: 'qr'; identity: CustomerIdentity }
+	| {
+			status: 'qr'
+			identity: CustomerIdentity
+			qrClassification: CheckBalanceEntryQrClassification
+	  }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -138,14 +143,14 @@ export async function runPosCustomerScanFlow(): Promise<PosScanFlowResult> {
 		return { status: 'error', message: qr.message }
 	}
 
-	const identity = parseCustomerIdentity(qr.text)
-	if (!identity || !customerIdentityHasTarget(identity)) {
+	const classified = classifyCheckBalanceEntryQr(qr.text)
+	if (!classified || !customerIdentityHasTarget(classified.identity)) {
 		return {
 			status: 'error',
 			message: 'Cannot parse QR. Scan a beamio.app link or Scan to Pay code.',
 		}
 	}
-	return { status: 'qr', identity }
+	return { status: 'qr', identity: classified.identity, qrClassification: classified }
 }
 
 /** NFC → QR for Charge; QR must be Scan to Pay OpenContainer JSON (iOS `handlePaymentQr`). */
