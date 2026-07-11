@@ -573,7 +573,7 @@ function isOpenContainerPayload(v: unknown): v is Record<string, unknown> {
 	return Boolean(optPayloadString(o.account).trim() && optPayloadString(o.signature).trim())
 }
 
-async function selectOpenContainerPayloadForMerchantCard(
+export async function selectOpenContainerPayloadForMerchantCard(
 	rawPayload: Record<string, unknown>,
 	merchantInfraCard: string,
 ): Promise<{ payload: Record<string, unknown>; error?: string }> {

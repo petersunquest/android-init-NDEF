@@ -31,7 +31,11 @@ import {
 	readBalanceClaimUserEoa,
 	readBalanceHasCouponClaimContext,
 } from '@/utils/readBalanceCouponClaim'
-import { consumeMerchantCouponFromRead } from '@/utils/readBalanceCouponConsume'
+import {
+	completeCouponSurrenderViaOpenContainer,
+	consumeMerchantCouponFromRead,
+} from '@/utils/readBalanceCouponConsume'
+import { runPosChargeScanFlow } from '@/utils/posScanFlow'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa'
 
@@ -189,6 +193,59 @@ export function CheckBalancePage() {
 				claimSucceededId,
 			})
 
+			if (result.status === 'needs_pay_qr') {
+				setCouponToast({
+					kind: 'success',
+					text: 'Scan the customer Pay QR to complete coupon redeem.',
+				})
+				const scan = await runPosChargeScanFlow()
+				if (scan.status === 'nfc') {
+					setConsumeInFlightId(null)
+					setCouponToast({
+						kind: 'error',
+						text: 'Coupon redeem requires Scan to Pay QR, not NFC.',
+					})
+					return
+				}
+				if (scan.status === 'aborted') {
+					setConsumeInFlightId(null)
+					return
+				}
+				if (scan.status === 'error') {
+					setConsumeInFlightId(null)
+					setCouponToast({ kind: 'error', text: scan.message })
+					return
+				}
+				const posOp = signerEOA ?? walletAddress?.trim() ?? ''
+				if (!posOp) {
+					setConsumeInFlightId(null)
+					setCouponToast({ kind: 'error', text: 'Terminal wallet not configured.' })
+					return
+				}
+				const surrenderResult = await completeCouponSurrenderViaOpenContainer({
+					assets,
+					coupon,
+					surrender: result.surrender,
+					openContainerPayload: scan.payload,
+					posOperator: posOp,
+					merchantInfraCard: infraCard || coupon.cardAddress,
+					claimSucceededId,
+				})
+				setConsumeInFlightId(null)
+				if (surrenderResult.status === 'error') {
+					setCouponToast({ kind: 'error', text: surrenderResult.message })
+					return
+				}
+				if (surrenderResult.status === 'needs_pay_qr') {
+					setCouponToast({ kind: 'error', text: 'Unexpected surrender state.' })
+					return
+				}
+				syncAssets(surrenderResult.assets)
+				if (surrenderResult.clearClaimSucceededId) setClaimSucceededId(null)
+				setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
+				return
+			}
+
 			setConsumeInFlightId(null)
 
 			if (result.status === 'error') {
@@ -200,7 +257,7 @@ export function CheckBalancePage() {
 			if (result.clearClaimSucceededId) setClaimSucceededId(null)
 			setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
 		},
-		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, syncAssets, walletAddress],
+		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, infraCard, syncAssets, walletAddress],
 	)
 
 	const runDeductFromReadBalance = useCallback(

@@ -713,7 +713,10 @@ export async function postAAtoEOA(body: {
 	merchantInfraCard: string
 	/** POS terminal EOA → indexer `subordinate` / `accountActionIds(POS)` for `/history`. */
 	posOperator: string
-	chargeBill: Record<string, string | number>
+	chargeBill?: Record<string, string | number>
+	forText?: string
+	couponOpenContainerSurrender?: boolean
+	couponBurnUserEOA?: string
 }): Promise<PostAAtoEOAResult | null> {
 	try {
 		const posOp = body.posOperator.trim()
@@ -723,7 +726,12 @@ export async function postAAtoEOA(body: {
 			currencyAmount: body.currencyAmount,
 			merchantCardAddress: body.merchantInfraCard.trim(),
 			...(posOp.startsWith('0x') && posOp.length === 42 ? { posOperator: posOp } : {}),
-			...body.chargeBill,
+			...(body.chargeBill ?? {}),
+			...(body.forText?.trim() ? { forText: body.forText.trim() } : {}),
+			...(body.couponOpenContainerSurrender ? { couponOpenContainerSurrender: true } : {}),
+			...(body.couponBurnUserEOA?.trim() && isPlausibleEvmAddress(body.couponBurnUserEOA)
+				? { couponBurnUserEOA: body.couponBurnUserEOA.trim() }
+				: {}),
 		}
 		const res = await fetch(`${BEAMIO_API}/api/AAtoEOA`, {
 			method: 'POST',
@@ -936,7 +944,10 @@ export interface CardCouponPosClaimSubmitResult {
 
 export interface CardCouponPosConsumePrepareResult {
 	success: boolean
+	useOpenContainerSurrender?: boolean
 	cardAddress?: string
+	userEOA?: string
+	userAccount?: string
 	data?: string
 	deadline?: number
 	nonce?: string
@@ -1188,7 +1199,10 @@ export async function cardCouponPosConsumePrepare(params: {
 				: Number(String(deadlineRaw ?? '')) || undefined
 		return {
 			success: ok,
+			useOpenContainerSurrender: json.useOpenContainerSurrender === true,
 			cardAddress: String(json.cardAddress ?? '').trim() || undefined,
+			userEOA: String(json.userEOA ?? '').trim() || undefined,
+			userAccount: String(json.userAccount ?? json.targetAddress ?? '').trim() || undefined,
 			data: String(json.data ?? '').trim() || undefined,
 			deadline: deadline && deadline > 0 ? deadline : undefined,
 			nonce: String(json.nonce ?? '').trim() || undefined,
