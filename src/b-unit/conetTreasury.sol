@@ -122,6 +122,16 @@ contract ConetTreasury {
     event GBRevokeVoted(bytes32 indexed txHash, address indexed miner, uint256 voteCount);
     event GBRevokeExecuted(bytes32 indexed txHash, address from, uint256 amountGB18);
     event PeerModuleUpdated(address indexed oldPeer, address indexed newPeer);
+    event AssetBridgeModuleUpdated(address indexed oldBridge, address indexed newBridge);
+    event LiquidityStakingModuleUpdated(address indexed oldModule, address indexed newModule);
+    event ERC20CreatedByBridge(
+        address indexed token,
+        string name,
+        string symbol,
+        uint8 decimals,
+        address indexed baseToken,
+        bytes32 indexed salt
+    );
     /// @dev 任意 ERC20 出金：miner 2/3 通过后从本合约余额 transfer
     event Erc20TransferProposalCreated(
         bytes32 indexed txHash,
@@ -151,8 +161,13 @@ contract ConetTreasury {
     error EmptyTokenMetadata();
     error InsufficientBalance();
     error TransferFailed();
+    error NotAssetBridge();
+    error TokenDeploymentFailed();
+    error NotLiquidityStakingModule();
 
     address public peerModule;
+    address public assetBridgeModule;
+    address public liquidityStakingModule;
     address public bunitAirdrop;
     address public conetGB;
 
@@ -350,6 +365,51 @@ contract ConetTreasury {
         emit PeerModuleUpdated(old, _peer);
     }
 
+    function setAssetBridgeModule(address bridge) external onlyMiner {
+        if (bridge == address(0)) revert InvalidTarget();
+        address old = assetBridgeModule;
+        assetBridgeModule = bridge;
+        emit AssetBridgeModuleUpdated(old, bridge);
+    }
+
+    /**
+     * @dev Timed liquidity staking module. The module never receives mint/burn
+     * authority directly; this treasury remains the sole FactoryERC20 minter.
+     */
+    function setLiquidityStakingModule(address module) external onlyMiner {
+        if (module == address(0)) revert InvalidTarget();
+        address old = liquidityStakingModule;
+        liquidityStakingModule = module;
+        emit LiquidityStakingModuleUpdated(old, module);
+    }
+
+    /**
+     * @dev Deployment path reserved for the cross-chain bridge governance
+     * contract. The created token is minter-controlled by this treasury.
+     */
+    function createERC20FromBridge(
+        string calldata name_,
+        string calldata symbol_,
+        uint8 decimals_,
+        address baseToken,
+        bytes32 salt
+    ) external returns (address token) {
+        if (msg.sender != assetBridgeModule) revert NotAssetBridge();
+        if (bytes(name_).length == 0 || bytes(symbol_).length == 0) revert EmptyTokenMetadata();
+        bytes memory initCode = abi.encodePacked(
+            type(FactoryERC20).creationCode,
+            abi.encode(name_, symbol_, decimals_, address(this))
+        );
+        assembly {
+            token := create2(0, add(initCode, 0x20), mload(initCode), salt)
+        }
+        if (token == address(0)) revert TokenDeploymentFailed();
+        _createdTokens.push(token);
+        _isCreatedToken[token] = true;
+        _baseTokenOf[token] = baseToken;
+        emit ERC20CreatedByBridge(token, name_, symbol_, decimals_, baseToken, salt);
+    }
+
     function mintFactoryToken(address token, address to, uint256 amount) external {
         if (msg.sender != peerModule) revert NotMiner();
         IMintableERC20(token).mint(to, amount);
@@ -357,6 +417,20 @@ contract ConetTreasury {
 
     function burnFactoryFrom(address token, address account, uint256 amount) external {
         if (msg.sender != peerModule) revert NotMiner();
+        IBurnableFactoryERC20(token).burnFrom(account, amount);
+    }
+
+    function mintFactoryTokenLiquidityStaking(address token, address to, uint256 amount) external {
+        if (msg.sender != liquidityStakingModule) revert NotLiquidityStakingModule();
+        if (!_isCreatedToken[token]) revert TokenNotInList();
+        if (to == address(0) || amount == 0) revert InvalidTarget();
+        IMintableERC20(token).mint(to, amount);
+    }
+
+    function burnFactoryFromLiquidityStaking(address token, address account, uint256 amount) external {
+        if (msg.sender != liquidityStakingModule) revert NotLiquidityStakingModule();
+        if (!_isCreatedToken[token]) revert TokenNotInList();
+        if (account == address(0) || amount == 0) revert InvalidTarget();
         IBurnableFactoryERC20(token).burnFrom(account, amount);
     }
 

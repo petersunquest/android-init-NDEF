@@ -7,6 +7,7 @@
   "external_url": "https://beamio.app",
   "links": {
     "homepage": "https://beamio.app",
-    "explorer_conet": "https://mainnet.conet.network/token/0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae"
+    "explorer_conet": "https://mainnet.conet.network/token/0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+    "explorer_base": "https://basescan.org/token/0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae"
   }
 }

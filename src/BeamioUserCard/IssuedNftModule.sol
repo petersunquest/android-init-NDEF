@@ -5,6 +5,7 @@ import "./Errors.sol";
 import "./IssuedNftStorage.sol";
 import "./BeamioERC1155Logic.sol";
 import "./BeamioUserCardModuleMintLib.sol";
+import "./IBeamioUserCardSelfDelegate.sol";
 import "../contracts/token/ERC1155/ERC1155.sol";
 
 interface IUserCardCtx {
@@ -137,8 +138,30 @@ contract BeamioUserCardIssuedNftModuleV1 is ERC1155 {
         if (maxSupply == 0) revert UC_InvalidTokenId(tokenId, 0);
         _requireRealIssuedNft(tokenId);
 
-        BeamioUserCardModuleMintLib.cardBurn(holder, tokenId, amount);
+        _cardBurnWithLegacyFallback(holder, tokenId, amount);
         emit IssuedNftBurned(tokenId, holder, amount);
+    }
+
+    /// @dev New cards expose `cardSelfBurn` so `_update` maintains TotalSupplyStorage. Legacy cards
+    ///      predating that hook fall back to module `_burn` in delegatecall context (same storage).
+    function _cardBurnWithLegacyFallback(address from, uint256 id, uint256 amount) internal {
+        if (amount == 0) return;
+        try IBeamioUserCardSelfDelegate(address(this)).cardSelfBurn(from, id, amount) {
+            return;
+        } catch (bytes memory reason) {
+            if (reason.length >= 4) {
+                bytes4 sel;
+                assembly {
+                    sel := mload(add(reason, 32))
+                }
+                if (sel != BM_CallFailed.selector) {
+                    assembly {
+                        revert(add(reason, 32), mload(reason))
+                    }
+                }
+            }
+            _burn(from, id, amount);
+        }
     }
 
     /// @notice Validate and record mint; card does _mint(acct, tokenId, amount) after.

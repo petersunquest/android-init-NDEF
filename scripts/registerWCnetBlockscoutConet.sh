@@ -4,16 +4,12 @@
 # 有 icon 时: WCNET_TOKEN_ICON_URL=https://mainnet.conet.network/wcnet/erc20/wCNET-256.png bash scripts/registerWCnetBlockscoutConet.sh
 set -euo pipefail
 HOST="${WCNET_BLOCKSCOUT_HOST:-38.102.126.30}"
-ADDR="${WCNET_ADDRESS:-0x35bFAD2832E916e54474c4ca9DBd71843C539503}"
+ADDR="${WCNET_ADDRESS:-0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21}"
 ADDR_HEX="${ADDR#0x}"
 ADDR_HEX="$(echo "$ADDR_HEX" | tr '[:upper:]' '[:lower:]')"
-ICON_URL="${WCNET_TOKEN_ICON_URL:-}"
+ICON_URL="${WCNET_TOKEN_ICON_URL:-https://mainnet.conet.network/wcnet/erc20/wCNET-256.png}"
 
-if [[ -n "$ICON_URL" ]]; then
-  ICON_SQL="'${ICON_URL}'"
-else
-  ICON_SQL="NULL"
-fi
+ICON_SQL="'${ICON_URL}'"
 
 ssh -o BatchMode=yes "root@${HOST}" bash -s <<REMOTE
 set -euo pipefail

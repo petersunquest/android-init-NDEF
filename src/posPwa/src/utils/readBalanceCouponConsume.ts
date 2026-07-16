@@ -1,4 +1,5 @@
 import {
+	cardCouponPosConsumeNfcSign,
 	cardCouponPosConsumePrepare,
 	cardCouponPosConsumeSubmit,
 	postAAtoEOA,
@@ -9,6 +10,7 @@ import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { merchantCouponRowId, readBalanceClaimUserEoa } from '@/utils/readBalanceCouponClaim'
 import { selectOpenContainerPayloadForMerchantCard } from '@/utils/chargeExecute'
+import { checkBalanceUsesNfcCouponWorkflow } from '@/utils/readBalanceCouponDisplay'
 
 export type OpenContainerSurrenderPrep = {
 	cardAddress: string
@@ -47,11 +49,8 @@ export function applyConsumeSuccessToAssets(
 	if (idx >= 0) {
 		const old = Number.parseInt(balances[idx].balance.trim(), 10) || 0
 		const nextBal = Math.max(0, old - 1)
-		if (nextBal === 0) {
-			balances.splice(idx, 1)
-		} else {
-			balances[idx] = { ...balances[idx], balance: String(nextBal) }
-		}
+		// Keep the row at 0 so Check Balance can show the consumed checkmark state.
+		balances[idx] = { ...balances[idx], balance: String(nextBal) }
 	}
 	next.merchantCouponBalances = balances.length ? balances : undefined
 	return next
@@ -128,7 +127,79 @@ export async function completeCouponSurrenderViaOpenContainer(params: {
 	}
 }
 
-/** Full POS consume flow: prepare → burn OR openContainer surrender (reuse entry offline QR when present). */
+/**
+ * Check Balance NFC / Linked hosted key → API signs OpenContainer (fresh openRelayedNonce).
+ * Reuses session uid/tagIdHex — no second NFC tap.
+ */
+export async function completeCouponSurrenderViaNfcHostedKey(params: {
+	assets: UIDAssetsResult
+	coupon: MerchantCouponBalanceItem
+	surrender: OpenContainerSurrenderPrep
+	posOperator: string
+	merchantInfraCard: string
+	signerEOA?: string | null
+	uid?: string | null
+	tagIdHex?: string | null
+	claimSucceededId?: string | null
+}): Promise<ConsumeMerchantCouponResult> {
+	const {
+		assets,
+		coupon,
+		surrender,
+		posOperator,
+		merchantInfraCard,
+		signerEOA,
+		uid,
+		tagIdHex,
+		claimSucceededId,
+	} = params
+
+	const signed = await cardCouponPosConsumeNfcSign({
+		cardAddress: surrender.cardAddress,
+		couponId: surrender.couponId,
+		userEOA: surrender.userEOA,
+		posOperator,
+		signerEOA: signerEOA ?? undefined,
+		uid: uid?.trim() || assets.uid,
+		tagIdHex: tagIdHex?.trim() || assets.tagIdHex,
+		tokenId: surrender.tokenId,
+		amount: surrender.amount,
+	})
+	if (!signed) {
+		return { status: 'error', message: 'NFC coupon surrender failed.' }
+	}
+	if (!signed.success || !signed.openContainerPayload) {
+		return { status: 'error', message: signed.error ?? 'NFC coupon surrender failed.' }
+	}
+
+	const cardCurrency =
+		assets.cards?.find(
+			(c) => normalizeAddress(c.cardAddress ?? '') === normalizeAddress(surrender.cardAddress),
+		)?.cardCurrency?.trim() || 'USD'
+
+	const pay = await postAAtoEOA({
+		openContainerPayload: signed.openContainerPayload,
+		currency: cardCurrency,
+		currencyAmount: '0.00',
+		merchantInfraCard: merchantInfraCard.trim() || surrender.cardAddress,
+		posOperator,
+		forText: 'POS coupon surrender',
+		couponOpenContainerSurrender: true,
+		couponBurnUserEOA: surrender.userEOA,
+	})
+	if (!pay?.success) {
+		return { status: 'error', message: pay?.error ?? 'Coupon surrender failed.' }
+	}
+
+	const rowId = merchantCouponRowId(coupon.cardAddress, coupon.tokenId)
+	return {
+		status: 'success',
+		assets: applyConsumeSuccessToAssets(assets, coupon),
+		clearClaimSucceededId: claimSucceededId === rowId,
+	}
+}
+
+/** Full POS consume flow: burn OR NFC hosted OpenContainer OR Pay QR surrender. */
 export async function consumeMerchantCouponFromRead(params: {
 	assets: UIDAssetsResult
 	coupon: MerchantCouponBalanceItem
@@ -137,6 +208,8 @@ export async function consumeMerchantCouponFromRead(params: {
 	storedOfflineContainerPayload?: Record<string, unknown> | null
 	posOperator?: string | null
 	merchantInfraCard?: string | null
+	/** Physical NFC scan from Check Balance entry (optional; assets.uid may already be set). */
+	nfcScan?: { uid?: string } | null
 }): Promise<ConsumeMerchantCouponResult> {
 	const {
 		assets,
@@ -146,6 +219,7 @@ export async function consumeMerchantCouponFromRead(params: {
 		storedOfflineContainerPayload,
 		posOperator,
 		merchantInfraCard,
+		nfcScan,
 	} = params
 	const user = readBalanceClaimUserEoa(assets)
 	if (!isPlausibleEvmAddress(user)) {
@@ -183,6 +257,22 @@ export async function consumeMerchantCouponFromRead(params: {
 			tokenId,
 			amount,
 		}
+
+		const viaNfcHosted = checkBalanceUsesNfcCouponWorkflow({ nfcScan, assets })
+		if (viaNfcHosted && posOperator?.trim()) {
+			return completeCouponSurrenderViaNfcHostedKey({
+				assets,
+				coupon,
+				surrender,
+				posOperator: posOperator.trim(),
+				merchantInfraCard: merchantInfraCard?.trim() || cardAddress,
+				signerEOA,
+				uid: nfcScan?.uid ?? assets.uid,
+				tagIdHex: assets.tagIdHex,
+				claimSucceededId,
+			})
+		}
+
 		if (storedOfflineContainerPayload && posOperator?.trim()) {
 			return completeCouponSurrenderViaOpenContainer({
 				assets,

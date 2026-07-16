@@ -178,6 +178,10 @@ const CONFIG = {
     sourceKey: "project/src/b-unit/conetTreasury.sol",
     contractName: "ConetTreasury",
   },
+  ConetTreasuryLiquidityStaking: {
+    sourceKey: "project/src/b-unit/ConetTreasuryLiquidityStaking.sol",
+    contractName: "ConetTreasuryLiquidityStaking",
+  },
   ConetTreasuryPeer: {
     sourceKey: "project/src/b-unit/ConetTreasuryPeer.sol",
     contractName: "ConetTreasuryPeer",
@@ -217,6 +221,10 @@ const CONFIG = {
   ConetLabMiningPool: {
     sourceKey: "project/src/mainnet/ConetLabMiningPool.sol",
     contractName: "ConetLabMiningPool",
+  },
+  ConetTeamCnetHold: {
+    sourceKey: "project/src/mainnet/ConetTeamCnetHold.sol",
+    contractName: "ConetTeamCnetHold",
   },
 };
 

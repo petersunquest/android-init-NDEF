@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 上传 CONET USDC 静态资源到 Blockscout 主机 (.30) 镜像 + API 主机 (.50) 权威 endpoint。
+# 上传 CONET USDC 静态资源到 Blockscout 主机 (.30)；.50 仅保留兼容镜像。
 # 运行: bash scripts/deployConetUsdcAssets.sh
 set -euo pipefail
 HOST_30="${USDC_ASSETS_HOST:-38.102.126.30}"
@@ -9,8 +9,14 @@ ASSET_DIR="$ROOT/deployments/assets/usdc/erc20"
 SRC_DIR="$ROOT/deployments/assets/usdc"
 REMOTE_DIR="/opt/conet-scan/assets/usdc/erc20"
 REMOTE_DIR_50="/var/www/assets/usdc/erc20"
+SOURCE_IMAGE="${USDC_SOURCE_IMAGE:-}"
 
 mkdir -p "$ASSET_DIR"
+if [[ -n "$SOURCE_IMAGE" ]]; then
+  [[ -f "$SOURCE_IMAGE" ]] || { echo "找不到 USDC_SOURCE_IMAGE: $SOURCE_IMAGE"; exit 1; }
+  cp -f "$SOURCE_IMAGE" "$ASSET_DIR/USDC.png"
+  cp -f "$SOURCE_IMAGE" "$ASSET_DIR/USDC-256.png"
+fi
 for f in USDC.png USDC-256.png metadata.json; do
   [[ -f "$ASSET_DIR/$f" ]] || { echo "缺少 $ASSET_DIR/$f"; exit 1; }
 done
@@ -46,7 +52,7 @@ else
 fi
 REMOTE
 
-echo "==> scp -> root@${HOST_50}:${REMOTE_DIR_50} (assets.conet.network)"
+echo "==> scp -> root@${HOST_50}:${REMOTE_DIR_50} (legacy mirror)"
 ssh -o BatchMode=yes "root@${HOST_50}" "mkdir -p ${REMOTE_DIR_50}"
 scp -o BatchMode=yes \
   "$ASSET_DIR/USDC.png" \
@@ -56,4 +62,4 @@ scp -o BatchMode=yes \
 
 echo "✅ USDC assets deployed"
 echo "   mirror: https://mainnet.conet.network/usdc/erc20/USDC-256.png"
-echo "   canonical: https://assets.conet.network/usdc/erc20/metadata.json"
+echo "   metadata: https://mainnet.conet.network/usdc/erc20/metadata.json"

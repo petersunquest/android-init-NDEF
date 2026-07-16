@@ -26,12 +26,13 @@ const deploymentsDir = path.join(root, "deployments");
 /** 跨链同址栈（CoNET + Base CREATE2） */
 const TREASURY = getAddress("0xa311c8fBE7CafC611603Ee925465A62493B73B30");
 const PEER = getAddress("0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5");
-const WCNET = getAddress("0x35bFAD2832E916e54474c4ca9DBd71843C539503");
+/** 新版 UUPS wCNET proxy；旧非 UUPS 地址不得再作为 canonical。 */
+const WCNET = getAddress("0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21");
+const WCNET_IMPL = getAddress("0x5BD672918E4a2F37109b308f26125690b2861C99");
 const CONET_USDC = getAddress("0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3");
 const BUINT = getAddress("0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae");
 const GB_TOKEN = getAddress("0xC3EF02DaE632b4C10abB66e07d92a387c10838D8");
 const INITIAL_MINER = getAddress("0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1");
-const CONET_USDC_IMPL = getAddress("0x81880438bF3E7672192771EB1599C15d2014F166");
 
 const STACK = [
   {
@@ -49,16 +50,9 @@ const STACK = [
     constructorValues: [TREASURY],
   },
   {
-    exportKey: "FactoryERC20",
-    label: "wCNET",
-    address: WCNET,
-    constructorTypes: ["string", "string", "uint8", "address"],
-    constructorValues: ["Wrapped CoNET", "wCNET", 18, TREASURY],
-  },
-  {
     exportKey: "FactoryERC20Upgradeable",
-    label: "CONET-USDC-impl",
-    address: CONET_USDC_IMPL,
+    label: "wCNET",
+    address: WCNET_IMPL,
     constructorTypes: [],
     constructorValues: [],
   },

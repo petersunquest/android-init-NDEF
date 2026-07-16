@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 上传 wCNET 静态资源到 Blockscout 主机 (.30) 镜像 + API 主机 (.50)。
+# 上传 wCNET 静态资源到 Blockscout 主机 (.30)；.50 仅保留兼容镜像。
 # 运行: bash scripts/deployConetWcnetAssets.sh
 set -euo pipefail
 HOST_30="${WCNET_ASSETS_HOST:-38.102.126.30}"
@@ -8,8 +8,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ASSET_DIR="$ROOT/deployments/assets/wcnet/erc20"
 REMOTE_DIR="/opt/conet-scan/assets/wcnet/erc20"
 REMOTE_DIR_50="/var/www/assets/wcnet/erc20"
+SOURCE_IMAGE="${WCNET_SOURCE_IMAGE:-}"
 
 mkdir -p "$ASSET_DIR"
+if [[ -n "$SOURCE_IMAGE" ]]; then
+  [[ -f "$SOURCE_IMAGE" ]] || { echo "找不到 WCNET_SOURCE_IMAGE: $SOURCE_IMAGE"; exit 1; }
+  cp -f "$SOURCE_IMAGE" "$ASSET_DIR/wCNET.png"
+  cp -f "$SOURCE_IMAGE" "$ASSET_DIR/wCNET-256.png"
+fi
 for f in wCNET.png wCNET-256.png metadata.json; do
   [[ -f "$ASSET_DIR/$f" ]] || { echo "缺少 $ASSET_DIR/$f"; exit 1; }
 done
@@ -73,4 +79,4 @@ scp -o BatchMode=yes \
 
 echo "✅ wCNET assets deployed"
 echo "   mirror: https://mainnet.conet.network/wcnet/erc20/wCNET-256.png"
-echo "   canonical: https://assets.conet.network/wcnet/erc20/metadata.json"
+echo "   metadata: https://mainnet.conet.network/wcnet/erc20/metadata.json"

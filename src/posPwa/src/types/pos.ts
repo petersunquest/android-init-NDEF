@@ -132,6 +132,8 @@ export interface UIDAssetsResult {
 	beamioTag?: string
 	uid?: string
 	tagIdHex?: string
+	/** True when EOA has Link App NFC with API-hosted private key (QR → NFC claim/display workflow). */
+	nfcApiHostedSigning?: boolean
 	cardAddress?: string
 	points?: string
 	points6?: string

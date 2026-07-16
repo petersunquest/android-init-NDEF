@@ -3,10 +3,11 @@
   "symbol": "wCNET",
   "decimals": 18,
   "description": "Wrapped CoNET (wCNET) — 18-decimal ERC20 peg of native CNET on CoNET L1 and Base. Mint/burn via ConetTreasuryPeer; CREATE2 same address cross-chain.",
-  "image": "https://assets.conet.network/wcnet/erc20/wCNET.png",
+  "image": "https://mainnet.conet.network/wcnet/erc20/wCNET.png",
   "external_url": "https://conet.network",
   "links": {
     "homepage": "https://conet.network",
-    "explorer_conet": "https://mainnet.conet.network/token/0x35bFAD2832E916e54474c4ca9DBd71843C539503"
+    "explorer_conet": "https://mainnet.conet.network/token/0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21",
+    "explorer_base": "https://basescan.org/token/0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21"
   }
 }

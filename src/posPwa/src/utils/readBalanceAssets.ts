@@ -192,6 +192,7 @@ export function parseUIDAssetsResponse(json: unknown): UIDAssetsResult {
 		beamioTag: o.beamioTag != null ? String(o.beamioTag) : undefined,
 		uid: o.uid != null ? String(o.uid) : undefined,
 		tagIdHex: o.tagIdHex != null ? String(o.tagIdHex) : undefined,
+		nfcApiHostedSigning: o.nfcApiHostedSigning === true ? true : undefined,
 		cardAddress: o.cardAddress != null ? String(o.cardAddress) : undefined,
 		points: o.points != null ? String(o.points) : undefined,
 		points6: o.points6 != null ? String(o.points6) : undefined,

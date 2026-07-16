@@ -3,7 +3,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { network as networkModule } from "hardhat";
-import { BUINT_UUPS_PROXY_PREDICTED } from "./erc20UupsDeployConstants.js";
+import {
+  BUINT_UUPS_PROXY_PREDICTED,
+  WCNET_UUPS_PROXY_PREDICTED,
+} from "./erc20UupsDeployConstants.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADDR_JSON = path.join(__dirname, "..", "deployments", "conet-addresses.json");
@@ -18,7 +21,7 @@ async function main() {
   const { ethers } = await networkModule.connect();
   const tokens: [string, string][] = [
     ["conetUsdc", loadAddr("conetUsdc", "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134")],
-    ["wrappedConet", "0x9619eA6617fc8D7290Ee62FDAc0a9861B50fFb06"],
+    ["wrappedConet", loadAddr("wrappedConet", WCNET_UUPS_PROXY_PREDICTED)],
     ["BUint", loadAddr("BUint", BUINT_UUPS_PROXY_PREDICTED)],
     ["ConetGB1155", "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748"],
   ];

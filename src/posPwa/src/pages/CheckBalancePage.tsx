@@ -33,17 +33,21 @@ import {
 	readBalanceHasCouponClaimContext,
 } from '@/utils/readBalanceCouponClaim'
 import {
+	completeCouponSurrenderViaNfcHostedKey,
 	completeCouponSurrenderViaOpenContainer,
 	consumeMerchantCouponFromRead,
 } from '@/utils/readBalanceCouponConsume'
 import {
 	assetsForCheckBalanceCouponDisplay,
+	checkBalanceUsesNfcCouponWorkflow,
 	checkBalanceHasStoredValidOfflineContainer,
 	type CheckBalanceQrContext,
 } from '@/utils/readBalanceCouponDisplay'
 import { runPosChargeScanFlow } from '@/utils/posScanFlow'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa'
+import { formatCouponConsumeErrorMessage } from '@/utils/formatCouponConsumeErrorMessage'
+import { formatCouponClaimErrorMessage } from '@/utils/formatCouponClaimErrorMessage'
 
 export interface CheckBalanceLocationState {
 	assets?: UIDAssetsResult
@@ -52,7 +56,13 @@ export interface CheckBalanceLocationState {
 	merchantSupportsBurn?: boolean | null
 }
 
-type Phase = 'loading' | 'result' | 'deduct-amount' | 'deduct-executing' | 'deduct-success'
+type Phase =
+	| 'loading'
+	| 'result'
+	| 'deduct-amount'
+	| 'deduct-executing'
+	| 'deduct-success'
+	| 'consume-executing'
 
 /**
  * Entry from Home → loading until NFC/QR flow finishes, then result or return Home.
@@ -82,6 +92,7 @@ export function CheckBalancePage() {
 	const [claimInFlightId, setClaimInFlightId] = useState<string | null>(null)
 	const [claimSucceededId, setClaimSucceededId] = useState<string | null>(null)
 	const [consumeInFlightId, setConsumeInFlightId] = useState<string | null>(null)
+	const [consumeSucceededId, setConsumeSucceededId] = useState<string | null>(null)
 	const [deductProgress, setDeductProgress] = useState<DeductExecuteProgressPhase>('preparing')
 	const [deductKeypadAmount, setDeductKeypadAmount] = useState('')
 	const [deductSuccess, setDeductSuccess] = useState<DeductExecuteSuccess | null>(null)
@@ -92,7 +103,8 @@ export function CheckBalancePage() {
 
 	useEffect(() => {
 		if (!couponToast) return
-		const t = setTimeout(() => setCouponToast(null), 3500)
+		const ms = couponToast.kind === 'error' ? 6000 : 3500
+		const t = setTimeout(() => setCouponToast(null), ms)
 		return () => clearTimeout(t)
 	}, [couponToast])
 
@@ -201,7 +213,7 @@ export function CheckBalancePage() {
 			setClaimInFlightId(null)
 
 			if (result.status === 'error') {
-				setCouponToast({ kind: 'error', text: result.message })
+				setCouponToast({ kind: 'error', text: formatCouponClaimErrorMessage(result.message) })
 				return
 			}
 
@@ -221,86 +233,145 @@ export function CheckBalancePage() {
 			}
 			const rowId = merchantCouponRowId(coupon.cardAddress, coupon.tokenId)
 			setConsumeInFlightId(rowId)
+			setConsumeSucceededId(null)
+			setPhase('consume-executing')
 
-			const signerEOA = await resolvePosTerminalSignerEoa(walletAddress)
-			const posOp = signerEOA ?? walletAddress?.trim() ?? ''
-			const storedOfflinePayload = checkBalanceHasStoredValidOfflineContainer(qrClassification)
-				? qrClassification.offlineContainerPayload
-				: null
-			const result = await consumeMerchantCouponFromRead({
-				assets,
-				coupon,
-				signerEOA,
-				claimSucceededId,
-				storedOfflineContainerPayload: storedOfflinePayload,
-				posOperator: posOp || null,
-				merchantInfraCard: infraCard || coupon.cardAddress,
-			})
-
-			if (result.status === 'needs_pay_qr') {
-				setCouponToast({
-					kind: 'success',
-					text: 'Scan the customer Pay QR to complete coupon redeem.',
-				})
-				const scan = await runPosChargeScanFlow()
-				if (scan.status === 'nfc') {
-					setConsumeInFlightId(null)
+			const finishConsume = (result: {
+				status: 'success' | 'error'
+				message?: string
+				nextAssets?: UIDAssetsResult
+				clearClaim?: boolean
+			}) => {
+				setConsumeInFlightId(null)
+				setPhase('result')
+				if (result.status === 'error') {
 					setCouponToast({
 						kind: 'error',
-						text: 'Coupon redeem requires Scan to Pay QR, not NFC.',
+						text: formatCouponConsumeErrorMessage(result.message),
 					})
 					return
 				}
-				if (scan.status === 'aborted') {
-					setConsumeInFlightId(null)
-					return
-				}
-				if (scan.status === 'error') {
-					setConsumeInFlightId(null)
-					setCouponToast({ kind: 'error', text: scan.message })
-					return
-				}
-				if (!posOp) {
-					setConsumeInFlightId(null)
-					setCouponToast({ kind: 'error', text: 'Terminal wallet not configured.' })
-					return
-				}
-				const surrenderResult = await completeCouponSurrenderViaOpenContainer({
+				if (result.nextAssets) syncAssets(result.nextAssets)
+				if (result.clearClaim) setClaimSucceededId(null)
+				setConsumeSucceededId(rowId)
+			}
+
+			try {
+				const signerEOA = await resolvePosTerminalSignerEoa(walletAddress)
+				const posOp = signerEOA ?? walletAddress?.trim() ?? ''
+				const storedOfflinePayload = checkBalanceHasStoredValidOfflineContainer(qrClassification)
+					? qrClassification.offlineContainerPayload
+					: null
+				const result = await consumeMerchantCouponFromRead({
 					assets,
 					coupon,
-					surrender: result.surrender,
-					openContainerPayload: scan.payload,
-					posOperator: posOp,
-					merchantInfraCard: infraCard || coupon.cardAddress,
+					signerEOA,
 					claimSucceededId,
+					storedOfflineContainerPayload: storedOfflinePayload,
+					posOperator: posOp || null,
+					merchantInfraCard: infraCard || coupon.cardAddress,
+					nfcScan,
 				})
-				setConsumeInFlightId(null)
-				if (surrenderResult.status === 'error') {
-					setCouponToast({ kind: 'error', text: surrenderResult.message })
+
+				if (result.status === 'needs_pay_qr') {
+					setPhase('result')
+					setCouponToast({
+						kind: 'success',
+						text: 'Scan the customer Pay QR to complete coupon redeem.',
+					})
+					const scan = await runPosChargeScanFlow()
+					if (scan.status === 'nfc') {
+						if (!posOp) {
+							finishConsume({ status: 'error', message: 'Terminal wallet not configured.' })
+							return
+						}
+						const nfcUid =
+							scan.detail.queryUid?.trim() ||
+							scan.detail.tagUidHex?.trim() ||
+							assets.uid?.trim() ||
+							''
+						setPhase('consume-executing')
+						const nfcSurrender = await completeCouponSurrenderViaNfcHostedKey({
+							assets,
+							coupon,
+							surrender: result.surrender,
+							posOperator: posOp,
+							merchantInfraCard: infraCard || coupon.cardAddress,
+							signerEOA,
+							uid: nfcUid || null,
+							tagIdHex: assets.tagIdHex,
+							claimSucceededId,
+						})
+						if (nfcSurrender.status === 'error') {
+							finishConsume({ status: 'error', message: nfcSurrender.message })
+							return
+						}
+						if (nfcSurrender.status === 'needs_pay_qr') {
+							finishConsume({ status: 'error', message: 'Unexpected surrender state.' })
+							return
+						}
+						finishConsume({
+							status: 'success',
+							nextAssets: nfcSurrender.assets,
+							clearClaim: nfcSurrender.clearClaimSucceededId,
+						})
+						return
+					}
+					if (scan.status === 'aborted') {
+						setConsumeInFlightId(null)
+						setPhase('result')
+						return
+					}
+					if (scan.status === 'error') {
+						finishConsume({ status: 'error', message: scan.message })
+						return
+					}
+					if (!posOp) {
+						finishConsume({ status: 'error', message: 'Terminal wallet not configured.' })
+						return
+					}
+					setPhase('consume-executing')
+					const surrenderResult = await completeCouponSurrenderViaOpenContainer({
+						assets,
+						coupon,
+						surrender: result.surrender,
+						openContainerPayload: scan.payload,
+						posOperator: posOp,
+						merchantInfraCard: infraCard || coupon.cardAddress,
+						claimSucceededId,
+					})
+					if (surrenderResult.status === 'error') {
+						finishConsume({ status: 'error', message: surrenderResult.message })
+						return
+					}
+					if (surrenderResult.status === 'needs_pay_qr') {
+						finishConsume({ status: 'error', message: 'Unexpected surrender state.' })
+						return
+					}
+					finishConsume({
+						status: 'success',
+						nextAssets: surrenderResult.assets,
+						clearClaim: surrenderResult.clearClaimSucceededId,
+					})
 					return
 				}
-				if (surrenderResult.status === 'needs_pay_qr') {
-					setCouponToast({ kind: 'error', text: 'Unexpected surrender state.' })
+
+				if (result.status === 'error') {
+					finishConsume({ status: 'error', message: result.message })
 					return
 				}
-				syncAssets(surrenderResult.assets)
-				if (surrenderResult.clearClaimSucceededId) setClaimSucceededId(null)
-				setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
-				return
+
+				finishConsume({
+					status: 'success',
+					nextAssets: result.assets,
+					clearClaim: result.clearClaimSucceededId,
+				})
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err)
+				finishConsume({ status: 'error', message })
 			}
-
-			setConsumeInFlightId(null)
-
-			if (result.status === 'error') {
-				setCouponToast({ kind: 'error', text: result.message })
-				return
-			}
-
-			syncAssets(result.assets)
-			if (result.clearClaimSucceededId) setClaimSucceededId(null)
-			setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
 		},
-		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, infraCard, qrClassification, syncAssets, walletAddress],
+		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, infraCard, nfcScan, qrClassification, syncAssets, walletAddress],
 	)
 
 	const runDeductFromReadBalance = useCallback(
@@ -383,10 +454,22 @@ export function CheckBalancePage() {
 		)
 	}
 
+	if (phase === 'consume-executing') {
+		return (
+			<PosScanExecutingShell
+				title="Consume Coupon"
+				center={<PosTopupExecutingCard signingInProgress={false} />}
+			/>
+		)
+	}
+
 	const vm = readBalanceResultViewModel(assets, infraCard, pointSystemEnabled)
+	const entryViaNfc = checkBalanceUsesNfcCouponWorkflow({ nfcScan, assets })
 	const couponDisplayAssets = assetsForCheckBalanceCouponDisplay(assets, {
 		merchantSupportsBurn,
 		qrContext: qrClassification,
+		entryViaNfc,
+		consumeSucceededId,
 	})
 	const deductBusy =
 		claimInFlightId != null || consumeInFlightId != null || phase !== 'result'
@@ -398,6 +481,20 @@ export function CheckBalancePage() {
 	return (
 		<PosScreenShell bg="bg-[#F9F9FE]">
 			<div className="relative flex min-h-0 flex-1 flex-col">
+				{couponToast ? (
+					<div
+						className={`fixed left-4 right-4 z-30 rounded-2xl border px-4 py-3 text-sm font-semibold shadow-md ${
+							couponToast.kind === 'success'
+								? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+								: 'border-red-200 bg-red-50 text-red-900'
+						}`}
+						style={{ top: 'max(3.25rem, calc(env(safe-area-inset-top, 0px) + 2.5rem))' }}
+						role="alert"
+						aria-live="assertive"
+					>
+						{couponToast.text}
+					</div>
+				) : null}
 				<BeamioCircularBackButton
 					onClick={onBack}
 					className="absolute left-2 top-[max(0.375rem,env(safe-area-inset-top))] z-10"
@@ -431,21 +528,10 @@ export function CheckBalancePage() {
 							claimInFlightId={claimInFlightId}
 							claimSucceededId={claimSucceededId}
 							consumeInFlightId={consumeInFlightId}
+							consumeSucceededId={consumeSucceededId}
 							onClaimCoupon={(coupon) => void handleClaimCoupon(coupon)}
 							onConsumeCoupon={(coupon) => void handleConsumeCoupon(coupon)}
 						/>
-						{couponToast ? (
-							<div
-								className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
-									couponToast.kind === 'success'
-										? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-										: 'border-red-200 bg-red-50 text-red-800'
-								}`}
-								role="status"
-							>
-								{couponToast.text}
-							</div>
-						) : null}
 					</div>
 				</PosScreenMain>
 			</div>

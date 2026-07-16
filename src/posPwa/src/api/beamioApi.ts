@@ -983,6 +983,18 @@ export interface CardCouponPosConsumeSubmitResult {
 	error?: string
 }
 
+export interface CardCouponPosConsumeNfcSignResult {
+	success: boolean
+	openContainerPayload?: Record<string, unknown>
+	cardAddress?: string
+	userEOA?: string
+	userAccount?: string
+	tokenId?: string
+	amount?: string
+	posOperator?: string
+	error?: string
+}
+
 export interface BurnChargeRewardPrepareResult {
 	success: boolean
 	cardAddr?: string
@@ -1134,9 +1146,10 @@ export async function cardCouponPosClaimPrepare(params: {
 	}
 }
 
-/** Submit admin-signed ExecuteForAdmin for open-coupon claim. */
+/** Submit admin-signed auth proof for open-coupon claim (Master uses claimIssuedNftForUserByPosAdmin). */
 export async function cardCouponPosClaimSubmit(params: {
 	cardAddress: string
+	couponId: string
 	data: string
 	deadline: number
 	nonce: string
@@ -1144,14 +1157,16 @@ export async function cardCouponPosClaimSubmit(params: {
 	signerEOA?: string
 }): Promise<CardCouponPosClaimSubmitResult | null> {
 	const cardAddress = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
 	const data = params.data.trim()
 	const nonce = params.nonce.trim()
 	const adminSignature = params.adminSignature.trim()
-	if (!isPlausibleEvmAddress(cardAddress) || !data || !nonce || !adminSignature) {
+	if (!isPlausibleEvmAddress(cardAddress) || !couponId || !data || !nonce || !adminSignature) {
 		return { success: false, error: 'Invalid claim submit payload.' }
 	}
 	const body: Record<string, string | number> = {
 		cardAddress,
+		couponId,
 		data,
 		deadline: params.deadline,
 		nonce,
@@ -1277,6 +1292,76 @@ export async function cardCouponPosConsumeSubmit(params: {
 		return {
 			success: ok,
 			txHash,
+			error: String(json.error ?? '').trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Legacy card: sign OpenContainer coupon surrender with Check Balance NFC / Link hosted key
+ * (fresh chain openRelayedNonce — reuses session uid/tagId, not a second tap).
+ */
+export async function cardCouponPosConsumeNfcSign(params: {
+	cardAddress: string
+	couponId: string
+	userEOA: string
+	posOperator: string
+	signerEOA?: string
+	uid?: string
+	tagIdHex?: string
+	tokenId?: string
+	amount?: string
+}): Promise<CardCouponPosConsumeNfcSignResult | null> {
+	const card = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
+	const userEOA = params.userEOA.trim()
+	const posOperator = params.posOperator.trim()
+	if (
+		!isPlausibleEvmAddress(card) ||
+		!isPlausibleEvmAddress(userEOA) ||
+		!isPlausibleEvmAddress(posOperator) ||
+		!couponId
+	) {
+		return { success: false, error: 'Invalid NFC consume payload.' }
+	}
+	const body: Record<string, string> = {
+		cardAddress: card,
+		couponId,
+		userEOA,
+		posOperator,
+		amount: (params.amount ?? '1').trim() || '1',
+	}
+	const signerEOA = params.signerEOA?.trim()
+	const tokenId = params.tokenId?.trim()
+	const uid = params.uid?.trim()
+	const tagIdHex = params.tagIdHex?.trim()
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	if (tokenId) body.tokenId = tokenId
+	if (uid) body.uid = uid
+	if (tagIdHex) body.tagIdHex = tagIdHex
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumeNfcSign`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		const payload = json.openContainerPayload
+		return {
+			success: ok,
+			openContainerPayload:
+				payload && typeof payload === 'object' && !Array.isArray(payload)
+					? (payload as Record<string, unknown>)
+					: undefined,
+			cardAddress: String(json.cardAddress ?? '').trim() || undefined,
+			userEOA: String(json.userEOA ?? '').trim() || undefined,
+			userAccount: String(json.userAccount ?? '').trim() || undefined,
+			tokenId: String(json.tokenId ?? '').trim() || undefined,
+			amount: String(json.amount ?? '').trim() || undefined,
+			posOperator: String(json.posOperator ?? '').trim() || undefined,
 			error: String(json.error ?? '').trim() || (!ok ? `HTTP ${res.status}` : undefined),
 		}
 	} catch {

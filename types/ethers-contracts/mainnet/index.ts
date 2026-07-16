@@ -28,6 +28,7 @@ export type { test };
 export type { AccountRegistry } from './AccountRegistry.js';
 export type { AddressPGP } from './AddressPGP.js';
 export type { ConetLabMiningPool } from './ConetLabMiningPool.js';
+export type { ConetTeamCnetHold } from './ConetTeamCnetHold.js';
 export type { LayerMinusNodeRestart_V2 } from './LayerMinusNodeRestart_V2.js';
 export type { MerchantPOSManagement } from './MerchantPOSManagement.js';
 export type { ValidatorDepositRedeemExitLib } from './ValidatorDepositRedeemExitLib.js';

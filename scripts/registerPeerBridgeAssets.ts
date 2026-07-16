@@ -57,8 +57,20 @@ function parsePeerChainIds(localChainId: bigint): bigint[] {
   throw new Error(`请设置 PEER_CHAIN_IDS（当前 chainId ${localChainId} 无默认对端）`);
 }
 
-function resolveWcnetAddress(ethers: { getAddress: (a: string) => string }): string {
-  return ethers.getAddress(process.env.WCNET_ADDRESS?.trim() || NATIVE_CROSS_CHAIN_WCNET);
+function readBridgeAssetDeployment(): Record<string, unknown> {
+  const file = path.join(__dirname, "..", "deployments", "conet-treasury-bridge-assets.json");
+  if (!fs.existsSync(file)) return {};
+  const value = JSON.parse(fs.readFileSync(file, "utf8"));
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function resolveWcnetAddress(
+  ethers: { getAddress: (a: string) => string },
+  deployment: Record<string, unknown>
+): string {
+  return ethers.getAddress(
+    process.env.WCNET_ADDRESS?.trim() || (deployment.wcnet as string) || NATIVE_CROSS_CHAIN_WCNET
+  );
 }
 
 /** 本链 canonical USDC */
@@ -103,8 +115,11 @@ async function main() {
   console.log("peer:", peerAddr);
   console.log("peerChainIds:", peerChainIds.map(String).join(", "));
 
-  const gbToken = ethers.getAddress(process.env.GB_TOKEN_ERC20?.trim() || NATIVE_CROSS_CHAIN_GB);
-  const buintToken = ethers.getAddress(process.env.BUINT_ADDRESS?.trim() || NATIVE_CROSS_CHAIN_BUINT);
+  const bridgeAssets = readBridgeAssetDeployment();
+  const resolvedGbToken = process.env.GB_TOKEN_ERC20?.trim() || (bridgeAssets.gb as string) || NATIVE_CROSS_CHAIN_GB;
+  const resolvedBuintToken = process.env.BUINT_ADDRESS?.trim() || (bridgeAssets.buint as string) || NATIVE_CROSS_CHAIN_BUINT;
+  const gbToken = ethers.getAddress(resolvedGbToken);
+  const buintToken = ethers.getAddress(resolvedBuintToken);
   const localUsdc = resolveLocalUsdc(ethers, net.chainId);
   const peerUsdc = resolvePeerUsdc(ethers, net.chainId);
 
@@ -127,7 +142,7 @@ async function main() {
     console.log("   wrappedConet:", await peer.wrappedConet());
   }
 
-  const wcnetToken = resolveWcnetAddress(ethers);
+  const wcnetToken = resolveWcnetAddress(ethers, bridgeAssets);
   const ids = peerChainIds.map((id) => id.toString());
 
   if (useNative) {

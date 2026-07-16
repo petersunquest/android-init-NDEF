@@ -401,7 +401,7 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
             globalStatTokenId = UserCumulativeStatLib.globalStatTokenId(metricKind);
             uint256 bal = balanceOf(wallet, globalStatTokenId);
             if (delta > bal) revert UC_InsufficientBalance(wallet, globalStatTokenId, bal, delta);
-            BeamioUserCardModuleMintLib.cardBurn(wallet, globalStatTokenId, delta);
+            _cardBurnWithLegacyFallback(wallet, globalStatTokenId, delta);
             scopedStatTokenId = 0;
             emit UserCumulativeStatRevoked(wallet, metricKind, targetKind, 0, globalStatTokenId, 0, delta);
             return (globalStatTokenId, 0);
@@ -411,21 +411,21 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
         {
             uint256 balG = balanceOf(wallet, globalStatTokenId);
             if (delta > balG) revert UC_InsufficientBalance(wallet, globalStatTokenId, balG, delta);
-            BeamioUserCardModuleMintLib.cardBurn(wallet, globalStatTokenId, delta);
+            _cardBurnWithLegacyFallback(wallet, globalStatTokenId, delta);
         }
 
         if (targetKind == UserCumulativeStatLib.TARGET_MERCHANT_CARD_COUPON) {
             scopedStatTokenId = UserCumulativeStatLib.merchantCardStatTokenId(metricKind);
             uint256 balS = balanceOf(wallet, scopedStatTokenId);
             if (delta > balS) revert UC_InsufficientBalance(wallet, scopedStatTokenId, balS, delta);
-            BeamioUserCardModuleMintLib.cardBurn(wallet, scopedStatTokenId, delta);
+            _cardBurnWithLegacyFallback(wallet, scopedStatTokenId, delta);
         } else if (targetKind == UserCumulativeStatLib.TARGET_ISSUED_COUPON) {
             _requireRealIssuedNft(issuedParentId);
             scopedStatTokenId = UserCumulativeStatLib.issuedCouponStatTokenId(issuedParentId, metricKind);
             _requireStatToken(scopedStatTokenId);
             uint256 balS = balanceOf(wallet, scopedStatTokenId);
             if (delta > balS) revert UC_InsufficientBalance(wallet, scopedStatTokenId, balS, delta);
-            BeamioUserCardModuleMintLib.cardBurn(wallet, scopedStatTokenId, delta);
+            _cardBurnWithLegacyFallback(wallet, scopedStatTokenId, delta);
         } else {
             revert UC_InvalidCumulativeTarget(targetKind, issuedParentId);
         }

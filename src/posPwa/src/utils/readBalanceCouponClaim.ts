@@ -68,7 +68,7 @@ export type ClaimMerchantCouponResult =
 	| { status: 'success'; assets: UIDAssetsResult }
 	| { status: 'error'; message: string }
 
-/** Full POS claim flow: NFC → server openClaim; QR/wallet → prepare → sign → submit. */
+/** Full POS claim flow: NFC / API-hosted Link key → openClaim; pure QR → prepare → POS admin. */
 export async function claimMerchantCouponFromRead(params: {
 	assets: UIDAssetsResult
 	coupon: MerchantClaimableCouponItem
@@ -80,8 +80,10 @@ export async function claimMerchantCouponFromRead(params: {
 		return { status: 'error', message: 'Invalid user account for claim.' }
 	}
 
-	const hasNfc = Boolean(assets.uid?.trim() || assets.tagIdHex?.trim())
-	if (hasNfc) {
+	const useNfcHostedClaim =
+		assets.nfcApiHostedSigning === true ||
+		Boolean(assets.uid?.trim() || assets.tagIdHex?.trim())
+	if (useNfcHostedClaim) {
 		const result = await cardCouponPosClaim({
 			cardAddress: coupon.cardAddress,
 			couponId: coupon.couponId,
@@ -122,6 +124,10 @@ export async function claimMerchantCouponFromRead(params: {
 	if (!prep.success || !prep.cardAddress || !prep.data || !prep.deadline || !prep.nonce) {
 		return { status: 'error', message: prep.error ?? 'Claim prepare failed.' }
 	}
+	const couponIdForSubmit = (prep.couponId ?? coupon.couponId).trim()
+	if (!couponIdForSubmit) {
+		return { status: 'error', message: 'Claim prepare missing couponId.' }
+	}
 
 	let adminSignature: string
 	try {
@@ -139,6 +145,7 @@ export async function claimMerchantCouponFromRead(params: {
 
 	const submit = await cardCouponPosClaimSubmit({
 		cardAddress: prep.cardAddress,
+		couponId: couponIdForSubmit,
 		data: prep.data,
 		deadline: prep.deadline,
 		nonce: prep.nonce,

@@ -35,6 +35,13 @@ export const GBTOKEN_PROXY_CREATE2_SALT = id("beamio.gb.erc20.proxy.v1");
 export const CONET_USDC_IMPL_CREATE2_SALT = id("beamio.conet_usdc.impl.v2");
 export const CONET_USDC_PROXY_CREATE2_SALT = id("beamio.conet_usdc.proxy.v2");
 
+/** wCNET：与 CONET-USDC 相同的 UUPS + Nick CREATE2 双阶段部署。 */
+export const WCNET_IMPL_CREATE2_SALT = id("beamio.wcnet.impl.v1");
+export const WCNET_PROXY_CREATE2_SALT = id("beamio.wcnet.proxy.v1");
+export const WCNET_TOKEN_NAME = "Wrapped CoNET";
+export const WCNET_TOKEN_SYMBOL = "wCNET";
+export const WCNET_TOKEN_DECIMALS = 18;
+
 /** @deprecated 直连部署 v2（非 UUPS） */
 export const BUINT_CREATE2_SALT_LEGACY = id("beamio.bunits.v2");
 /** @deprecated 直连 GB v2 */
@@ -58,4 +65,11 @@ export const CONET_USDC_UUPS_IMPL_PREDICTED = getAddress(
 );
 export const CONET_USDC_UUPS_PROXY_PREDICTED = getAddress(
   "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
+);
+/** 新版 wCNET UUPS implementation / proxy（两链同址）。 */
+export const WCNET_UUPS_IMPL_PREDICTED = getAddress(
+  "0x5BD672918E4a2F37109b308f26125690b2861C99"
+);
+export const WCNET_UUPS_PROXY_PREDICTED = getAddress(
+  "0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21"
 );

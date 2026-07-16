@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ConetTreasuryInterface extends Interface {
-    getFunction(nameOrSignature: "AIRDROP_BUNIT_AMOUNT" | "DOMAIN_SEPARATOR" | "USDC_TO_BUNIT_RATE" | "addMiner" | "airdropBUnitForAdmin" | "airdropProposals" | "baseTokenOf" | "bunitAirdrop" | "bunitBurnProposals" | "burn" | "burnFactoryFrom" | "burnNonces" | "burnWithSignature" | "conetGB" | "createERC20" | "createdTokenCount" | "erc20TransferProposals" | "execute" | "executeAirdropBUnit" | "executeBUnitBurn" | "executeErc20Transfer" | "executeFactoryBurn" | "executeGBIssue" | "executeGBRevoke" | "factoryBurnProposals" | "gbIssueProposals" | "gbRevokeProposals" | "getAirdropProposal" | "getBUnitBurnProposal" | "getBridgeTargets" | "getBurnDigest" | "getCreatedTokens" | "getGBIssueProposal" | "getGBRevokeProposal" | "getMiners" | "getProposal" | "getUsdc2BUnitProposal" | "getUsdc2BUnitReport" | "getVoteAirdropDigest" | "getVoteDigest" | "hasVoted" | "hasVotedAirdrop" | "hasVotedBUnitBurn" | "hasVotedErc20Transfer" | "hasVotedFactoryBurn" | "hasVotedGBIssue" | "hasVotedGBRevoke" | "hasVotedUsdc2BUnit" | "isCreatedToken" | "isMiner" | "minerCount" | "mintFactoryToken" | "mintForAdmin" | "peerChainIdOf" | "peerModule" | "peerTokenOf" | "proposals" | "purchaseBUnitWith3009Authorization" | "registerPeerWrappedToken" | "requiredVotes" | "setBUnitAirdrop" | "setBaseToken" | "setConetGB" | "setPeerModule" | "totalUsdc2BUnit" | "usdc2BUnitProposals" | "vote" | "voteAirdropBUnit" | "voteAirdropBUnitFromBase" | "voteAirdropBUnitWithSignature" | "voteBUnitBurn" | "voteErc20Transfer" | "voteErc20TransferWithSignature" | "voteFactoryBurn" | "voteGBIssue" | "voteGBRevoke" | "voteWithSignature"): FunctionFragment;
+    getFunction(nameOrSignature: "AIRDROP_BUNIT_AMOUNT" | "DOMAIN_SEPARATOR" | "USDC_TO_BUNIT_RATE" | "addMiner" | "airdropBUnitForAdmin" | "airdropProposals" | "assetBridgeModule" | "baseTokenOf" | "bunitAirdrop" | "bunitBurnProposals" | "burn" | "burnFactoryFrom" | "burnFactoryFromLiquidityStaking" | "burnNonces" | "burnWithSignature" | "conetGB" | "createERC20" | "createERC20FromBridge" | "createdTokenCount" | "erc20TransferProposals" | "execute" | "executeAirdropBUnit" | "executeBUnitBurn" | "executeErc20Transfer" | "executeFactoryBurn" | "executeGBIssue" | "executeGBRevoke" | "factoryBurnProposals" | "gbIssueProposals" | "gbRevokeProposals" | "getAirdropProposal" | "getBUnitBurnProposal" | "getBridgeTargets" | "getBurnDigest" | "getCreatedTokens" | "getGBIssueProposal" | "getGBRevokeProposal" | "getMiners" | "getProposal" | "getUsdc2BUnitProposal" | "getUsdc2BUnitReport" | "getVoteAirdropDigest" | "getVoteDigest" | "hasVoted" | "hasVotedAirdrop" | "hasVotedBUnitBurn" | "hasVotedErc20Transfer" | "hasVotedFactoryBurn" | "hasVotedGBIssue" | "hasVotedGBRevoke" | "hasVotedUsdc2BUnit" | "isCreatedToken" | "isMiner" | "liquidityStakingModule" | "minerCount" | "mintFactoryToken" | "mintFactoryTokenLiquidityStaking" | "mintForAdmin" | "peerChainIdOf" | "peerModule" | "peerTokenOf" | "proposals" | "purchaseBUnitWith3009Authorization" | "registerPeerWrappedToken" | "requiredVotes" | "setAssetBridgeModule" | "setBUnitAirdrop" | "setBaseToken" | "setConetGB" | "setLiquidityStakingModule" | "setPeerModule" | "totalUsdc2BUnit" | "usdc2BUnitProposals" | "vote" | "voteAirdropBUnit" | "voteAirdropBUnitFromBase" | "voteAirdropBUnitWithSignature" | "voteBUnitBurn" | "voteErc20Transfer" | "voteErc20TransferWithSignature" | "voteFactoryBurn" | "voteGBIssue" | "voteGBRevoke" | "voteWithSignature"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AirdropBUnitByMiner" | "AirdropBUnitFromUsdcByMiner" | "AirdropExecuted" | "AirdropProposalCreated" | "AirdropVoted" | "BUnitAirdropUpdated" | "BUnitBurnExecuted" | "BUnitBurnProposalCreated" | "BUnitBurnVoted" | "BUnitPurchased" | "BurnRequested" | "ConetGBUpdated" | "ERC20Created" | "ETHDeposited" | "Erc20TransferExecuted" | "Erc20TransferProposalCreated" | "Erc20TransferVoted" | "FactoryBurnExecuted" | "FactoryBurnProposalCreated" | "FactoryBurnVoted" | "GBIssueExecuted" | "GBIssueProposalCreated" | "GBIssueVoted" | "GBRevokeExecuted" | "GBRevokeProposalCreated" | "GBRevokeVoted" | "MinerAdded" | "MintByMiner" | "MintExecuted" | "PeerModuleUpdated" | "ProposalCreated" | "ProposalExecuted" | "Usdc2BUnitExecuted" | "Voted"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AirdropBUnitByMiner" | "AirdropBUnitFromUsdcByMiner" | "AirdropExecuted" | "AirdropProposalCreated" | "AirdropVoted" | "AssetBridgeModuleUpdated" | "BUnitAirdropUpdated" | "BUnitBurnExecuted" | "BUnitBurnProposalCreated" | "BUnitBurnVoted" | "BUnitPurchased" | "BurnRequested" | "ConetGBUpdated" | "ERC20Created" | "ERC20CreatedByBridge" | "ETHDeposited" | "Erc20TransferExecuted" | "Erc20TransferProposalCreated" | "Erc20TransferVoted" | "FactoryBurnExecuted" | "FactoryBurnProposalCreated" | "FactoryBurnVoted" | "GBIssueExecuted" | "GBIssueProposalCreated" | "GBIssueVoted" | "GBRevokeExecuted" | "GBRevokeProposalCreated" | "GBRevokeVoted" | "LiquidityStakingModuleUpdated" | "MinerAdded" | "MintByMiner" | "MintExecuted" | "PeerModuleUpdated" | "ProposalCreated" | "ProposalExecuted" | "Usdc2BUnitExecuted" | "Voted"): EventFragment;
 
     encodeFunctionData(functionFragment: 'AIRDROP_BUNIT_AMOUNT', values?: undefined): string;
 encodeFunctionData(functionFragment: 'DOMAIN_SEPARATOR', values?: undefined): string;
@@ -16,15 +16,18 @@ encodeFunctionData(functionFragment: 'USDC_TO_BUNIT_RATE', values?: undefined): 
 encodeFunctionData(functionFragment: 'addMiner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'airdropBUnitForAdmin', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'airdropProposals', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'assetBridgeModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'baseTokenOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'bunitAirdrop', values?: undefined): string;
 encodeFunctionData(functionFragment: 'bunitBurnProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'burn', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnFactoryFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'burnFactoryFromLiquidityStaking', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'burnWithSignature', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'conetGB', values?: undefined): string;
 encodeFunctionData(functionFragment: 'createERC20', values: [string, string, BigNumberish, AddressLike]): string;
+encodeFunctionData(functionFragment: 'createERC20FromBridge', values: [string, string, BigNumberish, AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createdTokenCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'erc20TransferProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'execute', values: [BytesLike]): string;
@@ -60,8 +63,10 @@ encodeFunctionData(functionFragment: 'hasVotedGBRevoke', values: [BytesLike, Add
 encodeFunctionData(functionFragment: 'hasVotedUsdc2BUnit', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'isCreatedToken', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isMiner', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'liquidityStakingModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'minerCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mintFactoryToken', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'mintFactoryTokenLiquidityStaking', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintForAdmin', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'peerChainIdOf', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'peerModule', values?: undefined): string;
@@ -70,9 +75,11 @@ encodeFunctionData(functionFragment: 'proposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'purchaseBUnitWith3009Authorization', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'registerPeerWrappedToken', values: [AddressLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'requiredVotes', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setAssetBridgeModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBUnitAirdrop', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBaseToken', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setConetGB', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setLiquidityStakingModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setPeerModule', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'totalUsdc2BUnit', values?: undefined): string;
 encodeFunctionData(functionFragment: 'usdc2BUnitProposals', values: [BytesLike]): string;
@@ -94,15 +101,18 @@ decodeFunctionResult(functionFragment: 'USDC_TO_BUNIT_RATE', data: BytesLike): R
 decodeFunctionResult(functionFragment: 'addMiner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'airdropBUnitForAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'airdropProposals', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'assetBridgeModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'baseTokenOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunitAirdrop', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunitBurnProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burn', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnFactoryFrom', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'burnFactoryFromLiquidityStaking', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnWithSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'conetGB', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createERC20', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createERC20FromBridge', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createdTokenCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'erc20TransferProposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'execute', data: BytesLike): Result;
@@ -138,8 +148,10 @@ decodeFunctionResult(functionFragment: 'hasVotedGBRevoke', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'hasVotedUsdc2BUnit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isCreatedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isMiner', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'liquidityStakingModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'minerCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintFactoryToken', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'mintFactoryTokenLiquidityStaking', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintForAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'peerChainIdOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'peerModule', data: BytesLike): Result;
@@ -148,9 +160,11 @@ decodeFunctionResult(functionFragment: 'proposals', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'purchaseBUnitWith3009Authorization', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registerPeerWrappedToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requiredVotes', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAssetBridgeModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBUnitAirdrop', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBaseToken', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setConetGB', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setLiquidityStakingModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setPeerModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'totalUsdc2BUnit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'usdc2BUnitProposals', data: BytesLike): Result;
@@ -220,6 +234,18 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       export type InputTuple = [proposalId: BytesLike, miner: AddressLike, voteCount: BigNumberish];
       export type OutputTuple = [proposalId: string, miner: string, voteCount: bigint];
       export interface OutputObject {proposalId: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace AssetBridgeModuleUpdatedEvent {
+      export type InputTuple = [oldBridge: AddressLike, newBridge: AddressLike];
+      export type OutputTuple = [oldBridge: string, newBridge: string];
+      export interface OutputObject {oldBridge: string, newBridge: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -316,6 +342,18 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       export type InputTuple = [token: AddressLike, name: string, symbol: string, decimals: BigNumberish, baseToken: AddressLike];
       export type OutputTuple = [token: string, name: string, symbol: string, decimals: bigint, baseToken: string];
       export interface OutputObject {token: string, name: string, symbol: string, decimals: bigint, baseToken: string };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ERC20CreatedByBridgeEvent {
+      export type InputTuple = [token: AddressLike, name: string, symbol: string, decimals: BigNumberish, baseToken: AddressLike, salt: BytesLike];
+      export type OutputTuple = [token: string, name: string, symbol: string, decimals: bigint, baseToken: string, salt: string];
+      export interface OutputObject {token: string, name: string, symbol: string, decimals: bigint, baseToken: string, salt: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -472,6 +510,18 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
       export type InputTuple = [txHash: BytesLike, miner: AddressLike, voteCount: BigNumberish];
       export type OutputTuple = [txHash: string, miner: string, voteCount: bigint];
       export interface OutputObject {txHash: string, miner: string, voteCount: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace LiquidityStakingModuleUpdatedEvent {
+      export type InputTuple = [oldModule: AddressLike, newModule: AddressLike];
+      export type OutputTuple = [oldModule: string, newModule: string];
+      export interface OutputObject {oldModule: string, newModule: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -658,6 +708,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    assetBridgeModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     baseTokenOf: TypedContractMethod<
       [token: AddressLike, ],
       [string],
@@ -698,6 +756,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    burnFactoryFromLiquidityStaking: TypedContractMethod<
+      [token: AddressLike, account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     burnNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -724,6 +790,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
     createERC20: TypedContractMethod<
       [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, ],
+      [string],
+      'nonpayable'
+    >
+    
+
+    
+    createERC20FromBridge: TypedContractMethod<
+      [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, salt: BytesLike, ],
       [string],
       'nonpayable'
     >
@@ -1010,6 +1084,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    liquidityStakingModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     minerCount: TypedContractMethod<
       [],
       [bigint],
@@ -1019,6 +1101,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
 
     
     mintFactoryToken: TypedContractMethod<
+      [token: AddressLike, to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    mintFactoryTokenLiquidityStaking: TypedContractMethod<
       [token: AddressLike, to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -1090,6 +1180,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
 
     
+    setAssetBridgeModule: TypedContractMethod<
+      [bridge: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setBUnitAirdrop: TypedContractMethod<
       [_bunitAirdrop: AddressLike, ],
       [void],
@@ -1108,6 +1206,14 @@ decodeFunctionResult(functionFragment: 'voteWithSignature', data: BytesLike): Re
     
     setConetGB: TypedContractMethod<
       [_conetGB: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setLiquidityStakingModule: TypedContractMethod<
+      [module: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -1258,6 +1364,11 @@ getFunction(nameOrSignature: 'airdropProposals'): TypedContractMethod<
       [[string, bigint, bigint, string, bigint, boolean] & {claimant: string, nonce: bigint, deadline: bigint, signature: string, voteCount: bigint, executed: boolean }],
       'view'
     >;
+getFunction(nameOrSignature: 'assetBridgeModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'baseTokenOf'): TypedContractMethod<
       [token: AddressLike, ],
       [string],
@@ -1283,6 +1394,11 @@ getFunction(nameOrSignature: 'burnFactoryFrom'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'burnFactoryFromLiquidityStaking'): TypedContractMethod<
+      [token: AddressLike, account: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'burnNonces'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -1300,6 +1416,11 @@ getFunction(nameOrSignature: 'conetGB'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'createERC20'): TypedContractMethod<
       [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, ],
+      [string],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'createERC20FromBridge'): TypedContractMethod<
+      [name_: string, symbol_: string, decimals_: BigNumberish, baseToken: AddressLike, salt: BytesLike, ],
       [string],
       'nonpayable'
     >;
@@ -1478,12 +1599,22 @@ getFunction(nameOrSignature: 'isMiner'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'liquidityStakingModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'minerCount'): TypedContractMethod<
       [],
       [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'mintFactoryToken'): TypedContractMethod<
+      [token: AddressLike, to: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'mintFactoryTokenLiquidityStaking'): TypedContractMethod<
       [token: AddressLike, to: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
@@ -1528,6 +1659,11 @@ getFunction(nameOrSignature: 'requiredVotes'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'setAssetBridgeModule'): TypedContractMethod<
+      [bridge: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setBUnitAirdrop'): TypedContractMethod<
       [_bunitAirdrop: AddressLike, ],
       [void],
@@ -1540,6 +1676,11 @@ getFunction(nameOrSignature: 'setBaseToken'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'setConetGB'): TypedContractMethod<
       [_conetGB: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setLiquidityStakingModule'): TypedContractMethod<
+      [module: AddressLike, ],
       [void],
       'nonpayable'
     >;
@@ -1619,6 +1760,7 @@ getEvent(key: 'AirdropBUnitFromUsdcByMiner'): TypedContractEvent<AirdropBUnitFro
 getEvent(key: 'AirdropExecuted'): TypedContractEvent<AirdropExecutedEvent.InputTuple, AirdropExecutedEvent.OutputTuple, AirdropExecutedEvent.OutputObject>;
 getEvent(key: 'AirdropProposalCreated'): TypedContractEvent<AirdropProposalCreatedEvent.InputTuple, AirdropProposalCreatedEvent.OutputTuple, AirdropProposalCreatedEvent.OutputObject>;
 getEvent(key: 'AirdropVoted'): TypedContractEvent<AirdropVotedEvent.InputTuple, AirdropVotedEvent.OutputTuple, AirdropVotedEvent.OutputObject>;
+getEvent(key: 'AssetBridgeModuleUpdated'): TypedContractEvent<AssetBridgeModuleUpdatedEvent.InputTuple, AssetBridgeModuleUpdatedEvent.OutputTuple, AssetBridgeModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'BUnitAirdropUpdated'): TypedContractEvent<BUnitAirdropUpdatedEvent.InputTuple, BUnitAirdropUpdatedEvent.OutputTuple, BUnitAirdropUpdatedEvent.OutputObject>;
 getEvent(key: 'BUnitBurnExecuted'): TypedContractEvent<BUnitBurnExecutedEvent.InputTuple, BUnitBurnExecutedEvent.OutputTuple, BUnitBurnExecutedEvent.OutputObject>;
 getEvent(key: 'BUnitBurnProposalCreated'): TypedContractEvent<BUnitBurnProposalCreatedEvent.InputTuple, BUnitBurnProposalCreatedEvent.OutputTuple, BUnitBurnProposalCreatedEvent.OutputObject>;
@@ -1627,6 +1769,7 @@ getEvent(key: 'BUnitPurchased'): TypedContractEvent<BUnitPurchasedEvent.InputTup
 getEvent(key: 'BurnRequested'): TypedContractEvent<BurnRequestedEvent.InputTuple, BurnRequestedEvent.OutputTuple, BurnRequestedEvent.OutputObject>;
 getEvent(key: 'ConetGBUpdated'): TypedContractEvent<ConetGBUpdatedEvent.InputTuple, ConetGBUpdatedEvent.OutputTuple, ConetGBUpdatedEvent.OutputObject>;
 getEvent(key: 'ERC20Created'): TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
+getEvent(key: 'ERC20CreatedByBridge'): TypedContractEvent<ERC20CreatedByBridgeEvent.InputTuple, ERC20CreatedByBridgeEvent.OutputTuple, ERC20CreatedByBridgeEvent.OutputObject>;
 getEvent(key: 'ETHDeposited'): TypedContractEvent<ETHDepositedEvent.InputTuple, ETHDepositedEvent.OutputTuple, ETHDepositedEvent.OutputObject>;
 getEvent(key: 'Erc20TransferExecuted'): TypedContractEvent<Erc20TransferExecutedEvent.InputTuple, Erc20TransferExecutedEvent.OutputTuple, Erc20TransferExecutedEvent.OutputObject>;
 getEvent(key: 'Erc20TransferProposalCreated'): TypedContractEvent<Erc20TransferProposalCreatedEvent.InputTuple, Erc20TransferProposalCreatedEvent.OutputTuple, Erc20TransferProposalCreatedEvent.OutputObject>;
@@ -1640,6 +1783,7 @@ getEvent(key: 'GBIssueVoted'): TypedContractEvent<GBIssueVotedEvent.InputTuple, 
 getEvent(key: 'GBRevokeExecuted'): TypedContractEvent<GBRevokeExecutedEvent.InputTuple, GBRevokeExecutedEvent.OutputTuple, GBRevokeExecutedEvent.OutputObject>;
 getEvent(key: 'GBRevokeProposalCreated'): TypedContractEvent<GBRevokeProposalCreatedEvent.InputTuple, GBRevokeProposalCreatedEvent.OutputTuple, GBRevokeProposalCreatedEvent.OutputObject>;
 getEvent(key: 'GBRevokeVoted'): TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
+getEvent(key: 'LiquidityStakingModuleUpdated'): TypedContractEvent<LiquidityStakingModuleUpdatedEvent.InputTuple, LiquidityStakingModuleUpdatedEvent.OutputTuple, LiquidityStakingModuleUpdatedEvent.OutputObject>;
 getEvent(key: 'MinerAdded'): TypedContractEvent<MinerAddedEvent.InputTuple, MinerAddedEvent.OutputTuple, MinerAddedEvent.OutputObject>;
 getEvent(key: 'MintByMiner'): TypedContractEvent<MintByMinerEvent.InputTuple, MintByMinerEvent.OutputTuple, MintByMinerEvent.OutputObject>;
 getEvent(key: 'MintExecuted'): TypedContractEvent<MintExecutedEvent.InputTuple, MintExecutedEvent.OutputTuple, MintExecutedEvent.OutputObject>;
@@ -1669,6 +1813,10 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
 
       'AirdropVoted(bytes32,address,uint256)': TypedContractEvent<AirdropVotedEvent.InputTuple, AirdropVotedEvent.OutputTuple, AirdropVotedEvent.OutputObject>;
       AirdropVoted: TypedContractEvent<AirdropVotedEvent.InputTuple, AirdropVotedEvent.OutputTuple, AirdropVotedEvent.OutputObject>;
+    
+
+      'AssetBridgeModuleUpdated(address,address)': TypedContractEvent<AssetBridgeModuleUpdatedEvent.InputTuple, AssetBridgeModuleUpdatedEvent.OutputTuple, AssetBridgeModuleUpdatedEvent.OutputObject>;
+      AssetBridgeModuleUpdated: TypedContractEvent<AssetBridgeModuleUpdatedEvent.InputTuple, AssetBridgeModuleUpdatedEvent.OutputTuple, AssetBridgeModuleUpdatedEvent.OutputObject>;
     
 
       'BUnitAirdropUpdated(address,address)': TypedContractEvent<BUnitAirdropUpdatedEvent.InputTuple, BUnitAirdropUpdatedEvent.OutputTuple, BUnitAirdropUpdatedEvent.OutputObject>;
@@ -1701,6 +1849,10 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
 
       'ERC20Created(address,string,string,uint8,address)': TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
       ERC20Created: TypedContractEvent<ERC20CreatedEvent.InputTuple, ERC20CreatedEvent.OutputTuple, ERC20CreatedEvent.OutputObject>;
+    
+
+      'ERC20CreatedByBridge(address,string,string,uint8,address,bytes32)': TypedContractEvent<ERC20CreatedByBridgeEvent.InputTuple, ERC20CreatedByBridgeEvent.OutputTuple, ERC20CreatedByBridgeEvent.OutputObject>;
+      ERC20CreatedByBridge: TypedContractEvent<ERC20CreatedByBridgeEvent.InputTuple, ERC20CreatedByBridgeEvent.OutputTuple, ERC20CreatedByBridgeEvent.OutputObject>;
     
 
       'ETHDeposited(address,uint256)': TypedContractEvent<ETHDepositedEvent.InputTuple, ETHDepositedEvent.OutputTuple, ETHDepositedEvent.OutputObject>;
@@ -1753,6 +1905,10 @@ getEvent(key: 'Voted'): TypedContractEvent<VotedEvent.InputTuple, VotedEvent.Out
 
       'GBRevokeVoted(bytes32,address,uint256)': TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
       GBRevokeVoted: TypedContractEvent<GBRevokeVotedEvent.InputTuple, GBRevokeVotedEvent.OutputTuple, GBRevokeVotedEvent.OutputObject>;
+    
+
+      'LiquidityStakingModuleUpdated(address,address)': TypedContractEvent<LiquidityStakingModuleUpdatedEvent.InputTuple, LiquidityStakingModuleUpdatedEvent.OutputTuple, LiquidityStakingModuleUpdatedEvent.OutputObject>;
+      LiquidityStakingModuleUpdated: TypedContractEvent<LiquidityStakingModuleUpdatedEvent.InputTuple, LiquidityStakingModuleUpdatedEvent.OutputTuple, LiquidityStakingModuleUpdatedEvent.OutputObject>;
     
 
       'MinerAdded(address)': TypedContractEvent<MinerAddedEvent.InputTuple, MinerAddedEvent.OutputTuple, MinerAddedEvent.OutputObject>;

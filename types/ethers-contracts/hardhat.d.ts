@@ -139,6 +139,8 @@ getContractFactory(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | 
 getContractFactory(name: 'BusinessStartKetRedeem', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BusinessStartKetRedeem__factory>
 getContractFactory(name: 'IBeamioBUnitsMintReward', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioBUnitsMintReward__factory>
 getContractFactory(name: 'IBusinessStartKetMint', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBusinessStartKetMint__factory>
+getContractFactory(name: 'ConetTreasuryLiquidityStaking', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetTreasuryLiquidityStaking__factory>
+getContractFactory(name: 'IConetTreasuryLiquidityGateway', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryLiquidityGateway__factory>
 getContractFactory(name: 'ConetTreasuryPeer', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetTreasuryPeer__factory>
 getContractFactory(name: 'IBeamioBUnitsBridge', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioBUnitsBridge__factory>
 getContractFactory(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBurnableFactoryERC20__factory>
@@ -160,6 +162,12 @@ getContractFactory(name: 'GBToken', signerOrOptions?: ethers.Signer | FactoryOpt
 getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
 getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
 getContractFactory(name: 'TreasuryCreate2Lib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryCreate2Lib__factory>
+getContractFactory(name: 'IConetTreasuryAssetFactory', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryAssetFactory__factory>
+getContractFactory(name: 'IConetTreasuryTokenRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryTokenRegistry__factory>
+getContractFactory(name: 'IUsdcBridgeBurnable', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUsdcBridgeBurnable__factory>
+getContractFactory(name: 'IUsdcBridgeMinerRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUsdcBridgeMinerRegistry__factory>
+getContractFactory(name: 'IUsdcBridgeMintable', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUsdcBridgeMintable__factory>
+getContractFactory(name: 'UsdcBridgeTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.UsdcBridgeTreasury__factory>
 getContractFactory(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BaseTreasury__factory>
 getContractFactory(name: 'IERC20', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20__factory>
 getContractFactory(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC3009BytesSig__factory>
@@ -214,6 +222,7 @@ getContractFactory(name: 'SafeCast', signerOrOptions?: ethers.Signer | FactoryOp
 getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AccountRegistry__factory>
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'ConetLabMiningPool', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetLabMiningPool__factory>
+getContractFactory(name: 'ConetTeamCnetHold', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetTeamCnetHold__factory>
 getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
 getContractFactory(name: 'IUSDC', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUSDC__factory>
@@ -386,6 +395,8 @@ getContractAt(name: 'IBeamioBUnitsMint', address: string | ethers.Addressable, s
 getContractAt(name: 'BusinessStartKetRedeem', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BusinessStartKetRedeem>
 getContractAt(name: 'IBeamioBUnitsMintReward', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioBUnitsMintReward>
 getContractAt(name: 'IBusinessStartKetMint', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBusinessStartKetMint>
+getContractAt(name: 'ConetTreasuryLiquidityStaking', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetTreasuryLiquidityStaking>
+getContractAt(name: 'IConetTreasuryLiquidityGateway', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryLiquidityGateway>
 getContractAt(name: 'ConetTreasuryPeer', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetTreasuryPeer>
 getContractAt(name: 'IBeamioBUnitsBridge', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioBUnitsBridge>
 getContractAt(name: 'IBurnableFactoryERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBurnableFactoryERC20>
@@ -407,6 +418,12 @@ getContractAt(name: 'GBToken', address: string | ethers.Addressable, signer?: et
 getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
 getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
 getContractAt(name: 'TreasuryCreate2Lib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryCreate2Lib>
+getContractAt(name: 'IConetTreasuryAssetFactory', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryAssetFactory>
+getContractAt(name: 'IConetTreasuryTokenRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryTokenRegistry>
+getContractAt(name: 'IUsdcBridgeBurnable', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUsdcBridgeBurnable>
+getContractAt(name: 'IUsdcBridgeMinerRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUsdcBridgeMinerRegistry>
+getContractAt(name: 'IUsdcBridgeMintable', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUsdcBridgeMintable>
+getContractAt(name: 'UsdcBridgeTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.UsdcBridgeTreasury>
 getContractAt(name: 'BaseTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BaseTreasury>
 getContractAt(name: 'IERC20', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20>
 getContractAt(name: 'IERC3009BytesSig', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC3009BytesSig>
@@ -461,6 +478,7 @@ getContractAt(name: 'SafeCast', address: string | ethers.Addressable, signer?: e
 getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AccountRegistry>
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'ConetLabMiningPool', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetLabMiningPool>
+getContractAt(name: 'ConetTeamCnetHold', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetTeamCnetHold>
 getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
 getContractAt(name: 'IUSDC', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUSDC>
@@ -633,6 +651,8 @@ deployContract(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | Depl
 deployContract(name: 'BusinessStartKetRedeem', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BusinessStartKetRedeem>
 deployContract(name: 'IBeamioBUnitsMintReward', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMintReward>
 deployContract(name: 'IBusinessStartKetMint', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetMint>
+deployContract(name: 'ConetTreasuryLiquidityStaking', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTreasuryLiquidityStaking>
+deployContract(name: 'IConetTreasuryLiquidityGateway', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryLiquidityGateway>
 deployContract(name: 'ConetTreasuryPeer', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTreasuryPeer>
 deployContract(name: 'IBeamioBUnitsBridge', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsBridge>
 deployContract(name: 'IBurnableFactoryERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
@@ -654,6 +674,12 @@ deployContract(name: 'GBToken', signerOrOptions?: ethers.Signer | DeployContract
 deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'TreasuryCreate2Lib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCreate2Lib>
+deployContract(name: 'IConetTreasuryAssetFactory', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryAssetFactory>
+deployContract(name: 'IConetTreasuryTokenRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryTokenRegistry>
+deployContract(name: 'IUsdcBridgeBurnable', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeBurnable>
+deployContract(name: 'IUsdcBridgeMinerRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeMinerRegistry>
+deployContract(name: 'IUsdcBridgeMintable', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeMintable>
+deployContract(name: 'UsdcBridgeTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.UsdcBridgeTreasury>
 deployContract(name: 'BaseTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
 deployContract(name: 'IERC20', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'IERC3009BytesSig', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
@@ -708,6 +734,7 @@ deployContract(name: 'SafeCast', signerOrOptions?: ethers.Signer | DeployContrac
 deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'ConetLabMiningPool', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetLabMiningPool>
+deployContract(name: 'ConetTeamCnetHold', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTeamCnetHold>
 deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IUSDC', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>
@@ -880,6 +907,8 @@ deployContract(name: 'IBeamioBUnitsMint', args: any[], signerOrOptions?: ethers.
 deployContract(name: 'BusinessStartKetRedeem', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BusinessStartKetRedeem>
 deployContract(name: 'IBeamioBUnitsMintReward', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMintReward>
 deployContract(name: 'IBusinessStartKetMint', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetMint>
+deployContract(name: 'ConetTreasuryLiquidityStaking', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTreasuryLiquidityStaking>
+deployContract(name: 'IConetTreasuryLiquidityGateway', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryLiquidityGateway>
 deployContract(name: 'ConetTreasuryPeer', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTreasuryPeer>
 deployContract(name: 'IBeamioBUnitsBridge', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsBridge>
 deployContract(name: 'IBurnableFactoryERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBurnableFactoryERC20>
@@ -901,6 +930,12 @@ deployContract(name: 'GBToken', args: any[], signerOrOptions?: ethers.Signer | D
 deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
 deployContract(name: 'TreasuryCreate2Lib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCreate2Lib>
+deployContract(name: 'IConetTreasuryAssetFactory', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryAssetFactory>
+deployContract(name: 'IConetTreasuryTokenRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryTokenRegistry>
+deployContract(name: 'IUsdcBridgeBurnable', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeBurnable>
+deployContract(name: 'IUsdcBridgeMinerRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeMinerRegistry>
+deployContract(name: 'IUsdcBridgeMintable', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUsdcBridgeMintable>
+deployContract(name: 'UsdcBridgeTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.UsdcBridgeTreasury>
 deployContract(name: 'BaseTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BaseTreasury>
 deployContract(name: 'IERC20', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20>
 deployContract(name: 'IERC3009BytesSig', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC3009BytesSig>
@@ -955,6 +990,7 @@ deployContract(name: 'SafeCast', args: any[], signerOrOptions?: ethers.Signer | 
 deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'ConetLabMiningPool', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetLabMiningPool>
+deployContract(name: 'ConetTeamCnetHold', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetTeamCnetHold>
 deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IUSDC', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>

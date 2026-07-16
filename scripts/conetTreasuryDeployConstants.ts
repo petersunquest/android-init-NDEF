@@ -82,8 +82,12 @@ export const CONET_TREASURY_PEER_CREATE2_PREDICTED_V1 = getAddress(
   "0xCF26c1686aC5E01e37B72017E575511C42cad29f"
 );
 
-/** Wrapped wCNET CREATE2（minter = Treasury 同址） */
+/** 新版 wCNET UUPS CREATE2（minter = 新 Treasury 同址）。 */
 export const WRAPPED_CONET_CREATE2_PREDICTED = getAddress(
+  "0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21"
+);
+/** @deprecated 旧非 UUPS wCNET，禁止作为新桥接资产。 */
+export const WRAPPED_CONET_CREATE2_PREDICTED_LEGACY = getAddress(
   "0x35bFAD2832E916e54474c4ca9DBd71843C539503"
 );
 

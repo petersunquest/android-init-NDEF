@@ -1,0 +1,33 @@
+{
+  "chain": "Base",
+  "chainId": 8453,
+  "tokens": [
+    {
+      "address": "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+      "name": "Beamio Units",
+      "symbol": "B-UNITS",
+      "decimals": 6,
+      "logoFile": "BUNIT-256.png",
+      "iconUrl": "https://mainnet.conet.network/bunit/erc20/BUNIT-256.png",
+      "explorer": "https://basescan.org/token/0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae"
+    },
+    {
+      "address": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+      "name": "CONET GB",
+      "symbol": "GB",
+      "decimals": 9,
+      "logoFile": "GB-256.png",
+      "iconUrl": "https://mainnet.conet.network/gb/erc20/GB-256.png",
+      "explorer": "https://basescan.org/token/0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
+    },
+    {
+      "address": "0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21",
+      "name": "Wrapped CoNET",
+      "symbol": "wCNET",
+      "decimals": 18,
+      "logoFile": "wCNET-256.png",
+      "iconUrl": "https://mainnet.conet.network/wcnet/erc20/wCNET-256.png",
+      "explorer": "https://basescan.org/token/0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21"
+    }
+  ]
+}

@@ -55,39 +55,52 @@ function OwnedCouponTrailing({
 	disabled,
 	onConsume,
 	showClaimedSuccess,
+	showConsumeSuccess,
 }: {
 	balance: string
 	loading?: boolean
 	disabled?: boolean
 	onConsume?: () => void
 	showClaimedSuccess?: boolean
+	showConsumeSuccess?: boolean
 }) {
 	return (
 		<div className="flex items-center gap-2">
-			<span
-				className="rounded-full px-2.5 py-1.5 font-mono text-xs font-bold"
-				style={{ backgroundColor: 'rgba(0,0,0,0.22)', color: '#fff' }}
-			>
-				x{balance}
-			</span>
-			{showClaimedSuccess ? (
-				<span className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-2.5 py-1.5">
-					<Check className="h-4 w-4 text-white" aria-hidden />
+			{showConsumeSuccess ? (
+				<span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1.5">
+					<span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500">
+						<Check className="h-3 w-3 text-white" strokeWidth={3} aria-hidden />
+					</span>
+					<span className="text-[11px] font-semibold text-emerald-600">Consumed</span>
 				</span>
 			) : (
-				<button
-					type="button"
-					onClick={onConsume}
-					disabled={disabled || loading}
-					className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
-					style={{ backgroundColor: TOP_UP_BLUE }}
-				>
-					{loading ? (
-						<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+				<>
+					<span
+						className="rounded-full px-2.5 py-1.5 font-mono text-xs font-bold"
+						style={{ backgroundColor: 'rgba(0,0,0,0.22)', color: '#fff' }}
+					>
+						x{balance}
+					</span>
+					{showClaimedSuccess ? (
+						<span className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-2.5 py-1.5">
+							<Check className="h-4 w-4 text-white" aria-hidden />
+						</span>
 					) : (
-						'Consume'
+						<button
+							type="button"
+							onClick={onConsume}
+							disabled={disabled || loading}
+							className="rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
+							style={{ backgroundColor: TOP_UP_BLUE }}
+						>
+							{loading ? (
+								<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+							) : (
+								'Consume'
+							)}
+						</button>
 					)}
-				</button>
+				</>
 			)}
 		</div>
 	)
@@ -135,6 +148,7 @@ export interface ReadBalanceCouponsSectionProps {
 	claimInFlightId?: string | null
 	claimSucceededId?: string | null
 	consumeInFlightId?: string | null
+	consumeSucceededId?: string | null
 	onClaimCoupon?: (coupon: MerchantClaimableCouponItem) => void
 	onConsumeCoupon?: (coupon: MerchantCouponBalanceItem) => void
 }
@@ -145,6 +159,7 @@ export function ReadBalanceCouponsSection({
 	claimInFlightId = null,
 	claimSucceededId = null,
 	consumeInFlightId = null,
+	consumeSucceededId = null,
 	onClaimCoupon,
 	onConsumeCoupon,
 }: ReadBalanceCouponsSectionProps) {
@@ -169,7 +184,12 @@ export function ReadBalanceCouponsSection({
 						loading={consumeInFlightId === rowId}
 						disabled={!canConsume}
 						showClaimedSuccess={
-							claimSucceededId === rowId && consumeInFlightId !== rowId
+							claimSucceededId === rowId &&
+							consumeInFlightId !== rowId &&
+							consumeSucceededId !== rowId
+						}
+						showConsumeSuccess={
+							consumeSucceededId === rowId && consumeInFlightId !== rowId
 						}
 						onConsume={() => onConsumeCoupon?.(row)}
 					/>
@@ -212,6 +232,7 @@ function OwnedCouponRow({
 	loading,
 	disabled,
 	showClaimedSuccess,
+	showConsumeSuccess,
 	onConsume,
 }: {
 	row: MerchantCouponBalanceItem
@@ -219,6 +240,7 @@ function OwnedCouponRow({
 	loading?: boolean
 	disabled?: boolean
 	showClaimedSuccess?: boolean
+	showConsumeSuccess?: boolean
 	onConsume?: () => void
 }) {
 	const v = couponVisuals(row, activeCoupons)
@@ -237,6 +259,7 @@ function OwnedCouponRow({
 					loading={loading}
 					disabled={disabled}
 					showClaimedSuccess={showClaimedSuccess}
+					showConsumeSuccess={showConsumeSuccess}
 					onConsume={onConsume}
 				/>
 			}

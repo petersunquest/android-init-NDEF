@@ -7,6 +7,7 @@
   "external_url": "https://conet.network",
   "links": {
     "homepage": "https://conet.network",
-    "explorer_conet": "https://mainnet.conet.network/token/0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
+    "explorer_conet": "https://mainnet.conet.network/token/0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+    "explorer_base": "https://basescan.org/token/0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
   }
 }

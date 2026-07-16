@@ -3,7 +3,7 @@
   "symbol": "USDC",
   "decimals": 6,
   "description": "CONET USDC — Circle-compatible 6-decimal stablecoin on CoNET L1. Mint/burn via ConetTreasury; gasless via EIP-2612 permit & EIP-3009. UUPS proxy (CREATE2 same address cross-chain).",
-  "image": "https://assets.conet.network/usdc/erc20/USDC.png",
+  "image": "https://mainnet.conet.network/usdc/erc20/USDC.png",
   "external_url": "https://conet.network",
   "links": {
     "homepage": "https://conet.network",

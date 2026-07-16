@@ -16,6 +16,7 @@ export * as test from './test/index.js';
 export { AccountRegistry__factory } from './AccountRegistry__factory.js';
 export { AddressPGP__factory } from './AddressPGP__factory.js';
 export { ConetLabMiningPool__factory } from './ConetLabMiningPool__factory.js';
+export { ConetTeamCnetHold__factory } from './ConetTeamCnetHold__factory.js';
 export { LayerMinusNodeRestart_V2__factory } from './LayerMinusNodeRestart_V2__factory.js';
 export { MerchantPOSManagement__factory } from './MerchantPOSManagement__factory.js';
 export { ValidatorDepositRedeemExitLib__factory } from './ValidatorDepositRedeemExitLib__factory.js';

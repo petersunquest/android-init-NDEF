@@ -1,0 +1,50 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "ConetTeamCnetHold",
+  "upgradeable": true,
+  "proxyPattern": "ERC1967Proxy",
+  "source": "src/mainnet/ConetTeamCnetHold.sol",
+  "address": "0x38666466a3ce1f68a049a3230a93a57Eff7B1Cd7",
+  "proxy": "0x38666466a3ce1f68a049a3230a93a57Eff7B1Cd7",
+  "implementation": "0x4A4D78e4Cfa49166101c5414434078016b20EeC3",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "startTimestamp": "1798675200",
+  "initializeArgs": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "startTimestamp": "1798675200",
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "initialRedeemAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "compiler": "0.8.35+commit.47b9dedd",
+  "timestamp": "2026-07-15T07:00:49.622Z",
+  "deployBlock": 402344,
+  "transactionHash": "0x05be8d5f95274a72c68b8f85a15fc95f11c28e7421e2f4379d58817ca1377873",
+  "implementationTransactionHash": "0x180586e1cfdb88a62483814f654e4a458d4b91cf36f0e6d71a15111351650f2d",
+  "fundFromRedeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+  "fundAmountWei": "1000000000000000000",
+  "fundTx": "0x4565ae1aa096c9821a7ec36bc1007df91e5696ee82753429dbd6a8fdb3ec25cc",
+  "migratedFrom": {
+    "at": "2026-07-15T07:06:31.752Z",
+    "from": "0x6CA5d523eD93c3A5384d14f414858cf0AEEC0C81",
+    "claimedWei": "999999665123456791",
+    "ownerClaimedWei": "998999742798353910",
+    "beneficiaryClaimedWei": "999922325102881",
+    "oldBalanceLeftWei": "0",
+    "newBalanceWei": "1999999665123456791",
+    "unlockStartTimestamp": "1690787161"
+  },
+  "fundsFromRedeem": [
+    {
+      "at": "2026-07-15T07:12:01.370Z",
+      "from": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+      "amountWei": "150000000000000000000000",
+      "amountEther": "150000",
+      "tx": "0x1e2bc041e865a624494b878f75ced280567d288406caed8ee6f8fd50c98b6ca1",
+      "holdBalanceAfter": "150001999999665123456791"
+    }
+  ]
+}

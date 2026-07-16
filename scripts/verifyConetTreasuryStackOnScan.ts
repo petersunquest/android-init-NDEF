@@ -21,9 +21,11 @@ import {
   CONET_TREASURY_INITIAL_MINER,
   CONET_TREASURY_PEER_CREATE2_PREDICTED,
   CONET_USDC,
-  WRAPPED_CONET_CREATE2_PREDICTED,
 } from "./conetTreasuryDeployConstants.js";
-import { CONET_USDC_UUPS_IMPL_PREDICTED } from "./erc20UupsDeployConstants.js";
+import {
+  CONET_USDC_UUPS_IMPL_PREDICTED,
+  WCNET_UUPS_IMPL_PREDICTED,
+} from "./erc20UupsDeployConstants.js";
 import {
   BASESCAN_COMPILER_VERSION,
   exportBasescanStandardJsonFromRoot,
@@ -63,7 +65,6 @@ function loadTargets(): VerifyTarget[] {
 
   const addrJson = readJsonMeta("conet-addresses.json");
   const conetUsdc = (addrJson?.conetUsdc as string) || CONET_USDC;
-  const wrappedConet = (addrJson?.wrappedConet as string) || WRAPPED_CONET_CREATE2_PREDICTED;
   const usdcImpl =
     (addrJson?.ConetUsdcUupsImpl as string) || CONET_USDC_UUPS_IMPL_PREDICTED;
 
@@ -86,11 +87,11 @@ function loadTargets(): VerifyTarget[] {
     },
     {
       label: "wCNET",
-      address: String(wrappedConet),
-      contractName: "FactoryERC20",
-      sourceKey: "project/src/b-unit/FactoryERC20.sol",
-      constructorTypes: ["string", "string", "uint8", "address"],
-      constructorValues: ["Wrapped CoNET", "wCNET", 18, treasuryAddr],
+      address: String(WCNET_UUPS_IMPL_PREDICTED),
+      contractName: "FactoryERC20Upgradeable",
+      sourceKey: "project/src/b-unit/FactoryERC20Upgradeable.sol",
+      constructorTypes: [],
+      constructorValues: [],
     },
     {
       label: "CONET-USDC-impl",
