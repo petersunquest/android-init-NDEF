@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as nodeSaleSplitterSol from './NodeSaleSplitter.sol/index.js';
+export * as referralRegistryVaultV1Sol from './ReferralRegistryVaultV1.sol/index.js';
 export * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
 export * as validatorDepositRedeemAllocLibSol from './ValidatorDepositRedeemAllocLib.sol/index.js';
 export * as validatorDepositRedeemBundleLibSol from './ValidatorDepositRedeemBundleLib.sol/index.js';

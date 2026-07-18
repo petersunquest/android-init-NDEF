@@ -134,6 +134,12 @@ getContractFactory(name: 'IBeamioIndexerDiamond', signerOrOptions?: ethers.Signe
 getContractFactory(name: 'IBeamioQuoteHelper', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioQuoteHelper__factory>
 getContractFactory(name: 'IBeamioUserCardBUnitInstallAttribution', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardBUnitInstallAttribution__factory>
 getContractFactory(name: 'IConetTreasury', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasury__factory>
+getContractFactory(name: 'BUnitAirdropV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BUnitAirdropV2__factory>
+getContractFactory(name: 'IBeamioAccountOwnerV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountOwnerV2__factory>
+getContractFactory(name: 'IBeamioBUnitsV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioBUnitsV2__factory>
+getContractFactory(name: 'IConetTreasuryV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IConetTreasuryV2__factory>
+getContractFactory(name: 'ILegacyBUnitAirdropV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ILegacyBUnitAirdropV2__factory>
+getContractFactory(name: 'IReferralSettlementV2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IReferralSettlementV2__factory>
 getContractFactory(name: 'BuintRedeemAirdrop', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BuintRedeemAirdrop__factory>
 getContractFactory(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioBUnitsMint__factory>
 getContractFactory(name: 'BusinessStartKetRedeem', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BusinessStartKetRedeem__factory>
@@ -227,6 +233,11 @@ getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Si
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
 getContractFactory(name: 'IUSDC', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUSDC__factory>
 getContractFactory(name: 'NodeSaleSplitter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.NodeSaleSplitter__factory>
+getContractFactory(name: 'IBUnitAirdropReferral', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBUnitAirdropReferral__factory>
+getContractFactory(name: 'IBusinessStartKetReferral', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBusinessStartKetReferral__factory>
+getContractFactory(name: 'IUserCardFactoryReferral', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardFactoryReferral__factory>
+getContractFactory(name: 'IUserCardReferralView', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardReferralView__factory>
+getContractFactory(name: 'ReferralRegistryVaultV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ReferralRegistryVaultV1__factory>
 getContractFactory(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeaconDeposit__factory>
 getContractFactory(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC1155Balance__factory>
 getContractFactory(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20Balance__factory>
@@ -390,6 +401,12 @@ getContractAt(name: 'IBeamioIndexerDiamond', address: string | ethers.Addressabl
 getContractAt(name: 'IBeamioQuoteHelper', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioQuoteHelper>
 getContractAt(name: 'IBeamioUserCardBUnitInstallAttribution', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardBUnitInstallAttribution>
 getContractAt(name: 'IConetTreasury', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasury>
+getContractAt(name: 'BUnitAirdropV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BUnitAirdropV2>
+getContractAt(name: 'IBeamioAccountOwnerV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountOwnerV2>
+getContractAt(name: 'IBeamioBUnitsV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioBUnitsV2>
+getContractAt(name: 'IConetTreasuryV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IConetTreasuryV2>
+getContractAt(name: 'ILegacyBUnitAirdropV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ILegacyBUnitAirdropV2>
+getContractAt(name: 'IReferralSettlementV2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IReferralSettlementV2>
 getContractAt(name: 'BuintRedeemAirdrop', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BuintRedeemAirdrop>
 getContractAt(name: 'IBeamioBUnitsMint', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioBUnitsMint>
 getContractAt(name: 'BusinessStartKetRedeem', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BusinessStartKetRedeem>
@@ -483,6 +500,11 @@ getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Address
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
 getContractAt(name: 'IUSDC', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUSDC>
 getContractAt(name: 'NodeSaleSplitter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.NodeSaleSplitter>
+getContractAt(name: 'IBUnitAirdropReferral', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBUnitAirdropReferral>
+getContractAt(name: 'IBusinessStartKetReferral', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBusinessStartKetReferral>
+getContractAt(name: 'IUserCardFactoryReferral', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardFactoryReferral>
+getContractAt(name: 'IUserCardReferralView', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardReferralView>
+getContractAt(name: 'ReferralRegistryVaultV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ReferralRegistryVaultV1>
 getContractAt(name: 'IBeaconDeposit', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeaconDeposit>
 getContractAt(name: 'IERC1155Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC1155Balance>
 getContractAt(name: 'IERC20Balance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20Balance>
@@ -646,6 +668,12 @@ deployContract(name: 'IBeamioIndexerDiamond', signerOrOptions?: ethers.Signer | 
 deployContract(name: 'IBeamioQuoteHelper', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioQuoteHelper>
 deployContract(name: 'IBeamioUserCardBUnitInstallAttribution', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardBUnitInstallAttribution>
 deployContract(name: 'IConetTreasury', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasury>
+deployContract(name: 'BUnitAirdropV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BUnitAirdropV2>
+deployContract(name: 'IBeamioAccountOwnerV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountOwnerV2>
+deployContract(name: 'IBeamioBUnitsV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsV2>
+deployContract(name: 'IConetTreasuryV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryV2>
+deployContract(name: 'ILegacyBUnitAirdropV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILegacyBUnitAirdropV2>
+deployContract(name: 'IReferralSettlementV2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferralSettlementV2>
 deployContract(name: 'BuintRedeemAirdrop', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BuintRedeemAirdrop>
 deployContract(name: 'IBeamioBUnitsMint', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMint>
 deployContract(name: 'BusinessStartKetRedeem', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BusinessStartKetRedeem>
@@ -739,6 +767,11 @@ deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IUSDC', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>
 deployContract(name: 'NodeSaleSplitter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NodeSaleSplitter>
+deployContract(name: 'IBUnitAirdropReferral', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdropReferral>
+deployContract(name: 'IBusinessStartKetReferral', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetReferral>
+deployContract(name: 'IUserCardFactoryReferral', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryReferral>
+deployContract(name: 'IUserCardReferralView', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardReferralView>
+deployContract(name: 'ReferralRegistryVaultV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ReferralRegistryVaultV1>
 deployContract(name: 'IBeaconDeposit', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
 deployContract(name: 'IERC1155Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
 deployContract(name: 'IERC20Balance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>
@@ -902,6 +935,12 @@ deployContract(name: 'IBeamioIndexerDiamond', args: any[], signerOrOptions?: eth
 deployContract(name: 'IBeamioQuoteHelper', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioQuoteHelper>
 deployContract(name: 'IBeamioUserCardBUnitInstallAttribution', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardBUnitInstallAttribution>
 deployContract(name: 'IConetTreasury', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasury>
+deployContract(name: 'BUnitAirdropV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BUnitAirdropV2>
+deployContract(name: 'IBeamioAccountOwnerV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountOwnerV2>
+deployContract(name: 'IBeamioBUnitsV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsV2>
+deployContract(name: 'IConetTreasuryV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IConetTreasuryV2>
+deployContract(name: 'ILegacyBUnitAirdropV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ILegacyBUnitAirdropV2>
+deployContract(name: 'IReferralSettlementV2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferralSettlementV2>
 deployContract(name: 'BuintRedeemAirdrop', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BuintRedeemAirdrop>
 deployContract(name: 'IBeamioBUnitsMint', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioBUnitsMint>
 deployContract(name: 'BusinessStartKetRedeem', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BusinessStartKetRedeem>
@@ -995,6 +1034,11 @@ deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: 
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IUSDC', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUSDC>
 deployContract(name: 'NodeSaleSplitter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.NodeSaleSplitter>
+deployContract(name: 'IBUnitAirdropReferral', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdropReferral>
+deployContract(name: 'IBusinessStartKetReferral', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetReferral>
+deployContract(name: 'IUserCardFactoryReferral', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryReferral>
+deployContract(name: 'IUserCardReferralView', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardReferralView>
+deployContract(name: 'ReferralRegistryVaultV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ReferralRegistryVaultV1>
 deployContract(name: 'IBeaconDeposit', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeaconDeposit>
 deployContract(name: 'IERC1155Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC1155Balance>
 deployContract(name: 'IERC20Balance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20Balance>

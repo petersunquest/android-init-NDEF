@@ -117,6 +117,8 @@
     "export:conet-liquidity-staking-standard-json": "npm run clean && npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs ConetTreasuryLiquidityStaking --full",
     "update:conet-references": "npx tsx scripts/updateConetReferences.ts",
     "deploy:buint-redeem-airdrop:conet": "hardhat run scripts/deployBuintRedeemAirdropToConet.ts --network conet",
+    "deploy:referral-registry-v1:conet": "hardhat run scripts/deployReferralRegistryVaultV1ToConet.ts --network conet",
+    "verify:referral-registry-v1:conet": "npx tsx scripts/verifyReferralRegistryVaultV1StackConet.ts",
     "export:buint-redeem-airdrop:conet:standard-json": "npm run clean && npm run compile && node scripts/exportBuintRedeemAirdropStandardJson.mjs",
     "relay:buint-redeem:conet": "hardhat run scripts/relayBuintRedeemConet.ts --network conet",
     "verify:buint-redeem-airdrop:conet": "npx tsx scripts/verifyBuintRedeemAirdropConet.ts",

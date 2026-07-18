@@ -1,0 +1,67 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-07-17T07:36:31.335Z",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "compiler": "0.8.35+commit.47b9dedd",
+  "contracts": {
+    "ReferralRegistryVaultV1": {
+      "proxy": "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6",
+      "implementation": "0x576AD3eCf13906bCecEf92afEC6AC7f4aF1D7B48",
+      "transactionHash": "0xdcc4c86db67a5a0c09437d5e319f070579965cecb3d06eb3b5711018831f1a59",
+      "deployBlock": 431457,
+      "initializeArgs": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0xAcf20dbb4DE0992d8947Ef00b505bBc17E6A03b2",
+        "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+        "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+        "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
+      ],
+      "upgradedImplementation": "0xE10E4058AD10235330A4bf2C3005d411974aC3ef",
+      "upgradeTransactionHash": "0x7618e4f26384b2695c08da4b27e1a7b0cf1ac9b7f1b69977f4071de978d8f5b8",
+      "upgradeBlock": 454228,
+      "upgradeTimestamp": "2026-07-18T21:50:37.512Z"
+    },
+    "BUnitAirdropV2": {
+      "proxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+      "implementation": "0xA91bD32362619905d392FcA75f2Abb887CA5C7D6",
+      "transactionHash": "0x2efc5918da2c6de42c9b5fab602b070e55383654259530211c806f4482309d70",
+      "deployBlock": 431459,
+      "initializeArgs": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+        "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+        "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3",
+        "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6"
+      ],
+      "upgradedImplementation": "0x9D3AF5E10C16acFC1725DE58347D90437ff3E3B2",
+      "upgradeTimestamp": "2026-07-17T08:54:13.399Z",
+      "legacyBunitAirdrop": "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8"
+    }
+  },
+  "dependencies": {
+    "bunit": "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+    "treasury": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+    "conetUsdc": "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3",
+    "businessStartKet": "0xAcf20dbb4DE0992d8947Ef00b505bBc17E6A03b2",
+    "userCardFactory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB"
+  },
+  "configuredAdmins": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+    "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+    "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2",
+    "0x6add8012d4DDb7dA736Ab713FdA13ef3827a05bf",
+    "0x068759bCfd929fb17258aF372c30eE6CD277B872",
+    "0xB272bC809dd8A96294f337aDED3f9602cac0E3B0",
+    "0x2d1D98a96a4C7E1680e43d20F43796264bfdF9E6",
+    "0x99BcBb0f4a0BF72c2d8A2E5FDD0ad3B7dAe40302",
+    "0x8AcB8D56f68F28c0Aa5Ab292513f5fAA7ec6126f",
+    "0x4a083ae4CdE5C1A621Ef711DF4cc18cad092561d",
+    "0x4a0B9B510f0E7395745fdbB8D96b2e2576960b95",
+    "0x9D54ccb9C0a7B836aE8de49fAE1573A024a347Ab",
+    "0xee73178EE888363C84713434D1570749eaeB880d"
+  ],
+  "switchover": false
+}

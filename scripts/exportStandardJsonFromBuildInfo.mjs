@@ -202,6 +202,14 @@ const CONFIG = {
     sourceKey: "project/src/b-unit/BUnitAirdrop.sol",
     contractName: "BUnitAirdrop",
   },
+  BUnitAirdropV2: {
+    sourceKey: "project/src/b-unit/BUnitAirdropV2.sol",
+    contractName: "BUnitAirdropV2",
+  },
+  ReferralRegistryVaultV1: {
+    sourceKey: "project/src/mainnet/ReferralRegistryVaultV1.sol",
+    contractName: "ReferralRegistryVaultV1",
+  },
   BuintRedeemAirdrop: {
     sourceKey: "project/src/b-unit/BuintRedeemAirdrop.sol",
     contractName: "BuintRedeemAirdrop",

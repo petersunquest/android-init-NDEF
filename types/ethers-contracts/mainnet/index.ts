@@ -3,6 +3,8 @@
 /* eslint-disable */
 import type * as nodeSaleSplitterSol from './NodeSaleSplitter.sol/index.js';
 export type { nodeSaleSplitterSol };
+import type * as referralRegistryVaultV1Sol from './ReferralRegistryVaultV1.sol/index.js';
+export type { referralRegistryVaultV1Sol };
 import type * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
 export type { validatorDepositRedeemSol };
 import type * as validatorDepositRedeemAllocLibSol from './ValidatorDepositRedeemAllocLib.sol/index.js';

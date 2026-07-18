@@ -5,6 +5,8 @@ import type * as bUintSol from './BUint.sol/index.js';
 export type { bUintSol };
 import type * as bUnitAirdropSol from './BUnitAirdrop.sol/index.js';
 export type { bUnitAirdropSol };
+import type * as bUnitAirdropV2Sol from './BUnitAirdropV2.sol/index.js';
+export type { bUnitAirdropV2Sol };
 import type * as buintRedeemAirdropSol from './BuintRedeemAirdrop.sol/index.js';
 export type { buintRedeemAirdropSol };
 import type * as businessStartKetRedeemSol from './BusinessStartKetRedeem.sol/index.js';
