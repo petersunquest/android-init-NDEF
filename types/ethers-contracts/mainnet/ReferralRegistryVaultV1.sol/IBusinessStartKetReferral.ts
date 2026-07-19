@@ -3,12 +3,12 @@
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
-
+  
 
   export interface IBusinessStartKetReferralInterface extends Interface {
     getFunction(nameOrSignature: "adminBurn" | "balanceOf" | "mint"): FunctionFragment;
 
-
+    
 
     encodeFunctionData(functionFragment: 'adminBurn', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
@@ -19,16 +19,16 @@ decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
   }
 
-
+  
 
   export interface IBusinessStartKetReferral extends BaseContract {
-
+    
     connect(runner?: ContractRunner | null): IBusinessStartKetReferral;
     waitForDeployment(): Promise<this>;
 
     interface: IBusinessStartKetReferralInterface;
 
-
+    
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
@@ -42,7 +42,7 @@ decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
 
   on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   on<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
-
+  
   once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   once<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
 
@@ -53,30 +53,30 @@ decodeFunctionResult(functionFragment: 'mint', data: BytesLike): Result;
   removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>
 
 
-
-
+    
+    
     adminBurn: TypedContractMethod<
       [from: AddressLike, id: BigNumberish, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     balanceOf: TypedContractMethod<
       [account: AddressLike, id: BigNumberish, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     mint: TypedContractMethod<
       [to: AddressLike, id: BigNumberish, amount: BigNumberish, data: BytesLike, ],
       [void],
       'nonpayable'
     >
-
+    
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
@@ -97,9 +97,9 @@ getFunction(nameOrSignature: 'mint'): TypedContractMethod<
       'nonpayable'
     >;
 
-
+    
 
     filters: {
-
+      
     };
   }

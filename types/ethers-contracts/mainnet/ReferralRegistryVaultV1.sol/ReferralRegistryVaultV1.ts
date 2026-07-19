@@ -3,10 +3,10 @@
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, EventFragment, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedLogDescription, TypedListener, TypedContractMethod } from "../../common.js"
-
+  
 
   export interface ReferralRegistryVaultV1Interface extends Interface {
-    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodes" | "merchantQuotas" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0RebateRate" | "setL0RebateRateFor" | "setL1ClaimPaused" | "setL1Ratio" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodes" | "merchantQuotas" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0QuotaFor" | "setL0RebateRate" | "setL0RebateRateFor" | "setL1ClaimPaused" | "setL1Ratio" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "ClaimableAccrued" | "ConetUsdcClaimed" | "ConfigUpdated" | "Initialized" | "L0ClaimPauseUpdated" | "L0QuotaUpdated" | "L0RateUpdated" | "L0RedeemCodeCancelled" | "L0RedeemCodeClaimed" | "L0RedeemCodeIssued" | "L1ClaimPauseUpdated" | "L1RatioUpdated" | "L1RedeemCodeCancelled" | "L1RedeemCodeClaimed" | "L1RedeemCodeIssued" | "MemberRegistered" | "MerchantAssignedToL0" | "MerchantCardCreated" | "MerchantCodeClaimed" | "MerchantCodeIssued" | "OwnershipTransferred" | "PaidBunitCodeClaimed" | "PaidBunitCodeIssued" | "Upgraded"): EventFragment;
 
@@ -70,6 +70,7 @@ encodeFunctionData(functionFragment: 'setAdmin', values: [AddressLike, boolean])
 encodeFunctionData(functionFragment: 'setConfig', values: [AddressLike, AddressLike, AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setL0ClaimPaused', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setL0Quota', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setL0QuotaFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setL0RebateRate', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setL0RebateRateFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setL1ClaimPaused', values: [AddressLike, boolean]): string;
@@ -138,6 +139,7 @@ decodeFunctionResult(functionFragment: 'setAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setConfig', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0ClaimPaused', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0Quota', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setL0QuotaFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0RebateRate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0RebateRateFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL1ClaimPaused', data: BytesLike): Result;
@@ -147,7 +149,7 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Result;
   }
 
-
+  
     export namespace AdminUpdatedEvent {
       export type InputTuple = [account: AddressLike, enabled: boolean];
       export type OutputTuple = [account: string, enabled: boolean];
@@ -158,7 +160,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace ClaimableAccruedEvent {
       export type InputTuple = [settlementId: BytesLike, account: AddressLike, amount: BigNumberish];
@@ -170,7 +172,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace ConetUsdcClaimedEvent {
       export type InputTuple = [account: AddressLike, amount: BigNumberish, nonce: BigNumberish];
@@ -182,7 +184,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace ConfigUpdatedEvent {
       export type InputTuple = [businessStartKet: AddressLike, bunitAirdrop: AddressLike, userCardFactory: AddressLike, conetUsdc: AddressLike];
@@ -194,7 +196,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace InitializedEvent {
       export type InputTuple = [version: BigNumberish];
@@ -206,7 +208,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0ClaimPauseUpdatedEvent {
       export type InputTuple = [l0: AddressLike, paused: boolean];
@@ -218,7 +220,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0QuotaUpdatedEvent {
       export type InputTuple = [l0: AddressLike, starterKetRemaining: BigNumberish, paidBunitRemaining: BigNumberish];
@@ -230,7 +232,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0RateUpdatedEvent {
       export type InputTuple = [l0: AddressLike, rebateBps: BigNumberish];
@@ -242,7 +244,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0RedeemCodeCancelledEvent {
       export type InputTuple = [redeemHash: BytesLike, admin: AddressLike];
@@ -254,7 +256,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0RedeemCodeClaimedEvent {
       export type InputTuple = [redeemHash: BytesLike, l0: AddressLike, admin: AddressLike, rebateBps: BigNumberish];
@@ -266,7 +268,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L0RedeemCodeIssuedEvent {
       export type InputTuple = [redeemHash: BytesLike, admin: AddressLike, rebateBps: BigNumberish, validBefore: BigNumberish];
@@ -278,7 +280,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L1ClaimPauseUpdatedEvent {
       export type InputTuple = [l0: AddressLike, l1: AddressLike, paused: boolean];
@@ -290,7 +292,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L1RatioUpdatedEvent {
       export type InputTuple = [l0: AddressLike, l1: AddressLike, ratioBps: BigNumberish];
@@ -302,7 +304,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L1RedeemCodeCancelledEvent {
       export type InputTuple = [redeemHash: BytesLike, l0: AddressLike];
@@ -314,7 +316,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L1RedeemCodeClaimedEvent {
       export type InputTuple = [redeemHash: BytesLike, l1: AddressLike, l0: AddressLike, rebateBps: BigNumberish, ratioBps: BigNumberish];
@@ -326,7 +328,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace L1RedeemCodeIssuedEvent {
       export type InputTuple = [redeemHash: BytesLike, l0: AddressLike, rebateBps: BigNumberish, ratioBps: BigNumberish, validBefore: BigNumberish];
@@ -338,7 +340,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace MemberRegisteredEvent {
       export type InputTuple = [account: AddressLike, role: BigNumberish, parentL0: AddressLike, parentAdmin: AddressLike];
@@ -350,7 +352,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace MerchantAssignedToL0Event {
       export type InputTuple = [merchant: AddressLike, l0: AddressLike, card: AddressLike, admin: AddressLike];
@@ -362,7 +364,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace MerchantCardCreatedEvent {
       export type InputTuple = [merchant: AddressLike, l0: AddressLike, card: AddressLike, metadataHash: BytesLike];
@@ -374,7 +376,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace MerchantCodeClaimedEvent {
       export type InputTuple = [redeemHash: BytesLike, merchant: AddressLike, l0: AddressLike, paidBunitAmount: BigNumberish];
@@ -386,7 +388,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace MerchantCodeIssuedEvent {
       export type InputTuple = [redeemHash: BytesLike, l0: AddressLike, paidBunitAmount: BigNumberish];
@@ -398,7 +400,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace OwnershipTransferredEvent {
       export type InputTuple = [previousOwner: AddressLike, newOwner: AddressLike];
@@ -410,7 +412,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace PaidBunitCodeClaimedEvent {
       export type InputTuple = [redeemHash: BytesLike, recipient: AddressLike, amount: BigNumberish];
@@ -422,7 +424,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace PaidBunitCodeIssuedEvent {
       export type InputTuple = [redeemHash: BytesLike, amount: BigNumberish];
@@ -434,7 +436,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
     export namespace UpgradedEvent {
       export type InputTuple = [implementation: AddressLike];
@@ -446,16 +448,16 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       export type LogDescription = TypedLogDescription<Event>
     }
 
-
+  
 
   export interface ReferralRegistryVaultV1 extends BaseContract {
-
+    
     connect(runner?: ContractRunner | null): ReferralRegistryVaultV1;
     waitForDeployment(): Promise<this>;
 
     interface: ReferralRegistryVaultV1Interface;
 
-
+    
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
@@ -469,7 +471,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
 
   on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   on<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
-
+  
   once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   once<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
 
@@ -480,542 +482,550 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
   removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>
 
 
-
-
+    
+    
     BPS: TypedContractMethod<
       [],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     BUSINESS_START_KET_ID: TypedContractMethod<
       [],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     UPGRADE_INTERFACE_VERSION: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     addL0: TypedContractMethod<
       [l0: AddressLike, parentAdmin: AddressLike, rebateBps: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     admins: TypedContractMethod<
       [arg0: AddressLike, ],
       [boolean],
       'view'
     >
+    
 
-
-
+    
     assignMerchantToL0: TypedContractMethod<
       [l0: AddressLike, merchant: AddressLike, card: AddressLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     assignMerchantToL0For: TypedContractMethod<
       [admin: AddressLike, l0: AddressLike, merchant: AddressLike, card: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     bunitAirdrop: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     businessStartKet: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     cancelL0RedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     cancelL0RedeemCodeFor: TypedContractMethod<
       [admin: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     cancelL1RedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     cancelL1RedeemCodeFor: TypedContractMethod<
       [l0: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimConetUsdc: TypedContractMethod<
       [amount: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimL0RedeemCode: TypedContractMethod<
       [secret: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimL0RedeemCodeFor: TypedContractMethod<
       [claimer: AddressLike, secret: BytesLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimL1RedeemCode: TypedContractMethod<
       [secret: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimL1RedeemCodeFor: TypedContractMethod<
       [claimer: AddressLike, secret: BytesLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimMerchantCode: TypedContractMethod<
       [secret: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     claimPaidBunitRedeem: TypedContractMethod<
       [secret: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     claimableConetUsdc: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     claimableUsdc: TypedContractMethod<
       [account: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     claimedConetUsdc: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     claimedMerchantCode: TypedContractMethod<
       [arg0: AddressLike, ],
       [string],
       'view'
     >
+    
 
-
-
+    
     claimedMerchantL0: TypedContractMethod<
       [arg0: AddressLike, ],
       [string],
       'view'
     >
+    
 
-
-
+    
     conetUsdc: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     createMerchantCard: TypedContractMethod<
       [currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, metadataHash: BytesLike, ],
       [string],
       'nonpayable'
     >
+    
 
-
-
+    
     initialize: TypedContractMethod<
       [owner_: AddressLike, businessStartKet_: AddressLike, bunitAirdrop_: AddressLike, userCardFactory_: AddressLike, conetUsdc_: AddressLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issueL0RedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, rebateBps: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issueL0RedeemCodeFor: TypedContractMethod<
       [admin: AddressLike, redeemHash: BytesLike, rebateBps: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issueL1RedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, l1RebateBps: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issueL1RedeemCodeFor: TypedContractMethod<
       [l0: AddressLike, redeemHash: BytesLike, l1RebateBps: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issueMerchantRedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, paidBunitAmount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     issuePaidBunitRedeemCode: TypedContractMethod<
       [redeemHash: BytesLike, amount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     l0ClaimPaused: TypedContractMethod<
       [arg0: AddressLike, ],
       [boolean],
       'view'
     >
+    
 
-
-
+    
     l0RedeemCodeCount: TypedContractMethod<
       [],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     l0RedeemCodeHashAt: TypedContractMethod<
       [index: BigNumberish, ],
       [string],
       'view'
     >
+    
 
-
-
+    
     l0RedeemCodeStatus: TypedContractMethod<
       [redeemHash: BytesLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     l0RedeemCodes: TypedContractMethod<
       [arg0: BytesLike, ],
       [[string, bigint, bigint, bigint, boolean, boolean, boolean] & {issuerAdmin: string, rebateBps: bigint, validAfter: bigint, validBefore: bigint, active: boolean, claimed: boolean, cancelled: boolean }],
       'view'
     >
+    
 
-
-
+    
     l1ClaimPaused: TypedContractMethod<
       [arg0: AddressLike, arg1: AddressLike, ],
       [boolean],
       'view'
     >
+    
 
-
-
+    
     l1RedeemCodeCount: TypedContractMethod<
       [],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     l1RedeemCodeHashAt: TypedContractMethod<
       [index: BigNumberish, ],
       [string],
       'view'
     >
+    
 
-
-
+    
     l1RedeemCodeStatus: TypedContractMethod<
       [redeemHash: BytesLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     l1RedeemCodes: TypedContractMethod<
       [arg0: BytesLike, ],
       [[string, bigint, bigint, bigint, bigint, boolean, boolean, boolean] & {issuerL0: string, rebateBps: bigint, ratioBps: bigint, validAfter: bigint, validBefore: bigint, active: boolean, claimed: boolean, cancelled: boolean }],
       'view'
     >
+    
 
-
-
+    
     members: TypedContractMethod<
       [arg0: AddressLike, ],
       [[bigint, string, string, bigint, bigint, boolean] & {role: bigint, parentAdmin: string, parentL0: string, rebateBps: bigint, ratioBps: bigint, active: boolean }],
       'view'
     >
+    
 
-
-
+    
     merchantCodes: TypedContractMethod<
       [arg0: BytesLike, ],
       [[string, bigint, bigint, bigint, boolean, boolean] & {issuerL0: string, paidBunitAmount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, claimed: boolean }],
       'view'
     >
+    
 
-
-
+    
     merchantQuotas: TypedContractMethod<
       [arg0: AddressLike, ],
       [[bigint, bigint, bigint, bigint] & {starterKetRemaining: bigint, paidBunitRemaining: bigint, issuedCodeCount: bigint, claimedCodeCount: bigint }],
       'view'
     >
+    
 
-
-
+    
     onPaidBUnitConsumed: TypedContractMethod<
       [payer: AddressLike, paidBurned: BigNumberish, usdcAmount: BigNumberish, sourceHash: BytesLike, kind: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     owner: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     paidBunitCodes: TypedContractMethod<
       [arg0: BytesLike, ],
       [[bigint, bigint, bigint, boolean, boolean] & {amount: bigint, validAfter: bigint, validBefore: bigint, active: boolean, claimed: boolean }],
       'view'
     >
+    
 
-
-
+    
     proxiableUUID: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     redeemActionNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     referralClaimNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
       'view'
     >
+    
 
-
-
+    
     referralDomainSeparator: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     renounceOwnership: TypedContractMethod<
       [],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setAdmin: TypedContractMethod<
       [account: AddressLike, enabled: boolean, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setConfig: TypedContractMethod<
       [businessStartKet_: AddressLike, bunitAirdrop_: AddressLike, userCardFactory_: AddressLike, conetUsdc_: AddressLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setL0ClaimPaused: TypedContractMethod<
       [l0: AddressLike, paused: boolean, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setL0Quota: TypedContractMethod<
       [l0: AddressLike, starterKetRemaining: BigNumberish, paidBunitRemaining: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
+    
+    setL0QuotaFor: TypedContractMethod<
+      [admin: AddressLike, l0: AddressLike, starterKetRemaining: BigNumberish, paidBunitRemaining: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
 
-
+    
     setL0RebateRate: TypedContractMethod<
       [l0: AddressLike, rebateBps: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setL0RebateRateFor: TypedContractMethod<
       [admin: AddressLike, l0: AddressLike, rebateBps: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setL1ClaimPaused: TypedContractMethod<
       [l1: AddressLike, paused: boolean, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     setL1Ratio: TypedContractMethod<
       [l1: AddressLike, ratioBps: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     transferOwnership: TypedContractMethod<
       [newOwner: AddressLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     upgradeToAndCall: TypedContractMethod<
       [newImplementation: AddressLike, data: BytesLike, ],
       [void],
       'payable'
     >
+    
 
-
-
+    
     userCardFactory: TypedContractMethod<
       [],
       [string],
       'view'
     >
-
+    
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
@@ -1320,6 +1330,11 @@ getFunction(nameOrSignature: 'setL0Quota'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setL0QuotaFor'): TypedContractMethod<
+      [admin: AddressLike, l0: AddressLike, starterKetRemaining: BigNumberish, paidBunitRemaining: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setL0RebateRate'): TypedContractMethod<
       [l0: AddressLike, rebateBps: BigNumberish, ],
       [void],
@@ -1383,105 +1398,105 @@ getEvent(key: 'PaidBunitCodeIssued'): TypedContractEvent<PaidBunitCodeIssuedEven
 getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
 
     filters: {
-
+      
       'AdminUpdated(address,bool)': TypedContractEvent<AdminUpdatedEvent.InputTuple, AdminUpdatedEvent.OutputTuple, AdminUpdatedEvent.OutputObject>;
       AdminUpdated: TypedContractEvent<AdminUpdatedEvent.InputTuple, AdminUpdatedEvent.OutputTuple, AdminUpdatedEvent.OutputObject>;
-
+    
 
       'ClaimableAccrued(bytes32,address,uint256)': TypedContractEvent<ClaimableAccruedEvent.InputTuple, ClaimableAccruedEvent.OutputTuple, ClaimableAccruedEvent.OutputObject>;
       ClaimableAccrued: TypedContractEvent<ClaimableAccruedEvent.InputTuple, ClaimableAccruedEvent.OutputTuple, ClaimableAccruedEvent.OutputObject>;
-
+    
 
       'ConetUsdcClaimed(address,uint256,uint256)': TypedContractEvent<ConetUsdcClaimedEvent.InputTuple, ConetUsdcClaimedEvent.OutputTuple, ConetUsdcClaimedEvent.OutputObject>;
       ConetUsdcClaimed: TypedContractEvent<ConetUsdcClaimedEvent.InputTuple, ConetUsdcClaimedEvent.OutputTuple, ConetUsdcClaimedEvent.OutputObject>;
-
+    
 
       'ConfigUpdated(address,address,address,address)': TypedContractEvent<ConfigUpdatedEvent.InputTuple, ConfigUpdatedEvent.OutputTuple, ConfigUpdatedEvent.OutputObject>;
       ConfigUpdated: TypedContractEvent<ConfigUpdatedEvent.InputTuple, ConfigUpdatedEvent.OutputTuple, ConfigUpdatedEvent.OutputObject>;
-
+    
 
       'Initialized(uint64)': TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
       Initialized: TypedContractEvent<InitializedEvent.InputTuple, InitializedEvent.OutputTuple, InitializedEvent.OutputObject>;
-
+    
 
       'L0ClaimPauseUpdated(address,bool)': TypedContractEvent<L0ClaimPauseUpdatedEvent.InputTuple, L0ClaimPauseUpdatedEvent.OutputTuple, L0ClaimPauseUpdatedEvent.OutputObject>;
       L0ClaimPauseUpdated: TypedContractEvent<L0ClaimPauseUpdatedEvent.InputTuple, L0ClaimPauseUpdatedEvent.OutputTuple, L0ClaimPauseUpdatedEvent.OutputObject>;
-
+    
 
       'L0QuotaUpdated(address,uint256,uint256)': TypedContractEvent<L0QuotaUpdatedEvent.InputTuple, L0QuotaUpdatedEvent.OutputTuple, L0QuotaUpdatedEvent.OutputObject>;
       L0QuotaUpdated: TypedContractEvent<L0QuotaUpdatedEvent.InputTuple, L0QuotaUpdatedEvent.OutputTuple, L0QuotaUpdatedEvent.OutputObject>;
-
+    
 
       'L0RateUpdated(address,uint256)': TypedContractEvent<L0RateUpdatedEvent.InputTuple, L0RateUpdatedEvent.OutputTuple, L0RateUpdatedEvent.OutputObject>;
       L0RateUpdated: TypedContractEvent<L0RateUpdatedEvent.InputTuple, L0RateUpdatedEvent.OutputTuple, L0RateUpdatedEvent.OutputObject>;
-
+    
 
       'L0RedeemCodeCancelled(bytes32,address)': TypedContractEvent<L0RedeemCodeCancelledEvent.InputTuple, L0RedeemCodeCancelledEvent.OutputTuple, L0RedeemCodeCancelledEvent.OutputObject>;
       L0RedeemCodeCancelled: TypedContractEvent<L0RedeemCodeCancelledEvent.InputTuple, L0RedeemCodeCancelledEvent.OutputTuple, L0RedeemCodeCancelledEvent.OutputObject>;
-
+    
 
       'L0RedeemCodeClaimed(bytes32,address,address,uint256)': TypedContractEvent<L0RedeemCodeClaimedEvent.InputTuple, L0RedeemCodeClaimedEvent.OutputTuple, L0RedeemCodeClaimedEvent.OutputObject>;
       L0RedeemCodeClaimed: TypedContractEvent<L0RedeemCodeClaimedEvent.InputTuple, L0RedeemCodeClaimedEvent.OutputTuple, L0RedeemCodeClaimedEvent.OutputObject>;
-
+    
 
       'L0RedeemCodeIssued(bytes32,address,uint256,uint64)': TypedContractEvent<L0RedeemCodeIssuedEvent.InputTuple, L0RedeemCodeIssuedEvent.OutputTuple, L0RedeemCodeIssuedEvent.OutputObject>;
       L0RedeemCodeIssued: TypedContractEvent<L0RedeemCodeIssuedEvent.InputTuple, L0RedeemCodeIssuedEvent.OutputTuple, L0RedeemCodeIssuedEvent.OutputObject>;
-
+    
 
       'L1ClaimPauseUpdated(address,address,bool)': TypedContractEvent<L1ClaimPauseUpdatedEvent.InputTuple, L1ClaimPauseUpdatedEvent.OutputTuple, L1ClaimPauseUpdatedEvent.OutputObject>;
       L1ClaimPauseUpdated: TypedContractEvent<L1ClaimPauseUpdatedEvent.InputTuple, L1ClaimPauseUpdatedEvent.OutputTuple, L1ClaimPauseUpdatedEvent.OutputObject>;
-
+    
 
       'L1RatioUpdated(address,address,uint256)': TypedContractEvent<L1RatioUpdatedEvent.InputTuple, L1RatioUpdatedEvent.OutputTuple, L1RatioUpdatedEvent.OutputObject>;
       L1RatioUpdated: TypedContractEvent<L1RatioUpdatedEvent.InputTuple, L1RatioUpdatedEvent.OutputTuple, L1RatioUpdatedEvent.OutputObject>;
-
+    
 
       'L1RedeemCodeCancelled(bytes32,address)': TypedContractEvent<L1RedeemCodeCancelledEvent.InputTuple, L1RedeemCodeCancelledEvent.OutputTuple, L1RedeemCodeCancelledEvent.OutputObject>;
       L1RedeemCodeCancelled: TypedContractEvent<L1RedeemCodeCancelledEvent.InputTuple, L1RedeemCodeCancelledEvent.OutputTuple, L1RedeemCodeCancelledEvent.OutputObject>;
-
+    
 
       'L1RedeemCodeClaimed(bytes32,address,address,uint256,uint256)': TypedContractEvent<L1RedeemCodeClaimedEvent.InputTuple, L1RedeemCodeClaimedEvent.OutputTuple, L1RedeemCodeClaimedEvent.OutputObject>;
       L1RedeemCodeClaimed: TypedContractEvent<L1RedeemCodeClaimedEvent.InputTuple, L1RedeemCodeClaimedEvent.OutputTuple, L1RedeemCodeClaimedEvent.OutputObject>;
-
+    
 
       'L1RedeemCodeIssued(bytes32,address,uint256,uint256,uint64)': TypedContractEvent<L1RedeemCodeIssuedEvent.InputTuple, L1RedeemCodeIssuedEvent.OutputTuple, L1RedeemCodeIssuedEvent.OutputObject>;
       L1RedeemCodeIssued: TypedContractEvent<L1RedeemCodeIssuedEvent.InputTuple, L1RedeemCodeIssuedEvent.OutputTuple, L1RedeemCodeIssuedEvent.OutputObject>;
-
+    
 
       'MemberRegistered(address,uint8,address,address)': TypedContractEvent<MemberRegisteredEvent.InputTuple, MemberRegisteredEvent.OutputTuple, MemberRegisteredEvent.OutputObject>;
       MemberRegistered: TypedContractEvent<MemberRegisteredEvent.InputTuple, MemberRegisteredEvent.OutputTuple, MemberRegisteredEvent.OutputObject>;
-
+    
 
       'MerchantAssignedToL0(address,address,address,address)': TypedContractEvent<MerchantAssignedToL0Event.InputTuple, MerchantAssignedToL0Event.OutputTuple, MerchantAssignedToL0Event.OutputObject>;
       MerchantAssignedToL0: TypedContractEvent<MerchantAssignedToL0Event.InputTuple, MerchantAssignedToL0Event.OutputTuple, MerchantAssignedToL0Event.OutputObject>;
-
+    
 
       'MerchantCardCreated(address,address,address,bytes32)': TypedContractEvent<MerchantCardCreatedEvent.InputTuple, MerchantCardCreatedEvent.OutputTuple, MerchantCardCreatedEvent.OutputObject>;
       MerchantCardCreated: TypedContractEvent<MerchantCardCreatedEvent.InputTuple, MerchantCardCreatedEvent.OutputTuple, MerchantCardCreatedEvent.OutputObject>;
-
+    
 
       'MerchantCodeClaimed(bytes32,address,address,uint256)': TypedContractEvent<MerchantCodeClaimedEvent.InputTuple, MerchantCodeClaimedEvent.OutputTuple, MerchantCodeClaimedEvent.OutputObject>;
       MerchantCodeClaimed: TypedContractEvent<MerchantCodeClaimedEvent.InputTuple, MerchantCodeClaimedEvent.OutputTuple, MerchantCodeClaimedEvent.OutputObject>;
-
+    
 
       'MerchantCodeIssued(bytes32,address,uint256)': TypedContractEvent<MerchantCodeIssuedEvent.InputTuple, MerchantCodeIssuedEvent.OutputTuple, MerchantCodeIssuedEvent.OutputObject>;
       MerchantCodeIssued: TypedContractEvent<MerchantCodeIssuedEvent.InputTuple, MerchantCodeIssuedEvent.OutputTuple, MerchantCodeIssuedEvent.OutputObject>;
-
+    
 
       'OwnershipTransferred(address,address)': TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
       OwnershipTransferred: TypedContractEvent<OwnershipTransferredEvent.InputTuple, OwnershipTransferredEvent.OutputTuple, OwnershipTransferredEvent.OutputObject>;
-
+    
 
       'PaidBunitCodeClaimed(bytes32,address,uint256)': TypedContractEvent<PaidBunitCodeClaimedEvent.InputTuple, PaidBunitCodeClaimedEvent.OutputTuple, PaidBunitCodeClaimedEvent.OutputObject>;
       PaidBunitCodeClaimed: TypedContractEvent<PaidBunitCodeClaimedEvent.InputTuple, PaidBunitCodeClaimedEvent.OutputTuple, PaidBunitCodeClaimedEvent.OutputObject>;
-
+    
 
       'PaidBunitCodeIssued(bytes32,uint256)': TypedContractEvent<PaidBunitCodeIssuedEvent.InputTuple, PaidBunitCodeIssuedEvent.OutputTuple, PaidBunitCodeIssuedEvent.OutputObject>;
       PaidBunitCodeIssued: TypedContractEvent<PaidBunitCodeIssuedEvent.InputTuple, PaidBunitCodeIssuedEvent.OutputTuple, PaidBunitCodeIssuedEvent.OutputObject>;
-
+    
 
       'Upgraded(address)': TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
       Upgraded: TypedContractEvent<UpgradedEvent.InputTuple, UpgradedEvent.OutputTuple, UpgradedEvent.OutputObject>;
-
+    
     };
   }

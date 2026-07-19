@@ -3,12 +3,12 @@
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
-
+  
 
   export interface IBUnitAirdropReferralInterface extends Interface {
     getFunction(nameOrSignature: "mintPaidForCreditCashPurchase" | "payoutClaimable" | "reserveClaimable"): FunctionFragment;
 
-
+    
 
     encodeFunctionData(functionFragment: 'mintPaidForCreditCashPurchase', values: [AddressLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'payoutClaimable', values: [AddressLike, BigNumberish]): string;
@@ -19,16 +19,16 @@ decodeFunctionResult(functionFragment: 'payoutClaimable', data: BytesLike): Resu
 decodeFunctionResult(functionFragment: 'reserveClaimable', data: BytesLike): Result;
   }
 
-
+  
 
   export interface IBUnitAirdropReferral extends BaseContract {
-
+    
     connect(runner?: ContractRunner | null): IBUnitAirdropReferral;
     waitForDeployment(): Promise<this>;
 
     interface: IBUnitAirdropReferralInterface;
 
-
+    
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
@@ -42,7 +42,7 @@ decodeFunctionResult(functionFragment: 'reserveClaimable', data: BytesLike): Res
 
   on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   on<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
-
+  
   once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   once<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
 
@@ -53,30 +53,30 @@ decodeFunctionResult(functionFragment: 'reserveClaimable', data: BytesLike): Res
   removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>
 
 
-
-
+    
+    
     mintPaidForCreditCashPurchase: TypedContractMethod<
       [recipient: AddressLike, amount: BigNumberish, redeemHash: BytesLike, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     payoutClaimable: TypedContractMethod<
       [recipient: AddressLike, amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
+    
 
-
-
+    
     reserveClaimable: TypedContractMethod<
       [amount: BigNumberish, ],
       [void],
       'nonpayable'
     >
-
+    
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
@@ -97,9 +97,9 @@ getFunction(nameOrSignature: 'reserveClaimable'): TypedContractMethod<
       'nonpayable'
     >;
 
-
+    
 
     filters: {
-
+      
     };
   }

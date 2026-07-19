@@ -70,3 +70,4 @@
       return new Contract(address, _abi, runner) as unknown as IUserCardFactoryReferral;
     }
   }
+  

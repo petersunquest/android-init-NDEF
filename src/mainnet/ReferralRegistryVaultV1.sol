@@ -66,6 +66,10 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256("ClaimL1RedeemCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant SET_L0_RATE_TYPEHASH =
         keccak256("SetL0Rate(address admin,address l0,uint256 rebateBps,uint256 nonce,uint256 deadline)");
+    bytes32 private constant SET_L0_QUOTA_TYPEHASH =
+        keccak256(
+            "SetL0Quota(address admin,address l0,uint256 starterKetRemaining,uint256 paidBunitRemaining,uint256 nonce,uint256 deadline)"
+        );
     bytes32 private constant ASSIGN_MERCHANT_TYPEHASH =
         keccak256(
             "AssignMerchantToL0(address admin,address l0,address merchant,address card,uint256 nonce,uint256 deadline)"
@@ -289,10 +293,48 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         uint256 starterKetRemaining,
         uint256 paidBunitRemaining
     ) external onlyAdmin {
+        _setL0Quota(l0, starterKetRemaining, paidBunitRemaining);
+    }
+
+    function _setL0Quota(
+        address l0,
+        uint256 starterKetRemaining,
+        uint256 paidBunitRemaining
+    ) internal {
         if (members[l0].role != Role.L0 || !members[l0].active) revert NotRegistered();
         merchantQuotas[l0].starterKetRemaining = starterKetRemaining;
         merchantQuotas[l0].paidBunitRemaining = paidBunitRemaining;
         emit L0QuotaUpdated(l0, starterKetRemaining, paidBunitRemaining);
+    }
+
+    function setL0QuotaFor(
+        address admin,
+        address l0,
+        uint256 starterKetRemaining,
+        uint256 paidBunitRemaining,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            admin,
+            keccak256(
+                abi.encode(
+                    SET_L0_QUOTA_TYPEHASH,
+                    admin,
+                    l0,
+                    starterKetRemaining,
+                    paidBunitRemaining,
+                    nonce,
+                    deadline
+                )
+            ),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        _setL0Quota(l0, starterKetRemaining, paidBunitRemaining);
     }
 
     function addL0(address l0, address parentAdmin, uint256 rebateBps) external onlyAdmin {

@@ -3,12 +3,12 @@
 /* eslint-disable */
 import type { BaseContract, BytesLike, FunctionFragment, Result, Interface, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
-
+  
 
   export interface IUserCardReferralViewInterface extends Interface {
     getFunction(nameOrSignature: "factoryGateway" | "owner"): FunctionFragment;
 
-
+    
 
     encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
@@ -17,16 +17,16 @@ encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
   }
 
-
+  
 
   export interface IUserCardReferralView extends BaseContract {
-
+    
     connect(runner?: ContractRunner | null): IUserCardReferralView;
     waitForDeployment(): Promise<this>;
 
     interface: IUserCardReferralViewInterface;
 
-
+    
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
@@ -40,7 +40,7 @@ decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 
   on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   on<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
-
+  
   once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   once<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
 
@@ -51,22 +51,22 @@ decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
   removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>
 
 
-
-
+    
+    
     factoryGateway: TypedContractMethod<
       [],
       [string],
       'view'
     >
+    
 
-
-
+    
     owner: TypedContractMethod<
       [],
       [string],
       'view'
     >
-
+    
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
@@ -82,9 +82,9 @@ getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       'view'
     >;
 
-
+    
 
     filters: {
-
+      
     };
   }

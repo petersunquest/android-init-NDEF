@@ -3,12 +3,12 @@
 /* eslint-disable */
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
-
+  
 
   export interface IUserCardFactoryReferralInterface extends Interface {
     getFunction(nameOrSignature: "createCardCollectionWithInitCode" | "isBeamioUserCard"): FunctionFragment;
 
-
+    
 
     encodeFunctionData(functionFragment: 'createCardCollectionWithInitCode', values: [AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'isBeamioUserCard', values: [AddressLike]): string;
@@ -17,16 +17,16 @@ encodeFunctionData(functionFragment: 'isBeamioUserCard', values: [AddressLike]):
 decodeFunctionResult(functionFragment: 'isBeamioUserCard', data: BytesLike): Result;
   }
 
-
+  
 
   export interface IUserCardFactoryReferral extends BaseContract {
-
+    
     connect(runner?: ContractRunner | null): IUserCardFactoryReferral;
     waitForDeployment(): Promise<this>;
 
     interface: IUserCardFactoryReferralInterface;
 
-
+    
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
     fromBlockOrBlockhash?: string | number | undefined,
@@ -40,7 +40,7 @@ decodeFunctionResult(functionFragment: 'isBeamioUserCard', data: BytesLike): Res
 
   on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   on<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
-
+  
   once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>
   once<TCEvent extends TypedContractEvent>(filter: TypedDeferredTopicFilter<TCEvent>, listener: TypedListener<TCEvent>): Promise<this>
 
@@ -51,22 +51,22 @@ decodeFunctionResult(functionFragment: 'isBeamioUserCard', data: BytesLike): Res
   removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>
 
 
-
-
+    
+    
     createCardCollectionWithInitCode: TypedContractMethod<
       [cardOwner: AddressLike, currency: BigNumberish, priceInCurrencyE6: BigNumberish, initCode: BytesLike, ],
       [string],
       'nonpayable'
     >
+    
 
-
-
+    
     isBeamioUserCard: TypedContractMethod<
       [card: AddressLike, ],
       [boolean],
       'view'
     >
-
+    
 
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
@@ -82,9 +82,9 @@ getFunction(nameOrSignature: 'isBeamioUserCard'): TypedContractMethod<
       'view'
     >;
 
-
+    
 
     filters: {
-
+      
     };
   }
