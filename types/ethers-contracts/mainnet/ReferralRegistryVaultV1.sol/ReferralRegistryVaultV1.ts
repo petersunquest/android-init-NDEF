@@ -6,12 +6,13 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ReferralRegistryVaultV1Interface extends Interface {
-    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodes" | "merchantQuotas" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0QuotaFor" | "setL0RebateRate" | "setL0RebateRateFor" | "setL1ClaimPaused" | "setL1Ratio" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "MERCHANT_REDEEM_BUNIT_AIRDROP" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodes" | "merchantQuotas" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0QuotaFor" | "setL0RebateRate" | "setL0RebateRateFor" | "setL0StarterKetQuota" | "setL0StarterKetQuotaFor" | "setL1ClaimPaused" | "setL1Ratio" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "ClaimableAccrued" | "ConetUsdcClaimed" | "ConfigUpdated" | "Initialized" | "L0ClaimPauseUpdated" | "L0QuotaUpdated" | "L0RateUpdated" | "L0RedeemCodeCancelled" | "L0RedeemCodeClaimed" | "L0RedeemCodeIssued" | "L1ClaimPauseUpdated" | "L1RatioUpdated" | "L1RedeemCodeCancelled" | "L1RedeemCodeClaimed" | "L1RedeemCodeIssued" | "MemberRegistered" | "MerchantAssignedToL0" | "MerchantCardCreated" | "MerchantCodeClaimed" | "MerchantCodeIssued" | "OwnershipTransferred" | "PaidBunitCodeClaimed" | "PaidBunitCodeIssued" | "Upgraded"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'BUSINESS_START_KET_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MERCHANT_REDEEM_BUNIT_AIRDROP', values?: undefined): string;
 encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addL0', values: [AddressLike, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
@@ -73,6 +74,8 @@ encodeFunctionData(functionFragment: 'setL0Quota', values: [AddressLike, BigNumb
 encodeFunctionData(functionFragment: 'setL0QuotaFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setL0RebateRate', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setL0RebateRateFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'setL0StarterKetQuota', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setL0StarterKetQuotaFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setL1ClaimPaused', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setL1Ratio', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
@@ -81,6 +84,7 @@ encodeFunctionData(functionFragment: 'userCardFactory', values?: undefined): str
 
     decodeFunctionResult(functionFragment: 'BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'BUSINESS_START_KET_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MERCHANT_REDEEM_BUNIT_AIRDROP', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addL0', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
@@ -142,6 +146,8 @@ decodeFunctionResult(functionFragment: 'setL0Quota', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0QuotaFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0RebateRate', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL0RebateRateFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setL0StarterKetQuota', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setL0StarterKetQuotaFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL1ClaimPaused', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setL1Ratio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
@@ -500,6 +506,14 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
     
 
     
+    MERCHANT_REDEEM_BUNIT_AIRDROP: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     UPGRADE_INTERFACE_VERSION: TypedContractMethod<
       [],
       [string],
@@ -749,7 +763,7 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
 
     
     issueMerchantRedeemCode: TypedContractMethod<
-      [redeemHash: BytesLike, paidBunitAmount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
+      [redeemHash: BytesLike, arg1: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -988,6 +1002,22 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
     
 
     
+    setL0StarterKetQuota: TypedContractMethod<
+      [l0: AddressLike, starterKetRemaining: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setL0StarterKetQuotaFor: TypedContractMethod<
+      [admin: AddressLike, l0: AddressLike, starterKetRemaining: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setL1ClaimPaused: TypedContractMethod<
       [l1: AddressLike, paused: boolean, ],
       [void],
@@ -1036,6 +1066,11 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
       'view'
     >;
 getFunction(nameOrSignature: 'BUSINESS_START_KET_ID'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MERCHANT_REDEEM_BUNIT_AIRDROP'): TypedContractMethod<
       [],
       [bigint],
       'view'
@@ -1196,7 +1231,7 @@ getFunction(nameOrSignature: 'issueL1RedeemCodeFor'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'issueMerchantRedeemCode'): TypedContractMethod<
-      [redeemHash: BytesLike, paidBunitAmount: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
+      [redeemHash: BytesLike, arg1: BigNumberish, validAfter: BigNumberish, validBefore: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -1342,6 +1377,16 @@ getFunction(nameOrSignature: 'setL0RebateRate'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'setL0RebateRateFor'): TypedContractMethod<
       [admin: AddressLike, l0: AddressLike, rebateBps: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setL0StarterKetQuota'): TypedContractMethod<
+      [l0: AddressLike, starterKetRemaining: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setL0StarterKetQuotaFor'): TypedContractMethod<
+      [admin: AddressLike, l0: AddressLike, starterKetRemaining: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;

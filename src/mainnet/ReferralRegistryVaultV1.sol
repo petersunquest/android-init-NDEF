@@ -48,6 +48,7 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
 
     uint256 public constant BPS = 10_000;
     uint256 public constant BUSINESS_START_KET_ID = 0;
+    uint256 public constant MERCHANT_REDEEM_BUNIT_AIRDROP = 100 * 1e6;
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 private constant EIP712_NAME_HASH = keccak256("ReferralRegistryVaultV1");
@@ -70,6 +71,8 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256(
             "SetL0Quota(address admin,address l0,uint256 starterKetRemaining,uint256 paidBunitRemaining,uint256 nonce,uint256 deadline)"
         );
+    bytes32 private constant SET_L0_STARTER_KET_QUOTA_TYPEHASH =
+        keccak256("SetL0StarterKetQuota(address admin,address l0,uint256 starterKetRemaining,uint256 nonce,uint256 deadline)");
     bytes32 private constant ASSIGN_MERCHANT_TYPEHASH =
         keccak256(
             "AssignMerchantToL0(address admin,address l0,address merchant,address card,uint256 nonce,uint256 deadline)"
@@ -337,6 +340,35 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         _setL0Quota(l0, starterKetRemaining, paidBunitRemaining);
     }
 
+    function setL0StarterKetQuota(address l0, uint256 starterKetRemaining) external onlyAdmin {
+        _setL0StarterKetQuota(l0, starterKetRemaining);
+    }
+
+    function _setL0StarterKetQuota(address l0, uint256 starterKetRemaining) internal {
+        if (members[l0].role != Role.L0 || !members[l0].active) revert NotRegistered();
+        merchantQuotas[l0].starterKetRemaining = starterKetRemaining;
+        emit L0QuotaUpdated(l0, starterKetRemaining, merchantQuotas[l0].paidBunitRemaining);
+    }
+
+    function setL0StarterKetQuotaFor(
+        address admin,
+        address l0,
+        uint256 starterKetRemaining,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            admin,
+            keccak256(abi.encode(SET_L0_STARTER_KET_QUOTA_TYPEHASH, admin, l0, starterKetRemaining, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        _setL0StarterKetQuota(l0, starterKetRemaining);
+    }
+
     function addL0(address l0, address parentAdmin, uint256 rebateBps) external onlyAdmin {
         if (l0 == address(0) || parentAdmin == address(0) || rebateBps > BPS) revert InvalidAmount();
         if (members[l0].role != Role.None && members[l0].active) revert AlreadyRegistered();
@@ -347,15 +379,15 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
 
     function issueMerchantRedeemCode(
         bytes32 redeemHash,
-        uint256 paidBunitAmount,
+        uint256,
         uint64 validAfter,
         uint64 validBefore
     ) external onlyL0 {
+        uint256 paidBunitAmount = MERCHANT_REDEEM_BUNIT_AIRDROP;
         if (redeemHash == bytes32(0) || paidBunitAmount == 0) revert InvalidAmount();
         MerchantQuota storage q = merchantQuotas[msg.sender];
-        if (q.starterKetRemaining < 1 || q.paidBunitRemaining < paidBunitAmount) revert QuotaExceeded();
+        if (q.starterKetRemaining < 1) revert QuotaExceeded();
         q.starterKetRemaining -= 1;
-        q.paidBunitRemaining -= paidBunitAmount;
         q.issuedCodeCount += 1;
         merchantCodes[redeemHash] = MerchantCode(msg.sender, paidBunitAmount, validAfter, validBefore, true, false);
         emit MerchantCodeIssued(redeemHash, msg.sender, paidBunitAmount);
