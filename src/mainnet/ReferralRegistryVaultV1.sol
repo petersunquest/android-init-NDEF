@@ -41,14 +41,14 @@ interface IUserCardReferralView {
  * claimMerchantCode() grants BusinessStartKet #0 and paid B-Units;
  * createMerchantCard() accepts the full card init payload, burns the starter
  * certificate, creates the card through the UserCard factory, and only then
- * registers Merchant under the issuing L0.
+ * registers Merchant under the issuing L0 with parentAdmin = assigned L1.
  */
 contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     using ECDSA for bytes32;
 
     uint256 public constant BPS = 10_000;
     uint256 public constant BUSINESS_START_KET_ID = 0;
-    uint256 public constant MERCHANT_REDEEM_BUNIT_AIRDROP = 100 * 1e6;
+    uint256 public constant DEFAULT_MERCHANT_REDEEM_BUNIT_AIRDROP = 2_000 * 1e6;
     bytes32 private constant EIP712_DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 private constant EIP712_NAME_HASH = keccak256("ReferralRegistryVaultV1");
@@ -77,6 +77,12 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256(
             "AssignMerchantToL0(address admin,address l0,address merchant,address card,uint256 nonce,uint256 deadline)"
         );
+    bytes32 private constant ISSUE_MERCHANT_REDEEM_TYPEHASH =
+        keccak256("IssueMerchantRedeemCode(address l0,address l1,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
+    bytes32 private constant CANCEL_MERCHANT_REDEEM_TYPEHASH =
+        keccak256("CancelMerchantRedeemCode(address l0,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
+    bytes32 private constant SET_MERCHANT_REDEEM_BUNIT_AIRDROP_TYPEHASH =
+        keccak256("SetMerchantRedeemBunitAirdrop(address admin,uint256 amount,uint256 nonce,uint256 deadline)");
 
     enum Role {
         None,
@@ -164,8 +170,15 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     mapping(bytes32 => L1RedeemCode) public l1RedeemCodes;
     bytes32[] private l0RedeemCodeHashes;
     bytes32[] private l1RedeemCodeHashes;
+    bytes32[] private merchantCodeHashes;
+    mapping(bytes32 => bool) public merchantCodeCancelled;
+    uint256 public merchantRedeemBunitAirdrop;
     mapping(address => uint256) public redeemActionNonces;
     mapping(address => uint256) public referralClaimNonces;
+
+    // Start Kit codes must bind an L1 under the issuing L0 (appended for UUPS safety).
+    mapping(bytes32 => address) public merchantCodeAssignedL1;
+    mapping(address => address) public claimedMerchantL1;
 
     error Unauthorized();
     error InvalidAddress();
@@ -188,8 +201,10 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     event AdminUpdated(address indexed account, bool enabled);
     event ConfigUpdated(address indexed businessStartKet, address indexed bunitAirdrop, address userCardFactory, address conetUsdc);
     event L0QuotaUpdated(address indexed l0, uint256 starterKetRemaining, uint256 paidBunitRemaining);
-    event MerchantCodeIssued(bytes32 indexed redeemHash, address indexed l0, uint256 paidBunitAmount);
+    event MerchantCodeIssued(bytes32 indexed redeemHash, address indexed l0, address indexed l1, uint256 paidBunitAmount);
     event MerchantCodeClaimed(bytes32 indexed redeemHash, address indexed merchant, address indexed l0, uint256 paidBunitAmount);
+    event MerchantCodeCancelled(bytes32 indexed redeemHash, address indexed l0);
+    event MerchantRedeemBunitAirdropUpdated(uint256 amount);
     event MerchantCardCreated(address indexed merchant, address indexed l0, address indexed card, bytes32 metadataHash);
     event PaidBunitCodeIssued(bytes32 indexed redeemHash, uint256 amount);
     event PaidBunitCodeClaimed(bytes32 indexed redeemHash, address indexed recipient, uint256 amount);
@@ -255,6 +270,7 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         ) revert InvalidAddress();
         __Ownable_init(owner_);
         __UUPSUpgradeable_init();
+        merchantRedeemBunitAirdrop = DEFAULT_MERCHANT_REDEEM_BUNIT_AIRDROP;
         businessStartKet = businessStartKet_;
         bunitAirdrop = bunitAirdrop_;
         userCardFactory = userCardFactory_;
@@ -350,6 +366,32 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         emit L0QuotaUpdated(l0, starterKetRemaining, merchantQuotas[l0].paidBunitRemaining);
     }
 
+    function setMerchantRedeemBunitAirdrop(uint256 amount) external onlyAdmin {
+        if (amount == 0) revert InvalidAmount();
+        merchantRedeemBunitAirdrop = amount;
+        emit MerchantRedeemBunitAirdropUpdated(amount);
+    }
+
+    function setMerchantRedeemBunitAirdropFor(
+        address admin,
+        uint256 amount,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            admin,
+            keccak256(abi.encode(SET_MERCHANT_REDEEM_BUNIT_AIRDROP_TYPEHASH, admin, amount, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        if (amount == 0) revert InvalidAmount();
+        merchantRedeemBunitAirdrop = amount;
+        emit MerchantRedeemBunitAirdropUpdated(amount);
+    }
+
     function setL0StarterKetQuotaFor(
         address admin,
         address l0,
@@ -379,18 +421,99 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
 
     function issueMerchantRedeemCode(
         bytes32 redeemHash,
-        uint256,
+        address l1,
         uint64 validAfter,
         uint64 validBefore
     ) external onlyL0 {
-        uint256 paidBunitAmount = MERCHANT_REDEEM_BUNIT_AIRDROP;
+        _issueMerchantRedeemCode(msg.sender, l1, redeemHash, validAfter, validBefore);
+    }
+
+    function _issueMerchantRedeemCode(
+        address l0,
+        address l1,
+        bytes32 redeemHash,
+        uint64 validAfter,
+        uint64 validBefore
+    ) internal {
+        uint256 paidBunitAmount = merchantRedeemBunitAirdrop;
         if (redeemHash == bytes32(0) || paidBunitAmount == 0) revert InvalidAmount();
-        MerchantQuota storage q = merchantQuotas[msg.sender];
+        if (
+            l1 == address(0) ||
+            members[l1].role != Role.L1 ||
+            !members[l1].active ||
+            members[l1].parentL0 != l0
+        ) revert InvalidAddress();
+        MerchantQuota storage q = merchantQuotas[l0];
         if (q.starterKetRemaining < 1) revert QuotaExceeded();
         q.starterKetRemaining -= 1;
         q.issuedCodeCount += 1;
-        merchantCodes[redeemHash] = MerchantCode(msg.sender, paidBunitAmount, validAfter, validBefore, true, false);
-        emit MerchantCodeIssued(redeemHash, msg.sender, paidBunitAmount);
+        merchantCodes[redeemHash] = MerchantCode(l0, paidBunitAmount, validAfter, validBefore, true, false);
+        merchantCodeAssignedL1[redeemHash] = l1;
+        merchantCodeHashes.push(redeemHash);
+        emit MerchantCodeIssued(redeemHash, l0, l1, paidBunitAmount);
+    }
+
+    function issueMerchantRedeemCodeFor(
+        address l0,
+        address l1,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            l0,
+            keccak256(abi.encode(ISSUE_MERCHANT_REDEEM_TYPEHASH, l0, l1, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        _issueMerchantRedeemCode(l0, l1, redeemHash, 0, 0);
+    }
+
+    function merchantCodeCount() external view returns (uint256) {
+        return merchantCodeHashes.length;
+    }
+
+    function merchantCodeHashAt(uint256 index) external view returns (bytes32) {
+        return merchantCodeHashes[index];
+    }
+
+    function merchantCodesStatus(bytes32 redeemHash) external view returns (uint8) {
+        MerchantCode memory c = merchantCodes[redeemHash];
+        if (c.active) return 1;
+        if (c.claimed) return 2;
+        if (merchantCodeCancelled[redeemHash]) return 3;
+        return 0;
+    }
+
+    function cancelMerchantRedeemCode(bytes32 redeemHash) external onlyL0 {
+        _cancelMerchantRedeemCode(msg.sender, redeemHash);
+    }
+
+    function cancelMerchantRedeemCodeFor(
+        address l0,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            l0,
+            keccak256(abi.encode(CANCEL_MERCHANT_REDEEM_TYPEHASH, l0, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        _cancelMerchantRedeemCode(l0, redeemHash);
+    }
+
+    function _cancelMerchantRedeemCode(address l0, bytes32 redeemHash) internal {
+        MerchantCode storage c = merchantCodes[redeemHash];
+        if (c.issuerL0 != l0 || !c.active || c.claimed) revert CodeUnavailable();
+        c.active = false;
+        merchantCodeCancelled[redeemHash] = true;
+        emit MerchantCodeCancelled(redeemHash, l0);
     }
 
     function issuePaidBunitRedeemCode(
@@ -631,6 +754,9 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         bytes32 redeemHash = keccak256(bytes(secret));
         MerchantCode storage c = merchantCodes[redeemHash];
         if (!c.active || c.claimed) revert CodeUnavailable();
+        if (merchantCodeCancelled[redeemHash]) revert CodeUnavailable();
+        address l1 = merchantCodeAssignedL1[redeemHash];
+        if (l1 == address(0)) revert InvalidAddress();
         _checkWindow(c.validAfter, c.validBefore);
         if (members[msg.sender].role != Role.None || claimedMerchantL0[msg.sender] != address(0)) {
             revert AlreadyRegistered();
@@ -639,6 +765,7 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         c.active = false;
         merchantQuotas[c.issuerL0].claimedCodeCount += 1;
         claimedMerchantL0[msg.sender] = c.issuerL0;
+        claimedMerchantL1[msg.sender] = l1;
         claimedMerchantCode[msg.sender] = redeemHash;
         IBusinessStartKetReferral(businessStartKet).mint(msg.sender, BUSINESS_START_KET_ID, 1, "");
         IBUnitAirdropReferral(bunitAirdrop).mintPaidForCreditCashPurchase(msg.sender, c.paidBunitAmount, redeemHash);
@@ -740,7 +867,13 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         bytes32 metadataHash
     ) external returns (address card) {
         address l0 = claimedMerchantL0[msg.sender];
-        if (l0 == address(0)) revert NotRegistered();
+        address l1 = claimedMerchantL1[msg.sender];
+        if (l0 == address(0) || l1 == address(0)) revert NotRegistered();
+        if (
+            members[l1].role != Role.L1 ||
+            !members[l1].active ||
+            members[l1].parentL0 != l0
+        ) revert InvalidAddress();
         if (IBusinessStartKetReferral(businessStartKet).balanceOf(msg.sender, BUSINESS_START_KET_ID) < 1) {
             revert InvalidAmount();
         }
@@ -756,10 +889,12 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
             IUserCardReferralView(card).owner() != msg.sender ||
             IUserCardReferralView(card).factoryGateway() != userCardFactory
         ) revert InvalidCard();
-        members[msg.sender] = Member(Role.Merchant, address(0), l0, 0, 0, true);
+        // parentAdmin stores the assigned L1 for Merchant rows (was always address(0)).
+        members[msg.sender] = Member(Role.Merchant, l1, l0, 0, 0, true);
         delete claimedMerchantL0[msg.sender];
+        delete claimedMerchantL1[msg.sender];
         delete claimedMerchantCode[msg.sender];
-        emit MemberRegistered(msg.sender, Role.Merchant, l0, address(0));
+        emit MemberRegistered(msg.sender, Role.Merchant, l0, l1);
         emit MerchantCardCreated(msg.sender, l0, card, metadataHash);
     }
 
@@ -872,9 +1007,18 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         address l0;
         address l1;
 
-        if (payerMember.role == Role.Merchant || payerMember.role == Role.L1) {
+        if (payerMember.role == Role.Merchant) {
             l0 = payerMember.parentL0;
-            if (payerMember.role == Role.L1) l1 = payer;
+            l1 = payerMember.parentAdmin;
+            if (
+                l1 != address(0) &&
+                (members[l1].role != Role.L1 || !members[l1].active || members[l1].parentL0 != l0)
+            ) {
+                l1 = address(0);
+            }
+        } else if (payerMember.role == Role.L1) {
+            l0 = payerMember.parentL0;
+            l1 = payer;
         }
         if (l0 == address(0)) return;
 
