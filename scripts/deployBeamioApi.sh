@@ -36,8 +36,8 @@ Default:
   5) smoke test GET /api/validatorDepositRedeemConfig
 
 Options:
-  --skip-build      Skip compile; rsync existing local dist/ only
-  --skip-restart    Do not restart conet-si.service
+  --skip-build      Skip the local compile; remote still builds after git pull
+  --skip-restart    Do not restart conet-beamio-api.service
   --skip-smoke      Skip post-deploy curl checks
   --dry-run         Print the plan without pushing, pulling, restarting, or testing
   -h, --help        Show this help
