@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Deploy x402sdk BeamioCluster API (port 2222) to conet.network — beamio.app /api/*
+# Source workflow: local src/x402sdk commit + push, then remote git pull + build.
 # Does NOT enable CONET_VALIDATOR_REDEEM_LISTENER (validator node listeners deploy separately).
 
 set -euo pipefail
@@ -29,16 +30,16 @@ Deploy x402sdk BeamioCluster (port 2222) to conet.network for beamio.app API pro
 
 Default:
   1) cd src/x402sdk && npm run build
-  2) rsync dist/ -> peter@conet.network:/home/peter/x402sdk/dist/
-  3) rsync package.json + npm install
-  4) sudo systemctl restart conet-si.service
+  2) require a clean local git worktree and push the active branch
+  3) remote /home/peter/x402sdk git pull --ff-only && npm install && npm run build
+  4) sudo systemctl restart conet-beamio-api.service
   5) smoke test GET /api/validatorDepositRedeemConfig
 
 Options:
   --skip-build      Skip compile; rsync existing local dist/ only
   --skip-restart    Do not restart conet-si.service
   --skip-smoke      Skip post-deploy curl checks
-  --dry-run         Pass --dry-run to rsync
+  --dry-run         Print the plan without pushing, pulling, restarting, or testing
   -h, --help        Show this help
 
 Environment:
@@ -61,14 +62,24 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-RSYNC_FLAGS=(-av)
-if [[ "$DRY_RUN" -eq 1 ]]; then
-	RSYNC_FLAGS+=(--dry-run)
-fi
-
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
 	echo "==> Building x402sdk locally in $X402SDK_DIR"
 	( cd "$X402SDK_DIR" && npm run build )
+fi
+
+API_GIT_BRANCH="$(git -C "$X402SDK_DIR" branch --show-current)"
+if [[ -z "$API_GIT_BRANCH" ]]; then
+	echo "x402sdk is detached or has no active branch; deploy from a named branch." >&2
+	exit 1
+fi
+if [[ -n "$(git -C "$X402SDK_DIR" status --porcelain)" ]]; then
+	echo "x402sdk has uncommitted changes. Commit and push from the local source first." >&2
+	exit 1
+fi
+git -C "$X402SDK_DIR" fetch origin "$API_GIT_BRANCH"
+if ! git -C "$X402SDK_DIR" merge-base --is-ancestor "origin/$API_GIT_BRANCH" HEAD; then
+	echo "Local x402sdk is behind or diverged from origin/$API_GIT_BRANCH. Merge locally before deploy." >&2
+	exit 1
 fi
 
 for required in dist/endpoint/BeamioCluster.js dist/endpoint/beamioServer.js dist/endpoint/validatorDepositRedeem.js; do
@@ -78,16 +89,17 @@ for required in dist/endpoint/BeamioCluster.js dist/endpoint/beamioServer.js dis
 	fi
 done
 
-echo "==> Rsync dist/ -> ${SSH_TARGET}:${BEAMIO_API_ROOT}/dist/"
-rsync "${RSYNC_FLAGS[@]}" "$X402SDK_DIR/dist/" "${SSH_TARGET}:${BEAMIO_API_ROOT}/dist/"
-
-echo "==> Rsync package.json + npm install"
-rsync "${RSYNC_FLAGS[@]}" \
-	"$X402SDK_DIR/package.json" \
-	"$X402SDK_DIR/package-lock.json" \
-	"${SSH_TARGET}:${BEAMIO_API_ROOT}/"
-if [[ "$DRY_RUN" -eq 0 ]]; then
-	ssh "$SSH_TARGET" "cd '${BEAMIO_API_ROOT}' && npm install --no-audit --no-fund"
+echo "==> Git push local ${API_GIT_BRANCH} and pull on ${SSH_TARGET}"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+	echo "(dry-run) would: git -C ${X402SDK_DIR} push origin ${API_GIT_BRANCH}"
+	echo "(dry-run) would: ssh ${SSH_TARGET} 'cd ${BEAMIO_API_ROOT} && git pull --ff-only origin ${API_GIT_BRANCH} && npm install --no-audit --no-fund && npm run build'"
+else
+	git -C "$X402SDK_DIR" push origin "$API_GIT_BRANCH"
+	ssh "$SSH_TARGET" "set -euo pipefail
+cd '${BEAMIO_API_ROOT}'
+git pull --ff-only origin '${API_GIT_BRANCH}'
+npm install --no-audit --no-fund
+npm run build"
 fi
 
 if [[ "$SKIP_RESTART" -eq 0 ]]; then
@@ -118,4 +130,4 @@ if [[ "$SKIP_SMOKE" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
 	fi
 fi
 
-echo "==> Done. API deployed (listener NOT enabled unless CONET_VALIDATOR_REDEEM_LISTENER=1 on server)."
+echo "==> Done. API deployed through local git push + remote git pull (listener NOT enabled unless CONET_VALIDATOR_REDEEM_LISTENER=1 on server)."

@@ -1,0 +1,26 @@
+---
+description: API server source and git-based upgrade workflow
+alwaysApply: true
+---
+
+# API Server Local Source / Git Upgrade Protocol
+
+`src/x402sdk` is the sole development source for the Beamio API. API changes must be made locally, tested locally, committed, and pushed before they are deployed.
+
+## Required workflow
+
+1. Develop in `/src/x402sdk`; do not edit `/home/peter/x402sdk` or another remote runtime checkout as the source of truth.
+2. Run the x402sdk build and relevant tests locally.
+3. Commit the complete API change in the x402sdk repository and `git push` the active branch.
+4. On the API host, run `git pull --ff-only` in `/home/peter/x402sdk`.
+5. Run `npm install` when dependency files changed, then `npm run build`.
+6. Restart only the API service and run its HTTP smoke test.
+
+## Prohibited deployment paths
+
+- Do not deploy API source or `dist/` by rsync/scp as a substitute for git.
+- Do not commit or use a remote-only hotfix that is absent from local `src/x402sdk`.
+- Do not use `git reset --hard` on the remote checkout to discard unmerged work.
+- If local and remote branches diverge, stop and merge the changes locally before upgrading the server.
+
+Remote-generated `dist/` and build artifacts are deployment outputs, not source files to commit.
