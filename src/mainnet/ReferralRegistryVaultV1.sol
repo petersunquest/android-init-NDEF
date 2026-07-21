@@ -99,6 +99,9 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     );
     bytes32 private constant CANCEL_ADMIN_MERCHANT_PACKAGE_TYPEHASH =
         keccak256("CancelAdminMerchantPackageCode(address admin,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
+    bytes32 private constant CLAIM_ADMIN_MERCHANT_PACKAGE_TYPEHASH = keccak256(
+        "ClaimAdminMerchantPackageCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)"
+    );
 
     enum Role {
         None,
@@ -552,13 +555,37 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     }
 
     function claimAdminMerchantPackageCode(bytes calldata secret) external {
+        _claimAdminMerchantPackageCode(msg.sender, secret);
+    }
+
+    function claimAdminMerchantPackageCodeFor(
+        address claimer,
+        bytes calldata secret,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyReferralClaim(
+            claimer,
+            keccak256(abi.encode(CLAIM_ADMIN_MERCHANT_PACKAGE_TYPEHASH, claimer, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (keccak256(bytes(secret)) != redeemHash) revert InvalidCode();
+        _claimAdminMerchantPackageCode(claimer, secret);
+    }
+
+    function _claimAdminMerchantPackageCode(address claimer, bytes calldata secret) internal {
         ReferralRegistryPackageClaimLib.claim(
             adminMerchantPackageCodes,
             claimedMerchantL0,
             claimedMerchantCode,
             businessStartKet,
             bunitAirdrop,
-            members[msg.sender].role != Role.None,
+            claimer,
+            members[claimer].role != Role.None,
             secret
         );
     }

@@ -18,11 +18,11 @@
         "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
         "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
       ],
-      "upgradedImplementation": "0xCA1a45463607abFfbb3C746162562a96178E653b",
-      "upgradeTransactionHash": "0x08875b514221cefd8ce8d9f30de72c352318f2238d180cca5ae1c549d6b8a56f",
-      "upgradeBlock": 495828,
-      "upgradeTimestamp": "2026-07-21T19:10:43.757Z",
-      "packageClaimLib": "0xc5A1A8c37612d40207BbCc20D20e14907630F881"
+      "upgradedImplementation": "0x3a54A28F748a9546b5C336e28D28d77B0bfF267d",
+      "upgradeTransactionHash": "0x0765cdf31c0845906416838c5cc99ddf20fcaab430d2ac980b0ab9a2b4488608",
+      "upgradeBlock": 496214,
+      "upgradeTimestamp": "2026-07-21T19:49:20.288Z",
+      "packageClaimLib": "0xAec48416B9F2Ca9A99600e8119CFd49975c3502e"
     },
     "BUnitAirdropV2": {
       "proxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",

@@ -210,6 +210,10 @@ const CONFIG = {
     sourceKey: "project/src/mainnet/ReferralRegistryVaultV1.sol",
     contractName: "ReferralRegistryVaultV1",
   },
+  ReferralRegistryPackageClaimLib: {
+    sourceKey: "project/src/mainnet/ReferralRegistryPackageClaimLib.sol",
+    contractName: "ReferralRegistryPackageClaimLib",
+  },
   BuintRedeemAirdrop: {
     sourceKey: "project/src/b-unit/BuintRedeemAirdrop.sol",
     contractName: "BuintRedeemAirdrop",

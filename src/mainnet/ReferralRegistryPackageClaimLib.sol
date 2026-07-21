@@ -125,42 +125,44 @@ library ReferralRegistryPackageClaimLib {
         mapping(address => bytes32) storage claimedMerchantCode,
         address businessStartKet,
         address bunitAirdrop,
+        address claimer,
         bool claimerAlreadyRegistered,
         bytes calldata secret
     ) external {
+        if (claimer == address(0)) revert InvalidAmount();
         bytes32 redeemHash = keccak256(bytes(secret));
         ReferralAdminMerchantPackageCode storage c = codes[redeemHash];
         if (!c.active || c.claimed || c.cancelled) revert CodeUnavailable();
         if (c.validAfter != 0 && block.timestamp < c.validAfter) revert CodeExpired();
         if (c.validBefore != 0 && block.timestamp > c.validBefore) revert CodeExpired();
         if (c.includeStartKet) {
-            if (claimerAlreadyRegistered || claimedMerchantL0[msg.sender] != address(0)) {
+            if (claimerAlreadyRegistered || claimedMerchantL0[claimer] != address(0)) {
                 revert AlreadyRegistered();
             }
-            if (IBusinessStartKetPackageClaim(businessStartKet).balanceOf(msg.sender, BUSINESS_START_KET_ID) > 0) {
+            if (IBusinessStartKetPackageClaim(businessStartKet).balanceOf(claimer, BUSINESS_START_KET_ID) > 0) {
                 revert AlreadyRegistered();
             }
         }
-        if (!c.isPaid && IBUnitAirdropPackageClaim(bunitAirdrop).alreadyClaimedFree(msg.sender)) {
+        if (!c.isPaid && IBUnitAirdropPackageClaim(bunitAirdrop).alreadyClaimedFree(claimer)) {
             revert InvalidAmount();
         }
         c.claimed = true;
         c.active = false;
         if (c.isPaid) {
-            IBUnitAirdropPackageClaim(bunitAirdrop).mintPaidForCreditCashPurchase(msg.sender, c.bunitAmount, redeemHash);
+            IBUnitAirdropPackageClaim(bunitAirdrop).mintPaidForCreditCashPurchase(claimer, c.bunitAmount, redeemHash);
         } else {
-            IBUnitAirdropPackageClaim(bunitAirdrop).mintFreeForReferralSettlement(msg.sender, c.bunitAmount, redeemHash);
+            IBUnitAirdropPackageClaim(bunitAirdrop).mintFreeForReferralSettlement(claimer, c.bunitAmount, redeemHash);
         }
         if (c.includeStartKet) {
-            claimedMerchantCode[msg.sender] = redeemHash;
+            claimedMerchantCode[claimer] = redeemHash;
             if (c.optionalL0 != address(0)) {
-                claimedMerchantL0[msg.sender] = c.optionalL0;
+                claimedMerchantL0[claimer] = c.optionalL0;
             }
-            IBusinessStartKetPackageClaim(businessStartKet).mint(msg.sender, BUSINESS_START_KET_ID, 1, "");
+            IBusinessStartKetPackageClaim(businessStartKet).mint(claimer, BUSINESS_START_KET_ID, 1, "");
         }
         emit AdminMerchantPackageCodeClaimed(
             redeemHash,
-            msg.sender,
+            claimer,
             c.optionalL0,
             c.bunitAmount,
             c.isPaid,
