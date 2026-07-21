@@ -65,6 +65,8 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256("ClaimL0RedeemCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant CLAIM_L1_REDEEM_TYPEHASH =
         keccak256("ClaimL1RedeemCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
+    bytes32 private constant CLAIM_MERCHANT_REDEEM_TYPEHASH =
+        keccak256("ClaimMerchantRedeemCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant SET_L0_RATE_TYPEHASH =
         keccak256("SetL0Rate(address admin,address l0,uint256 rebateBps,uint256 nonce,uint256 deadline)");
     bytes32 private constant SET_L0_QUOTA_TYPEHASH =
@@ -77,6 +79,9 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256(
             "AssignMerchantToL0(address admin,address l0,address merchant,address card,uint256 nonce,uint256 deadline)"
         );
+    /// @dev Legacy gasless issue (no L1). Keep for deployed clients / API.
+    bytes32 private constant ISSUE_MERCHANT_REDEEM_LEGACY_TYPEHASH =
+        keccak256("IssueMerchantRedeemCode(address l0,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant ISSUE_MERCHANT_REDEEM_TYPEHASH =
         keccak256("IssueMerchantRedeemCode(address l0,address l1,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant CANCEL_MERCHANT_REDEEM_TYPEHASH =
@@ -437,12 +442,14 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     ) internal {
         uint256 paidBunitAmount = merchantRedeemBunitAirdrop;
         if (redeemHash == bytes32(0) || paidBunitAmount == 0) revert InvalidAmount();
-        if (
-            l1 == address(0) ||
-            members[l1].role != Role.L1 ||
-            !members[l1].active ||
-            members[l1].parentL0 != l0
-        ) revert InvalidAddress();
+        // l1 == address(0): legacy Start Kit codes (pre-L1 binding). Non-zero L1 must be active under l0.
+        if (l1 != address(0)) {
+            if (
+                members[l1].role != Role.L1 ||
+                !members[l1].active ||
+                members[l1].parentL0 != l0
+            ) revert InvalidAddress();
+        }
         MerchantQuota storage q = merchantQuotas[l0];
         if (q.starterKetRemaining < 1) revert QuotaExceeded();
         q.starterKetRemaining -= 1;
@@ -451,6 +458,24 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         merchantCodeAssignedL1[redeemHash] = l1;
         merchantCodeHashes.push(redeemHash);
         emit MerchantCodeIssued(redeemHash, l0, l1, paidBunitAmount);
+    }
+
+    /// @notice Legacy gasless issue without L1 binding (matches deployed clients / API).
+    function issueMerchantRedeemCodeFor(
+        address l0,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            l0,
+            keccak256(abi.encode(ISSUE_MERCHANT_REDEEM_LEGACY_TYPEHASH, l0, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        _issueMerchantRedeemCode(l0, address(0), redeemHash, 0, 0);
     }
 
     function issueMerchantRedeemCodeFor(
@@ -751,25 +776,49 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     }
 
     function claimMerchantCode(bytes calldata secret) external {
+        _claimMerchantCode(msg.sender, secret);
+    }
+
+    function claimMerchantCodeFor(
+        address claimer,
+        bytes calldata secret,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyReferralClaim(
+            claimer,
+            keccak256(abi.encode(CLAIM_MERCHANT_REDEEM_TYPEHASH, claimer, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (keccak256(bytes(secret)) != redeemHash) revert InvalidCode();
+        _claimMerchantCode(claimer, secret);
+    }
+
+    function _claimMerchantCode(address claimer, bytes calldata secret) internal {
         bytes32 redeemHash = keccak256(bytes(secret));
         MerchantCode storage c = merchantCodes[redeemHash];
         if (!c.active || c.claimed) revert CodeUnavailable();
         if (merchantCodeCancelled[redeemHash]) revert CodeUnavailable();
-        address l1 = merchantCodeAssignedL1[redeemHash];
-        if (l1 == address(0)) revert InvalidAddress();
         _checkWindow(c.validAfter, c.validBefore);
-        if (members[msg.sender].role != Role.None || claimedMerchantL0[msg.sender] != address(0)) {
+        if (members[claimer].role != Role.None || claimedMerchantL0[claimer] != address(0)) {
             revert AlreadyRegistered();
         }
+        address l1 = merchantCodeAssignedL1[redeemHash];
         c.claimed = true;
         c.active = false;
         merchantQuotas[c.issuerL0].claimedCodeCount += 1;
-        claimedMerchantL0[msg.sender] = c.issuerL0;
-        claimedMerchantL1[msg.sender] = l1;
-        claimedMerchantCode[msg.sender] = redeemHash;
-        IBusinessStartKetReferral(businessStartKet).mint(msg.sender, BUSINESS_START_KET_ID, 1, "");
-        IBUnitAirdropReferral(bunitAirdrop).mintPaidForCreditCashPurchase(msg.sender, c.paidBunitAmount, redeemHash);
-        emit MerchantCodeClaimed(redeemHash, msg.sender, c.issuerL0, c.paidBunitAmount);
+        claimedMerchantL0[claimer] = c.issuerL0;
+        if (l1 != address(0)) {
+            claimedMerchantL1[claimer] = l1;
+        }
+        claimedMerchantCode[claimer] = redeemHash;
+        IBusinessStartKetReferral(businessStartKet).mint(claimer, BUSINESS_START_KET_ID, 1, "");
+        IBUnitAirdropReferral(bunitAirdrop).mintPaidForCreditCashPurchase(claimer, c.paidBunitAmount, redeemHash);
+        emit MerchantCodeClaimed(redeemHash, claimer, c.issuerL0, c.paidBunitAmount);
     }
 
     function claimL0RedeemCode(bytes calldata secret) external {
@@ -868,12 +917,15 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     ) external returns (address card) {
         address l0 = claimedMerchantL0[msg.sender];
         address l1 = claimedMerchantL1[msg.sender];
-        if (l0 == address(0) || l1 == address(0)) revert NotRegistered();
-        if (
-            members[l1].role != Role.L1 ||
-            !members[l1].active ||
-            members[l1].parentL0 != l0
-        ) revert InvalidAddress();
+        if (l0 == address(0)) revert NotRegistered();
+        // Legacy Start Kit claims have no assigned L1; L1-bound claims must still validate.
+        if (l1 != address(0)) {
+            if (
+                members[l1].role != Role.L1 ||
+                !members[l1].active ||
+                members[l1].parentL0 != l0
+            ) revert InvalidAddress();
+        }
         if (IBusinessStartKetReferral(businessStartKet).balanceOf(msg.sender, BUSINESS_START_KET_ID) < 1) {
             revert InvalidAmount();
         }
@@ -889,7 +941,7 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
             IUserCardReferralView(card).owner() != msg.sender ||
             IUserCardReferralView(card).factoryGateway() != userCardFactory
         ) revert InvalidCard();
-        // parentAdmin stores the assigned L1 for Merchant rows (was always address(0)).
+        // parentAdmin stores the assigned L1 when present; legacy claims keep address(0).
         members[msg.sender] = Member(Role.Merchant, l1, l0, 0, 0, true);
         delete claimedMerchantL0[msg.sender];
         delete claimedMerchantL1[msg.sender];

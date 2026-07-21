@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface ReferralRegistryVaultV1Interface extends Interface {
-    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "DEFAULT_MERCHANT_REDEEM_BUNIT_AIRDROP" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "cancelMerchantRedeemCode" | "cancelMerchantRedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "claimedMerchantL1" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issueMerchantRedeemCodeFor" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodeAssignedL1" | "merchantCodeCancelled" | "merchantCodeCount" | "merchantCodeHashAt" | "merchantCodes" | "merchantCodesStatus" | "merchantQuotas" | "merchantRedeemBunitAirdrop" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0QuotaFor" | "setL0RebateRate" | "setL0RebateRateFor" | "setL0StarterKetQuota" | "setL0StarterKetQuotaFor" | "setL1ClaimPaused" | "setL1Ratio" | "setMerchantRedeemBunitAirdrop" | "setMerchantRedeemBunitAirdropFor" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS" | "BUSINESS_START_KET_ID" | "DEFAULT_MERCHANT_REDEEM_BUNIT_AIRDROP" | "UPGRADE_INTERFACE_VERSION" | "addL0" | "admins" | "assignMerchantToL0" | "assignMerchantToL0For" | "bunitAirdrop" | "businessStartKet" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "cancelMerchantRedeemCode" | "cancelMerchantRedeemCodeFor" | "claimConetUsdc" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimMerchantCode" | "claimMerchantCodeFor" | "claimNonces" | "claimPaidBunitRedeem" | "claimableConetUsdc" | "claimableUsdc" | "claimedConetUsdc" | "claimedMerchantCode" | "claimedMerchantL0" | "claimedMerchantL1" | "conetUsdc" | "createMerchantCard" | "initialize" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "issueMerchantRedeemCode" | "issueMerchantRedeemCodeFor(address,bytes32,uint256,uint256,bytes)" | "issueMerchantRedeemCodeFor(address,address,bytes32,uint256,uint256,bytes)" | "issuePaidBunitRedeemCode" | "l0ClaimPaused" | "l0RedeemCodeCount" | "l0RedeemCodeHashAt" | "l0RedeemCodeStatus" | "l0RedeemCodes" | "l1ClaimPaused" | "l1RedeemCodeCount" | "l1RedeemCodeHashAt" | "l1RedeemCodeStatus" | "l1RedeemCodes" | "members" | "merchantCodeAssignedL1" | "merchantCodeCancelled" | "merchantCodeCount" | "merchantCodeHashAt" | "merchantCodes" | "merchantCodesStatus" | "merchantQuotas" | "merchantRedeemBunitAirdrop" | "onPaidBUnitConsumed" | "owner" | "paidBunitCodes" | "proxiableUUID" | "redeemActionNonces" | "referralClaimNonces" | "referralDomainSeparator" | "renounceOwnership" | "setAdmin" | "setConfig" | "setL0ClaimPaused" | "setL0Quota" | "setL0QuotaFor" | "setL0RebateRate" | "setL0RebateRateFor" | "setL0StarterKetQuota" | "setL0StarterKetQuotaFor" | "setL1ClaimPaused" | "setL1Ratio" | "setMerchantRedeemBunitAirdrop" | "setMerchantRedeemBunitAirdropFor" | "transferOwnership" | "upgradeToAndCall" | "userCardFactory"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "ClaimableAccrued" | "ConetUsdcClaimed" | "ConfigUpdated" | "Initialized" | "L0ClaimPauseUpdated" | "L0QuotaUpdated" | "L0RateUpdated" | "L0RedeemCodeCancelled" | "L0RedeemCodeClaimed" | "L0RedeemCodeIssued" | "L1ClaimPauseUpdated" | "L1RatioUpdated" | "L1RedeemCodeCancelled" | "L1RedeemCodeClaimed" | "L1RedeemCodeIssued" | "MemberRegistered" | "MerchantAssignedToL0" | "MerchantCardCreated" | "MerchantCodeCancelled" | "MerchantCodeClaimed" | "MerchantCodeIssued" | "MerchantRedeemBunitAirdropUpdated" | "OwnershipTransferred" | "PaidBunitCodeClaimed" | "PaidBunitCodeIssued" | "Upgraded"): EventFragment;
 
@@ -32,6 +32,7 @@ encodeFunctionData(functionFragment: 'claimL0RedeemCodeFor', values: [AddressLik
 encodeFunctionData(functionFragment: 'claimL1RedeemCode', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimL1RedeemCodeFor', values: [AddressLike, BytesLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimMerchantCode', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'claimMerchantCodeFor', values: [AddressLike, BytesLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'claimPaidBunitRedeem', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'claimableConetUsdc', values: [AddressLike]): string;
@@ -48,7 +49,8 @@ encodeFunctionData(functionFragment: 'issueL0RedeemCodeFor', values: [AddressLik
 encodeFunctionData(functionFragment: 'issueL1RedeemCode', values: [BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'issueL1RedeemCodeFor', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'issueMerchantRedeemCode', values: [BytesLike, AddressLike, BigNumberish, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'issueMerchantRedeemCodeFor', values: [AddressLike, AddressLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'issueMerchantRedeemCodeFor(address,bytes32,uint256,uint256,bytes)', values: [AddressLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'issueMerchantRedeemCodeFor(address,address,bytes32,uint256,uint256,bytes)', values: [AddressLike, AddressLike, BytesLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'issuePaidBunitRedeemCode', values: [BytesLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'l0ClaimPaused', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'l0RedeemCodeCount', values?: undefined): string;
@@ -116,6 +118,7 @@ decodeFunctionResult(functionFragment: 'claimL0RedeemCodeFor', data: BytesLike):
 decodeFunctionResult(functionFragment: 'claimL1RedeemCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimL1RedeemCodeFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimMerchantCode', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'claimMerchantCodeFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimPaidBunitRedeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'claimableConetUsdc', data: BytesLike): Result;
@@ -132,7 +135,8 @@ decodeFunctionResult(functionFragment: 'issueL0RedeemCodeFor', data: BytesLike):
 decodeFunctionResult(functionFragment: 'issueL1RedeemCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueL1RedeemCodeFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueMerchantRedeemCode', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'issueMerchantRedeemCodeFor', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issueMerchantRedeemCodeFor(address,bytes32,uint256,uint256,bytes)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'issueMerchantRedeemCodeFor(address,address,bytes32,uint256,uint256,bytes)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issuePaidBunitRedeemCode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'l0ClaimPaused', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'l0RedeemCodeCount', data: BytesLike): Result;
@@ -714,6 +718,14 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
     
 
     
+    claimMerchantCodeFor: TypedContractMethod<
+      [claimer: AddressLike, secret: BytesLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     claimNonces: TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -842,7 +854,15 @@ decodeFunctionResult(functionFragment: 'userCardFactory', data: BytesLike): Resu
     
 
     
-    issueMerchantRedeemCodeFor: TypedContractMethod<
+    "issueMerchantRedeemCodeFor(address,bytes32,uint256,uint256,bytes)": TypedContractMethod<
+      [l0: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "issueMerchantRedeemCodeFor(address,address,bytes32,uint256,uint256,bytes)": TypedContractMethod<
       [l0: AddressLike, l1: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
@@ -1314,6 +1334,11 @@ getFunction(nameOrSignature: 'claimMerchantCode'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'claimMerchantCodeFor'): TypedContractMethod<
+      [claimer: AddressLike, secret: BytesLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'claimNonces'): TypedContractMethod<
       [arg0: AddressLike, ],
       [bigint],
@@ -1394,7 +1419,12 @@ getFunction(nameOrSignature: 'issueMerchantRedeemCode'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'issueMerchantRedeemCodeFor'): TypedContractMethod<
+getFunction(nameOrSignature: 'issueMerchantRedeemCodeFor(address,bytes32,uint256,uint256,bytes)'): TypedContractMethod<
+      [l0: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'issueMerchantRedeemCodeFor(address,address,bytes32,uint256,uint256,bytes)'): TypedContractMethod<
       [l0: AddressLike, l1: AddressLike, redeemHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'

@@ -18,10 +18,10 @@
         "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
         "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
       ],
-      "upgradedImplementation": "0xD4f69Be4b8511bc4f38a2EF915fB4843dcBA6377",
-      "upgradeTransactionHash": "0x1c6a68544d5e19167dc0e3cb87315aa582996a7d1e201d5ada0857dcc5ee9e25",
-      "upgradeBlock": 475927,
-      "upgradeTimestamp": "2026-07-20T10:00:31.825Z"
+      "upgradedImplementation": "0x975BCd3B0E1d1E6709CAeE757a0bB736e12137E0",
+      "upgradeTransactionHash": "0xe19b5749f4ec8817c54b7df91b6014422b4ffa4f5212a1ca86f02191651dca5b",
+      "upgradeBlock": 487027,
+      "upgradeTimestamp": "2026-07-21T04:30:31.754Z"
     },
     "BUnitAirdropV2": {
       "proxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
