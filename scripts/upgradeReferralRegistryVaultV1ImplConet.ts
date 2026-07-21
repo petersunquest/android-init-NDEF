@@ -40,7 +40,17 @@ async function main() {
     lane,
     "referral-registry:upgrade-implementation",
     async () => {
-      const factory = await hh.getContractFactory("ReferralRegistryVaultV1");
+      const libFactory = await hh.getContractFactory("ReferralRegistryPackageClaimLib");
+      const lib = await libFactory.deploy();
+      await lib.waitForDeployment();
+      const libraryAddress = await lib.getAddress();
+
+      const factory = await hh.getContractFactory("ReferralRegistryVaultV1", {
+        libraries: {
+          "project/src/mainnet/ReferralRegistryPackageClaimLib.sol:ReferralRegistryPackageClaimLib":
+            libraryAddress,
+        },
+      });
       const implementation = await factory.deploy();
       await implementation.waitForDeployment();
       const implementationAddress = await implementation.getAddress();
@@ -66,6 +76,7 @@ async function main() {
         throw new Error(`Proxy implementation mismatch: ${activeImplementation}`);
       }
       return {
+        libraryAddress,
         implementationAddress,
         upgradeTxHash: tx.hash,
         blockNumber: receipt?.blockNumber ?? 0,
@@ -78,10 +89,12 @@ async function main() {
   deployment.contracts.ReferralRegistryVaultV1.upgradeTransactionHash = result.upgradeTxHash;
   deployment.contracts.ReferralRegistryVaultV1.upgradeBlock = result.blockNumber;
   deployment.contracts.ReferralRegistryVaultV1.upgradeTimestamp = new Date().toISOString();
+  (deployment.contracts.ReferralRegistryVaultV1 as any).packageClaimLib = result.libraryAddress;
   fs.writeFileSync(deploymentPath, JSON.stringify(deployment, null, 2) + "\n");
 
   console.log(JSON.stringify({
     proxy: proxyAddress,
+    library: result.libraryAddress,
     implementation: result.implementationAddress,
     upgradeTxHash: result.upgradeTxHash,
     blockNumber: result.blockNumber,

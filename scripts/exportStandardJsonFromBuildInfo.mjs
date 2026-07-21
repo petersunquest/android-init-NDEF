@@ -405,6 +405,9 @@ function readUserCardLibraryAddresses() {
     for (const [key, libName] of Object.entries(conetLibKeyToName)) {
       if (c[key]) out[libName] = c[key];
     }
+    if (c.ReferralRegistryPackageClaimLib) {
+      out.ReferralRegistryPackageClaimLib = c.ReferralRegistryPackageClaimLib;
+    }
   }
   // ConetTreasuryPeer CREATE2 libs（同址 CoNET/Base）
   const peerMetaPath = path.join(__dirname, "../deployments/conetTreasuryPeer-create2-meta.json");

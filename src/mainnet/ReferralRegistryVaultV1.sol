@@ -5,6 +5,10 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
+import {
+    ReferralRegistryPackageClaimLib,
+    ReferralAdminMerchantPackageCode
+} from "./ReferralRegistryPackageClaimLib.sol";
 
 interface IBusinessStartKetReferral {
     function balanceOf(address account, uint256 id) external view returns (uint256);
@@ -14,6 +18,8 @@ interface IBusinessStartKetReferral {
 
 interface IBUnitAirdropReferral {
     function mintPaidForCreditCashPurchase(address recipient, uint256 amount, bytes32 redeemHash) external;
+    function mintFreeForReferralSettlement(address recipient, uint256 amount, bytes32 redeemHash) external;
+    function alreadyClaimedFree(address account) external view returns (bool);
     function reserveClaimable(uint256 amount) external;
     function payoutClaimable(address recipient, uint256 amount) external;
 }
@@ -88,6 +94,11 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         keccak256("CancelMerchantRedeemCode(address l0,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 private constant SET_MERCHANT_REDEEM_BUNIT_AIRDROP_TYPEHASH =
         keccak256("SetMerchantRedeemBunitAirdrop(address admin,uint256 amount,uint256 nonce,uint256 deadline)");
+    bytes32 private constant ISSUE_ADMIN_MERCHANT_PACKAGE_TYPEHASH = keccak256(
+        "IssueAdminMerchantPackageCode(address admin,bytes32 redeemHash,address optionalL0,uint256 bunitAmount,bool isPaid,bool includeStartKet,uint8 paymentMethod,string description,uint256 nonce,uint256 deadline)"
+    );
+    bytes32 private constant CANCEL_ADMIN_MERCHANT_PACKAGE_TYPEHASH =
+        keccak256("CancelAdminMerchantPackageCode(address admin,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
 
     enum Role {
         None,
@@ -184,6 +195,10 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
     // Start Kit codes must bind an L1 under the issuing L0 (appended for UUPS safety).
     mapping(bytes32 => address) public merchantCodeAssignedL1;
     mapping(address => address) public claimedMerchantL1;
+
+    // Admin Start Ket / B-Unit package codes (appended for UUPS safety).
+    mapping(bytes32 => ReferralAdminMerchantPackageCode) public adminMerchantPackageCodes;
+    bytes32[] private adminMerchantPackageCodeHashes;
 
     error Unauthorized();
     error InvalidAddress();
@@ -395,6 +410,157 @@ contract ReferralRegistryVaultV1 is Initializable, OwnableUpgradeable, UUPSUpgra
         if (amount == 0) revert InvalidAmount();
         merchantRedeemBunitAirdrop = amount;
         emit MerchantRedeemBunitAirdropUpdated(amount);
+    }
+
+    /**
+     * @notice Admin issues a Start Ket / B-Unit package code.
+     *         B-Unit is free XOR paid (`isPaid`); optional StartKet; optional L0 bind;
+     *         payment method + description stored on-chain as plaintext.
+     */
+    function issueAdminMerchantPackageCode(
+        bytes32 redeemHash,
+        address optionalL0,
+        uint256 bunitAmount,
+        bool isPaid,
+        bool includeStartKet,
+        uint8 paymentMethod,
+        string calldata description
+    ) external onlyAdmin {
+        _issueAdminMerchantPackageCode(
+            msg.sender,
+            redeemHash,
+            optionalL0,
+            bunitAmount,
+            isPaid,
+            includeStartKet,
+            paymentMethod,
+            description
+        );
+    }
+
+    function issueAdminMerchantPackageCodeFor(
+        address admin,
+        bytes32 redeemHash,
+        address optionalL0,
+        uint256 bunitAmount,
+        bool isPaid,
+        bool includeStartKet,
+        uint8 paymentMethod,
+        string calldata description,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            admin,
+            keccak256(
+                abi.encode(
+                    ISSUE_ADMIN_MERCHANT_PACKAGE_TYPEHASH,
+                    admin,
+                    redeemHash,
+                    optionalL0,
+                    bunitAmount,
+                    isPaid,
+                    includeStartKet,
+                    paymentMethod,
+                    keccak256(bytes(description)),
+                    nonce,
+                    deadline
+                )
+            ),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        _issueAdminMerchantPackageCode(
+            admin,
+            redeemHash,
+            optionalL0,
+            bunitAmount,
+            isPaid,
+            includeStartKet,
+            paymentMethod,
+            description
+        );
+    }
+
+    function _issueAdminMerchantPackageCode(
+        address admin,
+        bytes32 redeemHash,
+        address optionalL0,
+        uint256 bunitAmount,
+        bool isPaid,
+        bool includeStartKet,
+        uint8 paymentMethod,
+        string calldata description
+    ) internal {
+        bool optionalL0IsActiveL0 = optionalL0 == address(0)
+            ? true
+            : (members[optionalL0].role == Role.L0 && members[optionalL0].active);
+        ReferralRegistryPackageClaimLib.issue(
+            adminMerchantPackageCodes,
+            adminMerchantPackageCodeHashes,
+            admin,
+            redeemHash,
+            optionalL0,
+            bunitAmount,
+            isPaid,
+            includeStartKet,
+            paymentMethod,
+            description,
+            optionalL0IsActiveL0
+        );
+    }
+
+    function cancelAdminMerchantPackageCode(bytes32 redeemHash) external onlyAdmin {
+        ReferralRegistryPackageClaimLib.cancel(adminMerchantPackageCodes, msg.sender, redeemHash);
+    }
+
+    function cancelAdminMerchantPackageCodeFor(
+        address admin,
+        bytes32 redeemHash,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyRedeemAction(
+            admin,
+            keccak256(abi.encode(CANCEL_ADMIN_MERCHANT_PACKAGE_TYPEHASH, admin, redeemHash, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        ReferralRegistryPackageClaimLib.cancel(adminMerchantPackageCodes, admin, redeemHash);
+    }
+
+    function adminMerchantPackageCodeCount() external view returns (uint256) {
+        return adminMerchantPackageCodeHashes.length;
+    }
+
+    function adminMerchantPackageCodeHashAt(uint256 index) external view returns (bytes32) {
+        return adminMerchantPackageCodeHashes[index];
+    }
+
+    function adminMerchantPackageCodeStatus(bytes32 redeemHash) external view returns (uint8) {
+        ReferralAdminMerchantPackageCode storage c = adminMerchantPackageCodes[redeemHash];
+        if (c.active) return 1;
+        if (c.claimed) return 2;
+        if (c.cancelled) return 3;
+        return 0;
+    }
+
+    function claimAdminMerchantPackageCode(bytes calldata secret) external {
+        ReferralRegistryPackageClaimLib.claim(
+            adminMerchantPackageCodes,
+            claimedMerchantL0,
+            claimedMerchantCode,
+            businessStartKet,
+            bunitAirdrop,
+            members[msg.sender].role != Role.None,
+            secret
+        );
     }
 
     function setL0StarterKetQuotaFor(
