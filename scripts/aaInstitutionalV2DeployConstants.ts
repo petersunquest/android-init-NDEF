@@ -20,5 +20,5 @@ export const BEAMIO_AA_FACTORY_V2_CREATE2_SALT = id("beamio.aa.factory.v2");
  * Update when Factory/AccountInstitutionalV2 bytecode changes — re-run deploy script DRY_RUN.
  */
 export const BEAMIO_AA_FACTORY_V2_PREDICTED = getAddress(
-  "0xda92E1216774f8801150B9049FBAD190f3A845BB"
+  "0xE9577cFd00A00E97D26854243B6AB4B11D5E907f"
 );

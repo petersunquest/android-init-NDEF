@@ -68,6 +68,12 @@ async function submit(t: Target): Promise<void> {
 }
 
 async function main() {
+  // Prefer Hardhat Institutional compile-unit buildinfo (~149KB): matches on-chain Factory.
+  // Mega FULL (~2MB) hits nginx 413; pruned FORM from wrong build-info unit drifts via-IR.
+  const buildinfo = path.join(
+    root,
+    "deployments/conet-BeamioFactoryInstitutionalV2-verify-buildinfo.json"
+  );
   const factoryForm = path.join(
     root,
     "deployments/base-BeamioFactoryInstitutionalV2-standard-input-FULL-FORM.json"
@@ -76,19 +82,19 @@ async function main() {
     root,
     "deployments/base-BeamioAccountInstitutionalV2-standard-input-FULL-FORM.json"
   );
-  const factoryFull = path.join(
-    root,
-    "deployments/base-BeamioFactoryInstitutionalV2-standard-input-FULL.json"
-  );
-  const accountFull = path.join(
-    root,
-    "deployments/base-BeamioAccountInstitutionalV2-standard-input-FULL.json"
-  );
-  const factoryJson = fs.existsSync(factoryForm) ? factoryForm : factoryFull;
-  const accountJson = fs.existsSync(accountForm) ? accountForm : accountFull;
-  if (!fs.existsSync(factoryJson) || !fs.existsSync(accountJson)) {
+  const factoryJson = fs.existsSync(buildinfo)
+    ? buildinfo
+    : fs.existsSync(factoryForm)
+      ? factoryForm
+      : "";
+  const accountJson = fs.existsSync(buildinfo)
+    ? buildinfo
+    : fs.existsSync(accountForm)
+      ? accountForm
+      : "";
+  if (!factoryJson || !accountJson) {
     throw new Error(
-      "Missing FULL/FORM JSON — run exportStandardJsonFromBuildInfo.mjs (+ prune FORM) first"
+      "Missing verify buildinfo/FORM — copy artifacts/build-info Institutional input or re-export FORM"
     );
   }
   console.log("factory JSON:", path.basename(factoryJson));

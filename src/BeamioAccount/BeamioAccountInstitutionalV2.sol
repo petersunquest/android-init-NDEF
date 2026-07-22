@@ -313,6 +313,15 @@ contract BeamioAccountInstitutionalV2 is IAccountV07 {
 		reservedOf[token] += amount;
 		emit ReservedChanged(token, reservedOf[token]);
 		emit TaskProposed(taskId, TaskKind.Transfer, proposer);
+
+		// 1-of-N with threshold 1: proposer's EIP-712 propose counts as the sole approval.
+		// Execute in the same tx so clients do not need a second vote relay (avoids stuck Pending).
+		if (threshold == 1) {
+			taskVote[taskId][proposer] = 1;
+			t.approveCount = 1;
+			emit TaskVoted(taskId, proposer, true);
+			_executeTask(taskId);
+		}
 	}
 
 	function proposeSetPolicyWithSig(
@@ -359,6 +368,13 @@ contract BeamioAccountInstitutionalV2 is IAccountV07 {
 
 		pendingPolicyTaskId = taskId;
 		emit TaskProposed(taskId, TaskKind.SetPolicy, proposer);
+
+		if (threshold == 1) {
+			taskVote[taskId][proposer] = 1;
+			t.approveCount = 1;
+			emit TaskVoted(taskId, proposer, true);
+			_executeTask(taskId);
+		}
 	}
 
 	mapping(uint256 => address[]) private _proposedManagers;

@@ -1,12 +1,12 @@
 {
   "chainId": 224422,
-  "factory": "0xda92E1216774f8801150B9049FBAD190f3A845BB",
+  "factory": "0xE9577cFd00A00E97D26854243B6AB4B11D5E907f",
   "salt": "0x567a8c5822fa89cccd2c8614db52f568153fe563712fdc809e2780aae4999ede",
-  "initCodeHash": "0x32eef8395958df5ffe1dfcad0412e83097b8976d9a00350c8486599a0ab6a109",
+  "initCodeHash": "0x92642506e11254c78ea570b14f9c27005e1a15a5b6ddb5cb06339dc344e42dc9",
   "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "accountLimit": 100,
-  "deployTx": "0x2d6d38df528411c0291635622748953cf58ccbf6d26b5f0cc6a66e588e7038ca",
-  "deployBlock": 506631,
+  "deployTx": "0xe7a69394d0bf667da7f07eac2a5c59a959fcfbdc954866e18e7dca27cf4c3043",
+  "deployBlock": 506797,
   "factoryVersion": 2,
-  "deployedAt": "2026-07-22T13:11:02.242Z"
+  "deployedAt": "2026-07-22T13:27:38.155Z"
 }
