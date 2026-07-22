@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as beamioAccountSol from './BeamioAccount.sol/index.js';
+export * as beamioAccountInstitutionalV2Sol from './BeamioAccountInstitutionalV2.sol/index.js';
 export * as beamioContainerModuleExternalLibV07Sol from './BeamioContainerModuleExternalLibV07.sol/index.js';
 export * as beamioContainerModuleV07Sol from './BeamioContainerModuleV07.sol/index.js';
 export * as beamioOpenContainerMintExecutorSol from './BeamioOpenContainerMintExecutor.sol/index.js';
@@ -9,5 +10,6 @@ export * as beamioTypesV07Sol from './BeamioTypesV07.sol/index.js';
 export { BeamioAccountCreate2Lib__factory } from './BeamioAccountCreate2Lib__factory.js';
 export { BeamioAccountDeployer__factory } from './BeamioAccountDeployer__factory.js';
 export { BeamioContainerModuleExternalLib2V07__factory } from './BeamioContainerModuleExternalLib2V07__factory.js';
+export { BeamioFactoryInstitutionalV2__factory } from './BeamioFactoryInstitutionalV2__factory.js';
 export { BeamioFactoryPaymasterV07__factory } from './BeamioFactoryPaymasterV07__factory.js';
 export { IBeamioAccountAssetBalanceV07__factory } from './IBeamioAccountAssetBalanceV07__factory.js';

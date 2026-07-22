@@ -21,8 +21,8 @@ Current status: CoNET (224422) has the EntryPoint-aware bytecode deployed at the
 |---|---|---|
 | **V1 BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | [`0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2`](https://mainnet.conet.network/address/0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2) |
 | **V1 BeamioAccount** (per EOA, index) | `keccak256(abi.encode(creator, index))` | Nick + V1 Account initCode |
-| **V2 BeamioFactoryInstitutionalV2** | `id("beamio.aa.factory.v2")` | [`0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd`](https://mainnet.conet.network/address/0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd) ✅ verified（2026-07-22 owner-first 修复重部署；旧 `0x702bA236…` 仅历史） |
-| **V2 BeamioAccountInstitutionalV2** | `keccak256("beamio.aa.v2", creator, index)` | Sample AA[0]: [`0x9707864d44b0d0b21878eFFbD51f5eE499a82B71`](https://mainnet.conet.network/address/0x9707864d44b0d0b21878eFFbD51f5eE499a82B71) ✅ verified |
+| **V2 BeamioFactoryInstitutionalV2** | `id("beamio.aa.factory.v2")` | [`0xda92E1216774f8801150B9049FBAD190f3A845BB`](https://mainnet.conet.network/address/0xda92E1216774f8801150B9049FBAD190f3A845BB) ✅ verified（2026-07-22 `accountsOfManager` 索引重部署；旧 `0x02F00061…` / `0x702bA236…` 仅历史） |
+| **V2 BeamioAccountInstitutionalV2** | `keccak256("beamio.aa.v2", creator, index)` | Sample AA[0]: [`0xD9805116d1F01d73106dc8093AAd092AB6877D45`](https://mainnet.conet.network/address/0xD9805116d1F01d73106dc8093AAd092AB6877D45) ✅ verified |
 
 Deploy JSON: `deployments/conet-BeamioFactoryInstitutionalV2.json`. Client constant: `BEAMIO_AA_FACTORY_V2`.
 

@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 /**
  * BeamioFactoryInstitutionalV2 — V2 institutional AA factory (CREATE2 salt v2).
  * Creates BeamioAccountInstitutionalV2; relays propose/vote with paymaster gas.
+ * Indexes accounts by creator AND by threshold manager (accountsOfManager).
  * Does not replace V1 BeamioFactoryPaymasterV07.
  *
  * See: .cursor/rules/beamio-aa-account-dev.mdc
@@ -27,9 +28,17 @@ contract BeamioFactoryInstitutionalV2 is IPaymasterV07 {
 	mapping(address => bool) public isPayMaster;
 	uint256 public accountLimit;
 
+	/// @dev manager EOA => institutional AAs where they appear in managers[]
+	mapping(address => address[]) internal accountsByManager;
+	/// @dev manager => account => 1-based index into accountsByManager[manager]
+	mapping(address => mapping(address => uint256)) internal managerAccountPos;
+	/// @dev last synced managers for an account (for O(1) reindex removes)
+	mapping(address => address[]) internal indexedManagersOfAccount;
+
 	event AccountCreated(address indexed creator, address indexed account, uint256 index, bytes32 salt);
 	event AdminUpdated(address indexed admin);
 	event PayMasterUpdated(address indexed payMaster, bool enabled);
+	event AccountManagersSynced(address indexed account, bytes32 managersHash);
 
 	modifier onlyAdmin() {
 		require(msg.sender == admin, "not admin");
@@ -99,6 +108,58 @@ contract BeamioFactoryInstitutionalV2 is IPaymasterV07 {
 		return accountsByCreator[creator];
 	}
 
+	/// @notice AAs where `manager` is a threshold manager (owner or co-signer).
+	function accountsOfManager(address manager) external view returns (address[] memory) {
+		return accountsByManager[manager];
+	}
+
+	/**
+	 * Reindex manager→account after create / set_policy.
+	 * Caller: the AA itself (`msg.sender == account`) or a paymaster.
+	 */
+	function syncAccountManagers(address account, address[] calldata managers) external {
+		require(isBeamioAccount[account], "not aa");
+		require(msg.sender == account || isPayMaster[msg.sender], "not auth");
+		_syncAccountManagers(account, managers);
+	}
+
+	function _syncAccountManagers(address account, address[] memory managers) internal {
+		address[] storage prev = indexedManagersOfAccount[account];
+		for (uint256 i = 0; i < prev.length; i++) {
+			_removeAccountFromManager(prev[i], account);
+		}
+		delete indexedManagersOfAccount[account];
+
+		for (uint256 j = 0; j < managers.length; j++) {
+			address m = managers[j];
+			require(m != address(0), "zero manager");
+			_addAccountToManager(m, account);
+			indexedManagersOfAccount[account].push(m);
+		}
+		emit AccountManagersSynced(account, keccak256(abi.encode(managers)));
+	}
+
+	function _addAccountToManager(address manager, address account) internal {
+		if (managerAccountPos[manager][account] != 0) return;
+		accountsByManager[manager].push(account);
+		managerAccountPos[manager][account] = accountsByManager[manager].length; // 1-based
+	}
+
+	function _removeAccountFromManager(address manager, address account) internal {
+		uint256 pos = managerAccountPos[manager][account];
+		if (pos == 0) return;
+		address[] storage list = accountsByManager[manager];
+		uint256 idx = pos - 1;
+		uint256 last = list.length - 1;
+		if (idx != last) {
+			address moved = list[last];
+			list[idx] = moved;
+			managerAccountPos[manager][moved] = pos;
+		}
+		list.pop();
+		managerAccountPos[manager][account] = 0;
+	}
+
 	function createAccountFor(address creator) external onlyPayMaster returns (address account) {
 		require(creator != address(0), "zero creator");
 		return _createAccountAtNextIndex(creator);
@@ -126,12 +187,14 @@ contract BeamioFactoryInstitutionalV2 is IPaymasterV07 {
 		bytes32 salt = computeSalt(creator, index);
 		account = BeamioAccountCreate2Lib.nickDeploy(salt, _initCode());
 
+		// Mark before initialize so Account._setManagers → syncAccountManagers succeeds.
+		isBeamioAccount[account] = true;
+		accountsByCreator[creator].push(account);
+
 		address[] memory managers = new address[](1);
 		managers[0] = creator;
 		BeamioAccountInstitutionalV2(payable(account)).initialize(creator, managers, 1, address(this));
 
-		isBeamioAccount[account] = true;
-		accountsByCreator[creator].push(account);
 		emit AccountCreated(creator, account, index, salt);
 		return account;
 	}

@@ -3,6 +3,8 @@
 /* eslint-disable */
 import type * as beamioAccountSol from './BeamioAccount.sol/index.js';
 export type { beamioAccountSol };
+import type * as beamioAccountInstitutionalV2Sol from './BeamioAccountInstitutionalV2.sol/index.js';
+export type { beamioAccountInstitutionalV2Sol };
 import type * as beamioContainerModuleExternalLibV07Sol from './BeamioContainerModuleExternalLibV07.sol/index.js';
 export type { beamioContainerModuleExternalLibV07Sol };
 import type * as beamioContainerModuleV07Sol from './BeamioContainerModuleV07.sol/index.js';
@@ -14,5 +16,6 @@ export type { beamioTypesV07Sol };
 export type { BeamioAccountCreate2Lib } from './BeamioAccountCreate2Lib.js';
 export type { BeamioAccountDeployer } from './BeamioAccountDeployer.js';
 export type { BeamioContainerModuleExternalLib2V07 } from './BeamioContainerModuleExternalLib2V07.js';
+export type { BeamioFactoryInstitutionalV2 } from './BeamioFactoryInstitutionalV2.js';
 export type { BeamioFactoryPaymasterV07 } from './BeamioFactoryPaymasterV07.js';
 export type { IBeamioAccountAssetBalanceV07 } from './IBeamioAccountAssetBalanceV07.js';

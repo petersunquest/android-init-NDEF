@@ -68,11 +68,31 @@ async function submit(t: Target): Promise<void> {
 }
 
 async function main() {
-  const factoryJson = path.join(root, "deployments/base-BeamioFactoryInstitutionalV2-standard-input-FULL.json");
-  const accountJson = path.join(root, "deployments/base-BeamioAccountInstitutionalV2-standard-input-FULL.json");
+  const factoryForm = path.join(
+    root,
+    "deployments/base-BeamioFactoryInstitutionalV2-standard-input-FULL-FORM.json"
+  );
+  const accountForm = path.join(
+    root,
+    "deployments/base-BeamioAccountInstitutionalV2-standard-input-FULL-FORM.json"
+  );
+  const factoryFull = path.join(
+    root,
+    "deployments/base-BeamioFactoryInstitutionalV2-standard-input-FULL.json"
+  );
+  const accountFull = path.join(
+    root,
+    "deployments/base-BeamioAccountInstitutionalV2-standard-input-FULL.json"
+  );
+  const factoryJson = fs.existsSync(factoryForm) ? factoryForm : factoryFull;
+  const accountJson = fs.existsSync(accountForm) ? accountForm : accountFull;
   if (!fs.existsSync(factoryJson) || !fs.existsSync(accountJson)) {
-    throw new Error("Missing FULL JSON — run exportStandardJsonFromBuildInfo.mjs first");
+    throw new Error(
+      "Missing FULL/FORM JSON — run exportStandardJsonFromBuildInfo.mjs (+ prune FORM) first"
+    );
   }
+  console.log("factory JSON:", path.basename(factoryJson));
+  console.log("account JSON:", path.basename(accountJson));
 
   const ctor = AbiCoder.defaultAbiCoder()
     .encode(

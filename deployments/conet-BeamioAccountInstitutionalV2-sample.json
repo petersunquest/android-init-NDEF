@@ -1,9 +1,12 @@
 {
-  "factory": "0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
-  "aa": "0x9707864d44b0d0b21878eFFbD51f5eE499a82B71",
+  "factory": "0xda92E1216774f8801150B9049FBAD190f3A845BB",
+  "aa": "0xD9805116d1F01d73106dc8093AAd092AB6877D45",
   "nextIndex": 1,
   "accountVersion": 2,
-  "factoryOnAa": "0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
-  "soleSelfSigner": true,
-  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  "factoryOnAa": "0xda92E1216774f8801150B9049FBAD190f3A845BB",
+  "soleSelfSigner": false,
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "coSignerSmoke": "0x82DADaeC25bebB58D6FaD2B91f394Ad10A9b0eE1",
+  "accountsOfManagerSmoke": true,
+  "note": "After set_policy, both owner and coSigner appear in Factory.accountsOfManager"
 }

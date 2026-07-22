@@ -158,6 +158,14 @@ const CONFIG = {
     sourceKey: "project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol",
     contractName: "BeamioFactoryPaymasterV07",
   },
+  BeamioFactoryInstitutionalV2: {
+    sourceKey: "project/src/BeamioAccount/BeamioFactoryInstitutionalV2.sol",
+    contractName: "BeamioFactoryInstitutionalV2",
+  },
+  BeamioAccountInstitutionalV2: {
+    sourceKey: "project/src/BeamioAccount/BeamioAccountInstitutionalV2.sol",
+    contractName: "BeamioAccountInstitutionalV2",
+  },
   BeamioContainerModuleV07: {
     sourceKey: "project/src/BeamioAccount/BeamioContainerModuleV07.sol",
     contractName: "BeamioContainerModuleV07",

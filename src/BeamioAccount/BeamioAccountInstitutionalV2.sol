@@ -21,6 +21,11 @@ interface IERC20Minimal {
 	function transfer(address to, uint256 amount) external returns (bool);
 }
 
+/// @dev Minimal Factory surface for manager→AA reverse index (institutional V2).
+interface IBeamioFactoryInstitutionalV2ManagerIndex {
+	function syncAccountManagers(address account, address[] calldata managers) external;
+}
+
 contract BeamioAccountInstitutionalV2 is IAccountV07 {
 	uint256 public constant ACCOUNT_VERSION = 2;
 
@@ -241,6 +246,12 @@ contract BeamioAccountInstitutionalV2 is IAccountV07 {
 		if (newThreshold == 0 || newThreshold > thresholdManagers.length) revert NotAuthorized();
 		threshold = newThreshold;
 		emit ThresholdPolicyUpdated(keccak256(abi.encode(thresholdManagers)), threshold);
+		// Keep Factory manager→AA index in sync (create + set_policy).
+		address[] memory snap = new address[](thresholdManagers.length);
+		for (uint256 k = 0; k < thresholdManagers.length; k++) {
+			snap[k] = thresholdManagers[k];
+		}
+		IBeamioFactoryInstitutionalV2ManagerIndex(factory).syncAccountManagers(address(this), snap);
 	}
 
 	function _snapshotManagers() internal view returns (address[] memory snap, bytes32 hash) {
