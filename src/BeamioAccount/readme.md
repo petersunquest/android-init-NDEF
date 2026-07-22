@@ -1,15 +1,30 @@
 # BeamioAccount Deployment Notes
 
+## Development rules (UI / API / V1·V2 split)
+
+**Canonical product & engineering rules:** `.cursor/rules/beamio-aa-account-dev.mdc`
+
+Summary:
+
+- **V1** Factory/Account: keep for existing Express Pay; do **not** create new institutional wallets here; never force-upgrade deployed AAs.
+- **V2** Factory/Account: all **institutional-grade** + new AA creates; on-chain multisig tasks, reserved transfers, policy lock, disable container/createRedeem when not 1-of-1.
+- Old V1 institutional (index ≥ 1): **abandoned** — UI/API must not treat them as institutional.
+- Cross-chain same address via Nick CREATE2 continues for **each** generation (V1 and V2 separately).
+
 ## Cross-chain same address (Nick CREATE2)
 
 **Factory + per-EOA AA addresses are identical on every chain where the same bytecode is deployed via Nick CREATE2 with fixed initCode.**
 
 Current status: CoNET (224422) has the EntryPoint-aware bytecode deployed at the new address below. Base (8453) still uses the previous Factory until a Base deploy signer is configured and the same bytecode is deployed there.
 
-| Contract | CREATE2 salt | Predicted (current bytecode) |
+| Contract | CREATE2 salt | CoNET (224422) |
 |---|---|---|
-| **BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | CoNET current: [`0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2`](https://scan.conet.network/address/0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2) |
-| **BeamioAccount** (per EOA, index=0) | `keccak256(abi.encode(creator, index))` | Nick factory + `BeamioAccount` initCode(`EntryPoint v0.7`) |
+| **V1 BeamioFactoryPaymasterV07** | `id("beamio.aa.factory.v1")` | [`0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2`](https://mainnet.conet.network/address/0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2) |
+| **V1 BeamioAccount** (per EOA, index) | `keccak256(abi.encode(creator, index))` | Nick + V1 Account initCode |
+| **V2 BeamioFactoryInstitutionalV2** | `id("beamio.aa.factory.v2")` | [`0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd`](https://mainnet.conet.network/address/0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd) ✅ verified（2026-07-22 owner-first 修复重部署；旧 `0x702bA236…` 仅历史） |
+| **V2 BeamioAccountInstitutionalV2** | `keccak256("beamio.aa.v2", creator, index)` | Sample AA[0]: [`0x9707864d44b0d0b21878eFFbD51f5eE499a82B71`](https://mainnet.conet.network/address/0x9707864d44b0d0b21878eFFbD51f5eE499a82B71) ✅ verified |
+
+Deploy JSON: `deployments/conet-BeamioFactoryInstitutionalV2.json`. Client constant: `BEAMIO_AA_FACTORY_V2`.
 
 **Same address ≠ shared state.** Container nonce, ERC1155 balances, and registry counters remain **per chain**.
 

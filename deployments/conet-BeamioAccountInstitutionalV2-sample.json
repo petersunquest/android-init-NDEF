@@ -1,0 +1,9 @@
+{
+  "factory": "0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
+  "aa": "0x9707864d44b0d0b21878eFFbD51f5eE499a82B71",
+  "nextIndex": 1,
+  "accountVersion": 2,
+  "factoryOnAa": "0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
+  "soleSelfSigner": true,
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+}

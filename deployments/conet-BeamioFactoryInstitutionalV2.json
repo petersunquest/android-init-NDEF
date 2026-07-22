@@ -1,0 +1,15 @@
+{
+  "chainId": 224422,
+  "factory": "0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
+  "salt": "0x567a8c5822fa89cccd2c8614db52f568153fe563712fdc809e2780aae4999ede",
+  "initCodeHash": "0x1bf9f35ca4cfe6bc90ba7422e13d67705c780efa28cd20112806f48bb53bdb07",
+  "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "accountLimit": 100,
+  "deployTx": "0x3d78a73a24a3c729d182c7230d71c105f52540c6e02d21f0e5622397cf85ff3a",
+  "deployBlock": 505726,
+  "factoryVersion": 2,
+  "deployedAt": "2026-07-22T11:40:31.805Z",
+  "note": "2026-07-22 redeploy after _setManagers owner-first fix (no longer require owner=lowest address). Previous factory 0x702bA236603B03bFbFd57272aB6cc56180c309F1 is legacy.",
+  "explorer": "https://mainnet.conet.network/address/0x02F00061ae54d76C3308EA24D2B3d0a24df60fAd",
+  "sampleAa": "0x9707864d44b0d0b21878eFFbD51f5eE499a82B71"
+}
