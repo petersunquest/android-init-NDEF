@@ -68,7 +68,7 @@ export const CONET_BUINT_REDEEM_AIRDROP = conet.BuintRedeemAirdrop ?? '0x74Fc5C1
 export const BEAMIO_INDEXER_DIAMOND = conet.BeamioIndexerDiamond ?? '0x45D45de73465b8913B50974Fc188529dFFb7AfFA'
 /** CoNET mainnet（224422）ConetTreasury；勿与 Base 的 {@link BASE_TREASURY} 混淆 */
 export const CONET_TREASURY = conet.ConetTreasury ?? '0x540767C2a183871deb22333a271D5e65bF489F22'
-export const CONET_USDC = conet.conetUsdc ?? '0xdD0163FE76FC8fbc4a05b21bCe7CE2642968E176'
+export const CONET_USDC = conet.conetUsdc ?? '0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907'
 export const CONET_ACCOUNT_REGISTRY =
   conet.AccountRegistry ?? '0x4afaca09cf8307070a83836223Ae129073eC92e5'
 

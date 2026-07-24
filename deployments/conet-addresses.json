@@ -1,12 +1,12 @@
 {
-  "_comment": "CoNET PoS \u94fe\u6743\u5a01\u914d\u7f6e\u3002\u8bfb\u5199 RPC: https://publicrpc.conet.network\uff1b\u65e7 rpc1 \u540c chainId \u4e0d\u540c genesis \u72b6\u6001\u89c1 rpc1LegacyDepin\uff1b\u90e8\u7f72\u540e\u8fd0\u884c npx tsx scripts/updateConetReferences.ts",
+  "_comment": "CoNET PoS 链权威配置。读写 RPC: https://publicrpc.conet.network；旧 rpc1 同 chainId 不同 genesis 状态见 rpc1LegacyDepin；部署后运行 npx tsx scripts/updateConetReferences.ts",
   "network": "conet",
   "chainId": "224422",
   "rpcUrl": "https://publicrpc.conet.network",
   "wssUrl": "wss://publicrpc.conet.network/ws",
   "rpcUrlAlt": "https://mainnet-rpc1.conet.network",
   "rpc1LegacyDepin": {
-    "_comment": "\u65e7 rpc1 \u94fe\u72b6\u6001\uff1bAccountRegistry \u6570\u636e\u5df2\u8fc1\u79fb\u81f3 publicrpc \u4e0a 0xfFDc8d\u2026",
+    "_comment": "旧 rpc1 链状态；AccountRegistry 数据已迁移至 publicrpc 上 0xfFDc8d…",
     "rpc": "https://rpc1.conet.network",
     "GuardianNodesInfoV6": "0x359F781A5eEb17630A44e15Bc2aC57b248b81790",
     "AddressPGP": "0xa5F64dd3c034442F5377c8F2Aa1A03ba378D685e",
@@ -22,7 +22,7 @@
   "BUnitAirdropV2Impl": "0xA91bD32362619905d392FcA75f2Abb887CA5C7D6",
   "ReferralRegistryVaultV1": "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6",
   "ReferralRegistryVaultV1Impl": "0x3a54A28F748a9546b5C336e28D28d77B0bfF267d",
-  "ReferralRegistryPackageClaimLib": "0xAec48416B9F2Ca9A99600e8119CFd49975c3502e",
+  "ReferralRegistryPackageClaimLib": "0xc5A1A8c37612d40207BbCc20D20e14907630F881",
   "BeamioIndexerDiamond": "0x6113fE738489c0aB64B4606Ce333aD29b44ED0C4",
   "MerchantPOSManagement": "0x74140e0C8118889538da8625Fc96Aac6B1342AE5",
   "beamioOracle": "0x77CB8358c5a37aB7190b0A2C7EaA7fEeDCF11008",
@@ -38,13 +38,12 @@
   "ConetTreasuryBaseSameAddress": true,
   "wrappedConet": "0x35bFAD2832E916e54474c4ca9DBd71843C539503",
   "wrappedConetNext": "0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21",
-  "conetUsdc": "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3",
+  "conetUsdc": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
   "conetUsdcLegacyUupsV1": "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134",
   "conetUsdcLegacy": "0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC",
-  "ConetUsdcUupsImpl": "0x81880438bF3E7672192771EB1599C15d2014F166",
-  "ConetUsdcDeployMode": "CREATE2_UUPS_minter_treasury_a311",
-  "ConetUsdcMetadataUrl": "https://assets.conet.network/usdc/erc20/metadata.json",
-  "ConetUsdcIconUrl": "https://mainnet.conet.network/usdc/erc20/USDC-256.png",
+  "ConetUsdcDeployMode": "Treasury_createERC20_factory_registered",
+  "ConetUsdcMetadataUrl": "https://mainnet.conet.network/usdc/erc20/metadata.json",
+  "ConetUsdcIconUrl": "https://mainnet.conet.network/usdc/erc20/USDC.png",
   "baseUsdcCircle": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
   "wrappedBaseUsdc": "0x24E259c5Ae58B73587F293524d59309E0832C60f",
   "AA_FACTORY": "0x869B31C87ABd9bFB858F5183Ef6021b28ED225E2",
@@ -62,7 +61,7 @@
   "faucetModule": "0x8C23E1FB5D9941C0C892Db481a13b438f2BB69bA",
   "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
   "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
-  "chargeRewardModule": "0x377cD1392eFcda21402D010445d1014C673438F0",
+  "chargeRewardModule": "0x1C2d1fEB8C8011f06D25224BacBC285266552A51",
   "beamioUserCardDeployer": "0xD85220e6a9de24f97f79041D07c292ec3B591891",
   "beamioUserCardFormattingLib": "0x9727136BC5DAA5540e7397C9086e9980EBDD0e48",
   "beamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664",
@@ -81,7 +80,8 @@
     "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134",
     "0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC",
     "0xF693B1664E20fe66345cF690842D03cA8D981dd5",
-    "0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa"
+    "0x40E302aBC19f6c9f376D7Dee037192a7a203e3Aa",
+    "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
   ],
   "DEPRECATED_BUINT_AIRDROP": [
     "0xFd60936707cb4583c08D8AacBA19E4bfaEE446B8",
@@ -133,7 +133,7 @@
   "ConetGB1155": "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748",
   "ConetGB_total": "0x949ed49faB0e999f685f16e09Cf5EaaF4090F290",
   "ConetGB_userTotal": "0x40435307b533c5bd8349368f27BaaDA13678657C",
-  "_GBToken_comment": "9\u4f4dERC20 GB\uff08\u53ef\u8f6c\u8d26/gasless/\u6295\u7968\u8de8\u94fe\u6865\uff09\uff0c\u4e0e\u4f5c\u4e3aminer\u8bb0\u8d26\u7684ConetGB1155\u5e76\u5b58\u3002CREATE2\u540c\u5740\uff08CoNET/Base\uff09\uff0csalt beamio.gb.erc20.v1\uff1b\u90e8\u7f72: scripts/deployGBTokenCreate2.ts",
+  "_GBToken_comment": "9位ERC20 GB（可转账/gasless/投票跨链桥），与作为miner记账的ConetGB1155并存。CREATE2同址（CoNET/Base），salt beamio.gb.erc20.v1；部署: scripts/deployGBTokenCreate2.ts",
   "GBTokenERC20": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
   "GBTokenERC20Legacy": "0xbeEbE03943b55e67373796ddc7314fC76f5b5911",
   "GBTokenUupsImpl": "0x0A089972b49fCB7C661F2C7295803e1cd5FDB4ef",
@@ -142,8 +142,8 @@
   "GBTokenERC20BaseTx": "0x71513ec955f4cb3370bc734a9c8e8026edfbe096b281ef434fd4d7222f73df11",
   "GBTokenERC20MetadataUrl": "https://assets.conet.network/gb/erc20/metadata.json",
   "GBTokenERC20IconUrl": "https://assets.conet.network/gb/erc20/GB-256.png",
-  "GBTokenERC20AssetsHost": "38.102.126.50 (assets.conet.network, /var/www/assets/gb/erc20, Cloudflare \u6a59\u4e91\u4ee3\u7406)",
-  "GBTokenERC20MetadataMirror": "https://mainnet.conet.network/gb/erc20/metadata.json (38.102.126.30 \u955c\u50cf)",
+  "GBTokenERC20AssetsHost": "38.102.126.50 (assets.conet.network, /var/www/assets/gb/erc20, Cloudflare 橙云代理)",
+  "GBTokenERC20MetadataMirror": "https://mainnet.conet.network/gb/erc20/metadata.json (38.102.126.30 镜像)",
   "GBTokenERC20Decimals": 9,
   "GBTokenERC20Salt": "beamio.gb.erc20.v1",
   "DEPRECATED_CONET_GB1155": [
@@ -200,6 +200,5 @@
   "ConetLabMiningPool": "0x32bE583C8e778FFfC5107BF34820c2B225336201",
   "ValidatorDepositRedeemReleaseLib": "0x232c7860D0Ca74EF9A50Fe6f74cf1a4f2f8Bb6f5",
   "ValidatorDepositRedeemAllocLib": "0xA7C56e5afc09e6b0951c6CC172Ac811Dd4E8c9b0",
-  "ConetTeamCnetHold": "0x38666466a3ce1f68a049a3230a93a57Eff7B1Cd7",
-  "ReferralRegistryPackageClaimLib": "0xc5A1A8c37612d40207BbCc20D20e14907630F881"
+  "ConetTeamCnetHold": "0x38666466a3ce1f68a049a3230a93a57Eff7B1Cd7"
 }

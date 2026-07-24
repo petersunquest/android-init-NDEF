@@ -1,11 +1,11 @@
 {
   "network": "conet",
   "chainId": "224422",
-  "timestamp": "2026-07-02T23:45:19.595Z",
+  "timestamp": "2026-07-24T01:00:20.028Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
-  "chargeRewardModule": "0xdc2160E85F37Ab920A2083Fa6F813B7A5a1d061f",
-  "replacedChargeRewardModule": "0x31737bb0744E6ffa3eB0618bc8bc2B9a9BFAbcAa",
+  "chargeRewardModule": "0x1C2d1fEB8C8011f06D25224BacBC285266552A51",
+  "replacedChargeRewardModule": "0x377cD1392eFcda21402D010445d1014C673438F0",
   "version": "v2-charge-reward-paymaster-relay",
   "note": "dispatchEventReward13 / purchaseRewardProgram / recordTopupCumulativeStat allow Factory isPaymaster (relayer AA)"
 }

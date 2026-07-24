@@ -11,11 +11,11 @@
     "governanceModule": "0x14042f315515CE743C21336528aF1B48889B4dF3",
     "membershipStatsModule": "0xB7fac2D11F9cda14Cc8b414c99625077B4F7f2F1",
     "adminStatsQueryModule": "0xD3eaf2E2586155542F7a0a0dE143b86A2CCf7bAf",
-    "chargeRewardModule": "0x377cD1392eFcda21402D010445d1014C673438F0"
+    "chargeRewardModule": "0x1C2d1fEB8C8011f06D25224BacBC285266552A51"
   },
   "replaced": {
     "issuedNftModule": "0xA5794Ced9e79D7FB6f94ebFE9470d534d5Df6527",
-    "chargeRewardModule": "0x938fE429064836411a4B7c1c66f79aD05913A396",
+    "chargeRewardModule": "0x377cD1392eFcda21402D010445d1014C673438F0",
     "adminStatsQueryModule": "0x9BF77A32FD5Dd02e899d365C2f838654c89814FA"
   },
   "version": "v2-user-cumulative-reward-pool",

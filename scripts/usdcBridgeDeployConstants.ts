@@ -13,7 +13,7 @@ export const USDC_BRIDGE_PROXY_CREATE2_SALT = id("beamio.usdc_bridge.proxy.v1");
 export const BASE_CHAIN_ID = 8453n;
 export const CONET_CHAIN_ID = 224422n;
 export const BASE_USDC = getAddress("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
-export const CONET_USDC = getAddress("0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3");
+export const CONET_USDC = getAddress("0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907");
 /** Filled by the wCNET CREATE2 prediction script after the bridge proxy is compiled. */
 export const WCNET_SYMBOL = "wCNET";
 export const WCNET_NAME = "Wrapped CoNET";

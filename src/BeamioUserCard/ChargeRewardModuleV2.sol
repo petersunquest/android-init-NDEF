@@ -46,8 +46,8 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
     event SocialPointsBurnedForExchange(address indexed userEOA, address indexed userAcct, uint256 pointsCost);
     event SocialExchangeUsdcPaid(address indexed userEOA, uint256 usdcReward6, uint256 escrowAfter);
 
-    /// @dev CoNET mainnet CONET-USDC (6 decimals); merchant program cards are CoNET-only.
-    address public constant CONET_USDC_TOKEN = 0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3;
+    /// @dev CoNET mainnet factory-registered USDC (Treasury createERC20, 6 decimals).
+    address public constant CONET_USDC_TOKEN = 0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907;
 
     address public bunitAirdropCaller;
 

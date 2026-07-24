@@ -119,7 +119,7 @@ export const WRAPPED_CONET_DECIMALS = 18;
 export const BASE_USDC = getAddress("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
 
 /** CoNET 链 canonical USDC（UUPS proxy；minter = 同址 Treasury 0xa311…；跨链同址） */
-export const CONET_USDC = getAddress("0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3");
+export const CONET_USDC = getAddress("0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907");
 
 /** @deprecated minter=旧国库 0x6dC6… 的 UUPS CONET-USDC */
 export const CONET_USDC_LEGACY_UUPS_V1 = getAddress("0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134");

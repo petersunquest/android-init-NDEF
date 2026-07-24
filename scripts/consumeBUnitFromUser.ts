@@ -19,12 +19,12 @@ function loadBUnitAirdrop(): string {
     const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
     return d.BUnitAirdrop || "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8";
   }
-  return "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134";
+  return "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907";
 }
 const CONET_USDC = (() => {
   if (fs.existsSync(ADDR_PATH)) {
     const d = JSON.parse(fs.readFileSync(ADDR_PATH, "utf-8"));
-    return d.conetUsdc || "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134";
+    return d.conetUsdc || "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907";
   }
   return "0x28fBBb6C5C06A4736B00A540b66378091c224456";
 })();

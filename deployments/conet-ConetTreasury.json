@@ -6,10 +6,11 @@
   "create2": true,
   "contracts": {
     "ConetTreasury": {
-      "address": "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795",
+      "address": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
       "minerCount": "1",
-      "conetUsdc": "0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC",
-      "bUnitAirdrop": "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8"
+      "conetUsdc": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
+      "bUnitAirdrop": "0xa01DFfD68b355540B840310a9f0C1E7a779C3Ce8",
+      "peer": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5"
     }
   }
 }

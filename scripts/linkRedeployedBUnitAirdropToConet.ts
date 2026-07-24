@@ -25,7 +25,7 @@ const INDEXER_PATH = path.join(__dirname, "..", "deployments", "conet-IndexerDia
 const MASTER_PATH = path.join(homedir(), ".master.json");
 const CONET_USDC = fs.existsSync(ADDRESSES_PATH)
   ? JSON.parse(fs.readFileSync(ADDRESSES_PATH, "utf-8")).conetUsdc
-  : "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134";
+  : "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907";
 
 async function main() {
   if (!fs.existsSync(ADDRESSES_PATH)) throw new Error("未找到 conet-addresses.json");

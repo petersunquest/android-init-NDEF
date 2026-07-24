@@ -22,7 +22,7 @@ const DEPLOY_JSON = path.join(REPO_ROOT, 'deployments/conet-SocialExchangeModule
 
 const API_BASE = (process.env.BEAMIO_API_BASE ?? 'https://beamio.app').replace(/\/$/, '')
 const RPC = process.env.CONET_RPC ?? 'https://rpc1.conet.network'
-const CONET_USDC = '0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3'
+const CONET_USDC = '0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907'
 const CHAIN_ID = 224422n
 const REWARD_VOUCHER_TOKEN_ID = 13n
 

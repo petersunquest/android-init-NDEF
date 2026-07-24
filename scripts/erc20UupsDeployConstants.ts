@@ -60,11 +60,16 @@ export const GBTOKEN_UUPS_IMPL_PREDICTED = getAddress(
 export const GBTOKEN_UUPS_PROXY_PREDICTED = getAddress(
   "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
 );
+/** Legacy Nick CREATE2 UUPS USDC (deprecated; canonical is Treasury createERC20 factory USDC). */
 export const CONET_USDC_UUPS_IMPL_PREDICTED = getAddress(
   "0x81880438bF3E7672192771EB1599C15d2014F166"
 );
 export const CONET_USDC_UUPS_PROXY_PREDICTED = getAddress(
   "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3"
+);
+/** Canonical CoNET USDC: Treasury.createERC20 factory-registered token. */
+export const CONET_USDC_FACTORY = getAddress(
+  "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907"
 );
 /** 新版 wCNET UUPS implementation / proxy（两链同址）。 */
 export const WCNET_UUPS_IMPL_PREDICTED = getAddress(

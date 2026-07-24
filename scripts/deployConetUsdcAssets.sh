@@ -23,10 +23,12 @@ done
 
 echo "==> scp -> root@${HOST_30}:${REMOTE_DIR} (Blockscout 镜像)"
 ssh -o BatchMode=yes "root@${HOST_30}" "mkdir -p ${REMOTE_DIR}"
+# Prefer high-res USDC.png (1024+) for Blockscout icon_url; keep USDC-256.png as legacy thumb.
+SCP_FILES=("$ASSET_DIR/USDC.png" "$ASSET_DIR/USDC-256.png" "$ASSET_DIR/metadata.json")
+[[ -f "$ASSET_DIR/USDC-512.png" ]] && SCP_FILES+=("$ASSET_DIR/USDC-512.png")
+[[ -f "$ASSET_DIR/USDC-1024.png" ]] && SCP_FILES+=("$ASSET_DIR/USDC-1024.png")
 scp -o BatchMode=yes \
-  "$ASSET_DIR/USDC.png" \
-  "$ASSET_DIR/USDC-256.png" \
-  "$ASSET_DIR/metadata.json" \
+  "${SCP_FILES[@]}" \
   "root@${HOST_30}:${REMOTE_DIR}/"
 
 echo "==> nginx: mainnet.conet.network /usdc/erc20/"
@@ -55,11 +57,10 @@ REMOTE
 echo "==> scp -> root@${HOST_50}:${REMOTE_DIR_50} (legacy mirror)"
 ssh -o BatchMode=yes "root@${HOST_50}" "mkdir -p ${REMOTE_DIR_50}"
 scp -o BatchMode=yes \
-  "$ASSET_DIR/USDC.png" \
-  "$ASSET_DIR/USDC-256.png" \
-  "$ASSET_DIR/metadata.json" \
+  "${SCP_FILES[@]}" \
   "root@${HOST_50}:${REMOTE_DIR_50}/"
 
 echo "✅ USDC assets deployed"
-echo "   mirror: https://mainnet.conet.network/usdc/erc20/USDC-256.png"
-echo "   metadata: https://mainnet.conet.network/usdc/erc20/metadata.json"
+echo "   icon (hi-res): https://mainnet.conet.network/usdc/erc20/USDC.png"
+echo "   thumb:         https://mainnet.conet.network/usdc/erc20/USDC-256.png"
+echo "   metadata:      https://mainnet.conet.network/usdc/erc20/metadata.json"

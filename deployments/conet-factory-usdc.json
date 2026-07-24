@@ -1,0 +1,17 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "createdAt": "2026-07-24T00:47:49.435Z",
+  "createTx": "0xb71df2a9b092b891ee88e3606668994ce2419b4ca098edd9307bc51180887548",
+  "treasury": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+  "peer": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5",
+  "factoryUsdc": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
+  "previousUsdc": "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3",
+  "name": "USD Coin",
+  "symbol": "USDC",
+  "decimals": 6,
+  "baseToken": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "iconUrl": "https://mainnet.conet.network/usdc/erc20/USDC.png",
+  "metadataUrl": "https://mainnet.conet.network/usdc/erc20/metadata.json",
+  "explorer": "https://mainnet.conet.network/token/0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907"
+}
