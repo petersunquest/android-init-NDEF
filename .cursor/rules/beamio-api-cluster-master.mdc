@@ -152,27 +152,51 @@ AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`
 
 - **coinbase-hooks**：Webhook 需 raw body 验签，Cluster 与 Master 均可独立接收处理，不转发（转发会丢失 raw body）
 
-## x402sdk API 修改后的发布流程
+## x402sdk API 修改后的发布流程（铁律：先本地 git，再远程）
 
-修改 `src/x402sdk` 中 API、OG、endpoint、服务端构建产物相关代码后，必须按独立子项目流程发布：
+**凡修改 Beamio API（`src/x402sdk`：Cluster / Master / endpoint / OG / 服务端构建产物），必须先在本地改源码，经 git commit + push 后，远程才能部署。禁止把未入 git 的本地 `dist/` 直接 rsync/scp 到服务器，也禁止在服务器上直接改源码/改 `dist` 当正式发版。**
 
-1. **本地验证**：在 `src/x402sdk` 内执行该子项目自己的验证命令，至少 `npm run build`。
-2. **子项目提交与推送**：
+唯一合法链路：
+
+```text
+本地改 src → 本地 npm run build 验证 → x402sdk git commit + push
+  →（根仓更新 submodule 指针并 push，若适用）
+  → 远程 git pull → 远程 npm run build → systemctl restart API
+```
+
+### 标准步骤
+
+1. **本地改源码并验证**：在 `src/x402sdk` 内改 TypeScript 源，至少 `npm run build` 通过。
+2. **子项目提交与推送**（部署前置条件，缺一不可）：
    - `cd src/x402sdk`
-   - `git status -sb` 确认只包含本次任务相关改动。
+   - `git status -sb` 确认只含本次任务相关改动。
    - `git add <changed-files> && git commit -m ... && git push`
-3. **根仓同步**：
+3. **根仓同步**（子模块场景）：
    - 回到根仓，`git add src/x402sdk` 更新 submodule 指针。
    - 若本次同时更新 `.cursor/rules`、部署脚本或根仓配置，一并纳入根仓 commit。
    - `git commit ... && git push`。
-4. **远程部署**：
+4. **远程部署**（仅消费已 push 的远程提交）：
    - `ssh conet.network`
-   - 进入服务器上的 `x402sdk` 工作目录，执行 `git pull`。
+   - 进入服务器上的 `x402sdk` 工作目录，执行 `git pull`（或 `git fetch` + `reset --hard` 到已 push 的目标分支/commit）。
    - 执行 `npm run build`。
-   - 重启 Beamio API systemd 服务（按服务器实际服务名，如 `systemctl restart conet-beamio-api`）。
-   - 用 `systemctl status ...` 或接口 smoke test 确认 API 已运行。
+   - 重启 Beamio API systemd 服务（如 `systemctl restart conet-beamio-api`）。
+   - 用 `systemctl status` 或接口 smoke test 确认已运行。
 
-注意：只 `git pull` 不代表运行中的 `dist/server.js` 已更新；必须 build 并重启 API。
+注意：只 `git pull` 不代表运行中的 `dist/server.js` 已更新；必须 **远程** `npm run build` 并重启 API。
+
+### 严禁
+
+- ❌ 本地 `rsync` / `scp` `dist/`（或单个 `.js`）到远程 `x402sdk/dist/` 当作发版
+- ❌ SSH 上直接编辑服务器 `src/` / `dist/` 后 restart，冒充已发布
+- ❌ 未 `git push` 就在服务器 `git pull` / 手工塞入未入库改动
+- ❌ 以「紧急 hotfix」为由跳过本地 commit + push（紧急也须先 push，再远程 pull + build + restart）
+
+### AI 检查清单
+
+- [ ] 本次 API 改动是否已在 **本地** `src/x402sdk` 完成？
+- [ ] 是否已 **commit + push**（子模块 + 必要时根仓指针）？
+- [ ] 远程是否只做 **git pull → build → restart**，而未 rsync 本地 dist？
+- [ ] 是否未在远程手改源码？
 
 ## 新增端点检查清单
 
