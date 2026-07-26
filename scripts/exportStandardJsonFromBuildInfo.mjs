@@ -34,6 +34,14 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG = {
+  TreasuryBridgeV3: {
+    sourceKey: "project/src/b-unit/TreasuryBridgeV3.sol",
+    contractName: "TreasuryBridgeV3",
+  },
+  TreasuryCanonicalERC20V3: {
+    sourceKey: "project/src/b-unit/TreasuryCanonicalERC20V3.sol",
+    contractName: "TreasuryCanonicalERC20V3",
+  },
   BeamioUserCardFormattingLib: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol",
     contractName: "BeamioUserCardFormattingLib",

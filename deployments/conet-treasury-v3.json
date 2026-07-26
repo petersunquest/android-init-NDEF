@@ -1,0 +1,39 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "nickCreate2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "miners": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  ],
+  "contracts": {
+    "TreasuryBridgeV3Implementation": "0xab688f27b3646A88D59B83BD35B02Fc101242A28",
+    "TreasuryBridgeV3Proxy": "0xa208982212978550594A7FEEB70a61665d129003",
+    "ERC1967Proxy": "0xa208982212978550594A7FEEB70a61665d129003"
+  },
+  "initializer": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "miners": [
+      "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+    ]
+  },
+  "transactions": {
+    "implementation": "0x895d486fe97c12ef81f0fa5b0ae7171a526188dc117c43d463aa57e996ebc0b4",
+    "proxy": "0x116a43ebd7b8133542384314eaa53c6628afe7b2b23cbddf84ca4ab7864f78cc"
+  },
+  "reused": {
+    "implementation": false,
+    "proxy": false
+  },
+  "createdAt": "2026-07-26T03:07:55.578Z",
+  "upgrades": [
+    {
+      "implementation": "0xab688f27b3646A88D59B83BD35B02Fc101242A28",
+      "implementationDeploymentTx": "0xecb87b4c4eb961726887420935b41082698631c7e8613037a0a620a85f536467",
+      "upgradeTx": "0x989cfaf9c7216144a403ca01f5cd86ff73b81ed554a7b3a5a7dcdd6e5ef40e57",
+      "upgradeBlock": 557695,
+      "upgradedAt": "2026-07-26T04:13:49.970Z"
+    }
+  ]
+}
