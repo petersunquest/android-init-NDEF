@@ -154,6 +154,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioAccount/BeamioAccountDeployer.sol",
     contractName: "BeamioAccountDeployer",
   },
+  GenesisNodeReferralVaultV1: {
+    sourceKey: "project/src/mainnet/GenesisNodeReferralVaultV1.sol",
+    contractName: "GenesisNodeReferralVaultV1",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
