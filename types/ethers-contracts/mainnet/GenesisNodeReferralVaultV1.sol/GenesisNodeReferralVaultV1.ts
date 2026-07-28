@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface GenesisNodeReferralVaultV1Interface extends Interface {
-    getFunction(nameOrSignature: "ADMIN_OF_NODE_BPS" | "BPS" | "CANCEL_L0_REDEEM_TYPEHASH" | "CANCEL_L1_REDEEM_TYPEHASH" | "CLAIM_L0_REDEEM_TYPEHASH" | "CLAIM_L1_REDEEM_TYPEHASH" | "ISSUE_L0_REDEEM_TYPEHASH" | "ISSUE_L1_REDEEM_TYPEHASH" | "L0_OF_NODE_BPS" | "NODE_PRICE_USDC6" | "SERVER_FEE_USDC6" | "TOTAL_PER_NODE_USDC6" | "UPGRADE_INTERFACE_VERSION" | "admins" | "bindSale" | "bridgeBinder" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimNonces" | "conetUsdc" | "defaultAdminPayout" | "domainSeparator" | "earnedUsdc6" | "foundation" | "initialize" | "isActiveL0" | "isActiveL1" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "l0At" | "l0Count" | "l0RedeemCodes" | "l0RedeemHashAt" | "l0RedeemHashCount" | "l1At" | "l1Count" | "l1RedeemCodes" | "l1RedeemHashAt" | "l1RedeemHashCount" | "members" | "onBridgeMint" | "owner" | "previewL0L1Split" | "previewSplit" | "proxiableUUID" | "redeemActionNonces" | "renounceOwnership" | "rescueERC20" | "sales" | "setAdmin" | "setBridgeBinder" | "setDefaultAdminPayout" | "setFoundation" | "setL1Ratio" | "setWiring" | "transferOwnership" | "treasury" | "upgradeToAndCall"): FunctionFragment;
+    getFunction(nameOrSignature: "ADMIN_OF_NODE_BPS" | "BPS" | "CANCEL_L0_REDEEM_TYPEHASH" | "CANCEL_L1_REDEEM_TYPEHASH" | "CLAIM_L0_REDEEM_TYPEHASH" | "CLAIM_L1_REDEEM_TYPEHASH" | "ISSUE_L0_REDEEM_TYPEHASH" | "ISSUE_L1_REDEEM_TYPEHASH" | "L0_OF_NODE_BPS" | "NODE_PRICE_USDC6" | "SERVER_FEE_USDC6" | "SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH" | "SET_FOUNDATION_TYPEHASH" | "TOTAL_PER_NODE_USDC6" | "UPGRADE_INTERFACE_VERSION" | "admins" | "bindSale" | "bridgeBinder" | "cancelL0RedeemCode" | "cancelL0RedeemCodeFor" | "cancelL1RedeemCode" | "cancelL1RedeemCodeFor" | "claimL0RedeemCode" | "claimL0RedeemCodeFor" | "claimL1RedeemCode" | "claimL1RedeemCodeFor" | "claimNonces" | "conetUsdc" | "defaultAdminPayout" | "domainSeparator" | "earnedUsdc6" | "foundation" | "initialize" | "isActiveL0" | "isActiveL1" | "issueL0RedeemCode" | "issueL0RedeemCodeFor" | "issueL1RedeemCode" | "issueL1RedeemCodeFor" | "l0At" | "l0Count" | "l0RedeemCodes" | "l0RedeemHashAt" | "l0RedeemHashCount" | "l1At" | "l1Count" | "l1RedeemCodes" | "l1RedeemHashAt" | "l1RedeemHashCount" | "members" | "onBridgeMint" | "owner" | "previewSplit" | "previewSplitWithL1" | "proxiableUUID" | "redeemActionNonces" | "renounceOwnership" | "rescueERC20" | "sales" | "setAdmin" | "setBridgeBinder" | "setDefaultAdminPayout" | "setDefaultAdminPayoutFor" | "setFoundation" | "setFoundationFor" | "setWiring" | "transferOwnership" | "treasury" | "upgradeToAndCall"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "BridgeBinderUpdated" | "DefaultAdminPayoutUpdated" | "FoundationUpdated" | "Initialized" | "L0RedeemCodeCancelled" | "L0RedeemCodeClaimed" | "L0RedeemCodeIssued" | "L1RatioUpdated" | "L1RedeemCodeCancelled" | "L1RedeemCodeClaimed" | "L1RedeemCodeIssued" | "MemberRegistered" | "OwnershipTransferred" | "RescuedERC20" | "SaleAmountMismatch" | "SaleBound" | "SaleSettled" | "SaleUnboundSkipped" | "Upgraded" | "WiringUpdated"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "BridgeBinderUpdated" | "DefaultAdminPayoutUpdated" | "FoundationUpdated" | "Initialized" | "L0RedeemCodeCancelled" | "L0RedeemCodeClaimed" | "L0RedeemCodeIssued" | "L1MemberRegistered" | "L1RedeemCodeCancelled" | "L1RedeemCodeClaimed" | "L1RedeemCodeIssued" | "MemberRegistered" | "OwnershipTransferred" | "RescuedERC20" | "SaleAmountMismatch" | "SaleBound" | "SaleSettled" | "SaleUnboundSkipped" | "Upgraded" | "WiringUpdated"): EventFragment;
 
     encodeFunctionData(functionFragment: 'ADMIN_OF_NODE_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'BPS', values?: undefined): string;
@@ -21,6 +21,8 @@ encodeFunctionData(functionFragment: 'ISSUE_L1_REDEEM_TYPEHASH', values?: undefi
 encodeFunctionData(functionFragment: 'L0_OF_NODE_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'NODE_PRICE_USDC6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'SERVER_FEE_USDC6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH', values?: undefined): string;
+encodeFunctionData(functionFragment: 'SET_FOUNDATION_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'TOTAL_PER_NODE_USDC6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'admins', values: [AddressLike]): string;
@@ -60,8 +62,8 @@ encodeFunctionData(functionFragment: 'l1RedeemHashCount', values?: undefined): s
 encodeFunctionData(functionFragment: 'members', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'onBridgeMint', values: [BytesLike, BigNumberish, AddressLike, AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
-encodeFunctionData(functionFragment: 'previewL0L1Split', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'previewSplit', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'previewSplitWithL1', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'proxiableUUID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'redeemActionNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
@@ -70,8 +72,9 @@ encodeFunctionData(functionFragment: 'sales', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'setAdmin', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setBridgeBinder', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setDefaultAdminPayout', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setDefaultAdminPayoutFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setFoundation', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'setL1Ratio', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setFoundationFor', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'setWiring', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'treasury', values?: undefined): string;
@@ -88,6 +91,8 @@ decodeFunctionResult(functionFragment: 'ISSUE_L1_REDEEM_TYPEHASH', data: BytesLi
 decodeFunctionResult(functionFragment: 'L0_OF_NODE_BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'NODE_PRICE_USDC6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'SERVER_FEE_USDC6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'SET_FOUNDATION_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'TOTAL_PER_NODE_USDC6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'admins', data: BytesLike): Result;
@@ -127,8 +132,8 @@ decodeFunctionResult(functionFragment: 'l1RedeemHashCount', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'members', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'onBridgeMint', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'previewL0L1Split', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'previewSplit', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'previewSplitWithL1', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'proxiableUUID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeemActionNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
@@ -137,8 +142,9 @@ decodeFunctionResult(functionFragment: 'sales', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBridgeBinder', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDefaultAdminPayout', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setDefaultAdminPayoutFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFoundation', data: BytesLike): Result;
-decodeFunctionResult(functionFragment: 'setL1Ratio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setFoundationFor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setWiring', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'treasury', data: BytesLike): Result;
@@ -242,10 +248,10 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
 
   
 
-    export namespace L1RatioUpdatedEvent {
-      export type InputTuple = [l0: AddressLike, l1: AddressLike, ratioBps: BigNumberish];
-      export type OutputTuple = [l0: string, l1: string, ratioBps: bigint];
-      export interface OutputObject {l0: string, l1: string, ratioBps: bigint };
+    export namespace L1MemberRegisteredEvent {
+      export type InputTuple = [account: AddressLike, parentL0: AddressLike, ratioBps: BigNumberish];
+      export type OutputTuple = [account: string, parentL0: string, ratioBps: bigint];
+      export interface OutputObject {account: string, parentL0: string, ratioBps: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -291,9 +297,9 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
   
 
     export namespace MemberRegisteredEvent {
-      export type InputTuple = [account: AddressLike, role: BigNumberish, parentAdmin: AddressLike, parentL0: AddressLike];
-      export type OutputTuple = [account: string, role: bigint, parentAdmin: string, parentL0: string];
-      export interface OutputObject {account: string, role: bigint, parentAdmin: string, parentL0: string };
+      export type InputTuple = [account: AddressLike, parentAdmin: AddressLike];
+      export type OutputTuple = [account: string, parentAdmin: string];
+      export interface OutputObject {account: string, parentAdmin: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -339,9 +345,9 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
   
 
     export namespace SaleBoundEvent {
-      export type InputTuple = [operationId: BytesLike, referrerL1: AddressLike, referrerL0: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean];
-      export type OutputTuple = [operationId: string, referrerL1: string, referrerL0: string, buyer: string, qty: bigint, testMode: boolean];
-      export interface OutputObject {operationId: string, referrerL1: string, referrerL0: string, buyer: string, qty: bigint, testMode: boolean };
+      export type InputTuple = [operationId: BytesLike, referrerL0: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean, referrerL1: AddressLike];
+      export type OutputTuple = [operationId: string, referrerL0: string, buyer: string, qty: bigint, testMode: boolean, referrerL1: string];
+      export interface OutputObject {operationId: string, referrerL0: string, buyer: string, qty: bigint, testMode: boolean, referrerL1: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -520,6 +526,22 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     
 
     
+    SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    SET_FOUNDATION_TYPEHASH: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     TOTAL_PER_NODE_USDC6: TypedContractMethod<
       [],
       [bigint],
@@ -545,7 +567,7 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
 
     
     bindSale: TypedContractMethod<
-      [operationId: BytesLike, referrerL1: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean, ],
+      [operationId: BytesLike, referrer: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean, ],
       [void],
       'nonpayable'
     >
@@ -832,17 +854,17 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     
 
     
-    previewL0L1Split: TypedContractMethod<
-      [l0Pool: BigNumberish, ratioBps: BigNumberish, ],
-      [[bigint, bigint] & {l0Amount: bigint, l1Amount: bigint }],
+    previewSplit: TypedContractMethod<
+      [qty: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint] & {l0Pool: bigint, adminAmount: bigint, foundationAmount: bigint, total: bigint }],
       'view'
     >
     
 
     
-    previewSplit: TypedContractMethod<
-      [qty: BigNumberish, ],
-      [[bigint, bigint, bigint, bigint] & {l0Pool: bigint, adminAmount: bigint, foundationAmount: bigint, total: bigint }],
+    previewSplitWithL1: TypedContractMethod<
+      [qty: BigNumberish, ratioBps: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint] & {l0Amount: bigint, l1Amount: bigint, adminAmount: bigint, foundationAmount: bigint, total: bigint }],
       'view'
     >
     
@@ -912,6 +934,14 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     
 
     
+    setDefaultAdminPayoutFor: TypedContractMethod<
+      [admin: AddressLike, payout: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setFoundation: TypedContractMethod<
       [foundation_: AddressLike, ],
       [void],
@@ -920,8 +950,8 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     
 
     
-    setL1Ratio: TypedContractMethod<
-      [l1: AddressLike, ratioBps: BigNumberish, ],
+    setFoundationFor: TypedContractMethod<
+      [admin: AddressLike, foundation_: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -1017,6 +1047,16 @@ getFunction(nameOrSignature: 'SERVER_FEE_USDC6'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'SET_FOUNDATION_TYPEHASH'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'TOTAL_PER_NODE_USDC6'): TypedContractMethod<
       [],
       [bigint],
@@ -1033,7 +1073,7 @@ getFunction(nameOrSignature: 'admins'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'bindSale'): TypedContractMethod<
-      [operationId: BytesLike, referrerL1: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean, ],
+      [operationId: BytesLike, referrer: AddressLike, buyer: AddressLike, qty: BigNumberish, testMode: boolean, ],
       [void],
       'nonpayable'
     >;
@@ -1212,14 +1252,14 @@ getFunction(nameOrSignature: 'owner'): TypedContractMethod<
       [string],
       'view'
     >;
-getFunction(nameOrSignature: 'previewL0L1Split'): TypedContractMethod<
-      [l0Pool: BigNumberish, ratioBps: BigNumberish, ],
-      [[bigint, bigint] & {l0Amount: bigint, l1Amount: bigint }],
-      'view'
-    >;
 getFunction(nameOrSignature: 'previewSplit'): TypedContractMethod<
       [qty: BigNumberish, ],
       [[bigint, bigint, bigint, bigint] & {l0Pool: bigint, adminAmount: bigint, foundationAmount: bigint, total: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'previewSplitWithL1'): TypedContractMethod<
+      [qty: BigNumberish, ratioBps: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint] & {l0Amount: bigint, l1Amount: bigint, adminAmount: bigint, foundationAmount: bigint, total: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'proxiableUUID'): TypedContractMethod<
@@ -1262,13 +1302,18 @@ getFunction(nameOrSignature: 'setDefaultAdminPayout'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setDefaultAdminPayoutFor'): TypedContractMethod<
+      [admin: AddressLike, payout: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setFoundation'): TypedContractMethod<
       [foundation_: AddressLike, ],
       [void],
       'nonpayable'
     >;
-getFunction(nameOrSignature: 'setL1Ratio'): TypedContractMethod<
-      [l1: AddressLike, ratioBps: BigNumberish, ],
+getFunction(nameOrSignature: 'setFoundationFor'): TypedContractMethod<
+      [admin: AddressLike, foundation_: AddressLike, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -1301,7 +1346,7 @@ getEvent(key: 'Initialized'): TypedContractEvent<InitializedEvent.InputTuple, In
 getEvent(key: 'L0RedeemCodeCancelled'): TypedContractEvent<L0RedeemCodeCancelledEvent.InputTuple, L0RedeemCodeCancelledEvent.OutputTuple, L0RedeemCodeCancelledEvent.OutputObject>;
 getEvent(key: 'L0RedeemCodeClaimed'): TypedContractEvent<L0RedeemCodeClaimedEvent.InputTuple, L0RedeemCodeClaimedEvent.OutputTuple, L0RedeemCodeClaimedEvent.OutputObject>;
 getEvent(key: 'L0RedeemCodeIssued'): TypedContractEvent<L0RedeemCodeIssuedEvent.InputTuple, L0RedeemCodeIssuedEvent.OutputTuple, L0RedeemCodeIssuedEvent.OutputObject>;
-getEvent(key: 'L1RatioUpdated'): TypedContractEvent<L1RatioUpdatedEvent.InputTuple, L1RatioUpdatedEvent.OutputTuple, L1RatioUpdatedEvent.OutputObject>;
+getEvent(key: 'L1MemberRegistered'): TypedContractEvent<L1MemberRegisteredEvent.InputTuple, L1MemberRegisteredEvent.OutputTuple, L1MemberRegisteredEvent.OutputObject>;
 getEvent(key: 'L1RedeemCodeCancelled'): TypedContractEvent<L1RedeemCodeCancelledEvent.InputTuple, L1RedeemCodeCancelledEvent.OutputTuple, L1RedeemCodeCancelledEvent.OutputObject>;
 getEvent(key: 'L1RedeemCodeClaimed'): TypedContractEvent<L1RedeemCodeClaimedEvent.InputTuple, L1RedeemCodeClaimedEvent.OutputTuple, L1RedeemCodeClaimedEvent.OutputObject>;
 getEvent(key: 'L1RedeemCodeIssued'): TypedContractEvent<L1RedeemCodeIssuedEvent.InputTuple, L1RedeemCodeIssuedEvent.OutputTuple, L1RedeemCodeIssuedEvent.OutputObject>;
@@ -1349,8 +1394,8 @@ getEvent(key: 'WiringUpdated'): TypedContractEvent<WiringUpdatedEvent.InputTuple
       L0RedeemCodeIssued: TypedContractEvent<L0RedeemCodeIssuedEvent.InputTuple, L0RedeemCodeIssuedEvent.OutputTuple, L0RedeemCodeIssuedEvent.OutputObject>;
     
 
-      'L1RatioUpdated(address,address,uint256)': TypedContractEvent<L1RatioUpdatedEvent.InputTuple, L1RatioUpdatedEvent.OutputTuple, L1RatioUpdatedEvent.OutputObject>;
-      L1RatioUpdated: TypedContractEvent<L1RatioUpdatedEvent.InputTuple, L1RatioUpdatedEvent.OutputTuple, L1RatioUpdatedEvent.OutputObject>;
+      'L1MemberRegistered(address,address,uint256)': TypedContractEvent<L1MemberRegisteredEvent.InputTuple, L1MemberRegisteredEvent.OutputTuple, L1MemberRegisteredEvent.OutputObject>;
+      L1MemberRegistered: TypedContractEvent<L1MemberRegisteredEvent.InputTuple, L1MemberRegisteredEvent.OutputTuple, L1MemberRegisteredEvent.OutputObject>;
     
 
       'L1RedeemCodeCancelled(bytes32,address)': TypedContractEvent<L1RedeemCodeCancelledEvent.InputTuple, L1RedeemCodeCancelledEvent.OutputTuple, L1RedeemCodeCancelledEvent.OutputObject>;
@@ -1365,7 +1410,7 @@ getEvent(key: 'WiringUpdated'): TypedContractEvent<WiringUpdatedEvent.InputTuple
       L1RedeemCodeIssued: TypedContractEvent<L1RedeemCodeIssuedEvent.InputTuple, L1RedeemCodeIssuedEvent.OutputTuple, L1RedeemCodeIssuedEvent.OutputObject>;
     
 
-      'MemberRegistered(address,uint8,address,address)': TypedContractEvent<MemberRegisteredEvent.InputTuple, MemberRegisteredEvent.OutputTuple, MemberRegisteredEvent.OutputObject>;
+      'MemberRegistered(address,address)': TypedContractEvent<MemberRegisteredEvent.InputTuple, MemberRegisteredEvent.OutputTuple, MemberRegisteredEvent.OutputObject>;
       MemberRegistered: TypedContractEvent<MemberRegisteredEvent.InputTuple, MemberRegisteredEvent.OutputTuple, MemberRegisteredEvent.OutputObject>;
     
 
@@ -1381,7 +1426,7 @@ getEvent(key: 'WiringUpdated'): TypedContractEvent<WiringUpdatedEvent.InputTuple
       SaleAmountMismatch: TypedContractEvent<SaleAmountMismatchEvent.InputTuple, SaleAmountMismatchEvent.OutputTuple, SaleAmountMismatchEvent.OutputObject>;
     
 
-      'SaleBound(bytes32,address,address,address,uint256,bool)': TypedContractEvent<SaleBoundEvent.InputTuple, SaleBoundEvent.OutputTuple, SaleBoundEvent.OutputObject>;
+      'SaleBound(bytes32,address,address,uint256,bool,address)': TypedContractEvent<SaleBoundEvent.InputTuple, SaleBoundEvent.OutputTuple, SaleBoundEvent.OutputObject>;
       SaleBound: TypedContractEvent<SaleBoundEvent.InputTuple, SaleBoundEvent.OutputTuple, SaleBoundEvent.OutputObject>;
     
 

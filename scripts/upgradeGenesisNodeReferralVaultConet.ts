@@ -58,7 +58,7 @@ async function main() {
       upgradeBlock: upgradeReceipt?.blockNumber,
       implDeployTx: implTx.hash,
       implDeployBlock: implReceipt?.blockNumber,
-      features: "L1 redeem + ratioBps; bindSale referrer must be L1",
+      features: "Admin can setFoundation/setDefaultAdminPayout (+ gasless *For); L1 redeem + ratioBps",
       upgradedAt: new Date().toISOString(),
     },
   };

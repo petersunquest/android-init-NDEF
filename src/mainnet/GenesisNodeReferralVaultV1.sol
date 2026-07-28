@@ -26,10 +26,10 @@ interface ITreasuryBridgeMintCallback {
 
 /**
  * @title GenesisNodeReferralVaultV1
- * @notice Admin → L0 → L1 for Genesis Node Offers.
- *         Buyer attributes to an **L1** Evangelist. L0's 10% of node price (125 USDC/node)
- *         is split by L1.ratioBps (set by L0 when issuing the L1 redeem). Admin / Foundation
- *         buckets are unchanged (370 / 875 per node).
+ * @notice Admin → L0 → L1 registry for Genesis Node Offers.
+ *         LockMint callback splits per node: L0 pool = 10% of 1250 (=125), Admin = 120+20% of 1250 (=370),
+ *         Foundation = remainder (=875). Purchases must attribute an active L1; L1 takes
+ *         `ratioBps` of the L0 pool (set by L0 when issuing the L1 redeem code).
  */
 contract GenesisNodeReferralVaultV1 is
     Initializable,
@@ -62,6 +62,10 @@ contract GenesisNodeReferralVaultV1 is
         keccak256("CancelL1RedeemCode(address l0,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
     bytes32 public constant CLAIM_L1_REDEEM_TYPEHASH =
         keccak256("ClaimL1RedeemCode(address claimer,bytes32 redeemHash,uint256 nonce,uint256 deadline)");
+    bytes32 public constant SET_FOUNDATION_TYPEHASH =
+        keccak256("SetFoundation(address admin,address foundation,uint256 nonce,uint256 deadline)");
+    bytes32 public constant SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH =
+        keccak256("SetDefaultAdminPayout(address admin,address payout,uint256 nonce,uint256 deadline)");
 
     enum Role {
         None,
@@ -69,13 +73,12 @@ contract GenesisNodeReferralVaultV1 is
         L1
     }
 
-    /// @dev Append-only fields after `active` preserve existing L0 mapping layout on UUPS upgrade.
+    /// @dev Append-only fields after `active` so existing L0 storage stays valid on upgrade.
     struct Member {
         Role role;
         address parentAdmin;
         bool active;
         address parentL0;
-        /// @notice Share of L0's 10% node bucket paid to this L1 (0–10000). Only meaningful for Role.L1.
         uint256 ratioBps;
     }
 
@@ -94,7 +97,7 @@ contract GenesisNodeReferralVaultV1 is
         bool cancelled;
     }
 
-    /// @dev `referrerL1` appended for upgrade-safe Sale layout.
+    /// @dev Append `referrerL1` after `testMode` for upgrade-safe layout.
     struct Sale {
         address referrerL0;
         address buyer;
@@ -137,15 +140,15 @@ contract GenesisNodeReferralVaultV1 is
     event L1RedeemCodeIssued(bytes32 indexed redeemHash, address indexed l0, uint256 ratioBps);
     event L1RedeemCodeCancelled(bytes32 indexed redeemHash, address indexed l0);
     event L1RedeemCodeClaimed(bytes32 indexed redeemHash, address indexed l1, address indexed l0, uint256 ratioBps);
-    event L1RatioUpdated(address indexed l0, address indexed l1, uint256 ratioBps);
-    event MemberRegistered(address indexed account, Role role, address indexed parentAdmin, address indexed parentL0);
+    event MemberRegistered(address indexed account, address indexed parentAdmin);
+    event L1MemberRegistered(address indexed account, address indexed parentL0, uint256 ratioBps);
     event SaleBound(
         bytes32 indexed operationId,
-        address indexed referrerL1,
-        address referrerL0,
+        address indexed referrerL0,
         address indexed buyer,
         uint256 qty,
-        bool testMode
+        bool testMode,
+        address referrerL1
     );
     event SaleSettled(
         bytes32 indexed operationId,
@@ -241,13 +244,57 @@ contract GenesisNodeReferralVaultV1 is
         emit BridgeBinderUpdated(binder);
     }
 
-    function setFoundation(address foundation_) external onlyOwner {
+    function setFoundation(address foundation_) external onlyAdmin {
+        _setFoundation(foundation_);
+    }
+
+    function setFoundationFor(
+        address admin,
+        address foundation_,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyAdminAction(
+            admin,
+            keccak256(abi.encode(SET_FOUNDATION_TYPEHASH, admin, foundation_, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        _setFoundation(foundation_);
+    }
+
+    function _setFoundation(address foundation_) internal {
         if (foundation_ == address(0)) revert InvalidAddress();
         foundation = foundation_;
         emit FoundationUpdated(foundation_);
     }
 
-    function setDefaultAdminPayout(address payout) external onlyOwner {
+    function setDefaultAdminPayout(address payout) external onlyAdmin {
+        _setDefaultAdminPayout(payout);
+    }
+
+    function setDefaultAdminPayoutFor(
+        address admin,
+        address payout,
+        uint256 nonce,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        _verifyAdminAction(
+            admin,
+            keccak256(abi.encode(SET_DEFAULT_ADMIN_PAYOUT_TYPEHASH, admin, payout, nonce, deadline)),
+            nonce,
+            deadline,
+            signature
+        );
+        if (!admins[admin]) revert Unauthorized();
+        _setDefaultAdminPayout(payout);
+    }
+
+    function _setDefaultAdminPayout(address payout) internal {
         if (payout == address(0)) revert InvalidAddress();
         defaultAdminPayout = payout;
         emit DefaultAdminPayoutUpdated(payout);
@@ -268,20 +315,20 @@ contract GenesisNodeReferralVaultV1 is
         return _l0List[index];
     }
 
-    function l1Count() external view returns (uint256) {
-        return _l1List.length;
-    }
-
-    function l1At(uint256 index) external view returns (address) {
-        return _l1List[index];
-    }
-
     function l0RedeemHashCount() external view returns (uint256) {
         return _l0RedeemHashes.length;
     }
 
     function l0RedeemHashAt(uint256 index) external view returns (bytes32) {
         return _l0RedeemHashes[index];
+    }
+
+    function l1Count() external view returns (uint256) {
+        return _l1List.length;
+    }
+
+    function l1At(uint256 index) external view returns (address) {
+        return _l1List[index];
     }
 
     function l1RedeemHashCount() external view returns (uint256) {
@@ -302,7 +349,7 @@ contract GenesisNodeReferralVaultV1 is
         return m.role == Role.L1 && m.active;
     }
 
-    /// @notice Base buckets per qty (L0 pool before L1 cut). Ignore testMode.
+    /// @notice Base per-node buckets (L0 pool before L1 cut, admin, foundation).
     function previewSplit(uint256 qty)
         public
         pure
@@ -317,18 +364,18 @@ contract GenesisNodeReferralVaultV1 is
         foundationAmount = total - l0Pool - adminAmount;
     }
 
-    /// @notice Apply L1 ratio to L0 pool: l1 gets ratioBps of pool, L0 gets remainder.
-    function previewL0L1Split(uint256 l0Pool, uint256 ratioBps)
+    /// @notice Apply L1 ratio to the L0 pool. `ratioBps` = share of L0's 10% (0–10000).
+    function previewSplitWithL1(uint256 qty, uint256 ratioBps)
         public
         pure
-        returns (uint256 l0Amount, uint256 l1Amount)
+        returns (uint256 l0Amount, uint256 l1Amount, uint256 adminAmount, uint256 foundationAmount, uint256 total)
     {
         if (ratioBps > BPS) revert InvalidAmount();
+        uint256 l0Pool;
+        (l0Pool, adminAmount, foundationAmount, total) = previewSplit(qty);
         l1Amount = (l0Pool * ratioBps) / BPS;
         l0Amount = l0Pool - l1Amount;
     }
-
-    // ─── L0 redeem (Admin) ───────────────────────────────────────────────
 
     function issueL0RedeemCode(bytes32 redeemHash) external onlyAdmin {
         _issueL0RedeemCode(msg.sender, redeemHash);
@@ -341,7 +388,7 @@ contract GenesisNodeReferralVaultV1 is
         uint256 deadline,
         bytes calldata signature
     ) external {
-        _verifyRedeemAction(
+        _verifyAdminAction(
             admin,
             keccak256(abi.encode(ISSUE_L0_REDEEM_TYPEHASH, admin, redeemHash, nonce, deadline)),
             nonce,
@@ -372,7 +419,7 @@ contract GenesisNodeReferralVaultV1 is
         uint256 deadline,
         bytes calldata signature
     ) external {
-        _verifyRedeemAction(
+        _verifyAdminAction(
             admin,
             keccak256(abi.encode(CANCEL_L0_REDEEM_TYPEHASH, admin, redeemHash, nonce, deadline)),
             nonce,
@@ -422,13 +469,11 @@ contract GenesisNodeReferralVaultV1 is
         c.active = false;
         members[claimer] = Member(Role.L0, c.issuerAdmin, true, address(0), 0);
         _l0List.push(claimer);
-        emit MemberRegistered(claimer, Role.L0, c.issuerAdmin, address(0));
+        emit MemberRegistered(claimer, c.issuerAdmin);
         emit L0RedeemCodeClaimed(redeemHash, claimer, c.issuerAdmin);
     }
 
-    // ─── L1 redeem (L0 only) ─────────────────────────────────────────────
-
-    /// @param ratioBps Percent of L0's 10% node bucket that goes to L1 (0–10000 = 0–100%).
+    /// @param ratioBps Share of L0's 10% node pool paid to the L1 (0–10000 = 0–100%).
     function issueL1RedeemCode(bytes32 redeemHash, uint256 ratioBps) external onlyL0 {
         _issueL1RedeemCode(msg.sender, redeemHash, ratioBps);
     }
@@ -441,7 +486,7 @@ contract GenesisNodeReferralVaultV1 is
         uint256 deadline,
         bytes calldata signature
     ) external {
-        _verifyRedeemAction(
+        _verifyAdminAction(
             l0,
             keccak256(abi.encode(ISSUE_L1_REDEEM_TYPEHASH, l0, redeemHash, ratioBps, nonce, deadline)),
             nonce,
@@ -472,7 +517,7 @@ contract GenesisNodeReferralVaultV1 is
         uint256 deadline,
         bytes calldata signature
     ) external {
-        _verifyRedeemAction(
+        _verifyAdminAction(
             l0,
             keccak256(abi.encode(CANCEL_L1_REDEEM_TYPEHASH, l0, redeemHash, nonce, deadline)),
             nonce,
@@ -523,28 +568,14 @@ contract GenesisNodeReferralVaultV1 is
         c.active = false;
         members[claimer] = Member(Role.L1, address(0), true, c.issuerL0, c.ratioBps);
         _l1List.push(claimer);
-        emit MemberRegistered(claimer, Role.L1, address(0), c.issuerL0);
+        emit L1MemberRegistered(claimer, c.issuerL0, c.ratioBps);
         emit L1RedeemCodeClaimed(redeemHash, claimer, c.issuerL0, c.ratioBps);
     }
 
-    /// @notice L0 may update an active child L1's share of the L0 10% bucket.
-    function setL1Ratio(address l1, uint256 ratioBps) external onlyL0 {
-        if (ratioBps > BPS) revert InvalidAmount();
-        Member storage m = members[l1];
-        if (m.role != Role.L1 || !m.active || m.parentL0 != msg.sender) revert Unauthorized();
-        m.ratioBps = ratioBps;
-        emit L1RatioUpdated(msg.sender, l1, ratioBps);
-    }
-
-    // ─── Sale bind + LockMint callback ───────────────────────────────────
-
-    /**
-     * @notice Master binds sale before LockMint. `referrerL1` must be an active L1 (or zero).
-     *         Buyers attribute to L1 Evangelists only — not bare L0.
-     */
+    /// @notice Master binds sale before LockMint. `referrer` must be zero or an active L1 (not L0).
     function bindSale(
         bytes32 operationId,
-        address referrerL1,
+        address referrer,
         address buyer,
         uint256 qty,
         bool testMode
@@ -554,18 +585,18 @@ contract GenesisNodeReferralVaultV1 is
         if (s.bound) revert SaleAlreadyBound();
         if (s.settled) revert SaleAlreadySettled();
 
-        address l0 = address(0);
-        address l1 = address(0);
-        if (referrerL1 != address(0)) {
-            if (!isActiveL1(referrerL1)) revert NotL1();
-            Member memory m = members[referrerL1];
+        address referrerL0 = address(0);
+        address referrerL1 = address(0);
+        if (referrer != address(0)) {
+            if (!isActiveL1(referrer)) revert NotL1();
+            Member memory m = members[referrer];
             if (!isActiveL0(m.parentL0)) revert NotL0();
-            l1 = referrerL1;
-            l0 = m.parentL0;
+            referrerL1 = referrer;
+            referrerL0 = m.parentL0;
         }
 
-        sales[operationId] = Sale(l0, buyer, qty, true, false, testMode, l1);
-        emit SaleBound(operationId, l1, l0, buyer, qty, testMode);
+        sales[operationId] = Sale(referrerL0, buyer, qty, true, false, testMode, referrerL1);
+        emit SaleBound(operationId, referrerL0, buyer, qty, testMode, referrerL1);
     }
 
     /// @inheritdoc ITreasuryBridgeMintCallback
@@ -619,27 +650,29 @@ contract GenesisNodeReferralVaultV1 is
             return;
         }
 
-        uint256 l0Amount = 0;
+        uint256 l0Amount = l0Pool;
         uint256 l1Amount = 0;
         address l0Pay = address(0);
         address l1Pay = address(0);
         address adminPay = defaultAdminPayout;
 
-        if (s.referrerL1 != address(0) && isActiveL1(s.referrerL1)) {
-            Member memory l1m = members[s.referrerL1];
-            address parentL0 = l1m.parentL0;
-            if (isActiveL0(parentL0)) {
-                (l0Amount, l1Amount) = previewL0L1Split(l0Pool, l1m.ratioBps);
-                l0Pay = parentL0;
-                l1Pay = s.referrerL1;
-                address parentAdmin = members[parentL0].parentAdmin;
-                if (parentAdmin != address(0)) adminPay = parentAdmin;
-            } else {
-                foundationAmount += l0Pool;
-            }
+        if (
+            s.referrerL1 != address(0) && isActiveL1(s.referrerL1) && s.referrerL0 != address(0)
+                && isActiveL0(s.referrerL0)
+        ) {
+            Member memory l1 = members[s.referrerL1];
+            uint256 ratio = l1.ratioBps > BPS ? BPS : l1.ratioBps;
+            l1Amount = (l0Pool * ratio) / BPS;
+            l0Amount = l0Pool - l1Amount;
+            l0Pay = s.referrerL0;
+            l1Pay = s.referrerL1;
+            address parent = members[s.referrerL0].parentAdmin;
+            if (parent != address(0)) adminPay = parent;
         } else {
             // No valid L1 attribution → entire L0 pool folds into foundation.
             foundationAmount += l0Pool;
+            l0Amount = 0;
+            l1Amount = 0;
         }
 
         s.settled = true;
@@ -675,7 +708,7 @@ contract GenesisNodeReferralVaultV1 is
         if (!IERC20GenesisReferral(conetUsdc).transfer(to, amount)) revert TransferFailed();
     }
 
-    function _verifyRedeemAction(
+    function _verifyAdminAction(
         address signer,
         bytes32 structHash,
         uint256 nonce,

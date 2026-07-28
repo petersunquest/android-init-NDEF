@@ -5,7 +5,7 @@ const { ethers } = await network.connect();
 
 describe("GenesisNodeReferralVaultV1", function () {
   async function deployStack() {
-    const [owner, binder, , l0User, l1User, buyer, foundation, other] = await ethers.getSigners();
+    const [owner, binder, admin2, l0User, l1User, buyer, foundation, other] = await ethers.getSigners();
     const usdc = await (await ethers.getContractFactory("TreasuryCanonicalERC20V3")).deploy();
     await usdc.waitForDeployment();
     const tokenInit = usdc.interface.encodeFunctionData("initialize", [
@@ -24,9 +24,10 @@ describe("GenesisNodeReferralVaultV1", function () {
 
     const vaultImpl = await (await ethers.getContractFactory("GenesisNodeReferralVaultV1")).deploy();
     await vaultImpl.waitForDeployment();
+    const treasury = owner.address;
     const init = vaultImpl.interface.encodeFunctionData("initialize", [
       owner.address,
-      owner.address, // treasury = owner for unit tests
+      treasury,
       await token.getAddress(),
       foundation.address,
       owner.address,
@@ -38,7 +39,7 @@ describe("GenesisNodeReferralVaultV1", function () {
     await proxy.waitForDeployment();
     const vault = await ethers.getContractAt("GenesisNodeReferralVaultV1", await proxy.getAddress());
     await token.connect(owner).setBridge(owner.address);
-    return { owner, binder, l0User, l1User, buyer, foundation, other, vault, token };
+    return { owner, binder, admin2, l0User, l1User, buyer, foundation, other, vault, token, treasury };
   }
 
   async function registerL0(vault: any, owner: any, l0User: any, secret: string) {
@@ -61,46 +62,42 @@ describe("GenesisNodeReferralVaultV1", function () {
     expect(m.parentAdmin).to.equal(owner.address);
   });
 
-  it("L0 issues L1 with ratioBps; non-L0 cannot issue L1", async function () {
+  it("L0 issues L1 with ratioBps; non-L0 cannot issue", async function () {
     const { owner, l0User, l1User, other, vault } = await deployStack();
     await registerL0(vault, owner, l0User, "beamio-genesis-l0-for-l1");
-    await expect(
-      vault.connect(other).issueL1RedeemCode(ethers.keccak256(ethers.toUtf8Bytes("x")), 5000n),
-    ).to.be.revertedWithCustomError(vault, "NotL0");
-
-    await registerL1(vault, l0User, l1User, "beamio-genesis-l1-40", 4000n);
+    const secret = "beamio-genesis-l1-ratio-40";
+    const redeemHash = ethers.keccak256(ethers.toUtf8Bytes(secret));
+    await expect(vault.connect(other).issueL1RedeemCode(redeemHash, 4000n)).to.be.revertedWithCustomError(
+      vault,
+      "NotL0",
+    );
+    await vault.connect(l0User).issueL1RedeemCode(redeemHash, 4000n);
+    await vault.connect(l1User).claimL1RedeemCode(ethers.toUtf8Bytes(secret));
     expect(await vault.isActiveL1(l1User.address)).to.equal(true);
     const m = await vault.members(l1User.address);
     expect(m.parentL0).to.equal(l0User.address);
     expect(m.ratioBps).to.equal(4000n);
   });
 
-  it("bindSale requires L1 referrer (rejects bare L0)", async function () {
-    const { owner, binder, l0User, buyer, vault } = await deployStack();
-    await registerL0(vault, owner, l0User, "beamio-genesis-l0-bind");
-    const opId = ethers.keccak256(ethers.toUtf8Bytes("sale-bad-l0"));
-    await expect(
-      vault.connect(binder).bindSale(opId, l0User.address, buyer.address, 1n, false),
-    ).to.be.revertedWithCustomError(vault, "NotL1");
-  });
-
-  it("splits with L1 ratio: L0 60% + L1 40% of 125 pool", async function () {
+  it("bindSale requires L1 (rejects bare L0); splits by L1 ratioBps", async function () {
     const { owner, binder, l0User, l1User, buyer, foundation, vault, token } = await deployStack();
     await registerL0(vault, owner, l0User, "beamio-genesis-l0-split");
-    await registerL1(vault, l0User, l1User, "beamio-genesis-l1-split", 4000n);
+    await registerL1(vault, l0User, l1User, "beamio-genesis-l1-split", 4000n); // 40% of L0 pool
+
+    const opIdBad = ethers.keccak256(ethers.toUtf8Bytes("sale-l0-only"));
+    await expect(
+      vault.connect(binder).bindSale(opIdBad, l0User.address, buyer.address, 1n, false),
+    ).to.be.revertedWithCustomError(vault, "NotL1");
 
     const opId = ethers.keccak256(ethers.toUtf8Bytes("sale-1"));
     await vault.connect(binder).bindSale(opId, l1User.address, buyer.address, 1n, false);
 
-    const [l0Pool, adminAmt, foundAmt, total] = await vault.previewSplit(1n);
+    const [l0Amt, l1Amt, adminAmt, foundAmt, total] = await vault.previewSplitWithL1(1n, 4000n);
     expect(total).to.equal(1_370_000_000n);
-    expect(l0Pool).to.equal(125_000_000n);
+    expect(l0Amt).to.equal(75_000_000n); // 60% of 125
+    expect(l1Amt).to.equal(50_000_000n); // 40% of 125
     expect(adminAmt).to.equal(370_000_000n);
     expect(foundAmt).to.equal(875_000_000n);
-
-    const [l0Amt, l1Amt] = await vault.previewL0L1Split(l0Pool, 4000n);
-    expect(l1Amt).to.equal(50_000_000n); // 40% of 125
-    expect(l0Amt).to.equal(75_000_000n);
 
     await token.connect(owner).mint(await vault.getAddress(), total);
     await expect(
@@ -128,7 +125,7 @@ describe("GenesisNodeReferralVaultV1", function () {
     expect(await vault.earnedUsdc6(l1User.address)).to.equal(l1Amt);
   });
 
-  it("folds L0 pool into foundation when no L1 referrer", async function () {
+  it("folds L0 pool into foundation when no referrer", async function () {
     const { owner, binder, buyer, foundation, vault, token } = await deployStack();
     const opId = ethers.keccak256(ethers.toUtf8Bytes("sale-no-l1"));
     await vault.connect(binder).bindSale(opId, ethers.ZeroAddress, buyer.address, 1n, false);
@@ -164,11 +161,22 @@ describe("GenesisNodeReferralVaultV1", function () {
     expect(await token.balanceOf(foundation.address)).to.equal(amount);
   });
 
-  it("L0 can update child L1 ratioBps", async function () {
-    const { owner, l0User, l1User, vault } = await deployStack();
-    await registerL0(vault, owner, l0User, "beamio-genesis-l0-ratio");
-    await registerL1(vault, l0User, l1User, "beamio-genesis-l1-ratio", 3000n);
-    await vault.connect(l0User).setL1Ratio(l1User.address, 5500n);
-    expect((await vault.members(l1User.address)).ratioBps).to.equal(5500n);
+  it("admin (not only owner) can set foundation and defaultAdminPayout", async function () {
+    const { owner, admin2, other, foundation, vault } = await deployStack();
+    await vault.connect(owner).setAdmin(admin2.address, true);
+
+    await expect(vault.connect(other).setFoundation(other.address)).to.be.revertedWithCustomError(
+      vault,
+      "Unauthorized",
+    );
+    await vault.connect(admin2).setFoundation(admin2.address);
+    expect(await vault.foundation()).to.equal(admin2.address);
+
+    await vault.connect(admin2).setDefaultAdminPayout(foundation.address);
+    expect(await vault.defaultAdminPayout()).to.equal(foundation.address);
+
+    // Owner remains admin from initialize and can still update.
+    await vault.connect(owner).setFoundation(foundation.address);
+    expect(await vault.foundation()).to.equal(foundation.address);
   });
 });

@@ -3,7 +3,7 @@
   "chainId": 224422,
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "contracts": {
-    "GenesisNodeReferralVaultV1Implementation": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
+    "GenesisNodeReferralVaultV1Implementation": "0x4BB3F081b06e93D30Bfa25bBdf552b478DBFBeA7",
     "GenesisNodeReferralVaultV1Proxy": "0x051b65E5711E6E74bC236Fe220dcA7021841855C",
     "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
     "conetUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA"
@@ -25,25 +25,25 @@
   },
   "mintCallback": {
     "allowed": true,
-    "note": "Treasury setMintCallbackAllowed(vault, true) — LockMint callbackTarget must be this proxy"
+    "note": "Treasury setMintCallbackAllowed(vault, true) \u2014 LockMint callbackTarget must be this proxy"
   },
   "verification": {
     "implVerified": true,
     "proxyVerified": true,
-    "impl": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
+    "impl": "0x4BB3F081b06e93D30Bfa25bBdf552b478DBFBeA7",
     "proxy": "0x051b65E5711E6E74bC236Fe220dcA7021841855C",
-    "verifiedAt": "2026-07-28T18:47:00.000Z",
-    "previousImpl": "0xbcD2Fcd8586C11c21029f74931A61DF5B284d481"
+    "verifiedAt": "2026-07-28T20:57:40.000Z",
+    "previousImpl": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9"
   },
   "createdAt": "2026-07-28T18:07:44.331Z",
   "upgrade": {
     "previousImplNote": "see git history / prior JSON",
-    "newImplementation": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
-    "upgradeTx": "0xcbf7699ee72b332c2cae7e8d307f4b58b2be6d0c1e0acb0059c0b35e8031109d",
-    "upgradeBlock": 595205,
-    "implDeployTx": "0x49d445b34d2d4419051efd98cb7f5bf26efac2021ae55e5b9b13372298195d87",
-    "implDeployBlock": 595204,
-    "features": "L1 redeem + ratioBps; bindSale referrer must be L1",
-    "upgradedAt": "2026-07-28T18:46:08.250Z"
+    "newImplementation": "0x4BB3F081b06e93D30Bfa25bBdf552b478DBFBeA7",
+    "upgradeTx": "0x5333b18a47d38831452db4f3185393b08570874771607f80920ad9d2c1ff104f",
+    "upgradeBlock": 596456,
+    "implDeployTx": "0x58979b1c9744718955e2d719df78e6642364ca2b7942c910fa44faf76a25bb41",
+    "implDeployBlock": 596455,
+    "features": "Admin can setFoundation/setDefaultAdminPayout (+ gasless *For); L1 redeem + ratioBps",
+    "upgradedAt": "2026-07-28T20:51:14.344Z"
   }
 }
