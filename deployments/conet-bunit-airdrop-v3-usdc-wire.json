@@ -1,0 +1,18 @@
+{
+  "chainId": 224422,
+  "airdropProxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+  "wireImplementation": "0xC9c8148c74b0d4D260e603bdDb00921033871979",
+  "wireDeployTx": "0x0cb611ceede4237d2e81bc48e7c932aac1a023f97eaf454c714764da31d2ff94",
+  "upgradeSetTx": "0x3bcef5e33131666637a7a9645c8dd435d1b22e78ae8ac37bf0221d9c440e6d8a",
+  "restoreTx": "0x91bde90ada95bbcac35cf123d4d3afdf16b2ce68f6c5923d369cbac1ea4ce592",
+  "productionImpl": "0xD402b631F5171427FB2e04c4C975bb7d9b807504",
+  "before": {
+    "treasury": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+    "usdc": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907"
+  },
+  "after": {
+    "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+    "usdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA"
+  },
+  "wiredAt": "2026-07-26T12:08:20.262Z"
+}

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { bootPathForPhase } from '@/boot/posBootInit'
+import { bootPathForPhase, type PosBootPhase } from '@/boot/posBootInit'
 import { PosAppBootSplash } from '@/components/PosAppBootSplash'
 import { PosDataDaemonProvider } from '@/providers/PosDataDaemonProvider'
 import { IpfsImageLibraryProvider } from '@/providers/IpfsImageLibraryProvider'
@@ -49,6 +49,22 @@ function RouteFallback() {
 	return <PosAppBootSplash />
 }
 
+/** True when current URL is allowed for the resolved boot phase (no stale /recover paint). */
+function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
+	switch (phase) {
+		case 'no_wallet':
+			return SETUP_PATHS.has(path)
+		case 'wallet_recover':
+			return path === '/recover'
+		case 'permission':
+			return path === '/permission'
+		case 'home':
+			return isPosHomePhasePath(path)
+		default:
+			return false
+	}
+}
+
 function BootRouter() {
 	const navigate = useNavigate()
 	const location = useLocation()
@@ -90,7 +106,15 @@ function BootRouter() {
 		}
 	}, [isBootLoading, walletAddress, showPermissionGate, location.pathname, navigate])
 
-	if (isBootLoading) {
+	/*
+	 * Keep splash until URL matches boot phase. Otherwise a restored WebView URL
+	 * (/recover, /onboarding) paints Access password for a frame before redirect to /home.
+	 */
+	if (isBootLoading || bootPhase == null) {
+		return <RouteFallback />
+	}
+
+	if (!pathAllowedForBootPhase(bootPhase, location.pathname)) {
 		return <RouteFallback />
 	}
 

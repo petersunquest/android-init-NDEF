@@ -1,0 +1,9 @@
+{
+  "name": "CONET GB",
+  "symbol": "GB",
+  "decimals": 9,
+  "description": "Canonical GB token for Treasury V3 cross-chain settlement.",
+  "image": "https://mainnet.conet.network/gb/erc20/GB-256.png",
+  "icon_url": "https://mainnet.conet.network/gb/erc20/GB-256.png",
+  "external_url": "https://mainnet.conet.network/token/"
+}

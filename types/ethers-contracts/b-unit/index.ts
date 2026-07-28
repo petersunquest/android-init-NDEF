@@ -11,6 +11,8 @@ import type * as businessStartKetRedeemSol from './BusinessStartKetRedeem.sol/in
 export type { businessStartKetRedeemSol };
 import type * as gbSol from './GB.sol/index.js';
 export type { gbSol };
+import type * as treasuryBridgeV3Sol from './TreasuryBridgeV3.sol/index.js';
+export type { treasuryBridgeV3Sol };
 import type * as baseTreasurySol from './baseTreasury.sol/index.js';
 export type { baseTreasurySol };
 import type * as businessStartKetSol from './businessStartKet.sol/index.js';
@@ -25,4 +27,7 @@ import type * as miningInfoSol from './mining_info.sol/index.js';
 export type { miningInfoSol };
 import type * as usdcSol from './usdc.sol/index.js';
 export type { usdcSol };
+export type { BUnitAirdropV2TreasuryWire } from './BUnitAirdropV2TreasuryWire.js';
 export type { GuardianNodesInfoV6 } from './GuardianNodesInfoV6.js';
+export type { TreasuryCanonicalERC20V3 } from './TreasuryCanonicalERC20V3.js';
+export type { TreasuryV3ERC1967Proxy } from './TreasuryV3ERC1967Proxy.js';

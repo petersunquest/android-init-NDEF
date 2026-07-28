@@ -25,10 +25,17 @@ body,
 	background: #000414;
 }
 
+html {
+	/* POS WebView: never allow pinch / focus zoom to pan the shell. */
+	touch-action: manipulation;
+	-ms-touch-action: manipulation;
+}
+
 body {
 	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	touch-action: manipulation;
+	-ms-touch-action: manipulation;
 }
 
 button {

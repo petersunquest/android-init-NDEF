@@ -35,7 +35,8 @@ contract TreasuryBridgeV3 is
 
     enum AssetMode {
         BurnMint,
-        LockMint
+        LockMint,
+        BurnRelease
     }
 
     enum Phase {
@@ -85,8 +86,15 @@ contract TreasuryBridgeV3 is
     mapping(bytes32 => mapping(address => bool)) public bridgeOperationVoted;
     mapping(bytes32 => bytes32) public bridgeOperationPayloadHash;
 
+    /// @notice BUnitAirdrop (or equivalent) allowed to call `mintForAdmin` for fee settlement.
+    address public feeSettlement;
+    /// @notice Canonical conet-USDC (V3) minted on paid B-Unit burn.
+    address public feeSettlementAsset;
+
     event MinerAdded(address indexed miner);
     event MinerRemoved(address indexed miner);
+    event FeeSettlementUpdated(address indexed settlement, address indexed asset);
+    event FeeSettlementMinted(address indexed asset, address indexed recipient, uint256 amount);
     event AssetPolicyProposed(bytes32 indexed proposalId, bytes32 indexed policyId, AssetPolicy policy);
     event AssetPolicyVoted(bytes32 indexed proposalId, address indexed miner, uint256 voteCount);
     event AssetPolicyUpdated(bytes32 indexed policyId, AssetPolicy policy);
@@ -135,6 +143,7 @@ contract TreasuryBridgeV3 is
     error AssetNotAuthorized();
     error InvalidQuorum();
     error NotGovernanceEoa();
+    error NotFeeSettlement();
 
     modifier onlyMiner() {
         if (!isMiner[msg.sender]) revert NotMiner();
@@ -143,6 +152,11 @@ contract TreasuryBridgeV3 is
 
     modifier onlyGovernanceEoa() {
         if (!isGovernanceEoa[msg.sender]) revert NotGovernanceEoa();
+        _;
+    }
+
+    modifier onlyFeeSettlement() {
+        if (msg.sender != feeSettlement) revert NotFeeSettlement();
         _;
     }
 
@@ -286,6 +300,26 @@ contract TreasuryBridgeV3 is
         emit BridgeAssetAuthorizationUpdated(asset, authorized);
     }
 
+    /// @notice Register BUnitAirdrop + V3 USDC for paid B-Unit fee mint (`mintForAdmin` ABI compat).
+    function setFeeSettlement(address settlement, address asset) external onlyOwner {
+        if (settlement == address(0) || asset == address(0)) revert InvalidPolicy();
+        feeSettlement = settlement;
+        feeSettlementAsset = asset;
+        emit FeeSettlementUpdated(settlement, asset);
+    }
+
+    /// @notice Compatible with BUnitAirdrop → ConetTreasury.mintForAdmin; mints feeSettlementAsset only.
+    function mintForAdmin(address token, address recipient, uint256 amount)
+        external
+        onlyFeeSettlement
+        nonReentrant
+    {
+        if (token == address(0) || token != feeSettlementAsset) revert InvalidPolicy();
+        if (recipient == address(0) || amount == 0) revert InvalidAmount();
+        ITreasuryBridgeAssetV3(token).mint(recipient, amount);
+        emit FeeSettlementMinted(token, recipient, amount);
+    }
+
     function setDestinationFeeBps(uint256 destinationChainId, uint256 feeBps) external onlyOwner {
         if (feeBps > MAX_FEE_BPS) revert InvalidFee();
         destinationFeeBps[destinationChainId] = feeBps;
@@ -343,8 +377,11 @@ contract TreasuryBridgeV3 is
         );
         if (!policy.enabled) revert PolicyNotEnabled();
         if (beneficiary == address(0) || amount == 0) revert InvalidAmount();
-        if (!IERC20BridgeV3(sourceAsset).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
         uint256 fee = (amount * destinationFeeBps[destinationChainId]) / BPS_DENOMINATOR;
+        if (fee > 0 && !IERC20BridgeV3(sourceAsset).transferFrom(msg.sender, address(this), fee)) {
+            revert TransferFailed();
+        }
+        if (!IERC20BridgeV3(sourceAsset).transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
         operationId = _operationId(
             block.chainid, destinationChainId, address(this), sourceAsset, destinationAsset,
             beneficiary, AssetMode.LockMint, amount, fee, sourceTxHash, nonce
@@ -354,11 +391,15 @@ contract TreasuryBridgeV3 is
         emit BridgeOperation(
             operationId, block.chainid, destinationChainId, Phase.Initiated, AssetMode.LockMint,
             address(this), sourceAsset, destinationAsset, msg.sender, beneficiary, amount, fee,
-            amount - fee, sourceTxHash, nonce
+            amount, sourceTxHash, nonce
         );
     }
 
-    function initiateBurnMint(
+    /// @notice Starts a user burn/mint transfer for a Treasury-authorized source token.
+    /// @dev The requested amount is burned in full; the fee is an additional transfer
+    ///      retained by this Treasury. The destination mints the full requested amount.
+    function initiateBurnMintForUser(
+        address sourceAsset,
         uint256 destinationChainId,
         address destinationAsset,
         address beneficiary,
@@ -366,27 +407,63 @@ contract TreasuryBridgeV3 is
         bytes32 sourceTxHash,
         uint256 nonce
     ) external nonReentrant returns (bytes32 operationId) {
-        if (!authorizedBridgeAsset[msg.sender]) revert AssetNotAuthorized();
+        if (!authorizedBridgeAsset[sourceAsset]) revert AssetNotAuthorized();
         AssetPolicy memory policy = _findPolicy(
-            block.chainid, address(this), msg.sender, destinationAsset, AssetMode.BurnMint
+            block.chainid, address(this), sourceAsset, destinationAsset, AssetMode.BurnMint
         );
         if (!policy.enabled) revert PolicyNotEnabled();
         if (beneficiary == address(0) || amount == 0) revert InvalidAmount();
         uint256 fee = (amount * destinationFeeBps[destinationChainId]) / BPS_DENOMINATOR;
-        if (fee > 0 && !IERC20BridgeV3(msg.sender).transferFrom(msg.sender, address(this), fee)) {
+        if (fee > 0 && !IERC20BridgeV3(sourceAsset).transferFrom(msg.sender, address(this), fee)) {
             revert TransferFailed();
         }
-        ITreasuryBridgeAssetV3(msg.sender).burnFrom(msg.sender, amount - fee);
+        ITreasuryBridgeAssetV3(sourceAsset).burnFrom(msg.sender, amount);
         operationId = _operationId(
-            block.chainid, destinationChainId, address(this), msg.sender, destinationAsset,
+            block.chainid, destinationChainId, address(this), sourceAsset, destinationAsset,
             beneficiary, AssetMode.BurnMint, amount, fee, sourceTxHash, nonce
         );
         if (operationInitiated[operationId]) revert OperationAlreadyUsed();
         operationInitiated[operationId] = true;
         emit BridgeOperation(
             operationId, block.chainid, destinationChainId, Phase.Initiated, AssetMode.BurnMint,
-            address(this), msg.sender, destinationAsset, msg.sender, beneficiary, amount, fee,
-            amount - fee, sourceTxHash, nonce
+            address(this), sourceAsset, destinationAsset, msg.sender, beneficiary, amount, fee,
+            amount, sourceTxHash, nonce
+        );
+    }
+
+    /// @notice Starts the reverse leg of a lock/mint route.
+    /// @dev The canonical source token is burned in full, the additional fee is
+    ///      retained by this Treasury, and the destination releases locked tokens.
+    function initiateBurnRelease(
+        address sourceAsset,
+        uint256 destinationChainId,
+        address destinationAsset,
+        address beneficiary,
+        uint256 amount,
+        bytes32 sourceTxHash,
+        uint256 nonce
+    ) external nonReentrant returns (bytes32 operationId) {
+        if (!authorizedBridgeAsset[sourceAsset]) revert AssetNotAuthorized();
+        AssetPolicy memory policy = _findPolicy(
+            block.chainid, address(this), sourceAsset, destinationAsset, AssetMode.BurnRelease
+        );
+        if (!policy.enabled) revert PolicyNotEnabled();
+        if (beneficiary == address(0) || amount == 0) revert InvalidAmount();
+        uint256 fee = (amount * destinationFeeBps[destinationChainId]) / BPS_DENOMINATOR;
+        if (fee > 0 && !IERC20BridgeV3(sourceAsset).transferFrom(msg.sender, address(this), fee)) {
+            revert TransferFailed();
+        }
+        ITreasuryBridgeAssetV3(sourceAsset).burnFrom(msg.sender, amount);
+        operationId = _operationId(
+            block.chainid, destinationChainId, address(this), sourceAsset, destinationAsset,
+            beneficiary, AssetMode.BurnRelease, amount, fee, sourceTxHash, nonce
+        );
+        if (operationInitiated[operationId]) revert OperationAlreadyUsed();
+        operationInitiated[operationId] = true;
+        emit BridgeOperation(
+            operationId, block.chainid, destinationChainId, Phase.Initiated, AssetMode.BurnRelease,
+            address(this), sourceAsset, destinationAsset, msg.sender, beneficiary, amount, fee,
+            amount, sourceTxHash, nonce
         );
     }
 
@@ -411,12 +488,12 @@ contract TreasuryBridgeV3 is
         );
         _consumeOperation(operationId);
         ITreasuryBridgeAssetV3(destinationAsset).mint(
-            beneficiary, grossAmount - feeAmount
+            beneficiary, grossAmount
         );
         emit BridgeOperation(
             operationId, sourceChainId, destinationChainId, Phase.Executed, mode,
             sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiary,
-            grossAmount, feeAmount, grossAmount - feeAmount, sourceTxHash, nonce
+            grossAmount, feeAmount, grossAmount, sourceTxHash, nonce
         );
     }
 
@@ -436,17 +513,17 @@ contract TreasuryBridgeV3 is
     ) external nonReentrant {
         _verifyAttestations(
             operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-            destinationAsset, beneficiary, AssetMode.LockMint, grossAmount, feeAmount,
+            destinationAsset, beneficiary, AssetMode.BurnRelease, grossAmount, feeAmount,
             sourceTxHash, nonce, signatures
         );
         _consumeOperation(operationId);
-        if (!IERC20BridgeV3(sourceAsset).transfer(beneficiary, grossAmount - feeAmount)) {
+        if (!IERC20BridgeV3(destinationAsset).transfer(beneficiary, grossAmount)) {
             revert TransferFailed();
         }
         emit BridgeOperation(
-            operationId, sourceChainId, destinationChainId, Phase.Executed, AssetMode.LockMint,
+            operationId, sourceChainId, destinationChainId, Phase.Executed, AssetMode.BurnRelease,
             sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiary,
-            grossAmount, feeAmount, grossAmount - feeAmount, sourceTxHash, nonce
+            grossAmount, feeAmount, grossAmount, sourceTxHash, nonce
         );
     }
 
@@ -471,9 +548,9 @@ contract TreasuryBridgeV3 is
         }
         if (operationExecuted[operationId]) revert OperationAlreadyUsed();
         if (grossAmount == 0 || feeAmount > grossAmount) revert InvalidAmount();
-        if ((grossAmount * destinationFeeBps[destinationChainId]) / BPS_DENOMINATOR != feeAmount) {
-            revert InvalidFee();
-        }
+        // The source chain is authoritative for the fee. Requiring the
+        // destination's local fee table here would make valid operations fail
+        // while the two chains are updated in different blocks.
 
         bytes32 routeId = keccak256(
             abi.encode(sourceChainId, sourceTreasury, sourceAsset, destinationAsset, mode)
@@ -499,10 +576,10 @@ contract TreasuryBridgeV3 is
 
         if (voteCount >= requiredVotes()) {
             _consumeOperation(operationId);
-            if (mode == AssetMode.BurnMint) {
-                ITreasuryBridgeAssetV3(destinationAsset).mint(beneficiary, grossAmount - feeAmount);
-            } else if (mode == AssetMode.LockMint) {
-                if (!IERC20BridgeV3(sourceAsset).transfer(beneficiary, grossAmount - feeAmount)) {
+            if (mode == AssetMode.BurnMint || mode == AssetMode.LockMint) {
+                ITreasuryBridgeAssetV3(destinationAsset).mint(beneficiary, grossAmount);
+            } else if (mode == AssetMode.BurnRelease) {
+                if (!IERC20BridgeV3(destinationAsset).transfer(beneficiary, grossAmount)) {
                     revert TransferFailed();
                 }
             } else {
@@ -511,7 +588,7 @@ contract TreasuryBridgeV3 is
             emit BridgeOperation(
                 operationId, sourceChainId, destinationChainId, Phase.Executed, mode,
                 sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiary,
-                grossAmount, feeAmount, grossAmount - feeAmount, sourceTxHash, nonce
+                grossAmount, feeAmount, grossAmount, sourceTxHash, nonce
             );
         }
     }
@@ -559,9 +636,6 @@ contract TreasuryBridgeV3 is
         bytes[] calldata signatures
     ) internal view {
         if (grossAmount == 0 || feeAmount > grossAmount) revert InvalidAmount();
-        if ((grossAmount * destinationFeeBps[destinationChainId]) / BPS_DENOMINATOR != feeAmount) {
-            revert InvalidFee();
-        }
         bytes32 routeId = keccak256(
             abi.encode(sourceChainId, sourceTreasury, sourceAsset, destinationAsset, mode)
         );
@@ -683,5 +757,6 @@ contract TreasuryBridgeV3 is
         );
     }
 
-    uint256[37] private __gap;
+    /// @dev Gap reduced by 2 for `feeSettlement` + `feeSettlementAsset`.
+    uint256[35] private __gap;
 }

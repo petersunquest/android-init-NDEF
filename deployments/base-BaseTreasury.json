@@ -2,8 +2,8 @@
   "network": "base",
   "chainId": "8453",
   "contract": "BaseTreasury",
-  "address": "0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58",
+  "address": "0x2309C409D4cF15E88cC64E4FAD356EFc7fD99094",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-05T01:49:09.988Z",
-  "transactionHash": "0x18e735c2de5ef7790d010fe40ee68d982500b8580b629d736701f68aefd1dbba"
+  "timestamp": "2026-07-25T17:24:56.336Z",
+  "transactionHash": "0xd61752b8f831074854f9a85ec95b36bdb37a98ccff7072c7a4062705421b387c"
 }

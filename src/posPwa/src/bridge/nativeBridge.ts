@@ -79,7 +79,8 @@ export const posNativeBridge: PosNativeBridge = {
 
 	async getWalletPrivateKeyHex(): Promise<string | null> {
 		if (window.BeamioPOS?.getWalletPrivateKeyHex) {
-			return window.BeamioPOS.getWalletPrivateKeyHex()
+			const native = await window.BeamioPOS.getWalletPrivateKeyHex()
+			if (native?.trim()) return native.replace(/^0x/i, '').trim()
 		}
 		if (getSessionPrivateKeyHex()) return getSessionPrivateKeyHex()
 		await checkPosWalletStorage()

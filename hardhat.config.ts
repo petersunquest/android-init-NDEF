@@ -44,7 +44,7 @@ export default defineConfig({
     ],
   },
   solidity: {
-    version: "0.8.33",
+    version: "0.8.35",
     settings: {
       ...(beamioSolcVerifyQuoteHelperV07
         ? {}

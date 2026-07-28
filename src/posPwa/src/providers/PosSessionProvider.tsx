@@ -42,7 +42,9 @@ import {
 } from '@/utils/posProgramCardAccess'
 import { computeHomeStatsFromPosLedger } from '@/utils/posLedgerMetrics'
 import { normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
-import { getSessionPrivateKeyHex } from '@/wallet/posWalletSession'
+import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
+import { checkPosWalletStorage, getSessionWalletAddress } from '@/wallet/posWalletService'
+import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
 
 function normEoa(raw: string | null | undefined): string {
 	return (raw ?? '').trim().toLowerCase()
@@ -94,6 +96,8 @@ interface PosContextValue {
 	bootPhase: PosBootPhase | null
 	refreshHome: () => Promise<void>
 	admitProgramCardAccess: () => void
+	/** Recover page: local mnemonic appeared — leave wallet_recover without Access-password flash loop. */
+	resumeBootAfterLocalWalletReady: () => Promise<boolean>
 	markOnboardingComplete: (params: {
 		wallet: string
 		accountName: string
@@ -192,6 +196,34 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		const u = activeUpperRef.current
 		if (w && u) posHomeTrustedCache.savePermissionGranted(w, u, true)
 	}, [walletAddress])
+
+	const resumeBootAfterLocalWalletReady = useCallback(async (): Promise<boolean> => {
+		if (!(await hasPosWalletInIndexedDb())) return false
+		await checkPosWalletStorage()
+		const addr = getSessionWalletAddress() ?? walletAddress
+		if (!addr) return false
+		setWalletAddress(addr)
+		const regTag =
+			posHomeTrustedCache.loadRegisteredTag(addr) || registeredBeamioTag
+		if (regTag) setRegisteredBeamioTag(regTag)
+		setIsBootLoading(true)
+		try {
+			await refreshHomeRef.current()
+			const upperAfter = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(addr)
+			const permAfter = posHomeTrustedCache.loadPermissionGranted(addr, upperAfter)
+			const phase = resolvePosBootPhase({
+				hasStoredWallet: true,
+				accessGranted: permAfter === true ? true : permAfter === false ? false : null,
+				permCached: permAfter,
+			})
+			setBootPhase(phase)
+			if (phase === 'home') setShowPermissionGate(false)
+			if (phase === 'permission') setShowPermissionGate(true)
+			return true
+		} finally {
+			setIsBootLoading(false)
+		}
+	}, [walletAddress, registeredBeamioTag])
 
 	const setParentBeamioTag = useCallback((tag: string) => {
 		setParentBeamioTagState(tag)
@@ -433,7 +465,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			if (!wallet) return { ok: false as const, error: 'No terminal wallet.' }
 			const childTag = registeredBeamioTag?.trim()
 			if (!childTag) return { ok: false as const, error: 'Terminal @BeamioTag is missing.' }
-			const pk = getSessionPrivateKeyHex()
+			/* Same path as Charge / ParentPermissionGate: native global key → session → IndexedDB mnemonic. */
+			const pk = await getPosPrivateKeyHex()
 			if (!pk) {
 				return {
 					ok: false as const,
@@ -619,6 +652,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			bootPhase,
 			refreshHome,
 			admitProgramCardAccess,
+			resumeBootAfterLocalWalletReady,
 			markOnboardingComplete,
 			clearSessionForNewWorkspace,
 			switchWorkspace,
@@ -650,6 +684,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			bootPhase,
 			refreshHome,
 			admitProgramCardAccess,
+			resumeBootAfterLocalWalletReady,
 			markOnboardingComplete,
 			clearSessionForNewWorkspace,
 			switchWorkspace,

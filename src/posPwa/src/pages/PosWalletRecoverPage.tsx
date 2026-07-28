@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import { posNativeBridge } from '@/bridge/nativeBridge'
 import { PosScreenFooter, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosSession } from '@/providers/PosSessionProvider'
-import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
 
 const FIELD_CLASS =
 	'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-mkt-onSurface outline-none focus:border-brand-blue'
@@ -15,22 +14,26 @@ const FIELD_CLASS =
  */
 export function PosWalletRecoverPage() {
 	const navigate = useNavigate()
-	const { parentBeamioTag, registeredBeamioTag, markOnboardingComplete } = usePosSession()
+	const {
+		parentBeamioTag,
+		registeredBeamioTag,
+		markOnboardingComplete,
+		resumeBootAfterLocalWalletReady,
+	} = usePosSession()
 	const [password, setPassword] = useState('')
 	const [error, setError] = useState('')
 	const [loading, setLoading] = useState(false)
 
 	useEffect(() => {
-		if (!parentBeamioTag || !registeredBeamioTag) {
+		if (!registeredBeamioTag) {
 			navigate('/', { replace: true })
 			return
 		}
 		void (async () => {
-			if (await hasPosWalletInIndexedDb()) {
-				navigate('/permission', { replace: true })
-			}
+			/* Local wallet appeared (IndexedDB lag / race) — advance boot phase; do not bounce /permission. */
+			await resumeBootAfterLocalWalletReady()
 		})()
-	}, [parentBeamioTag, registeredBeamioTag, navigate])
+	}, [registeredBeamioTag, navigate, resumeBootAfterLocalWalletReady])
 
 	async function onRestore() {
 		setError('')
@@ -55,7 +58,7 @@ export function PosWalletRecoverPage() {
 		markOnboardingComplete({
 			wallet: result.address,
 			accountName: registeredBeamioTag,
-			parentTag: parentBeamioTag,
+			parentTag: parentBeamioTag || '',
 		})
 		navigate('/permission', { replace: true })
 	}

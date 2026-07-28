@@ -1,0 +1,9 @@
+{
+  "name": "Beamio Units",
+  "symbol": "B-UNITS",
+  "decimals": 6,
+  "description": "Canonical Beamio B-Unit token for Treasury V3 cross-chain settlement.",
+  "image": "https://mainnet.conet.network/bunit/erc20/BUNIT-256.png",
+  "icon_url": "https://mainnet.conet.network/bunit/erc20/BUNIT-256.png",
+  "external_url": "https://mainnet.conet.network/token/"
+}

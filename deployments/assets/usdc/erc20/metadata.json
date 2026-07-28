@@ -1,0 +1,14 @@
+{
+  "name": "CoNET USD Coin",
+  "symbol": "conet-USDC",
+  "decimals": 6,
+  "description": "Canonical CoNET representation of USDC for Treasury V3 settlement.",
+  "image": "https://mainnet.conet.network/usdc/erc20/USDC.svg",
+  "icon_url": "https://mainnet.conet.network/usdc/erc20/USDC.svg",
+  "external_url": "https://mainnet.conet.network/token/0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+  "properties": {
+    "asset_type": "canonical",
+    "bridge": "Treasury V3",
+    "icon_format": "image/svg+xml"
+  }
+}

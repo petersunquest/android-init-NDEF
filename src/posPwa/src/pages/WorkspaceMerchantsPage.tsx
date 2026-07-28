@@ -237,14 +237,19 @@ export function WorkspaceMerchantsPage() {
 								id="workspace-join-tag"
 								type="text"
 								autoComplete="off"
+								autoCorrect="off"
+								autoCapitalize="none"
+								spellCheck={false}
 								enterKeyHint="search"
+								inputMode="text"
 								value={joinQuery}
 								onChange={(e) => {
 									setSelectedParent(null)
 									setJoinQuery(e.target.value)
 								}}
 								placeholder="@merchant"
-								className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none focus:border-[#1562f0] focus:ring-2 focus:ring-[#1562f0]/20"
+								/* text-base (16px): iOS will not auto-zoom on focus when font-size >= 16. */
+								className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-base text-slate-900 outline-none focus:border-[#1562f0] focus:ring-2 focus:ring-[#1562f0]/20"
 							/>
 						</div>
 						{joinSearching ? (
@@ -265,6 +270,11 @@ export function WorkspaceMerchantsPage() {
 												onClick={() => {
 													setSelectedParent(hit)
 													if (tag) setJoinQuery(tag)
+													// Blur search field so iOS dismisses keyboard and any focus zoom.
+													const el = document.getElementById(
+														'workspace-join-tag',
+													) as HTMLInputElement | null
+													el?.blur()
 												}}
 												className={[
 													'flex w-full items-center rounded-xl px-2 py-2 text-left',

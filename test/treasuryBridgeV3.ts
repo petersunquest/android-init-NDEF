@@ -158,7 +158,7 @@ describe("TreasuryBridgeV3", function () {
       nonce,
       [signature],
     );
-    expect(await token.balanceOf(beneficiary.address)).to.equal(gross - fee);
+    expect(await token.balanceOf(beneficiary.address)).to.equal(gross);
     await expect(
       bridge.executeMint(
         operationId,
@@ -242,7 +242,7 @@ describe("TreasuryBridgeV3", function () {
       1,
       [seedSignature],
     );
-    await token.connect(user).approve(await bridge.getAddress(), 990_000n);
+    await token.connect(user).approve(await bridge.getAddress(), 999_900n);
     await bridge.connect(user).initiateLockMint(
       8453,
       sourceAsset,
@@ -252,8 +252,99 @@ describe("TreasuryBridgeV3", function () {
       ethers.keccak256(ethers.toUtf8Bytes("lock")),
       1,
     );
-    expect(await token.balanceOf(await bridge.getAddress())).to.equal(990_000n);
-    expect(await token.balanceOf(user.address)).to.equal(0);
+    expect(await token.balanceOf(await bridge.getAddress())).to.equal(999_900n);
+    expect(await token.balanceOf(user.address)).to.equal(100n);
+  });
+
+  it("lets a user burn the requested amount and charges the fee separately", async function () {
+    const { miner, user, beneficiary, bridge, token } = await deployStack();
+    const sourceAsset = await token.getAddress();
+    await bridge.setBridgeAssetAuthorization(sourceAsset, true);
+    const policy = {
+      sourceChainId: (await ethers.provider.getNetwork()).chainId,
+      sourceTreasury: await bridge.getAddress(),
+      sourceAsset,
+      destinationAsset: sourceAsset,
+      mode: 0,
+      decimals: 6,
+      enabled: true,
+      version: 1,
+    };
+    await bridge.connect(miner).proposeAssetPolicy(policy);
+    await bridge.setDestinationFeeBps(8453, 100);
+
+    const requested = 1_000_000n;
+    const fee = 10_000n;
+    const seedOperation = ethers.keccak256(ethers.toUtf8Bytes("burn-mint-seed"));
+    const seedTx = ethers.keccak256(ethers.toUtf8Bytes("burn-mint-seed-tx"));
+    const chainId = (await ethers.provider.getNetwork()).chainId;
+    const seedValue = {
+      operationId: seedOperation,
+      sourceChainId: chainId,
+      destinationChainId: 8453n,
+      sourceTreasury: await bridge.getAddress(),
+      sourceAsset,
+      destinationAsset: sourceAsset,
+      beneficiary: user.address,
+      mode: 0,
+      grossAmount: requested + fee,
+      feeAmount: 0n,
+      sourceTxHash: seedTx,
+      nonce: 3n,
+    };
+    const seedSignature = await miner.signTypedData(
+      {
+        name: "TreasuryBridgeV3",
+        version: "1",
+        chainId,
+        verifyingContract: await bridge.getAddress(),
+      },
+      {
+        BridgeAttestation: [
+          { name: "operationId", type: "bytes32" },
+          { name: "sourceChainId", type: "uint256" },
+          { name: "destinationChainId", type: "uint256" },
+          { name: "sourceTreasury", type: "address" },
+          { name: "sourceAsset", type: "address" },
+          { name: "destinationAsset", type: "address" },
+          { name: "beneficiary", type: "address" },
+          { name: "mode", type: "uint8" },
+          { name: "grossAmount", type: "uint256" },
+          { name: "feeAmount", type: "uint256" },
+          { name: "sourceTxHash", type: "bytes32" },
+          { name: "nonce", type: "uint256" },
+        ],
+      },
+      seedValue,
+    );
+    await bridge.executeMint(
+      seedOperation,
+      chainId,
+      8453,
+      await bridge.getAddress(),
+      sourceAsset,
+      sourceAsset,
+      user.address,
+      0,
+      requested + fee,
+      0,
+      seedTx,
+      3,
+      [seedSignature],
+    );
+    await token.connect(user).approve(await bridge.getAddress(), fee);
+    await bridge.connect(user).initiateBurnMintForUser(
+      sourceAsset,
+      8453,
+      sourceAsset,
+      beneficiary.address,
+      requested,
+      ethers.keccak256(ethers.toUtf8Bytes("burn-mint")),
+      2,
+    );
+
+    expect(await token.balanceOf(user.address)).to.equal(0n);
+    expect(await token.balanceOf(await bridge.getAddress())).to.equal(fee);
   });
 
   it("allows miners to vote on-chain and auto-executes at quorum", async function () {
@@ -268,7 +359,7 @@ describe("TreasuryBridgeV3", function () {
       sourceTreasury: await bridge.getAddress(),
       sourceAsset,
       destinationAsset,
-      mode: 0,
+      mode: 1,
       decimals: 6,
       enabled: true,
       version: 1,
@@ -288,7 +379,7 @@ describe("TreasuryBridgeV3", function () {
       sourceAsset,
       destinationAsset,
       beneficiary.address,
-      0,
+      1,
       1_000_000n,
       10_000n,
       sourceTxHash,
@@ -301,7 +392,7 @@ describe("TreasuryBridgeV3", function () {
 
     await bridge.connect(miner2).voteBridgeOperation(...args);
     expect(await bridge.operationExecuted(operationId)).to.equal(true);
-    expect(await token.balanceOf(beneficiary.address)).to.equal(990_000n);
+    expect(await token.balanceOf(beneficiary.address)).to.equal(1_000_000n);
     await expect(bridge.connect(miner3).voteBridgeOperation(...args))
       .to.be.revertedWithCustomError(bridge, "OperationAlreadyUsed");
   });

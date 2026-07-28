@@ -1,0 +1,23 @@
+CoNET wCNET (TreasuryCanonicalERC20V3) — native wrap upgrade
+
+Proxy (unchanged): 0x2DC57d67C9764DeE5788421029Abaf81B992FAaF
+Implementation:    0x828312e327b4f937E7645fbe9b85C1dB93cb16d2
+Impl deploy tx:     0xf2b84b01ebab71e2c5ec956de5800665abf38a2f88651be7c58b4d62bb74ca5d
+Upgrade tx:         0xdc26830bd0ac60e00d4b14b7e1590904bccc052af5a897d17ae7f6185a7cf7f2
+Enable wrap tx:     0x9820606e65780e3edb356264f21705d5cb875632a550e144bca276df019619be
+Upgrade block:      559033
+
+Compiler: v0.8.35+commit.47b9dedd (chain bytecode tail 000823)
+Verify JSON: deployments/base-TreasuryCanonicalERC20V3-standard-input-FULL-FORM.json
+Contract Name: project/src/b-unit/TreasuryCanonicalERC20V3.sol:TreasuryCanonicalERC20V3
+Blockscout v2: is_verified=true (partial match accepted)
+
+Features:
+- deposit() / receive() payable — CNET → wCNET 1:1 (nativeWrapEnabled)
+- withdraw(amount) — wCNET → CNET
+- withdrawWithSignature(user, recipient, amount, nonce, deadline, signature) — EIP-712 offline unwrap
+- Domain: name=TreasuryCanonicalERC20V3, version=1
+
+Smoke:
+- deposit 0.01: 0x4e0ac9178a449e1c9f1142b046a86603a9187f6278fd6e0c89a18b2add4df51a
+- withdrawWithSignature: 0x19e38ce07f0fa0c4cf1ebf8a11fc6401cc514753c5de8e6f59f230db0fac0b0a
