@@ -1,7 +1,5 @@
 import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
-import { posHomeTrustedCache } from '@/utils/trustedCache'
-
-const LS_PREFIX = 'beamio:pos-pwa:v1:registeredTag:'
+import { POS_REGISTERED_TAG_LS_PREFIXES, posHomeTrustedCache } from '@/utils/trustedCache'
 
 export function hasLocalPlaintextMnemonicFromRecord(
 	record: { mnemonicPhrase?: string } | null | undefined,
@@ -18,14 +16,22 @@ export function findPosTerminalSessionWithoutMnemonic(): {
 	if (typeof localStorage === 'undefined') return null
 	for (let i = 0; i < localStorage.length; i++) {
 		const k = localStorage.key(i)
-		if (!k?.startsWith(LS_PREFIX)) continue
-		const walletAddress = k.slice(LS_PREFIX.length).trim()
+		if (!k) continue
+		let walletAddress = ''
+		for (const prefix of POS_REGISTERED_TAG_LS_PREFIXES) {
+			if (k.startsWith(prefix)) {
+				walletAddress = k.slice(prefix.length).trim()
+				break
+			}
+		}
+		if (!walletAddress) continue
 		const registeredTag = localStorage.getItem(k)?.trim() ?? ''
-		if (!walletAddress || !registeredTag) continue
+		if (!registeredTag) continue
+		const activeUpper = posHomeTrustedCache.loadActiveUpper(walletAddress)
 		return {
 			walletAddress,
 			registeredTag,
-			parentTag: posHomeTrustedCache.loadParentTag(walletAddress),
+			parentTag: posHomeTrustedCache.loadParentTag(walletAddress, activeUpper),
 		}
 	}
 	return null

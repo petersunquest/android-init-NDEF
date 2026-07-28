@@ -8,6 +8,7 @@ export const POS_HOME_ROUTES = {
 	deductPoints: '/deduct-points',
 	transactions: '/transactions',
 	activeCoupons: '/active-coupons',
+	workspace: '/workspace',
 	nativeAction: (action: PosNativeAction) => `/native/${action}`,
 } as const
 
@@ -20,7 +21,8 @@ export function isPosHomePhasePath(path: string): boolean {
 		path === POS_HOME_ROUTES.charge ||
 		path === POS_HOME_ROUTES.deductPoints ||
 		path === POS_HOME_ROUTES.transactions ||
-		path === POS_HOME_ROUTES.activeCoupons
+		path === POS_HOME_ROUTES.activeCoupons ||
+		path === POS_HOME_ROUTES.workspace
 	) {
 		return true
 	}

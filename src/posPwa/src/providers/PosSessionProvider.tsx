@@ -14,9 +14,13 @@ import {
 	fetchCardAdminInfo,
 	fetchCardMetadataPointSystem,
 	fetchMyPosAddress,
+	fetchMyPosAddresses,
 	fetchPosLedger,
 	fetchWalletAssets,
 	searchUsers,
+	searchUsersByCardOwnerOrAdmin,
+	setActivePosAddress,
+	type PosCardBindingItem,
 } from '@/api/beamioApi'
 import {
 	resolvePosBootPhase,
@@ -24,9 +28,10 @@ import {
 	type PosBootPhase,
 } from '@/boot/posBootInit'
 import { posNativeBridge } from '@/bridge/nativeBridge'
+import { sendPosTerminalPermissionRequest } from '@/conet/posTerminalPermissionChat'
 import type { MerchantActiveIssuedCoupon } from '@/utils/couponMetadata'
 import type { TerminalProfile } from '@/types/pos'
-import { posHomeTrustedCache } from '@/utils/trustedCache'
+import { posHomeTrustedCache, type PosOutboundJoinPending } from '@/utils/trustedCache'
 import {
 	resolveAdminProfileFromCardAdminInfo,
 	resolveParentWorkspaceProfile,
@@ -36,6 +41,27 @@ import {
 	resolvePosTerminalAccessAllowed,
 } from '@/utils/posProgramCardAccess'
 import { computeHomeStatsFromPosLedger } from '@/utils/posLedgerMetrics'
+import { normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
+import { getSessionPrivateKeyHex } from '@/wallet/posWalletSession'
+
+function normEoa(raw: string | null | undefined): string {
+	return (raw ?? '').trim().toLowerCase()
+}
+
+function resolveUpperFromAdminInfo(info: {
+	upperAdmin?: string | null
+	owner?: string | null
+} | null | undefined): string | null {
+	const upper = info?.upperAdmin?.trim()
+	if (upper) return upper
+	const owner = info?.owner?.trim()
+	return owner || null
+}
+
+export type PosWorkspaceBindingRow = PosCardBindingItem & {
+	upperEoa: string | null
+	adminProfile: TerminalProfile | null
+}
 
 interface PosContextValue {
 	walletAddress: string | null
@@ -46,6 +72,10 @@ interface PosContextValue {
 	terminalProfile: TerminalProfile | null
 	adminProfile: TerminalProfile | null
 	merchantInfraCard: string | null
+	/** Active merchant upper admin / owner EOA — partition key for local cache. */
+	activeUpperEoa: string | null
+	workspaceBindings: PosWorkspaceBindingRow[]
+	outboundJoinPending: PosOutboundJoinPending[]
 	registeredBeamioTag: string | null
 	currency: string
 	chargeAmount: number | null
@@ -70,9 +100,62 @@ interface PosContextValue {
 		parentTag: string
 	}) => void
 	clearSessionForNewWorkspace: () => void
+	/** Switch active merchant workspace (partition + DB active card). */
+	switchWorkspace: (params: {
+		upperEoa: string
+		cardAddress: string
+	}) => Promise<{ ok: true } | { ok: false; error: string }>
+	/** Request to join another merchant parent via CoNET gossip. */
+	requestJoinWorkspace: (params: {
+		parentTag: string
+		parentEoaHint?: string | null
+	}) => Promise<{ ok: true } | { ok: false; error: string }>
+	refreshWorkspaceBindings: () => Promise<void>
 }
 
 const PosContext = createContext<PosContextValue | null>(null)
+
+function hydratePartitionIntoState(
+	wallet: string,
+	upper: string,
+	setters: {
+		setMerchantInfraCard: (v: string | null) => void
+		setAdminProfile: (v: TerminalProfile | null) => void
+		setParentProfile: (v: TerminalProfile | null) => void
+		setParentBeamioTagState: (v: string) => void
+		setChargeAmount: (v: number | null) => void
+		setTopUpAmount: (v: number | null) => void
+		setTipsAmount: (v: number | null) => void
+		setPointSystemEnabled: (v: boolean) => void
+		setActiveCoupons: (v: MerchantActiveIssuedCoupon[] | null) => void
+		setShowPermissionGate: (v: boolean) => void
+	},
+): string | null {
+	posHomeTrustedCache.ensureWorkspace(wallet, upper)
+	const infra = posHomeTrustedCache.loadInfraCard(wallet, upper)
+	if (infra) setters.setMerchantInfraCard(infra)
+	const profiles = posHomeTrustedCache.loadProfiles(wallet, upper)
+	if (profiles.admin) setters.setAdminProfile(profiles.admin)
+	else setters.setAdminProfile(null)
+	const parent = posHomeTrustedCache.loadParentProfile(wallet, upper)
+	if (parent) setters.setParentProfile(parent)
+	const parentTag = posHomeTrustedCache.loadParentTag(wallet, upper)
+	if (parentTag) setters.setParentBeamioTagState(parentTag)
+	if (infra) {
+		const stats = posHomeTrustedCache.loadStats(wallet, upper, infra)
+		if (stats.charge != null) setters.setChargeAmount(stats.charge)
+		if (stats.topUp != null) setters.setTopUpAmount(stats.topUp)
+		if (stats.tips != null) setters.setTipsAmount(stats.tips)
+		const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(wallet, upper, infra)
+		if (cachedPoint === true || cachedPoint === false) setters.setPointSystemEnabled(cachedPoint)
+		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, upper, infra)
+		if (cachedCoupons !== null) setters.setActiveCoupons(cachedCoupons)
+	}
+	const perm = posHomeTrustedCache.loadPermissionGranted(wallet, upper)
+	if (perm === true) setters.setShowPermissionGate(false)
+	else if (perm === false) setters.setShowPermissionGate(true)
+	return infra
+}
 
 export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [walletAddress, setWalletAddress] = useState<string | null>(null)
@@ -81,6 +164,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [terminalProfile, setTerminalProfile] = useState<TerminalProfile | null>(null)
 	const [adminProfile, setAdminProfile] = useState<TerminalProfile | null>(null)
 	const [merchantInfraCard, setMerchantInfraCard] = useState<string | null>(null)
+	const [activeUpperEoa, setActiveUpperEoa] = useState<string | null>(null)
+	const [workspaceBindings, setWorkspaceBindings] = useState<PosWorkspaceBindingRow[]>([])
+	const [outboundJoinPending, setOutboundJoinPending] = useState<PosOutboundJoinPending[]>([])
 	const [registeredBeamioTag, setRegisteredBeamioTag] = useState<string | null>(null)
 	const [currency, setCurrency] = useState('CAD')
 	const [chargeAmount, setChargeAmount] = useState<number | null>(null)
@@ -96,17 +182,44 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [bootPhase, setBootPhase] = useState<PosBootPhase | null>(null)
 	const refreshGen = useRef(0)
 	const refreshHomeRef = useRef<() => Promise<void>>(async () => {})
+	const activeUpperRef = useRef<string | null>(null)
+	activeUpperRef.current = activeUpperEoa
 
 	const admitProgramCardAccess = useCallback(() => {
 		setShowPermissionGate(false)
 		setBootPhase('home')
 		const w = walletAddress
-		if (w) posHomeTrustedCache.savePermissionGranted(w, true)
+		const u = activeUpperRef.current
+		if (w && u) posHomeTrustedCache.savePermissionGranted(w, u, true)
 	}, [walletAddress])
 
 	const setParentBeamioTag = useCallback((tag: string) => {
 		setParentBeamioTagState(tag)
 	}, [])
+
+	const refreshWorkspaceBindings = useCallback(async () => {
+		const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
+		if (!wallet) return
+		const items = await fetchMyPosAddresses(wallet)
+		if (items === null) return
+		const rows: PosWorkspaceBindingRow[] = []
+		for (const item of items) {
+			const info = await fetchCardAdminInfo(item.cardAddress, wallet)
+			const upper = resolveUpperFromAdminInfo(info)
+			let admin: TerminalProfile | null = null
+			if (info?.ok) {
+				const resolved = await resolveAdminProfileFromCardAdminInfo(info)
+				if (resolved) admin = resolved
+			}
+			rows.push({
+				...item,
+				upperEoa: upper,
+				adminProfile: admin,
+			})
+		}
+		setWorkspaceBindings(rows)
+		setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(wallet))
+	}, [walletAddress])
 
 	const refreshHome = useCallback(async () => {
 		const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
@@ -114,15 +227,25 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		setWalletAddress(wallet)
 		const gen = ++refreshGen.current
 
+		let preferredUpper = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(wallet)
+		let infra: string | null = preferredUpper
+			? posHomeTrustedCache.loadInfraCard(wallet, preferredUpper)
+			: null
+
 		const posRes = await fetchMyPosAddress(wallet)
 		if (gen !== refreshGen.current) return
-		let infra = merchantInfraCard
-		const parsedInfra = parseMerchantInfraCardFromMyPos(posRes)
-		if (parsedInfra) {
-			infra = parsedInfra
-			setMerchantInfraCard(infra)
-			posHomeTrustedCache.saveInfraCard(wallet, infra)
+		const apiInfra = parseMerchantInfraCardFromMyPos(posRes)
+
+		if (preferredUpper && infra && apiInfra && normEoa(apiInfra) !== normEoa(infra)) {
+			const align = await setActivePosAddress(wallet, infra)
+			if (gen !== refreshGen.current) return
+			if (!align.ok && apiInfra) {
+				infra = apiInfra
+			}
+		} else if (apiInfra) {
+			infra = apiInfra
 		}
+
 		if (posRes?.currency) setCurrency(posRes.currency)
 
 		if (!infra) {
@@ -130,19 +253,57 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			return
 		}
 
-		const cachedStats = posHomeTrustedCache.loadStats(wallet, infra)
+		const adminInfoEarly = await fetchCardAdminInfo(infra, wallet)
+		if (gen !== refreshGen.current) return
+		const cardUpper = resolveUpperFromAdminInfo(adminInfoEarly)
+
+		if (preferredUpper && cardUpper && normEoa(preferredUpper) !== normEoa(cardUpper)) {
+			const preferredInfra = posHomeTrustedCache.loadInfraCard(wallet, preferredUpper)
+			if (preferredInfra) {
+				const align = await setActivePosAddress(wallet, preferredInfra)
+				if (gen !== refreshGen.current) return
+				if (align.ok) {
+					infra = preferredInfra
+				} else {
+					preferredUpper = cardUpper
+					posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
+					setActiveUpperEoa(cardUpper)
+				}
+			} else {
+				preferredUpper = cardUpper
+				posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
+				setActiveUpperEoa(cardUpper)
+			}
+		} else if (cardUpper) {
+			preferredUpper = cardUpper
+			posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
+			setActiveUpperEoa(cardUpper)
+		}
+
+		if (!preferredUpper) {
+			setMerchantInfraCard(infra)
+			setHomeStatsLoaded(true)
+			return
+		}
+
+		const upper = preferredUpper
+		posHomeTrustedCache.ensureWorkspace(wallet, upper)
+		setMerchantInfraCard(infra)
+		posHomeTrustedCache.saveInfraCard(wallet, upper, infra)
+
+		const cachedStats = posHomeTrustedCache.loadStats(wallet, upper, infra)
 		if (cachedStats.charge != null) setChargeAmount(cachedStats.charge)
 		if (cachedStats.topUp != null) setTopUpAmount(cachedStats.topUp)
 		if (cachedStats.tips != null) setTipsAmount(cachedStats.tips)
-		const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(wallet, infra)
+		const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(wallet, upper, infra)
 		if (cachedPoint === true || cachedPoint === false) setPointSystemEnabled(cachedPoint)
 
-		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, infra)
+		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, upper, infra)
 		if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
 
 		const [ledger, adminInfo, assets, coupons, pointEnabled] = await Promise.all([
 			fetchPosLedger(wallet, infra),
-			fetchCardAdminInfo(infra, wallet),
+			adminInfoEarly ?? fetchCardAdminInfo(infra, wallet),
 			fetchWalletAssets(wallet, infra),
 			fetchActiveCoupons(infra),
 			fetchCardMetadataPointSystem(infra),
@@ -154,8 +315,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			setChargeAmount(stats.charge)
 			setTopUpAmount(stats.topUp)
 			setTipsAmount(stats.tips)
-			posHomeTrustedCache.savePosLedger(ledger, wallet, infra)
-			posHomeTrustedCache.mergeAndSaveStats(wallet, infra, {
+			posHomeTrustedCache.savePosLedger(ledger, wallet, upper, infra)
+			posHomeTrustedCache.mergeAndSaveStats(wallet, upper, infra, {
 				charge: stats.charge,
 				topUp: stats.topUp,
 				tips: stats.tips,
@@ -164,37 +325,36 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			})
 		}
 
-		if (infra) {
-			const access = await resolvePosTerminalAccessAllowed(infra, wallet, adminInfo)
+		const access = await resolvePosTerminalAccessAllowed(infra, wallet, adminInfo)
+		if (gen !== refreshGen.current) return
+		if (access === true || access === false) {
+			setShowPermissionGate(!access)
+			posHomeTrustedCache.savePermissionGranted(wallet, upper, access)
+			setBootPhase(access ? 'home' : 'permission')
+		}
+		if (adminInfo?.ok) {
+			const resolvedAdmin = await resolveAdminProfileFromCardAdminInfo(adminInfo)
 			if (gen !== refreshGen.current) return
-			if (access === true || access === false) {
-				setShowPermissionGate(!access)
-				posHomeTrustedCache.savePermissionGranted(wallet, access)
-				setBootPhase(access ? 'home' : 'permission')
-			}
-			if (adminInfo?.ok) {
-				const resolvedAdmin = await resolveAdminProfileFromCardAdminInfo(adminInfo)
-				if (gen !== refreshGen.current) return
-				if (resolvedAdmin !== undefined) {
-					if (resolvedAdmin) {
-						setAdminProfile(resolvedAdmin)
-						posHomeTrustedCache.saveAdmin(resolvedAdmin, wallet)
-					} else {
-						setAdminProfile(null)
-						posHomeTrustedCache.removeAdmin(wallet)
-					}
+			if (resolvedAdmin !== undefined) {
+				if (resolvedAdmin) {
+					setAdminProfile(resolvedAdmin)
+					posHomeTrustedCache.saveAdmin(resolvedAdmin, wallet, upper)
+				} else {
+					setAdminProfile(null)
+					posHomeTrustedCache.removeAdmin(wallet, upper)
 				}
 			}
+		}
 
-			const parentTag =
-				parentBeamioTag.trim() || posHomeTrustedCache.loadParentTag(wallet) || ''
-			if (parentTag) {
-				const parentResolved = await resolveParentWorkspaceProfile(parentTag)
-				if (gen !== refreshGen.current) return
-				if (parentResolved !== undefined && parentResolved) {
-					setParentProfile(parentResolved)
-					posHomeTrustedCache.saveParentProfile(parentResolved, wallet)
-				}
+		const parentTag =
+			parentBeamioTag.trim() || posHomeTrustedCache.loadParentTag(wallet, upper) || ''
+		if (parentTag) {
+			const parentResolved = await resolveParentWorkspaceProfile(parentTag)
+			if (gen !== refreshGen.current) return
+			if (parentResolved !== undefined && parentResolved) {
+				setParentProfile(parentResolved)
+				posHomeTrustedCache.saveParentProfile(parentResolved, wallet, upper)
+				posHomeTrustedCache.saveParentTag(wallet, parentTag, upper)
 			}
 		}
 
@@ -204,11 +364,11 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 		if (coupons !== null) {
 			setActiveCoupons(coupons)
-			posHomeTrustedCache.saveActiveCoupons(wallet, infra, coupons)
+			posHomeTrustedCache.saveActiveCoupons(wallet, upper, infra, coupons)
 		}
 		if (pointEnabled === true || pointEnabled === false) {
 			setPointSystemEnabled(pointEnabled)
-			posHomeTrustedCache.savePointSystemEnabled(wallet, infra, pointEnabled)
+			posHomeTrustedCache.savePointSystemEnabled(wallet, upper, infra, pointEnabled)
 		}
 
 		const bUnitTarget = adminInfo?.upperAdmin ?? adminInfo?.owner
@@ -229,9 +389,92 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		}
 
 		setHomeStatsLoaded(true)
-	}, [walletAddress, merchantInfraCard, registeredBeamioTag, parentBeamioTag])
+		void refreshWorkspaceBindings()
+	}, [walletAddress, registeredBeamioTag, parentBeamioTag, refreshWorkspaceBindings])
 
 	refreshHomeRef.current = refreshHome
+
+	const switchWorkspace = useCallback(
+		async (params: { upperEoa: string; cardAddress: string }) => {
+			const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
+			if (!wallet) return { ok: false as const, error: 'No terminal wallet.' }
+			const upper = params.upperEoa.trim()
+			const card = params.cardAddress.trim()
+			if (!upper || !card) return { ok: false as const, error: 'Missing merchant workspace.' }
+
+			const setRes = await setActivePosAddress(wallet, card)
+			if (!setRes.ok) return { ok: false as const, error: setRes.error }
+
+			posHomeTrustedCache.saveActiveUpper(wallet, upper)
+			posHomeTrustedCache.saveInfraCard(wallet, upper, setRes.cardAddress)
+			setActiveUpperEoa(upper)
+			hydratePartitionIntoState(wallet, upper, {
+				setMerchantInfraCard,
+				setAdminProfile,
+				setParentProfile,
+				setParentBeamioTagState,
+				setChargeAmount,
+				setTopUpAmount,
+				setTipsAmount,
+				setPointSystemEnabled,
+				setActiveCoupons,
+				setShowPermissionGate,
+			})
+			setMerchantInfraCard(setRes.cardAddress)
+			await refreshHomeRef.current()
+			return { ok: true as const }
+		},
+		[walletAddress],
+	)
+
+	const requestJoinWorkspace = useCallback(
+		async (params: { parentTag: string; parentEoaHint?: string | null }) => {
+			const wallet = walletAddress
+			if (!wallet) return { ok: false as const, error: 'No terminal wallet.' }
+			const childTag = registeredBeamioTag?.trim()
+			if (!childTag) return { ok: false as const, error: 'Terminal @BeamioTag is missing.' }
+			const pk = getSessionPrivateKeyHex()
+			if (!pk) {
+				return {
+					ok: false as const,
+					error: 'Signing key is not available. Restore the terminal wallet and try again.',
+				}
+			}
+
+			const parentTag = normalizeBeamioTagInput(params.parentTag)
+			let parentEoaHint = params.parentEoaHint?.trim() ?? ''
+			if (!parentEoaHint) {
+				const rows =
+					(await searchUsersByCardOwnerOrAdmin(parentTag)) ?? (await searchUsers(parentTag))
+				const exact = pickExactBeamioTagProfile(rows, parentTag)
+				parentEoaHint = exact?.address?.trim() ?? ''
+				if (!parentEoaHint) {
+					return {
+						ok: false as const,
+						error: 'Could not uniquely resolve that @BeamioTag. Check the handle and try again.',
+					}
+				}
+			}
+
+			const sent = await sendPosTerminalPermissionRequest({
+				walletPrivateKeyHex: pk,
+				childEoa: wallet,
+				childBeamioTag: childTag,
+				parentBeamioTag: parentTag,
+				parentEoaHint,
+			})
+			if (!sent.ok) return { ok: false as const, error: sent.error }
+
+			posHomeTrustedCache.appendOutboundJoinPending(wallet, {
+				parentTag,
+				parentEoa: sent.recipientEoa,
+				requestedAt: Date.now(),
+			})
+			setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(wallet))
+			return { ok: true as const }
+		},
+		[walletAddress, registeredBeamioTag],
+	)
 
 	/** App.tsx `init()` — checkStorage, hydrate session, one admin probe before routing. */
 	useEffect(() => {
@@ -266,41 +509,44 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					record?.profiles[0]?.accountName?.trim() ||
 					posHomeTrustedCache.loadRegisteredTag(addr)
 				if (regTag) setRegisteredBeamioTag(regTag)
-				const parent =
-					record?.parentBeamioTag?.trim() || posHomeTrustedCache.loadParentTag(addr)
-				if (parent) setParentBeamioTagState(parent)
 
-				const cached = posHomeTrustedCache.loadProfiles(addr)
-				if (cached.terminal) setTerminalProfile(cached.terminal)
-				if (cached.admin) setAdminProfile(cached.admin)
-				const cachedParent = posHomeTrustedCache.loadParentProfile(addr)
-				if (cachedParent) setParentProfile(cachedParent)
-				const infra = posHomeTrustedCache.loadInfraCard(addr)
-				if (infra) setMerchantInfraCard(infra)
-				if (infra) {
-					const stats = posHomeTrustedCache.loadStats(addr, infra)
-					if (stats.charge != null) setChargeAmount(stats.charge)
-					if (stats.topUp != null) setTopUpAmount(stats.topUp)
-					if (stats.tips != null) setTipsAmount(stats.tips)
-					const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(addr, infra)
-					if (cachedPoint === true || cachedPoint === false) {
-						setPointSystemEnabled(cachedPoint)
-					}
-					const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(addr, infra)
-					if (cachedCoupons !== null) setActiveCoupons(cachedCoupons)
+				const activeUpper = posHomeTrustedCache.loadActiveUpper(addr)
+				if (activeUpper) {
+					setActiveUpperEoa(activeUpper)
+					hydratePartitionIntoState(addr, activeUpper, {
+						setMerchantInfraCard,
+						setAdminProfile,
+						setParentProfile,
+						setParentBeamioTagState,
+						setChargeAmount,
+						setTopUpAmount,
+						setTipsAmount,
+						setPointSystemEnabled,
+						setActiveCoupons,
+						setShowPermissionGate,
+					})
+				} else {
+					const parent =
+						record?.parentBeamioTag?.trim() || posHomeTrustedCache.loadParentTag(addr)
+					if (parent) setParentBeamioTagState(parent)
+					const cached = posHomeTrustedCache.loadProfiles(addr, null)
+					if (cached.terminal) setTerminalProfile(cached.terminal)
+					const cachedParent = posHomeTrustedCache.loadParentProfile(addr, null)
+					if (cachedParent) setParentProfile(cachedParent)
+					const infra = posHomeTrustedCache.loadInfraCard(addr, null)
+					if (infra) setMerchantInfraCard(infra)
 				}
 
-				const permCached = posHomeTrustedCache.loadPermissionGranted(addr)
-				if (permCached === true) {
-					setShowPermissionGate(false)
-				} else if (permCached === false) {
-					setShowPermissionGate(true)
-				}
+				const termCached = posHomeTrustedCache.loadProfiles(addr, activeUpper).terminal
+				if (termCached) setTerminalProfile(termCached)
+
+				setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(addr))
 
 				await refreshHomeRef.current()
 				if (cancelled) return
 
-				const permAfter = posHomeTrustedCache.loadPermissionGranted(addr)
+				const upperAfter = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(addr)
+				const permAfter = posHomeTrustedCache.loadPermissionGranted(addr, upperAfter)
 				const phase = resolvePosBootPhase({
 					hasStoredWallet: true,
 					accessGranted:
@@ -328,7 +574,6 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			posHomeTrustedCache.saveParentTag(params.wallet, params.parentTag)
 			setShowPermissionGate(true)
 			setBootPhase('permission')
-			posHomeTrustedCache.savePermissionGranted(params.wallet, false)
 			void (async () => {
 				const parentResolved = await resolveParentWorkspaceProfile(params.parentTag)
 				if (parentResolved) {
@@ -355,6 +600,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			terminalProfile,
 			adminProfile,
 			merchantInfraCard,
+			activeUpperEoa,
+			workspaceBindings,
+			outboundJoinPending,
 			registeredBeamioTag,
 			currency,
 			chargeAmount,
@@ -373,6 +621,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			admitProgramCardAccess,
 			markOnboardingComplete,
 			clearSessionForNewWorkspace,
+			switchWorkspace,
+			requestJoinWorkspace,
+			refreshWorkspaceBindings,
 		}),
 		[
 			walletAddress,
@@ -381,6 +632,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			terminalProfile,
 			adminProfile,
 			merchantInfraCard,
+			activeUpperEoa,
+			workspaceBindings,
+			outboundJoinPending,
 			registeredBeamioTag,
 			currency,
 			chargeAmount,
@@ -398,6 +652,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			admitProgramCardAccess,
 			markOnboardingComplete,
 			clearSessionForNewWorkspace,
+			switchWorkspace,
+			requestJoinWorkspace,
+			refreshWorkspaceBindings,
 		],
 	)
 

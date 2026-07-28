@@ -141,6 +141,52 @@ export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressRes
 	}
 }
 
+export type PosCardBindingItem = {
+	cardAddress: string
+	isActive: boolean
+	txHash?: string | null
+	terminalMetadata?: unknown | null
+}
+
+export async function fetchMyPosAddresses(wallet: string): Promise<PosCardBindingItem[] | null> {
+	try {
+		const params = new URLSearchParams({ wallet })
+		const res = await fetch(`${BEAMIO_API}/api/myPosAddresses?${params}`)
+		if (!res.ok) return null
+		const json = (await res.json()) as { ok?: boolean; items?: PosCardBindingItem[] }
+		if (json?.ok === false || !Array.isArray(json.items)) return null
+		return json.items
+	} catch {
+		return null
+	}
+}
+
+export async function setActivePosAddress(
+	wallet: string,
+	cardAddress: string,
+): Promise<{ ok: true; cardAddress: string } | { ok: false; error: string }> {
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/setActivePosAddress`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ wallet, cardAddress }),
+		})
+		const json = (await res.json().catch(() => ({}))) as {
+			ok?: boolean
+			cardAddress?: string
+			myPosAddress?: string
+			error?: string
+		}
+		if (!res.ok || json.ok === false) {
+			return { ok: false, error: String(json.error ?? `HTTP ${res.status}`) }
+		}
+		const card = json.cardAddress ?? json.myPosAddress ?? cardAddress
+		return { ok: true, cardAddress: card }
+	} catch (e) {
+		return { ok: false, error: e instanceof Error ? e.message : 'Network error' }
+	}
+}
+
 export async function fetchPosLedger(eoa: string, infraCard: string): Promise<PosLedgerSnapshot | null> {
 	try {
 		const params = new URLSearchParams({ eoa, infraCard })

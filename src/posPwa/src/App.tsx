@@ -36,6 +36,9 @@ const TransactionsPage = lazy(() =>
 const ActiveCouponsPage = lazy(() =>
 	import('@/pages/ActiveCouponsPage').then((m) => ({ default: m.ActiveCouponsPage })),
 )
+const WorkspaceMerchantsPage = lazy(() =>
+	import('@/pages/WorkspaceMerchantsPage').then((m) => ({ default: m.WorkspaceMerchantsPage })),
+)
 const NativeActionPage = lazy(() =>
 	import('@/pages/NativeActionPage').then((m) => ({ default: m.NativeActionPage })),
 )
@@ -105,6 +108,7 @@ function BootRouter() {
 				<Route path="/deduct-points" element={<DeductPointsPage />} />
 				<Route path="/transactions" element={<TransactionsPage />} />
 				<Route path="/active-coupons" element={<ActiveCouponsPage />} />
+				<Route path="/workspace" element={<WorkspaceMerchantsPage />} />
 				<Route path="/native/:action" element={<NativeActionPage />} />
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>

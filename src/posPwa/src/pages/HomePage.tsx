@@ -124,8 +124,24 @@ export function HomePage() {
 						<p className="truncate text-[15px] font-semibold text-slate-500">{headerLine}</p>
 					</div>
 					{homeAdminCapsule ? (
-						<BeamioCapsuleCompact profile={homeAdminCapsule} />
-					) : null}
+						<button
+							type="button"
+							onClick={() => navigate(POS_HOME_ROUTES.workspace)}
+							className="shrink-0 rounded-full transition active:scale-[0.97]"
+							aria-label="Manage merchant workspaces"
+						>
+							<BeamioCapsuleCompact profile={homeAdminCapsule} />
+						</button>
+					) : (
+						<button
+							type="button"
+							onClick={() => navigate(POS_HOME_ROUTES.workspace)}
+							className="shrink-0 rounded-full bg-black/[0.06] px-3 py-2 text-[12px] font-semibold text-slate-600"
+							aria-label="Manage merchant workspaces"
+						>
+							Workspaces
+						</button>
+					)}
 				</div>
 			</PosScreenHeader>
 

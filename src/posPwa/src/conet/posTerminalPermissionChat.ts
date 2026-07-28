@@ -1,15 +1,15 @@
 import { searchUsers } from '@/api/beamioApi'
 import { ensureRegisteredForSenderGossip } from '@/conet/chatRouteRegister'
 import { sendTerminalPermissionRequest } from '@/conet/gossipSend'
-import { normalizeBeamioTagInput } from '@/utils/beamioTagRules'
+import { normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
 
 export type SendPosTerminalPermissionResult =
-	| { ok: true }
+	| { ok: true; recipientEoa: string; resolveVia: 'hint' | 'exact_tag' }
 	| { ok: false; error: string }
 
 /**
  * Full POS workspace approval flow over CoNET decentralized chat:
- * 1) resolve parent @BeamioTag → recipient EOA (`search-users`, not card-owner filter)
+ * 1) resolve parent @BeamioTag → recipient EOA (exact tag match; never results[0] alone)
  * 2) register sender PGP on AddressPGP if needed
  * 3) assemble `beamio_pos_terminal_permission_v1` + encrypt + gossip POST
  */
@@ -26,13 +26,22 @@ export async function sendPosTerminalPermissionRequest(params: {
 		return { ok: false, error: 'No workspace parent is set.' }
 	}
 
-	let recipientEoa = params.parentEoaHint?.trim() ?? ''
-	if (!recipientEoa) {
+	let recipientEoa = ''
+	let resolveVia: 'hint' | 'exact_tag' = 'exact_tag'
+	const hint = params.parentEoaHint?.trim() ?? ''
+	if (hint) {
+		recipientEoa = hint
+		resolveVia = 'hint'
+	} else {
 		const rows = await searchUsers(parentTag)
-		recipientEoa = rows?.[0]?.address?.trim() ?? ''
-	}
-	if (!recipientEoa) {
-		return { ok: false, error: 'Could not find the parent workspace on Beamio.' }
+		const exact = pickExactBeamioTagProfile(rows, parentTag)
+		recipientEoa = exact?.address?.trim() ?? ''
+		if (!recipientEoa) {
+			return {
+				ok: false,
+				error: 'Could not uniquely resolve the parent @BeamioTag. Check the handle and try again.',
+			}
+		}
 	}
 
 	const chatReady = await ensureRegisteredForSenderGossip(params.walletPrivateKeyHex)
@@ -56,7 +65,7 @@ export async function sendPosTerminalPermissionRequest(params: {
 			error: 'Could not send the CoNET permission request. Check the network and try again.',
 		}
 	}
-	return { ok: true }
+	return { ok: true, recipientEoa, resolveVia }
 }
 
 export function permissionAutoSentCacheKey(walletLower: string): string {

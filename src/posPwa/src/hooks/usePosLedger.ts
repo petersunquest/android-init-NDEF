@@ -6,7 +6,7 @@ import { posHomeTrustedCache } from '@/utils/trustedCache'
 
 /** iOS `openPosTransactionsScreen` + `refreshPosLedgerTrustedOnly` — local-first, trusted-only writes. */
 export function usePosLedger() {
-	const { walletAddress, merchantInfraCard } = usePosSession()
+	const { walletAddress, merchantInfraCard, activeUpperEoa } = usePosSession()
 	const [snapshot, setSnapshot] = useState<PosLedgerSnapshot | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [refreshing, setRefreshing] = useState(false)
@@ -17,15 +17,16 @@ export function usePosLedger() {
 
 	const wallet = walletAddress?.trim() ?? ''
 	const infra = merchantInfraCard?.trim() ?? ''
+	const upper = activeUpperEoa?.trim() ?? ''
 
 	useEffect(() => {
-		if (!wallet || !infra) return
-		const cached = posHomeTrustedCache.loadPosLedger(wallet, infra)
+		if (!wallet || !infra || !upper) return
+		const cached = posHomeTrustedCache.loadPosLedger(wallet, upper, infra)
 		if (cached) setSnapshot(cached)
-	}, [wallet, infra])
+	}, [wallet, infra, upper])
 
 	const refreshTrustedOnly = useCallback(async () => {
-		if (!wallet || !infra) return
+		if (!wallet || !infra || !upper) return
 		const gen = ++refreshGen.current
 		const hadCached = snapshotRef.current != null
 		if (hadCached) {
@@ -42,18 +43,18 @@ export function usePosLedger() {
 		if (snap) {
 			setSnapshot(snap)
 			setLastError(null)
-			posHomeTrustedCache.savePosLedger(snap, wallet, infra)
+			posHomeTrustedCache.savePosLedger(snap, wallet, upper, infra)
 		} else {
 			setLastError('Could not refresh transactions. Showing last known list.')
 		}
 		setLoading(false)
 		setRefreshing(false)
-	}, [wallet, infra])
+	}, [wallet, infra, upper])
 
 	useEffect(() => {
-		if (!wallet || !infra) return
+		if (!wallet || !infra || !upper) return
 		void refreshTrustedOnly()
-	}, [wallet, infra, refreshTrustedOnly])
+	}, [wallet, infra, upper, refreshTrustedOnly])
 
 	return {
 		snapshot,
