@@ -8,7 +8,7 @@
     "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
   ],
   "contracts": {
-    "TreasuryBridgeV3Implementation": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+    "TreasuryBridgeV3Implementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
     "TreasuryBridgeV3Proxy": "0xa208982212978550594A7FEEB70a61665d129003",
     "ERC1967Proxy": "0xa208982212978550594A7FEEB70a61665d129003"
   },
@@ -48,6 +48,13 @@
       "upgradeTx": "0x52af73edaba2161f038f6bbc9aa60136defd12207d1b573602a6fbb9f85b0e9e",
       "upgradeBlock": 562264,
       "upgradedAt": "2026-07-26T11:50:43.774Z"
+    },
+    {
+      "implementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+      "implementationDeploymentTx": "0xdcd7e5cd9ff7f17cf3ad751c9437ea4f57ad004f21424784dc44389725db6163",
+      "upgradeTx": "0xa42e8f222b2f27e66e0d5517090e905fedb7d5197db85b7912fe8d3106b909ef",
+      "upgradeBlock": 593013,
+      "upgradedAt": "2026-07-28T15:06:55.539Z"
     }
   ]
 }

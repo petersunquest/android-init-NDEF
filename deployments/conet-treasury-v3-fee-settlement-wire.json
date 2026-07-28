@@ -6,7 +6,11 @@
   "bridge": "0xa208982212978550594A7FEEB70a61665d129003",
   "bunitAirdrop": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
   "usdcImplementation": "0x9D22B2d7899C18f41F03d527553F12058942647e",
-  "bridgeImplementation": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+  "bridgeImplementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+  "bridgeImplementationBase": "0x55572D2D76451A223717cE78F6Ace9D177F92c61",
+  "bridgeImplementationPrevious": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+  "multiBeneficiaryUpgradeAt": "2026-07-28T15:05:00.000Z",
+  "multiBeneficiaryUpgradeNote": "deployments/treasury-bridge-v3-multi-beneficiary-upgrade-2026-07-28.md",
   "feeSettlement": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
   "feeSettlementAsset": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
   "airdropTreasury": "0xa208982212978550594A7FEEB70a61665d129003",
@@ -26,8 +30,9 @@
   },
   "blockscoutVerifiedImpls": {
     "usdc": "0x9D22B2d7899C18f41F03d527553F12058942647e",
-    "bridge": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
-    "status": "is_verified + is_partially_verified"
+    "bridge": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+    "bridgePrevious": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+    "status": "is_verified + is_partially_verified (multi-beneficiary 2026-07-28)"
   },
   "referralOps": "deployments/conet-referral-v3-usdc-rebinding.md",
   "apiDeploy": "rsync dist → conet.network:/home/peter/x402sdk/dist + systemctl restart conet-beamio-api",

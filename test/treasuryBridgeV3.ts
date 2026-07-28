@@ -3,9 +3,33 @@ import { network } from "hardhat";
 
 const { ethers } = await network.connect();
 
+const ATTESTATION_TYPES = {
+  BridgeAttestation: [
+    { name: "operationId", type: "bytes32" },
+    { name: "sourceChainId", type: "uint256" },
+    { name: "destinationChainId", type: "uint256" },
+    { name: "sourceTreasury", type: "address" },
+    { name: "sourceAsset", type: "address" },
+    { name: "destinationAsset", type: "address" },
+    { name: "beneficiariesHash", type: "bytes32" },
+    { name: "mode", type: "uint8" },
+    { name: "grossAmount", type: "uint256" },
+    { name: "feeAmount", type: "uint256" },
+    { name: "sourceTxHash", type: "bytes32" },
+    { name: "nonce", type: "uint256" },
+  ],
+} as const;
+
+function beneficiariesHash(beneficiaries: string[], amounts: bigint[]) {
+  return ethers.keccak256(
+    ethers.AbiCoder.defaultAbiCoder().encode(["address[]", "uint256[]"], [beneficiaries, amounts]),
+  );
+}
+
 describe("TreasuryBridgeV3", function () {
   async function deployStack() {
-    const [owner, miner, miner2, miner3, user, beneficiary] = await ethers.getSigners();
+    const [owner, miner, miner2, miner3, user, beneficiary, beneficiary2] =
+      await ethers.getSigners();
     const bridgeImpl = await (await ethers.getContractFactory("TreasuryBridgeV3")).deploy();
     await bridgeImpl.waitForDeployment();
     const bridgeInit = bridgeImpl.interface.encodeFunctionData("initialize", [
@@ -36,7 +60,7 @@ describe("TreasuryBridgeV3", function () {
       "TreasuryCanonicalERC20V3",
       await tokenProxy.getAddress(),
     );
-    return { owner, miner, miner2, miner3, user, beneficiary, bridge, token };
+    return { owner, miner, miner2, miner3, user, beneficiary, beneficiary2, bridge, token };
   }
 
   async function approveBurnMint(
@@ -86,6 +110,8 @@ describe("TreasuryBridgeV3", function () {
 
     const gross = 1_000_000n;
     const fee = 10_000n;
+    const beneficiaries = [beneficiary.address];
+    const amounts = [gross];
     const sourceTxHash = ethers.keccak256(ethers.toUtf8Bytes("source"));
     const nonce = 7n;
     const operationId = ethers.keccak256(ethers.toUtf8Bytes("operation"));
@@ -96,22 +122,6 @@ describe("TreasuryBridgeV3", function () {
       chainId: network.chainId,
       verifyingContract: await bridge.getAddress(),
     };
-    const types = {
-      BridgeAttestation: [
-        { name: "operationId", type: "bytes32" },
-        { name: "sourceChainId", type: "uint256" },
-        { name: "destinationChainId", type: "uint256" },
-        { name: "sourceTreasury", type: "address" },
-        { name: "sourceAsset", type: "address" },
-        { name: "destinationAsset", type: "address" },
-        { name: "beneficiary", type: "address" },
-        { name: "mode", type: "uint8" },
-        { name: "grossAmount", type: "uint256" },
-        { name: "feeAmount", type: "uint256" },
-        { name: "sourceTxHash", type: "bytes32" },
-        { name: "nonce", type: "uint256" },
-      ],
-    };
     const value = {
       operationId,
       sourceChainId: network.chainId,
@@ -119,14 +129,14 @@ describe("TreasuryBridgeV3", function () {
       sourceTreasury: await bridge.getAddress(),
       sourceAsset,
       destinationAsset,
-      beneficiary: beneficiary.address,
+      beneficiariesHash: beneficiariesHash(beneficiaries, amounts),
       mode: 0,
       grossAmount: gross,
       feeAmount: fee,
       sourceTxHash,
       nonce,
     };
-    const signature = await miner.signTypedData(domain, types, value);
+    const signature = await miner.signTypedData(domain, ATTESTATION_TYPES, value);
     expect(
       await bridge.bridgeAttestationDigest(
         operationId,
@@ -135,14 +145,15 @@ describe("TreasuryBridgeV3", function () {
         await bridge.getAddress(),
         sourceAsset,
         destinationAsset,
-        beneficiary.address,
+        beneficiaries,
+        amounts,
         0,
         gross,
         fee,
         sourceTxHash,
         nonce,
       ),
-    ).to.equal(ethers.TypedDataEncoder.hash(domain, types, value));
+    ).to.equal(ethers.TypedDataEncoder.hash(domain, ATTESTATION_TYPES, value));
     await bridge.executeMint(
       operationId,
       network.chainId,
@@ -150,7 +161,8 @@ describe("TreasuryBridgeV3", function () {
       await bridge.getAddress(),
       sourceAsset,
       destinationAsset,
-      beneficiary.address,
+      beneficiaries,
+      amounts,
       0,
       gross,
       fee,
@@ -167,7 +179,8 @@ describe("TreasuryBridgeV3", function () {
         await bridge.getAddress(),
         sourceAsset,
         destinationAsset,
-        beneficiary.address,
+        beneficiaries,
+        amounts,
         0,
         gross,
         fee,
@@ -180,6 +193,84 @@ describe("TreasuryBridgeV3", function () {
     expect(await bridge.owner()).to.equal(owner.address);
   });
 
+  it("splits destination mint across multiple beneficiaries", async function () {
+    const { miner, beneficiary, beneficiary2, bridge, token } = await deployStack();
+    const sourceAsset = await token.getAddress();
+    await approveBurnMint(bridge, miner, sourceAsset, sourceAsset);
+    const network = await ethers.provider.getNetwork();
+    const gross = 1_000_000n;
+    const shareA = 600_000n;
+    const shareB = 400_000n;
+    const beneficiaries = [beneficiary.address, beneficiary2.address];
+    const amounts = [shareA, shareB];
+    const operationId = ethers.keccak256(ethers.toUtf8Bytes("multi-beneficiaries"));
+    const sourceTxHash = ethers.keccak256(ethers.toUtf8Bytes("multi-source"));
+    const domain = {
+      name: "TreasuryBridgeV3",
+      version: "1",
+      chainId: network.chainId,
+      verifyingContract: await bridge.getAddress(),
+    };
+    const value = {
+      operationId,
+      sourceChainId: network.chainId,
+      destinationChainId: 8453n,
+      sourceTreasury: await bridge.getAddress(),
+      sourceAsset,
+      destinationAsset: sourceAsset,
+      beneficiariesHash: beneficiariesHash(beneficiaries, amounts),
+      mode: 0,
+      grossAmount: gross,
+      feeAmount: 0n,
+      sourceTxHash,
+      nonce: 11n,
+    };
+    const signature = await miner.signTypedData(domain, ATTESTATION_TYPES, value);
+    await bridge.executeMint(
+      operationId,
+      network.chainId,
+      8453,
+      await bridge.getAddress(),
+      sourceAsset,
+      sourceAsset,
+      beneficiaries,
+      amounts,
+      0,
+      gross,
+      0,
+      sourceTxHash,
+      11,
+      [signature],
+    );
+    expect(await token.balanceOf(beneficiary.address)).to.equal(shareA);
+    expect(await token.balanceOf(beneficiary2.address)).to.equal(shareB);
+  });
+
+  it("rejects beneficiary arrays that do not sum to grossAmount", async function () {
+    const { miner, beneficiary, beneficiary2, bridge, token } = await deployStack();
+    const sourceAsset = await token.getAddress();
+    await approveBurnMint(bridge, miner, sourceAsset, sourceAsset);
+    const network = await ethers.provider.getNetwork();
+    const operationId = ethers.keccak256(ethers.toUtf8Bytes("bad-sum"));
+    await expect(
+      bridge.connect(miner).voteBridgeOperation(
+        operationId,
+        8453n,
+        network.chainId,
+        await bridge.getAddress(),
+        sourceAsset,
+        sourceAsset,
+        [beneficiary.address, beneficiary2.address],
+        [600_000n, 300_000n],
+        1,
+        1_000_000n,
+        10_000n,
+        ethers.keccak256(ethers.toUtf8Bytes("bad-sum-tx")),
+        12n,
+      ),
+    ).to.be.revertedWithCustomError(bridge, "InvalidBeneficiaries");
+  });
+
   it("locks the gross amount and leaves the configured fee in the treasury", async function () {
     const { miner, user, beneficiary, bridge, token } = await deployStack();
     const sourceAsset = await token.getAddress();
@@ -188,6 +279,8 @@ describe("TreasuryBridgeV3", function () {
     const network = await ethers.provider.getNetwork();
     const seedOperation = ethers.keccak256(ethers.toUtf8Bytes("seed"));
     const seedTx = ethers.keccak256(ethers.toUtf8Bytes("seed-tx"));
+    const beneficiaries = [user.address];
+    const amounts = [1_000_000n];
     const seedValue = {
       operationId: seedOperation,
       sourceChainId: network.chainId,
@@ -195,7 +288,7 @@ describe("TreasuryBridgeV3", function () {
       sourceTreasury: await bridge.getAddress(),
       sourceAsset,
       destinationAsset: sourceAsset,
-      beneficiary: user.address,
+      beneficiariesHash: beneficiariesHash(beneficiaries, amounts),
       mode: 1,
       grossAmount: 1_000_000n,
       feeAmount: 10_000n,
@@ -209,22 +302,7 @@ describe("TreasuryBridgeV3", function () {
         chainId: network.chainId,
         verifyingContract: await bridge.getAddress(),
       },
-      {
-        BridgeAttestation: [
-          { name: "operationId", type: "bytes32" },
-          { name: "sourceChainId", type: "uint256" },
-          { name: "destinationChainId", type: "uint256" },
-          { name: "sourceTreasury", type: "address" },
-          { name: "sourceAsset", type: "address" },
-          { name: "destinationAsset", type: "address" },
-          { name: "beneficiary", type: "address" },
-          { name: "mode", type: "uint8" },
-          { name: "grossAmount", type: "uint256" },
-          { name: "feeAmount", type: "uint256" },
-          { name: "sourceTxHash", type: "bytes32" },
-          { name: "nonce", type: "uint256" },
-        ],
-      },
+      ATTESTATION_TYPES,
       seedValue,
     );
     await bridge.executeMint(
@@ -234,7 +312,8 @@ describe("TreasuryBridgeV3", function () {
       await bridge.getAddress(),
       sourceAsset,
       sourceAsset,
-      user.address,
+      beneficiaries,
+      amounts,
       1,
       1_000_000n,
       10_000n,
@@ -247,8 +326,8 @@ describe("TreasuryBridgeV3", function () {
       8453,
       sourceAsset,
       sourceAsset,
-      beneficiary.address,
-      990_000n,
+      [beneficiary.address],
+      [990_000n],
       ethers.keccak256(ethers.toUtf8Bytes("lock")),
       1,
     );
@@ -278,6 +357,8 @@ describe("TreasuryBridgeV3", function () {
     const seedOperation = ethers.keccak256(ethers.toUtf8Bytes("burn-mint-seed"));
     const seedTx = ethers.keccak256(ethers.toUtf8Bytes("burn-mint-seed-tx"));
     const chainId = (await ethers.provider.getNetwork()).chainId;
+    const beneficiaries = [user.address];
+    const amounts = [requested + fee];
     const seedValue = {
       operationId: seedOperation,
       sourceChainId: chainId,
@@ -285,7 +366,7 @@ describe("TreasuryBridgeV3", function () {
       sourceTreasury: await bridge.getAddress(),
       sourceAsset,
       destinationAsset: sourceAsset,
-      beneficiary: user.address,
+      beneficiariesHash: beneficiariesHash(beneficiaries, amounts),
       mode: 0,
       grossAmount: requested + fee,
       feeAmount: 0n,
@@ -299,22 +380,7 @@ describe("TreasuryBridgeV3", function () {
         chainId,
         verifyingContract: await bridge.getAddress(),
       },
-      {
-        BridgeAttestation: [
-          { name: "operationId", type: "bytes32" },
-          { name: "sourceChainId", type: "uint256" },
-          { name: "destinationChainId", type: "uint256" },
-          { name: "sourceTreasury", type: "address" },
-          { name: "sourceAsset", type: "address" },
-          { name: "destinationAsset", type: "address" },
-          { name: "beneficiary", type: "address" },
-          { name: "mode", type: "uint8" },
-          { name: "grossAmount", type: "uint256" },
-          { name: "feeAmount", type: "uint256" },
-          { name: "sourceTxHash", type: "bytes32" },
-          { name: "nonce", type: "uint256" },
-        ],
-      },
+      ATTESTATION_TYPES,
       seedValue,
     );
     await bridge.executeMint(
@@ -324,7 +390,8 @@ describe("TreasuryBridgeV3", function () {
       await bridge.getAddress(),
       sourceAsset,
       sourceAsset,
-      user.address,
+      beneficiaries,
+      amounts,
       0,
       requested + fee,
       0,
@@ -337,8 +404,8 @@ describe("TreasuryBridgeV3", function () {
       sourceAsset,
       8453,
       sourceAsset,
-      beneficiary.address,
-      requested,
+      [beneficiary.address],
+      [requested],
       ethers.keccak256(ethers.toUtf8Bytes("burn-mint")),
       2,
     );
@@ -378,7 +445,8 @@ describe("TreasuryBridgeV3", function () {
       await bridge.getAddress(),
       sourceAsset,
       destinationAsset,
-      beneficiary.address,
+      [beneficiary.address],
+      [1_000_000n],
       1,
       1_000_000n,
       10_000n,
@@ -395,5 +463,50 @@ describe("TreasuryBridgeV3", function () {
     expect(await token.balanceOf(beneficiary.address)).to.equal(1_000_000n);
     await expect(bridge.connect(miner3).voteBridgeOperation(...args))
       .to.be.revertedWithCustomError(bridge, "OperationAlreadyUsed");
+  });
+
+  it("allows miners to vote with multiple beneficiaries and split release/mint", async function () {
+    const { owner, miner, miner2, beneficiary, beneficiary2, bridge, token } = await deployStack();
+    const network = await ethers.provider.getNetwork();
+    const sourceChainId = 8453n;
+    const destinationChainId = network.chainId;
+    const sourceAsset = await token.getAddress();
+    const policy = {
+      sourceChainId,
+      sourceTreasury: await bridge.getAddress(),
+      sourceAsset,
+      destinationAsset: sourceAsset,
+      mode: 1,
+      decimals: 6,
+      enabled: true,
+      version: 1,
+    };
+    await bridge.connect(miner).proposeAssetPolicy(policy);
+    await bridge.connect(owner).addMiner(miner2.address);
+
+    const operationId = ethers.keccak256(ethers.toUtf8Bytes("multi-vote"));
+    const sourceTxHash = ethers.keccak256(ethers.toUtf8Bytes("multi-vote-source"));
+    const beneficiaries = [beneficiary.address, beneficiary2.address];
+    const amounts = [700_000n, 300_000n];
+    const args = [
+      operationId,
+      sourceChainId,
+      destinationChainId,
+      await bridge.getAddress(),
+      sourceAsset,
+      sourceAsset,
+      beneficiaries,
+      amounts,
+      1,
+      1_000_000n,
+      10_000n,
+      sourceTxHash,
+      13n,
+    ] as const;
+
+    await bridge.connect(miner).voteBridgeOperation(...args);
+    await bridge.connect(miner2).voteBridgeOperation(...args);
+    expect(await token.balanceOf(beneficiary.address)).to.equal(700_000n);
+    expect(await token.balanceOf(beneficiary2.address)).to.equal(300_000n);
   });
 });

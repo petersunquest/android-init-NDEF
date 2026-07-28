@@ -35,9 +35,9 @@ const BRIDGE_ABI = [
   "function destinationFeeBps(uint256) view returns (uint256)",
   "function authorizedBridgeAsset(address) view returns (bool)",
   "function setBridgeAssetAuthorization(address,bool)",
-  "function initiateBurnMintForUser(address,uint256,address,address,uint256,bytes32,uint256) returns (bytes32)",
+  "function initiateBurnMintForUser(address,uint256,address,address[],uint256[],bytes32,uint256) returns (bytes32)",
   "function operationExecuted(bytes32) view returns (bool)",
-  "event BridgeOperation(bytes32 indexed operationId,uint256 indexed sourceChainId,uint256 indexed destinationChainId,uint8 phase,uint8 mode,address sourceTreasury,address sourceAsset,address destinationAsset,address sender,address beneficiary,uint256 grossAmount,uint256 feeAmount,uint256 netAmount,bytes32 sourceTxHash,uint256 nonce)",
+  "event BridgeOperation(bytes32 indexed operationId,uint256 indexed sourceChainId,uint256 indexed destinationChainId,uint8 phase,uint8 mode,address sourceTreasury,address sourceAsset,address destinationAsset,address sender,address[] beneficiaries,uint256[] amounts,uint256 grossAmount,uint256 feeAmount,uint256 netAmount,bytes32 sourceTxHash,uint256 nonce)",
 ];
 
 const WCNET_ABI = [
@@ -112,7 +112,9 @@ async function parseInitiated(receipt: ethers.TransactionReceipt, iface: ethers.
           sourceTreasury: parsed.args.sourceTreasury as string,
           sourceAsset: parsed.args.sourceAsset as string,
           destinationAsset: parsed.args.destinationAsset as string,
-          beneficiary: parsed.args.beneficiary as string,
+          beneficiaries: [...(parsed.args.beneficiaries as string[])],
+          amounts: (parsed.args.amounts as readonly bigint[]).map((v) => BigInt(v)),
+          beneficiary: (parsed.args.beneficiaries as string[])[0] as string,
           grossAmount: BigInt(parsed.args.grossAmount),
           feeAmount: BigInt(parsed.args.feeAmount),
           sourceTxHash: parsed.args.sourceTxHash as string,
@@ -248,8 +250,8 @@ async function main() {
     WCNET,
     BASE_ID,
     WCNET,
-    admin,
-    amountOut,
+    [admin],
+    [amountOut],
     ethers.ZeroHash,
     nonceOut,
   );
@@ -284,8 +286,8 @@ async function main() {
     WCNET,
     CONET_ID,
     WCNET,
-    admin,
-    amountBack,
+    [admin],
+    [amountBack],
     ethers.ZeroHash,
     nonceBack,
   );

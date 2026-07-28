@@ -13,34 +13,35 @@ export declare namespace TreasuryBridgeV3 {
     }
 
   export interface TreasuryBridgeV3Interface extends Interface {
-    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "BRIDGE_ATTESTATION_TYPEHASH" | "MAX_FEE_BPS" | "UPGRADE_INTERFACE_VERSION" | "addMiner" | "assetPolicy" | "authorizedBridgeAsset" | "bridgeAttestationDigest" | "bridgeOperationPayloadHash" | "bridgeOperationVoteCount" | "bridgeOperationVoted" | "destinationFeeBps" | "executeAssetPolicy" | "executeMint" | "executeRelease" | "feeProposalVoted" | "feeProposals" | "feeSettlement" | "feeSettlementAsset" | "governanceEoaCount" | "initialize" | "initiateBurnMintForUser" | "initiateBurnRelease" | "initiateLockMint" | "isGovernanceEoa" | "isMiner" | "minerCount" | "miners" | "mintForAdmin" | "operationExecuted" | "operationInitiated" | "owner" | "policyId" | "policyVoted" | "proposeAssetPolicy" | "proposeDestinationFeeBps" | "proxiableUUID" | "removeMiner" | "renounceOwnership" | "requiredGovernanceVotes" | "requiredVotes" | "setBridgeAssetAuthorization" | "setDestinationFeeBps" | "setFeeSettlement" | "setGovernanceEoa" | "transferOwnership" | "upgradeToAndCall" | "voteAssetPolicy" | "voteBridgeOperation" | "voteDestinationFeeBps"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "BRIDGE_ATTESTATION_TYPEHASH" | "MAX_BENEFICIARIES" | "MAX_FEE_BPS" | "UPGRADE_INTERFACE_VERSION" | "addMiner" | "assetPolicy" | "authorizedBridgeAsset" | "bridgeAttestationDigest" | "bridgeOperationPayloadHash" | "bridgeOperationVoteCount" | "bridgeOperationVoted" | "destinationFeeBps" | "executeAssetPolicy" | "executeMint" | "executeRelease" | "feeProposalVoted" | "feeProposals" | "feeSettlement" | "feeSettlementAsset" | "governanceEoaCount" | "initialize" | "initiateBurnMintForUser" | "initiateBurnRelease" | "initiateLockMint" | "isGovernanceEoa" | "isMiner" | "minerCount" | "miners" | "mintForAdmin" | "operationExecuted" | "operationInitiated" | "owner" | "policyId" | "policyVoted" | "proposeAssetPolicy" | "proposeDestinationFeeBps" | "proxiableUUID" | "removeMiner" | "renounceOwnership" | "requiredGovernanceVotes" | "requiredVotes" | "setBridgeAssetAuthorization" | "setDestinationFeeBps" | "setFeeSettlement" | "setGovernanceEoa" | "transferOwnership" | "upgradeToAndCall" | "voteAssetPolicy" | "voteBridgeOperation" | "voteDestinationFeeBps"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AssetPolicyProposed" | "AssetPolicyUpdated" | "AssetPolicyVoted" | "BridgeAssetAuthorizationUpdated" | "BridgeOperation" | "BridgeOperationVote" | "DestinationFeeProposalVoted" | "DestinationFeeUpdated" | "FeeSettlementMinted" | "FeeSettlementUpdated" | "GovernanceEoaUpdated" | "Initialized" | "MinerAdded" | "MinerRemoved" | "OwnershipTransferred" | "Upgraded"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BPS_DENOMINATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'BRIDGE_ATTESTATION_TYPEHASH', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_BENEFICIARIES', values?: undefined): string;
 encodeFunctionData(functionFragment: 'MAX_FEE_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addMiner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'assetPolicy', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'authorizedBridgeAsset', values: [AddressLike]): string;
-encodeFunctionData(functionFragment: 'bridgeAttestationDigest', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'bridgeAttestationDigest', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike[], BigNumberish[], BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'bridgeOperationPayloadHash', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOperationVoteCount', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOperationVoted', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'destinationFeeBps', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'executeAssetPolicy', values: [BytesLike]): string;
-encodeFunctionData(functionFragment: 'executeMint', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike[]]): string;
-encodeFunctionData(functionFragment: 'executeRelease', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike[]]): string;
+encodeFunctionData(functionFragment: 'executeMint', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike[], BigNumberish[], BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike[]]): string;
+encodeFunctionData(functionFragment: 'executeRelease', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike[], BigNumberish[], BigNumberish, BigNumberish, BytesLike, BigNumberish, BytesLike[]]): string;
 encodeFunctionData(functionFragment: 'feeProposalVoted', values: [BytesLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'feeProposals', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'feeSettlement', values?: undefined): string;
 encodeFunctionData(functionFragment: 'feeSettlementAsset', values?: undefined): string;
 encodeFunctionData(functionFragment: 'governanceEoaCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'initialize', values: [AddressLike, AddressLike[]]): string;
-encodeFunctionData(functionFragment: 'initiateBurnMintForUser', values: [AddressLike, BigNumberish, AddressLike, AddressLike, BigNumberish, BytesLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'initiateBurnRelease', values: [AddressLike, BigNumberish, AddressLike, AddressLike, BigNumberish, BytesLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'initiateLockMint', values: [BigNumberish, AddressLike, AddressLike, AddressLike, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'initiateBurnMintForUser', values: [AddressLike, BigNumberish, AddressLike, AddressLike[], BigNumberish[], BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'initiateBurnRelease', values: [AddressLike, BigNumberish, AddressLike, AddressLike[], BigNumberish[], BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'initiateLockMint', values: [BigNumberish, AddressLike, AddressLike, AddressLike[], BigNumberish[], BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isGovernanceEoa', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'isMiner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'minerCount', values?: undefined): string;
@@ -65,11 +66,12 @@ encodeFunctionData(functionFragment: 'setGovernanceEoa', values: [AddressLike, b
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'voteAssetPolicy', values: [BytesLike, TreasuryBridgeV3.AssetPolicyStruct]): string;
-encodeFunctionData(functionFragment: 'voteBridgeOperation', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'voteBridgeOperation', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike[], BigNumberish[], BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'voteDestinationFeeBps', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'BPS_DENOMINATOR', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'BRIDGE_ATTESTATION_TYPEHASH', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_BENEFICIARIES', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'MAX_FEE_BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addMiner', data: BytesLike): Result;
@@ -170,9 +172,9 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
   
 
     export namespace BridgeOperationEvent {
-      export type InputTuple = [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, phase: BigNumberish, mode: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, sender: AddressLike, beneficiary: AddressLike, grossAmount: BigNumberish, feeAmount: BigNumberish, netAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish];
-      export type OutputTuple = [operationId: string, sourceChainId: bigint, destinationChainId: bigint, phase: bigint, mode: bigint, sourceTreasury: string, sourceAsset: string, destinationAsset: string, sender: string, beneficiary: string, grossAmount: bigint, feeAmount: bigint, netAmount: bigint, sourceTxHash: string, nonce: bigint];
-      export interface OutputObject {operationId: string, sourceChainId: bigint, destinationChainId: bigint, phase: bigint, mode: bigint, sourceTreasury: string, sourceAsset: string, destinationAsset: string, sender: string, beneficiary: string, grossAmount: bigint, feeAmount: bigint, netAmount: bigint, sourceTxHash: string, nonce: bigint };
+      export type InputTuple = [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, phase: BigNumberish, mode: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, sender: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], grossAmount: BigNumberish, feeAmount: BigNumberish, netAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish];
+      export type OutputTuple = [operationId: string, sourceChainId: bigint, destinationChainId: bigint, phase: bigint, mode: bigint, sourceTreasury: string, sourceAsset: string, destinationAsset: string, sender: string, beneficiaries: string[], amounts: bigint[], grossAmount: bigint, feeAmount: bigint, netAmount: bigint, sourceTxHash: string, nonce: bigint];
+      export interface OutputObject {operationId: string, sourceChainId: bigint, destinationChainId: bigint, phase: bigint, mode: bigint, sourceTreasury: string, sourceAsset: string, destinationAsset: string, sender: string, beneficiaries: string[], amounts: bigint[], grossAmount: bigint, feeAmount: bigint, netAmount: bigint, sourceTxHash: string, nonce: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -363,6 +365,14 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    MAX_BENEFICIARIES: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     MAX_FEE_BPS: TypedContractMethod<
       [],
       [bigint],
@@ -404,7 +414,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     bridgeAttestationDigest: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'view'
     >
@@ -452,7 +462,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     executeMint: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
       [void],
       'nonpayable'
     >
@@ -460,7 +470,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     executeRelease: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
       [void],
       'nonpayable'
     >
@@ -516,7 +526,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     initiateBurnMintForUser: TypedContractMethod<
-      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >
@@ -524,7 +534,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     initiateBurnRelease: TypedContractMethod<
-      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >
@@ -532,7 +542,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     initiateLockMint: TypedContractMethod<
-      [destinationChainId: BigNumberish, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [destinationChainId: BigNumberish, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >
@@ -732,7 +742,7 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     voteBridgeOperation: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -757,6 +767,11 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 getFunction(nameOrSignature: 'BRIDGE_ATTESTATION_TYPEHASH'): TypedContractMethod<
       [],
       [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'MAX_BENEFICIARIES'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'MAX_FEE_BPS'): TypedContractMethod<
@@ -785,7 +800,7 @@ getFunction(nameOrSignature: 'authorizedBridgeAsset'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'bridgeAttestationDigest'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'view'
     >;
@@ -815,12 +830,12 @@ getFunction(nameOrSignature: 'executeAssetPolicy'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'executeMint'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'executeRelease'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
       [void],
       'nonpayable'
     >;
@@ -855,17 +870,17 @@ getFunction(nameOrSignature: 'initialize'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'initiateBurnMintForUser'): TypedContractMethod<
-      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'initiateBurnRelease'): TypedContractMethod<
-      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [sourceAsset: AddressLike, destinationChainId: BigNumberish, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'initiateLockMint'): TypedContractMethod<
-      [destinationChainId: BigNumberish, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, amount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [destinationChainId: BigNumberish, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [string],
       'nonpayable'
     >;
@@ -990,7 +1005,7 @@ getFunction(nameOrSignature: 'voteAssetPolicy'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'voteBridgeOperation'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiary: AddressLike, mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
+      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -1035,7 +1050,7 @@ getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, Upgraded
       BridgeAssetAuthorizationUpdated: TypedContractEvent<BridgeAssetAuthorizationUpdatedEvent.InputTuple, BridgeAssetAuthorizationUpdatedEvent.OutputTuple, BridgeAssetAuthorizationUpdatedEvent.OutputObject>;
     
 
-      'BridgeOperation(bytes32,uint256,uint256,uint8,uint8,address,address,address,address,address,uint256,uint256,uint256,bytes32,uint256)': TypedContractEvent<BridgeOperationEvent.InputTuple, BridgeOperationEvent.OutputTuple, BridgeOperationEvent.OutputObject>;
+      'BridgeOperation(bytes32,uint256,uint256,uint8,uint8,address,address,address,address,address[],uint256[],uint256,uint256,uint256,bytes32,uint256)': TypedContractEvent<BridgeOperationEvent.InputTuple, BridgeOperationEvent.OutputTuple, BridgeOperationEvent.OutputObject>;
       BridgeOperation: TypedContractEvent<BridgeOperationEvent.InputTuple, BridgeOperationEvent.OutputTuple, BridgeOperationEvent.OutputObject>;
     
 

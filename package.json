@@ -118,6 +118,8 @@
     "verify:treasury-v3:base": "hardhat run scripts/verifyTreasuryV3OnScan.ts --network base",
     "verify:treasury-v3:conet": "hardhat run scripts/verifyTreasuryV3OnScan.ts --network conet",
     "export:treasury-v3-verify-form": "node scripts/exportTreasuryV3VerifyFormJson.mjs deployments/base-TreasuryBridgeV3-standard-input-FULL.json && node scripts/exportTreasuryV3VerifyFormJson.mjs deployments/base-TreasuryCanonicalERC20V3-standard-input-FULL.json",
+    "export:treasury-bridge-v3-verify-json": "node scripts/exportTreasuryBridgeV3VerifyJson.mjs",
+    "verify:treasury-bridge-v3-impl": "tsx scripts/verifyTreasuryBridgeV3ImplOnScan.ts",
     "verify:base-treasury:base": "npx tsx scripts/verifyBaseTreasuryStandardJson.ts",
     "base-treasury:listen": "npx tsx src/x402sdk/src/BaseTreasury/node.ts",
     "diagnose:restore-user-pin": "npx tsx scripts/diagnoseRestoreWithUserPin.ts"
