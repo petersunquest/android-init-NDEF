@@ -1,0 +1,74 @@
+---
+description: Beamio homepage 静态站发布流程与 beamio.app 站点根 rsync 保护
+globs: src/homepage/**,scripts/deployBeamioHomepage.sh
+alwaysApply: false
+---
+
+# Beamio Homepage Deploy Workflow
+
+修改 `src/homepage` 后，若变更影响 `https://beamio.app/`、`/app-download`、分享预览、OG 验证页或静态资源，必须按以下流程发布。
+
+**站点根 rsync 保护（含 `homepage/`、`SilentPassUI/` Git 克隆）见 alwaysApply 守则 `beamio-pwa-deploy-app-dirs.mdc`。**
+
+## 本地提交
+
+1. `cd src/homepage`
+2. `npm run build`
+3. `git status -sb` 确认只包含本次 homepage 相关改动。
+4. `git add <changed-files> && git commit -m ... && git push`
+5. 回到根仓，`git add src/homepage` 更新 submodule 指针；若同时修改部署守则/脚本，一并提交并 `git push`。
+
+## 服务器部署（推荐）
+
+**禁止**在 SSH 里手写省略 exclude 的 rsync。优先：
+
+```bash
+./scripts/deployBeamioHomepage.sh
+```
+
+或在服务器上 pull + build 后，**仅**用与脚本一致的 rsync（7 项 exclude，缺一不可）：
+
+```bash
+ssh conet.network
+cd /var/www/beamio.app/homepage
+git fetch origin main && git reset --hard origin/main
+npm install --legacy-peer-deps
+npm run build
+rsync -av --delete \
+  --exclude 'app/' \
+  --exclude 'appTemp/' \
+  --exclude 'pos/' \
+  --exclude 'posTemp/' \
+  --exclude 'homepage/' \
+  --exclude 'SilentPassUI/' \
+  --exclude '.well-known/' \
+  build/ /var/www/beamio.app/
+```
+
+## 强制保护（与 `deployBeamioHomepage.sh` 一致）
+
+| 必须 `--exclude` | 原因 |
+|------------------|------|
+| `app/`、`appTemp/` | SilentPassUI **线上 / staging 产物** |
+| `pos/`、`posTemp/` | POS PWA 产物 |
+| `homepage/` | 服务器 **homepage Git 工作目录**（`/var/www/beamio.app/homepage`） |
+| `SilentPassUI/` | 服务器 **PWA Git 工作目录**（`/var/www/beamio.app/SilentPassUI`） |
+| `.well-known/` | AASA 等；homepage build 不含此目录，无 exclude 会被 `--delete` 删除 |
+
+- ❌ **禁止** `rsync -av --delete build/ /var/www/beamio.app/` 且只 exclude `app/`、`appTemp/`（会删掉 `homepage/`、`SilentPassUI/` 源码树）。
+- ❌ **禁止** Agent / 运维在「服务器 git pull 后发布 homepage」时复制旧文档、漏掉 `SilentPassUI/` 或 `homepage/`。
+- PWA 更新走 **`./scripts/deployBeamioPwa.sh`**（目标仅为 `app/`，不对站点根 `--delete`）。
+
+## 部署后验收
+
+- `https://beamio.app/`
+- `https://beamio.app/app/`（PWA 未被 homepage rsync 破坏）
+- `https://beamio.app/.well-known/apple-app-site-association`
+- `https://beamio.app/app-download?...`（分享预览；必要时 cache-bust `v=`）
+- `https://beamio.app/asset-manifest.json`
+
+## 参考
+
+- 脚本：`scripts/deployBeamioHomepage.sh`（`RSYNC_EXCLUDES` 为单一事实来源）
+- 全局守则：`beamio-pwa-deploy-app-dirs.mdc`
+- AASA 模板：`src/CashTrees_iOS/docs/apple-app-site-association.draft.json`

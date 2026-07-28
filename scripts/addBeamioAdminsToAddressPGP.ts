@@ -18,7 +18,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const CONET_RPC = "https://mainnet-rpc.conet.network";
+const CONET_RPC = "https://rpc1.conet.network";
 const MASTER_PATH = path.join(homedir(), ".master.json");
 
 const AddressPGPABI = [
@@ -46,7 +46,7 @@ function getAddressPGPAddress(): string {
     const d = JSON.parse(fs.readFileSync(deployPath, "utf-8"));
     return d.AddressPGP || "";
   }
-  return "0x13A96Bcd6aB010619d1004A1Cb4f5FE149e0F4c4";
+  return "0xb2aABe52f476356AE638839A786EAE425A0c1b66";
 }
 
 async function main() {

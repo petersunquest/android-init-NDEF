@@ -21,7 +21,7 @@ async function main() {
 	const diamond = deploy.diamond
 	if (!diamond) throw new Error('缺少 diamond 地址')
 
-	const provider = new ethers.JsonRpcProvider('https://mainnet-rpc.conet.network')
+	const provider = new ethers.JsonRpcProvider('https://rpc1.conet.network')
 	const indexer = new ethers.Contract(diamond, INDEXER_ABI, provider)
 
 	console.log('Indexer:', diamond)

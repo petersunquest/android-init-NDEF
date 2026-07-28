@@ -13,6 +13,7 @@ import * as path from "path";
 import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { execSync } from "child_process";
 import { ethers as ethersJs } from "ethers";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,7 +69,7 @@ async function main() {
     if (cfg.AA_FACTORY) AA_FACTORY_ADDRESS = cfg.AA_FACTORY;
   }
   if (!AA_FACTORY_ADDRESS) {
-    AA_FACTORY_ADDRESS = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+    AA_FACTORY_ADDRESS = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   }
   console.log("使用 AA_FACTORY:", AA_FACTORY_ADDRESS);
 
@@ -197,60 +198,21 @@ async function main() {
     baseJson = JSON.parse(fs.readFileSync(configJsonPath, "utf-8"));
   }
   baseJson.CARD_FACTORY = factoryAddress;
-  baseJson.AA_FACTORY = baseJson.AA_FACTORY ?? AA_FACTORY_ADDRESS;
+  baseJson.AA_FACTORY = AA_FACTORY_ADDRESS;
   baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
   fs.writeFileSync(configJsonPath, JSON.stringify(baseJson, null, 2));
   console.log("5. 已更新 config/base-addresses.json（全局配置，各模块自动生效）");
 
-  // ---------- 6. 更新 deployments/BASE_MAINNET_FACTORIES.md ----------
-  const mdPath = path.join(deploymentsDir, "BASE_MAINNET_FACTORIES.md");
-  const aaFactoryInConfig = (baseJson.AA_FACTORY as string) ?? AA_FACTORY_ADDRESS;
-  const mdContent = `# Base Mainnet 基础设施地址
-
-**单一数据源：** \`config/base-addresses.json\` → \`config/contract-addresses.ts\`。AA/Card Factory 重部署后更新 JSON，各模块自动生效。
-
----
-
-## 1. AA Factory（账户工厂）
-
-创建 BeamioAccount（智能合约账户）的工厂合约。  
-重部署后地址会变，以 \`config/base-addresses.json\` 中的 \`AA_FACTORY\` 为准。
-
-| 项目 | 值 |
-|------|-----|
-| **合约** | BeamioFactoryPaymasterV07 |
-| **地址** | 见 config/base-addresses.json（当前为 \`${aaFactoryInConfig}\`） |
-| **网络** | Base Mainnet (Chain ID: 8453) |
-
-**重部署 AA Factory：** \`npm run redeploy:aa-factory:base\`。完成后需由 Card Factory owner 执行 \`npm run set:card-factory-aa:base\`（或链上调用 \`setAAFactory(新地址)\`）。
-
----
-
-## 2. Card Factory（UserCard 工厂）
-
-创建 BeamioUserCard（用户卡）的工厂合约。
-
-| 项目 | 值 |
-|------|-----|
-| **合约** | BeamioUserCardFactoryPaymasterV07 |
-| **地址** | 见 config/base-addresses.json（当前为 \`${factoryAddress}\`） |
-| **网络** | Base Mainnet (Chain ID: 8453) |
-
-**重部署 Card Factory：** \`npm run redeploy:card-factory:base\`。自动更新 config/base-addresses.json，各模块自动生效。
-
----
-
-## 区块浏览器
-
-- AA Factory: https://basescan.org/address/${aaFactoryInConfig}
-- Card Factory: https://basescan.org/address/${factoryAddress}
-
----
-
-*Card Factory 重部署后请运行 \`npm run redeploy:card-factory:base\` 以自动更新 config/base-addresses.json。*
-`;
-  fs.writeFileSync(mdPath, mdContent);
-  console.log("6. 已更新 deployments/BASE_MAINNET_FACTORIES.md");
+  // ---------- 6. 更新 deployments/BASE_MAINNET_FACTORIES.md（与 deployFactoryAndModule 同源脚本）----------
+  try {
+    execSync("node scripts/writeBaseMainnetFactoriesMd.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+    console.log("6. 已更新 deployments/BASE_MAINNET_FACTORIES.md");
+  } catch {
+    console.warn("6. 跳过 BASE_MAINNET_FACTORIES.md（writeBaseMainnetFactoriesMd 失败，请检查 config/base-addresses.json 含 AA_FACTORY 与 CARD_FACTORY）");
+  }
 
   console.log("\n" + "=".repeat(60));
   console.log("部署与配置更新完成");

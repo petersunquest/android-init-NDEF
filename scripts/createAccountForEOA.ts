@@ -2,10 +2,26 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { ethers as ethersLib, type Signer } from "ethers";
 import { verifyContract } from "./utils/verifyContract.js";
+import { loadSignerPk } from "./utils/loadSignerPk.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+async function txFeeOverrides(provider: ethersLib.Provider) {
+  const fd = await provider.getFeeData();
+  const bump = (n: bigint | null | undefined) => {
+    if (n == null) return undefined;
+    return (n * 125n) / 100n;
+  };
+  const maxP = bump(fd.maxPriorityFeePerGas ?? undefined);
+  const maxF = bump(fd.maxFeePerGas ?? undefined);
+  if (maxP && maxF) return { maxPriorityFeePerGas: maxP, maxFeePerGas: maxF };
+  const gp = bump(fd.gasPrice ?? undefined);
+  if (gp) return { gasPrice: gp };
+  return {};
+}
 
 /**
  * 为指定的 EOA 地址创建 BeamioAccount
@@ -15,8 +31,26 @@ const __dirname = path.dirname(__filename);
  */
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [signer] = await ethers.getSigners();
-  
+  const signers = await ethers.getSigners();
+  let signer: Signer;
+  if (signers.length > 0) {
+    signer = signers[0];
+  } else {
+    try {
+      const pk = loadSignerPk();
+      // 单发交易脚本用 Wallet 即可；NonceManager 易与 mempool 中待替换交易冲突（replacement underpriced）
+      signer = new ethersLib.Wallet(pk, ethers.provider);
+    } catch {
+      console.error(
+        "❌ 未配置部署账户：请在 .env 设置 PRIVATE_KEY，或与部署 AA 相同在 ~/.master.json 配置 settle_contractAdmin[0]。\n" +
+          "   创建某 EOA 的 AA：TARGET_EOA 与该私钥对应地址一致时用 createAccount()；否则需 Paymaster 私钥调用 createAccountFor。"
+      );
+      process.exit(1);
+    }
+  }
+
+  const signerAddress = await signer.getAddress();
+
   // 从环境变量获取目标 EOA 地址
   const TARGET_EOA = process.env.TARGET_EOA || "";
   if (!TARGET_EOA) {
@@ -33,8 +67,8 @@ async function main() {
   console.log("为 EOA 创建 BeamioAccount");
   console.log("=".repeat(60));
   console.log("目标 EOA:", TARGET_EOA);
-  console.log("部署账户:", signer.address);
-  console.log("账户余额:", ethers.formatEther(await ethers.provider.getBalance(signer.address)), "ETH");
+  console.log("部署账户:", signerAddress);
+  console.log("账户余额:", ethers.formatEther(await ethers.provider.getBalance(signerAddress)), "ETH");
   
   const networkInfo = await ethers.provider.getNetwork();
   console.log("网络:", networkInfo.name, "(Chain ID:", networkInfo.chainId.toString() + ")");
@@ -42,25 +76,35 @@ async function main() {
   
   // 从部署记录读取 Factory 地址
   const deploymentsDir = path.join(__dirname, "..", "deployments");
+  const configJsonFile = path.join(__dirname, "..", "config", "base-addresses.json");
   let factoryAddress = process.env.FACTORY_ADDRESS || "";
   
   if (!factoryAddress) {
     try {
-      const fullFile = path.join(deploymentsDir, `${networkInfo.name}-FullAccountAndUserCard.json`);
-      if (fs.existsSync(fullFile)) {
-        const fullData = JSON.parse(fs.readFileSync(fullFile, "utf-8"));
-        if (fullData.contracts?.beamioFactoryPaymaster?.address) {
-          factoryAddress = fullData.contracts.beamioFactoryPaymaster.address;
-          console.log("✅ 从 FullAccountAndUserCard 读取 Factory 地址:", factoryAddress);
+      if (fs.existsSync(configJsonFile)) {
+        const baseConfig = JSON.parse(fs.readFileSync(configJsonFile, "utf-8"));
+        if (baseConfig.AA_FACTORY) {
+          factoryAddress = baseConfig.AA_FACTORY;
+          console.log("✅ 从 config/base-addresses.json 读取 Factory 地址:", factoryAddress);
+        }
+      }
+
+      // 优先当前 AA 栈（与 deployFactoryAndModule 一致）；FullAccountAndUserCard 可能为旧 Factory
+      const factoryFile = path.join(deploymentsDir, `${networkInfo.name}-FactoryAndModule.json`);
+      if (!factoryAddress && fs.existsSync(factoryFile)) {
+        const factoryData = JSON.parse(fs.readFileSync(factoryFile, "utf-8"));
+        if (factoryData.contracts?.beamioFactoryPaymaster?.address) {
+          factoryAddress = factoryData.contracts.beamioFactoryPaymaster.address;
+          console.log("✅ 从 FactoryAndModule 读取 Factory 地址:", factoryAddress);
         }
       }
       if (!factoryAddress) {
-        const factoryFile = path.join(deploymentsDir, `${networkInfo.name}-FactoryAndModule.json`);
-        if (fs.existsSync(factoryFile)) {
-          const factoryData = JSON.parse(fs.readFileSync(factoryFile, "utf-8"));
-          if (factoryData.contracts?.beamioFactoryPaymaster?.address) {
-            factoryAddress = factoryData.contracts.beamioFactoryPaymaster.address;
-            console.log("✅ 从 FactoryAndModule 读取 Factory 地址:", factoryAddress);
+        const fullFile = path.join(deploymentsDir, `${networkInfo.name}-FullAccountAndUserCard.json`);
+        if (fs.existsSync(fullFile)) {
+          const fullData = JSON.parse(fs.readFileSync(fullFile, "utf-8"));
+          if (fullData.contracts?.beamioFactoryPaymaster?.address) {
+            factoryAddress = fullData.contracts.beamioFactoryPaymaster.address;
+            console.log("✅ 从 FullAccountAndUserCard 读取 Factory 地址:", factoryAddress);
           }
         }
       }
@@ -73,11 +117,11 @@ async function main() {
     throw new Error("未找到 Factory 地址，请设置 FACTORY_ADDRESS 环境变量");
   }
   
-  // 获取 Factory 合约实例
-  const factory = await ethers.getContractAt("BeamioFactoryPaymasterV07", factoryAddress);
+  // 获取 Factory 合约实例（必须 connect signer，否则无法 createAccount / createAccountFor）
+  const factory = await ethers.getContractAt("BeamioFactoryPaymasterV07", factoryAddress, signer);
   
   // 检查部署账户是否是 Paymaster
-  const isPayMaster = await factory.isPayMaster(signer.address);
+  const isPayMaster = await factory.isPayMaster(signerAddress);
   console.log("部署账户是否为 Paymaster:", isPayMaster);
   
   // 检查目标 EOA 是否已有账户
@@ -189,12 +233,14 @@ async function main() {
   let accountAddress: string;
   let receipt: ethers.TransactionReceipt | null = null;
 
-  if (TARGET_EOA.toLowerCase() === signer.address.toLowerCase()) {
+  const feeOpts = await txFeeOverrides(ethers.provider);
+
+  if (TARGET_EOA.toLowerCase() === signerAddress.toLowerCase()) {
     // 如果目标 EOA 就是部署账户，使用 createAccount()
     console.log("目标 EOA 是部署账户，使用 createAccount()...");
-    const tx = await factory.createAccount();
+    const tx = await factory.createAccount(feeOpts);
     receipt = await tx.wait();
-    accountAddress = await factory.beamioAccountOf(signer.address);
+    accountAddress = await factory.beamioAccountOf(signerAddress);
     console.log("✅ 账户创建成功!");
     console.log("交易哈希:", receipt?.hash);
   } else if (isPayMaster) {
@@ -210,7 +256,7 @@ async function main() {
     
     try {
       console.log("调用 factory.createAccountFor()...");
-      const tx = await factory.createAccountFor(TARGET_EOA);
+      const tx = await factory.createAccountFor(TARGET_EOA, feeOpts);
       receipt = await tx.wait();
     
       // 从事件中获取账户地址

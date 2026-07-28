@@ -15,6 +15,7 @@ type ModuleAddresses = {
   governanceModule: string;
   membershipStatsModule: string;
   adminStatsQueryModule: string;
+  chargeRewardModule: string;
 };
 
 function loadSignerPk(): string {
@@ -66,6 +67,7 @@ function assertSelectorPresent(code: string, signature: string) {
 }
 
 async function main() {
+  // 未设置 *_MODULE_ADDRESS 时会重新部署缺失模块；仅升级某一模块时，请对其余模块传入链上已有地址，避免误替换工厂绑定。
   const { ethers: hhEthers } = await networkModule.connect();
   const provider = hhEthers.provider;
   const network = await provider.getNetwork();
@@ -114,12 +116,6 @@ async function main() {
     console.log("⚠️  跳过 owner() 预检查，继续尝试链上绑定:", msg);
   }
 
-  const RedeemFactory = await hhEthers.getContractFactory("BeamioUserCardRedeemModuleVNext");
-  const IssuedFactory = await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV1");
-  const FaucetFactory = await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
-  const GovernanceFactory = await hhEthers.getContractFactory("BeamioUserCardGovernanceModuleV1");
-  const MembershipStatsFactory = await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
-  const AdminStatsQueryFactory = await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
   const existingRedeem = await resolveModuleAddress(provider, process.env.REDEEM_MODULE_ADDRESS, "RedeemModule");
   const existingIssued = await resolveModuleAddress(provider, process.env.ISSUED_NFT_MODULE_ADDRESS, "IssuedNftModule");
   const existingFaucet = await resolveModuleAddress(provider, process.env.FAUCET_MODULE_ADDRESS, "FaucetModule");
@@ -127,21 +123,37 @@ async function main() {
   const existingMembershipStats = await resolveModuleAddress(provider, process.env.MEMBERSHIP_STATS_MODULE_ADDRESS, "MembershipStatsModule");
   const existingAdminStatsQuery =
     await resolveModuleAddress(provider, process.env.ADMIN_STATS_QUERY_MODULE_ADDRESS, "AdminStatsQueryModule");
+  const existingChargeReward =
+    await resolveModuleAddress(provider, process.env.CHARGE_REWARD_MODULE_ADDRESS, "ChargeRewardModule");
 
-  const redeem = existingRedeem ? undefined : await RedeemFactory.connect(signer).deploy(txOverrides);
+  const RedeemFactory = existingRedeem ? undefined : await hhEthers.getContractFactory("BeamioUserCardRedeemModuleVNext");
+  const IssuedFactory = existingIssued ? undefined : await hhEthers.getContractFactory("BeamioUserCardIssuedNftModuleV1");
+  const FaucetFactory = existingFaucet ? undefined : await hhEthers.getContractFactory("BeamioUserCardFaucetModuleV1");
+  const GovernanceFactory = existingGovernance ? undefined : await hhEthers.getContractFactory("BeamioUserCardGovernanceModuleV1");
+  const MembershipStatsFactory =
+    existingMembershipStats ? undefined : await hhEthers.getContractFactory("BeamioUserCardMembershipStatsModuleV1");
+  const AdminStatsQueryFactory =
+    existingAdminStatsQuery ? undefined : await hhEthers.getContractFactory("BeamioUserCardAdminStatsQueryModuleV1");
+  const ChargeRewardFactory =
+    existingChargeReward ? undefined : await hhEthers.getContractFactory("BeamioUserCardChargeRewardModuleV1");
+
+  const redeem = existingRedeem ? undefined : await RedeemFactory!.connect(signer).deploy(txOverrides);
   if (redeem) await redeem.waitForDeployment();
-  const issued = existingIssued ? undefined : await IssuedFactory.connect(signer).deploy(txOverrides);
+  const issued = existingIssued ? undefined : await IssuedFactory!.connect(signer).deploy(txOverrides);
   if (issued) await issued.waitForDeployment();
-  const faucet = existingFaucet ? undefined : await FaucetFactory.connect(signer).deploy(txOverrides);
+  const faucet = existingFaucet ? undefined : await FaucetFactory!.connect(signer).deploy(txOverrides);
   if (faucet) await faucet.waitForDeployment();
-  const governance = existingGovernance ? undefined : await GovernanceFactory.connect(signer).deploy(txOverrides);
+  const governance = existingGovernance ? undefined : await GovernanceFactory!.connect(signer).deploy(txOverrides);
   if (governance) await governance.waitForDeployment();
   const membershipStats =
-    existingMembershipStats ? undefined : await MembershipStatsFactory.connect(signer).deploy(txOverrides);
+    existingMembershipStats ? undefined : await MembershipStatsFactory!.connect(signer).deploy(txOverrides);
   if (membershipStats) await membershipStats.waitForDeployment();
   const adminStatsQuery =
-    existingAdminStatsQuery ? undefined : await AdminStatsQueryFactory.connect(signer).deploy(txOverrides);
+    existingAdminStatsQuery ? undefined : await AdminStatsQueryFactory!.connect(signer).deploy(txOverrides);
   if (adminStatsQuery) await adminStatsQuery.waitForDeployment();
+  const chargeReward =
+    existingChargeReward ? undefined : await ChargeRewardFactory!.connect(signer).deploy(txOverrides);
+  if (chargeReward) await chargeReward.waitForDeployment();
 
   const modules: ModuleAddresses = {
     redeemModule: existingRedeem ?? await redeem!.getAddress(),
@@ -150,6 +162,7 @@ async function main() {
     governanceModule: existingGovernance ?? await governance!.getAddress(),
     membershipStatsModule: existingMembershipStats ?? await membershipStats!.getAddress(),
     adminStatsQueryModule: existingAdminStatsQuery ?? await adminStatsQuery!.getAddress(),
+    chargeRewardModule: existingChargeReward ?? await chargeReward!.getAddress(),
   };
 
   console.log("RedeemModule:", modules.redeemModule);
@@ -158,29 +171,62 @@ async function main() {
   console.log("GovernanceModule:", modules.governanceModule);
   console.log("MembershipStatsModule:", modules.membershipStatsModule);
   console.log("AdminStatsQueryModule:", modules.adminStatsQueryModule);
+  console.log("ChargeRewardModule:", modules.chargeRewardModule);
 
   const factoryAbi = [
+    "function setDefaultModule(uint8 kind, address module) external",
+    "function setDefaultModules(uint8[] kinds, address[] modules) external",
+    "function defaultModule(uint8 kind) view returns (address)",
     "function setRedeemModule(address m) external",
     "function setIssuedNftModule(address m) external",
     "function setFaucetModule(address m) external",
     "function setGovernanceModule(address m) external",
     "function setMembershipStatsModule(address m) external",
     "function setAdminStatsQueryModule(address m) external",
+    "function setChargeRewardModule(address m) external",
     "function defaultRedeemModule() view returns (address)",
     "function defaultIssuedNftModule() view returns (address)",
     "function defaultFaucetModule() view returns (address)",
     "function defaultGovernanceModule() view returns (address)",
     "function defaultMembershipStatsModule() view returns (address)",
     "function defaultAdminStatsQueryModule() view returns (address)",
+    "function defaultChargeRewardModule() view returns (address)",
   ];
   const factory = new hhEthers.Contract(factoryAddress, factoryAbi, signer);
 
-  await (await factory.setRedeemModule(modules.redeemModule, txOverrides)).wait();
-  await (await factory.setIssuedNftModule(modules.issuedNftModule, txOverrides)).wait();
-  await (await factory.setFaucetModule(modules.faucetModule, txOverrides)).wait();
-  await (await factory.setGovernanceModule(modules.governanceModule, txOverrides)).wait();
-  await (await factory.setMembershipStatsModule(modules.membershipStatsModule, txOverrides)).wait();
-  await (await factory.setAdminStatsQueryModule(modules.adminStatsQueryModule, txOverrides)).wait();
+  const MODULE = {
+    REDEEM: 0,
+    FAUCET: 1,
+    ISSUED_NFT: 2,
+    GOVERNANCE: 3,
+    MEMBERSHIP_STATS: 4,
+    CHARGE_REWARD: 5,
+    STATS_QUERY: 254,
+  } as const;
+
+  await (
+    await factory.setDefaultModules(
+      [
+        MODULE.REDEEM,
+        MODULE.FAUCET,
+        MODULE.ISSUED_NFT,
+        MODULE.GOVERNANCE,
+        MODULE.MEMBERSHIP_STATS,
+        MODULE.STATS_QUERY,
+        MODULE.CHARGE_REWARD,
+      ],
+      [
+        modules.redeemModule,
+        modules.faucetModule,
+        modules.issuedNftModule,
+        modules.governanceModule,
+        modules.membershipStatsModule,
+        modules.adminStatsQueryModule,
+        modules.chargeRewardModule,
+      ],
+      txOverrides
+    )
+  ).wait();
 
   const bound = {
     redeem: (await factory.defaultRedeemModule()) as string,
@@ -189,6 +235,7 @@ async function main() {
     governance: (await factory.defaultGovernanceModule()) as string,
     membershipStats: (await factory.defaultMembershipStatsModule()) as string,
     adminStatsQuery: (await factory.defaultAdminStatsQueryModule()) as string,
+    chargeReward: (await factory.defaultChargeRewardModule()) as string,
   };
 
   if (bound.redeem.toLowerCase() !== modules.redeemModule.toLowerCase()) throw new Error("setRedeemModule 未生效");
@@ -197,15 +244,19 @@ async function main() {
   if (bound.governance.toLowerCase() !== modules.governanceModule.toLowerCase()) throw new Error("setGovernanceModule 未生效");
   if (bound.membershipStats.toLowerCase() !== modules.membershipStatsModule.toLowerCase()) throw new Error("setMembershipStatsModule 未生效");
   if (bound.adminStatsQuery.toLowerCase() !== modules.adminStatsQueryModule.toLowerCase()) throw new Error("setAdminStatsQueryModule 未生效");
+  if (bound.chargeReward.toLowerCase() !== modules.chargeRewardModule.toLowerCase()) throw new Error("setChargeRewardModule 未生效");
+  if ((await factory.defaultModule(MODULE.STATS_QUERY)).toLowerCase() !== modules.adminStatsQueryModule.toLowerCase()) {
+    throw new Error("setDefaultModules STATS_QUERY 未生效");
+  }
 
   const deployedFactoryCode = await provider.getCode(factoryAddress);
   assertSelectorPresent(
     deployedFactoryCode,
-    "appendTierForCardWithOwnerSignature(address,uint256,uint256,uint256,bool,uint256,bytes32,bytes)"
+    "appendTierForCardWithOwnerSignature(address,uint256,uint256,uint256,uint256,bytes32,bytes)"
   );
   assertSelectorPresent(
     deployedFactoryCode,
-    "createCardCollectionWithInitCodeAndTiers(address,uint8,uint256,bytes,(uint256,uint256,uint256,bool)[])"
+    "createCardCollectionWithInitCodeAndTiers(address,uint8,uint256,bytes,(uint256,uint256,uint256)[])"
   );
 
   const moduleDeployment = {
@@ -228,6 +279,7 @@ async function main() {
   factoryData.contracts.beamioUserCardFactoryPaymaster.governanceModule = modules.governanceModule;
   factoryData.contracts.beamioUserCardFactoryPaymaster.membershipStatsModule = modules.membershipStatsModule;
   factoryData.contracts.beamioUserCardFactoryPaymaster.adminStatsQueryModule = modules.adminStatsQueryModule;
+  factoryData.contracts.beamioUserCardFactoryPaymaster.chargeRewardModule = modules.chargeRewardModule;
   fs.writeFileSync(factoryFile, JSON.stringify(factoryData, null, 2));
 
   console.log("绑定完成并写入:");

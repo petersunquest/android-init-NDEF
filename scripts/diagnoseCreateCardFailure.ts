@@ -35,7 +35,7 @@ function getBaseCardFactory(): string {
       if (addr) return addr;
     }
   } catch {}
-  return process.env.CARD_FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+  return process.env.CARD_FACTORY || "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 }
 const BASE_CARD_FACTORY = getBaseCardFactory();
 
@@ -165,7 +165,7 @@ async function main() {
       console.log("3. Runtime bytecode (EIP-170):", runtimeLen, "bytes, 限制 24576, OK:", runtimeLen <= EIP170_LIMIT);
       const uri = "https://beamio.app/api/metadata/0x";
       const cf = new ethers.ContractFactory(artifact.abi, artifact.bytecode);
-      const deployTx = await cf.getDeployTransaction(uri, CURRENCY_CAD, PRICE_E6, CARD_OWNER, BASE_CARD_FACTORY);
+      const deployTx = await cf.getDeployTransaction(uri, CURRENCY_CAD, PRICE_E6, CARD_OWNER, BASE_CARD_FACTORY, 0, false);
       const initCode = deployTx?.data;
       if (!initCode || !initCode.startsWith("0x")) {
         console.log("   ❌ 无法生成 initCode（getDeployTransaction 返回空）");
@@ -207,7 +207,9 @@ async function main() {
       CURRENCY_CAD,
       PRICE_E6,
       CARD_OWNER,
-      BASE_CARD_FACTORY
+      BASE_CARD_FACTORY,
+      0,
+      false
     );
     const initCode2 = deployTx2?.data;
     if (!initCode2) {

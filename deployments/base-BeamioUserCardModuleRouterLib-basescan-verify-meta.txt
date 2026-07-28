@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol:BeamioUserCardModuleRouterLib
+Address: 0x55154E4eb8f86Fb6E6520993Ec38E230bBf925fD
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardModuleRouterLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.300Z

@@ -1,6 +1,6 @@
 /**
  * 部署 GuardianNodesAddress 到 CoNET mainnet
- * RPC: mainnet-rpc.conet.network
+ * RPC: https://rpc1.conet.network
  * 使用 ~/.master.json settle_contractAdmin[0] 私钥
  *
  * 运行: npx hardhat run scripts/deployGuardianNodesAddressToConet.ts --network conet

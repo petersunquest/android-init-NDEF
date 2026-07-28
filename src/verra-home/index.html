@@ -1,0 +1,56 @@
+<!doctype html>
+<html class="scroll-smooth light" lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!-- Base / Coinbase in-app browsers often default to dark canvas; force light until app CSS loads. -->
+		<meta name="color-scheme" content="light" />
+		<style>
+			html {
+				color-scheme: light;
+				background: #f9f9fe;
+			}
+			body {
+				margin: 0;
+				background: #f9f9fe;
+				color: #1a1c1f;
+				-webkit-text-size-adjust: 100%;
+			}
+			#root {
+				min-height: 100vh;
+				min-height: 100dvh;
+			}
+		</style>
+		<script>
+			(() => {
+				const root = document.documentElement
+				const forceLightMode = () => {
+					root.classList.remove('dark')
+					root.classList.add('light')
+					root.style.colorScheme = 'light'
+				}
+
+				forceLightMode()
+				new MutationObserver(forceLightMode).observe(root, {
+					attributes: true,
+					attributeFilter: ['class', 'style'],
+				})
+			})()
+		</script>
+		<title>Verra | Official Home Page</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

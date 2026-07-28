@@ -1,0 +1,21 @@
+{
+  "network": "base",
+  "chainId": 8453,
+  "bridge": "0xa208982212978550594A7FEEB70a61665d129003",
+  "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "nickCreate2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "assets": {
+    "wCNET": {
+      "name": "Wrapped CoNET",
+      "symbol": "wCNET",
+      "decimals": 18,
+      "metadata": "https://ipfs.conet.network/api/getFragment?hash=0xd53d8e1af82f376e2a82dc24a97b4e567ed2a3b47a9ff5aee0f35d5c68cb3067",
+      "implementation": "0x2371573152A84886F2C914a59232d8E3F5810Fe0",
+      "proxy": "0x2DC57d67C9764DeE5788421029Abaf81B992FAaF",
+      "implementationTx": null,
+      "proxyTx": null,
+      "reused": true
+    }
+  },
+  "createdAt": "2026-07-26T03:31:56.897Z"
+}

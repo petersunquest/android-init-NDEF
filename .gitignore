@@ -19,10 +19,25 @@ node_modules/
 *.swo
 *~
 
+# Xcode / iOS (local user state & build output)
+**/xcuserdata/
+**/DerivedDataCI/
+
 # Script state
 scripts/.base-sync-state
 
 # OS
 .DS_Store
 Thumbs.db
-.cursor
+
+# Local scratch / agent temp files (never commit)
+.tmp_*
+
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/beamio-coupon-ticket-render-protocol.mdc
+!.cursor/rules/beamio-homepage-deploy-workflow.mdc
+!.cursor/rules/beamio-bizsite-deploy.mdc
+!.cursor/rules/beamio-pwa-deploy-app-dirs.mdc
+!.cursor/rules/conet-ipfs-deploy.mdc

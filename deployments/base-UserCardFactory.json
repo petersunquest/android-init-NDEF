@@ -2,26 +2,121 @@
   "network": "base",
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-14T19:53:37.772Z",
+  "timestamp": "2026-05-23T19:52:57.930Z",
+  "previous": {
+    "factory": "0xec00b58Df88006D2343D1ddDF52e090379043E25",
+    "issuedNftModule": "0x4d62e67b0CeCFa909A863d6BAE1152E462fFe8d1",
+    "membershipStatsModule": "0xEB1986F5320753B2bb1E64a24E96b6E42B11F516",
+    "adminStatsQueryModule": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
+    "chargeRewardModule": "0xba46891C36ed6e79Ce883dDe515810CD4a7276e4"
+  },
   "contracts": {
+    "beamioUserCardLibraries": {
+      "BeamioUserCardFormattingLib": {
+        "address": "0xe56dca3aF78a12164dC6546e6CD0E9Fe9d9Cc4b3",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardTransferLib": {
+        "address": "0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardIssuedNftGatewayLib": {
+        "address": "0x090Fb47c70412dE61B15771EF75797e36616B4ad",
+        "txHash": null,
+        "reused": true
+      },
+      "ReferrerRegistryLib": {
+        "address": "0x34d19e87342afF9Fda6337163D01FFfD6EAa5e4f",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardReferrerLib": {
+        "address": "0x981E3ca5160C3147673Eb984FED979778eed7B68",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardAdminGatewayLib": {
+        "address": "0x4d0Af8Aa67C78C81F3860497a9082A3B70b9a467",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardFaucetGatewayLib": {
+        "address": "0x11D99A1d0B3C6985abE2E82B2065fCC5506e99A8",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardGatewayMintLib": {
+        "address": "0xEE6309a46DBCaDD98398758fD0032A12A0a2D696",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardGovernanceLib": {
+        "address": "0x4564b36B44A0B689F35973A67EF19d0b46cCfc73",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardModuleRouterLib": {
+        "address": "0x55154E4eb8f86Fb6E6520993Ec38E230bBf925fD",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardRedeemGatewayLib": {
+        "address": "0x6f4dE4941F4b7f2Fbc179A4697E9A04F0F916732",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardUpdateLib": {
+        "address": "0xD021f61d70e1B72ec1ED49950F7F581139d6879A",
+        "txHash": null,
+        "reused": true
+      },
+      "BeamioUserCardViewsLib": {
+        "address": "0x2e3a136733e400f579DcB71fAf78922563d8D7EC",
+        "txHash": null,
+        "reused": true
+      }
+    },
     "beamioUserCardDeployer": {
-      "address": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
-      "transactionHash": "0xaa67df8a6f44278a2934571ebf41152ff08400f687f55e9d814ef54bad0d0570"
+      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "reused": true
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a",
+      "address": "0xF2864210577359AcaE448D2B116031a0c5EE1016",
       "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
       "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
       "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
-      "deployer": "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685",
-      "aaFactory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
-      "governanceModule": "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41",
-      "issuedNftModule": "0x43f3a7FA417339e1bBA3a258ddCC32715F4C56D3",
+      "deployer": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "aaFactory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
       "faucetModule": "0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F",
-      "membershipStatsModule": "0x5E5C920103f0952c39b2839D64883C6697fd5eB3",
-      "adminStatsQueryModule": "0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70",
+      "governanceModule": "0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC",
+      "issuedNftModule": "0xB0E6a76c926d49CD841ac7cDe349F8101D9Dae39",
+      "membershipStatsModule": "0x9E72B939C0eF46BE556686Fc7e8598E215A66b25",
+      "adminStatsQueryModule": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
+      "chargeRewardModule": "0xba46891C36ed6e79Ce883dDe515810CD4a7276e4",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
-      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "transactionHash": "0x4c1d37548b4a86750848b0d35d16e0c1741f3dd91834b4a88d808238bdcfffba"
+    },
+    "changedModules": {
+      "issuedNftModule": {
+        "address": "0xB0E6a76c926d49CD841ac7cDe349F8101D9Dae39",
+        "txHash": "0x4e85bf4bc3b99360495a8f31bae65b83fa9eebef6140b49a8abeeb519bf84bc4",
+        "reused": false
+      },
+      "membershipStatsModule": {
+        "address": "0x9E72B939C0eF46BE556686Fc7e8598E215A66b25",
+        "reused": false
+      },
+      "adminStatsQueryModule": {
+        "address": "0xb3068122b8f50DF60796bDf751cf8136Aed50FDf",
+        "reused": true
+      },
+      "chargeRewardModule": {
+        "address": "0xba46891C36ed6e79Ce883dDe515810CD4a7276e4",
+        "reused": true
+      }
     }
   }
 }

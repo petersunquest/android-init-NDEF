@@ -1,0 +1,139 @@
+---
+description: Beamio 优惠券 ticket 渲染协议（布局 / icon / expiry pill）及跨项目同步清单
+alwaysApply: true
+---
+
+# Beamio Coupon Ticket Render Protocol
+
+全项目凡展示 **Beamio 优惠券 ticket**（商户 Programs 预览、Open Claim / Redeem 分享、SilentPassUI Discover / My Brands / Claim&Redeem、app-download 分享页、社交 OG 图、**POS PWA**）须遵守**同一套 Coupon Preview 布局语义**。各子项目独立实现 UI，但**不得**在某一端单独改布局或 pill 规则。
+
+> **POS**：活跃实现为 **`src/posPwa/`**（WebView 壳加载）。`src/CashTrees_iOS/iOS_NDEF/`、`src/android-NDEF/` 内原生 ticket **已弃用**，仅遗留对照，新改动以 POS PWA 为准。
+
+## Ticket 布局（banner vs 无 banner）
+
+| 场景 | Ticket **内** | Ticket **外**（ticket 下方） |
+|---|---|---|
+| **有 banner**（`backgroundImage` / `couponImage`） | 仅背景图；**不**显示 icon，也不在 ticket 内放 title / subtitle / expiry | title、subtitle、expiry pill（若应显示）、**QR**（若有 `shareUrl`）/ Claim 按钮 |
+| **无 banner** | icon（若有）+ title + subtitle + expiry pill（若应显示）；**不**在 ticket 内放 QR | **QR**（若有 `shareUrl`），与有 banner 时相同，显示在 ticket **下方** |
+| **侧孔** | 左右各一圆形 notch（与父背景同色） | 同左 |
+
+- Ticket 圆角约 `1.75rem`；无 banner 时用 `backgroundColorHex` + 斜纹 + 渐变。
+- biz 分享预览：`ProgramsCouponShareCardPreview`；客户端 canonical：`ActiveCouponTicketItem`（`metadataBelowBackgroundImage` 与 banner 外置文案一致）。
+
+## Banner 图片缩放与填充
+
+有 banner 的 Coupon Preview 必须优先忠实呈现商户上传图的**完整高度**，不得用普通 `object-cover` 造成上下裁切：
+
+- **固定 ticket 高度内全高度显现**：先按目标 ticket 高度等比缩放图片，使图片高度刚好填满 ticket 高度；原图上下内容必须完整保留。
+- **宽度多余时**：缩放后的图片宽度大于 ticket 宽度，则只允许横向居中裁剪多余宽度；不得纵向裁剪。
+- **宽度短缺时**：缩放后的图片宽度小于 ticket 宽度，则主图居中显示；左右空缺区域分别从原图左侧、右侧对应边缘区域采样像素，拉伸/模糊后填充，形成平滑延展背景。
+- **采样填充语义**：左侧 gap 只能采样图片左边缘区域，右侧 gap 只能采样图片右边缘区域；不要用单色、透明、重复平铺、镜像整图或全图平均色替代。
+- **色彩保持**：采样层和主图层都必须保持 sRGB 与原图色彩，不得叠加全局黑色遮罩、降低饱和度或改变亮度。
+
+实现提示：
+
+- Web / React：不要直接对 banner `<img>` 使用会纵向裁切的 `object-cover`。应使用一层主图（`height: 100%; width: auto`）+ 左右采样填充层；窄图时显示填充层，宽图时主图横向溢出并由 ticket 容器裁剪。
+- OG / Sharp：按高度 resize 得到 foreground；若 `foregroundWidth >= slotWidth`，center extract 宽度；若不足，foreground 居中 composite，并从 foreground 左/右边缘 strip resize 到 gap 宽度后作为左右背景 composite。
+
+## Icon 规则（禁止占位）
+
+- **有 banner 时**：即使存在 `iconUrl`，也不渲染 icon；背景图已承担视觉识别。
+- **无 banner 且有** `iconUrl`（合法 http(s) 图片）：显示圆形容器 + `object-cover`。
+- **无 icon**：**不渲染** icon 圆、**不**用商家首字母 / 🎟️ / 纯色字母 fallback。
+- OG raster（`couponClaimShare.ts`）：有 banner 或无 icon 时省略白圈与首字母文字层；只有无 banner 且有 icon 时才显示 icon。
+
+## Expiry 状态胶囊（pill）
+
+### 文案格式（语义须一致）
+
+由 `validBeforeSec` / 商户 `couponValidToYmd` 推导，标签为大写英文：
+
+| 条件 | 标签 |
+|---|---|
+| 无有效到期时间（`validBeforeSec <= 0` 或未设 range） | `VALID NOW`（biz 编辑器 live preview 用 `NO EXPIRY`） |
+| 已过期 | `EXPIRED` |
+| 剩余 ≥ 1 天 | `EXPIRES IN {N}D` |
+| 剩余 ≥ 1 小时 | `EXPIRES IN {N}H` |
+| 否则 | `EXPIRES IN {N}M` |
+| 商户编辑器未设结束日（incomplete） | `SET END DATE`（**仅 biz 编辑器**） |
+
+### 是否显示 pill
+
+**必须**经 `shouldShowCouponExpiryPill(label)`（或等价逻辑）再渲染：
+
+```typescript
+// 不显示（无信息量）
+normalized === 'VALID NOW' || normalized === 'NO EXPIRY'
+// 显示
+'EXPIRED' | 'EXPIRES IN …' | 'SET END DATE'（编辑器）
+```
+
+- biz 编辑器 live preview：`expiryVariant === 'none'` 时不渲染 pill。
+- **禁止**在无到期券上显示 `VALID NOW` / `NO EXPIRY` 胶囊。
+
+### Urgency 样式
+
+- **Urgent**（红底白字 + `Clock`）：`EXPIRED` 或 `EXPIRES IN …H` / `…M`。
+- **非 urgent**（灰/半透明 + `Calendar`）：`EXPIRES IN …D` 及 banner 外置灰 pill。
+- 判定：`couponExpiryUsesUrgentVariant(expiresLabel)`（各子项目须保持同一正则/条件）。
+
+## 单一参考实现（按平台）
+
+| 平台 / 场景 | 主文件 | 关键符号 |
+|---|---|---|
+| **SilentPassUI**（Discover / My Brands / Claim / Redeem 面板） | `src/SilentPassUI/src/pages/Home/ActiveCouponsScreen.tsx` | `ActiveCouponTicketItem`, `formatCouponExpiryPill`, `shouldShowCouponExpiryPill` |
+| SilentPassUI 包装 | `CouponClaimTicketPreview.tsx`, `RedeemClaimTicketPreview.tsx`, `Market.tsx`, `MyBrandsListSection.tsx` | 复用 `ActiveCouponTicketItem`，**勿**另写 ticket；`App.tsx` 的 Coupon Claim / Redeem Claim overlay 必须通过这两个 preview 组件进入 canonical ticket |
+| **bizSite** | `src/bizSite/src/pages/Vouchers/example/biz.tsx` | `ProgramsCouponShareCardPreview`, `cardIssuanceCouponEditorLivePreview`, `programsCouponShareShouldShowExpiryPill` |
+| **homepage** app-download | `src/homepage/src/pages/AppDownloadPage.tsx` | `CouponSharePreview` |
+| homepage utils | `src/homepage/src/utils/couponClaimShare.ts` | `shouldShowCouponExpiryPill`, `couponExpiryUsesUrgentVariant` |
+| **x402sdk** 分享 meta + OG 图 | `src/x402sdk/src/endpoint/couponClaimShare.ts` | `formatCouponExpiryPill`, `shouldShowCouponExpiryPill`, `buildCouponClaimOgRasterParts` |
+| **POS PWA**（活跃；Check Balance 等） | `src/posPwa/src/components/CouponPreviewTicket.tsx`, `CouponBannerImage.tsx`, `ReadBalanceCouponsSection.tsx` | banner 双层图像、外置 metadata、无 icon 不占位、隐藏无信息量 expiry pill |
+| ~~iOS 原生 POS~~（弃用） | `src/CashTrees_iOS/iOS_NDEF/...` | 勿改；以 POS PWA 为准 |
+| ~~Android 原生 POS~~（弃用） | `src/android-NDEF/...` | 勿改；以 POS PWA 为准 |
+
+> `src/` 子项目**不得**跨项目 `import` 共享组件；改规则时须**同步更新上表每一行的逻辑**，保持视觉与语义一致。
+
+## OG 画质（仅 x402sdk `couponClaimShare.ts`）
+
+| 参数 | 含义 |
+|---|---|
+| `OG_IMAGE_PREP_SCALE = 2` | banner/icon 用 Sharp Lanczos3 2× 预裁剪后嵌入 1× SVG |
+| `OG_BANNER_CAPSULE_H = 258` | banner ticket 条高度（OG px）；对齐 homepage 下载页 ticket 比例（约 512 / 120 ≈ 4.27:1） |
+| `OG_BANNER_CAPSULE_RX = 60` | banner ticket 圆角；对齐 homepage `rounded-[1.75rem]` 在 7.5rem ticket 高度下的比例 |
+| `OG_BANNER_NOTCH_R = 39` | 左右侧孔半径；对齐 homepage 36px 侧孔在 120px ticket 高度下的比例 |
+| `OG_BANNER_META_TOP_GAP = 26` | banner 底部到外置 title 顶部的间距；对齐 homepage 下载页 `mt-3` 按 ticket 宽度缩放后的距离 |
+| `OG_BANNER_BOTTOM_EXTRA_GAP = 44` | OG 底部额外留白；取顶部 headline 到画布顶部视觉间距的 4 倍 |
+| `OG_BANNER_QR_TARGET_SIZE = 192` | banner 模式外置 QR 尺寸；较上一版 96px 放大一倍，且不再渲染 QR 下方说明文字挤压 QR |
+| `OG_JPEG_QUALITY = 93` | libjpeg baseline（`progressive: false`, **`mozjpeg: false`**）；`4:4:4` 色度采样 |
+| `OG_LAYOUT_REV = 26` | 写入 `/og/s/` token JSON；改 OG 须 bump |
+
+- Banner OG 必须忠实保留商户原图色彩：显式输出 sRGB，且有 banner 时不得叠加全局黑色 `photoShade` / `capsuleShade` 压暗层；仅允许边框、侧孔、外部文字等不改变 banner 像素色彩的装饰。
+- Banner OG 的空白填充须与 biz Open Claim Distribution / app-download preview 的双层图像法一致：底层用同一 banner 做 `cover + blur` 填满 ticket，顶层再按高度完整显示原图并居中裁剪/叠加；任何左右或上下露出的区域都由同图模糊背景填满，不得出现透明/纯色空白。
+- WhatsApp 等社交平台缓存刷新时，cache-bust 必须同时进入 `og:url` 与 `/og/s/{token}.jpg` 图片 token；`v` 为规范参数，历史测试参数 `iiis` 可兼容读取并规范化为 `v`。
+- **WhatsApp 缩略图 / 超时 / 499 / Cluster 磁盘预渲染**：见 `beamio-whatsapp-og-link-preview.mdc`（与 ticket 布局正交，但改 `/og/s/` 或分享 HTML 时必须同时遵守）。
+
+## 变更检查清单（改布局 / icon / expiry 任一项时）
+
+1. **SilentPassUI** — `ActiveCouponsScreen.tsx`、`CouponClaimTicketPreview.tsx`、`RedeemClaimTicketPreview.tsx`，以及 `App.tsx` 中的 Coupon Claim / Redeem Claim overlay 入口。
+2. **bizSite** — `ProgramsCouponShareCardPreview` + 编辑器 live preview块。
+3. **homepage** — `AppDownloadPage.tsx` + `utils/couponClaimShare.ts`。
+4. **x402sdk** — `couponClaimShare.ts` OG SVG/文字层；**递增 OG cache key 版本**（如 `wide:v7` → `v8`）。OG 画质参数：`OG_RENDER_SCALE`（2× 超采样）、`fetchImageCoverPngDataUrl`（Lanczos3 预裁剪）、`OG_BANNER_CAPSULE_H`、`OG_JPEG_QUALITY`。
+5. **POS PWA** — `CouponPreviewTicket.tsx` / `CouponBannerImage.tsx` / `ReadBalanceCouponsSection.tsx`，并运行 `cd src/posPwa && npm run build`。
+6. **部署**：homepage `deployBeamioHomepage.sh`；x402sdk build + API 重启；bizSite / SilentPassUI / posPwa 各自 build；POS **WebView 壳**按需发版（`android/softPOS`、CashTrees_iOS），**勿**以 `android-NDEF` / `iOS_NDEF` 为活跃 POS 发版目标。
+
+## 严禁
+
+- ❌ 仅改 biz 或 SilentPassUI 而不同步 homepage / OG / POS。
+- ❌ 有 banner 时仍显示 icon。
+- ❌ 无 icon 时恢复首字母 / emoji 占位。
+- ❌ 无到期券显示 `VALID NOW` / `NO EXPIRY` pill。
+- ❌ banner 模式下在 ticket 内堆 title/subtitle/expiry（应外置）。
+- ❌ 无 banner 时在 ticket 内右侧叠加 QR（QR 须与有 banner 一致，显示在 ticket 下方）。
+- ❌ 修改 OG 布局却不 bump cache key（旧图会被 CDN/内存缓存复用）。
+- ❌ 在 Market / Claim 面板复制第二套 cutover 或 expiry 规则（须走 canonical renderer）。
+
+## 相关守则
+
+- `ui-english.mdc` — pill 与用户可见文案英语。
+- `src-subprojects-are-independent.mdc` — 各子项目独立 build，逻辑同步但不跨路径引用。
+- `beamio-metadata-endpoint.mdc` — 分享 URL / metadata 域名。

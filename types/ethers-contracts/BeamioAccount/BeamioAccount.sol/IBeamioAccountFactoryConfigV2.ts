@@ -6,18 +6,20 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioAccountFactoryConfigV2Interface extends Interface {
-    getFunction(nameOrSignature: "USDC" | "beamioUserCard" | "containerModule" | "quoteHelper"): FunctionFragment;
+    getFunction(nameOrSignature: "USDC" | "beamioUserCard" | "containerModule" | "openContainerMintExecutor" | "quoteHelper"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'USDC', values?: undefined): string;
 encodeFunctionData(functionFragment: 'beamioUserCard', values?: undefined): string;
 encodeFunctionData(functionFragment: 'containerModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'openContainerMintExecutor', values?: undefined): string;
 encodeFunctionData(functionFragment: 'quoteHelper', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'USDC', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'beamioUserCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'openContainerMintExecutor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'quoteHelper', data: BytesLike): Result;
   }
 
@@ -81,6 +83,14 @@ decodeFunctionResult(functionFragment: 'quoteHelper', data: BytesLike): Result;
     
 
     
+    openContainerMintExecutor: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     quoteHelper: TypedContractMethod<
       [],
       [string],
@@ -102,6 +112,11 @@ getFunction(nameOrSignature: 'beamioUserCard'): TypedContractMethod<
       'view'
     >;
 getFunction(nameOrSignature: 'containerModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'openContainerMintExecutor'): TypedContractMethod<
       [],
       [string],
       'view'

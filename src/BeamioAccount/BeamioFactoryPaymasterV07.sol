@@ -8,6 +8,7 @@ pragma solidity ^0.8.20;
 // - Provides GLOBAL config views for module logic: containerModule / quoteHelper / beamioUserCard / USDC
 
 import "./BeamioTypesV07.sol";
+import "./BeamioContainerItemTypesV07.sol";
 import "./BeamioAccountDeployer.sol";
 import "./BeamioAccount.sol"; // provides IBeamioAccountFactoryConfigV2
 import "../contracts/utils/cryptography/ECDSA.sol";
@@ -45,6 +46,9 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	address public override beamioUserCard;
 	address public override USDC;
 
+	/// @dev Trusted contract: only BeamioAccount may call into it; it forwards mintPointsOpenContainerRelay on UserCard.
+	address private _openContainerMintExecutor;
+
 	// ========= errors =========
 	error RedeemerSignerMismatch(address signer, address expected);
 	error RedeemerToMustEqualClaimer();
@@ -57,6 +61,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	event QuoteHelperUpdated(address indexed oldHelper, address indexed newHelper);
 	event UserCardUpdated(address indexed oldCard, address indexed newCard);
 	event USDCUpdated(address indexed oldUSDC, address indexed newUSDC);
+	event OpenContainerMintExecutorUpdated(address indexed oldExecutor, address indexed newExecutor);
 
 	modifier onlyAdmin() {
 		require(msg.sender == admin, "not admin");
@@ -168,6 +173,15 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		require(newUSDC != address(0), "bad usdc");
 		emit USDCUpdated(USDC, newUSDC);
 		USDC = newUSDC;
+	}
+
+	function openContainerMintExecutor() external view override returns (address) {
+		return _openContainerMintExecutor;
+	}
+
+	function setOpenContainerMintExecutor(address exec) external onlyAdmin {
+		emit OpenContainerMintExecutorUpdated(_openContainerMintExecutor, exec);
+		_openContainerMintExecutor = exec;
 	}
 
 	function getPayMasters() external view returns (address[] memory) {
@@ -331,7 +345,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	function relayContainerMainRelayed(
 		address account,
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint256 nonce_,
 		uint256 deadline_,
 		bytes calldata sig
@@ -344,7 +358,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 	function relayContainerMainRelayedOpen(
 		address account,
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint8 currencyType,
 		uint256 maxAmount,
 		uint256 nonce_,
@@ -357,11 +371,27 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		);
 	}
 
+	function relayContainerMainRelayedOpenUsdcTopupThenPoints(
+		address account,
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external onlyPayMaster {
+		require(isBeamioAccount[account], "not beamio account");
+		BeamioAccount(payable(account)).containerMainRelayedOpenUsdcTopupThenPoints(
+			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
+		);
+	}
+
 	// ✅ token 参数已移除
 	function simulateRelayOpen(
 		address account,
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint8 currencyType,
 		uint256 maxAmount,
 		uint256 nonce_,
@@ -374,12 +404,28 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		);
 	}
 
+	function simulateRelayOpenUsdcTopupThenPoints(
+		address account,
+		address pointsTo,
+		ContainerItem[] calldata items,
+		uint8 currencyType,
+		uint256 maxAmount,
+		uint256 nonce_,
+		uint256 deadline_,
+		bytes calldata sig
+	) external view returns (bool ok, string memory reason) {
+		if (!isBeamioAccount[account]) return (false, "not beamio account");
+		return BeamioAccount(payable(account)).simulateOpenContainerUsdcTopupThenPoints(
+			pointsTo, items, currencyType, maxAmount, nonce_, deadline_, sig
+		);
+	}
+
 	// ===== Redeem relays =====
 	function relayCreateRedeem(
 		address account,
 		bytes32 passwordHash,
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items,
+		ContainerItem[] calldata items,
 		uint64 expiry
 	) external onlyPayMaster {
 		require(isBeamioAccount[account], "not beamio account");
@@ -402,7 +448,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		bytes32 passwordHash,
 		uint32 totalCount,
 		uint64 expiry,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items
+		ContainerItem[] calldata items
 	) external onlyPayMaster {
 		require(isBeamioAccount[account], "not beamio account");
 		BeamioAccount(payable(account)).createFaucetPool(passwordHash, totalCount, expiry, items);
@@ -418,7 +464,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 		string calldata password,
 		address claimer,
 		address to,
-		IBeamioContainerModuleV07.ContainerItem[] calldata items
+		ContainerItem[] calldata items
 	) external onlyPayMaster {
 		require(isBeamioAccount[account], "not beamio account");
 		BeamioAccount(payable(account)).faucetRedeemPool(password, claimer, to, items);
@@ -499,7 +545,7 @@ contract BeamioFactoryPaymasterV07 is IPaymasterV07, IBeamioAccountFactoryConfig
 			// faucetRedeemPool(string, address claimer, address to, ContainerItem[])
 			(, address claimer, address to,) = abi.decode(
 				data[4:],
-				(string, address, address, IBeamioContainerModuleV07.ContainerItem[])
+				(string, address, address, ContainerItem[])
 			);
 			expectedSigner = claimer;
 			if (to != claimer) revert RedeemerToMustEqualClaimer(); // 禁止代领到第三方

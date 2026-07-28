@@ -8,7 +8,7 @@ import { ethers } from 'ethers'
 const TOP_ADMIN = process.argv[2] || '0xEb5f3F4E60D80227e1dB91D269b4F1dA35892e7b'
 const ASSET = '0x74f35741ad8bc75d873a8d7d140ae5ffb529ac0f'
 const INDEXER = '0xd990719B2f05ccab4Acdd5D7A3f7aDfd2Fc584Fe'
-const RPC = 'https://mainnet-rpc.conet.network'
+const RPC = 'https://rpc1.conet.network'
 
 const TX_PAGE_TUPLE = 'tuple(bytes32 id, bytes32 originalPaymentHash, uint256 chainId, bytes32 txCategory, string displayJson, uint64 timestamp, address payer, address payee, uint256 finalRequestAmountFiat6, uint256 finalRequestAmountUSDC6, bool isAAAccount, tuple(uint16 gasChainType, uint256 gasWei, uint256 gasUSDC6, uint256 serviceUSDC6, uint256 bServiceUSDC6, uint256 bServiceUnits6, address feePayer) fees, tuple(uint256 requestAmountFiat6, uint256 requestAmountUSDC6, uint8 currencyFiat, uint256 discountAmountFiat6, uint16 discountRateBps, uint256 taxAmountFiat6, uint16 taxRateBps, string afterNotePayer, string afterNotePayee) meta, bool exists, address topAdmin, address subordinate)'
 

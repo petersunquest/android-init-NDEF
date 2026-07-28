@@ -1,64 +1,83 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-12T23:20:14.060Z",
+  "timestamp": "2026-05-25T06:34:36.118Z",
   "existing": {
-    "beamioOracle": "0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4",
-    "beamioQuoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d"
+    "beamioOracle": "0x102E9FBE87a28BaC10ADbc0E67a2b0385C8Bd0E9",
+    "beamioQuoteHelper": "0x052e34ed096875D0F1ce58eEFb88Ed676Fd1305f"
   },
   "contracts": {
     "beamioAccountDeployer": {
-      "address": "0x466691E5499834c8695b37A4C868cEe79Ebc5526",
-      "tx": "0xa2ddbe83085cb5d95ccc2b0f282cc14b1eeb552c6e0bcf9a4b85325b86db6ee1"
+      "address": "0x79374F013864fb2D26c03f0A9daaA9B09714D43c",
+      "tx": "0xec3e33ae8107bcd44fe1e4ae9236800fb95c205878a5b63cb1d9a6ceab147f5d"
     },
     "beamioAccount": {
-      "address": "0x720e7abcD51D0A0f1f8488574c7868B9600d24e0",
+      "address": "0x459C0E9Af839693B413D728078Ef20887D6F419f",
       "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
-      "tx": "0xccacb42ec46247736b9cb750244345cead36c33204f6cda1078247e662559e9d"
+      "tx": "0x5dce33a4db9ecf26dc8a49960aab821a12a8da9b1437ba40f421a915e7f6e93f"
+    },
+    "beamioContainerModuleExternalLib": {
+      "address": "0x4093F2E3b5aefb680aF1A3EF7e9222f0DbC503e8",
+      "tx": "0x4ffe37a66d7ebe2e0650921acbb7917b9445fa791b384f23b5b849a3ad37a42a"
+    },
+    "beamioContainerModuleExternalLib2": {
+      "address": "0x4d9866D5cA7EA79F458A71498e14324b573d44Cb",
+      "tx": "0x4d09e5309d661b1dc49d81b670ac4ef3674f532d70cf0e7dcd3a829d72ec6838"
     },
     "beamioContainerModule": {
-      "address": "0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD",
-      "tx": "0x91c5528065249a1a631eb68141b7f3b0948afada94a7e2441eec144e5a9135e2"
+      "address": "0xC0bd357A12100C47FB19E1a489B4375F44D63b8F",
+      "tx": "0x0ada70d41a27e70d326b0bdb8c965cc0e4eff2e3fc1b88c69926cfd11ee091ca",
+      "linkedLibraries": {
+        "beamioContainerModuleExternalLib": "0x4093F2E3b5aefb680aF1A3EF7e9222f0DbC503e8",
+        "beamioContainerModuleExternalLib2": "0x4d9866D5cA7EA79F458A71498e14324b573d44Cb"
+      }
     },
     "beamioUserCardPlaceholder": {
-      "address": "0x0026e5ea3000f2c030f730b13C12f774A1939e1D",
-      "tx": "0x2a797221b6b3a9d6379daf9f3d5717d8a9ccd26617b4abdc4997c9eced67e79c"
+      "address": "0x65B4780efA2e2dB2FB4761dF82b16902d445Ab46",
+      "tx": "0xb93d97eab828a4f2b3e61b978367317083bcef7c54a0b4868649c40e5be2fee5"
     },
     "beamioFactoryPaymaster": {
-      "address": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
-      "deployer": "0x466691E5499834c8695b37A4C868cEe79Ebc5526",
-      "containerModule": "0xefc6Ae7C773Ff4050CD716848bCbB48508F78BcD",
-      "quoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d",
-      "userCard": "0x0026e5ea3000f2c030f730b13C12f774A1939e1D",
-      "usdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
-      "tx": "0x01b856c4a14cd9a7697c95c780e3a41569c6e3357fae28f75271f4156376a94a"
+      "address": "0x0c916C09393898D87854f340e467846cc2EAc83E",
+      "deployer": "0x79374F013864fb2D26c03f0A9daaA9B09714D43c",
+      "containerModule": "0xC0bd357A12100C47FB19E1a489B4375F44D63b8F",
+      "quoteHelper": "0x052e34ed096875D0F1ce58eEFb88Ed676Fd1305f",
+      "userCard": "0x65B4780efA2e2dB2FB4761dF82b16902d445Ab46",
+      "usdc": "0x34e437431cF8888261041C99e1D39DaA4526DeB9",
+      "tx": "0x534bf61abd0563d0b096be5c08f21fba31265f1021c68a322e8cca70fc286b65"
     },
     "redeemModule": {
-      "address": "0x03E71a400Df4F0A18Ae4dB1c6D4018a9Baf4d862",
-      "tx": "0xdc780fc0925add7fd79ae48953359bdb1482e3c89df65ce24455d07634b8f51f"
+      "address": "0x5e9d1579be29595840B304157F3C59958A94E9f6",
+      "tx": "0x408cc35fa81359fa8b9f6924c59870103939243e8f145753c94b67a93d858a19"
     },
     "beamioUserCardDeployer": {
-      "address": "0x5BEA2762417b0DF778273199131Ac1A23Cc6ed7d",
-      "tx": "0xcca1863967e79da8fea07853aab9193a7ebd2ed0e087462132fb2623675a3155"
+      "address": "0xE25deA33509c4466982942aBC3d062b08D3E840d",
+      "tx": "0xbb1c76bfd80c590329ca6c6f55919bf5b9f3a5fdb87945e1c698f112d0af0ea2"
     },
     "beamioUserCardFactoryPaymaster": {
-      "address": "0xd57eac0372aa2fbfC6625D20fA9E4a963F3F5063",
-      "usdc": "0x28fBBb6C5C06A4736B00A540b66378091c224456",
-      "redeemModule": "0x03E71a400Df4F0A18Ae4dB1c6D4018a9Baf4d862",
-      "quoteHelper": "0x2c700841f61373FB4eDBD6710ab075c84051731d",
-      "deployer": "0x5BEA2762417b0DF778273199131Ac1A23Cc6ed7d",
-      "aaFactory": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
+      "address": "0x988014d179377eA2b54A100d6d794f60d9dC517B",
+      "usdc": "0x34e437431cF8888261041C99e1D39DaA4526DeB9",
+      "redeemModule": "0x5e9d1579be29595840B304157F3C59958A94E9f6",
+      "quoteHelper": "0x052e34ed096875D0F1ce58eEFb88Ed676Fd1305f",
+      "deployer": "0xE25deA33509c4466982942aBC3d062b08D3E840d",
+      "aaFactory": "0x0c916C09393898D87854f340e467846cc2EAc83E",
       "metadataBaseURI": "https://beamio.app/api/metadata/0x",
-      "tx": "0x5d69a45243a673814f6fab717d05212943770876c1e51c87a96c995b1f616ede"
+      "tx": "0x8e064259ceb490428fe5661d0a1b718dc3cce7555ff6e57373f57705c73b350d"
     },
     "beamioUserCard": {
-      "address": "0xfF1AA6A6744C1aB9F76E8a0a09a12CD385cAB70e",
+      "address": "0x5237e3A10e26bE616A02b49cbDf38d413d4d847F",
       "uri": "https://beamio.app/api/metadata/0x",
       "currency": 4,
       "price": "1000000",
-      "gateway": "0x16B868162963C6E540d4F2fdC8BE503c19fe6E71",
-      "tx": "0x0c6468b7f84e014de0b34e653410214c8bc05a99466511d05ef11bb89de2d693"
+      "gateway": "0x0c916C09393898D87854f340e467846cc2EAc83E",
+      "tx": "0x713fb524a8b9075a0f77fce1328e7ab22da84d916cb09079bcd30999cfe30bf4"
+    },
+    "accountRegistry": {
+      "address": "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba",
+      "source": "src/mainnet/AccountRegistry.sol",
+      "tx": "0xcc96875dfc26b70f8b891fec8eea7c74c3e2b4412ddd3fabb43d1713a244238e",
+      "deployedAt": "2026-05-25T06:19:02.109Z",
+      "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
     }
   }
 }

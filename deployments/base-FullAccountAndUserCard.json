@@ -3,19 +3,39 @@
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "timestamp": "2026-02-13T23:36:00.000Z",
+  "note": "Legacy full-stack snapshot: Oracle / QuoteHelper / AA stack predates May 2026 UserCard redeploy; beamioUserCardFactoryPaymaster + beamioUserCardDeployer updated to canonical Base UserCard paths for tooling fallback.",
   "existing": {
     "beamioOracle": "0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B",
-    "beamioQuoteHelper": "0x50953EB5190ee7dabb0eA86a96364A540a834059"
+    "beamioQuoteHelper": "0xfa30c2086ff9a3D74576d55c2027586797A52F29"
   },
   "contracts": {
-    "beamioAccountDeployer": { "address": "0xC51858BcF81D0Ce05D51fAd080fCF034B187E753" },
-    "beamioAccount": { "address": "0x7FA89BEf84D5047AD9883d6f4A53dE7A0D2815f2" },
-    "beamioContainerModule": { "address": "0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8" },
-    "beamioUserCardPlaceholder": { "address": "0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D" },
-    "beamioFactoryPaymaster": { "address": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE" },
-    "redeemModule": { "address": "0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448" },
-    "beamioUserCardDeployer": { "address": "0x719DdE8C7917AF06cd66bB7e2118fa2F2eC81ED9" },
-    "beamioUserCardFactoryPaymaster": { "address": "0x19C000c00e6A2b254b39d16797930431E310BEdd" },
-    "beamioUserCard": { "address": "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270" }
+    "beamioAccountDeployer": {
+      "address": "0xC51858BcF81D0Ce05D51fAd080fCF034B187E753"
+    },
+    "beamioAccount": {
+      "address": "0x7FA89BEf84D5047AD9883d6f4A53dE7A0D2815f2"
+    },
+    "beamioContainerModule": {
+      "address": "0xF50e41dFB647F8a62F3DBAf8f3Fcb39d74C7c9C8"
+    },
+    "beamioUserCardPlaceholder": {
+      "address": "0xE0d05CfB12a1DfE04Fb9b4ba583D306691e9313D"
+    },
+    "beamioFactoryPaymaster": {
+      "address": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
+      "quoteHelper": "0xfa30c2086ff9a3D74576d55c2027586797A52F29"
+    },
+    "redeemModule": {
+      "address": "0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448"
+    },
+    "beamioUserCardDeployer": {
+      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32"
+    },
+    "beamioUserCardFactoryPaymaster": {
+      "address": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52"
+    },
+    "beamioUserCard": {
+      "address": "0xBCcfA50d2a5917C7A8662177F5F4B7A175787270"
+    }
   }
 }

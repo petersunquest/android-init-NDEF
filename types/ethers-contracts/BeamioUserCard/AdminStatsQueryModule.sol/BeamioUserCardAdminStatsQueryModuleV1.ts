@@ -36,36 +36,57 @@ export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
     export type AdminStatsFullViewStructOutput = [cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, mintCounterFromClear: bigint, burnCounterFromClear: bigint, transferCounterFromClear: bigint, transferAmountFromClear: bigint, redeemMintCounterFromClear: bigint, usdcMintCounterFromClear: bigint, subordinates: string[]] & {cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, mintCounterFromClear: bigint, burnCounterFromClear: bigint, transferCounterFromClear: bigint, transferAmountFromClear: bigint, redeemMintCounterFromClear: bigint, usdcMintCounterFromClear: bigint, subordinates: string[] }
   
 
-    export type GlobalStatsFullViewStruct = {cumulativeMint: BigNumberish, cumulativeBurn: BigNumberish, cumulativeTransfer: BigNumberish, cumulativeTransferAmount: BigNumberish, cumulativeRedeemMint: BigNumberish, cumulativeUSDCMint: BigNumberish, cumulativeIssued: BigNumberish, cumulativeUpgraded: BigNumberish, periodMint: BigNumberish, periodBurn: BigNumberish, periodTransfer: BigNumberish, periodTransferAmount: BigNumberish, periodRedeemMint: BigNumberish, periodUSDCMint: BigNumberish, periodIssued: BigNumberish, periodUpgraded: BigNumberish, adminCount: BigNumberish}
+    export type GlobalAdminToAdminHourlyViewStruct = {transferCount: BigNumberish, transferAmount: BigNumberish, hasData: boolean}
 
-    export type GlobalStatsFullViewStructOutput = [cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, adminCount: bigint] & {cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, adminCount: bigint }
+    export type GlobalAdminToAdminHourlyViewStructOutput = [transferCount: bigint, transferAmount: bigint, hasData: boolean] & {transferCount: bigint, transferAmount: bigint, hasData: boolean }
+  
+
+    export type GlobalStatsFullViewStruct = {cumulativeMint: BigNumberish, cumulativeBurn: BigNumberish, cumulativeTransfer: BigNumberish, cumulativeTransferAmount: BigNumberish, cumulativeRedeemMint: BigNumberish, cumulativeUSDCMint: BigNumberish, cumulativeIssued: BigNumberish, cumulativeUpgraded: BigNumberish, periodMint: BigNumberish, periodBurn: BigNumberish, periodTransfer: BigNumberish, periodTransferAmount: BigNumberish, periodRedeemMint: BigNumberish, periodUSDCMint: BigNumberish, periodIssued: BigNumberish, periodUpgraded: BigNumberish, adminCount: BigNumberish, cumulativeAdminToAdminTransfer: BigNumberish, cumulativeAdminToAdminTransferAmount: BigNumberish, periodAdminToAdminTransfer: BigNumberish, periodAdminToAdminTransferAmount: BigNumberish, lifetimeAdminToAdminTransferCount: BigNumberish, lifetimeAdminToAdminTransferAmount: BigNumberish}
+
+    export type GlobalStatsFullViewStructOutput = [cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, adminCount: bigint, cumulativeAdminToAdminTransfer: bigint, cumulativeAdminToAdminTransferAmount: bigint, periodAdminToAdminTransfer: bigint, periodAdminToAdminTransferAmount: bigint, lifetimeAdminToAdminTransferCount: bigint, lifetimeAdminToAdminTransferAmount: bigint] & {cumulativeMint: bigint, cumulativeBurn: bigint, cumulativeTransfer: bigint, cumulativeTransferAmount: bigint, cumulativeRedeemMint: bigint, cumulativeUSDCMint: bigint, cumulativeIssued: bigint, cumulativeUpgraded: bigint, periodMint: bigint, periodBurn: bigint, periodTransfer: bigint, periodTransferAmount: bigint, periodRedeemMint: bigint, periodUSDCMint: bigint, periodIssued: bigint, periodUpgraded: bigint, adminCount: bigint, cumulativeAdminToAdminTransfer: bigint, cumulativeAdminToAdminTransferAmount: bigint, periodAdminToAdminTransfer: bigint, periodAdminToAdminTransferAmount: bigint, lifetimeAdminToAdminTransferCount: bigint, lifetimeAdminToAdminTransferAmount: bigint }
   
     }
 
   export interface BeamioUserCardAdminStatsQueryModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminPeriodReports" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getGlobalStatsFull" | "selectorModuleKind"): FunctionFragment;
+    getFunction(nameOrSignature: "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminBurnCounter" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminMintCounter" | "getAdminPeriodReports" | "getAdminRedeemMintCounter" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getGlobalAdminToAdminCounters" | "getGlobalAdminToAdminHourlyData" | "getGlobalStatsFull" | "selectorModuleKind"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'getAdminAirdropLimit', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAdminAndSubordinateLimits', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAdminAndSubordinateLimitsPage', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminBurnCounter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAdminHourlyData', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminListWithMetadata', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getAdminMintCounter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAdminPeriodReports', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getAdminRedeemMintCounter', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'getAdminStatsFull', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getAdminSubordinatesWithMetadata', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminTransferAmountCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminTransferCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getAdminUSDCMintCounter', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'getGlobalAdminToAdminCounters', values?: undefined): string;
+encodeFunctionData(functionFragment: 'getGlobalAdminToAdminHourlyData', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getGlobalStatsFull', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'selectorModuleKind', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'getAdminAirdropLimit', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminAndSubordinateLimits', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminAndSubordinateLimitsPage', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminBurnCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminHourlyData', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminListWithMetadata', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminPeriodReports', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminRedeemMintCounter', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminStatsFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getAdminSubordinatesWithMetadata', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminTransferAmountCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminTransferCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getAdminUSDCMintCounter', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getGlobalAdminToAdminCounters', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getGlobalAdminToAdminHourlyData', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getGlobalStatsFull', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'selectorModuleKind', data: BytesLike): Result;
   }
@@ -130,6 +151,14 @@ decodeFunctionResult(functionFragment: 'selectorModuleKind', data: BytesLike): R
     
 
     
+    getAdminBurnCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getAdminHourlyData: TypedContractMethod<
       [admin: AddressLike, hourIndex: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminHourlyDataViewStructOutput],
@@ -146,9 +175,25 @@ decodeFunctionResult(functionFragment: 'selectorModuleKind', data: BytesLike): R
     
 
     
+    getAdminMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     getAdminPeriodReports: TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminPeriodReportsViewStructOutput],
+      'view'
+    >
+    
+
+    
+    getAdminRedeemMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
       'view'
     >
     
@@ -165,6 +210,46 @@ decodeFunctionResult(functionFragment: 'selectorModuleKind', data: BytesLike): R
     getAdminSubordinatesWithMetadata: TypedContractMethod<
       [admin: AddressLike, ],
       [[string[], string[], string[]] & {subordinates: string[], metadatas: string[], parents: string[] }],
+      'view'
+    >
+    
+
+    
+    getAdminTransferAmountCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminTransferCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getAdminUSDCMintCounter: TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    getGlobalAdminToAdminCounters: TypedContractMethod<
+      [],
+      [[bigint, bigint] & {transferCount: bigint, transferAmount: bigint }],
+      'view'
+    >
+    
+
+    
+    getGlobalAdminToAdminHourlyData: TypedContractMethod<
+      [hourIndex: BigNumberish, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.GlobalAdminToAdminHourlyViewStructOutput],
       'view'
     >
     
@@ -203,6 +288,11 @@ getFunction(nameOrSignature: 'getAdminAndSubordinateLimitsPage'): TypedContractM
       [BeamioUserCardAdminStatsQueryModuleV1.AdminAirdropLimitPageViewStructOutput],
       'view'
     >;
+getFunction(nameOrSignature: 'getAdminBurnCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getAdminHourlyData'): TypedContractMethod<
       [admin: AddressLike, hourIndex: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminHourlyDataViewStructOutput],
@@ -213,9 +303,19 @@ getFunction(nameOrSignature: 'getAdminListWithMetadata'): TypedContractMethod<
       [[string[], string[], string[]] & {admins: string[], metadatas: string[], parents: string[] }],
       'view'
     >;
+getFunction(nameOrSignature: 'getAdminMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getAdminPeriodReports'): TypedContractMethod<
       [admin: AddressLike, periodType: BigNumberish, periods: BigNumberish, anchorTs: BigNumberish, ],
       [BeamioUserCardAdminStatsQueryModuleV1.AdminPeriodReportsViewStructOutput],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminRedeemMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'getAdminStatsFull'): TypedContractMethod<
@@ -226,6 +326,31 @@ getFunction(nameOrSignature: 'getAdminStatsFull'): TypedContractMethod<
 getFunction(nameOrSignature: 'getAdminSubordinatesWithMetadata'): TypedContractMethod<
       [admin: AddressLike, ],
       [[string[], string[], string[]] & {subordinates: string[], metadatas: string[], parents: string[] }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminTransferAmountCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminTransferCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getAdminUSDCMintCounter'): TypedContractMethod<
+      [admin: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getGlobalAdminToAdminCounters'): TypedContractMethod<
+      [],
+      [[bigint, bigint] & {transferCount: bigint, transferAmount: bigint }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'getGlobalAdminToAdminHourlyData'): TypedContractMethod<
+      [hourIndex: BigNumberish, ],
+      [BeamioUserCardAdminStatsQueryModuleV1.GlobalAdminToAdminHourlyViewStructOutput],
       'view'
     >;
 getFunction(nameOrSignature: 'getGlobalStatsFull'): TypedContractMethod<

@@ -1,11 +1,11 @@
 {
   "network": "conet",
-  "chainId": "224400",
+  "chainId": "224422",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "timestamp": "2026-03-04T03:54:37.812Z",
+  "timestamp": "2026-05-25T06:50:20.432Z",
   "contracts": {
     "GuardianNodesInfoV6": {
-      "address": "0xbA809557d5D32135E84463F2d86807d69Ca66C88"
+      "address": "0x359F781A5eEb17630A44e15Bc2aC57b248b81790"
     }
   }
 }

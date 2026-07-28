@@ -21,34 +21,34 @@
 
 ---
 
-## 2. BeamioUserCardFactoryPaymasterV07
+## 2. BeamioUserCardFactoryPaymasterV07（当前 canonical / DEBUG 工厂）
 
 | 项目 | 值 |
 |------|-----|
-| **地址** | 0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a |
+| **地址** | 0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 |
 | **Contract Name** | project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07 |
 | **Compiler** | v0.8.33 |
 | **Constructor args** | 见下方 |
-| **Standard JSON** | deployments/base-UserCardFactory-standard-input.min.json |
+| **Standard JSON** | deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json（推荐 via-IR 全量） |
 
 **Constructor 参数** (按顺序):
 1. usdcToken_: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-2. redeemModule_: 0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2
+2. redeemModule_: 0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6
 3. quoteHelper_: 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF
-4. deployer_: 0xA6a824cA25E0cd95EEB98f2b8a911396f6672685
-5. aaFactory_: 0xD86403DD1755F7add19540489Ea10cdE876Cc1CE
+4. deployer_: 0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32
+5. aaFactory_: 0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
 6. initialOwner: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
 
 **ABI-encoded constructor args** (用于 BaseScan 验证):
 ```
-000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda029130000000000000000000000000973c5fbf8ca88c31e416e2d39aff4d52e47398e2000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff000000000000000000000000a6a824ca25e0cd95eeb98f2b8a911396f6672685000000000000000000000000d86403dd1755f7add19540489ea10cde876cc1ce00000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
+000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda0291300000000000000000000000017db9029ded9d5f4e4cf819d3e8ec742cf0c79e6000000000000000000000000291bdb7044b3c31e62cb07a47fe48d4835954fff0000000000000000000000002e8b1fac17439d03756fe63f930ce9dc3479ac320000000000000000000000004b31d6a05cdc817cac1b06369555b37a5b18212200000000000000000000000087caed4e51c36a2c2ece3aaf4ddac9693d2405e1
 ```
 
 **验证步骤**：
-1. 打开 https://basescan.org/address/0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a#code
+1. 打开 https://basescan.org/address/0x52cc9E977Ca3EA33c69383a41F87f32a71140A52#code
 2. 点击 "Verify and Publish"
 3. 选择 "Solidity (Standard-Json-Input)"
-4. 上传 `deployments/base-UserCardFactory-standard-input.min.json`
+4. 上传 `deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json`
 5. Compiler: v0.8.33+commit.xxx
 6. Contract Name: `project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07`
 7. Constructor Arguments (ABI-encoded): 粘贴上方 hex 字符串
@@ -61,13 +61,13 @@
 # GovernanceModule（无 constructor args）
 npx hardhat verify --network base 0x5c56536e833d0bfCC5BF575B3566edbE61987eAD
 
-# Factory（需 constructor args）
-npx hardhat verify --network base 0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a \
+# Factory（当前 canonical；需 constructor args）
+npx hardhat verify --network base 0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 \
   "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" \
-  "0x973c5Fbf8ca88c31e416e2D39aff4d52E47398e2" \
+  "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6" \
   "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF" \
-  "0xA6a824cA25E0cd95EEB98f2b8a911396f6672685" \
-  "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE" \
+  "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32" \
+  "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122" \
   "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
 ```
 

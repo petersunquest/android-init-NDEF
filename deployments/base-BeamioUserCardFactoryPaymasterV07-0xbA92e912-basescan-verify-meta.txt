@@ -1,0 +1,42 @@
+# BaseScan verification — BeamioUserCardFactoryPaymasterV07 (executeForAdmin whitelist includes burnIssuedNftByGateway)
+
+Deployed: https://basescan.org/address/0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B
+Network: Base (chainId 8453)
+
+## Contract Name
+
+project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol:BeamioUserCardFactoryPaymasterV07
+
+## Standard JSON input (FULL, via-IR)
+
+deployments/base-BeamioUserCardFactoryPaymasterV07-standard-input-FULL.json
+
+Regenerate:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
+
+## Constructor arguments (deployed tx)
+
+1) usdcToken_      = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+2) redeemModule_   = 0x9566ce3B07d5DB5d8c63a93179A541C8b2f11448
+3) quoteHelper_    = 0xfa30c2086ff9a3D74576d55c2027586797A52F29
+4) deployer_       = 0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32
+5) aaFactory_      = 0x4b31D6a05Cdc817CAc1B06369555b37a5b182122
+6) initialOwner    = 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+
+## Post-deploy owner configuration
+
+- setQuoteHelper(0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF)
+- setRedeemModule(0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6)
+- setIssuedNftModule(0x6563d3A8c876469946b42B8d57Ac01577a5534A2)
+- setFaucetModule(0xb84d74E08Ea519ffCFBD8F8c5D988943e3a82a0F)
+- setGovernanceModule(0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41)
+- setMembershipStatsModule(0xbf2e5F463dF31FD483faA738FB05d9ffb17031c0)
+- setAdminStatsQueryModule(0xe34C33B4d0daC52E3853d721d058Db84df218976)
+- setMetadataBaseURI("https://beamio.app/api/metadata/0x")
+- BeamioUserCardDeployerV07.setFactory(0xbA92e9122CDff1e8dD817eE55BCe7C7f6c9bFc9B)
+
+## Change note
+
+`executeForAdmin` whitelist now includes selector:
+`burnIssuedNftByGateway(address,uint256,uint256)`.

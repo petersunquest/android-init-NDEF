@@ -7,7 +7,7 @@
  * 3. 部署新的 BeamioFactoryPaymasterV07（字节码内含修复后的 BeamioAccount）
  * 4. 调用 newDeployer.setFactory(newFactoryAddress)
  * 5. 写回 deployments/base-FactoryAndModule.json
- * 6. 更新 config/base-addresses.ts 中的 AA_FACTORY
+ * 6. 更新 config/base-addresses.json 中的 AA_FACTORY，并同步 x402sdk / BASE_MAINNET_FACTORIES.md
  * 7. 若设置了 CARD_FACTORY_ADDRESS 且 CARD_FACTORY_OWNER_PK 存在，则调用 setAAFactory
  *
  * 用法：
@@ -20,8 +20,12 @@
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
+import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { execSync } from "child_process";
+import { getAddress, ethers as ethersLib, type Signer } from "ethers";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,24 +35,39 @@ const DEPLOYMENTS_DIR = path.join(__dirname, "..", "deployments");
 const DEPLOYMENT_FILE = path.join(DEPLOYMENTS_DIR, "base-FactoryAndModule.json");
 const FULL_ACCOUNT_FILE = path.join(DEPLOYMENTS_DIR, "base-FullAccountAndUserCard.json");
 
-/** 当前 Base 主网 Card Factory，写入 config 时保持不改；与 config/base-addresses.ts 一致 */
+/** 当前 Base 主网 Card Factory；与 config / base-UserCardFactory.json / FullAccount 回退顺序一致 */
 function getCardFactoryForConfig(): string {
-  if (process.env.CARD_FACTORY_ADDRESS) return process.env.CARD_FACTORY_ADDRESS;
-  if (fs.existsSync(FULL_ACCOUNT_FILE)) {
-    const data = JSON.parse(fs.readFileSync(FULL_ACCOUNT_FILE, "utf-8"));
-    const addr = data.contracts?.beamioUserCardFactoryPaymaster?.address;
-    if (addr) return addr;
+  return resolveBaseCardFactoryAddress(DEPLOYMENTS_DIR);
+}
+
+function loadSignerPk(): string {
+  if (process.env.PRIVATE_KEY?.trim()) {
+    const pk = process.env.PRIVATE_KEY.trim();
+    return pk.startsWith("0x") ? pk : `0x${pk}`;
   }
-  if (fs.existsSync(CONFIG_JSON_PATH)) {
-    const data = JSON.parse(fs.readFileSync(CONFIG_JSON_PATH, "utf-8"));
-    if (data.CARD_FACTORY) return data.CARD_FACTORY;
+  const setupPath = path.join(homedir(), ".master.json");
+  if (!fs.existsSync(setupPath)) {
+    throw new Error("未找到 PRIVATE_KEY，且 ~/.master.json 不存在");
   }
-  return "0x2F45f38f2B6EF97b606ec2557E237529e8db9281";
+  const data = JSON.parse(fs.readFileSync(setupPath, "utf-8"));
+  const pk = data?.settle_contractAdmin?.[0];
+  if (!pk || typeof pk !== "string") {
+    throw new Error("未找到 PRIVATE_KEY，且 ~/.master.json 缺少 settle_contractAdmin[0]");
+  }
+  return pk.startsWith("0x") ? pk : `0x${pk}`;
 }
 
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [signer] = await ethers.getSigners();
+  let deployer: Signer;
+  const signers = await ethers.getSigners();
+  if (signers.length > 0) {
+    deployer = signers[0];
+  } else {
+    const pk = loadSignerPk();
+    deployer = new ethersLib.NonceManager(new ethersLib.Wallet(pk, ethers.provider));
+  }
+  const deployerAddress = await deployer.getAddress();
   const networkInfo = await ethers.provider.getNetwork();
   const networkName = networkInfo.name;
 
@@ -60,8 +79,8 @@ async function main() {
   console.log("重新部署 AA Factory 并更新配置");
   console.log("=".repeat(60));
   console.log("网络:", networkName);
-  console.log("部署账户:", signer.address);
-  console.log("余额:", ethers.formatEther(await ethers.provider.getBalance(signer.address)), "ETH\n");
+  console.log("部署账户:", deployerAddress);
+  console.log("余额:", ethers.formatEther(await ethers.provider.getBalance(deployerAddress)), "ETH\n");
 
   // 读取现有依赖（Base）
   if (!fs.existsSync(DEPLOYMENT_FILE)) {
@@ -71,9 +90,18 @@ async function main() {
   const oldFactory = existing.contracts?.beamioFactoryPaymaster;
   const CONTAINER_MODULE_ADDRESS =
     process.env.CONTAINER_MODULE_ADDRESS || existing.contracts?.beamioContainerModule?.address;
-  const QUOTE_HELPER_ADDRESS =
+  let QUOTE_HELPER_ADDRESS =
     process.env.QUOTE_HELPER_ADDRESS || oldFactory?.quoteHelper;
-  const USER_CARD_ADDRESS = process.env.USER_CARD_ADDRESS || oldFactory?.userCard;
+  let USER_CARD_ADDRESS = process.env.USER_CARD_ADDRESS || oldFactory?.userCard;
+  if (fs.existsSync(FULL_ACCOUNT_FILE)) {
+    const fa = JSON.parse(fs.readFileSync(FULL_ACCOUNT_FILE, "utf-8"));
+    if (!QUOTE_HELPER_ADDRESS && fa.existing?.beamioQuoteHelper) {
+      QUOTE_HELPER_ADDRESS = fa.existing.beamioQuoteHelper;
+    }
+    if (!USER_CARD_ADDRESS && fa.contracts?.beamioUserCard?.address) {
+      USER_CARD_ADDRESS = fa.contracts.beamioUserCard.address;
+    }
+  }
   const chainId = Number(networkInfo.chainId);
   const USDC_ADDRESS =
     process.env.USDC_ADDRESS ||
@@ -97,7 +125,7 @@ async function main() {
   // 1. 部署新 Deployer
   console.log("1. 部署 BeamioAccountDeployer...");
   const DeployerFactory = await ethers.getContractFactory("BeamioAccountDeployer");
-  const newDeployer = await DeployerFactory.deploy();
+  const newDeployer = await DeployerFactory.connect(deployer).deploy();
   await newDeployer.waitForDeployment();
   const newDeployerAddress = await newDeployer.getAddress();
   console.log("   新 Deployer:", newDeployerAddress);
@@ -107,7 +135,7 @@ async function main() {
   // 等待 Deployer 交易确认
   await new Promise(resolve => setTimeout(resolve, 5000));
   const FactoryFactory = await ethers.getContractFactory("BeamioFactoryPaymasterV07");
-  const deployTx = await FactoryFactory.deploy(
+  const deployTx = await FactoryFactory.connect(deployer).deploy(
     INITIAL_ACCOUNT_LIMIT,
     newDeployerAddress,
     CONTAINER_MODULE_ADDRESS,
@@ -122,7 +150,7 @@ async function main() {
 
   // 3. 绑定 Deployer -> Factory
   console.log("3. 设置 Deployer.factory = 新 Factory...");
-  const setFactoryTx = await newDeployer.setFactory(newFactoryAddress);
+  const setFactoryTx = await newDeployer.connect(deployer).setFactory(newFactoryAddress);
   await setFactoryTx.wait();
   console.log("   已设置");
 
@@ -130,7 +158,7 @@ async function main() {
   const deploymentInfo = {
     network: networkName,
     chainId: networkInfo.chainId.toString(),
-    deployer: signer.address,
+    deployer: deployerAddress,
     timestamp: new Date().toISOString(),
     contracts: {
       beamioContainerModule: existing.contracts?.beamioContainerModule || { address: CONTAINER_MODULE_ADDRESS },
@@ -159,11 +187,40 @@ async function main() {
   if (fs.existsSync(jsonPath)) {
     baseJson = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
   }
-  baseJson.AA_FACTORY = newFactoryAddress;
+  baseJson.AA_FACTORY = getAddress(newFactoryAddress);
   baseJson.CARD_FACTORY = baseJson.CARD_FACTORY ?? process.env.CARD_FACTORY_ADDRESS ?? getCardFactoryForConfig();
   baseJson.BASE_MAINNET_CHAIN_ID = baseJson.BASE_MAINNET_CHAIN_ID ?? 8453;
   fs.writeFileSync(jsonPath, JSON.stringify(baseJson, null, 2));
   console.log("   已更新 config/base-addresses.json（全局配置，各模块自动生效）");
+  try {
+    execSync("node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+  } catch {
+    console.warn("   ⚠️  同步 x402sdk chainAddresses 失败，请手动: node scripts/syncBaseAddressesJsonToX402sdkChainAddresses.mjs");
+  }
+  try {
+    execSync("node scripts/syncBeamioAccountToX402sdk.mjs", {
+      cwd: path.join(__dirname, ".."),
+      stdio: "inherit",
+    });
+    console.log("   已同步 BeamioAccount artifact -> x402sdk");
+  } catch {
+    console.warn("   ⚠️  同步 BeamioAccount artifact 失败，请执行: npm run compile && npm run sync:beamio-account-x402sdk");
+  }
+
+  if (chainId === 8453) {
+    try {
+      execSync("node scripts/writeBaseMainnetFactoriesMd.mjs", {
+        cwd: path.join(__dirname, ".."),
+        stdio: "inherit",
+      });
+      console.log("   已更新 deployments/BASE_MAINNET_FACTORIES.md");
+    } catch {
+      console.warn("   ⚠️  跳过 BASE_MAINNET_FACTORIES.md（需 config 含 AA_FACTORY 与 CARD_FACTORY）");
+    }
+  }
 
   // 6. 可选：Card Factory setAAFactory
   const CARD_FACTORY_ADDRESS =

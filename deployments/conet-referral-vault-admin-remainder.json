@@ -1,0 +1,20 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "vaultProxy": "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6",
+  "previousImpl": "0xa91c7640a735B82971D95bb1Ec109b0eA0a59d03",
+  "implementation": "0x1a031844F436aa4eb1249843429f807B00f26D33",
+  "libraryLinks": {
+    "ReferralRegistryPackageClaimLib": "0x4ca10B298F496001c5E3b52e448fc52f9229F021",
+    "ReferralRegistrySettlementLib": "0xD2E9814D17E0A6df180ee1A5Cf862Fd2C374fF16"
+  },
+  "upgradeTx": "0x4cec1e23bcf9deb26ee5d6f3b937fb2165f2c58d1c3b2233432d3d75b208e279",
+  "upgradeBlock": 564397,
+  "semantics": "onPaidBUnitConsumed: mint USDC → pay L0/L1 rebate (rebateBps, e.g. 30%) → remainder to members[l0].parentAdmin EOA",
+  "verified": {
+    "SettlementLib": "https://mainnet.conet.network/address/0xD2E9814D17E0A6df180ee1A5Cf862Fd2C374fF16#code",
+    "PackageClaimLib": "https://mainnet.conet.network/address/0x4ca10B298F496001c5E3b52e448fc52f9229F021#code",
+    "VaultImpl": "https://mainnet.conet.network/address/0x1a031844F436aa4eb1249843429f807B00f26D33#code"
+  },
+  "timestamp": "2026-07-26T15:24:01.744Z"
+}

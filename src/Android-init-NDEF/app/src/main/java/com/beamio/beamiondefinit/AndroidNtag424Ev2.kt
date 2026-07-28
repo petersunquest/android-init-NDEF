@@ -590,7 +590,8 @@ class AndroidNtag424Ev2(
     @Throws(Exception::class)
     fun patchSdmFileSettingsFromLiveNdef(
         fileNo: Int,
-        expectedEncHexLen: Int
+        expectedEncHexLen: Int,
+        preserveAccessRights: Boolean = true
     ): ByteArray {
         val fileBytes = readDataPlain(fileNo, 0, 300)
         val rawSettings = getFileSettingsPlain(fileNo)
@@ -600,7 +601,7 @@ class AndroidNtag424Ev2(
             expectedEncHexLen = expectedEncHexLen
         )
 
-        return patchFileSettingsRaw(rawSettings, offsets)
+        return patchFileSettingsRaw(rawSettings, offsets, preserveAccessRights = preserveAccessRights)
     }
 
     data class SdmOffsets(
@@ -676,13 +677,20 @@ class AndroidNtag424Ev2(
         return -1
     }
 
-    private fun patchFileSettingsRaw(raw: ByteArray, offsets: SdmOffsets): ByteArray {
+    private fun patchFileSettingsRaw(
+        raw: ByteArray,
+        offsets: SdmOffsets,
+        preserveAccessRights: Boolean = true
+    ): ByteArray {
         require(raw.size >= 7) { "Unexpected FileSettings layout" }
 
         val preservedCommMode = raw[1].toInt() and 0x03
         val fileOption = preservedCommMode or 0x40
-        val perm2 = raw[2]
-        val perm1 = raw[3]
+        // Match [buildBeamioCompactSdmSettings] defaults: change/read/write via key 0, read open.
+        val provisionAccess0 = (((0x00 and 0x0F) shl 4) or (0x00 and 0x0F)).toByte()
+        val provisionAccess1 = (((0x0E and 0x0F) shl 4) or (0x00 and 0x0F)).toByte()
+        val perm2 = if (preserveAccessRights) raw[2] else provisionAccess0
+        val perm1 = if (preserveAccessRights) raw[3] else provisionAccess1
         val sdmOptions = 0x51
         val sdmRights2 = 0xFF
         val sdmRights1 = 0xE2
@@ -700,6 +708,24 @@ class AndroidNtag424Ev2(
             le3(offsets.encOffset) +
             le3(offsets.encLen) +
             le3(offsets.macOffset)
+    }
+
+    /**
+     * Build ChangeFileSettings payload from a live [getFileSettingsPlain] snapshot plus SDM offsets
+     * derived from the prepared NDEF bytes on card. Preserves low FileOption bits from [rawSettings];
+     * with [preserveAccessRights] false (default for provisioning), uses the same access rights as
+     * [buildBeamioCompactSdmSettings] so ChangeFileSettings is authorized with key 0 (factory AR may
+     * require key 2 for change → 0x91AE when authenticated as key 0).
+     */
+    fun buildBeamioSdmFileSettingsFromRawSettings(
+        rawSettings: ByteArray,
+        preparedNdefBytes: ByteArray,
+        expectedEncHexLen: Int = 64,
+        preserveAccessRights: Boolean = false
+    ): ByteArray {
+        require(rawSettings.size >= 7) { "GetFileSettings payload too short: ${rawSettings.size}" }
+        val offsets = computeOffsetsFromNdefFileBytes(preparedNdefBytes, expectedEncHexLen)
+        return patchFileSettingsRaw(rawSettings, offsets, preserveAccessRights = preserveAccessRights)
     }
 
     private fun putLe3(buf: ByteArray, idx: Int, v: Int) {

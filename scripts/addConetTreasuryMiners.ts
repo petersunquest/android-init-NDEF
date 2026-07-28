@@ -1,66 +1,108 @@
 /**
- * Add specific miners to ConetTreasury.
+ * Add DePIN node wallets as Treasury V3 miners on the same proxy address
+ * (Base 8453 + CoNET 224422): 0xa208982212978550594A7FEEB70a61665d129003
  *
- * Addresses to add:
- * - 0x6bF3Aa7261e21Be5Fc781Ac09F9475c8A34AfEea
- * - 0xcbBB1371973D57e6bD45aC0dfeFD493b59F9D76B
+ * Default targets = GuardianNodesInfoV6 owners for SI Cluster #100–#102:
+ *   #100 217.160.189.159 → 0xcbBB1371973D57e6bD45aC0dfeFD493b59F9D76B
+ *   #101 93.93.112.187   → 0x6bF3Aa7261e21Be5Fc781Ac09F9475c8A34AfEea
+ *   #102 82.165.208.58   → 0xe2E7A68E3D1e50F0Af15d713F90f4992CD19Dfc8
  *
- * Run: npx hardhat run scripts/addConetTreasuryMiners.ts --network conet
- * Requires: signer must be an existing miner (e.g. deployer 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1)
+ * Override: ADD_MINERS=0x1,0x2
+ * Treasury: TREASURY_V3_ADDRESS / CONET_TREASURY / BASE_TREASURY
+ *
+ * Run (signer must already be miner, e.g. 0x87cA…):
+ *   npx hardhat run scripts/addConetTreasuryMiners.ts --network conet
+ *   PRIVATE_KEY=... npx hardhat run scripts/addConetTreasuryMiners.ts --network base
  */
 
 import { network as networkModule } from "hardhat";
-import * as fs from "fs";
-import * as path from "path";
 import { fileURLToPath } from "url";
+import * as path from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const MINERS_TO_ADD = [
-  "0x6bF3Aa7261e21Be5Fc781Ac09F9475c8A34AfEea",
-  "0xcbBB1371973D57e6bD45aC0dfeFD493b59F9D76B",
+/** CREATE2 same-address Treasury V3 proxy (Base + CoNET) */
+const TREASURY_V3_PROXY = "0xa208982212978550594A7FEEB70a61665d129003";
+
+/** SI Cluster NEW.sh #100–#102 → Guardian ipaddress2owner */
+const DEFAULT_MINERS_TO_ADD = [
+  "0xcbBB1371973D57e6bD45aC0dfeFD493b59F9D76B", // #100 217.160.189.159
+  "0x6bF3Aa7261e21Be5Fc781Ac09F9475c8A34AfEea", // #101 93.93.112.187
+  "0xe2E7A68E3D1e50F0Af15d713F90f4992CD19Dfc8", // #102 82.165.208.58
 ] as const;
 
-function getConetTreasuryAddress(): string {
-  const env = process.env.CONET_TREASURY;
-  if (env) return env;
-  const deployPath = path.join(__dirname, "..", "deployments", "conet-ConetTreasury.json");
-  if (fs.existsSync(deployPath)) {
-    const d = JSON.parse(fs.readFileSync(deployPath, "utf-8"));
-    return d?.contracts?.ConetTreasury?.address || "";
+const TREASURY_ABI = [
+  "function addMiner(address miner) external",
+  "function isMiner(address account) view returns (bool)",
+  "function miners() view returns (address[])",
+  "function minerCount() view returns (uint256)",
+  "function requiredVotes() view returns (uint256)",
+] as const;
+
+function getTreasuryAddress(): string {
+  return (
+    process.env.CONET_TREASURY ||
+    process.env.BASE_TREASURY ||
+    TREASURY_V3_PROXY
+  );
+}
+
+function minersToAdd(): string[] {
+  const env = process.env.ADD_MINERS;
+  if (env?.trim()) {
+    return env.split(",").map((a) => a.trim()).filter(Boolean);
   }
-  throw new Error("ConetTreasury address not found. Set CONET_TREASURY or ensure deployments/conet-ConetTreasury.json exists");
+  return [...DEFAULT_MINERS_TO_ADD];
 }
 
 async function main() {
   const { ethers } = await networkModule.connect();
   const [signer] = await ethers.getSigners();
-  const treasuryAddress = getConetTreasuryAddress();
+  if (!signer) {
+    throw new Error("No signer. Set PRIVATE_KEY (base) or ~/.master.json settle_contractAdmin (conet).");
+  }
 
-  const treasury = await ethers.getContractAt("ConetTreasury", treasuryAddress);
-  const miners = await treasury.getMiners();
+  const treasuryAddress = getTreasuryAddress();
+  const network = await ethers.provider.getNetwork();
+  const treasury = new ethers.Contract(treasuryAddress, TREASURY_ABI, signer);
 
-  console.log("ConetTreasury:", treasuryAddress);
-  console.log("Signer:", signer.address);
-  console.log("Current miners:", miners);
+  const minerCount = await treasury.minerCount();
+  const requiredVotes = await treasury.requiredVotes();
+  const miners: string[] = await treasury.miners();
+  const minersLower = new Set(miners.map((a) => a.toLowerCase()));
+
+  console.log("=".repeat(60));
+  console.log("addMiner → ConetTreasury CREATE2");
+  console.log("=".repeat(60));
+  console.log("network:", network.name, "chainId=", network.chainId.toString());
+  console.log("treasury:", treasuryAddress);
+  console.log("signer:", signer.address);
+  console.log("minerCount:", minerCount.toString(), "requiredVotes:", requiredVotes.toString());
+  console.log("current miners:", miners);
 
   const isMiner = await treasury.isMiner(signer.address);
   if (!isMiner) {
     throw new Error(`Signer ${signer.address} is not a miner. Cannot call addMiner.`);
   }
 
-  for (const addr of MINERS_TO_ADD) {
-    if (miners.includes(addr)) {
+  const toAdd = minersToAdd().map((a) => ethers.getAddress(a));
+  for (const addr of toAdd) {
+    if (minersLower.has(addr.toLowerCase())) {
       console.log(`Skip ${addr} (already miner)`);
       continue;
     }
     const tx = await treasury.addMiner(addr);
-    await tx.wait();
     console.log(`addMiner(${addr}) tx: ${tx.hash}`);
+    await tx.wait();
+    console.log(`  confirmed`);
+    minersLower.add(addr.toLowerCase());
   }
 
-  const updatedMiners = await treasury.getMiners();
+  const updatedMiners: string[] = await treasury.miners();
+  const updatedCount = await treasury.minerCount();
+  const updatedRequired = await treasury.requiredVotes();
+  console.log("Updated minerCount:", updatedCount.toString(), "requiredVotes:", updatedRequired.toString());
   console.log("Updated miners:", updatedMiners);
 }
 

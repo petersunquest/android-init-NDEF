@@ -1,0 +1,14 @@
+{
+  "chain": "Base",
+  "chainId": 8453,
+  "tokens": [
+    {
+      "address": "0x2DC57d67C9764DeE5788421029Abaf81B992FAaF",
+      "name": "Wrapped CoNET",
+      "symbol": "wCNET",
+      "decimals": 18,
+      "iconUrl": "https://ipfs.conet.network/api/getFragment?hash=0xfb898a8241941ea185fde40fe06d4cdee2b6646d7d475a1d574b48b0c0a4461e",
+      "explorer": "https://basescan.org/token/0x2DC57d67C9764DeE5788421029Abaf81B992FAaF"
+    }
+  ]
+}

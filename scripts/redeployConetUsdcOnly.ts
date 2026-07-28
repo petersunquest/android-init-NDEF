@@ -92,7 +92,7 @@ async function main() {
   // 4. Update conet-ConetTreasury.json
   const treasuryData = fs.existsSync(TREASURY_JSON_PATH)
     ? JSON.parse(fs.readFileSync(TREASURY_JSON_PATH, "utf-8"))
-    : { network: "conet", chainId: "224400", contracts: { ConetTreasury: {} } };
+    : { network: "conet", chainId: "224422", contracts: { ConetTreasury: {} } };
   if (!treasuryData.contracts) treasuryData.contracts = {};
   if (!treasuryData.contracts.ConetTreasury) treasuryData.contracts.ConetTreasury = {};
   treasuryData.contracts.ConetTreasury.conetUsdc = newUsdcAddr;

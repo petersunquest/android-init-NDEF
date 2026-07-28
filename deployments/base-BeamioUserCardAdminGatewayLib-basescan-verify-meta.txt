@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardAdminGatewayLib.sol:BeamioUserCardAdminGatewayLib
+Address: 0x4d0Af8Aa67C78C81F3860497a9082A3B70b9a467
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardAdminGatewayLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.299Z

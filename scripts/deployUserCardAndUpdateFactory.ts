@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { deployBeamioUserCardLibraries, beamioUserCardFactoryLibraries } from "./beamioUserCardLibraries.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,14 +100,20 @@ async function main() {
   console.log("\n" + "=".repeat(60));
   console.log("步骤 1: 部署 BeamioUserCard");
   console.log("=".repeat(60));
-  
-  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard");
+
+  const cardLibs = await deployBeamioUserCardLibraries(ethers, deployer);
+  console.log("  BeamioUserCardFormattingLib:", cardLibs.BeamioUserCardFormattingLib);
+  console.log("  BeamioUserCardTransferLib:", cardLibs.BeamioUserCardTransferLib);
+
+  const BeamioUserCardFactory = await ethers.getContractFactory("BeamioUserCard", beamioUserCardFactoryLibraries(cardLibs));
   const userCard = await BeamioUserCardFactory.deploy(
     USER_CARD_URI,
     USER_CARD_CURRENCY,
     USER_CARD_PRICE,
     USER_CARD_OWNER,
-    FACTORY_ADDRESS // gateway = Factory
+    FACTORY_ADDRESS, // gateway = Factory
+    0,
+    false
   );
   
   await userCard.waitForDeployment();
@@ -154,7 +161,9 @@ async function main() {
       USER_CARD_CURRENCY,
       USER_CARD_PRICE,
       USER_CARD_OWNER,
-      FACTORY_ADDRESS
+      FACTORY_ADDRESS,
+      0,
+      false,
     ],
     "BeamioUserCard"
   );

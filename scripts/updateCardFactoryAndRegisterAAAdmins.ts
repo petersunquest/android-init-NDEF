@@ -2,7 +2,7 @@
  * 1) 将 BeamioUserCard 的 Factory（Card Factory）的 aaFactory 指向新的 AA Factory
  * 2) 在新 AA Factory 上登记 masterSetup.settle_contractAdmin 为 paymaster
  *
- * 从 ~/.master.json 读取 settle_contractAdmin；从 config/base-addresses.ts 读取当前 AA Factory。
+ * 从 ~/.master.json 读取 settle_contractAdmin；从 config/base-addresses.json 读取当前 AA Factory。
  * 会自动用「Card Factory owner」执行 setAAFactory，用「AA Factory admin」执行 addPayMaster。
  *
  * 用法（不触发 Hardhat 编译，推荐）：
@@ -18,17 +18,17 @@ import { homedir } from "node:os";
 import Colors from "colors/safe";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.ts");
+const CONFIG_PATH = path.join(__dirname, "..", "config", "base-addresses.json");
 const MASTER_SETUP_PATH = path.join(homedir(), ".master.json");
 
 function getAddressFromConfig(field: "AA_FACTORY" | "CARD_FACTORY"): string {
   if (!fs.existsSync(CONFIG_PATH)) {
-    throw new Error("未找到 config/base-addresses.ts");
+    throw new Error("未找到 config/base-addresses.json");
   }
-  const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-  const m = content.match(new RegExp(`${field}:\\s*['"](0x[a-fA-F0-9]{40})['"]`));
-  if (!m) throw new Error(`config/base-addresses.ts 中未解析到 ${field}`);
-  return m[1];
+  const content = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+  const value = content[field];
+  if (typeof value !== "string") throw new Error(`config/base-addresses.json 中未解析到 ${field}`);
+  return value;
 }
 
 function loadMasterSetup(): { settle_contractAdmin: string[]; base_endpoint: string } {

@@ -14,6 +14,7 @@ import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { resolveBaseCardFactoryAddress } from "./readCanonicalBaseCardFactory.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,19 +37,16 @@ async function main() {
   const fullPath = path.join(deploymentsDir, "base-FullAccountAndUserCard.json");
 
   let CCSA_CARD = process.env.CCSA_CARD || "";
-  let CARD_FACTORY = "";
+  let CARD_FACTORY = resolveBaseCardFactoryAddress(deploymentsDir);
   let EXPECTED_QUOTE_HELPER = "";
 
   if (fs.existsSync(fullPath)) {
     const data = JSON.parse(fs.readFileSync(fullPath, "utf-8"));
-    const contracts = data.contracts || {};
     const existing = data.existing || {};
     if (!CCSA_CARD) {
       // 从 x402sdk/chainAddresses BASE_CCSA_CARD_ADDRESS（与 chainAddresses.ts 一致）
       CCSA_CARD = "0x57052780925448Ce1dB7aC409cCcCf13Bcc4eb71";
     }
-    const ucf = contracts.beamioUserCardFactoryPaymaster;
-    if (ucf?.address) CARD_FACTORY = ucf.address;
     if (existing.beamioQuoteHelper) EXPECTED_QUOTE_HELPER = existing.beamioQuoteHelper;
   }
   if (!CCSA_CARD) {

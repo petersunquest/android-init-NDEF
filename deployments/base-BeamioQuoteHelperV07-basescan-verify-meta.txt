@@ -1,0 +1,43 @@
+# BaseScan: BeamioQuoteHelperV07 @ 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF
+
+## Regenerate Standard JSON (required)
+
+```bash
+BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioQuoteHelperV07 --full
+```
+
+Upload: deployments/base-BeamioQuoteHelperV07-standard-input-FULL.json
+
+## Compiler (must match build-info)
+
+- Version: 0.8.33+commit.64118f21
+- After upload, pick this exact compiler from BaseScan list if auto-detect is wrong.
+
+## Contract name (exact)
+
+project/src/BeamioUserCard/BeamioQuoteHelperV07.sol:BeamioQuoteHelperV07
+
+If verification still fails, try short name only: BeamioQuoteHelperV07 (depends on BaseScan UI).
+
+## Constructor arguments (ABI-encoded hex, no 0x prefix in the hex box if the form says so)
+
+Oracle and owner are from chain view on this contract (re-check before submit):
+
+cast call 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF "oracle()(address)" --rpc-url https://base-rpc.conet.network
+cast call 0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF "owner()(address)" --rpc-url https://base-rpc.conet.network
+
+Example encoding (replace if chain differs):
+
+cast abi-encode "constructor(address,address)" <oracle> <owner>
+
+## Settings in the exported JSON (sanity)
+
+- settings.optimizer.runs === 50
+- settings.metadata should be absent (default ipfs hash)
+- settings.debug should be absent
+- settings.viaIR === true
+- settings.evmVersion === cancun
+
+## Runtime bytecode note
+
+Local compile matches chain runtime code; trailing IPFS metadata bytes may still differ from deploy-era monorepo snapshot. If BaseScan still errors, try Sourcify or Hardhat verify with the same JSON and compiler.

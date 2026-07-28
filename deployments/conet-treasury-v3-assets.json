@@ -1,0 +1,53 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "bridge": "0xa208982212978550594A7FEEB70a61665d129003",
+  "admin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "nickCreate2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "assets": {
+    "wCNET": {
+      "name": "Wrapped CoNET",
+      "symbol": "wCNET",
+      "decimals": 18,
+      "metadata": "https://ipfs.conet.network/api/getFragment?hash=0xd53d8e1af82f376e2a82dc24a97b4e567ed2a3b47a9ff5aee0f35d5c68cb3067",
+      "implementation": "0x828312e327b4f937E7645fbe9b85C1dB93cb16d2",
+      "proxy": "0x2DC57d67C9764DeE5788421029Abaf81B992FAaF",
+      "implementationTx": "0xf2b84b01ebab71e2c5ec956de5800665abf38a2f88651be7c58b4d62bb74ca5d",
+      "proxyTx": null,
+      "reused": true,
+      "upgrades": [
+        {
+          "implementation": "0x828312e327b4f937E7645fbe9b85C1dB93cb16d2",
+          "implementationDeploymentTx": "0xf2b84b01ebab71e2c5ec956de5800665abf38a2f88651be7c58b4d62bb74ca5d",
+          "upgradeTx": "0xdc26830bd0ac60e00d4b14b7e1590904bccc052af5a897d17ae7f6185a7cf7f2",
+          "upgradeBlock": 559033,
+          "nativeWrapEnabledTx": "0x9820606e65780e3edb356264f21705d5cb875632a550e144bca276df019619be",
+          "nativeWrapEnabled": true,
+          "note": "CNET↔wCNET deposit/withdraw + EIP-712 withdrawWithSignature",
+          "upgradedAt": "2026-07-26T06:27:43.661Z"
+        }
+      ],
+      "nativeWrapEnabled": true
+    },
+    "conetUSDC": {
+      "name": "CoNET USD Coin",
+      "symbol": "conet-USDC",
+      "decimals": 6,
+      "metadata": "https://ipfs.conet.network/api/getFragment?hash=0x0d056d471e0034e410153604df492d18010b1de687b291bb60cbeef156fb22d5",
+      "implementation": "0x9D22B2d7899C18f41F03d527553F12058942647e",
+      "proxy": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+      "implementationTx": "0x22350180fb2f4bfcdf1e48d6629d1a1be49512f4a110495994c08a706065bef3",
+      "upgrades": [
+        {
+          "implementation": "0x9D22B2d7899C18f41F03d527553F12058942647e",
+          "implementationDeploymentTx": "0x22350180fb2f4bfcdf1e48d6629d1a1be49512f4a110495994c08a706065bef3",
+          "upgradeTx": "0x1a37ef37e6e7a2dcaa2194008fa2bec86953f72dbe9adf76914bd3455b9bb4af",
+          "upgradeBlock": 562260,
+          "note": "TREASURY_ROLE mint for B-Unit fee settlement via BridgeV3",
+          "upgradedAt": "2026-07-26T11:50:19.921Z"
+        }
+      ]
+    }
+  },
+  "createdAt": "2026-07-26T03:31:56.821Z"
+}

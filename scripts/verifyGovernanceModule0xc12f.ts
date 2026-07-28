@@ -1,5 +1,5 @@
 /**
- * 使用 Standard JSON 通过 BaseScan API 验证 GovernanceModule 0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41
+ * 使用 Standard JSON 通过 BaseScan API 验证 GovernanceModule 0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC
  *
  * 运行: npx tsx scripts/verifyGovernanceModule0xc12f.ts
  * 需设置 BASESCAN_API_KEY 或 ETHERSCAN_API_KEY
@@ -11,7 +11,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const ADDRESS = "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41";
+const ADDRESS = "0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC";
 const BASESCAN_API = "https://api.basescan.org/api";
 const CHAIN_ID = 8453;
 const COMPILER_VERSION = "v0.8.33+commit.64118f21";

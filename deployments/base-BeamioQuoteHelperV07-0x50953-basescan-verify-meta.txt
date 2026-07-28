@@ -1,0 +1,64 @@
+# BaseScan verification — BeamioQuoteHelperV07 @ 0x50953EB5190ee7dabb0eA86a96364A540a834059
+
+Open form (example): https://basescan.org/verifyContract-solc-json?a=0x50953EB5190ee7dabb0eA86a96364A540a834059
+
+## Cause of Error! Unable to find matching Contract Bytecode and ABI
+
+Common causes:
+
+1. **Uploaded wrong Standard JSON**: must be compiled with **`BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1`** (optimizer **runs = 50**, **no** `metadata.bytecodeHash: "none"`, **no** `debug.revertStrings: "strip"`). A default-repo export (**runs = 0** + bytecodeHash none) yields **different runtime bytecode length** → instant mismatch.
+
+2. **Contract name typo**: paste exactly:
+
+   ```
+   project/src/BeamioUserCard/BeamioQuoteHelperV07.sol:BeamioQuoteHelperV07
+   ```
+
+3. **Constructor ABI-encoded hex** must match creation tx exactly (oracle, then owner):
+
+   ```
+   oracle:  0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B
+   owner:   0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+   ```
+
+   Example ABI-encoded fragment (prepend `0x` if explorer expects it):
+
+   ```
+   cast abi-encode "constructor(address,address)" \
+     0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B \
+     0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+   ```
+
+4. **Metadata-only mismatch**: Hardhat builds one solc invocation for the whole workspace. Changing *any other* file in that build can rotate the trailing **CBOR / IPFS** metadata on `BeamioQuoteHelperV07` even when `BeamioQuoteHelperV07.sol` is unchanged → BaseScan compares full runtime and reports mismatch. Mitigations:
+   - Re-export from **the same git commit** as deployment, then compile with `BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1`, or  
+   - Use **`hardhat verify`** (handles some edge cases):
+
+     ```bash
+     npx hardhat verify --network base 0x50953EB5190ee7dabb0eA86a96364A540a834059 \
+       "0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B" \
+       "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+     ```
+
+   (Needs `BASESCAN_API_KEY` / `ETHERSCAN_API_KEY`.)
+
+---
+
+## Recommended Standard JSON file (FULL build-info export)
+
+Same file works for `@0x291B…` and `@0x50953…` **after** regenerate with QuoteHelper-verify profile:
+
+```bash
+BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && \
+BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && \
+node scripts/exportStandardJsonFromBuildInfo.mjs BeamioQuoteHelperV07 --full
+```
+
+Upload:
+
+- `deployments/base-BeamioQuoteHelperV07-standard-input-FULL.json`
+
+Sanity-check in JSON (`settings`): `optimizer.runs === 50`, `viaIR === true`, **no** `metadata.bytecodeHash`, **no** `debug`.
+
+## Compiler
+
+Solidity **0.8.33+commit.64118f21**, EVM target **cancun**.

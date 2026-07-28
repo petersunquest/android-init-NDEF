@@ -1,0 +1,14 @@
+{
+  "name": "Wrapped CoNET",
+  "symbol": "wCNET",
+  "decimals": 18,
+  "description": "Canonical wrapped CoNET token for Treasury V3 cross-chain settlement.",
+  "image": "https://mainnet.conet.network/wcnet/erc20/wCNET.svg",
+  "icon_url": "https://mainnet.conet.network/wcnet/erc20/wCNET.svg",
+  "external_url": "https://mainnet.conet.network/token/0x2DC57d67C9764DeE5788421029Abaf81B992FAaF",
+  "properties": {
+    "asset_type": "canonical",
+    "bridge": "Treasury V3",
+    "icon_format": "image/svg+xml"
+  }
+}

@@ -1,0 +1,61 @@
+# Google Play — Beamio (com.beamio.app)
+# Copy each block into Play Console → Main store listing (English)
+
+## App name (max 30 characters)
+Beamio
+
+## Short description (max 80 characters)
+Beamio — your wallet, membership, and payments on Android.
+
+## Full description (max 4000 characters)
+
+Beamio is the official Android app for Beamio customers. Manage your account, view balances and activity, join programs, and use everyday payment features — all in one place on your phone.
+
+Sign in with your Beamio account and pick up where you left off. The app is built for members and shoppers who use Beamio for stored value, membership benefits, and secure tap-to-pay style experiences.
+
+WHAT YOU CAN DO
+
+• Access your Beamio account in a fast, full-screen mobile experience
+• Check balances, programs, and account activity
+• Link a physical Beamio NFC card to your profile when prompted in the app
+• Tap your card on supported Android phones to complete binding securely
+• Scan QR codes when a flow in the app requires it
+• Stay in Beamio instead of switching to a separate browser for routine tasks
+
+NFC CARD LINKING
+
+When you start card linking in the app, Beamio uses your phone’s NFC to read compatible tags and attach them to your account. Outside an active linking step, accidental taps are handled so card data is less likely to open in another app.
+
+WHO IT IS FOR
+
+• Beamio members and customers
+• Anyone using Beamio membership cards, stored value, or merchant programs
+• Users who want a home-screen shortcut to their Beamio wallet on Android
+
+REQUIREMENTS
+
+• Android 7.0 (API 24) or later
+• Internet connection
+• NFC optional — required only for NFC card linking flows
+• Camera optional — used only when the app asks to scan a QR code or use the camera
+
+PERMISSIONS
+
+• Internet — sign in and use your Beamio account
+• NFC — read NFC tags when you link a physical card in the app
+• Camera — only when you choose a flow that needs scanning or camera access
+
+Beamio for Android is a consumer app for account holders. For in-store merchant checkout, your business may use the separate Beamio POS app.
+
+Questions? Use in-app help or contact Beamio support.
+
+## Release notes — version 1.0.5 (en-CA, max 500 characters)
+
+Copy from play-console/release-notes-en-CA.txt (body only, skip comment lines).
+
+## Release notes — version 1.0.4 (example)
+
+• Official Beamio consumer app for Android (com.beamio.app)
+• Home screen name and icon aligned with Beamio brand
+• NFC support for linking your physical Beamio card
+• Improved speed and stability

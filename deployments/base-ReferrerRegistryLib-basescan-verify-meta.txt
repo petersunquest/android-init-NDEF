@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/ReferrerRegistryLib.sol:ReferrerRegistryLib
+Address: 0x34d19e87342afF9Fda6337163D01FFfD6EAa5e4f
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-ReferrerRegistryLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.299Z

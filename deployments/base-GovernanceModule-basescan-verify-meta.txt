@@ -1,0 +1,7 @@
+Contract Name: project/src/BeamioUserCard/GovernanceModule.sol:BeamioUserCardGovernanceModuleV1
+Address: 0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC
+Constructor Args ABI-encoded: (none)
+Standard JSON: deployments/base-GovernanceModule-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T23:09:43.644Z
+Notes: Use Solidity (Standard-Json-Input), compiler v0.8.33+commit.64118f21. via-IR requires FULL build-info JSON.

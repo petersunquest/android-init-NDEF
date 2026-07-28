@@ -1,0 +1,11 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "LayerMinusNodeRestart_V2",
+  "source": "src/mainnet/LayerMinusNodeRestart_V2.sol",
+  "address": "0x185b17bb66A28d1a86322Fc5c123361A324Bf3c3",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "constructorArgs": [],
+  "timestamp": "2026-05-25T06:50:32.811Z",
+  "transactionHash": "0xcff6d8204b5460059e29d7c085da1c410f80fc1d21e21d421ae09290927eb030"
+}

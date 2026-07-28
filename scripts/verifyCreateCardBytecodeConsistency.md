@@ -5,7 +5,7 @@
 - **Tx**: [0xf266d56563b8ece189d9ceb7a6abc9a42e6fd72943ce53045ac8c56df208af59](https://basescan.org/tx/0xf266d56563b8ece189d9ceb7a6abc9a42e6fd72943ce53045ac8c56df208af59)
 - **状态**: Fail（execution reverted）
 - **From**: 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1  
-- **To**: 0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b（Card Factory）
+- **To**: 0x52cc9E977Ca3EA33c69383a41F87f32a71140A52（Card Factory）
 - **Gas**: 4,000,000 limit，3,890,729 used（97.27%）
 - **内部交易**: 1 笔 — Deployer `0x6dEcDe360B84D6f75Ae2Ddf777A5B2A96Da1EeCa` 执行 CREATE，Gas Limit 3,397,598；CREATE 未成功（无新合约地址，revert）
 

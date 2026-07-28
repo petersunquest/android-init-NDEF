@@ -23,9 +23,9 @@ const INDEXER_ABI = [
 	`function getAssetTransactionsPaged(address asset, uint256 offset, uint256 limit) view returns (${TX_RECORD_TUPLE}[] page)`,
 ] as const
 
-const AA_FACTORY = '0xD86403DD1755F7add19540489Ea10cdE876Cc1CE'
+const AA_FACTORY = '0x4b31D6a05Cdc817CAc1B06369555b37a5b182122'
 const BASE_RPC = 'https://base-rpc.conet.network'
-const CONET_RPC = 'https://mainnet-rpc.conet.network'
+const CONET_RPC = 'https://rpc1.conet.network'
 
 function serializeTx(tx: unknown): Record<string, unknown> {
 	if (!tx || typeof tx !== 'object') return {}

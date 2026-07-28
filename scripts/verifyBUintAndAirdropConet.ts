@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const DEPLOYMENT = path.join(__dirname, "../deployments/conet-BUintAirdrop.json");
 
 function runVerify(address: string, contract: string, constructorArgs: string[] = []): boolean {
-  // 仅验证 Blockscout，避免 Sourcify (chain 224400 不支持) 报错
+  // 仅验证 Blockscout，避免 Sourcify (部分链不支持) 报错
   const args = [
     "npx",
     "hardhat",

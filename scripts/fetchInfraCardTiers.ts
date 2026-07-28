@@ -19,8 +19,10 @@ async function main() {
   const card = await ethers.getContractAt("BeamioUserCard", INFRA_CARD_ADDRESS);
 
   const count = await card.getTiersCount();
+  const upgradeType = await card.upgradeType();
   console.log("========== 基础设施卡 Tiers 配置 (Base) ==========\n");
   console.log("卡地址:", INFRA_CARD_ADDRESS);
+  console.log("upgradeType (0=topup delta, 1=balance, 2=cumulative to admin):", upgradeType.toString());
   console.log("Tiers 数量:", count.toString());
   console.log();
 
@@ -28,7 +30,7 @@ async function main() {
     console.log("⚠️ 无 tiers 配置！");
     console.log("   → _maybeUpgrade 会直接 return（tiers.length == 0）");
     console.log("   → _issueCardByPointsDelta_AssumingNoValidCard 会发 defaultAttrWhenNoTiers 的卡（无 tier 档位）");
-    console.log("   → 需由 owner 调用 appendTier(minUsdc6, attr, tierExpirySeconds, upgradeByBalance) 配置 50/100 CAD 等档位");
+    console.log("   → 需由 owner 调用 appendTier(minUsdc6, attr, tierExpirySeconds) 配置 50/100 CAD 等档位");
     return;
   }
 
@@ -41,8 +43,6 @@ async function main() {
     console.log("  minUsdc6:", minUsdc6.toString(), `(= ${minCad} CAD)`);
     console.log("  attr:", tier.attr.toString());
     console.log("  tierExpirySeconds:", tier.tierExpirySeconds.toString(), tier.tierExpirySeconds === 0n ? "(使用全局 expirySeconds)" : "");
-    console.log("  upgradeByBalance:", tier.upgradeByBalance);
-    console.log("     →", tier.upgradeByBalance ? "按余额达到 minUsdc6 即升级" : "按单次 topup/redeem 金额达到 minUsdc6 即升级");
     console.log();
   }
 
@@ -80,7 +80,7 @@ async function main() {
         const nextTier = await card.getTierAt(activeTierIdx + 1n);
         const nextMinCad = Number(nextTier.minUsdc6) / 10 ** POINTS_DECIMALS;
         console.log(`→ 下一档 tier ${Number(activeTierIdx) + 1} 需 ${nextMinCad} CAD`);
-        console.log(`  200 CAD redeem 应满足，若未升级请检查 upgradeByBalance 与 balance/delta 逻辑`);
+        console.log(`  200 CAD redeem 应满足，若未升级请检查 upgradeType 与 balance/delta 逻辑`);
       }
     } else {
       console.log("用户无有效卡 (activeMembershipId=0)，200 CAD redeem 应触发 _issueCardByPointsDelta_AssumingNoValidCard 发卡");

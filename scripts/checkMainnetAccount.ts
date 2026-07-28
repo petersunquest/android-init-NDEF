@@ -2,7 +2,7 @@ import { network as networkModule } from "hardhat";
 
 async function main() {
   const { ethers } = await networkModule.connect();
-  const factoryAddress = "0xFD48F7a6bBEb0c0C1ff756C38cA7fE7544239767";
+  const factoryAddress = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
   const accountAddress = "0xf174C1eC4A1D7101401032f61059fb87c37e138E";
   const TARGET_EOA = "0xDfB6c751653ae61C80512167a2154A68BCC97f1F";
   

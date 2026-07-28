@@ -1,0 +1,9 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "bridge": "0xa208982212978550594A7FEEB70a61665d129003",
+  "destinationChainId": 8453,
+  "feeBps": 100,
+  "configuredBy": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "configuredAt": "2026-07-26T03:32:19.611Z"
+}

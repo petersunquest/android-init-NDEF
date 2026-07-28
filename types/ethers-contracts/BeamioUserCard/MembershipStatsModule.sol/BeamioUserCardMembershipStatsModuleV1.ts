@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardMembershipStatsModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "alignMembershipTierToPointsBalance" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "handlePointsTransferForUpgradeType2" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "membershipFlowBucketAtHour" | "membershipScopedFlowBucketAtHour" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "ApprovalForAll" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -19,6 +19,7 @@ encodeFunctionData(functionFragment: 'activeMembershipCountByTierIndex', values:
 encodeFunctionData(functionFragment: 'activeMembershipCountByTokenId', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'activeMembershipId', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'activeTierIndexOrMax', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'alignMembershipTierToPointsBalance', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
@@ -29,11 +30,14 @@ encodeFunctionData(functionFragment: 'expiresAt', values: [BigNumberish]): strin
 encodeFunctionData(functionFragment: 'expirySeconds', values?: undefined): string;
 encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'gateway', values?: undefined): string;
+encodeFunctionData(functionFragment: 'handlePointsTransferForUpgradeType2', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeUpgrade', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeUpgradeByPointsBalance', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'membershipFlowBucketAtHour', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'membershipScopedFlowBucketAtHour', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'mintMemberCardInternal', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'owner', values?: undefined): string;
 encodeFunctionData(functionFragment: 'pointsUnitPriceInCurrencyE6', values?: undefined): string;
@@ -53,6 +57,7 @@ encodeFunctionData(functionFragment: 'totalMembershipUpgraded', values?: undefin
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelist', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelistEnabled', values?: undefined): string;
+encodeFunctionData(functionFragment: 'upgradeType', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'ISSUED_NFT_START_ID', data: BytesLike): Result;
@@ -64,6 +69,7 @@ decodeFunctionResult(functionFragment: 'activeMembershipCountByTierIndex', data:
 decodeFunctionResult(functionFragment: 'activeMembershipCountByTokenId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeMembershipId', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'activeTierIndexOrMax', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'alignMembershipTierToPointsBalance', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'attributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
@@ -74,11 +80,14 @@ decodeFunctionResult(functionFragment: 'expiresAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expirySeconds', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'gateway', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'handlePointsTransferForUpgradeType2', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeUpgrade', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeUpgradeByPointsBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'membershipFlowBucketAtHour', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'membershipScopedFlowBucketAtHour', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintMemberCardInternal', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'owner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'pointsUnitPriceInCurrencyE6', data: BytesLike): Result;
@@ -98,6 +107,7 @@ decodeFunctionResult(functionFragment: 'totalMembershipUpgraded', data: BytesLik
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelist', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelistEnabled', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeType', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -304,6 +314,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    alignMembershipTierToPointsBalance: TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     attributes: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -384,6 +402,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    handlePointsTransferForUpgradeType2: TypedContractMethod<
+      [from: AddressLike, effectiveTo: AddressLike, ids: BigNumberish[], values: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     isApprovedForAll: TypedContractMethod<
       [account: AddressLike, operator: AddressLike, ],
       [boolean],
@@ -420,6 +446,22 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [acct: AddressLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    membershipFlowBucketAtHour: TypedContractMethod<
+      [hourIndex: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
+      'view'
+    >
+    
+
+    
+    membershipScopedFlowBucketAtHour: TypedContractMethod<
+      [scopeType: BigNumberish, scopeKey: BigNumberish, hourIndex: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
+      'view'
     >
     
 
@@ -506,7 +548,7 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
     tiers: TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >
     
@@ -576,6 +618,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    upgradeType: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     uri: TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -631,6 +681,11 @@ getFunction(nameOrSignature: 'activeTierIndexOrMax'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'alignMembershipTierToPointsBalance'): TypedContractMethod<
+      [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'attributes'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -681,6 +736,11 @@ getFunction(nameOrSignature: 'gateway'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'handlePointsTransferForUpgradeType2'): TypedContractMethod<
+      [from: AddressLike, effectiveTo: AddressLike, ids: BigNumberish[], values: BigNumberish[], ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
       [account: AddressLike, operator: AddressLike, ],
       [boolean],
@@ -705,6 +765,16 @@ getFunction(nameOrSignature: 'maybeUpgradeByPointsBalance'): TypedContractMethod
       [acct: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'membershipFlowBucketAtHour'): TypedContractMethod<
+      [hourIndex: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'membershipScopedFlowBucketAtHour'): TypedContractMethod<
+      [scopeType: BigNumberish, scopeKey: BigNumberish, hourIndex: BigNumberish, ],
+      [[bigint, bigint, bigint, bigint, bigint, bigint, boolean] & {issuedCount: bigint, upgradedCount: bigint, expiredDiscoveredCount: bigint, activeSwitchCount: bigint, activatedCount: bigint, deactivatedCount: bigint, hasData: boolean }],
+      'view'
     >;
 getFunction(nameOrSignature: 'mintMemberCardInternal'): TypedContractMethod<
       [user: AddressLike, tierIndex: BigNumberish, ],
@@ -758,7 +828,7 @@ getFunction(nameOrSignature: 'syncActiveToBestValid'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'tiers'): TypedContractMethod<
       [arg0: BigNumberish, ],
-      [[bigint, bigint, bigint, boolean] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint, upgradeByBalance: boolean }],
+      [[bigint, bigint, bigint] & {minUsdc6: bigint, attr: bigint, tierExpirySeconds: bigint }],
       'view'
     >;
 getFunction(nameOrSignature: 'tokenTierIndexOrMax'): TypedContractMethod<
@@ -799,6 +869,11 @@ getFunction(nameOrSignature: 'transferWhitelist'): TypedContractMethod<
 getFunction(nameOrSignature: 'transferWhitelistEnabled'): TypedContractMethod<
       [],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'upgradeType'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<

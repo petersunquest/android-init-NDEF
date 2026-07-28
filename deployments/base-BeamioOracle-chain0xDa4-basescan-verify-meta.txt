@@ -1,0 +1,55 @@
+# BaseScan: BeamioOracle @ 0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B
+
+## 最常见原因（对照你截图）
+
+BaseScan 报错页里 **Compiler Version** 若显示 **v0.8.33+commit.64118f21**（或其它0.8.33/0.8.23），**一定失败 (err_code_2)**。
+
+链上该合约 metadata 为 **Solidity 0.8.30+commit.73712a01**，与仓库当前 Hardhat 默认 **0.8.33** 不同。浏览器若按「最新常用」自动选 0.8.33，或你手滑选错，都会出现「开头像对、整体不对」的 bytecode 比对失败。
+
+**必须在下拉框里手动选到：v0.8.30+commit.73712a01**（可展开完整列表 / 搜 `0.8.30`），不要用0.8.33。
+
+再核对验证地址是否为：**0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B**（Base 主网 8453）。
+
+## Regenerate
+
+```bash
+npm run export:basescan:beamio-oracle-base
+```
+
+生成三个文件：
+
+| 文件 | 用途 |
+|------|------|
+| base-BeamioOracle-chain0xDa4-basescan-standard-input.json | **优先**：上传 BaseScan（settings 与链上一致，无 outputSelection） |
+| base-BeamioOracle-chain0xDa4-standard-input-devcheck.json | 仅本地 `solc0.8.30 --standard-json` 核对字节码 |
+| base-BeamioOracle-chain0xDa4-basescan-standard-input-safe-paths.json | 备用：源路径为 `contracts/…`，无逗号（若上传主文件仍报错可试） |
+
+## BaseScan 表单（避免 “Unable to find matching Contract Bytecode and ABI”）
+
+1. **Verification method** 必须选 **Solidity (Standard Json-Input)**。不要选 “Solidity (Single file)” 或 “Solidity (Multi-file parts)” 再手动拼文件。
+2. **Compiler** 选 **v0.8.30+commit.73712a01**（列表里与之一致）。
+3. **Contract name**：
+   - **先试**：`BeamioOracle`（仅类名，无路径）
+   - 仍失败再试：`settle on base,/AA/CCSA/BeamioOracle.sol:BeamioOracle`
+4. **License**：MIT（与 SPDX 一致）。
+5. **Optimization**：若表单单独询问，选 **Yes**，**200 runs**（与 JSON 内一致；Standard Json 模式通常以文件为准，但表单若误选 No 会导致失败）。
+6. **EVM version**：若下拉框与 JSON 冲突，选 **prague**（部署为 prague；选 cancun/shanghai 会导致 bytecode 不一致）。
+7. **Constructor arguments**：留空（无参构造）。
+8. 标准 JSON **已包含** `@openzeppelin/contracts/...` 源码，不要在其他栏再上传重复依赖。
+
+## 若仍失败
+
+- 换上传 **safe-paths** JSON，Contract name 先试 `BeamioOracle`，再试 `contracts/BeamioOracle.sol:BeamioOracle`。
+- 合约已在 **Sourcify** 为 perfect match，可在 [Sourcify](https://sourcify.dev/) 确认；部分浏览器支持从 Sourcify 同步源码。
+
+## Compiler / 设置摘要
+
+- 0.8.30+commit.73712a01
+- optimizer: enabled, runs: 200
+- evmVersion: prague
+- viaIR: false
+- metadata.bytecodeHash: ipfs
+
+## 创建交易（部署 tx）
+
+0xf6ae83d8ce7a0e5c14bf76086fc07219024d6e846147bdfc26b457a6ea60b8e3（Sourcify `creator-tx-hash.txt`）

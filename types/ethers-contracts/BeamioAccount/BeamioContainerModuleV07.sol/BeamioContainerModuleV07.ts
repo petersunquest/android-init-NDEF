@@ -10,17 +10,21 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioContainerModuleV07Interface extends Interface {
-    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "containerMainRelayed" | "containerMainRelayedOpen" | "createFaucetPool" | "createRedeem" | "domainSeparator" | "faucetRedeemPool" | "hashItem" | "hashItems" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "simulateOpenContainer"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "cancelReserve" | "containerMainRelayed" | "containerMainRelayedOpen" | "containerMainRelayedOpenUsdcTopupThenPoints" | "createFaucetPool" | "createRedeem" | "createReserve" | "domainSeparator" | "execReserve" | "faucetRedeemPool" | "hashItem" | "hashItems" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "searchReserve" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "transferReserve"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "ContainerRelayed" | "FaucetClaimed" | "FaucetPoolCancelled" | "FaucetPoolCreated" | "RedeemCancelled" | "RedeemCreated" | "Redeemed"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "ContainerOpenUsdcTopupThenPoints" | "ContainerRelayed" | "FaucetClaimed" | "FaucetPoolCancelled" | "FaucetPoolCreated" | "RedeemCancelled" | "RedeemCreated" | "Redeemed" | "ReserveApprovedEvt" | "ReserveCancelled" | "ReserveCreated" | "ReserveTransferred"): EventFragment;
 
     encodeFunctionData(functionFragment: 'cancelFaucetPool', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
+encodeFunctionData(functionFragment: 'cancelReserve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayed', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'containerMainRelayedOpen', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'createFaucetPool', values: [BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createReserve', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'domainSeparator', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'execReserve', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'faucetRedeemPool', values: [string, AddressLike, AddressLike, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'hashItem', values: [ContainerItemStruct]): string;
 encodeFunctionData(functionFragment: 'hashItems', values: [ContainerItemStruct[]]): string;
@@ -28,15 +32,22 @@ encodeFunctionData(functionFragment: 'openRelayedNonce', values?: undefined): st
 encodeFunctionData(functionFragment: 'preExecuteCheck', values: [AddressLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'redeem', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'relayedNonce', values?: undefined): string;
+encodeFunctionData(functionFragment: 'searchReserve', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'simulateOpenContainer', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'simulateOpenContainerUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'transferReserve', values: [AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'cancelFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'domainSeparator', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'execReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetRedeemPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hashItem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'hashItems', data: BytesLike): Result;
@@ -44,10 +55,25 @@ decodeFunctionResult(functionFragment: 'openRelayedNonce', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'preExecuteCheck', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayedNonce', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'searchReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'simulateOpenContainerUsdcTopupThenPoints', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferReserve', data: BytesLike): Result;
   }
 
   
+    export namespace ContainerOpenUsdcTopupThenPointsEvent {
+      export type InputTuple = [pointsTo: AddressLike, userCard: AddressLike, usdc6: BigNumberish, topupPoints6: BigNumberish, basePoints6: BigNumberish, nonce: BigNumberish, deadline: BigNumberish];
+      export type OutputTuple = [pointsTo: string, userCard: string, usdc6: bigint, topupPoints6: bigint, basePoints6: bigint, nonce: bigint, deadline: bigint];
+      export interface OutputObject {pointsTo: string, userCard: string, usdc6: bigint, topupPoints6: bigint, basePoints6: bigint, nonce: bigint, deadline: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace ContainerRelayedEvent {
       export type InputTuple = [to: AddressLike, itemsHash: BytesLike, nonce: BigNumberish, deadline: BigNumberish];
       export type OutputTuple = [to: string, itemsHash: string, nonce: bigint, deadline: bigint];
@@ -132,6 +158,54 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
 
   
 
+    export namespace ReserveApprovedEvtEvent {
+      export type InputTuple = [reserveId: BigNumberish, beneficiary: AddressLike, index: BigNumberish];
+      export type OutputTuple = [reserveId: bigint, beneficiary: string, index: bigint];
+      export interface OutputObject {reserveId: bigint, beneficiary: string, index: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReserveCancelledEvent {
+      export type InputTuple = [reserveId: BigNumberish, beneficiary: AddressLike, index: BigNumberish];
+      export type OutputTuple = [reserveId: bigint, beneficiary: string, index: bigint];
+      export interface OutputObject {reserveId: bigint, beneficiary: string, index: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReserveCreatedEvent {
+      export type InputTuple = [reserveId: BigNumberish, beneficiary: AddressLike, itemsHash: BytesLike, cancelDeadline: BigNumberish];
+      export type OutputTuple = [reserveId: bigint, beneficiary: string, itemsHash: string, cancelDeadline: bigint];
+      export interface OutputObject {reserveId: bigint, beneficiary: string, itemsHash: string, cancelDeadline: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReserveTransferredEvent {
+      export type InputTuple = [reserveId: BigNumberish, beneficiary: AddressLike, index: BigNumberish];
+      export type OutputTuple = [reserveId: bigint, beneficiary: string, index: bigint];
+      export interface OutputObject {reserveId: bigint, beneficiary: string, index: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
   export interface BeamioContainerModuleV07 extends BaseContract {
     
     connect(runner?: ContractRunner | null): BeamioContainerModuleV07;
@@ -182,6 +256,14 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
 
     
+    cancelReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     containerMainRelayed: TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
@@ -192,6 +274,14 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
     containerMainRelayedOpen: TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    containerMainRelayedOpenUsdcTopupThenPoints: TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -214,10 +304,26 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
 
     
+    createReserve: TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     domainSeparator: TypedContractMethod<
       [acct: AddressLike, ],
       [string],
       'view'
+    >
+    
+
+    
+    execReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -278,10 +384,34 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
 
     
+    searchReserve: TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint[], string[], bigint[], string[]] & {index: bigint[], itemBundles: string[], execStatus: bigint[], statusLabel: string[] }],
+      'view'
+    >
+    
+
+    
     simulateOpenContainer: TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
+    >
+    
+
+    
+    simulateOpenContainerUsdcTopupThenPoints: TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >
+    
+
+    
+    transferReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -298,6 +428,11 @@ getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'containerMainRelayed'): TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
@@ -305,6 +440,11 @@ getFunction(nameOrSignature: 'containerMainRelayed'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'containerMainRelayedOpen'): TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'containerMainRelayedOpenUsdcTopupThenPoints'): TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >;
@@ -318,10 +458,20 @@ getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'createReserve'): TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'domainSeparator'): TypedContractMethod<
       [acct: AddressLike, ],
       [string],
       'view'
+    >;
+getFunction(nameOrSignature: 'execReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'faucetRedeemPool'): TypedContractMethod<
       [password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
@@ -358,22 +508,46 @@ getFunction(nameOrSignature: 'relayedNonce'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'searchReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint[], string[], bigint[], string[]] & {index: bigint[], itemBundles: string[], execStatus: bigint[], statusLabel: string[] }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'simulateOpenContainer'): TypedContractMethod<
       [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
     >;
+getFunction(nameOrSignature: 'simulateOpenContainerUsdcTopupThenPoints'): TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'transferReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 
-    getEvent(key: 'ContainerRelayed'): TypedContractEvent<ContainerRelayedEvent.InputTuple, ContainerRelayedEvent.OutputTuple, ContainerRelayedEvent.OutputObject>;
+    getEvent(key: 'ContainerOpenUsdcTopupThenPoints'): TypedContractEvent<ContainerOpenUsdcTopupThenPointsEvent.InputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputObject>;
+getEvent(key: 'ContainerRelayed'): TypedContractEvent<ContainerRelayedEvent.InputTuple, ContainerRelayedEvent.OutputTuple, ContainerRelayedEvent.OutputObject>;
 getEvent(key: 'FaucetClaimed'): TypedContractEvent<FaucetClaimedEvent.InputTuple, FaucetClaimedEvent.OutputTuple, FaucetClaimedEvent.OutputObject>;
 getEvent(key: 'FaucetPoolCancelled'): TypedContractEvent<FaucetPoolCancelledEvent.InputTuple, FaucetPoolCancelledEvent.OutputTuple, FaucetPoolCancelledEvent.OutputObject>;
 getEvent(key: 'FaucetPoolCreated'): TypedContractEvent<FaucetPoolCreatedEvent.InputTuple, FaucetPoolCreatedEvent.OutputTuple, FaucetPoolCreatedEvent.OutputObject>;
 getEvent(key: 'RedeemCancelled'): TypedContractEvent<RedeemCancelledEvent.InputTuple, RedeemCancelledEvent.OutputTuple, RedeemCancelledEvent.OutputObject>;
 getEvent(key: 'RedeemCreated'): TypedContractEvent<RedeemCreatedEvent.InputTuple, RedeemCreatedEvent.OutputTuple, RedeemCreatedEvent.OutputObject>;
 getEvent(key: 'Redeemed'): TypedContractEvent<RedeemedEvent.InputTuple, RedeemedEvent.OutputTuple, RedeemedEvent.OutputObject>;
+getEvent(key: 'ReserveApprovedEvt'): TypedContractEvent<ReserveApprovedEvtEvent.InputTuple, ReserveApprovedEvtEvent.OutputTuple, ReserveApprovedEvtEvent.OutputObject>;
+getEvent(key: 'ReserveCancelled'): TypedContractEvent<ReserveCancelledEvent.InputTuple, ReserveCancelledEvent.OutputTuple, ReserveCancelledEvent.OutputObject>;
+getEvent(key: 'ReserveCreated'): TypedContractEvent<ReserveCreatedEvent.InputTuple, ReserveCreatedEvent.OutputTuple, ReserveCreatedEvent.OutputObject>;
+getEvent(key: 'ReserveTransferred'): TypedContractEvent<ReserveTransferredEvent.InputTuple, ReserveTransferredEvent.OutputTuple, ReserveTransferredEvent.OutputObject>;
 
     filters: {
       
+      'ContainerOpenUsdcTopupThenPoints(address,address,uint256,uint256,uint256,uint256,uint256)': TypedContractEvent<ContainerOpenUsdcTopupThenPointsEvent.InputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputObject>;
+      ContainerOpenUsdcTopupThenPoints: TypedContractEvent<ContainerOpenUsdcTopupThenPointsEvent.InputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputTuple, ContainerOpenUsdcTopupThenPointsEvent.OutputObject>;
+    
+
       'ContainerRelayed(address,bytes32,uint256,uint256)': TypedContractEvent<ContainerRelayedEvent.InputTuple, ContainerRelayedEvent.OutputTuple, ContainerRelayedEvent.OutputObject>;
       ContainerRelayed: TypedContractEvent<ContainerRelayedEvent.InputTuple, ContainerRelayedEvent.OutputTuple, ContainerRelayedEvent.OutputObject>;
     
@@ -400,6 +574,22 @@ getEvent(key: 'Redeemed'): TypedContractEvent<RedeemedEvent.InputTuple, Redeemed
 
       'Redeemed(bytes32,address)': TypedContractEvent<RedeemedEvent.InputTuple, RedeemedEvent.OutputTuple, RedeemedEvent.OutputObject>;
       Redeemed: TypedContractEvent<RedeemedEvent.InputTuple, RedeemedEvent.OutputTuple, RedeemedEvent.OutputObject>;
+    
+
+      'ReserveApprovedEvt(uint256,address,uint256)': TypedContractEvent<ReserveApprovedEvtEvent.InputTuple, ReserveApprovedEvtEvent.OutputTuple, ReserveApprovedEvtEvent.OutputObject>;
+      ReserveApprovedEvt: TypedContractEvent<ReserveApprovedEvtEvent.InputTuple, ReserveApprovedEvtEvent.OutputTuple, ReserveApprovedEvtEvent.OutputObject>;
+    
+
+      'ReserveCancelled(uint256,address,uint256)': TypedContractEvent<ReserveCancelledEvent.InputTuple, ReserveCancelledEvent.OutputTuple, ReserveCancelledEvent.OutputObject>;
+      ReserveCancelled: TypedContractEvent<ReserveCancelledEvent.InputTuple, ReserveCancelledEvent.OutputTuple, ReserveCancelledEvent.OutputObject>;
+    
+
+      'ReserveCreated(uint256,address,bytes32,uint64)': TypedContractEvent<ReserveCreatedEvent.InputTuple, ReserveCreatedEvent.OutputTuple, ReserveCreatedEvent.OutputObject>;
+      ReserveCreated: TypedContractEvent<ReserveCreatedEvent.InputTuple, ReserveCreatedEvent.OutputTuple, ReserveCreatedEvent.OutputObject>;
+    
+
+      'ReserveTransferred(uint256,address,uint256)': TypedContractEvent<ReserveTransferredEvent.InputTuple, ReserveTransferredEvent.OutputTuple, ReserveTransferredEvent.OutputObject>;
+      ReserveTransferred: TypedContractEvent<ReserveTransferredEvent.InputTuple, ReserveTransferredEvent.OutputTuple, ReserveTransferredEvent.OutputObject>;
     
     };
   }

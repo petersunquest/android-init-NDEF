@@ -1,10 +1,14 @@
 /**
- * 部署新的 AdminStatsQueryModule（含 adminManager(...,uint256) 5 参数路由）并更新 Factory。
- * 解决 BM_CallFailed：链上旧 AdminStatsQueryModule 的 selectorModuleKind 不识别 5 参数 adminManager，
+ * 部署新的 AdminStatsQueryModule 并更新 Factory。
+ * 解决 BM_CallFailed：链上旧 AdminStatsQueryModule 的 selectorModuleKind 不识别新加入的 selector，
+ * 例如：
+ * - createRedeemAdmin(bytes32,string,uint64,uint64,uint256)
+ * - getGlobalAdminToAdminHourlyData(uint256)
+ * - getGlobalAdminToAdminCounters()
  * 导致 BeamioUserCard fallback 返回 ROUTE_INVALID 并 revert BM_CallFailed。
  *
  * 运行：
- *   FACTORY=0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a \
+ *   FACTORY=0x52cc9E977Ca3EA33c69383a41F87f32a71140A52 \
  *   npx hardhat run scripts/deployAdminStatsQueryModuleForMintLimit.ts --network base
  */
 import { network as networkModule } from "hardhat";
@@ -27,7 +31,7 @@ function loadMasterSetup(): { settle_contractAdmin: string[] } {
 }
 
 async function main() {
-  const factoryAddress = process.env.FACTORY || "0xfB5E3F2AbFe24DC17970d78245BeF56aAE8cb71a";
+  const factoryAddress = process.env.FACTORY || "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
 
   const master = loadMasterSetup();
   const deployerPk = master.settle_contractAdmin[0];
@@ -37,7 +41,7 @@ async function main() {
   const signer = new hhEthers.NonceManager(new hhEthers.Wallet(deployerPk, hhEthers.provider));
 
   console.log("=".repeat(60));
-  console.log("部署 AdminStatsQueryModule（支持 5 参数 adminManager）");
+  console.log("部署 AdminStatsQueryModule（含 admin-to-admin stats 路由校验）");
   console.log("=".repeat(60));
   console.log("Factory:", factoryAddress);
 
@@ -46,6 +50,39 @@ async function main() {
   await adminStatsQuery.waitForDeployment();
   const newModuleAddress = await adminStatsQuery.getAddress();
   console.log("\n新 AdminStatsQueryModule 已部署:", newModuleAddress);
+
+  const routeAbi = ["function selectorModuleKind(bytes4) view returns (uint8)"];
+  const routeReader = new hhEthers.Contract(newModuleAddress, routeAbi, hhEthers.provider);
+  const ROUTE_REDEEM = 0;
+  const ROUTE_STATS_QUERY = 254;
+  const routeChecks: Array<{ label: string; signature: string; expected: number }> = [
+    {
+      label: "createRedeemAdmin(...,uint256)",
+      signature: "createRedeemAdmin(bytes32,string,uint64,uint64,uint256)",
+      expected: ROUTE_REDEEM,
+    },
+    {
+      label: "getGlobalAdminToAdminHourlyData(uint256)",
+      signature: "getGlobalAdminToAdminHourlyData(uint256)",
+      expected: ROUTE_STATS_QUERY,
+    },
+    {
+      label: "getGlobalAdminToAdminCounters()",
+      signature: "getGlobalAdminToAdminCounters()",
+      expected: ROUTE_STATS_QUERY,
+    },
+  ];
+  for (const check of routeChecks) {
+    const selector = hhEthers.id(check.signature).slice(0, 10) as `0x${string}`;
+    const route = Number(await routeReader.selectorModuleKind(selector));
+    console.log(`selectorModuleKind ${check.label}:`, route);
+    if (route !== check.expected) {
+      throw new Error(
+        `新模块 selector 路由校验失败: ${check.signature} => ${route}, expected=${check.expected}`
+      );
+    }
+  }
+  console.log("新模块 selector 路由校验通过");
 
   const factoryAbi = [
     "function setAdminStatsQueryModule(address m) external",

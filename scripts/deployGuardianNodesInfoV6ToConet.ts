@@ -10,22 +10,18 @@
 import { network as hreNetwork } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
-import { homedir } from "os";
 import { fileURLToPath } from "url";
+import { mergeConetAdminPrivateKeysFromMasterFile } from "./utils/conetMasterAdmins.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MASTER_PATH = path.join(homedir(), ".master.json");
 
 function loadMasterSetup(): { settle_contractAdmin: string[] } {
-  if (!fs.existsSync(MASTER_PATH)) throw new Error("未找到 ~/.master.json");
-  const data = JSON.parse(fs.readFileSync(MASTER_PATH, "utf-8"));
-  if (!data?.settle_contractAdmin?.length) throw new Error("~/.master.json 中 settle_contractAdmin 为空");
-  return {
-    settle_contractAdmin: data.settle_contractAdmin.map((pk: string) =>
-      pk.startsWith("0x") ? pk : `0x${pk}`
-    ),
-  };
+  const pks = mergeConetAdminPrivateKeysFromMasterFile();
+  if (!pks.length) {
+    throw new Error("~/.master.json 中无有效私钥（settle_contractAdmin / beamio_Admins / admin）");
+  }
+  return { settle_contractAdmin: pks };
 }
 
 async function main() {
@@ -90,6 +86,14 @@ async function main() {
     },
   };
   fs.writeFileSync(outPath, JSON.stringify(result, null, 2) + "\n", "utf-8");
+
+  const conetAddrPath = path.join(deployDir, "conet-addresses.json");
+  if (fs.existsSync(conetAddrPath)) {
+    const ca = JSON.parse(fs.readFileSync(conetAddrPath, "utf-8")) as Record<string, unknown>;
+    ca.GuardianNodesInfoV6 = addr;
+    fs.writeFileSync(conetAddrPath, JSON.stringify(ca, null, 2), "utf-8");
+    console.log("updated conet-addresses.json GuardianNodesInfoV6:", addr);
+  }
 
   console.log("\n部署结果已保存至:", outPath);
   console.log("\n✅ 部署完成!");

@@ -2,7 +2,7 @@
  * 重新部署 BeamioUserCardDeployerV07 与 BeamioUserCardFactoryPaymasterV07。
  * 不部署 BeamioOracle、BeamioAAAccountFactoryPaymaster，使用已有地址：
  *   BeamioOracle = 0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B
- *   BASE_AA_FACTORY = 0xD86403DD1755F7add19540489Ea10cdE876Cc1CE（见 config/base-addresses.ts）
+ *   BASE_AA_FACTORY = 0x4b31D6a05Cdc817CAc1B06369555b37a5b182122（见 config/base-addresses.json）
  *
  * RedeemModule、QuoteHelper 从已有部署 base-UserCardFactory.json 读取（或环境变量覆盖）。
  *
@@ -18,7 +18,7 @@ import { verifyContract } from "./utils/verifyContract.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_AA_FACTORY = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+const BASE_AA_FACTORY = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 async function main() {

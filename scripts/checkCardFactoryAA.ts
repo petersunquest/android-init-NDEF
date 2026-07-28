@@ -3,8 +3,8 @@
  */
 import { network as networkModule } from "hardhat";
 
-const CARD_FACTORY = "0xDdD5c17E549a4e66ca636a3c528ae8FAebb8692b";
-const AA_FACTORY = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+const CARD_FACTORY = "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52";
+const AA_FACTORY = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
 
 async function main() {
   const { ethers } = await networkModule.connect();

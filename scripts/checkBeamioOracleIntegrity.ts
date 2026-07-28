@@ -22,10 +22,10 @@ const CURRENCIES: Record<number, string> = {
 }
 
 const BASE_RPC = process.env.BASE_RPC_URL || 'https://base-rpc.conet.network'
-const CONET_RPC = process.env.CONET_RPC_URL || 'https://mainnet-rpc.conet.network'
+const CONET_RPC = process.env.CONET_RPC_URL || 'https://rpc1.conet.network'
 
 const ORACLE_BASE = process.env.BASE_BEAMIO_ORACLE_ADDRESS || '0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B'
-const ORACLE_CONET = process.env.CONET_BEAMIO_ORACLE_ADDRESS || '0x06a1e0D55B4db57Aa906Eff332902F5CA7a25dd4'
+const ORACLE_CONET = process.env.CONET_BEAMIO_ORACLE_ADDRESS || '0x102E9FBE87a28BaC10ADbc0E67a2b0385C8Bd0E9'
 
 async function checkOracle(label: string, rpcUrl: string, oracleAddr: string) {
 	const provider = new ethers.JsonRpcProvider(rpcUrl)

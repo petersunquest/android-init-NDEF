@@ -9,10 +9,10 @@
       "note": "使用已存在的 Oracle 合约"
     },
     "beamioQuoteHelper": {
-      "address": "0x50953EB5190ee7dabb0eA86a96364A540a834059",
+      "address": "0xfa30c2086ff9a3D74576d55c2027586797A52F29",
       "oracle": "0xDa4AE8301262BdAaf1bb68EC91259E6C512A9A2B",
       "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-      "transactionHash": "0xcf63fdcb30759e0670c9a93bebf6320d32f1c30e2679afebe0dd2cdd778c42b4"
+      "transactionHash": "0x86f75974a16dfeb8c1cfb0ab8f33a426d97be532cde7761c7835f31f488bd48b"
     },
     "beamioAccountDeployer": {
       "address": "0xBD510029d0a72bE2594c1a5FF0C939d5CDAC4B87",

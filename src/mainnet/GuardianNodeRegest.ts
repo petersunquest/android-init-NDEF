@@ -9,10 +9,10 @@ import { homedir } from "node:os"
 const require = createRequire(import.meta.url)
 const masterSetup = require(join(homedir(), ".master.json"))
 
-const v1Address = "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D"
-const newNodeAddress = "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D"
+const v1Address = "0xdE51f1daaCa6eae9BDeEe33E324c3e6e96837e94"
+const newNodeAddress = "0x6d7a526BFD03E90ea8D19eDB986577395a139872"
 
-const newProvider = new ethers.JsonRpcProvider("https://mainnet-rpc.conet.network")
+const newProvider = new ethers.JsonRpcProvider("https://rpc1.conet.network")
 const v1Provider = new ethers.JsonRpcProvider("http://38.102.126.30:80")
 const masterWallet = new ethers.Wallet(masterSetup.settle_contractAdmin[0], newProvider)
 

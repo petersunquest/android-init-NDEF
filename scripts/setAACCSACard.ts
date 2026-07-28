@@ -3,7 +3,7 @@
  */
 import { network as networkModule } from "hardhat";
 
-const AA_FACTORY = "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE";
+const AA_FACTORY = "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122";
 const NEW_CCSA = "0x57052780925448Ce1dB7aC409cCcCf13Bcc4eb71"; // BASE_CCSA_CARD_ADDRESS
 
 async function main() {

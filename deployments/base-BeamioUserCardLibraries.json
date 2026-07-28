@@ -1,0 +1,73 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-05-22T23:06:29.569Z",
+  "contracts": {
+    "BeamioUserCardFormattingLib": {
+      "address": "0xe56dca3aF78a12164dC6546e6CD0E9Fe9d9Cc4b3",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardTransferLib": {
+      "address": "0xc7fAF8e33e9fE9D4409961Ec72d46B2200766f8F",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardIssuedNftGatewayLib": {
+      "address": "0x090Fb47c70412dE61B15771EF75797e36616B4ad",
+      "txHash": null,
+      "reused": true
+    },
+    "ReferrerRegistryLib": {
+      "address": "0x34d19e87342afF9Fda6337163D01FFfD6EAa5e4f",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardReferrerLib": {
+      "address": "0x981E3ca5160C3147673Eb984FED979778eed7B68",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardAdminGatewayLib": {
+      "address": "0x4d0Af8Aa67C78C81F3860497a9082A3B70b9a467",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardFaucetGatewayLib": {
+      "address": "0x11D99A1d0B3C6985abE2E82B2065fCC5506e99A8",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardGatewayMintLib": {
+      "address": "0xEE6309a46DBCaDD98398758fD0032A12A0a2D696",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardGovernanceLib": {
+      "address": "0x4564b36B44A0B689F35973A67EF19d0b46cCfc73",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardModuleRouterLib": {
+      "address": "0x55154E4eb8f86Fb6E6520993Ec38E230bBf925fD",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardRedeemGatewayLib": {
+      "address": "0x6f4dE4941F4b7f2Fbc179A4697E9A04F0F916732",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardUpdateLib": {
+      "address": "0xD021f61d70e1B72ec1ED49950F7F581139d6879A",
+      "txHash": null,
+      "reused": true
+    },
+    "BeamioUserCardViewsLib": {
+      "address": "0x2e3a136733e400f579DcB71fAf78922563d8D7EC",
+      "txHash": null,
+      "reused": true
+    }
+  }
+}

@@ -1,6 +1,6 @@
 ---
 description: Beamio 项目 UI 主设置 protocol：页首内容与顶部间距
-globs: src/SilentPassUI/**/*.{tsx,ts,jsx,js}
+globs: src/SilentPassUI/**/*.{tsx,ts,jsx,js},src/homepage/**/*.{tsx,ts},src/bizSite/**/*.{tsx,ts}
 alwaysApply: false
 ---
 
@@ -8,14 +8,19 @@ alwaysApply: false
 
 ## 页首内容与顶部间距
 
+与固定顶栏胶囊 **同源** safe-area 顶距，见 **`beamio-fixed-top-capsule-protocol.mdc` §3.2**（`viewport-fit=cover` + `max(1rem, env(safe-area-inset-top, 0px))`）。
+
 Beamio 各页面的**首个显示控件与顶部**的间距必须统一，使用以下 protocol：
 
 ```html
-<!-- 顶部留白：刘海 + 5rem，统一各页首内容距顶距离 -->
-<div className="shrink-0" style={{ minHeight: 'calc(env(safe-area-inset-top) + 5rem)' }} />
+<!-- 顶部留白：与 Home 固定胶囊 top 同源 + 5rem 胶囊区 -->
+<div
+  className="shrink-0"
+  style={{ minHeight: 'calc(max(1rem, env(safe-area-inset-top, 0px)) + 5rem)' }}
+/>
 ```
 
-该 spacer 应放在滚动容器的**第一个子元素**，确保首屏内容（如 /home 的 Total Valuation、/chat 的 ChatList、All Activity 的胶囊等）与顶部的距离一致。
+该 spacer 应放在滚动容器的**第一个子元素**，确保首屏内容（如 /home 的 Total Valuation、/chat 的 ChatList、All Activity 的胶囊、`/app-download` 券预览等）与顶部的距离一致。
 
 ### 使用示例
 
@@ -25,8 +30,8 @@ Beamio 各页面的**首个显示控件与顶部**的间距必须统一，使用
 - `Market`：同上
 - **All Activity 全屏页**：在 px-4 的滚动 div 内，spacer 后接 ActiveHistoryPannelNew（胶囊为首个控件）
 - **Fuel Center (FuelView)**：全屏 overlay，根容器加 `pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[calc(8rem+env(safe-area-inset-bottom))]`。两种顶部间距：
-  - **返回按钮 + title**：对齐 Home 胶囊，`paddingTop: 'max(1rem, env(safe-area-inset-top))'`
-  - **首内容**（Network Fuel Balance）：对齐 Home 首内容，spacer `minHeight: calc(env(safe-area-inset-top) + 5rem)` + 内容区 `pt-6`
+  - **返回按钮 + title**：对齐 Home 胶囊，`paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))'`
+  - **首内容**（Network Fuel Balance）：对齐 Home 首内容，spacer `minHeight: calc(max(1rem, env(safe-area-inset-top, 0px)) + 5rem)` + 内容区 `pt-6`
 
 ## B-Units 视觉标准（全局）
 

@@ -1,24 +1,43 @@
 import { network as networkModule } from "hardhat";
 import * as fs from "fs";
 import * as path from "path";
+import { homedir } from "os";
 import { fileURLToPath } from "url";
 import { verifyContract } from "./utils/verifyContract.js";
+import { ethers as ethersLib, type Signer } from "ethers";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * 部署 BeamioUserCardFactoryPaymasterV07
+ * 部署 BeamioUserCardFactoryPaymasterV07（签名者与 redeployCardFactory 一致：PRIVATE_KEY 或 ~/.master.json）
  */
+function loadSignerPk(): string {
+  if (process.env.PRIVATE_KEY?.trim()) {
+    const pk = process.env.PRIVATE_KEY.trim();
+    return pk.startsWith("0x") ? pk : `0x${pk}`;
+  }
+  const setupPath = path.join(homedir(), ".master.json");
+  if (!fs.existsSync(setupPath)) throw new Error("未找到 PRIVATE_KEY，且 ~/.master.json 不存在");
+  const data = JSON.parse(fs.readFileSync(setupPath, "utf-8"));
+  const pk = data?.settle_contractAdmin?.[0];
+  if (!pk || typeof pk !== "string") throw new Error("~/.master.json 缺少 settle_contractAdmin[0]");
+  return pk.startsWith("0x") ? pk : `0x${pk}`;
+}
+
 async function main() {
   const { ethers } = await networkModule.connect();
-  const [deployer] = await ethers.getSigners();
+  let deployer: Signer;
+  const signers = await ethers.getSigners();
+  if (signers.length > 0) deployer = signers[0];
+  else deployer = new ethersLib.NonceManager(new ethersLib.Wallet(loadSignerPk(), ethers.provider));
   
   console.log("=".repeat(60));
   console.log("部署 BeamioUserCardFactoryPaymasterV07");
   console.log("=".repeat(60));
-  console.log("部署账户:", deployer.address);
-  console.log("账户余额:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)), "ETH");
+  const deployerAddress = await deployer.getAddress();
+  console.log("部署账户:", deployerAddress);
+  console.log("账户余额:", ethers.formatEther(await ethers.provider.getBalance(deployerAddress)), "ETH");
   
   const networkInfo = await ethers.provider.getNetwork();
   console.log("网络:", networkInfo.name, "(Chain ID:", networkInfo.chainId.toString() + ")");
@@ -26,6 +45,7 @@ async function main() {
   
   // 从环境变量或部署记录读取依赖地址
   const deploymentsDir = path.join(__dirname, "..", "deployments");
+  const configJsonFile = path.join(__dirname, "..", "config", "base-addresses.json");
   
   // 读取 USDC 地址
   const chainId = Number(networkInfo.chainId);
@@ -40,6 +60,13 @@ async function main() {
   let QUOTE_HELPER_ADDRESS = process.env.QUOTE_HELPER_ADDRESS || "";
   let DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS || "";
   let AA_FACTORY_ADDRESS = process.env.AA_FACTORY_ADDRESS || "";
+
+  if (fs.existsSync(configJsonFile)) {
+    const baseConfig = JSON.parse(fs.readFileSync(configJsonFile, "utf-8"));
+    if (!AA_FACTORY_ADDRESS && baseConfig.AA_FACTORY) {
+      AA_FACTORY_ADDRESS = baseConfig.AA_FACTORY;
+    }
+  }
   
   if (fs.existsSync(fullSystemFile)) {
     const deploymentData = JSON.parse(fs.readFileSync(fullSystemFile, "utf-8"));
@@ -58,6 +85,23 @@ async function main() {
   }
   
   // 如果没有找到，尝试从 FactoryAndModule 读取
+  const fullAccFile = path.join(deploymentsDir, `${networkInfo.name}-FullAccountAndUserCard.json`);
+  if (fs.existsSync(fullAccFile)) {
+    const fa = JSON.parse(fs.readFileSync(fullAccFile, "utf-8"));
+    if (!REDEEM_MODULE_ADDRESS && fa.contracts?.redeemModule?.address) {
+      REDEEM_MODULE_ADDRESS = fa.contracts.redeemModule.address;
+    }
+    if (!QUOTE_HELPER_ADDRESS && fa.existing?.beamioQuoteHelper) {
+      QUOTE_HELPER_ADDRESS = fa.existing.beamioQuoteHelper;
+    }
+    if (!DEPLOYER_ADDRESS && fa.contracts?.beamioUserCardDeployer?.address) {
+      DEPLOYER_ADDRESS = fa.contracts.beamioUserCardDeployer.address;
+    }
+    if (!AA_FACTORY_ADDRESS && fa.contracts?.beamioFactoryPaymaster?.address) {
+      AA_FACTORY_ADDRESS = fa.contracts.beamioFactoryPaymaster.address;
+    }
+  }
+
   if (!QUOTE_HELPER_ADDRESS || !AA_FACTORY_ADDRESS) {
     const factoryFile = path.join(deploymentsDir, `${networkInfo.name}-FactoryAndModule.json`);
     if (fs.existsSync(factoryFile)) {
@@ -93,7 +137,7 @@ async function main() {
   console.log("  Quote Helper:", QUOTE_HELPER_ADDRESS || "(未设置)");
   console.log("  Deployer:", DEPLOYER_ADDRESS || "(未设置)");
   console.log("  AA Factory:", AA_FACTORY_ADDRESS || "(未设置)");
-  console.log("  Owner:", deployer.address);
+  console.log("  Owner:", deployerAddress);
   console.log();
   
   // 如果缺少必需的参数，先部署或提示
@@ -133,18 +177,18 @@ async function main() {
   
   const USER_CARD_METADATA_BASE_URI = "https://beamio.app/api/metadata/0x";
   const FactoryFactory = await ethers.getContractFactory("BeamioUserCardFactoryPaymasterV07");
-  const factory = await FactoryFactory.deploy(
+  const factory = await FactoryFactory.connect(deployer).deploy(
     USDC_ADDRESS,
     REDEEM_MODULE_ADDRESS,
     QUOTE_HELPER_ADDRESS || ethers.ZeroAddress,
     DEPLOYER_ADDRESS,
     AA_FACTORY_ADDRESS || ethers.ZeroAddress,
-    deployer.address // initialOwner
+    deployerAddress // initialOwner
   );
   
   await factory.waitForDeployment();
   const factoryAddress = await factory.getAddress();
-  await (await factory.setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
+  await (await factory.connect(deployer).setMetadataBaseURI(USER_CARD_METADATA_BASE_URI)).wait();
   
   console.log("✅ BeamioUserCardFactoryPaymasterV07 部署成功!");
   console.log("合约地址:", factoryAddress);
@@ -163,7 +207,7 @@ async function main() {
       QUOTE_HELPER_ADDRESS || ethers.ZeroAddress,
       DEPLOYER_ADDRESS,
       AA_FACTORY_ADDRESS || ethers.ZeroAddress,
-      deployer.address
+      deployerAddress
     ],
     "BeamioUserCardFactoryPaymasterV07"
   );
@@ -172,7 +216,7 @@ async function main() {
   const deploymentInfo = {
     network: networkInfo.name,
     chainId: networkInfo.chainId.toString(),
-    deployer: deployer.address,
+    deployer: deployerAddress,
     timestamp: new Date().toISOString(),
     contracts: {
       beamioUserCardFactoryPaymaster: {
@@ -183,7 +227,7 @@ async function main() {
         deployer: DEPLOYER_ADDRESS,
         aaFactory: AA_FACTORY_ADDRESS || null,
         metadataBaseURI: USER_CARD_METADATA_BASE_URI,
-        owner: deployer.address,
+        owner: deployerAddress,
         transactionHash: factory.deploymentTransaction()?.hash
       }
     }

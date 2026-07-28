@@ -3,5 +3,6 @@
 /* eslint-disable */
 export { BeamioContainerModuleV07__factory } from './BeamioContainerModuleV07__factory.js';
 export { IBeamioAccountFactoryConfigV2__factory } from './IBeamioAccountFactoryConfigV2__factory.js';
+export { IBeamioOpenContainerMintExecutorLike__factory } from './IBeamioOpenContainerMintExecutorLike__factory.js';
 export { IBeamioQuoteHelperV07Like__factory } from './IBeamioQuoteHelperV07Like__factory.js';
-export { IBeamioUserCardLike__factory } from './IBeamioUserCardLike__factory.js';
+export { IOwnableMinimal__factory } from './IOwnableMinimal__factory.js';

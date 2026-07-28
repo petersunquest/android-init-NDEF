@@ -883,11 +883,6 @@
         "internalType": "uint256",
         "name": "tierExpirySeconds",
         "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "upgradeByBalance",
-        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -1010,6 +1005,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "upgradeType",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

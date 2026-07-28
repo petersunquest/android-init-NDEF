@@ -1,0 +1,11 @@
+# Google Play — Release notes (en-CA)
+# Max 500 characters. Consumer app: com.beamio.app — Android, not iPhone.
+
+What's new in Beamio 1.0.6:
+
+• Fixes a launch black screen when opening the embedded wallet offline
+• CoNET chat reconnects reliably after Restore Wallet
+• Bundled wallet update for faster cold start without waiting on the network
+• Improved native bridge stability and diagnostics
+
+Thank you for using Beamio.

@@ -1,0 +1,11 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "AccountRegistry",
+  "source": "src/mainnet/AccountRegistry.sol",
+  "address": "0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "constructorArgs": [],
+  "timestamp": "2026-05-25T06:19:02.105Z",
+  "transactionHash": "0xcc96875dfc26b70f8b891fec8eea7c74c3e2b4412ddd3fabb43d1713a244238e"
+}

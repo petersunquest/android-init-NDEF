@@ -29,30 +29,6 @@
     ],
     "stateMutability": "view",
     "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint8",
-        "name": "cardCurrency",
-        "type": "uint8"
-      },
-      {
-        "internalType": "uint256",
-        "name": "unitPointPriceInCurrencyE6",
-        "type": "uint256"
-      }
-    ],
-    "name": "quoteUnitPointInUSDC6",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
   }
 ] as const;
 

@@ -1,0 +1,6 @@
+Contract Name: project/src/BeamioUserCard/BeamioUserCardGatewayMintLib.sol:BeamioUserCardGatewayMintLib
+Address: 0xEE6309a46DBCaDD98398758fD0032A12A0a2D696
+Constructor Args ABI-encoded: 
+Standard JSON: deployments/base-BeamioUserCardGatewayMintLib-standard-input-FULL.json
+Network: base (chainId 8453)
+Generated: 2026-05-22T18:28:22.299Z

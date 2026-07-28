@@ -3,14 +3,14 @@
   "chainId": "8453",
   "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "timestamp": "2026-03-14T19:06:22.127Z",
-  "factory": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
+  "factory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
   "userCard": {
     "address": "0x5aF645042411bD68eC80C8b2C781d422343e95C9",
     "uri": "https://beamio.app/api/metadata/0x",
     "currency": 4,
     "price": "1000000",
     "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-    "gateway": "0xD86403DD1755F7add19540489Ea10cdE876Cc1CE",
+    "gateway": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
     "transactionHash": "0x02bc97756b885fa67d9c375c2a83e87ba9683c2c0de688129bfb33b2abe6e29c"
   }
 }

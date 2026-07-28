@@ -1,0 +1,17 @@
+BeamioUserCardFormattingLib BaseScan 验证
+================================
+
+Compiler Version: 0.8.33+commit.64118f21
+Optimization: Enabled, Runs: 0
+viaIR: true, evmVersion: cancun
+
+Contract Name: project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol:BeamioUserCardFormattingLib
+
+Deployed address: 0x4F2D7Afaa0b1cfd1833C0fA637C80F9B54fF8fca
+
+Standard JSON (FULL, via-IR):
+  - deployments/base-BeamioUserCardFormattingLib-standard-input-FULL.json
+
+生成命令（根目录）:
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
+//请部署新工厂，请生成 standard JSON以便 验证 合约，请更新引用工厂地址的所有 合约，UI，及 backend 
 pragma solidity ^0.8.20;
 
+import "./BeamioUserCardModuleKinds.sol";
 import "./BeamioUserCard.sol";
+import "./BeamioUserCardTypes.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
 import "./Errors.sol";
@@ -29,12 +32,15 @@ interface IBeamioDeployerV07 {
  * @notice Factory / Gateway / Paymaster router for BeamioUserCard
  * @dev
  *  - USDC address: injected via constructor (no magic constant)
- *  - defaultRedeemModule: injected & upgradable by owner
+ *  - defaultModuleByKind: owner-upgradable shared module registry (no per-kind factory redeploy)
  *  - aaFactory: injected & upgradable by owner
  */
 contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant MINT_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("mintPointsByAdmin(address,uint256)"));
     bytes4 private constant BURN_POINTS_BY_ADMIN_SELECTOR = bytes4(keccak256("burnPointsByAdmin(address,uint256)"));
+    bytes4 private constant SET_CHARGE_REWARD_RATIO_SELECTOR = bytes4(keccak256("setChargeRewardRatio(uint256)"));
+    bytes4 private constant IS_ISSUED_NFT_VALID_SELECTOR = bytes4(keccak256("isIssuedNftValid(uint256)"));
+    bytes4 private constant BURN_ISSUED_NFT_BY_GATEWAY_SELECTOR = bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"));
     bytes4 private constant ADMIN_MANAGER_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string)"));
     bytes4 private constant ADMIN_MANAGER_WITH_LIMIT_SELECTOR = bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"));
     bytes4 private constant ADMIN_MANAGER_BY_ADMIN_SELECTOR = bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"));
@@ -56,6 +62,13 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreator(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address)"));
     bytes4 private constant CREATE_REDEEM_POOL_WITH_CREATOR_AND_RECOMMENDER_SELECTOR = bytes4(keccak256("createRedeemPoolWithCreatorAndRecommender(bytes32,uint64,uint64,uint256[][],uint256[][],uint32[],address,address)"));
 
+    bytes32 public constant CLAIM_ISSUED_NFT_TYPEHASH = keccak256(
+        "ClaimIssuedNft(address cardAddress,uint256 tokenId,uint256 deadline,bytes32 nonce)"
+    );
+    bytes32 private constant PURCHASE_ISSUED_NFT_WITH_POINTS_TYPEHASH = keccak256(
+        "PurchaseIssuedNftWithPoints(address cardAddress,uint256 tokenId,uint256 amount,address payeeEOA,uint256 deadline,bytes32 nonce)"
+    );
+
     // ===== immutable chain config =====
     address public immutable USDC_TOKEN;
 
@@ -63,13 +76,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     address public owner;
     mapping(address => bool) public isPaymaster;
 
-    // ===== modules / helpers =====
-    address public defaultRedeemModule;
-    address public defaultFaucetModule;
-    address public defaultIssuedNftModule;
-    address public defaultGovernanceModule;
-    address public defaultMembershipStatsModule;
-    address public defaultAdminStatsQueryModule;
+    // ===== modules / helpers (generic registry) =====
+    mapping(uint8 => address) private _defaultModuleByKind;
     address public quoteHelper;
     address public deployer;
     string private _metadataBaseURIValue;
@@ -93,15 +101,14 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     // Admin-signed execute: nonce replay protection（executeForAdmin，per card per admin）
     mapping(bytes32 => bool) public usedAdminExecuteNonces;
 
+    /// @dev User signed ClaimIssuedNft replay protection (scoped by userEOA + nonce bytes32)
+    mapping(bytes32 => bool) public usedIssuedNftClaimSigNonces;
+    mapping(bytes32 => bool) private usedIssuedNftPointsPurchaseSigNonces;
+
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
     event PaymasterStatusChanged(address indexed account, bool allowed);
 
-    event DefaultRedeemModuleUpdated(address indexed oldM, address indexed newM);
-    event DefaultFaucetModuleUpdated(address indexed oldM, address indexed newM);
-    event DefaultIssuedNftModuleUpdated(address indexed oldM, address indexed newM);
-    event DefaultGovernanceModuleUpdated(address indexed oldM, address indexed newM);
-    event DefaultMembershipStatsModuleUpdated(address indexed oldM, address indexed newM);
-    event DefaultAdminStatsQueryModuleUpdated(address indexed oldM, address indexed newM);
+    event DefaultModuleUpdated(uint8 indexed kind, address indexed oldModule, address indexed newModule);
     event QuoteHelperChanged(address indexed oldH, address indexed newH);
     event DeployerChanged(address indexed oldD, address indexed newD);
     event AAFactoryChanged(address indexed oldFactory, address indexed newFactory);
@@ -111,6 +118,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     event CardRegistered(address indexed cardOwner, address indexed card);
     /// @notice createCard 失败时标记步骤：0=CREATE 失败，1=gateway，2=owner，3=currency，4=price
     event DeployFailedStep(uint8 step);
+    /// @notice 仅 step=0 时额外发出，便于链下用相同 initCode 在分叉上复现（CREATE 失败不冒泡 constructor revert data）
+    event DeployFailedCreateDebug(uint256 initCodeLength, bytes32 initCodeHash);
     event RedeemExecuted(address indexed card, address indexed user, bytes32 redeemHash);
     event TokenIdIssued(address indexed card, uint256 indexed id, bool isNft);
     event PointsPurchasedForUser(
@@ -130,6 +139,8 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 usdcAmount6,
         bytes32 nonce
     );
+    event IssuedNftClaimedWithUserSig(address indexed card, address indexed userEOA, uint256 indexed tokenId, bytes32 nonce);
+    event IssuedNftClaimedForUserByPosAdmin(address indexed card, address indexed userEOA, uint256 indexed tokenId, address posAdminEOA);
     event AdminExecuteExecuted(address indexed card, address indexed adminSigner, bytes32 nonce);
 
     modifier onlyOwner() {
@@ -164,17 +175,12 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         owner = initialOwner;
         isPaymaster[initialOwner] = true;
 
-        defaultRedeemModule = redeemModule_;
-        defaultFaucetModule = redeemModule_;      // owner can setFaucetModule to dedicated module
-        defaultIssuedNftModule = redeemModule_;
-        defaultGovernanceModule = redeemModule_;
-        defaultMembershipStatsModule = redeemModule_;
-        defaultAdminStatsQueryModule = address(0);
+        defaultModuleByKindInit(redeemModule_);
+
         quoteHelper = quoteHelper_;
         deployer = deployer_;
         _aaFactory = aaFactory_;
 
-        // no magic numbers: align with BeamioERC1155Logic constants
         nextFungibleId = 1;
         nextNftId = BeamioERC1155Logic.NFT_START_ID;
 
@@ -205,6 +211,13 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         return _metadataBaseURIValue;
     }
 
+    function _isIssuedNftValid(address cardAddr, uint256 tokenId) internal view returns (bool) {
+        (bool ok, bytes memory ret) =
+            cardAddr.staticcall(abi.encodeWithSelector(IS_ISSUED_NFT_VALID_SELECTOR, tokenId));
+        if (!ok || ret.length < 32) return false;
+        return abi.decode(ret, (bool));
+    }
+
     // ===== owner->cards view =====
     function cardsOfOwner(address cardOwner) external view returns (address[] memory) {
         return _cardsOfOwner[cardOwner];
@@ -228,40 +241,92 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         deployer = d;
     }
 
+    /// @notice 通用 module registry：kind 见 BeamioUserCardModuleKinds
+    function setDefaultModule(uint8 kind, address module) external onlyOwner {
+        _setDefaultModule(kind, module);
+    }
+
+    function setDefaultModules(uint8[] calldata kinds, address[] calldata modules) external onlyOwner {
+        if (kinds.length != modules.length) revert UC_TierLenMismatch();
+        for (uint256 i = 0; i < kinds.length; i++) {
+            _setDefaultModule(kinds[i], modules[i]);
+        }
+    }
+
+    function defaultModule(uint8 kind) external view returns (address) {
+        return _defaultModuleByKind[kind];
+    }
+
+    function defaultRedeemModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.REDEEM];
+    }
+
+    function defaultFaucetModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.FAUCET];
+    }
+
+    function defaultIssuedNftModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.ISSUED_NFT];
+    }
+
+    function defaultGovernanceModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.GOVERNANCE];
+    }
+
+    function defaultMembershipStatsModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.MEMBERSHIP_STATS];
+    }
+
+    function defaultAdminStatsQueryModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.STATS_QUERY];
+    }
+
+    function defaultChargeRewardModule() external view returns (address) {
+        return _defaultModuleByKind[BeamioUserCardModuleKinds.CHARGE_REWARD];
+    }
+
     function setRedeemModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultRedeemModuleUpdated(defaultRedeemModule, m);
-        defaultRedeemModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.REDEEM, m);
     }
 
     function setFaucetModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultFaucetModuleUpdated(defaultFaucetModule, m);
-        defaultFaucetModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.FAUCET, m);
     }
 
     function setIssuedNftModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultIssuedNftModuleUpdated(defaultIssuedNftModule, m);
-        defaultIssuedNftModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.ISSUED_NFT, m);
     }
 
     function setGovernanceModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultGovernanceModuleUpdated(defaultGovernanceModule, m);
-        defaultGovernanceModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.GOVERNANCE, m);
     }
 
     function setMembershipStatsModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultMembershipStatsModuleUpdated(defaultMembershipStatsModule, m);
-        defaultMembershipStatsModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.MEMBERSHIP_STATS, m);
     }
 
     function setAdminStatsQueryModule(address m) external onlyOwner {
-        if (m == address(0)) revert BM_ZeroAddress();
-        emit DefaultAdminStatsQueryModuleUpdated(defaultAdminStatsQueryModule, m);
-        defaultAdminStatsQueryModule = m;
+        _setDefaultModule(BeamioUserCardModuleKinds.STATS_QUERY, m);
+    }
+
+    function setChargeRewardModule(address m) external onlyOwner {
+        _setDefaultModule(BeamioUserCardModuleKinds.CHARGE_REWARD, m);
+    }
+
+    function _setDefaultModule(uint8 kind, address module) internal {
+        if (module == address(0)) revert BM_ZeroAddress();
+        address old = _defaultModuleByKind[kind];
+        _defaultModuleByKind[kind] = module;
+        emit DefaultModuleUpdated(kind, old, module);
+    }
+
+    function defaultModuleByKindInit(address redeemModule_) internal {
+        _defaultModuleByKind[BeamioUserCardModuleKinds.REDEEM] = redeemModule_;
+        _defaultModuleByKind[BeamioUserCardModuleKinds.FAUCET] = redeemModule_;
+        _defaultModuleByKind[BeamioUserCardModuleKinds.ISSUED_NFT] = redeemModule_;
+        _defaultModuleByKind[BeamioUserCardModuleKinds.GOVERNANCE] = redeemModule_;
+        _defaultModuleByKind[BeamioUserCardModuleKinds.MEMBERSHIP_STATS] = redeemModule_;
+        _defaultModuleByKind[BeamioUserCardModuleKinds.CHARGE_REWARD] = redeemModule_;
     }
 
     function setAAFactory(address f) external onlyOwner {
@@ -313,6 +378,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         card = IBeamioDeployerV07(deployer).deploy(initCode);
         if (card == address(0) || card.code.length == 0) {
             emit DeployFailedStep(0); // CREATE 失败（OOG / EIP-170 / EIP-3860 / constructor revert）
+            emit DeployFailedCreateDebug(initCode.length, keccak256(bytes.concat(initCode)));
             revert BM_DeployFailedAtStep(0);
         }
 
@@ -351,20 +417,20 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     }
 
     /// @notice 创建卡并一次性配置 tiers（与 createCardCollectionWithInitCode 相同，部署后追加 tiers）
-    /// @param tiers BeamioUserCard.Tier 数组，可为空
+    /// @param tiers Tier 数组（见 BeamioUserCardTypes.sol），可为空
     function createCardCollectionWithInitCodeAndTiers(
         address cardOwner,
         uint8 currency,
         uint256 priceInCurrencyE6,
         bytes calldata initCode,
-        BeamioUserCard.Tier[] calldata tiers
+        Tier[] calldata tiers
     ) external onlyPaymaster returns (address card) {
         card = _deployAndRegisterCard(cardOwner, currency, priceInCurrencyE6, initCode);
         BeamioUserCard c = BeamioUserCard(card);
         for (uint256 i = 0; i < tiers.length; i++) {
-            BeamioUserCard.Tier memory t = tiers[i];
+            Tier memory t = tiers[i];
             if (t.minUsdc6 == 0) revert UC_TierMinZero();
-            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds, t.upgradeByBalance);
+            c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds);
         }
     }
 
@@ -453,12 +519,11 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         address cardAddr,
         uint256 minUsdc6,
         uint256 attr,
-        uint256 tierExpirySeconds,
-        bool upgradeByBalance
+        uint256 tierExpirySeconds
     ) external onlyPaymaster {
         if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
         if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
-        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds, upgradeByBalance);
+        BeamioUserCard(cardAddr).appendTier(minUsdc6, attr, tierExpirySeconds);
     }
 
     /// @notice Owner 离线签名授权 appendTier，由 paymaster 代付 gas 执行。复用 executeForOwner 的 EIP-712 验签。
@@ -469,7 +534,6 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         uint256 minUsdc6,
         uint256 attr,
         uint256 tierExpirySeconds,
-        bool upgradeByBalance,
         uint256 deadline,
         bytes32 nonce,
         bytes calldata ownerSignature
@@ -478,8 +542,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
             BeamioUserCard.appendTier.selector,
             minUsdc6,
             attr,
-            tierExpirySeconds,
-            upgradeByBalance
+            tierExpirySeconds
         );
         _executeForOwner(cardAddr, data, deadline, nonce, ownerSignature);
     }
@@ -624,6 +687,106 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         emit IssuedNftPurchasedForUser(cardAddr, userEOA, cardOwner, tokenId, amount, usdcAmount6, nonce);
     }
 
+    /// @notice User EIP-712 free claim (`issuedNftPriceInCurrency6[tokenId]==0` only): 1 NFT per signer EOA per tokenId; obey maxSupply & validity window.
+    function claimIssuedNftWithUserSig(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external onlyPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (usedIssuedNftClaimSigNonces[nonceKey]) revert UC_NonceUsed();
+        usedIssuedNftClaimSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(CLAIM_ISSUED_NFT_TYPEHASH, cardAddr, tokenId, deadline, nonce)
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        if (!_isIssuedNftValid(cardAddr, tokenId)) revert UC_IssuedNftInactive(tokenId);
+
+        card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+
+        emit IssuedNftClaimedWithUserSig(cardAddr, userEOA, tokenId, nonce);
+    }
+
+    /// @notice POS admin assisted free open claim (QR / wallet balance flow): paymaster executes after Cluster verifies `posAdminEOA` is card admin.
+    function claimIssuedNftForUserByPosAdmin(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        address posAdminEOA
+    ) external onlyPaymaster {
+        if (userEOA == address(0) || posAdminEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+        if (!card.isAdmin(posAdminEOA)) revert UC_NotAdmin();
+
+        if (!_isIssuedNftValid(cardAddr, tokenId)) revert UC_IssuedNftInactive(tokenId);
+
+        card.mintIssuedNftByUserSigClaim(userEOA, tokenId);
+
+        emit IssuedNftClaimedForUserByPosAdmin(cardAddr, userEOA, tokenId, posAdminEOA);
+    }
+
+    /// @notice User EIP-712 signed purchase: charge token0 (points) on card then mint issued NFT(s).
+    /// @dev `payeeEOA==address(0)` defaults to card `owner()` (merchant).
+    function purchaseIssuedNftWithPointsForUser(
+        address cardAddr,
+        address userEOA,
+        uint256 tokenId,
+        uint256 amount,
+        address payeeEOA,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes calldata userSignature
+    ) external onlyPaymaster {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (cardAddr == address(0) || cardAddr.code.length == 0) revert BM_ZeroAddress();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (amount == 0) revert UC_AmountZero();
+
+        BeamioUserCard card = BeamioUserCard(cardAddr);
+        if (card.factoryGateway() != address(this)) revert BM_NotAuthorized();
+
+        address payee = payeeEOA == address(0) ? card.owner() : payeeEOA;
+        if (payee == address(0)) revert BM_ZeroAddress();
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        if (usedIssuedNftPointsPurchaseSigNonces[nonceKey]) revert UC_NonceUsed();
+        usedIssuedNftPointsPurchaseSigNonces[nonceKey] = true;
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                PURCHASE_ISSUED_NFT_WITH_POINTS_TYPEHASH,
+                cardAddr,
+                tokenId,
+                amount,
+                payee,
+                deadline,
+                nonce
+            )
+        );
+        bytes32 digest = MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
+        address signer = ECDSA.recover(digest, userSignature);
+        if (signer != userEOA) revert UC_InvalidSignature(signer, userEOA);
+
+        card.purchaseIssuedNftWithPointsCharge(userEOA, tokenId, amount, payee);
+    }
+
     bytes32 public constant EXECUTE_FOR_OWNER_TYPEHASH = keccak256(
         "ExecuteForOwner(address cardAddress,bytes32 dataHash,uint256 deadline,bytes32 nonce)"
     );
@@ -752,8 +915,82 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         _executeForOwner(cardAddr, bytes(data), deadline, nonce, ownerSignature);
     }
 
-    /// @notice 通用：Card Admin 离线签名授权对 card 的调用（如 mint、adminManager），由 paymaster 代付 gas 执行。
-    /// @param data abi.encodeWithSelector(selector, ...args)，允许 mintPointsByAdmin(target, points6) 或 adminManager(to, admin, newThreshold, metadata)
+    /// @dev Legacy admin calldata shims; unknown selectors pass through unchanged (generic forward).
+    function _transformAdminExecuteCalldata(
+        bytes4 selector,
+        bytes calldata data,
+        address cardAddr,
+        address signer
+    ) internal view returns (bytes memory callData) {
+        if (selector == ADMIN_MANAGER_SELECTOR) {
+            (address to, bool admin, uint256 newThreshold, string memory metadata) =
+                abi.decode(data[4:], (address, bool, uint256, string));
+            return abi.encodeWithSelector(
+                ADMIN_MANAGER_BY_ADMIN_SELECTOR,
+                to,
+                admin,
+                newThreshold,
+                metadata,
+                signer
+            );
+        }
+        if (selector == ADMIN_MANAGER_WITH_LIMIT_SELECTOR) {
+            (address to, bool admin, uint256 newThreshold, string memory metadata, uint256 mintLimit) =
+                abi.decode(data[4:], (address, bool, uint256, string, uint256));
+            return abi.encodeWithSelector(
+                ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR,
+                to,
+                admin,
+                newThreshold,
+                metadata,
+                signer,
+                mintLimit
+            );
+        }
+        if (selector == SET_ADMIN_AIRDROP_LIMIT_SELECTOR) {
+            (address subordinate, uint256 mintLimit) = abi.decode(data[4:], (address, uint256));
+            if (BeamioUserCard(cardAddr).adminParent(subordinate) != signer) revert UC_NotAdmin();
+            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
+            return abi.encodeWithSelector(
+                SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR,
+                subordinate,
+                mintLimit,
+                signer
+            );
+        }
+        if (selector == CLEAR_ADMIN_MINT_COUNTER_SELECTOR) {
+            (address subordinate, address authorizer) = abi.decode(data[4:], (address, address));
+            if (authorizer != signer) revert UC_NotAdmin();
+            if (BeamioUserCard(cardAddr).adminParent(subordinate) != authorizer) revert UC_NotAdmin();
+            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
+            return abi.encodeWithSelector(
+                BeamioUserCard.clearAdminMintCounterForSubordinate.selector,
+                subordinate,
+                authorizer
+            );
+        }
+        if (selector == RESET_ADMIN_LIMIT_SELECTOR) {
+            (address adminAddr) = abi.decode(data[4:], (address));
+            return abi.encodeWithSelector(
+                BeamioUserCard.resetAdminLimitByAdmin.selector,
+                adminAddr,
+                signer
+            );
+        }
+        if (selector == MINT_POINTS_BY_ADMIN_SELECTOR) {
+            (address user, uint256 points6) = abi.decode(data[4:], (address, uint256));
+            return abi.encodeWithSelector(
+                BeamioUserCard.mintPointsByAdminWithOperator.selector,
+                user,
+                points6,
+                signer
+            );
+        }
+        return bytes(data);
+    }
+
+    /// @notice 通用：Card Admin 离线签名授权对 card 的调用，由 paymaster 代付 gas 执行。
+    /// @param data abi.encodeWithSelector(selector, ...args)；新 selector 无需改 Factory bytecode
     /// @dev 验签在 Factory 内完成；恢复的 signer 必须为 card.isAdmin(signer)
     function executeForAdmin(
         address cardAddr,
@@ -767,15 +1004,6 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
         if (BeamioUserCard(cardAddr).factoryGateway() != address(this)) revert BM_NotAuthorized();
         bytes4 selector = bytes4(data[:4]);
-        if (
-            selector != MINT_POINTS_BY_ADMIN_SELECTOR &&
-            selector != BURN_POINTS_BY_ADMIN_SELECTOR &&
-            selector != ADMIN_MANAGER_SELECTOR &&
-            selector != ADMIN_MANAGER_WITH_LIMIT_SELECTOR &&
-            selector != SET_ADMIN_AIRDROP_LIMIT_SELECTOR &&
-            selector != CLEAR_ADMIN_MINT_COUNTER_SELECTOR &&
-            selector != RESET_ADMIN_LIMIT_SELECTOR
-        ) revert UC_InvalidProposal();
 
         bytes32 structHash = keccak256(abi.encode(
             EXECUTE_FOR_ADMIN_TYPEHASH,
@@ -792,64 +1020,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         if (usedAdminExecuteNonces[nonceKey]) revert UC_NonceUsed();
         usedAdminExecuteNonces[nonceKey] = true;
 
-        bytes memory callData = bytes(data);
-        if (selector == ADMIN_MANAGER_SELECTOR) {
-            (address to, bool admin, uint256 newThreshold, string memory metadata) =
-                abi.decode(data[4:], (address, bool, uint256, string));
-            callData = abi.encodeWithSelector(
-                ADMIN_MANAGER_BY_ADMIN_SELECTOR,
-                to,
-                admin,
-                newThreshold,
-                metadata,
-                signer
-            );
-        } else if (selector == ADMIN_MANAGER_WITH_LIMIT_SELECTOR) {
-            (address to, bool admin, uint256 newThreshold, string memory metadata, uint256 mintLimit) =
-                abi.decode(data[4:], (address, bool, uint256, string, uint256));
-            callData = abi.encodeWithSelector(
-                ADMIN_MANAGER_BY_ADMIN_WITH_LIMIT_SELECTOR,
-                to,
-                admin,
-                newThreshold,
-                metadata,
-                signer,
-                mintLimit
-            );
-        } else if (selector == SET_ADMIN_AIRDROP_LIMIT_SELECTOR) {
-            (address subordinate, uint256 mintLimit) = abi.decode(data[4:], (address, uint256));
-            if (BeamioUserCard(cardAddr).adminParent(subordinate) != signer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
-            callData = abi.encodeWithSelector(
-                SET_ADMIN_AIRDROP_LIMIT_BY_ADMIN_SELECTOR,
-                subordinate,
-                mintLimit,
-                signer
-            );
-        } else if (selector == CLEAR_ADMIN_MINT_COUNTER_SELECTOR) {
-            (address subordinate, address authorizer) = abi.decode(data[4:], (address, address));
-            if (authorizer != signer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(subordinate) != authorizer) revert UC_NotAdmin();
-            if (BeamioUserCard(cardAddr).adminParent(signer) != address(0)) revert UC_AdminDepthExceeded(signer);
-            callData = abi.encodeWithSelector(
-                BeamioUserCard.clearAdminMintCounterForSubordinate.selector,
-                subordinate,
-                authorizer
-            );
-        } else if (selector == RESET_ADMIN_LIMIT_SELECTOR) {
-            (address adminAddr) = abi.decode(data[4:], (address));
-            callData = abi.encodeWithSelector(
-                BeamioUserCard.resetAdminLimitByAdmin.selector,
-                adminAddr,
-                signer
-            );
-        } else if (selector == BURN_POINTS_BY_ADMIN_SELECTOR) {
-            (address target, uint256 amount) = abi.decode(data[4:], (address, uint256));
-            callData = abi.encodeWithSelector(BeamioUserCard.burnPointsByAdmin.selector, target, amount);
-        } else if (selector == MINT_POINTS_BY_ADMIN_SELECTOR) {
-            (address user, uint256 points6) = abi.decode(data[4:], (address, uint256));
-            callData = abi.encodeWithSelector(BeamioUserCard.mintPointsByAdminWithOperator.selector, user, points6, signer);
-        }
+        bytes memory callData = _transformAdminExecuteCalldata(selector, data, cardAddr, signer);
 
         (bool ok, bytes memory revertData) = cardAddr.call(callData);
         if (!ok) {

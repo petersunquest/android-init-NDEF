@@ -1,0 +1,38 @@
+# BaseScan 验证 - AdminStatsQueryModule 0x80D6A0ed075285306430F0C024bC6488583D2d6b
+
+## 合约信息
+
+| 项目 | 值 |
+|------|-----|
+| **地址** | 0x80D6A0ed075285306430F0C024bC6488583D2d6b |
+| **Contract Name** | project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1 |
+| **Compiler** | v0.8.33+commit.64118f21 |
+| **Constructor args** | 无 |
+| **Standard JSON** | deployments/base-AdminStatsQueryModule-standard-input-FULL.json |
+
+## 导出 Standard JSON
+
+```bash
+npm run clean && npm run compile
+node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
+```
+
+## 部署与切换记录
+
+- Deploy script: `npx hardhat run scripts/deployAdminStatsQueryModuleForMintLimit.ts --network base`
+- Old module: `0x3c34D1a8C407458317b5c1E4F9BC33ab94B94C70`
+- Factory: `0x52cc9E977Ca3EA33c69383a41F87f32a71140A52`
+- New module selector checks passed before factory update:
+  - `createRedeemAdmin(bytes32,string,uint64,uint64,uint256)` -> `ROUTE_REDEEM`
+  - `getGlobalAdminToAdminHourlyData(uint256)` -> `ROUTE_STATS_QUERY`
+  - `getGlobalAdminToAdminCounters()` -> `ROUTE_STATS_QUERY`
+
+## 验证步骤
+
+1. 打开 [BaseScan code page](https://basescan.org/address/0x80D6A0ed075285306430F0C024bC6488583D2d6b#code)
+2. 选择 `Solidity (Standard-Json-Input)`
+3. Compiler: `v0.8.33+commit.64118f21`
+4. 上传 `deployments/base-AdminStatsQueryModule-standard-input-FULL.json`
+5. Contract Name:
+   `project/src/BeamioUserCard/AdminStatsQueryModule.sol:BeamioUserCardAdminStatsQueryModuleV1`
+6. Constructor Arguments: 留空

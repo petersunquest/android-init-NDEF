@@ -1,0 +1,11 @@
+# Google Play — Release notes (en-CA)
+# Max 500 characters. Beamio POS: com.beamio.pos — Android, not iPhone.
+
+What's new in Beamio POS 1.0.16:
+
+• Merchant POS opens at pos.beamio.app — Check Balance, Top-up, and Charge
+• Native NFC read screen when the app waits for a customer card
+• Native QR scanner opens automatically if NFC is cancelled or unavailable
+• App display name updated to Beamio POS for store terminals
+
+Thank you for using Beamio POS.

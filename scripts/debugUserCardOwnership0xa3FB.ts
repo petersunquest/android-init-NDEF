@@ -19,7 +19,8 @@ const CARD_ABI = [
   "function getOwnershipByEOA(address userEOA) view returns (uint256 pt, (uint256 tokenId, uint256 attribute, uint256 tierIndexOrMax, uint256 expiry, bool isExpired)[] nfts)",
   "function currency() view returns (uint8)",
   "function getTiersCount() view returns (uint256)",
-  "function getTierAt(uint256 idx) view returns (uint256 minUsdc6, uint256 attr, uint256 tierExpirySeconds, bool upgradeByBalance)",
+  "function getTierAt(uint256 idx) view returns (uint256 minUsdc6, uint256 attr, uint256 tierExpirySeconds)",
+  "function upgradeType() view returns (uint8)",
 ]
 
 async function main() {
@@ -62,9 +63,11 @@ async function main() {
       try {
         const count = await card.getTiersCount()
         console.log("\n  Tiers 数量:", count.toString())
+        const ut = await card.upgradeType()
+        console.log("    upgradeType:", ut.toString())
         for (let i = 0; i < Number(count) && i < 5; i++) {
-          const [minUsdc6, attr, , upgradeByBalance] = await card.getTierAt(i)
-          console.log("    Tier[" + i + "]: minUsdc6=" + minUsdc6.toString() + ", upgradeByBalance=" + upgradeByBalance)
+          const [minUsdc6, attr] = await card.getTierAt(i)
+          console.log("    Tier[" + i + "]: minUsdc6=" + minUsdc6.toString() + ", attr=" + attr.toString())
         }
       } catch (e) {
         console.log("  (无法读取 tiers)")

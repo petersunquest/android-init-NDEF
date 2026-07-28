@@ -1,0 +1,25 @@
+# BaseScan verification — BeamioUserCardIssuedNftModuleV1 (Base mainnet 2026-05-04)
+
+Deployed address: https://basescan.org/address/0xbA28068ec0C3C95B9e930B1660f594d8221E8BF2
+Manifest: deployments/base-UserCardFactory-NEW-2026-05-04.json → beamioUserCardIssuedNftModule
+
+## Standard JSON input (via-IR full build-info — required)
+
+  deployments/base-BeamioUserCardIssuedNftModuleV1-standard-input-FULL.json
+
+Regenerate:
+
+  npm run clean && npm run compile
+  node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardIssuedNftModuleV1 --full
+
+## Contract Name
+
+  project/src/BeamioUserCard/IssuedNftModule.sol:BeamioUserCardIssuedNftModuleV1
+
+## Constructor arguments
+
+  **None**
+
+## Compiler
+
+Same as Beamio UserCard stack: Solidity **0.8.33+commit.64118f21**, optimizer runs **0**, **viaIR: true**, evmVersion **cancun**, bytecodeHash **none**, revertStrings **strip** (see Standard JSON).

@@ -1,0 +1,41 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "canonicalUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+  "factoryUsdcLegacy": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
+  "bridge": "0xa208982212978550594A7FEEB70a61665d129003",
+  "bunitAirdrop": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+  "usdcImplementation": "0x9D22B2d7899C18f41F03d527553F12058942647e",
+  "bridgeImplementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+  "bridgeImplementationBase": "0x55572D2D76451A223717cE78F6Ace9D177F92c61",
+  "bridgeImplementationPrevious": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+  "multiBeneficiaryUpgradeAt": "2026-07-28T15:05:00.000Z",
+  "multiBeneficiaryUpgradeNote": "deployments/treasury-bridge-v3-multi-beneficiary-upgrade-2026-07-28.md",
+  "feeSettlement": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+  "feeSettlementAsset": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+  "airdropTreasury": "0xa208982212978550594A7FEEB70a61665d129003",
+  "airdropUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+  "airdropWire": {
+    "method": "temp UUPS BUnitAirdropV2TreasuryWire then restore production impl",
+    "wireImpl": "0xC9c8148c74b0d4D260e603bdDb00921033871979",
+    "productionImpl": "0xD402b631F5171427FB2e04c4C975bb7d9b807504",
+    "detail": "deployments/conet-bunit-airdrop-v3-usdc-wire.json"
+  },
+  "smokeMintTx": "0x370774a307e67984f4b14dfc0809def90e3003d51e2a577568794fec962ab738",
+  "smokeMintTxPrev": "0xceabbebc3e71e8f61fc6555b023a71fe503b72c2c5239a99cfdf82728fd42359",
+  "smokeResult": {
+    "v3SupplyAfter": "42000",
+    "legacySupplyUnchanged": "706000",
+    "verifiedAt": "2026-07-26T19:30:00.000Z"
+  },
+  "blockscoutVerifiedImpls": {
+    "usdc": "0x9D22B2d7899C18f41F03d527553F12058942647e",
+    "bridge": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+    "bridgePrevious": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+    "status": "is_verified + is_partially_verified (multi-beneficiary 2026-07-28)"
+  },
+  "referralOps": "deployments/conet-referral-v3-usdc-rebinding.md",
+  "apiDeploy": "rsync dist → conet.network:/home/peter/x402sdk/dist + systemctl restart conet-beamio-api",
+  "wiredAt": "2026-07-26T12:12:00.000Z",
+  "note": "Factory USDC minter not revoked (immutable FactoryERC20); fee path no longer mints it via Airdrop"
+}

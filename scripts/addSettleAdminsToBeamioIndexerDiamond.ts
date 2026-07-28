@@ -18,7 +18,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const CONET_RPC = "https://mainnet-rpc.conet.network";
+const CONET_RPC = "https://rpc1.conet.network";
 const MASTER_PATH = path.join(homedir(), ".master.json");
 
 const AdminFacetABI = [

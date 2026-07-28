@@ -1,0 +1,66 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "51aa2ee88a6ecd1625701150af8a9534b2a214b07a730be63e79f36fe091c724"
+    }
+  ],
+  "containerPath" : "/Users/peter/Downloads/BeamioContract/src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "undefined_arch",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : true,
+      "hostTargetedPlatform" : null,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator26.4",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "i386",
+        "x86_64"
+      ],
+      "targetArchitecture" : "undefined_arch"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Build/Products",
+      "derivedDataPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData",
+      "indexDataStoreFolderPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "SDKROOT" : "iphonesimulator26.4"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "CLANG_COVERAGE_MAPPING" : "YES",
+          "CLANG_PROFILE_DATA_DIRECTORY" : "/Users/peter/Downloads/BeamioContract/build/CashTrees_iOS-DerivedData/Build/ProfileData",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

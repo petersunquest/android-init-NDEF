@@ -1,0 +1,25 @@
+{
+  "network": "base",
+  "chainId": "8453",
+  "purpose": "Canonical Base UserCard factory deployment (same addresses as deployments/base-UserCardFactory.json).",
+  "deployerSigner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-05-04T21:23:03.997Z",
+  "contracts": {
+    "beamioUserCardDeployer": {
+      "address": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "transactionHash": "0xe5a22f7360d309b3924b0338ade7355755096b08ebfcf85da209cc43010ea789"
+    },
+    "beamioUserCardFactoryPaymaster": {
+      "address": "0x52cc9E977Ca3EA33c69383a41F87f32a71140A52",
+      "usdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "redeemModule": "0x17Db9029dEd9d5F4e4cF819d3E8eC742cf0c79e6",
+      "quoteHelper": "0x291BDb7044B3C31e62Cb07A47fe48d4835954ffF",
+      "deployer": "0x2e8B1Fac17439D03756fe63f930Ce9Dc3479Ac32",
+      "aaFactory": "0x4b31D6a05Cdc817CAc1B06369555b37a5b182122",
+      "metadataBaseURI": "https://beamio.app/api/metadata/0x",
+      "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+      "transactionHash": "0x48ac06463d1a3765cf32f6db082041da7868450fbe6a8d9685e6650ebbbc8f22",
+      "modulesBoundFrom": "base-UserCardModules.json"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "contract": "ConetGB_total",
+  "source": "src/b-unit/gbTotal.sol",
+  "address": "0x8FC4588431cFb915f27622198b9D0820403F4419",
+  "conetgb": "0x4641Eb3055A891E6D3109e441aA8b931738A48b5",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "constructorArgs": [],
+  "timestamp": "2026-05-25T10:09:56.579Z",
+  "transactionHash": "0x42c4e746e2b50dbe01c9cc37f3c58b6fa51e253934ff1e59b78c26a895755427"
+}

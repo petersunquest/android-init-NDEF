@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["23YYTMA7YQ.com.beamio.beamio"],
+        "components": [
+          {
+            "/": "/app",
+            "comment": "Consumer PWA root"
+          },
+          {
+            "/": "/app/*",
+            "comment": "Consumer PWA routes and query deep links"
+          }
+        ]
+      }
+    ]
+  }
+}

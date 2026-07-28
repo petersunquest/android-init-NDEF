@@ -7,13 +7,23 @@ import { homedir } from "os"
 
 dotenv.config()
 
+/** 与 Base 上 0x291B… BeamioQuoteHelperV07 部署时一致：runs=50 + 默认 metadata（ipfs）+ 不 strip revert（旧 hardhat 无此两项） */
+const beamioSolcVerifyQuoteHelperV07 = process.env.BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07 === "1"
+
+/** CoNET 部署私钥：合并 settle_contractAdmin、beamio_Admins、admin（均为私钥 hex 列表，去重） */
 function getConetAccounts(): string[] {
   const setupPath = path.join(homedir(), ".master.json")
   if (!fs.existsSync(setupPath)) return []
   try {
     const master = JSON.parse(fs.readFileSync(setupPath, "utf-8"))
-    const key = master?.settle_contractAdmin?.[0]
-    return key ? [key.startsWith("0x") ? key : "0x" + key] : []
+    const settle = Array.isArray(master?.settle_contractAdmin) ? master.settle_contractAdmin : []
+    const beamioAdmins = Array.isArray(master?.beamio_Admins) ? master.beamio_Admins : []
+    const extra = Array.isArray(master?.admin) ? master.admin : []
+    const raw: string[] = [...settle, ...beamioAdmins, ...extra]
+    const keys = raw
+      .filter((k): k is string => typeof k === "string" && k.length > 0)
+      .map((k) => (k.startsWith("0x") ? k : "0x" + k))
+    return [...new Set(keys)]
   } catch {
     return []
   }
@@ -34,21 +44,27 @@ export default defineConfig({
     ],
   },
   solidity: {
-    version: "0.8.33",
+    version: "0.8.35",
     settings: {
-      metadata: {
-        bytecodeHash: "none",
-      },
-      debug: {
-        revertStrings: "strip",
-      },
+      ...(beamioSolcVerifyQuoteHelperV07
+        ? {}
+        : {
+            metadata: {
+              bytecodeHash: "none",
+            },
+            debug: {
+              revertStrings: "strip",
+            },
+          }),
       optimizer: {
         enabled: true,
-        runs: 0  // 偏向部署体积，便于 BeamioUserCard 满足 EIP-170 24KB
+        runs: beamioSolcVerifyQuoteHelperV07
+          ? 50
+          : Number(process.env.BEAMIO_SOLC_OPTIMIZER_RUNS || 0) || 0,
       },
-      viaIR: true  // 解决 "Stack too deep" 错误
-      , evmVersion: "cancun"  // 必须：Bytes.sol 使用 mcopy (Cancun)
-    }
+      viaIR: true, // 解决 "Stack too deep" 错误
+      evmVersion: "cancun", // 必须：Bytes.sol 使用 mcopy (Cancun)
+    },
   },
   networks: {
     base: {
@@ -68,9 +84,17 @@ export default defineConfig({
     conet: {
       type: "http",
       chainType: "l1",
-      url: "https://mainnet-rpc.conet.network",
+      url: process.env.CONET_RPC_URL || "https://rpc1.conet.network",
       accounts: getConetAccounts(),
-      chainId: 224400
+      chainId: 224422
+    },
+    /** 224422 重 genesis 前只读归档（eth_call / 事件拉取；禁止发写交易） */
+    conetLegacyArchive: {
+      type: "http",
+      chainType: "l1",
+      url: process.env.CONET_LEGACY_ARCHIVE_RPC || "https://rpc-old.conet.network",
+      accounts: [],
+      chainId: 224422
     }
   },
   verify: {
@@ -99,7 +123,7 @@ export default defineConfig({
         },
       },
     },
-    224400: {
+    224422: {
       name: "CoNET",
       blockExplorers: {
         etherscan: {

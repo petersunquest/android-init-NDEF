@@ -4,44 +4,55 @@
 import type { BaseContract, BigNumberish, BytesLike, FunctionFragment, Result, Interface, AddressLike, ContractRunner, ContractMethod, Listener } from "ethers"
 import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, TypedListener, TypedContractMethod } from "../../common.js"
   
-export declare namespace IBeamioContainerModuleV07 {
-      
     export type ContainerItemStruct = {kind: BigNumberish, asset: AddressLike, amount: BigNumberish, tokenId: BigNumberish, data: BytesLike}
 
     export type ContainerItemStructOutput = [kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string] & {kind: bigint, asset: string, amount: bigint, tokenId: bigint, data: string }
   
-    }
 
   export interface IBeamioContainerModuleV07Interface extends Interface {
-    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "containerMainRelayed" | "containerMainRelayedOpen" | "createFaucetPool" | "createRedeem" | "faucetRedeemPool" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "simulateOpenContainer"): FunctionFragment;
+    getFunction(nameOrSignature: "cancelFaucetPool" | "cancelRedeem" | "cancelReserve" | "containerMainRelayed" | "containerMainRelayedOpen" | "containerMainRelayedOpenUsdcTopupThenPoints" | "createFaucetPool" | "createRedeem" | "createReserve" | "execReserve" | "faucetRedeemPool" | "openRelayedNonce" | "preExecuteCheck" | "redeem" | "relayedNonce" | "searchReserve" | "simulateOpenContainer" | "simulateOpenContainerUsdcTopupThenPoints" | "transferReserve"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'cancelFaucetPool', values: [string]): string;
 encodeFunctionData(functionFragment: 'cancelRedeem', values: [string]): string;
-encodeFunctionData(functionFragment: 'containerMainRelayed', values: [AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'containerMainRelayedOpen', values: [AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
-encodeFunctionData(functionFragment: 'createFaucetPool', values: [BytesLike, BigNumberish, BigNumberish, IBeamioContainerModuleV07.ContainerItemStruct[]]): string;
-encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish]): string;
-encodeFunctionData(functionFragment: 'faucetRedeemPool', values: [string, AddressLike, AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'cancelReserve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayed', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedOpen', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'createFaucetPool', values: [BytesLike, BigNumberish, BigNumberish, ContainerItemStruct[]]): string;
+encodeFunctionData(functionFragment: 'createRedeem', values: [BytesLike, AddressLike, ContainerItemStruct[], BigNumberish]): string;
+encodeFunctionData(functionFragment: 'createReserve', values: [ContainerItemStruct[], AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'execReserve', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'faucetRedeemPool', values: [string, AddressLike, AddressLike, ContainerItemStruct[]]): string;
 encodeFunctionData(functionFragment: 'openRelayedNonce', values?: undefined): string;
 encodeFunctionData(functionFragment: 'preExecuteCheck', values: [AddressLike, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'redeem', values: [string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'relayedNonce', values?: undefined): string;
-encodeFunctionData(functionFragment: 'simulateOpenContainer', values: [AddressLike, IBeamioContainerModuleV07.ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'searchReserve', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'simulateOpenContainer', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'simulateOpenContainerUsdcTopupThenPoints', values: [AddressLike, ContainerItemStruct[], BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
+encodeFunctionData(functionFragment: 'transferReserve', values: [AddressLike, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'cancelFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'cancelRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'cancelReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'containerMainRelayedOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'containerMainRelayedOpenUsdcTopupThenPoints', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createFaucetPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'createRedeem', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'createReserve', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'execReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'faucetRedeemPool', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'openRelayedNonce', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'preExecuteCheck', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'redeem', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'relayedNonce', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'searchReserve', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'simulateOpenContainerUsdcTopupThenPoints', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transferReserve', data: BytesLike): Result;
   }
 
   
@@ -96,8 +107,16 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
 
     
+    cancelReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     containerMainRelayed: TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -105,7 +124,15 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
 
     
     containerMainRelayedOpen: TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    containerMainRelayedOpenUsdcTopupThenPoints: TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >
@@ -113,7 +140,7 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
 
     
     createFaucetPool: TypedContractMethod<
-      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >
@@ -121,7 +148,23 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
 
     
     createRedeem: TypedContractMethod<
-      [passwordHash: BytesLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], expiry: BigNumberish, ],
+      [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    createReserve: TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    execReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -129,7 +172,7 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
 
     
     faucetRedeemPool: TypedContractMethod<
-      [password: string, claimer: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >
@@ -168,10 +211,34 @@ decodeFunctionResult(functionFragment: 'simulateOpenContainer', data: BytesLike)
     
 
     
+    searchReserve: TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint[], string[], bigint[], string[]] & {index: bigint[], itemBundles: string[], execStatus: bigint[], statusLabel: string[] }],
+      'nonpayable'
+    >
+    
+
+    
     simulateOpenContainer: TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
+    >
+    
+
+    
+    simulateOpenContainerUsdcTopupThenPoints: TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >
+    
+
+    
+    transferReserve: TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -188,28 +255,48 @@ getFunction(nameOrSignature: 'cancelRedeem'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'cancelReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'containerMainRelayed'): TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'containerMainRelayedOpen'): TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'containerMainRelayedOpenUsdcTopupThenPoints'): TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createFaucetPool'): TypedContractMethod<
-      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [passwordHash: BytesLike, totalCount: BigNumberish, expiry: BigNumberish, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'createRedeem'): TypedContractMethod<
-      [passwordHash: BytesLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], expiry: BigNumberish, ],
+      [passwordHash: BytesLike, to: AddressLike, items: ContainerItemStruct[], expiry: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'createReserve'): TypedContractMethod<
+      [items: ContainerItemStruct[], beneficiary: AddressLike, cancelWindowSeconds: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'execReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'faucetRedeemPool'): TypedContractMethod<
-      [password: string, claimer: AddressLike, to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], ],
+      [password: string, claimer: AddressLike, to: AddressLike, items: ContainerItemStruct[], ],
       [void],
       'nonpayable'
     >;
@@ -233,10 +320,25 @@ getFunction(nameOrSignature: 'relayedNonce'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'searchReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, ],
+      [[bigint[], string[], bigint[], string[]] & {index: bigint[], itemBundles: string[], execStatus: bigint[], statusLabel: string[] }],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'simulateOpenContainer'): TypedContractMethod<
-      [to: AddressLike, items: IBeamioContainerModuleV07.ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [to: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
       [[boolean, string] & {ok: boolean, reason: string }],
       'view'
+    >;
+getFunction(nameOrSignature: 'simulateOpenContainerUsdcTopupThenPoints'): TypedContractMethod<
+      [pointsTo: AddressLike, items: ContainerItemStruct[], currencyType: BigNumberish, maxAmount: BigNumberish, nonce_: BigNumberish, deadline_: BigNumberish, sig: BytesLike, ],
+      [[boolean, string] & {ok: boolean, reason: string }],
+      'view'
+    >;
+getFunction(nameOrSignature: 'transferReserve'): TypedContractMethod<
+      [beneficiary: AddressLike, index: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 
     

@@ -3,5 +3,6 @@
 /* eslint-disable */
 export type { BeamioContainerModuleV07 } from './BeamioContainerModuleV07.js';
 export type { IBeamioAccountFactoryConfigV2 } from './IBeamioAccountFactoryConfigV2.js';
+export type { IBeamioOpenContainerMintExecutorLike } from './IBeamioOpenContainerMintExecutorLike.js';
 export type { IBeamioQuoteHelperV07Like } from './IBeamioQuoteHelperV07Like.js';
-export type { IBeamioUserCardLike } from './IBeamioUserCardLike.js';
+export type { IOwnableMinimal } from './IOwnableMinimal.js';

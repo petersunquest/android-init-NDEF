@@ -1,0 +1,60 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "nickCreate2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "miners": [
+    "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  ],
+  "contracts": {
+    "TreasuryBridgeV3Implementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+    "TreasuryBridgeV3Proxy": "0xa208982212978550594A7FEEB70a61665d129003",
+    "ERC1967Proxy": "0xa208982212978550594A7FEEB70a61665d129003"
+  },
+  "initializer": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "miners": [
+      "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+    ]
+  },
+  "transactions": {
+    "implementation": "0x895d486fe97c12ef81f0fa5b0ae7171a526188dc117c43d463aa57e996ebc0b4",
+    "proxy": "0x116a43ebd7b8133542384314eaa53c6628afe7b2b23cbddf84ca4ab7864f78cc"
+  },
+  "reused": {
+    "implementation": false,
+    "proxy": false
+  },
+  "createdAt": "2026-07-26T03:07:55.578Z",
+  "upgrades": [
+    {
+      "implementation": "0xab688f27b3646A88D59B83BD35B02Fc101242A28",
+      "implementationDeploymentTx": "0xecb87b4c4eb961726887420935b41082698631c7e8613037a0a620a85f536467",
+      "upgradeTx": "0x989cfaf9c7216144a403ca01f5cd86ff73b81ed554a7b3a5a7dcdd6e5ef40e57",
+      "upgradeBlock": 557695,
+      "upgradedAt": "2026-07-26T04:13:49.970Z"
+    },
+    {
+      "implementation": "0x9e217DEe7cC412B8CaeAd4c32D15a48405c72267",
+      "implementationDeploymentTx": "0x70bcf964c9d01d19ca862e0857f95fa87aca8a91992d8da926cbc69db1df1cca",
+      "upgradeTx": "0xa683df0aac7482fd9fda9e3fa1b5f213b5660aa1a7edbcdc4df310acffa1180c",
+      "upgradeBlock": 558386,
+      "upgradedAt": "2026-07-26T05:22:56.511Z"
+    },
+    {
+      "implementation": "0x4cE5A40074de9Ce0527390011b004b3fB8F65961",
+      "implementationDeploymentTx": "0xb791c6614a673ac392f893f2cb9ad6d0b2586ac93244af812adfd0ff539c7c45",
+      "upgradeTx": "0x52af73edaba2161f038f6bbc9aa60136defd12207d1b573602a6fbb9f85b0e9e",
+      "upgradeBlock": 562264,
+      "upgradedAt": "2026-07-26T11:50:43.774Z"
+    },
+    {
+      "implementation": "0x089FA035177532f1384f8D3dD8ae39253A24C0E8",
+      "implementationDeploymentTx": "0xdcd7e5cd9ff7f17cf3ad751c9437ea4f57ad004f21424784dc44389725db6163",
+      "upgradeTx": "0xa42e8f222b2f27e66e0d5517090e905fedb7d5197db85b7912fe8d3106b909ef",
+      "upgradeBlock": 593013,
+      "upgradedAt": "2026-07-28T15:06:55.539Z"
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ADDR = "0xc12fBEA081aD0B8143747Fd2935CE6b61734eB41";
+const ADDR = "0xdA6a8273f08Ce67E9CF7DfF09E84168B40F1FbEC";
 const RPC = "https://base-rpc.conet.network";
 
 const chainHex = execSync(`cast code ${ADDR} --rpc-url ${RPC}`, { encoding: "utf-8" }).trim();

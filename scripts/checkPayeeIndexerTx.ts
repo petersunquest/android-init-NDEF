@@ -41,12 +41,12 @@ async function main() {
 	const diamond = deploy.diamond
 	if (!diamond) throw new Error('缺少 diamond 地址')
 
-	const provider = new ethers.JsonRpcProvider('https://mainnet-rpc.conet.network')
+	const provider = new ethers.JsonRpcProvider('https://rpc1.conet.network')
 	const indexer = new ethers.Contract(diamond, INDEXER_ABI, provider)
 
 	console.log('=== 诊断：受益人 Recent Activity 数据 ===\n')
 	console.log('Indexer:', diamond)
-	console.log('CoNET RPC: https://mainnet-rpc.conet.network')
+	console.log('CoNET RPC: https://rpc1.conet.network')
 	console.log('目标 txId:', TX_ID)
 	console.log('Payer:', PAYER)
 	console.log('Payee (受益人):', PAYEE)

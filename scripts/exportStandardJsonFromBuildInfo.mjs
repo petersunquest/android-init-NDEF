@@ -6,9 +6,23 @@
  * 必须使用 --full 导出完整 build-info 输入，与 Hardhat 编译输入完全一致。
  *
  * 用法:
- *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule
- *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule
- *   node scripts/exportStandardJsonFromBuildInfo.mjs GovernanceModule --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModule --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAccount --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLibV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleExternalLib2V07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioContainerModuleV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFormattingLib --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs BeamioUserCardFactoryPaymasterV07 --full
+ *   # Base 上 0x291B… QuoteHelper：须 runs=50，且勿用 bytecodeHash:none / revert strip（与部署期一致），否则链上 bytecode 尾部队列元数据不匹配、BaseScan 报错。
+ *   BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioQuoteHelperV07 --full
+ *   # 同上（runs=50、默认 metadata）：BeamioFactoryPaymasterV07（aaFactory_指向的 AA 工厂，如 0xD86403…）
+ *   BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run clean && BEAMIO_SOLC_VERIFY_QUOTEHELPER_V07=1 npm run compile && node scripts/exportStandardJsonFromBuildInfo.mjs BeamioFactoryPaymasterV07 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full
+ *
+ * Base 主网 BeamioOracle 0xDa4…A9A2B 与当前 hardhat（0.8.33 + viaIR + runs=0等）不一致，
+ * 勿用本脚本从 build-info 导出该地址验证 JSON；请用:
+ *   node scripts/buildBeamioOracleBaseOnchainVerifyStandardJson.mjs
  *
  * 输出: deployments/base-{Contract}-standard-input-FULL.json
  */
@@ -20,9 +34,81 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG = {
+  TreasuryBridgeV3: {
+    sourceKey: "project/src/b-unit/TreasuryBridgeV3.sol",
+    contractName: "TreasuryBridgeV3",
+  },
+  TreasuryCanonicalERC20V3: {
+    sourceKey: "project/src/b-unit/TreasuryCanonicalERC20V3.sol",
+    contractName: "TreasuryCanonicalERC20V3",
+  },
+  BeamioUserCardFormattingLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol",
+    contractName: "BeamioUserCardFormattingLib",
+  },
+  BeamioUserCardTransferLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardTransferLib.sol",
+    contractName: "BeamioUserCardTransferLib",
+  },
+  BeamioUserCardAdminGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardAdminGatewayLib.sol",
+    contractName: "BeamioUserCardAdminGatewayLib",
+  },
+  BeamioUserCardFaucetGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFaucetGatewayLib.sol",
+    contractName: "BeamioUserCardFaucetGatewayLib",
+  },
+  BeamioUserCardGatewayMintLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardGatewayMintLib.sol",
+    contractName: "BeamioUserCardGatewayMintLib",
+  },
+  BeamioUserCardGovernanceLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardGovernanceLib.sol",
+    contractName: "BeamioUserCardGovernanceLib",
+  },
+  BeamioUserCardIssuedNftGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardIssuedNftGatewayLib.sol",
+    contractName: "BeamioUserCardIssuedNftGatewayLib",
+  },
+  BeamioUserCardModuleRouterLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol",
+    contractName: "BeamioUserCardModuleRouterLib",
+  },
+  BeamioUserCardRedeemGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardRedeemGatewayLib.sol",
+    contractName: "BeamioUserCardRedeemGatewayLib",
+  },
+  BeamioUserCardReferrerLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol",
+    contractName: "BeamioUserCardReferrerLib",
+  },
+  ReferrerRegistryLib: {
+    sourceKey: "project/src/BeamioUserCard/ReferrerRegistryLib.sol",
+    contractName: "ReferrerRegistryLib",
+  },
+  BeamioUserCardUpdateLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol",
+    contractName: "BeamioUserCardUpdateLib",
+  },
+  BeamioUserCardViewsLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol",
+    contractName: "BeamioUserCardViewsLib",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
+  },
+  BeamioUserCardFactoryPaymasterV07: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol",
+    contractName: "BeamioUserCardFactoryPaymasterV07",
+  },
+  BeamioUserCardIssuedNftModuleV1: {
+    sourceKey: "project/src/BeamioUserCard/IssuedNftModule.sol",
+    contractName: "BeamioUserCardIssuedNftModuleV1",
+  },
+  BeamioQuoteHelperV07: {
+    sourceKey: "project/src/BeamioUserCard/BeamioQuoteHelperV07.sol",
+    contractName: "BeamioQuoteHelperV07",
   },
   AdminStatsQueryModule: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
@@ -32,6 +118,46 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
   },
+  MembershipStatsModule: {
+    sourceKey: "project/src/BeamioUserCard/MembershipStatsModule.sol",
+    contractName: "BeamioUserCardMembershipStatsModuleV1",
+  },
+  ChargeRewardModule: {
+    sourceKey: "project/src/BeamioUserCard/ChargeRewardModule.sol",
+    contractName: "BeamioUserCardChargeRewardModuleV1",
+  },
+  RedeemModule: {
+    sourceKey: "project/src/BeamioUserCard/RedeemModule.sol",
+    contractName: "BeamioUserCardRedeemModuleVNext",
+  },
+  BeamioAccount: {
+    sourceKey: "project/src/BeamioAccount/BeamioAccount.sol",
+    contractName: "BeamioAccount",
+  },
+  BeamioFactoryPaymasterV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioFactoryPaymasterV07.sol",
+    contractName: "BeamioFactoryPaymasterV07",
+  },
+  BeamioContainerModuleV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleV07.sol",
+    contractName: "BeamioContainerModuleV07",
+  },
+  BeamioContainerModuleExternalLibV07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleExternalLibV07.sol",
+    contractName: "BeamioContainerModuleExternalLibV07",
+  },
+  BeamioContainerModuleExternalLib2V07: {
+    sourceKey: "project/src/BeamioAccount/BeamioContainerModuleExternalLib2V07.sol",
+    contractName: "BeamioContainerModuleExternalLib2V07",
+  },
+  BeamioAccountDeployer: {
+    sourceKey: "project/src/BeamioAccount/BeamioAccountDeployer.sol",
+    contractName: "BeamioAccountDeployer",
+  },
+  GenesisNodeReferralVaultV1: {
+    sourceKey: "project/src/mainnet/GenesisNodeReferralVaultV1.sol",
+    contractName: "GenesisNodeReferralVaultV1",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
@@ -40,26 +166,50 @@ if (buildInfoFiles.length === 0) {
   console.error("未找到 build-info，请先运行: npm run clean && npm run compile");
   process.exit(1);
 }
-const BUILD_INFO = path.join(buildInfoDir, buildInfoFiles[0]);
+
+/** 多份 build-info 时，选用包含目标源文件的那份 */
+function resolveBuildInfoPath(sourceKey) {
+  for (const f of buildInfoFiles) {
+    const p = path.join(buildInfoDir, f);
+    try {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+      if (j.input?.sources?.[sourceKey]) return p;
+    } catch {
+      /* skip */
+    }
+  }
+  return null;
+}
 
 const contractArg = process.argv[2];
 const useFull = process.argv.includes("--full");
 
 if (!contractArg || !CONFIG[contractArg]) {
-  console.error("用法: node scripts/exportStandardJsonFromBuildInfo.mjs <Contract> [--full]");
+  console.error("用法: node scripts/exportStandardJsonFromBuildInfo.mjs <Contract> --full");
   console.error("支持的 Contract:", Object.keys(CONFIG).join(", "));
-  console.error("建议始终使用 --full，以确保 via-IR 下 bytecode 与链上一致");
+  process.exit(1);
+}
+
+if (!useFull) {
+  console.error("错误: 必须传入 --full。");
+  console.error(
+    "精简版仅含直接 import，缺少传递依赖（例如 BeamioAccount → BeamioContainerLayoutConstantsV07.sol），BaseScan 会报 ParserError / File import callback not supported。"
+  );
   process.exit(1);
 }
 
 const cfg = CONFIG[contractArg];
-const outPath = path.join(
-  __dirname,
-  "../deployments",
-  `base-${contractArg}-standard-input-${useFull ? "FULL" : "min"}.json`
-);
+const outPath = path.join(__dirname, "../deployments", `base-${contractArg}-standard-input-FULL.json`);
 
-const buildInfo = JSON.parse(fs.readFileSync(BUILD_INFO, "utf-8"));
+const buildInfoPath = resolveBuildInfoPath(cfg.sourceKey);
+if (!buildInfoPath) {
+  console.error(`未找到包含 ${cfg.sourceKey} 的 build-info，请先 npm run compile`);
+  process.exit(1);
+}
+
+console.log("使用 build-info:", path.basename(buildInfoPath));
+
+const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
 const fullInput = buildInfo.input;
 
 if (!fullInput.sources[cfg.sourceKey]) {
@@ -67,34 +217,44 @@ if (!fullInput.sources[cfg.sourceKey]) {
   process.exit(1);
 }
 
-let input;
-if (useFull) {
-  input = fullInput;
-  console.log(`使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）`);
-} else {
-  // 精简版：仅直接依赖（可能因 via-IR 导致 bytecode 不匹配）
-  const deps = {
-    [cfg.sourceKey]: fullInput.sources[cfg.sourceKey],
-  };
-  const content = fullInput.sources[cfg.sourceKey].content;
-  const importRegex = /^\s*import\s+(?:[^'"]+from\s+)?["']([^"']+)["'];/gm;
-  for (const m of content.matchAll(importRegex)) {
-    const imp = m[1];
-    let key;
-    if (imp.startsWith("./") || imp.startsWith("../")) {
-      const dir = path.dirname(cfg.sourceKey.replace("project/", ""));
-      key = "project/" + path.join(dir, imp).replace(/\\/g, "/");
-    } else {
-      key = "project/" + imp;
+const input = JSON.parse(JSON.stringify(fullInput));
+console.log("使用完整 build-info 输入（via-IR 与 Hardhat 完全一致）");
+
+function artifactPathForConfig(config) {
+  const artifactSourcePath = config.sourceKey.replace(/^project\//, "");
+  return path.join(__dirname, "../artifacts", artifactSourcePath, `${config.contractName}.json`);
+}
+
+function readUserCardLibraryAddresses() {
+  const p = path.join(__dirname, "../deployments/base-BeamioUserCardLibraries.json");
+  if (!fs.existsSync(p)) return {};
+  const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+  const contracts = j.contracts ?? {};
+  return Object.fromEntries(
+    Object.entries(contracts)
+      .filter(([, value]) => value?.address)
+      .map(([name, value]) => [name, value.address])
+  );
+}
+
+const artifactPath = artifactPathForConfig(cfg);
+if (fs.existsSync(artifactPath)) {
+  const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf-8"));
+  const linkReferences = artifact.deployedLinkReferences ?? artifact.linkReferences ?? {};
+  const libraryAddresses = readUserCardLibraryAddresses();
+  for (const [sourceName, libs] of Object.entries(linkReferences)) {
+    for (const libName of Object.keys(libs)) {
+      const addr = libraryAddresses[libName];
+      if (!addr) {
+        console.error(`缺少 ${contractArg} 验证所需 library 地址: ${libName}`);
+        process.exit(1);
+      }
+      input.settings ??= {};
+      input.settings.libraries ??= {};
+      input.settings.libraries[sourceName] ??= {};
+      input.settings.libraries[sourceName][libName] = addr;
     }
-    if (fullInput.sources[key]) deps[key] = fullInput.sources[key];
   }
-  input = {
-    language: fullInput.language,
-    sources: deps,
-    settings: fullInput.settings,
-  };
-  console.log("使用精简源（若验证失败请加 --full）");
 }
 
 const json = JSON.stringify(input, null, 2);

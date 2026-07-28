@@ -25,11 +25,20 @@ export async function getBeamioAccount(
   // 如果没有提供 Factory 地址，尝试从部署记录读取
   if (!factoryAddress) {
     const deploymentsDir = path.join(__dirname, "..", "..", "deployments");
+    const configJsonFile = path.join(__dirname, "..", "..", "config", "base-addresses.json");
     const networkName = networkInfo.name;
     
     try {
+      if (fs.existsSync(configJsonFile)) {
+        const baseConfig = JSON.parse(fs.readFileSync(configJsonFile, "utf-8"));
+        if (baseConfig.AA_FACTORY) {
+          factoryAddress = baseConfig.AA_FACTORY;
+          console.log(`✅ 从 config/base-addresses.json 读取 Factory 地址: ${factoryAddress}`);
+        }
+      }
+
       const factoryFile = path.join(deploymentsDir, `${networkName}-FactoryAndModule.json`);
-      if (fs.existsSync(factoryFile)) {
+      if (!factoryAddress && fs.existsSync(factoryFile)) {
         const factoryData = JSON.parse(fs.readFileSync(factoryFile, "utf-8"));
         if (factoryData.contracts?.beamioFactoryPaymaster?.address) {
           factoryAddress = factoryData.contracts.beamioFactoryPaymaster.address;

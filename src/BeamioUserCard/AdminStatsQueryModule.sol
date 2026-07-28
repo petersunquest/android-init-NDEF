@@ -17,6 +17,8 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
     uint8 private constant ROUTE_FAUCET = 1;
     uint8 private constant ROUTE_ISSUED_NFT = 2;
     uint8 private constant ROUTE_GOVERNANCE = 3;
+    uint8 private constant ROUTE_MEMBERSHIP_STATS = 4;
+    uint8 private constant ROUTE_CHARGE_REWARD = 5;
 
     struct AdminAirdropLimitView {
         address admin;
@@ -100,6 +102,18 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         uint256 periodIssued;
         uint256 periodUpgraded;
         uint256 adminCount;
+        uint256 cumulativeAdminToAdminTransfer;
+        uint256 cumulativeAdminToAdminTransferAmount;
+        uint256 periodAdminToAdminTransfer;
+        uint256 periodAdminToAdminTransferAmount;
+        uint256 lifetimeAdminToAdminTransferCount;
+        uint256 lifetimeAdminToAdminTransferAmount;
+    }
+
+    struct GlobalAdminToAdminHourlyView {
+        uint256 transferCount;
+        uint256 transferAmount;
+        bool hasData;
     }
 
     /// @dev Keep selector classification out of BeamioUserCard runtime so the card stays below EIP-170.
@@ -114,6 +128,14 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
                 || sel == bytes4(keccak256("getAdminAirdropLimit(address)"))
                 || sel == bytes4(keccak256("getAdminAndSubordinateLimits(address)"))
                 || sel == bytes4(keccak256("getAdminAndSubordinateLimitsPage(address,uint256,uint256,uint256,uint256)"))
+                || sel == bytes4(keccak256("getGlobalAdminToAdminHourlyData(uint256)"))
+                || sel == bytes4(keccak256("getGlobalAdminToAdminCounters()"))
+                || sel == bytes4(keccak256("getAdminMintCounter(address)"))
+                || sel == bytes4(keccak256("getAdminBurnCounter(address)"))
+                || sel == bytes4(keccak256("getAdminTransferCounter(address)"))
+                || sel == bytes4(keccak256("getAdminTransferAmountCounter(address)"))
+                || sel == bytes4(keccak256("getAdminRedeemMintCounter(address)"))
+                || sel == bytes4(keccak256("getAdminUSDCMintCounter(address)"))
         ) return ROUTE_STATS_QUERY;
 
         if (
@@ -153,11 +175,37 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
                 || sel == bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"))
         ) return ROUTE_GOVERNANCE;
 
+        if (
+            sel == bytes4(keccak256("membershipFlowBucketAtHour(uint64)"))
+                || sel == bytes4(keccak256("membershipScopedFlowBucketAtHour(uint8,uint256,uint64)"))
+        ) {
+            return ROUTE_MEMBERSHIP_STATS;
+        }
+
         if (sel == bytes4(keccak256("setFaucetConfig(uint256,uint64,uint64,uint128,uint128,bool,uint8,uint128)"))) {
             return ROUTE_FAUCET;
         }
-        if (sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))) {
+        if (
+            sel == bytes4(keccak256("createIssuedNft(bytes32,uint64,uint64,uint256,uint256,bytes32)"))
+                || sel == bytes4(keccak256("issuedNftSharedMetadataHash(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMaxSupply(uint256)"))
+                || sel == bytes4(keccak256("issuedNftMintedCount(uint256)"))
+                || sel == bytes4(keccak256("burnIssuedNftByGateway(address,uint256,uint256)"))
+                || sel == bytes4(keccak256("isIssuedNftValid(uint256)"))
+                || sel == bytes4(keccak256("issuedNftUserSigClaimUsed(address,uint256)"))
+        ) {
             return ROUTE_ISSUED_NFT;
+        }
+        if (
+            sel == bytes4(keccak256("CHARGE_REWARD_TOKEN_ID()"))
+                || sel == bytes4(keccak256("chargeRewardRatioE6()"))
+                || sel == bytes4(keccak256("setChargeRewardRatio(uint256)"))
+                || sel == bytes4(keccak256("setChargeRewardRatioByAdmin(uint256)"))
+                || sel == bytes4(keccak256("previewChargeRewardAmount(uint256)"))
+                || sel == bytes4(keccak256("mintChargeRewardByGateway(address,uint256,uint8)"))
+                || sel == bytes4(keccak256("burnChargeRewardByAdmin(address,uint256)"))
+        ) {
+            return ROUTE_CHARGE_REWARD;
         }
         return ROUTE_INVALID;
     }
@@ -175,6 +223,30 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         uint256[] totalIssueds;
         uint256[] totalUpgradeds;
         uint256 adminMintCounter;
+    }
+
+    function getAdminUSDCMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminUSDCMintCounter[admin];
+    }
+
+    function getAdminMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminMintCounter[admin];
+    }
+
+    function getAdminBurnCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminBurnCounter[admin];
+    }
+
+    function getAdminTransferCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminTransferCounter[admin];
+    }
+
+    function getAdminTransferAmountCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminTransferAmountCounter[admin];
+    }
+
+    function getAdminRedeemMintCounter(address admin) external view returns (uint256) {
+        return AdminStatsStorage.layout().adminRedeemMintCounter[admin];
     }
 
     function getAdminHourlyData(address admin, uint256 hourIndex) external view returns (AdminHourlyDataView memory result) {
@@ -221,6 +293,26 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         result.periodIssued = r.periodIssued;
         result.periodUpgraded = r.periodUpgraded;
         result.adminCount = r.adminCount;
+        result.cumulativeAdminToAdminTransfer = r.cumulativeAdminToAdminTransfer;
+        result.cumulativeAdminToAdminTransferAmount = r.cumulativeAdminToAdminTransferAmount;
+        result.periodAdminToAdminTransfer = r.periodAdminToAdminTransfer;
+        result.periodAdminToAdminTransferAmount = r.periodAdminToAdminTransferAmount;
+        result.lifetimeAdminToAdminTransferCount = r.lifetimeAdminToAdminTransferCount;
+        result.lifetimeAdminToAdminTransferAmount = r.lifetimeAdminToAdminTransferAmount;
+    }
+
+    /// @notice 按小时的全局 admin↔admin（不含 card owner）points 转账统计；与 getAdminHourlyData 的 per-admin 维度独立
+    function getGlobalAdminToAdminHourlyData(uint256 hourIndex) external view returns (GlobalAdminToAdminHourlyView memory result) {
+        AdminStatsStorage.Layout storage l = AdminStatsStorage.layout();
+        result.transferCount = l.globalAdminToAdminTransferCountByHour[hourIndex];
+        result.transferAmount = l.globalAdminToAdminTransferAmountByHour[hourIndex];
+        result.hasData = (result.transferCount > 0 || result.transferAmount > 0);
+    }
+
+    /// @notice 卡级终身 admin↔admin 转账次数与金额（不因 subordinate clear 清零）
+    function getGlobalAdminToAdminCounters() external view returns (uint256 transferCount, uint256 transferAmount) {
+        AdminStatsStorage.Layout storage l = AdminStatsStorage.layout();
+        return (l.globalAdminToAdminTransferCount, l.globalAdminToAdminTransferAmount);
     }
 
     function getAdminStatsFull(address admin, uint8 periodType, uint256 anchorTs, uint256 cumulativeStartTs)
