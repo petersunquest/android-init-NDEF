@@ -124,8 +124,10 @@ getContractFactory(name: 'IBeamioBUnitsMintReward', signerOrOptions?: ethers.Sig
 getContractFactory(name: 'IBusinessStartKetMint', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBusinessStartKetMint__factory>
 getContractFactory(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ConetGB1155__factory>
 getContractFactory(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GuardianNodesInfoV6__factory>
+getContractFactory(name: 'TreasuryBridgeMintCallbackMock', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryBridgeMintCallbackMock__factory>
 getContractFactory(name: 'IERC20BridgeV3', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20BridgeV3__factory>
 getContractFactory(name: 'ITreasuryBridgeAssetV3', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ITreasuryBridgeAssetV3__factory>
+getContractFactory(name: 'ITreasuryBridgeMintCallback', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ITreasuryBridgeMintCallback__factory>
 getContractFactory(name: 'TreasuryBridgeV3', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryBridgeV3__factory>
 getContractFactory(name: 'TreasuryCanonicalERC20V3', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryCanonicalERC20V3__factory>
 getContractFactory(name: 'TreasuryV3ERC1967Proxy', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TreasuryV3ERC1967Proxy__factory>
@@ -179,6 +181,9 @@ getContractFactory(name: 'IERC165', signerOrOptions?: ethers.Signer | FactoryOpt
 getContractFactory(name: 'SafeCast', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.SafeCast__factory>
 getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AccountRegistry__factory>
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
+getContractFactory(name: 'GenesisNodeReferralVaultV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.GenesisNodeReferralVaultV1__factory>
+getContractFactory(name: 'IERC20GenesisReferral', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20GenesisReferral__factory>
+getContractFactory(name: 'ITreasuryBridgeMintCallback', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ITreasuryBridgeMintCallback__factory>
 getContractFactory(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.LayerMinusNodeRestart_V2__factory>
 getContractFactory(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MerchantPOSManagement__factory>
 getContractFactory(name: 'IBUnitAirdropReferralClaim', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBUnitAirdropReferralClaim__factory>
@@ -310,8 +315,10 @@ getContractAt(name: 'IBeamioBUnitsMintReward', address: string | ethers.Addressa
 getContractAt(name: 'IBusinessStartKetMint', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBusinessStartKetMint>
 getContractAt(name: 'ConetGB1155', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ConetGB1155>
 getContractAt(name: 'GuardianNodesInfoV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GuardianNodesInfoV6>
+getContractAt(name: 'TreasuryBridgeMintCallbackMock', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryBridgeMintCallbackMock>
 getContractAt(name: 'IERC20BridgeV3', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20BridgeV3>
 getContractAt(name: 'ITreasuryBridgeAssetV3', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ITreasuryBridgeAssetV3>
+getContractAt(name: 'ITreasuryBridgeMintCallback', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ITreasuryBridgeMintCallback>
 getContractAt(name: 'TreasuryBridgeV3', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryBridgeV3>
 getContractAt(name: 'TreasuryCanonicalERC20V3', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryCanonicalERC20V3>
 getContractAt(name: 'TreasuryV3ERC1967Proxy', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TreasuryV3ERC1967Proxy>
@@ -365,6 +372,9 @@ getContractAt(name: 'IERC165', address: string | ethers.Addressable, signer?: et
 getContractAt(name: 'SafeCast', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.SafeCast>
 getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AccountRegistry>
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
+getContractAt(name: 'GenesisNodeReferralVaultV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.GenesisNodeReferralVaultV1>
+getContractAt(name: 'IERC20GenesisReferral', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20GenesisReferral>
+getContractAt(name: 'ITreasuryBridgeMintCallback', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ITreasuryBridgeMintCallback>
 getContractAt(name: 'LayerMinusNodeRestart_V2', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.LayerMinusNodeRestart_V2>
 getContractAt(name: 'MerchantPOSManagement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MerchantPOSManagement>
 getContractAt(name: 'IBUnitAirdropReferralClaim', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBUnitAirdropReferralClaim>
@@ -496,8 +506,10 @@ deployContract(name: 'IBeamioBUnitsMintReward', signerOrOptions?: ethers.Signer 
 deployContract(name: 'IBusinessStartKetMint', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetMint>
 deployContract(name: 'ConetGB1155', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
 deployContract(name: 'GuardianNodesInfoV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
+deployContract(name: 'TreasuryBridgeMintCallbackMock', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryBridgeMintCallbackMock>
 deployContract(name: 'IERC20BridgeV3', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20BridgeV3>
 deployContract(name: 'ITreasuryBridgeAssetV3', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeAssetV3>
+deployContract(name: 'ITreasuryBridgeMintCallback', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeMintCallback>
 deployContract(name: 'TreasuryBridgeV3', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryBridgeV3>
 deployContract(name: 'TreasuryCanonicalERC20V3', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCanonicalERC20V3>
 deployContract(name: 'TreasuryV3ERC1967Proxy', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryV3ERC1967Proxy>
@@ -551,6 +563,9 @@ deployContract(name: 'IERC165', signerOrOptions?: ethers.Signer | DeployContract
 deployContract(name: 'SafeCast', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SafeCast>
 deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
+deployContract(name: 'GenesisNodeReferralVaultV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GenesisNodeReferralVaultV1>
+deployContract(name: 'IERC20GenesisReferral', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20GenesisReferral>
+deployContract(name: 'ITreasuryBridgeMintCallback', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeMintCallback>
 deployContract(name: 'LayerMinusNodeRestart_V2', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IBUnitAirdropReferralClaim', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdropReferralClaim>
@@ -682,8 +697,10 @@ deployContract(name: 'IBeamioBUnitsMintReward', args: any[], signerOrOptions?: e
 deployContract(name: 'IBusinessStartKetMint', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBusinessStartKetMint>
 deployContract(name: 'ConetGB1155', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ConetGB1155>
 deployContract(name: 'GuardianNodesInfoV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GuardianNodesInfoV6>
+deployContract(name: 'TreasuryBridgeMintCallbackMock', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryBridgeMintCallbackMock>
 deployContract(name: 'IERC20BridgeV3', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20BridgeV3>
 deployContract(name: 'ITreasuryBridgeAssetV3', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeAssetV3>
+deployContract(name: 'ITreasuryBridgeMintCallback', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeMintCallback>
 deployContract(name: 'TreasuryBridgeV3', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryBridgeV3>
 deployContract(name: 'TreasuryCanonicalERC20V3', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryCanonicalERC20V3>
 deployContract(name: 'TreasuryV3ERC1967Proxy', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TreasuryV3ERC1967Proxy>
@@ -737,6 +754,9 @@ deployContract(name: 'IERC165', args: any[], signerOrOptions?: ethers.Signer | D
 deployContract(name: 'SafeCast', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.SafeCast>
 deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
+deployContract(name: 'GenesisNodeReferralVaultV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.GenesisNodeReferralVaultV1>
+deployContract(name: 'IERC20GenesisReferral', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20GenesisReferral>
+deployContract(name: 'ITreasuryBridgeMintCallback', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ITreasuryBridgeMintCallback>
 deployContract(name: 'LayerMinusNodeRestart_V2', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.LayerMinusNodeRestart_V2>
 deployContract(name: 'MerchantPOSManagement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MerchantPOSManagement>
 deployContract(name: 'IBUnitAirdropReferralClaim', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBUnitAirdropReferralClaim>

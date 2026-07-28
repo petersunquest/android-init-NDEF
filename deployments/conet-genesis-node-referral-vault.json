@@ -1,0 +1,49 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "contracts": {
+    "GenesisNodeReferralVaultV1Implementation": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
+    "GenesisNodeReferralVaultV1Proxy": "0x051b65E5711E6E74bC236Fe220dcA7021841855C",
+    "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+    "conetUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA"
+  },
+  "initialize": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+    "conetUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+    "foundation": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "defaultAdminPayout": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "bridgeBinder": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "transactions": {
+    "implementation": "0xdf77f3aad4c056a6f6c8efb5c909b6907ae7d7e3c0011ea4dc83c45c2000ab2a",
+    "proxy": "0xd2d2433681b44def136a2010dc17aed89c059d83cd92a3d31177d9d43244d5fd",
+    "proxyBlock": 594820,
+    "setMintCallbackAllowed": "0x7493ec12b6c2371a5f8937471f648a33c8aedf9b9d71b40f49949710a9b5ef71",
+    "setMintCallbackAllowedBlock": 594821
+  },
+  "mintCallback": {
+    "allowed": true,
+    "note": "Treasury setMintCallbackAllowed(vault, true) — LockMint callbackTarget must be this proxy"
+  },
+  "verification": {
+    "implVerified": true,
+    "proxyVerified": true,
+    "impl": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
+    "proxy": "0x051b65E5711E6E74bC236Fe220dcA7021841855C",
+    "verifiedAt": "2026-07-28T18:47:00.000Z",
+    "previousImpl": "0xbcD2Fcd8586C11c21029f74931A61DF5B284d481"
+  },
+  "createdAt": "2026-07-28T18:07:44.331Z",
+  "upgrade": {
+    "previousImplNote": "see git history / prior JSON",
+    "newImplementation": "0xB7d84bc9fC83b4a2e90F592D8F5Cbb93a0Bc5bd9",
+    "upgradeTx": "0xcbf7699ee72b332c2cae7e8d307f4b58b2be6d0c1e0acb0059c0b35e8031109d",
+    "upgradeBlock": 595205,
+    "implDeployTx": "0x49d445b34d2d4419051efd98cb7f5bf26efac2021ae55e5b9b13372298195d87",
+    "implDeployBlock": 595204,
+    "features": "L1 redeem + ratioBps; bindSale referrer must be L1",
+    "upgradedAt": "2026-07-28T18:46:08.250Z"
+  }
+}
