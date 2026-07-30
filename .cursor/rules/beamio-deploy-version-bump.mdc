@@ -1,0 +1,76 @@
+---
+description: 线上部署前必须 patch bump 子项目 version（package.json → UI APP_VERSION）
+alwaysApply: true
+---
+
+# Beamio 部署：版本号 patch bump 守则
+
+## 核心规则
+
+**凡发布到公网的标准部署脚本，默认在 build / rsync 之前对对应子项目执行 `npm version patch --no-git-tag-version`，commit + push 后再部署。** 禁止「同版本号反复覆盖线上」而不 bump。
+
+用户可见版本来自各子项目 `package.json` 的 `version` 字段（bizSite：`src/bizSite/src/version.ts` → `APP_VERSION`）。
+
+## 标准脚本（单一事实来源）
+
+| 产品 | 源码 | 部署脚本 | bump 目标 |
+|---|---|---|---|
+| **bizSite** Merchant OS | `src/bizSite/` | `./scripts/deployBeamioBizSite.sh` | `src/bizSite/package.json` |
+| **SilentPassUI** PWA | `src/SilentPassUI/` | `./scripts/deployBeamioPwa.sh` | `src/SilentPassUI/package.json` |
+
+两脚本均：
+
+1. 要求子项目 **working tree clean**（有未提交改动则失败，避免 bump 与业务混 commit）。
+2. `npm version patch --no-git-tag-version`
+3. `git add package.json`（及 `package-lock.json` 若存在）
+4. `git commit -m "chore(biz|pwa): bump version to X.Y.Z"`
+5. **`git push`**（远程 build 依赖 pull 到新版本）
+6. 再 build + 发布产物
+
+## 选项
+
+| 标志 | 说明 |
+|---|---|
+| `--skip-version-bump` | **不推荐**；仅 hotfix 重发同一 build artifacts 等例外 |
+
+AI / 人工 **不得**在守则或 runbook 里把 `--skip-version-bump` 当作默认。
+
+## 子模块 / 根仓
+
+- bizSite、SilentPassUI 为独立 git 子项目时：**先在子目录 bump + push**，再在根仓更新子模块指针并 push（见 `beamio-git-clean-commit-push.mdc`）。
+- 远程服务器 clone（如 `/var/www/biz.beamio.app/SilentPassUI`）须在 bump push **之后** `git pull`，否则线上仍是旧 `APP_VERSION`。
+
+## 其它 PWA / 站点
+
+新增公网部署脚本时，**须**内置同等 bump 步骤，或在本表登记例外理由。homepage、POS PWA、x402sdk API 等若尚无 bump，发版时应优先补脚本而非手工省略。
+
+## AI 部署检查清单
+
+- [ ] 是否走标准脚本（`deployBeamioBizSite.sh` / `deployBeamioPwa.sh`）而非手写 rsync？
+- [ ] 是否 **未** 默认加 `--skip-version-bump`？
+- [ ] bump 前 bizSite / SilentPassUI working tree 是否 clean？
+- [ ] bump 后是否 **push**，再 remote build / local-build？
+- [ ] 验收时是否 spot-check 页脚或设置里的 **新版本号**（如 biz 登录页 `vX.Y.Z`）？
+- [ ] SilentPassUI：是否 smoke `https://beamio.app/app/update.json` 与 zip？
+
+## 严禁
+
+- ❌ 重复部署同一 `package.json` version 到生产且无文档化例外
+- ❌ 只 rsync build、不 bump、不 push，却告知用户「已发新版」
+- ❌ 在 bump commit 中夹带未相关的业务源码改动
+- ❌ 手工改 `version.ts` 而不改 `package.json`（bizSite 以 `package.json` 为唯一来源）
+
+## SilentPassUI 额外：Embedded OTA
+
+`deployBeamioPwa.sh` bump 时必须同步 `src/SilentPassUI/public/update.json`（`ver` + `SilentPassUI-{ver}.zip`），并在发布后 smoke `https://beamio.app/app/update.json`。详见 `beamio-pwa-deploy-app-dirs.mdc`。仅 bump `package.json` 而不更新 OTA 元数据/zip，原生壳不会提示「新版本」。
+
+## AI 部署检查清单（SilentPassUI 追加）
+
+- [ ] 发版后 `update.json.ver` 是否等于新 `package.json` version？
+- [ ] `SilentPassUI-{ver}.zip` 是否 HTTP 200？
+
+## 相关守则
+
+- `beamio-bizsite-deploy.mdc` — bizSite 路径与 promote
+- `beamio-pwa-deploy-app-dirs.mdc` — PWA bump + `/app/` rsync + **Embedded OTA**
+- `beamio-git-clean-commit-push.mdc` — 子模块 push 顺序

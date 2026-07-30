@@ -1,0 +1,129 @@
+---
+description: Beamio beamio.app 站点根 rsync 保护 + SilentPassUI 部署与原生 Embedded OTA（update.json / zip）
+alwaysApply: true
+---
+
+# Beamio `beamio.app` 站点根：rsync `--delete` 保护 + SilentPassUI 部署 / OTA
+
+## 核心规则
+
+**对 `/var/www/beamio.app/` 做任何 `rsync --delete`（homepage 发布、手工 SSH、AI 自动化）时，必须携带下文「强制 exclude 清单」中的**全部**项。** 缺一项即可能删掉线上 PWA、POS、**服务器上的 homepage / SilentPassUI Git 工作目录**，或 **Universal Links**（`.well-known/`）。
+
+**Homepage 部署只同步静态 build 产物**（`index.html`、`static/`、`assets/` 等），**不得**用 homepage 的 `build/` 去「同步整站根目录」而误删并行的其它目录。
+
+**SilentPassUI 发版必须走 `./scripts/deployBeamioPwa.sh`，且必须同时发布原生 Embedded OTA（`update.json` + `SilentPassUI-{ver}.zip`）。** 禁止只 `rsync build/ → app/` 而不打 OTA 包。
+
+## 服务器 `/var/www/beamio.app/` 目录语义
+
+| 目录 | 类型 | 用途 |
+|------|------|------|
+| **`app/`** | **线上产物** | SilentPassUI PWA build（`https://beamio.app/app/`）+ **OTA** `update.json` / `SilentPassUI-*.zip` |
+| **`appTemp/`** | **staging 产物** | PWA 发布暂存，再 promote 到 `app/` |
+| **`pos/`** | **线上产物** | POS PWA build |
+| **`posTemp/`** | **staging 产物** | POS PWA 暂存 |
+| **`homepage/`** | **服务器 Git 克隆** | `beamio-APP/homepage`，远程 `git pull` + `npm run build` 的工作目录；**不是** nginx 直接服务的静态根 |
+| **`SilentPassUI/`** | **服务器 Git 克隆** | `CoNET-project/SilentPassUI`（`cashtree`），远程 build PWA 的工作目录；**不是** `app/` 本身 |
+| **`.well-known/`** | **运维静态** | 如 `apple-app-site-association`；homepage build **通常不含**，无 exclude 会被 `--delete` 清掉 |
+
+站点根上的 `index.html`、`static/`、`assets/` 等来自 **`src/homepage` build**，与上表目录**并列**；一次无 exclude 的 `rsync --delete build/ /var/www/beamio.app/` 会把表中目录当作「build 里不存在」而**删除**（含 `.git` 源码树）。
+
+### 事故复盘（禁止重演）
+
+1. **2026-06-02**：手工 `rsync -av --delete build/ /var/www/beamio.app/` **仅** exclude 了 `app/`、`appTemp/`、`pos/`、`posTemp/`，**漏掉** `homepage/`、`SilentPassUI/` → 服务器上两套 Git 克隆被删；`.well-known/` 亦被删。恢复方式：`git clone` 回 `homepage/`、`SilentPassUI/`，并从 `src/CashTrees_iOS/docs/apple-app-site-association.draft.json` 还原 AASA。
+
+2. **2026-07-29（Embedded OTA 漂移）**：对手动 / 不完整 PWA 发版只做 `rsync -av --delete build/ → app/`：
+   - `--delete` **删光** 已有 `SilentPassUI-*.zip`（zip **不在** CRA `build/` 内）；
+   - CRA 把仓库里过期的 `public/update.json`（曾长期卡在 `0.39.7` / `0.39.7.zip`）拷进 `build/`，覆盖线上正确 OTA 元数据；
+   - 原生壳轮询 `https://beamio.app/app/update.json` 看不到新版 → **「New version available」横幅永不出现**（该横幅是 Embedded OTA，**不是** Service Worker）。
+   - 修复：必须用 `deployBeamioPwa.sh`（rsync **exclude** `SilentPassUI-*.zip` + 强制打 zip + 写 `update.json` + live smoke）；bump 时同步 `public/update.json`。
+
+## 强制 exclude 清单（homepage → 站点根，单一事实来源）
+
+与 `scripts/deployBeamioHomepage.sh` 中 `RSYNC_EXCLUDES` **必须一致**：
+
+```bash
+--exclude 'app/'
+--exclude 'appTemp/'
+--exclude 'pos/'
+--exclude 'posTemp/'
+--exclude 'homepage/'
+--exclude 'SilentPassUI/'
+--exclude '.well-known/'
+```
+
+**禁止**在守则、运维文档、AI 生成的 SSH 命令里写「只 exclude app/ 与 appTemp/」的旧版片段。
+
+## nginx 约定（真相来源）
+
+`src/x402sdk/service/beamio.conf`：
+
+- `location ^~ /app/` → `try_files $uri $uri/ /app/index.html`
+- `location = /app/manifest.json` → Cluster API，静态回退到 `/app/manifest.json`
+
+修改 nginx 或部署流程时，须保证 **`/var/www/beamio.app/app/`** 始终存在且可服务。
+
+---
+
+## SilentPassUI Embedded OTA（原生壳「新版本」横幅）— 铁律
+
+| 项 | 约定 |
+|---|---|
+| **产品** | Consumer PWA `https://beamio.app/app/`（`src/SilentPassUI`） |
+| **壳** | iOS CashTrees / Android CaehTrees WebView；桥 `applyEmbeddedPwaUpdate` / `getEmbeddedPwaPendingVersion` |
+| **UI** | `EmbeddedPwaUpdateBanner` — **仅**原生 Embedded OTA，**不是** SW `needRefresh` |
+| **轮询 URL** | `GET https://beamio.app/app/update.json` |
+| **JSON 形状** | `{"ver":"<semver>","filename":"SilentPassUI-<semver>.zip"}` — `ver` **必须**等于当次 `package.json` `version` |
+| **Zip** | 与 `filename` 同目录：`https://beamio.app/app/SilentPassUI-<semver>.zip`（`PUBLIC_URL=/` 重打的包） |
+| **源码同步** | bump 时写 `src/SilentPassUI/public/update.json`（与 `package.json` 同 commit），避免 CRA 再拷出过期 manifest |
+
+### 正确部署（唯一推荐）
+
+```bash
+./scripts/deployBeamioPwa.sh
+```
+
+脚本必须完成：
+
+1. 本地 `src/SilentPassUI` **working tree clean**。
+2. `npm version patch` + **同步 `public/update.json`** → commit + **push** `cashtree`。
+3. 远程 `git fetch/reset` + `npm run build`（`homepage: "/app"`）。
+4. `rsync -av --delete --exclude 'SilentPassUI-*.zip' build/ /var/www/beamio.app/app/`  
+   （**必须** exclude zip，否则 `--delete` 抹掉全部 OTA zip）。
+5. `PUBLIC_URL=/ npm run build` → 打 `SilentPassUI-{ver}.zip` → 写入 `app/update.json` + zip（chmod 644）。
+6. **Live smoke 失败则部署失败**：`curl` `update.json` 的 `ver`/`filename` 与 `package.json` 一致，且 zip HTTP **200**。
+
+环境变量（可选）：`REMOTE_BUILD_HOST`（默认 `conet.network`）、`REMOTE_BUILD_DIR`、`REMOTE_APP_DIR`。`--skip-version-bump` **不推荐**。
+
+### 严禁（SilentPassUI / OTA）
+
+- ❌ 只 `rsync build/ → app/` 而不打 `SilentPassUI-*.zip`、不写匹配的 `update.json`
+- ❌ `rsync --delete` **不** exclude `SilentPassUI-*.zip`（会删光 OTA 包）
+- ❌ 仓库 `public/update.json` 的 `ver` 长期落后于 `package.json`（会把线上 OTA 打回旧版）
+- ❌ 以为「发了 `/app/` 新 JS」原生壳就会提示更新（壳只看 `update.json` + zip）
+- ❌ 把 POS PWA（`pos.beamio.app` / `autoUpdate` SW）的更新模型套到 Consumer Embedded OTA
+- ❌ 用 homepage `rsync --delete` 覆盖站点根且未带齐 7 项 exclude
+
+---
+
+## Homepage（`src/homepage` → 站点根）
+
+**只用** `./scripts/deployBeamioHomepage.sh`（已内置全部 exclude）。若必须手写 rsync，**原样复制**上文「强制 exclude 清单」，不得删减。
+
+## 变更检查清单
+
+- [ ] Homepage 发布是否走 **`deployBeamioHomepage.sh`** 或等价 **7 项 exclude**？
+- [ ] SilentPassUI 是否走 **`deployBeamioPwa.sh`**（含 OTA zip + `update.json` + smoke）？
+- [ ] bump 后 `public/update.json` 是否与 `package.json` version 一致？
+- [ ] `rsync` 到 `app/` 是否 **exclude** `SilentPassUI-*.zip`？
+- [ ] 部署后：`curl -s https://beamio.app/app/update.json` 的 `ver` == 新版本，且对应 zip 可下载？
+- [ ] 部署后 spot-check：`https://beamio.app/`、`https://beamio.app/app/`、`/.well-known/apple-app-site-association`？
+
+## 参考
+
+- 部署脚本：`scripts/deployBeamioHomepage.sh`、`scripts/deployBeamioPwa.sh`
+- PWA 源码：`src/SilentPassUI/`（`homepage: "/app"`）
+- OTA UI：`src/SilentPassUI/src/components/EmbeddedPwaUpdateBanner.tsx`、`utils/cashTreesEmbeddedPwaUpdate.ts`
+- Homepage 源码：`src/homepage/`
+- nginx：`src/x402sdk/service/beamio.conf` — `/app/` 路由
+- iOS / 深链默认入口：`https://beamio.app/app/`（`BeamioDeepLink.defaultWebAppURL`）
+- 版本 bump：`beamio-deploy-version-bump.mdc`
