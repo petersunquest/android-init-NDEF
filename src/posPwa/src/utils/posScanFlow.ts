@@ -22,7 +22,12 @@ import {
 
 export type PosScanFlowResult =
 	| { status: 'nfc'; detail: CashTreesNfcDetail }
-	| { status: 'qr'; identity: CustomerIdentity }
+	| {
+			status: 'qr'
+			identity: CustomerIdentity
+			/** Present when QR is Scan-to-Pay OpenContainer (usable for legacy coupon transfer). */
+			openContainerPayload?: Record<string, unknown>
+	  }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -145,7 +150,12 @@ export async function runPosCustomerScanFlow(): Promise<PosScanFlowResult> {
 			message: 'Cannot parse QR. Scan a beamio.app link or Scan to Pay code.',
 		}
 	}
-	return { status: 'qr', identity }
+	const payQr = parseOpenContainerPaymentQr(qr.text)
+	return {
+		status: 'qr',
+		identity,
+		...(payQr.payload ? { openContainerPayload: payQr.payload } : {}),
+	}
 }
 
 /** NFC → QR for Charge; QR must be Scan to Pay OpenContainer JSON (iOS `handlePaymentQr`). */

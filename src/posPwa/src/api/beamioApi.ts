@@ -870,18 +870,42 @@ export interface CardCouponPosClaimSubmitResult {
 
 export interface CardCouponPosConsumePrepareResult {
 	success: boolean
-	/** Legacy card without cardSelfBurn — burn path unavailable; NFC surrender required. */
+	/** `burn` (new card) or `transfer` / openContainerSurrender (legacy card). */
+	mode?: 'burn' | 'transfer'
+	/** Legacy card without cardSelfBurn — transfer coupon via OpenContainer to POS/admin/owner. */
 	useOpenContainerSurrender?: boolean
+	requiresCustomerAuth?: boolean
+	/** @deprecated use requiresCustomerAuth */
 	requiresNfcSurrender?: boolean
 	cardAddress?: string
+	couponId?: string
+	userEOA?: string
+	userAccount?: string
 	data?: string
 	deadline?: number
 	nonce?: string
 	factoryGateway?: string
 	tokenId?: string
 	amount?: string
+	/** Holder AA (burn target / OpenContainer account). */
 	targetAddress?: string
+	/** Legacy transfer recipient: POS terminal, admin, or card owner. */
+	transferRecipient?: string
+	cardOwnerEOA?: string
 	message?: string
+	error?: string
+}
+
+export interface CardCouponPosConsumeNfcSignResult {
+	success: boolean
+	openContainerPayload?: Record<string, unknown>
+	cardAddress?: string
+	couponId?: string
+	userEOA?: string
+	userAccount?: string
+	tokenId?: string
+	amount?: string
+	posOperator?: string
 	error?: string
 }
 
@@ -1091,6 +1115,7 @@ export async function cardCouponPosConsumePrepare(params: {
 	couponId: string
 	userEOA: string
 	signerEOA?: string
+	posOperator?: string
 	tokenId?: string
 	amount?: string
 }): Promise<CardCouponPosConsumePrepareResult | null> {
@@ -1108,8 +1133,10 @@ export async function cardCouponPosConsumePrepare(params: {
 		amount,
 	}
 	const signerEOA = params.signerEOA?.trim()
+	const posOperator = params.posOperator?.trim() || signerEOA
 	const tokenId = params.tokenId?.trim()
 	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	if (isPlausibleEvmAddress(posOperator)) body.posOperator = posOperator!
 	if (tokenId) body.tokenId = tokenId
 	try {
 		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumePrepare`, {
@@ -1125,13 +1152,26 @@ export async function cardCouponPosConsumePrepare(params: {
 				? deadlineRaw
 				: Number(String(deadlineRaw ?? '')) || undefined
 		const useOpenContainerSurrender = Boolean(json.useOpenContainerSurrender)
-		const requiresNfcSurrender = Boolean(json.requiresNfcSurrender) || useOpenContainerSurrender
+		const modeRaw = String(json.mode ?? '').trim().toLowerCase()
+		const mode: 'burn' | 'transfer' | undefined =
+			modeRaw === 'transfer' || useOpenContainerSurrender
+				? 'transfer'
+				: modeRaw === 'burn' || Boolean(json.data)
+					? 'burn'
+					: undefined
+		const requiresCustomerAuth =
+			Boolean(json.requiresCustomerAuth) || useOpenContainerSurrender
 		const message = String(json.message ?? json.error ?? '').trim() || undefined
 		return {
 			success: ok,
+			mode,
 			useOpenContainerSurrender,
-			requiresNfcSurrender,
+			requiresCustomerAuth,
+			requiresNfcSurrender: Boolean(json.requiresNfcSurrender) || requiresCustomerAuth,
 			cardAddress: String(json.cardAddress ?? '').trim() || undefined,
+			couponId: String(json.couponId ?? '').trim() || undefined,
+			userEOA: String(json.userEOA ?? '').trim() || undefined,
+			userAccount: String(json.userAccount ?? '').trim() || undefined,
 			data: String(json.data ?? '').trim() || undefined,
 			deadline: deadline && deadline > 0 ? deadline : undefined,
 			nonce: String(json.nonce ?? '').trim() || undefined,
@@ -1139,8 +1179,120 @@ export async function cardCouponPosConsumePrepare(params: {
 			tokenId: String(json.tokenId ?? '').trim() || undefined,
 			amount: String(json.amount ?? '').trim() || undefined,
 			targetAddress: String(json.targetAddress ?? '').trim() || undefined,
+			transferRecipient: String(json.transferRecipient ?? '').trim() || undefined,
+			cardOwnerEOA: String(json.cardOwnerEOA ?? '').trim() || undefined,
 			message,
-			error: message || (!ok ? `HTTP ${res.status}` : undefined),
+			error: !ok ? message || `HTTP ${res.status}` : undefined,
+		}
+	} catch {
+		return null
+	}
+}
+
+/** Legacy card: sign OpenContainer coupon transfer with API-hosted NFC key. */
+export async function cardCouponPosConsumeNfcSign(params: {
+	cardAddress: string
+	couponId: string
+	userEOA: string
+	posOperator: string
+	signerEOA?: string
+	uid?: string
+	tagIdHex?: string
+	tokenId?: string
+	amount?: string
+}): Promise<CardCouponPosConsumeNfcSignResult | null> {
+	const card = params.cardAddress.trim()
+	const couponId = params.couponId.trim()
+	const userEOA = params.userEOA.trim()
+	const posOperator = params.posOperator.trim()
+	const amount = (params.amount ?? '1').trim()
+	if (
+		!isPlausibleEvmAddress(card) ||
+		!isPlausibleEvmAddress(userEOA) ||
+		!isPlausibleEvmAddress(posOperator) ||
+		!couponId
+	) {
+		return { success: false, error: 'Invalid NFC surrender payload.' }
+	}
+	const body: Record<string, string> = {
+		cardAddress: card,
+		couponId,
+		userEOA,
+		posOperator,
+		amount,
+	}
+	const signerEOA = params.signerEOA?.trim()
+	const tokenId = params.tokenId?.trim()
+	const uid = params.uid?.trim()
+	const tagIdHex = params.tagIdHex?.trim()
+	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	if (tokenId) body.tokenId = tokenId
+	if (uid) body.uid = uid
+	if (tagIdHex) body.tagIdHex = tagIdHex
+	try {
+		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosConsumeNfcSign`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		const payload = json.openContainerPayload
+		return {
+			success: ok,
+			openContainerPayload:
+				payload && typeof payload === 'object' && !Array.isArray(payload)
+					? (payload as Record<string, unknown>)
+					: undefined,
+			cardAddress: String(json.cardAddress ?? '').trim() || undefined,
+			couponId: String(json.couponId ?? '').trim() || undefined,
+			userEOA: String(json.userEOA ?? '').trim() || undefined,
+			userAccount: String(json.userAccount ?? '').trim() || undefined,
+			tokenId: String(json.tokenId ?? '').trim() || undefined,
+			amount: String(json.amount ?? '').trim() || undefined,
+			posOperator: String(json.posOperator ?? '').trim() || undefined,
+			error: String(json.error ?? '').trim() || (!ok ? `HTTP ${res.status}` : undefined),
+		}
+	} catch {
+		return null
+	}
+}
+
+/** Relay OpenContainer coupon surrender (legacy transfer) via `/api/AAtoEOA`. */
+export async function postAAtoEOACouponSurrender(body: {
+	openContainerPayload: Record<string, unknown>
+	merchantCardAddress: string
+	posOperator: string
+	couponBurnUserEOA: string
+	couponBurnRefWallet?: string
+}): Promise<PostAAtoEOAResult | null> {
+	try {
+		const payload: Record<string, unknown> = {
+			openContainerPayload: body.openContainerPayload,
+			merchantCardAddress: body.merchantCardAddress.trim(),
+			posOperator: body.posOperator.trim(),
+			couponOpenContainerSurrender: true,
+			couponBurnUserEOA: body.couponBurnUserEOA.trim(),
+			forText: 'POS coupon surrender',
+			currency: 'USDC',
+			currencyAmount: '0',
+		}
+		const ref = body.couponBurnRefWallet?.trim()
+		if (isPlausibleEvmAddress(ref)) payload.couponBurnRefWallet = ref!
+		const res = await fetch(`${BEAMIO_API}/api/AAtoEOA`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		const ok = res.ok && json.success !== false
+		return {
+			success: ok,
+			txHash:
+				(json.USDC_tx as string | undefined)?.trim() ||
+				String(json.txHash ?? json.tx ?? '').trim() ||
+				undefined,
+			error: json.error ? String(json.error) : !ok ? `HTTP ${res.status}` : undefined,
 		}
 	} catch {
 		return null

@@ -9,7 +9,13 @@ export type CheckBalanceNfcScanContext = {
 }
 
 export type CheckBalanceFlowResult =
-	| { status: 'success'; assets: UIDAssetsResult; nfcScan?: CheckBalanceNfcScanContext }
+	| {
+			status: 'success'
+			assets: UIDAssetsResult
+			nfcScan?: CheckBalanceNfcScanContext
+			/** Scan-to-Pay open-relay payload (legacy coupon transfer). */
+			openContainerPayload?: Record<string, unknown>
+	  }
 	| { status: 'aborted' }
 	| { status: 'error'; message: string }
 
@@ -46,6 +52,7 @@ async function queryAssetsFromNfc(
 async function queryAssetsFromQrIdentity(
 	identity: { beamioTag?: string; wallet?: string },
 	merchantInfraCard: string,
+	openContainerPayload?: Record<string, unknown>,
 ): Promise<CheckBalanceFlowResult> {
 	let result: UIDAssetsResult | null = null
 	if (identity.beamioTag?.trim()) {
@@ -65,7 +72,11 @@ async function queryAssetsFromQrIdentity(
 	if (!result.ok) {
 		return { status: 'error', message: result.error?.trim() || 'Query failed.' }
 	}
-	return { status: 'success', assets: result }
+	return {
+		status: 'success',
+		assets: result,
+		...(openContainerPayload ? { openContainerPayload } : {}),
+	}
 }
 
 /** Headless Check Balance: native NFC → (dismiss) native QR → result or home. */
@@ -80,7 +91,7 @@ export async function runCheckBalanceFlow(merchantInfraCard: string): Promise<Ch
 		return queryAssetsFromNfc(scan.detail, infra)
 	}
 	if (scan.status === 'qr') {
-		return queryAssetsFromQrIdentity(scan.identity, infra)
+		return queryAssetsFromQrIdentity(scan.identity, infra, scan.openContainerPayload)
 	}
 	if (scan.status === 'aborted') {
 		return { status: 'aborted' }

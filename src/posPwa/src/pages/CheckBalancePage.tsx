@@ -38,6 +38,7 @@ import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa
 export interface CheckBalanceLocationState {
 	assets?: UIDAssetsResult
 	nfcScan?: CheckBalanceNfcScanContext
+	openContainerPayload?: Record<string, unknown>
 }
 
 type Phase = 'loading' | 'result' | 'deduct-amount' | 'deduct-executing' | 'deduct-success'
@@ -61,6 +62,9 @@ export function CheckBalancePage() {
 	const [nfcScan, setNfcScan] = useState<CheckBalanceNfcScanContext | undefined>(
 		navState?.nfcScan,
 	)
+	const [openContainerPayload, setOpenContainerPayload] = useState<
+		Record<string, unknown> | undefined
+	>(navState?.openContainerPayload)
 	const [claimInFlightId, setClaimInFlightId] = useState<string | null>(null)
 	const [claimSucceededId, setClaimSucceededId] = useState<string | null>(null)
 	const [consumeInFlightId, setConsumeInFlightId] = useState<string | null>(null)
@@ -92,10 +96,15 @@ export function CheckBalancePage() {
 			if (outcome.status === 'success') {
 				setAssets(outcome.assets)
 				setNfcScan(outcome.nfcScan)
+				setOpenContainerPayload(outcome.openContainerPayload)
 				setPhase('result')
 				navigate(POS_HOME_ROUTES.checkBalance, {
 					replace: true,
-					state: { assets: outcome.assets, nfcScan: outcome.nfcScan },
+					state: {
+						assets: outcome.assets,
+						nfcScan: outcome.nfcScan,
+						openContainerPayload: outcome.openContainerPayload,
+					},
 				})
 				return
 			}
@@ -116,10 +125,10 @@ export function CheckBalancePage() {
 			setAssets(next)
 			navigate(POS_HOME_ROUTES.checkBalance, {
 				replace: true,
-				state: { assets: next, nfcScan },
+				state: { assets: next, nfcScan, openContainerPayload },
 			})
 		},
-		[navigate, nfcScan],
+		[navigate, nfcScan, openContainerPayload],
 	)
 
 	const handleClaimCoupon = useCallback(
@@ -188,6 +197,8 @@ export function CheckBalancePage() {
 				coupon,
 				signerEOA,
 				claimSucceededId,
+				nfcScan,
+				openContainerPayload,
 			})
 
 			setConsumeInFlightId(null)
@@ -201,7 +212,16 @@ export function CheckBalancePage() {
 			if (result.clearClaimSucceededId) setClaimSucceededId(null)
 			setCouponToast({ kind: 'success', text: 'Coupon consumed.' })
 		},
-		[assets, claimInFlightId, claimSucceededId, consumeInFlightId, syncAssets, walletAddress],
+		[
+			assets,
+			claimInFlightId,
+			claimSucceededId,
+			consumeInFlightId,
+			nfcScan,
+			openContainerPayload,
+			syncAssets,
+			walletAddress,
+		],
 	)
 
 	const runDeductFromReadBalance = useCallback(
