@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import {EIP20Permit3009Upgradeable} from "./EIP20Permit3009Upgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 /**
  * @title Beamio B-Units 燃料合约 (CoNET L1)
- * @dev 深度重载的 ERC20 实现。包含：双水池分类账本、限制转账(SBT特性)、瀑布流核销与真实收益分润机制。
+ * @dev 深度重载的 ERC20 实现。包含：双水池分类账本、免费池不可转、付费池可转、瀑布流核销与真实收益分润机制。
+ *      `transfer` / `transferFrom` 仅移动 **paidPool**；EIP-2612 permit 与 EIP-3009 授权转账同规则。
+ *   Explorer：name/symbol/decimals 为链上常量；`contractURI()` 提供含图标的合约级 JSON（对齐 GBToken）。
  */
 interface IERC20 {
     function totalSupply() external view returns (uint256);
@@ -17,13 +22,16 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-contract BeamioBUnits is IERC20 {
+contract BeamioBUnits is IERC20, EIP20Permit3009Upgradeable, UUPSUpgradeable {
     string public constant name = "Beamio Units";
     string public constant symbol = "B-UNITS";
     
     // 采用 6 位精度 (与 USDC 原生精度保持一致)
     // 也能完美防止 5% 分润计算截断 (例: 2 Units = 2,000,000, 5% = 100,000，无精度丢失)
-    uint8 public constant decimals = 6; 
+    uint8 public constant decimals = 6;
+
+    /// @dev Blockscout / 钱包合约级元数据（含 image）；各链相同以保证 bytecode 一致。
+    string public constant contractURI = "https://mainnet.conet.network/bunit/erc20/metadata.json";
 
     uint256 private _totalSupply;
 
@@ -76,9 +84,21 @@ contract BeamioBUnits is IERC20 {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
-        admins[msg.sender] = true;
+        _disableInitializers();
     }
+
+    /// @notice 代理部署后一次性初始化（CREATE2 跨链同址代理 + 同 initCalldata）。
+    function initialize(address initialAdmin) external initializer {
+        __EIP20Permit3009_init("Beamio Units");
+        __UUPSUpgradeable_init();
+        require(initialAdmin != address(0), "B-Units: Invalid admin address");
+        admins[initialAdmin] = true;
+        emit AdminAdded(initialAdmin);
+    }
+
+    function _authorizeUpgrade(address) internal view override onlyAdmin {}
 
     function _recordMint(uint256 amount) internal {
         uint256 ts = block.timestamp;
@@ -187,15 +207,36 @@ contract BeamioBUnits is IERC20 {
     }
 
     // ==========================================
-    // 阻断灰产：灵魂绑定拦截 (SBT 特性)
+    // P2P 转账：仅付费池（收费池）可转；免费池仍锁定
     // ==========================================
 
-    function transfer(address /* to */, uint256 /* value */) public pure override returns (bool) {
-        revert("B-Units: Peer-to-peer transfers are locked for security.");
+    function transfer(address to, uint256 value) public override returns (bool) {
+        _transferPaidOnly(msg.sender, to, value);
+        return true;
     }
 
-    function transferFrom(address /* from */, address /* to */, uint256 /* value */) public pure override returns (bool) {
-        revert("B-Units: Delegated transfers are locked.");
+    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
+        uint256 current = _allowances[from][msg.sender];
+        if (current != type(uint256).max) {
+            require(current >= value, "B-Units: Insufficient allowance");
+            unchecked {
+                _allowances[from][msg.sender] = current - value;
+            }
+        }
+        _transferPaidOnly(from, to, value);
+        return true;
+    }
+
+    /// @dev 仅移动 paidPool；不足时 revert（不可动用 freePool）。
+    function _transferPaidOnly(address from, address to, uint256 amount) internal {
+        require(from != address(0) && to != address(0), "B-Units: zero address");
+        FuelBalance storage fromBal = _fuelBalances[from];
+        FuelBalance storage toBal = _fuelBalances[to];
+        require(uint256(fromBal.paidPool) >= amount, "B-Units: Insufficient paid balance");
+        require(uint256(toBal.paidPool) + amount <= type(uint128).max, "B-Units: Amount exceeds uint128");
+        fromBal.paidPool -= uint128(amount);
+        toBal.paidPool += uint128(amount);
+        emit Transfer(from, to, amount);
     }
 
     function approve(address spender, uint256 value) public override returns (bool) {
@@ -308,6 +349,27 @@ contract BeamioBUnits is IERC20 {
         emit Transfer(user, address(0), amount);
     }
 
+    /**
+     * @dev 仅扣付费池（跨链 burn / 法币背书路径）。不可消耗免费池；不触发 NodeYieldGenerated。
+     *      跨链 Peer `burnBUintForBridge` / `bridgeStableSwap` burn B-Unit 须走本接口。
+     */
+    function consumePaidFuel(address user, uint256 amount) external onlyAdmin returns (uint256 paidBurned) {
+        FuelBalance storage bal = _fuelBalances[user];
+        require(uint256(bal.paidPool) >= amount, "B-Units: Insufficient paid balance");
+        bal.paidPool -= uint128(amount);
+        paidBurned = amount;
+        totalPaidBurned += paidBurned;
+        _totalSupply -= amount;
+        _recordBurn(amount);
+        emit FuelConsumed(user, amount);
+        emit Transfer(user, address(0), amount);
+    }
+
+    /// @dev 跨链 / UI：可 bridge 的 B-Unit 余额（仅 paidPool，不含免费池）。
+    function bridgeableBalanceOf(address account) external view returns (uint256) {
+        return uint256(_fuelBalances[account].paidPool);
+    }
+
     // ==========================================
     // 周期统计报告 (offset n = 本周期 - n)
     // ==========================================
@@ -371,5 +433,25 @@ contract BeamioBUnits is IERC20 {
         PeriodStats storage s = _yearlyStats[slot - n];
         return (s.mint, s.burn);
     }
+
+    // ==========================================
+    // EIP-2612 / EIP-3009 hooks (gasless approve & authorized transfer)
+    // ==========================================
+
+    /// @dev EIP-3009 授权转账：仅移动 paidPool（与 transfer 一致）。
+    function _transferFuelAuthorized(address from, address to, uint256 amount) internal {
+        _transferPaidOnly(from, to, amount);
+    }
+
+    function _transferForAuth(address from, address to, uint256 value) internal override {
+        _transferFuelAuthorized(from, to, value);
+    }
+
+    function _approveForAuth(address owner, address spender, uint256 value) internal override {
+        _allowances[owner][spender] = value;
+        emit Approval(owner, spender, value);
+    }
+
+    uint256[50] private __gap;
 }
 

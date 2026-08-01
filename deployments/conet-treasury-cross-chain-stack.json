@@ -1,0 +1,51 @@
+{
+  "deployedAt": "2026-07-04T07:30:00.000Z",
+  "chainIds": ["224422", "8453"],
+  "sameAddress": true,
+  "treasury": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+  "peer": "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5",
+  "peerWrappedLib": "0xCED9De89917eB957aF6371a3c9b45af21d68A0Ed",
+  "peerStableSwapLib": "0xcEC3A86C05b58239B937f17B75b459bD79e3bB95",
+  "wCNET": "0x35bFAD2832E916e54474c4ca9DBd71843C539503",
+  "wCNETNext": "0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21",
+  "conetUsdc": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
+  "conetUsdcDeployMode": "Treasury_createERC20_factory_registered",
+  "conetUsdcLegacyUupsCreate2": "0xF9240fd613C00d5C479f1E9f1690130c5Fdc8BC3",
+  "conetUsdcImpl": null,
+  "baseCircleUsdc": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "initialMiner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "capabilities": {
+    "voteErc20Transfer": true,
+    "peerModuleLinked": true,
+    "wCNETMintBurnViaPeer": true,
+    "conetUsdcMinterIsTreasury": true,
+    "peerRegisteredBaseCircleUsdc": true,
+    "peerRegisteredConetUsdcOnBase": true,
+    "usdcOutboundBalance8453": "0",
+    "note": "Base treasury Circle USDC balance is 0; fund treasury then setUsdcOutboundBalance(8453, amount)"
+  },
+  "deprecated": {
+    "treasury": "0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795",
+    "peer": "0xC6Df4c6a76313630C5D63f6F69554237084bB4D5",
+    "conetUsdc": "0x84e55A7d82aEa1243cB88b20dDde9Ba5cea0E134",
+    "wCNET": "0x9619eA6617fc8D7290Ee62FDAc0a9861B50fFb06"
+  },
+  "baseScanStandardJson": {
+    "guide": "deployments/base-ConetTreasuryStack-basescan-form-guide.txt",
+    "bundle": "deployments/base-ConetTreasuryStack-verify-bundle.json",
+    "formFiles": [
+      "deployments/base-ConetTreasury-standard-input-FULL-FORM.json",
+      "deployments/base-ConetTreasuryPeer-standard-input-FULL-FORM.json",
+      "deployments/base-FactoryERC20-standard-input-FULL-FORM.json",
+      "deployments/base-FactoryERC20Upgradeable-standard-input-FULL-FORM.json"
+    ],
+    "compiler": "v0.8.35+commit.47b9dedd"
+  },
+  "conetBlockscout": {
+    "treasury": "https://mainnet.conet.network/address/0xa311c8fBE7CafC611603Ee925465A62493B73B30#code",
+    "peer": "https://mainnet.conet.network/address/0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5#code",
+    "wCNET": "https://mainnet.conet.network/token/0x35bFAD2832E916e54474c4ca9DBd71843C539503",
+    "wCNETNext": "https://mainnet.conet.network/token/0x40B059e13d16B1C1E4dE032B04C5fbE554e0fA21",
+    "conetUsdc": "https://mainnet.conet.network/token/0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907"
+  }
+}
