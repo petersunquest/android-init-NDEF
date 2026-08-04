@@ -1,4 +1,5 @@
 import {
+	Check,
 	ClipboardList,
 	Gift,
 	Link2,
@@ -79,6 +80,8 @@ export function HomePage() {
 	} = usePosSession()
 
 	const [homeActionError, setHomeActionError] = useState<string | null>(null)
+	const [eoaCopied, setEoaCopied] = useState(false)
+	const eoaCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	useEffect(() => {
 		const err = (location.state as PosHomeLocationState | null)?.homeActionError
@@ -92,6 +95,25 @@ export function HomePage() {
 		const t = setTimeout(() => setHomeActionError(null), 5000)
 		return () => clearTimeout(t)
 	}, [homeActionError])
+
+	useEffect(() => {
+		return () => {
+			if (eoaCopiedTimerRef.current) clearTimeout(eoaCopiedTimerRef.current)
+		}
+	}, [])
+
+	async function copyTerminalEoa() {
+		const addr = walletAddress?.trim()
+		if (!addr) return
+		try {
+			await navigator.clipboard.writeText(addr)
+			setEoaCopied(true)
+			if (eoaCopiedTimerRef.current) clearTimeout(eoaCopiedTimerRef.current)
+			eoaCopiedTimerRef.current = setTimeout(() => setEoaCopied(false), 2000)
+		} catch {
+			/* ignore */
+		}
+	}
 
 	const actionRowCount = pointSystemEnabled ? 3 : 2
 	const { containerRef, heights } = useHomeButtonAreaHeights(actionRowCount)
@@ -117,12 +139,29 @@ export function HomePage() {
 		<PosScreenShell>
 			<PosScreenHeader className="border-b border-slate-200/60 bg-white/95 px-5 pb-3">
 				<div className="flex items-center gap-3">
-					<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-blue text-sm font-black text-white">
-						P
-					</div>
-					<div className="min-w-0 flex-1">
-						<p className="truncate text-[15px] font-semibold text-slate-500">{headerLine}</p>
-					</div>
+					<button
+						type="button"
+						onClick={() => void copyTerminalEoa()}
+						disabled={!walletAddress?.trim()}
+						className="flex min-w-0 flex-1 items-center gap-3 rounded-full text-left transition active:scale-[0.98] disabled:active:scale-100"
+						aria-label={
+							walletAddress?.trim()
+								? eoaCopied
+									? 'EOA address copied'
+									: 'Copy terminal EOA address'
+								: 'Terminal wallet unavailable'
+						}
+					>
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-blue text-sm font-black text-white">
+							{eoaCopied ? <Check className="h-5 w-5 text-white" aria-hidden /> : 'P'}
+						</div>
+						<div className="min-w-0 flex-1">
+							<p className="truncate text-[15px] font-semibold text-slate-500">{headerLine}</p>
+							{eoaCopied ? (
+								<p className="text-[11px] font-medium text-emerald-600">EOA copied</p>
+							) : null}
+						</div>
+					</button>
 					{homeAdminCapsule ? (
 						<button
 							type="button"

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { bootPathForPhase, type PosBootPhase } from '@/boot/posBootInit'
 import { PosAppBootSplash } from '@/components/PosAppBootSplash'
@@ -49,15 +49,15 @@ function RouteFallback() {
 	return <PosAppBootSplash />
 }
 
-/** True when current URL is allowed for the resolved boot phase (no stale /recover paint). */
+/** True when current URL is allowed for the resolved boot phase (no stale setup paint). */
 function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
 	switch (phase) {
 		case 'no_wallet':
-			return SETUP_PATHS.has(path)
-		case 'wallet_recover':
-			return path === '/recover'
+			return SETUP_PATHS.has(path) || path === '/recover'
 		case 'permission':
 			return path === '/permission'
+		case 'workspace':
+			return path === '/workspace' || path === '/recover'
 		case 'home':
 			return isPosHomePhasePath(path)
 		default:
@@ -68,7 +68,7 @@ function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
 function BootRouter() {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { isBootLoading, bootPhase, showPermissionGate, walletAddress } = usePosSession()
+	const { isBootLoading, bootPhase } = usePosSession()
 
 	useEffect(() => {
 		if (isBootLoading || bootPhase == null) return
@@ -79,12 +79,11 @@ function BootRouter() {
 		if (path === target) return
 
 		if (bootPhase === 'no_wallet') {
+			if (path === '/recover') {
+				navigate('/', { replace: true })
+				return
+			}
 			if (!SETUP_PATHS.has(path)) navigate('/', { replace: true })
-			return
-		}
-
-		if (bootPhase === 'wallet_recover') {
-			if (path !== '/recover') navigate('/recover', { replace: true })
 			return
 		}
 
@@ -93,22 +92,38 @@ function BootRouter() {
 			return
 		}
 
+		if (bootPhase === 'workspace') {
+			if (path !== '/workspace' && path !== '/recover') {
+				navigate('/workspace', { replace: true })
+			}
+			return
+		}
+
 		if (bootPhase === 'home') {
 			if (!isPosHomePhasePath(path)) navigate('/home', { replace: true })
 		}
 	}, [isBootLoading, bootPhase, location.pathname, navigate])
 
-	/** Daemon may flip gate while user stays on permission — promote to home. */
+	/**
+	 * Leave forced wait screens only when boot phase *transitions* into home
+	 * (admin just granted). Do not bounce voluntary /workspace visits from Home
+	 * (upper-admin capsule) — that caused a one-frame flicker then snap back.
+	 */
+	const prevBootPhaseRef = useRef<PosBootPhase | null>(null)
 	useEffect(() => {
-		if (isBootLoading || !walletAddress) return
-		if (!showPermissionGate && location.pathname === '/permission') {
+		const prev = prevBootPhaseRef.current
+		prevBootPhaseRef.current = bootPhase
+		if (isBootLoading || bootPhase == null) return
+		if (bootPhase !== 'home') return
+		if (prev !== 'permission' && prev !== 'workspace') return
+		if (location.pathname === '/permission' || location.pathname === '/workspace') {
 			navigate('/home', { replace: true })
 		}
-	}, [isBootLoading, walletAddress, showPermissionGate, location.pathname, navigate])
+	}, [isBootLoading, bootPhase, location.pathname, navigate])
 
 	/*
 	 * Keep splash until URL matches boot phase. Otherwise a restored WebView URL
-	 * (/recover, /onboarding) paints Access password for a frame before redirect to /home.
+	 * (/recover, /onboarding) can paint setup UI for a frame before redirect to /home.
 	 */
 	if (isBootLoading || bootPhase == null) {
 		return <RouteFallback />

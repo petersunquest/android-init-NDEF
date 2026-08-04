@@ -55,7 +55,8 @@ interface ChargeDraft {
  */
 export function ChargePage() {
 	const navigate = useNavigate()
-	const { merchantInfraCard, walletAddress, refreshHome, pointSystemEnabled } = usePosSession()
+	const { merchantInfraCard, walletAddress, refreshHome, pointSystemEnabled, currency } =
+		usePosSession()
 
 	const [phase, setPhase] = useState<ChargePhase>('amount')
 	const [draft, setDraft] = useState<ChargeDraft | null>(null)
@@ -341,6 +342,7 @@ export function ChargePage() {
 		return (
 			<ChargeAmountPadPage
 				programCardDisplayName={programCardName}
+				currency={currency}
 				onCancel={() => goHome()}
 				onContinue={onAmountContinue}
 			/>

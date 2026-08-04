@@ -1,6 +1,13 @@
 import { keccak256, Wallet } from 'ethers'
 
-/** EIP-712 ExecuteForAdmin — aligned with iOS `BeamioEthWallet.signExecuteForAdmin`. */
+/**
+ * Merchant program cards are CoNET-only (chainId 224422).
+ * EIP-712 domain.chainId MUST match server `chainIdForUserCardChain` / Cluster recover,
+ * otherwise recoverAddress yields a wrong EOA → "Signer is not card admin".
+ */
+export const BEAMIO_USER_CARD_EIP712_CHAIN_ID = 224422
+
+/** EIP-712 ExecuteForAdmin — domain aligned with x402sdk `verifyExecuteForAdminSignerIsAdmin`. */
 export async function signExecuteForAdmin(params: {
 	privateKeyHex: string
 	cardAddress: string
@@ -8,6 +15,8 @@ export async function signExecuteForAdmin(params: {
 	deadline: number
 	nonceHex: string
 	factoryGateway?: string | null
+	/** Override only for tests; production merchant cards use CoNET 224422. */
+	chainId?: number
 }): Promise<string> {
 	const pk = params.privateKeyHex.replace(/^0x/i, '').trim()
 	const wallet = new Wallet(`0x${pk}`)
@@ -18,7 +27,7 @@ export async function signExecuteForAdmin(params: {
 	const domain = {
 		name: 'BeamioUserCardFactory',
 		version: '1',
-		chainId: 8453,
+		chainId: params.chainId ?? BEAMIO_USER_CARD_EIP712_CHAIN_ID,
 		verifyingContract,
 	}
 	const types = {

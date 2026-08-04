@@ -1,5 +1,8 @@
-/** CoNET AddressPGP + gossip — align iOS `BeamioConstants` / Android `BeamioConetAddresses`. */
-export const CONET_ADDRESS_PGP_MANAGER = '0xa5F64dd3c034442F5377c8F2Aa1A03ba378D685e'
+/**
+ * CoNET AddressPGP (canonical) — same as bizSite / SilentPassUI / x402sdk / android-NDEF.
+ * `searchKey` / chat route registration truth source (NOT the empty 0xa5F64… address).
+ */
+export const CONET_ADDRESS_PGP_MANAGER = '0x684b0ac760cEE9c9b85de36d69746420648Cf9e2'
 
 /** Guardian gossip POST domain hex ids (16-char), same pool as iOS/Android POS. */
 export const GOSSIP_POST_DOMAIN_HEX_IDS: readonly string[] = [

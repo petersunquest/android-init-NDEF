@@ -1,0 +1,24 @@
+GBTokenV2 UUPS implementation (CoNET 224422)
+Proxy (unchanged): 0xC3EF02DaE632b4C10abB66e07d92a387c10838D8
+Implementation: 0x8e5AC5aDDe7A66E8604dc1eafd49948723c9D765
+Previous impl: 0x0A089972b49fCB7C661F2C7295803e1cd5FDB4ef
+
+Contract Name: project/src/b-unit/GBTokenV2.sol:GBTokenV2
+Compiler: v0.8.33+commit.64118f21
+viaIR: true
+optimizer runs: 0
+evmVersion: cancun
+Constructor args: (none)
+
+Verify (pruned Standard JSON):
+  npm run compile
+  npx tsx scripts/verifyGBTokenV2ImplConet.ts
+
+Pruned build-info: deployments/conet-GBTokenV2-verify-buildinfo.json
+Explorer: https://mainnet.conet.network/address/0x8e5AC5aDDe7A66E8604dc1eafd49948723c9D765#code
+
+Upgrade + config:
+  npx tsx scripts/upgradeGBTokenV2Conet.ts
+  deployments/conet-GBToken-v2-upgrade.json
+
+validatorDepositRedeem: 0xc71e246DD78B37C2fABc905D340932F28F503433

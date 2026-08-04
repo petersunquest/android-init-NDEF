@@ -1,5 +1,5 @@
-import { Check, Loader2, Plus, Search } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { Check, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchUsers, searchUsersByCardOwnerOrAdmin } from '@/api/beamioApi'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
@@ -10,17 +10,23 @@ import type { TerminalProfile } from '@/types/pos'
 import { localValidateBeamioTag, normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
 import { profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/display'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
+import type { PosOutboundJoinPending } from '@/utils/trustedCache'
 
 export function WorkspaceMerchantsPage() {
 	const navigate = useNavigate()
 	const {
 		activeUpperEoa,
+		bootPhase,
+		walletAddress,
 		workspaceBindings,
 		outboundJoinPending,
+		refreshHome,
 		refreshWorkspaceBindings,
 		switchWorkspace,
 		requestJoinWorkspace,
 	} = usePosSession()
+	/** Forced here because signing EOA is not card admin — no Home until approved. */
+	const requiresAdminJoin = bootPhase === 'workspace'
 
 	const [switchingCard, setSwitchingCard] = useState<string | null>(null)
 	const [actionError, setActionError] = useState<string | null>(null)
@@ -30,10 +36,57 @@ export function WorkspaceMerchantsPage() {
 	const [joinSearching, setJoinSearching] = useState(false)
 	const [joinSending, setJoinSending] = useState(false)
 	const [selectedParent, setSelectedParent] = useState<TerminalProfile | null>(null)
+	const [resendingParentEoa, setResendingParentEoa] = useState<string | null>(null)
+	const resendInFlightRef = useRef(false)
 
 	useEffect(() => {
 		void refreshWorkspaceBindings()
 	}, [refreshWorkspaceBindings])
+
+	useEffect(() => {
+		if (requiresAdminJoin) setShowJoin(true)
+	}, [requiresAdminJoin])
+
+	/* While waiting for Staff approval, re-check on-chain admin → Home when granted. */
+	useEffect(() => {
+		if (!requiresAdminJoin || !walletAddress) return
+		let cancelled = false
+		let timer: ReturnType<typeof setTimeout> | undefined
+		const tick = () => {
+			if (cancelled) return
+			void refreshHome().finally(() => {
+				if (cancelled) return
+				timer = setTimeout(tick, 8_000)
+			})
+		}
+		timer = setTimeout(tick, 8_000)
+		return () => {
+			cancelled = true
+			if (timer !== undefined) clearTimeout(timer)
+		}
+	}, [requiresAdminJoin, walletAddress, refreshHome])
+
+	/*
+	 * While Pending join rows remain, re-check myPosAddresses so items disappear
+	 * when Staff approves (without leaving Workspaces). setTimeout chain — no setInterval.
+	 */
+	useEffect(() => {
+		if (outboundJoinPending.length === 0) return
+		let cancelled = false
+		let timer: ReturnType<typeof setTimeout> | undefined
+		const tick = () => {
+			if (cancelled) return
+			void refreshWorkspaceBindings().finally(() => {
+				if (cancelled) return
+				timer = setTimeout(tick, 6_000)
+			})
+		}
+		timer = setTimeout(tick, 6_000)
+		return () => {
+			cancelled = true
+			if (timer !== undefined) clearTimeout(timer)
+		}
+	}, [outboundJoinPending.length, refreshWorkspaceBindings])
 
 	useEffect(() => {
 		const q = normalizeBeamioTagInput(joinQuery)
@@ -109,21 +162,60 @@ export function WorkspaceMerchantsPage() {
 		}
 	}, [joinSending, selectedParent, joinQuery, joinHits, requestJoinWorkspace])
 
+	const onResendJoin = useCallback(
+		async (row: PosOutboundJoinPending) => {
+			if (resendInFlightRef.current || joinSending) return
+			const tag = row.parentTag?.trim()
+			const eoa = row.parentEoa?.trim()
+			if (!tag || !eoa) return
+			resendInFlightRef.current = true
+			setResendingParentEoa(eoa.toLowerCase())
+			setActionError(null)
+			try {
+				const res = await requestJoinWorkspace({
+					parentTag: tag,
+					parentEoaHint: eoa,
+				})
+				if (!res.ok) setActionError(res.error)
+			} finally {
+				resendInFlightRef.current = false
+				setResendingParentEoa(null)
+			}
+		},
+		[joinSending, requestJoinWorkspace],
+	)
+
 	return (
 		<PosScreenShell bg="bg-[#f2f2f7]">
 			<PosScreenHeader>
 				<div className="flex items-center gap-3 px-4 pb-2.5 pt-3">
-					<BeamioCircularBackButton onClick={() => navigate(POS_HOME_ROUTES.home)} />
+					{requiresAdminJoin ? (
+						<div className="h-9 w-9 shrink-0" aria-hidden />
+					) : (
+						<BeamioCircularBackButton onClick={() => navigate(POS_HOME_ROUTES.home)} />
+					)}
 					<div className="min-w-0 flex-1">
 						<h1 className="text-lg font-semibold text-mkt-onSurface">Workspaces</h1>
 						<p className="text-[11px] text-mkt-onSurfaceVariant">
-							Linked merchants &amp; join requests
+							{requiresAdminJoin
+								? 'Request merchant approval for this terminal'
+								: 'Linked merchants & join requests'}
 						</p>
 					</div>
 				</div>
 			</PosScreenHeader>
 
 			<PosScreenMain className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+				{requiresAdminJoin ? (
+					<p
+						className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
+						role="status"
+					>
+						This terminal wallet is not a lower admin on the merchant program card. Top-up
+						and admin-signed actions will fail until Staff approves you. Request to join
+						below (or resend a pending request), then wait for approval.
+					</p>
+				) : null}
 				{actionError ? (
 					<p className="mb-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
 						{actionError}
@@ -210,17 +302,47 @@ export function WorkspaceMerchantsPage() {
 						</p>
 					) : (
 						<ul className="space-y-2">
-							{outboundJoinPending.map((p) => (
-								<li
-									key={`${p.parentEoa}-${p.requestedAt}`}
-									className="rounded-2xl bg-white px-4 py-3 shadow-sm"
-								>
-									<p className="text-sm font-semibold text-slate-900">@{p.parentTag}</p>
-									<p className="mt-0.5 text-[11px] text-slate-400">
-										{shortAddress(p.parentEoa)} · waiting for approval
-									</p>
-								</li>
-							))}
+							{outboundJoinPending.map((p) => {
+								const eoaKey = (p.parentEoa || '').toLowerCase()
+								const resending = resendingParentEoa === eoaKey
+								return (
+									<li
+										key={`${p.parentEoa}-${p.requestedAt}`}
+										className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
+									>
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-sm font-semibold text-slate-900">
+												@{p.parentTag}
+											</p>
+											<p className="mt-0.5 text-[11px] text-slate-400">
+												{shortAddress(p.parentEoa)} · waiting for approval
+											</p>
+										</div>
+										<button
+											type="button"
+											tabIndex={-1}
+											disabled={resending || joinSending || Boolean(resendingParentEoa)}
+											aria-busy={resending}
+											aria-label="Send request again"
+											title="Send request again"
+											onClick={() => void onResendJoin(p)}
+											className={[
+												'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+												'border border-black/[0.08] bg-slate-50 text-[#1562f0]',
+												'shadow-[0_1px_3px_rgba(0,0,0,0.1)]',
+												'transition active:scale-[0.96] hover:bg-[#1562f0]/10',
+												'disabled:pointer-events-none disabled:opacity-40',
+											].join(' ')}
+										>
+											{resending ? (
+												<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+											) : (
+												<RefreshCw className="h-4 w-4" aria-hidden />
+											)}
+										</button>
+									</li>
+								)
+							})}
 						</ul>
 					)}
 				</section>

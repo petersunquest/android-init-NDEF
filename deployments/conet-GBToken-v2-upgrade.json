@@ -1,0 +1,14 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "proxy": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+  "implementation": "0x8e5AC5aDDe7A66E8604dc1eafd49948723c9D765",
+  "previousImplementation": "0x0A089972b49fCB7C661F2C7295803e1cd5FDB4ef",
+  "version": 2,
+  "validatorDepositRedeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+  "deployTx": "0x71461734183dd593710dd2f19e2abd9693daa419eea8433e70c40c32c202f6e9",
+  "upgradeTx": "0xc9446d32c0999a801c39abc1ef1ddac952c97f2d8f16edc24d6d1f29ad06b69e",
+  "setValidatorDepositRedeemTx": "0x0a99f6f6415eab99150b3922d4e5e720a2a283e2be9565e53761e717d6f96cb6",
+  "upgradeBlock": 649782,
+  "updatedAt": "2026-08-01T13:45:11.807Z"
+}

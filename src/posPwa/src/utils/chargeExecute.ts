@@ -8,6 +8,7 @@ import {
 	postAAtoEOA,
 } from '@/api/beamioApi'
 import type { ReadBalanceCardItem, UIDAssetsResult } from '@/types/pos'
+import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import {
 	chargeTipFromRequestAndBps,
 	chargeTotalInCurrency,
@@ -196,14 +197,36 @@ export async function executeNfcCharge(params: {
 	})
 	if (!assets?.ok) {
 		patch?.('detectingUser', 'error')
-		return { status: 'error', message: assets?.error ?? 'Card not registered' }
+		return {
+			status: 'error',
+			message: formatPosAssetsQueryError(assets?.error) || 'Card not registered',
+		}
 	}
 	patch?.('detectingUser', 'success', 'NFC card detected')
 	patch?.('membership', 'success', 'NFC card payment')
 
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const payCard = assets.cards?.[0]
-	const payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? 'CAD'
+	/*
+	 * fiat6-only: amount currency MUST be the merchant program card on-chain currency,
+	 * not the customer pay-card / profile default (often CAD while card is USDC).
+	 */
+	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
+	const payCurrency = (
+		merchantChain?.code ||
+		payCard?.cardCurrency ||
+		assets.cardCurrency ||
+		'CAD'
+	)
+		.trim()
+		.toUpperCase()
+	if (!merchantChain?.code) {
+		patch?.('analyzingAssets', 'error', 'Merchant card currency unavailable')
+		return {
+			status: 'error',
+			message: 'Merchant card currency unavailable. Please refresh Home and try again.',
+		}
+	}
 	const routing = (await fetchChargeTierRoutingDetails(payee, infra)) ?? {
 		taxPercent: 0,
 		discountByTierKey: {},
@@ -232,6 +255,7 @@ export async function executeNfcCharge(params: {
 		payee,
 		amountFiat6: amountFiat6Str,
 		currency: payCurrency,
+		merchantInfraCard: infra,
 		sun: params.target.sun,
 	})
 	if (!prep?.ok) {
@@ -249,8 +273,9 @@ export async function executeNfcCharge(params: {
 	}
 	patch?.('optimizingRoute', 'success', 'Direct: NFC → Merchant')
 
-	const cardCurrencyOnChain = prep.cardCurrency?.toUpperCase()
-	const pointsPriceCurE6 = Number(prep.pointsUnitPriceInCurrencyE6) || 0
+	const cardCurrencyOnChain = (prep.cardCurrency ?? payCurrency).toUpperCase()
+	const pointsPriceCurE6 =
+		Number(prep.pointsUnitPriceInCurrencyE6) || merchantChain.priceE6 || 0
 	const amountBig = Math.floor((amountFiat6 * unitPrice + 999_999) / 1_000_000)
 	const usdcBal = payerUsdcBalance6(assets, params.chargePolicy)
 	const cards = chargeableCards(assets, infra)
@@ -319,6 +344,7 @@ export async function executeNfcCharge(params: {
 		containerPayload: container,
 		amountFiat6: amountFiat6Str,
 		currency: payCurrency,
+		merchantInfraCard: infra,
 		sun: params.target.sun,
 		nfcBill: bill,
 	})
@@ -444,7 +470,10 @@ export async function executeQrCharge(params: {
 	const assets = await fetchWalletAssetsForRead({ wallet: account, merchantInfraCard: infra })
 	if (!assets?.ok) {
 		patch?.('membership', 'error')
-		return { status: 'error', message: assets?.error ?? 'Unable to fetch customer assets' }
+		return {
+			status: 'error',
+			message: formatPosAssetsQueryError(assets?.error) || 'Unable to fetch customer assets',
+		}
 	}
 
 	const hasCardholder =
@@ -469,7 +498,22 @@ export async function executeQrCharge(params: {
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const tip = chargeTipFromRequestAndBps(subtotal, params.tipBps)
 	const total = chargeTotalInCurrency(subtotal, routing.taxPercent, disc, tip)
-	const payCurrency = payCard?.cardCurrency ?? assets.cardCurrency ?? 'CAD'
+	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
+	const payCurrency = (
+		merchantChain?.code ||
+		payCard?.cardCurrency ||
+		assets.cardCurrency ||
+		'CAD'
+	)
+		.trim()
+		.toUpperCase()
+	if (!merchantChain?.code) {
+		patch?.('analyzingAssets', 'error', 'Merchant card currency unavailable')
+		return {
+			status: 'error',
+			message: 'Merchant card currency unavailable. Please refresh Home and try again.',
+		}
+	}
 	const amountFiat6Str = currencyToFiat6(total)
 	const amountFiat6 = Number(amountFiat6Str)
 	if (!(amountFiat6 > 0)) {
@@ -483,15 +527,19 @@ export async function executeQrCharge(params: {
 	const cards = chargeableCards(assets, infra)
 	const part = partitionPointsForMerchantCharge(cards, infra)
 	const unitPoints6 = part.unitPricePoints6
-	if (unitPoints6 > 0 && !cardChainInfo) {
+	if (unitPoints6 > 0 && !cardChainInfo && !merchantChain) {
 		patch?.('analyzingAssets', 'error', 'Card price unavailable')
 		return {
 			status: 'error',
 			message: 'Card price unavailable. Please refresh the customer balance and try again.',
 		}
 	}
-	const cardCurrencyOnChain = cardChainInfo?.code.toUpperCase()
-	const pointsPriceCurE6 = cardChainInfo?.priceE6 ?? 0
+	const cardCurrencyOnChain = (
+		merchantChain.code ||
+		cardChainInfo?.code ||
+		payCurrency
+	).toUpperCase()
+	const pointsPriceCurE6 = merchantChain.priceE6 || cardChainInfo?.priceE6 || 0
 	const oracleInfraCards = part.oracleInfraCards
 	const infraPoints6 = oracleInfraCards.reduce((s, c) => s + (Number(c.points6) || 0), 0)
 	const usdcBal = payerUsdcBalance6(assets, params.chargePolicy)

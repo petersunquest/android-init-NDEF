@@ -38,8 +38,16 @@ export const CONET_TREASURY_CREATE2_PREDICTED_LEGACY_V2 = getAddress(
   "0x30a9251bC24df235BdCB6F20933f74d6EFc247a8"
 );
 
-/** Peer 桥模块 CREATE2 salt（v3：+ StableSwapLib + 本链 USDC swap + GB/B-Unit paidPool） */
-export const CONET_TREASURY_PEER_CREATE2_SALT = id("beamio.conet_treasury_peer.v3");
+/** Peer 桥模块 CREATE2 salt（v4：+ bridgeStableSwapFor / stableSwapOffline） */
+export const CONET_TREASURY_PEER_CREATE2_SALT = id("beamio.conet_treasury_peer.v4");
+
+/** 本链离线签字 StableSwap 薄合约 CREATE2 salt */
+export const CONET_TREASURY_PEER_STABLE_SWAP_OFFLINE_CREATE2_SALT = id(
+  "beamio.conet_treasury_peer_stable_swap_offline.v1"
+);
+
+/** @deprecated v3 Peer（StableSwapLib + 本链 swap，无 offline sig） */
+export const CONET_TREASURY_PEER_CREATE2_SALT_V3 = id("beamio.conet_treasury_peer.v3");
 
 /** @deprecated v2 Peer（无 StableSwapLib / 无本链 swap） */
 export const CONET_TREASURY_PEER_CREATE2_SALT_V2 = id("beamio.conet_treasury_peer.v2");
@@ -55,17 +63,38 @@ export const CONET_TREASURY_PEER_STABLE_SWAP_LIB_CREATE2_SALT = id(
   "beamio.conet_treasury_peer_stable_swap_lib.v1"
 );
 
+/** ConetTreasuryPeerStableSwapSigLib CREATE2 salt（离线签字 EIP-712 digest/recover） */
+export const CONET_TREASURY_PEER_STABLE_SWAP_SIG_LIB_CREATE2_SALT = id(
+  "beamio.conet_treasury_peer_stable_swap_sig_lib.v1"
+);
+
+/** ConetTreasuryPeerDepositLib CREATE2 salt（入桥 mint 执行，减轻 Peer 体积） */
+export const CONET_TREASURY_PEER_DEPOSIT_LIB_CREATE2_SALT = id(
+  "beamio.conet_treasury_peer_deposit_lib.v1"
+);
+
 /** v2 Peer（ERC20 canonical + WrappedLib）；运行 predictCrossChainAssets.ts 复核 */
 export const CONET_TREASURY_PEER_WRAPPED_LIB_CREATE2_PREDICTED = getAddress(
   "0xCED9De89917eB957aF6371a3c9b45af21d68A0Ed"
 );
 
-/** v3 Peer（StableSwapLib + 本链 USDC↔GB/B-Unit）；运行 predictCrossChainAssets.ts 复核 */
+/** StableSwapLib CREATE2；运行 predictCrossChainAssets / deployConetTreasuryPeerCreate2 复核 */
 export const CONET_TREASURY_PEER_STABLE_SWAP_LIB_CREATE2_PREDICTED = getAddress(
   "0xcEC3A86C05b58239B937f17B75b459bD79e3bB95"
 );
 
+/** v4 Peer（DepositLib + bridgeStableSwapFor / stableSwapOffline）；2026-07 CoNET 部署 */
 export const CONET_TREASURY_PEER_CREATE2_PREDICTED = getAddress(
+  "0x6093871d8a3EE6EaADc9869451D1693973cFBCC0"
+);
+
+/** 本链离线签字 StableSwap 薄合约（CREATE2；verifyingContract in EIP-712 = Peer） */
+export const CONET_TREASURY_PEER_STABLE_SWAP_OFFLINE_CREATE2_PREDICTED = getAddress(
+  "0xdB91AaFf8d076a8B45B48f5d8bA8A1191627f1F2"
+);
+
+/** @deprecated v3 Peer（0x025e…，无 offline StableSwap sig） */
+export const CONET_TREASURY_PEER_CREATE2_PREDICTED_V3 = getAddress(
   "0x025eC62F801B2f63d5C5b3eB066bab21B12Bbeb5"
 );
 
@@ -127,10 +156,13 @@ export const CONET_USDC_LEGACY_UUPS_V1 = getAddress("0x84e55A7d82aEa1243cB88b20d
 /** @deprecated Treasury 内 FactoryERC20 直连 conet-USDC */
 export const CONET_USDC_LEGACY = getAddress("0x2975c85D8Cc8F5d263492E332A6dAa7ad11aDBdC");
 
-/** CoNET / Base 同址 GBToken UUPS proxy（9 decimals；free+paid 可 transfer） */
+/** CoNET / Base 同址 GBToken UUPS proxy（9 decimals）。CoNET V2 起 P2P 仅 paid；Base 可暂留 V1。 */
 export const GB_TOKEN_ERC20_CREATE2_PREDICTED = getAddress(
   "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
 );
+
+/** GBToken V2 implementation 语义：free 不可 P2P 转；仅 CoNET 代理升级（见 scripts/upgradeGBTokenV2Conet.ts） */
+export const GB_TOKEN_V2_CONET_ONLY = true as const;
 
 /** @deprecated 直连 GB v2（非 UUPS） */
 export const GB_TOKEN_ERC20_CREATE2_PREDICTED_LEGACY = getAddress(

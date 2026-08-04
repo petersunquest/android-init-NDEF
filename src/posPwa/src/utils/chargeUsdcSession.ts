@@ -10,6 +10,7 @@ import {
 } from '@/utils/beamioPaymentRouting'
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { ChargePaymentMethodRaw } from '@/utils/chargePaymentMethod'
+import { fetchCardCurrencyAndPointsPriceE6 } from '@/utils/posProgramCardAccess'
 import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 import {
@@ -94,6 +95,8 @@ export async function prepareUsdcChargeQr(params: {
 	const tipAmt = chargeTipFromRequestAndBps(params.subtotal, params.tipBps)
 	const total = chargeTotalInCurrency(params.subtotal, routing.taxPercent, 0, tipAmt)
 	const subtotalStr = params.subtotal.toFixed(2)
+	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
+	const chargeCurrency = (merchantChain?.code ?? 'CAD').trim().toUpperCase()
 
 	const pre = await fetchUsdcChargePreCheck({
 		cardAddress: infra,
@@ -102,6 +105,7 @@ export async function prepareUsdcChargeQr(params: {
 		tipBps: params.tipBps,
 		taxBps,
 		discountBps: 0,
+		currency: chargeCurrency,
 	})
 	if (pre && !pre.ok) {
 		return {
@@ -122,7 +126,14 @@ export async function prepareUsdcChargeQr(params: {
 		tipBps: params.tipBps,
 		paymentMethodRaw: params.paymentMethodRaw,
 	})
-	return { ok: true, deepLink, sid, total, currency: pre?.cardCurrency ?? 'CAD', taxBps }
+	return {
+		ok: true,
+		deepLink,
+		sid,
+		total,
+		currency: (pre?.cardCurrency ?? chargeCurrency).toUpperCase(),
+		taxBps,
+	}
 }
 
 function progressLabelForState(state: string): string {

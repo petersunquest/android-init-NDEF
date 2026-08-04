@@ -2,16 +2,19 @@ import {
 	fetchCardCurrencyCode,
 	fetchUIDAssets,
 	fetchWalletAssetsForRead,
+	formatNfcTopupAdminError,
 	nfcTopupPrepare,
 	nfcTopupSubmit,
 } from '@/api/beamioApi'
 import type { NfcTopupCurrencySplit } from '@/utils/topupCurrencySplit'
+import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import { memberNoFromCard } from '@/utils/readBalanceAssets'
 import {
 	buildTopupSuccessPassHero,
 	type PosSuccessPassHeroProps,
 } from '@/utils/posSuccessHero'
-import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
+import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
+import { unlockPosWalletFromIndexedDbMnemonic } from '@/wallet/posWalletService'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
 export type TopupExecuteProgressPhase = 'preparing' | 'signing' | 'refreshing'
@@ -80,10 +83,13 @@ async function submitPreparedTopup(params: {
 	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
 	const onProgress = params.onProgress
+	/* Prefer IndexedDB mnemonic → posWalletSession (not native Keychain). */
+	await unlockPosWalletFromIndexedDbMnemonic().catch(() => ({ ok: false as const }))
 	const pk = await getPosPrivateKeyHex()
 	if (!pk) {
 		return { status: 'error', message: 'Wallet not initialized' }
 	}
+	const signerEOA = (await getPosSigningWalletAddress()) ?? undefined
 	onProgress?.('signing')
 	let signature: string
 	try {
@@ -109,6 +115,7 @@ async function submitPreparedTopup(params: {
 		deadline: params.deadline,
 		nonce: params.nonce,
 		adminSignature: signature,
+		signerEOA,
 		sun: params.target.sun,
 		currencySplit: params.currencySplit ?? undefined,
 		usdcTopupSessionId: params.usdcTopupSessionId,
@@ -117,7 +124,7 @@ async function submitPreparedTopup(params: {
 		return { status: 'error', message: 'Top-up request failed. Check network and try again.' }
 	}
 	if (!pay.success) {
-		return { status: 'error', message: pay.error ?? 'Top-up failed' }
+		return { status: 'error', message: formatNfcTopupAdminError(pay) }
 	}
 
 	onProgress?.('refreshing')
@@ -229,7 +236,7 @@ export async function executeNfcTopup(params: {
 	if (params.target.beamioTag) {
 		const assets = await fetchUIDAssets({ uid: params.target.beamioTag, merchantInfraCard: infra })
 		if (!assets?.ok) {
-			return { status: 'error', message: assets?.error ?? 'Query failed' }
+			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
 		const c = cardFromAssets(assets, prep.cardAddr)
 		preBalance = c.points
@@ -243,7 +250,7 @@ export async function executeNfcTopup(params: {
 			merchantInfraCard: infra,
 		})
 		if (!assets?.ok) {
-			return { status: 'error', message: assets?.error ?? 'Query failed' }
+			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
 		const c = cardFromAssets(assets, prep.cardAddr)
 		preBalance = c.points
@@ -257,7 +264,7 @@ export async function executeNfcTopup(params: {
 			sun: params.target.sun,
 		})
 		if (!assets?.ok) {
-			return { status: 'error', message: assets?.error ?? 'Query failed' }
+			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
 		const c = cardFromAssets(assets, prep.cardAddr)
 		preBalance = c.points

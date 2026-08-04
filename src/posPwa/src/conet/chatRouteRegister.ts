@@ -41,6 +41,7 @@ export async function regiestChatRoute(params: {
 	const pk = normalizePrivateKeyHex(params.walletPrivateKeyHex)
 	if (!pk) return false
 	const wallet = new Wallet(`0x${pk}`)
+	/* bizSite `regiestChatRoute`: AES password = wallet private key hex with `0x` prefix. */
 	const encrypKeyArmored = await aesGcmEncrypt(params.secretKeyArmored, wallet.privateKey)
 	try {
 		const res = await fetch(`${BEAMIO_API}/api/regiestChatRoute`, {
@@ -54,9 +55,14 @@ export async function regiestChatRoute(params: {
 				routeKeyID: params.routeKeyID,
 			}),
 		})
-		const json = (await res.json()) as { ok?: boolean }
-		return res.ok && json.ok === true
-	} catch {
+		const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null
+		if (!res.ok || json?.ok !== true) {
+			console.warn('[regiestChatRoute] failed', res.status, json?.error ?? json)
+			return false
+		}
+		return true
+	} catch (ex) {
+		console.warn('[regiestChatRoute]', ex instanceof Error ? ex.message : ex)
 		return false
 	}
 }
@@ -82,11 +88,20 @@ export async function ensureRegisteredForSenderGossip(walletPrivateKeyHex: strin
 	const wallet = new Wallet(`0x${pk}`)
 	const addrLower = wallet.address.toLowerCase()
 
+	/* Already on AddressPGP → skip generate / re-register (protocol §3.1). */
 	if (await hasOnChainUserPgpPublic(addrLower)) {
 		return true
 	}
 
-	const keys = await generatePgpKeyPair(wallet.address)
+	let keys: Awaited<ReturnType<typeof generatePgpKeyPair>>
+	try {
+		keys = await generatePgpKeyPair(wallet.address)
+	} catch (ex) {
+		console.warn('[ensureRegisteredForSenderGossip] PGP generate failed', ex)
+		return false
+	}
+	if (!keys.keyID) return false
+
 	const routeKeyID = randomPick(ROUTE_DOMAIN_HEX_POOL)
 	let ok = await regiestChatRoute({
 		walletPrivateKeyHex: pk,
@@ -107,5 +122,10 @@ export async function ensureRegisteredForSenderGossip(walletPrivateKeyHex: strin
 	}
 	if (!ok) return false
 
-	return waitForOnChainUserPgpPublic(addrLower)
+	/* Master returns ok before tx.wait — poll searchKey until visible. */
+	const visible = await waitForOnChainUserPgpPublic(addrLower)
+	if (visible) return true
+	/* Final check: RPC lag after queue — one more probe before failing send. */
+	await sleep(2500)
+	return hasOnChainUserPgpPublic(addrLower)
 }

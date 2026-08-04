@@ -349,28 +349,90 @@ peer.bridgeNativeAsset(2, amount6, 8453, recipient);
 
 ---
 
+## 14. 本链离线签字 StableSwap（Master 代付）
+
+**范围（首期）**：仅 CoNET `destinationChainId == 224422`：`USDC ↔ paid GB` / `USDC ↔ paid B-Unit`。  
+**不开放**：本链一笔直接 GB↔B-Unit；跨链 offline swap。
+
+### 14.1 合约入口
+
+| 合约 | 地址（v4） | 职责 |
+|------|------------|------|
+| **ConetTreasuryPeer** | `0x6093871d8a3EE6EaADc9869451D1693973cFBCC0` | `bridgeStableSwap`（自付 gas）/ `bridgeStableSwapFor`（仅 Offline） |
+| **ConetTreasuryPeerStableSwapOffline** | `0xdB91AaFf8d076a8B45B48f5d8bA8A1191627f1F2` | EIP-712 + nonce + `bridgeStableSwapWithSignature` |
+
+Peer 因 EIP-170 体积限制，验签放在 Offline 薄合约；domain **`verifyingContract = Peer`**（签字绑定 Peer 地址）。
+
+### 14.2 EIP-712
+
+```
+domain: name "ConetTreasuryPeer", version "1", chainId 224422, verifyingContract = Peer
+type StableSwap(
+  address user, uint8 burnAssetKind, uint256 amount, uint256 destinationChainId,
+  address recipient, uint8 creditAssetKind, uint256 minCreditAmount, uint256 nonce, uint256 deadline
+)
+```
+
+- `nonce`：读 `Offline.stableSwapNonces(user)`（**不是** Peer）
+- 滑点：`quoteStableSwap(...) >= minCreditAmount`
+- 汇率：只信链上 `quoteStableSwap`（`USDC_TO_BUNIT_RATE=100`，`usdc6PerFullGb`）
+- 只 burn/mint **paidPool**
+
+### 14.3 USDC approve / permit
+
+CoNET FactoryERC20 USDC 的 `burnFrom` 由 Treasury（minter）调用，**通常不需** `approve`。  
+可选：Master 在 swap 前代提交 EIP-2612 `permit`（spender=`CONET_TREASURY_CREATE2`）。
+
+### 14.4 API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/treasuryStableSwapNonce?user=0x…` | nonce + domain |
+| POST | `/api/treasuryStableSwap` | Cluster 预检 → Master `Settle_ContractPool` → Offline |
+
+Body 字段：`user`, `burnAssetKind`, `amount`, `destinationChainId`(224422), `recipient`, `creditAssetKind`, `minCreditAmount`, `nonce`, `deadline`, `signature`；可选 `permit`。
+
+客户端 helper：`src/SilentPassUI/src/utils/treasuryStableSwapOffline.ts`。
+
+### 14.5 部署
+
+```bash
+DRY_RUN=1 npx hardhat run scripts/deployConetTreasuryPeerCreate2.ts --network conet
+npx hardhat run scripts/deployConetTreasuryPeerCreate2.ts --network conet
+BUINT_ADDRESS=0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae \
+  CONET_TREASURY_PEER=0x6093871d8a3EE6EaADc9869451D1693973cFBCC0 \
+  npx hardhat run scripts/configureConetTreasuryPeerBridge.ts --network conet
+```
+
+快照：`deployments/conet-TreasuryPeer-v4.json`。Base 同址 Peer v4 **本阶段可不部署**。
+
+---
+
 ## 15. GB / B-Unit 双池与跨链（free / paid）
+
+> **GB 语义（2026+）**：**`GB` = `GBToken` ERC20**（`CONET_GB_ERC20`）。**`ConetGB1155` / `ConetGB_total` 已弃用**，仅挖矿 daemon、Validator 收入视图、Peer 无 ERC20 时的链上 fallback 可只读遗留。详见 `.cursor/rules/beamio-gb-erc20-canonical.mdc`。
 
 `GBToken` 与 `BeamioBUnits` 均采用 **freePool**（空投/奖励）与 **paidPool**（USDC 购买 / 跨链入桥）。`balanceOf` = 两者之和；**跨链只认 paidPool**。
 
 | 资产 | 空投 / 奖励 mint | USDC / 跨链入桥 mint | 跨链 burn | P2P 转账 | 可跨链余额 view |
 |------|------------------|----------------------|-----------|----------|-----------------|
 | **B-Unit** | `mintReward` → free | `mintPaid` → paid | Peer → `consumePaidFuel` | **仅 paidPool**（`transfer` / EIP-3009） | `bridgeableBalanceOf` |
-| **GB (ERC20)** | `mintReward` / `airdrop` / `mint()` → free | `mintPaid` → paid | Peer → `burnPaidFrom` | **free + paid**（`transfer` 先扣 free 再扣 paid；EIP-3009 同） | `bridgeableBalanceOf`（仅 paid） |
+| **GB (ERC20)** | `mintReward` / `airdrop` / `mint()` → free | `mintPaid` → paid | Peer → `burnPaidFrom` | **CoNET V2：仅 paidPool**（V1 / Base 暂可 free+paid）；EIP-3009 同规则 | `bridgeableBalanceOf`（仅 paid） |
 
 **GBToken 自带投票桥**（`bridgeOut` / `executeBridgeMint`）同样只动 paidPool：出桥 `_burnPaidOnly`，入桥 `_mintPaid`。
 
 **业务规则（链下 / Treasury 调用方）**
 
-- 仅 **USDC 购买** 或 **paid B-Unit 等收费路径** 应调用 `GBToken.mintPaid`；普通空投须走 `mintReward` / `airdrop`。
-- Legacy `ConetGB1155.issueGB` 仍为 1155 记账轨，与 ERC20 双池无关；canonical 跨链以 `gbTokenErc20` 为准。
+- **仅 USDC 购买** 或 **paid B-Unit 等收费路径** 应调用 `GBToken.mintPaid`；普通空投须走 `mintReward` / `airdrop`。
+- ~~Legacy `ConetGB1155.issueGB`~~ **已弃用**（1155 挖矿轨）；canonical 跨链/余额以 **`gbTokenErc20` / `CONET_GB_ERC20`** 为准。
 
 **B-Unit 链上服务费**（非跨链）：`consumeFuel` 瀑布流先 free 后 paid。
 
 **UI**
 
 - B-Unit 可跨链 / 可转让：`bridgeableBalanceOf(user)` = paid 余额；`transfer` 仅移动 paid，free 不可转
-- GB 可跨链：`bridgeableBalanceOf` = paid；**P2P transfer** 可移动 free+paid（跨链/swap 仍仅认 paid）
+- GB 可跨链：`bridgeableBalanceOf` = paid；**CoNET V2** P2P / EIP-3009 **仅 paid**（free 经 admin `consumeFree` / `consumeGb`）
+- **CoNET V2**（`GBTokenV2` + `upgradeGBTokenV2Conet.ts`）：代理地址不变；Base 外链 GB 无 free，可暂不升 V2
 - 错误 `"Insufficient paid balance"` / `"B-Units: Insufficient paid balance"` → 仅收费池余额可跨链
 
 ---
@@ -380,9 +442,14 @@ peer.bridgeNativeAsset(2, amount6, 8453, recipient);
 | 文件 | 说明 |
 |------|------|
 | `src/b-unit/ConetTreasuryPeer.sol` | 跨链 + swap 实现 |
+| `src/b-unit/ConetTreasuryPeerStableSwapOffline.sol` | 本链离线签字入口 |
+| `src/b-unit/ConetTreasuryPeerDepositLib.sol` | 入桥 mint 库（Peer 体积） |
 | `src/b-unit/GBToken.sol` | GB 双池；`mintPaid` / `burnPaidFrom` / `bridgeableBalanceOf` |
 | `src/b-unit/BUint.sol` | B-Unit 双池；`consumePaidFuel` / `bridgeableBalanceOf` |
+| `src/x402sdk/src/treasuryStableSwapRelay.ts` | Master 代付 |
+| `src/SilentPassUI/src/utils/treasuryStableSwapOffline.ts` | 客户端签字 helper |
 | `scripts/conetTreasuryDeployConstants.ts` | 地址与 chainId |
+| `scripts/deployConetTreasuryPeerCreate2.ts` | Peer v4 + Offline CREATE2 |
 | `scripts/conetTreasury-relayer-validator.md` | Relayer daemon 细则 |
 | `scripts/registerPeerBridgeAssets.ts` | Peer 登记脚本 |
 | `scripts/predictCrossChainAssets.ts` | CREATE2 地址预测 |

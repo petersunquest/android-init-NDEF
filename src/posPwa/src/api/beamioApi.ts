@@ -412,6 +412,44 @@ export interface NfcTopupSubmitResult {
 	success: boolean
 	txHash?: string
 	error?: string
+	errorCode?: string
+	signer?: string
+	expectedSigner?: string
+	expectedChainId?: number
+}
+
+/** User-facing English for Cluster `/api/nfcTopup` admin / EIP-712 failures (avoid bare "not admin"). */
+export function formatNfcTopupAdminError(pay: NfcTopupSubmitResult): string {
+	const code = (pay.errorCode ?? '').trim()
+	const apiMsg = pay.error?.trim()
+	if (code === 'EIP712_CHAIN_ID_MISMATCH') {
+		return (
+			apiMsg ||
+			`Top-up signature used the wrong chainId (Base 8453). Merchant cards require CoNET chainId ${pay.expectedChainId ?? 224422}. Update the POS app and retry.`
+		)
+	}
+	if (code === 'EIP712_SIGNATURE_RECOVERY_MISMATCH') {
+		const expected = pay.expectedSigner ? shortAddr(pay.expectedSigner) : 'this terminal'
+		const recovered = pay.signer ? shortAddr(pay.signer) : 'a different address'
+		return (
+			apiMsg ||
+			`Top-up signature does not match the terminal wallet (expected ${expected}, recovered ${recovered}). Usually wrong EIP-712 domain (chainId or factory).`
+		)
+	}
+	if (code === 'SIGNER_NOT_CARD_ADMIN' || /not card admin/i.test(apiMsg ?? '')) {
+		const who = pay.signer ? shortAddr(pay.signer) : 'This terminal'
+		return (
+			apiMsg ||
+			`${who} is not an admin on this merchant card. Open Workspaces, request Staff approval, then retry.`
+		)
+	}
+	return apiMsg || 'Top-up failed'
+}
+
+function shortAddr(addr: string): string {
+	const a = addr.trim()
+	if (a.length < 12) return a
+	return `${a.slice(0, 6)}…${a.slice(-4)}`
 }
 
 export async function nfcTopupSubmit(body: {
@@ -422,6 +460,8 @@ export async function nfcTopupSubmit(body: {
 	deadline: number
 	nonce: string
 	adminSignature: string
+	/** Terminal EOA that signed — Cluster uses this to distinguish EIP-712 domain bugs from true non-admin. */
+	signerEOA?: string
 	sun?: { e: string; c: string; m: string }
 	currencySplit?: {
 		currencyAmount: string
@@ -443,6 +483,7 @@ export async function nfcTopupSubmit(body: {
 		}
 		if (body.uid) payload.uid = body.uid
 		if (body.wallet) payload.wallet = body.wallet
+		if (body.signerEOA?.trim()) payload.signerEOA = body.signerEOA.trim()
 		if (body.sun) {
 			payload.e = body.sun.e
 			payload.c = body.sun.c
@@ -462,12 +503,25 @@ export async function nfcTopupSubmit(body: {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload),
 		})
-		const json = (await res.json()) as { success?: boolean; txHash?: string; error?: string }
+		const json = (await res.json()) as {
+			success?: boolean
+			txHash?: string
+			error?: string
+			errorCode?: string
+			signer?: string
+			expectedSigner?: string
+			expectedChainId?: number
+		}
 		const ok = res.ok && (json.success ?? true)
 		return {
 			success: ok,
 			txHash: json.txHash?.trim() || undefined,
 			error: json.error?.trim() || (!ok ? `HTTP ${res.status}` : undefined),
+			errorCode: json.errorCode?.trim() || undefined,
+			signer: json.signer?.trim() || undefined,
+			expectedSigner: json.expectedSigner?.trim() || undefined,
+			expectedChainId:
+				typeof json.expectedChainId === 'number' ? json.expectedChainId : undefined,
 		}
 	} catch {
 		return null
@@ -554,6 +608,8 @@ export async function payByNfcUidPrepare(body: {
 	payee: string
 	amountFiat6: string
 	currency: string
+	/** Merchant program card — required so prepare quotes that card’s on-chain currency. */
+	merchantInfraCard: string
 	sun?: { e: string; c: string; m: string }
 }): Promise<PayByNfcUidPrepareResult | null> {
 	try {
@@ -562,6 +618,7 @@ export async function payByNfcUidPrepare(body: {
 			payee: body.payee,
 			amountFiat6: body.amountFiat6,
 			currency: body.currency.toUpperCase(),
+			merchantInfraCard: body.merchantInfraCard.trim(),
 		}
 		if (body.sun) {
 			payload.e = body.sun.e
@@ -604,6 +661,7 @@ export async function payByNfcUidSignContainer(body: {
 	containerPayload: Record<string, unknown>
 	amountFiat6: string
 	currency: string
+	merchantInfraCard: string
 	sun?: { e: string; c: string; m: string }
 	nfcBill: Record<string, string | number>
 }): Promise<PayByNfcUidSignResult | null> {
@@ -613,6 +671,7 @@ export async function payByNfcUidSignContainer(body: {
 			containerPayload: body.containerPayload,
 			amountFiat6: body.amountFiat6,
 			currency: body.currency.toUpperCase(),
+			merchantInfraCard: body.merchantInfraCard.trim(),
 			...body.nfcBill,
 		}
 		if (body.sun) {
@@ -810,9 +869,24 @@ export async function fetchUIDAssets(params: {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
 		})
-		if (!res.ok) return null
-		const json = await res.json()
-		return parseUIDAssetsResponse(json)
+		let json: unknown = null
+		try {
+			json = await res.json()
+		} catch {
+			return res.ok ? null : { ok: false, error: `HTTP ${res.status}` }
+		}
+		const parsed = parseUIDAssetsResponse(json)
+		if (!res.ok) {
+			const serverError =
+				json && typeof json === 'object' && typeof (json as { error?: unknown }).error === 'string'
+					? String((json as { error: string }).error).trim()
+					: ''
+			return {
+				ok: false,
+				error: serverError || parsed.error?.trim() || `HTTP ${res.status}`,
+			}
+		}
+		return parsed
 	} catch {
 		return null
 	}
@@ -835,9 +909,24 @@ export async function fetchWalletAssetsForRead(params: {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
 		})
-		if (!res.ok) return null
-		const json = await res.json()
-		return parseUIDAssetsResponse(json)
+		let json: unknown = null
+		try {
+			json = await res.json()
+		} catch {
+			return res.ok ? null : { ok: false, error: `HTTP ${res.status}` }
+		}
+		const parsed = parseUIDAssetsResponse(json)
+		if (!res.ok) {
+			const serverError =
+				json && typeof json === 'object' && typeof (json as { error?: unknown }).error === 'string'
+					? String((json as { error: string }).error).trim()
+					: ''
+			return {
+				ok: false,
+				error: serverError || parsed.error?.trim() || `HTTP ${res.status}`,
+			}
+		}
+		return parsed
 	} catch {
 		return null
 	}

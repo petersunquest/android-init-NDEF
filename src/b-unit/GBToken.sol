@@ -6,7 +6,8 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 
 /**
  * @title GBToken — CONET GB（9 位 ERC20，跨链同址）
- * @dev DePIN 流量代币 GB 的「可转账 ERC20」版本（与作为 miner 记账的 ConetGB1155 并存，互不替代）。
+ * @dev **Canonical GB**：全项目「GB」默认指本合约（可转账 Payment GB；free/paid 双池）。
+ *      **ConetGB1155（ERC1155 挖矿记账）已弃用**，仅链上遗留只读；见 `.cursor/rules/beamio-gb-erc20-canonical.mdc`。
  *
  *  设计要点：
  *   1. 9 位精度：1 GB = 1e9（与 CoNET DePIN「1 byte = 1 最小单位、1e9 bytes = 1 GB」口径一致）。

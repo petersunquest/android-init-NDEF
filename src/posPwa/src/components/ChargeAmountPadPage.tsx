@@ -4,6 +4,7 @@ import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { BeamioAmountPad, formatAmountPadDisplay } from '@/components/BeamioAmountPad'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { UsdcBaseCompositeIcon } from '@/components/ChainTokenCompositeIcon'
+import { displayFiatPrefixFromCode } from '@/utils/display'
 import {
 	allowedChargeMethods,
 	chargeOptionToMethodRaw,
@@ -25,11 +26,14 @@ const METHOD_ACCENT: Record<ChargePaymentMethodOption, string> = {
 export function ChargeAmountPadPage({
 	policy = POS_TERMINAL_CHARGE_POLICY_ALL,
 	programCardDisplayName = '',
+	currency = 'CAD',
 	onCancel,
 	onContinue,
 }: {
 	policy?: PosTerminalChargePolicy
 	programCardDisplayName?: string
+	/** Merchant program card on-chain currency — amount is entered in this currency. */
+	currency?: string
 	onCancel: () => void
 	onContinue: (input: { subtotal: string; methodRaw: ChargePaymentMethodRaw }) => void
 }) {
@@ -49,6 +53,12 @@ export function ChargeAmountPadPage({
 	const parsed = Number(amount)
 	const canContinue = allowed.length > 0 && Number.isFinite(parsed) && parsed > 0
 	const accent = METHOD_ACCENT[methodOption]
+	const amountPrefix =
+		methodOption === 'credit'
+			? displayFiatPrefixFromCode(currency, 'CAD')
+			: methodOption === 'usdc'
+				? displayFiatPrefixFromCode('USDC')
+				: displayFiatPrefixFromCode('CAD')
 	const methodTitle =
 		methodOption === 'credit'
 			? programCardDisplayName.trim() || 'Beamio'
@@ -70,7 +80,7 @@ export function ChargeAmountPadPage({
 								<div className="min-w-0 flex-1">
 									<div className="flex items-baseline gap-1">
 										<span className="text-3xl font-bold" style={{ color: accent }}>
-											$
+											{amountPrefix}
 										</span>
 										<span
 											className="truncate text-5xl font-black tabular-nums"

@@ -1,9 +1,9 @@
 /**
  * ConetTreasuryPeer 跨链桥 post-deploy（各链 CREATE2 同址 + setPeerModule 后执行）:
- *   Peer.setBUint / setGbTokenErc20 / setUsdcErc20（CoNET）/ setConetGB（legacy 1155 可选）
+ *   Peer.setBUint / setGbTokenErc20 / setUsdcErc20（CoNET）/ setConetGB（**@deprecated** legacy 1155 可选）
  *   BeamioBUnits.addAdmin(Peer)
- *   GBToken.addAdmin(Peer) — ERC20 GB canonical mint/burn
- *   ConetGB1155.grantRole(ISSUER_ROLE, Peer) — legacy B002 路径（可选）
+ *   GBToken.addAdmin(Peer) — **canonical** ERC20 GB mint/burn
+ *   ConetGB1155.grantRole(ISSUER_ROLE, Peer) — **@deprecated** legacy B002 路径（可选；SKIP_GB_ISSUER=1 推荐）
  *
  * 环境变量:
  *   CONET_TREASURY / CONET_TREASURY_PEER — 覆盖地址
@@ -26,7 +26,9 @@ import {
   GB_TOKEN_ERC20_CREATE2_PREDICTED,
 } from "./conetTreasuryDeployConstants.js";
 import { BUINT_UUPS_PROXY_PREDICTED, BUINT_INITIAL_ADMIN } from "./bunitDeployConstants.js";
-import { GB_CREATE2_PREDICTED } from "./gbDeployConstants.js";
+
+/** legacy ConetGB1155（可选；无 code 时跳过） */
+const GB_CREATE2_PREDICTED = "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,7 +117,11 @@ async function main() {
     gb1155Addr = ethers.ZeroAddress;
   }
 
-  const treasury = await ethers.getContractAt("ConetTreasury", treasuryAddr, signer);
+  const treasury = await ethers.getContractAt(
+    ["function peerModule() view returns (address)", "function setPeerModule(address) external"],
+    treasuryAddr,
+    signer
+  );
   const peer = await ethers.getContractAt("ConetTreasuryPeer", peerAddr, signer);
   const net = await ethers.provider.getNetwork();
 
@@ -128,8 +134,12 @@ async function main() {
   console.log("Peer:", peerAddr);
 
   const linkedPeer = await treasury.peerModule().catch(() => ethers.ZeroAddress);
-  if (linkedPeer !== ethers.ZeroAddress && linkedPeer.toLowerCase() !== peerAddr.toLowerCase()) {
-    console.warn("⚠️ Treasury.peerModule 未指向 Peer；先 deployConetTreasuryStackCreate2 或 setPeerModule");
+  if (linkedPeer === ethers.ZeroAddress || linkedPeer.toLowerCase() !== peerAddr.toLowerCase()) {
+    const tx = await treasury.setPeerModule(peerAddr);
+    await tx.wait();
+    console.log("[0] Treasury.setPeerModule:", peerAddr);
+  } else {
+    console.log("[0] Treasury.peerModule 已指向 Peer");
   }
 
   const currentBuint = await peer.buint();
@@ -158,6 +168,17 @@ async function main() {
       console.log("[3] Peer.setUsdcErc20:", usdcErc20);
     } else {
       console.log("[3] Peer.usdcErc20 已配置");
+    }
+    const targetRate = process.env.USDC6_PER_FULL_GB?.trim()
+      ? BigInt(process.env.USDC6_PER_FULL_GB.trim())
+      : 10_000n;
+    const currentRate = await peer.usdc6PerFullGb();
+    if (currentRate !== targetRate) {
+      const tx = await peer.setUsdc6PerFullGb(targetRate);
+      await tx.wait();
+      console.log("[3b] Peer.setUsdc6PerFullGb:", targetRate.toString());
+    } else {
+      console.log("[3b] Peer.usdc6PerFullGb 已配置");
     }
   }
 

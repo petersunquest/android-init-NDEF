@@ -1,0 +1,33 @@
+{
+  "peer": "0x6093871d8a3EE6EaADc9869451D1693973cFBCC0",
+  "stableSwapOffline": "0xdB91AaFf8d076a8B45B48f5d8bA8A1191627f1F2",
+  "treasury": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+  "wrappedLib": "0xB84540C3f3E53B405A0200D5e9228299f1854A49",
+  "stableSwapLib": "0x6D2c8E29282308972cB6bC46C278B182fB2d26DA",
+  "depositLib": "0x080d900E9949D7B808d66599D3d1BcFCcC7d952e",
+  "stableSwapSigLib": "0xfd27239c2f717162D9cE55E82A9ad8Bb11c1E40D",
+  "create2Salt": "0x9903c17c5c25db6942a14bd05fd28117419bf830cd03870c6f01f239aaa220df",
+  "offlineSalt": "0xe44d2bc54412f0c6965ff35b0e2980d5a855d40d1a4fce9c1417d254e3935dc5",
+  "initCodeHash": "0xc33a71753cad5badb678e4706de20c378848dd8c9bb973e87ce48010eb70fe97",
+  "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "chainId": "224422",
+  "version": "v4-offline-stableswap",
+  "wiring": {
+    "peerModule": "0x6093871d8a3EE6EaADc9869451D1693973cFBCC0",
+    "stableSwapOffline": "0xdB91AaFf8d076a8B45B48f5d8bA8A1191627f1F2",
+    "buint": "0x54ac4672cE75EC5ACebaeF1a7aFC6F49E77Ae9Ae",
+    "gbTokenErc20": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+    "usdcErc20": "0xfD0D7B0706AaB5E4351bcED37bC3C77ed6813907",
+    "usdc6PerFullGb": "10000",
+    "conetGB": "0x3Dc53e528d45225e8F38c391Cc6a72CDec435748"
+  },
+  "deployTxs": {
+    "wrappedLib": "0xfb2b3953cc4fbe81cbfc6cd964a03f163d4e4ee39423d72597a1dae972272747",
+    "stableSwapLib": "0xc26f4b22a0adafe6bdd0f431487ce668a8b62638f0175d266a2537083d31d18a",
+    "depositLib": "0x907e951240996645571e650d885b70a197c344b336a26f54d3d303872ace0303",
+    "peer": "0x2c2d35e613186451786a53eab0ddef8c2b1a2ff1d363f391eacb272dbb60f6a8",
+    "sigLib": "0x81e500e21ade20d8cb730923c76962ba5c3fcc18a2da60a37515ad0a2bde3721",
+    "offline": "0xce91e9d56d13e58582816ff973d9d6c023363841c1684129373393ca7e309649"
+  },
+  "updatedAt": "2026-07-31T20:45:00.000Z"
+}

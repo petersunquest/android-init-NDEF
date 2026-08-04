@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {ConetTreasuryPeerWrappedLib} from "./ConetTreasuryPeerWrappedLib.sol";
 import {ConetTreasuryPeerStableSwapLib} from "./ConetTreasuryPeerStableSwapLib.sol";
+import {ConetTreasuryPeerDepositLib} from "./ConetTreasuryPeerDepositLib.sol";
 
 interface IMintableERC20 {
     function mint(address to, uint256 amount) external;
@@ -23,6 +24,7 @@ interface IConetTreasuryGovernance {
     function minerCount() external view returns (uint256);
 }
 
+/// @dev Legacy ConetGB1155 — Peer 仅在未配置 gbTokenErc20 时 fallback；新部署勿依赖。
 interface IConetGB1155 {
     function issueGB(address to, uint256 amountGB18) external;
     function revokeTotalOnly(address from, uint256 amountGB18) external;
@@ -92,6 +94,9 @@ contract ConetTreasuryPeer {
 
     /// @dev 1 整 GB（1e9 最小单位）的 USDC6 标价；GB↔USDC 兑换用。例：0.01 USDC/GB → 10000。
     uint256 public usdc6PerFullGb;
+
+    /// @dev 离线签字 StableSwap 薄合约；仅其可调 `bridgeStableSwapFor`。
+    address public stableSwapOffline;
 
     /// @dev 与 ConetTreasury / BUnitAirdrop 一致：1 USDC(6) = 100 B-Unit(6)。
     uint256 public constant USDC_TO_BUNIT_RATE = 100;
@@ -192,8 +197,11 @@ contract ConetTreasuryPeer {
     event UsdcOutboundBalanceSet(uint256 indexed destinationChainId, uint256 balance);
     event UsdcOutboundBalanceReplenished(uint256 indexed destinationChainId, uint256 added, uint256 balance);
     event UsdcOutboundBalanceConsumed(uint256 indexed destinationChainId, uint256 amount, uint256 balance);
+    event StableSwapOfflineUpdated(address indexed oldOffline, address indexed newOffline);
 
     error NotMiner();
+    error NotStableSwapOffline();
+    error SlippageExceeded();
     error AlreadyVoted();
     error ProposalNotExecutable();
     error ProposalAlreadyExecuted();
@@ -578,6 +586,42 @@ contract ConetTreasuryPeer {
         address recipient,
         uint8 creditAssetKind
     ) external {
+        _bridgeStableSwap(msg.sender, burnAssetKind, amount, destinationChainId, recipient, creditAssetKind, 0);
+    }
+
+    /**
+     * @notice 仅 `stableSwapOffline`：以 `user` 执行 StableSwap（含 minCreditAmount）。
+     *         EIP-712 / nonce 在离线模块内完成。
+     */
+    function bridgeStableSwapFor(
+        address user,
+        uint8 burnAssetKind,
+        uint256 amount,
+        uint256 destinationChainId,
+        address recipient,
+        uint8 creditAssetKind,
+        uint256 minCreditAmount
+    ) external {
+        if (msg.sender != stableSwapOffline) revert NotStableSwapOffline();
+        if (user == address(0)) revert InvalidTarget();
+        _bridgeStableSwap(user, burnAssetKind, amount, destinationChainId, recipient, creditAssetKind, minCreditAmount);
+    }
+
+    function setStableSwapOffline(address offline) external onlyMiner {
+        address old = stableSwapOffline;
+        stableSwapOffline = offline;
+        emit StableSwapOfflineUpdated(old, offline);
+    }
+
+    function _bridgeStableSwap(
+        address user,
+        uint8 burnAssetKind,
+        uint256 amount,
+        uint256 destinationChainId,
+        address recipient,
+        uint8 creditAssetKind,
+        uint256 minCreditAmount
+    ) internal {
         if (amount == 0) revert InvalidAmount();
         if (burnAssetKind < CANONICAL_GB_ERC20 || burnAssetKind > CANONICAL_BUINT_ERC20
             || creditAssetKind < CANONICAL_GB_ERC20 || creditAssetKind > CANONICAL_BUINT_ERC20) {
@@ -591,7 +635,7 @@ contract ConetTreasuryPeer {
                 || (burnAssetKind != CANONICAL_USDC_ERC20 && creditAssetKind != CANONICAL_USDC_ERC20)) {
                 revert InvalidCanonicalKind();
             }
-            if (to == address(0)) to = msg.sender;
+            if (to == address(0)) to = user;
         } else if (to == address(0)) {
             revert InvalidTarget();
         }
@@ -600,18 +644,17 @@ contract ConetTreasuryPeer {
             burnAssetKind, amount, creditAssetKind, usdc6PerFullGb, USDC_TO_BUNIT_RATE
         );
         if (creditAmount == 0) revert InvalidAmount();
+        if (creditAmount < minCreditAmount) revert SlippageExceeded();
 
         if (isLocal) {
-            _burnByStableKind(msg.sender, burnAssetKind, amount);
+            _burnByStableKind(user, burnAssetKind, amount);
             _mintByStableKind(creditAssetKind, to, creditAmount);
         } else {
             _requireAndConsumeOutboundUsdcCredit(destinationChainId, creditAssetKind, creditAmount);
-            _burnByStableKind(msg.sender, burnAssetKind, amount);
+            _burnByStableKind(user, burnAssetKind, amount);
         }
 
-        emit StableSwapBridgeOut(
-            msg.sender, burnAssetKind, amount, creditAssetKind, creditAmount, destinationChainId, to
-        );
+        emit StableSwapBridgeOut(user, burnAssetKind, amount, creditAssetKind, creditAmount, destinationChainId, to);
     }
 
     /// @dev CoNET UI：预览兑换 mint 量，并在 credit=USDC 时返回跨出流动性是否足够。
@@ -949,81 +992,35 @@ contract ConetTreasuryPeer {
 
         p.executed = true;
 
-        if (p.creditAssetKind != 0) {
-            _mintByStableKind(p.creditAssetKind, p.recipient, p.amount);
-            if (p.creditAssetKind == CANONICAL_USDC_ERC20) {
-                _replenishOutboundFromInboundUsdc(p.peerChainId, p.amount);
-            }
-            address mintTarget = _stableKindToken(p.creditAssetKind);
-            emit PeerDepositExecuted(depositTxHash, mintTarget, p.recipient, p.amount);
-            if (p.creditAssetKind == CANONICAL_GB_ERC20) {
-                emit GBIssueExecuted(depositTxHash, p.recipient, p.amount);
-            }
-            return;
-        }
-
         uint8 canonicalKind = _canonicalErc20Kind[_peerKey(p.peerChainId, p.peerToken)];
-        if (canonicalKind != CANONICAL_NONE) {
-            if (canonicalKind == CANONICAL_BUINT_ERC20) {
-                if (buint == address(0)) revert BUintNotSet();
-                IBeamioBUnitsBridge(buint).mintPaid(p.recipient, p.amount);
-                emit PeerDepositExecuted(depositTxHash, buint, p.recipient, p.amount);
-                emit MintExecuted(buint, p.recipient, p.amount);
-                return;
-            }
-            if (canonicalKind == CANONICAL_GB_ERC20) {
-                if (gbTokenErc20 == address(0)) revert GbTokenErc20NotSet();
-                IGBTokenErc20Bridge(gbTokenErc20).mintPaid(p.recipient, p.amount);
-                emit PeerDepositExecuted(depositTxHash, gbTokenErc20, p.recipient, p.amount);
-                emit GBIssueExecuted(depositTxHash, p.recipient, p.amount);
-                emit MintExecuted(gbTokenErc20, p.recipient, p.amount);
-                return;
-            }
-            if (canonicalKind == CANONICAL_USDC_ERC20) {
-                if (usdcErc20 == address(0)) revert UsdcErc20NotSet();
-                IConetTreasuryFactoryMinter(treasury).mintFactoryToken(usdcErc20, p.recipient, p.amount);
-                _replenishOutboundFromInboundUsdc(p.peerChainId, p.amount);
-                emit PeerDepositExecuted(depositTxHash, usdcErc20, p.recipient, p.amount);
-                emit MintExecuted(usdcErc20, p.recipient, p.amount);
-                return;
-            }
-            if (canonicalKind == CANONICAL_WCNET_ERC20) {
-                address w = _requireWrappedConet();
-                IConetTreasuryFactoryMinter(treasury).mintFactoryToken(w, p.recipient, p.amount);
-                emit PeerDepositExecuted(depositTxHash, w, p.recipient, p.amount);
-                emit MintExecuted(w, p.recipient, p.amount);
-                return;
-            }
-            revert InvalidCanonicalKind();
+        address wrappedOrZero;
+        if (
+            p.creditAssetKind == 0 && canonicalKind == CANONICAL_NONE && p.peerToken != BUINT_PEER_TOKEN
+                && p.peerToken != GB_PEER_TOKEN
+        ) {
+            wrappedOrZero = _ensureWrappedToken(p.peerChainId, p.peerToken);
         }
 
-        if (p.peerToken == BUINT_PEER_TOKEN) {
-            if (buint == address(0)) revert BUintNotSet();
-            IBeamioBUnitsBridge(buint).mintPaid(p.recipient, p.amount);
-            emit PeerDepositExecuted(depositTxHash, buint, p.recipient, p.amount);
-            emit MintExecuted(buint, p.recipient, p.amount);
-            return;
+        address wcn = wrappedConet;
+        (, uint256 usdcReplenish) = ConetTreasuryPeerDepositLib.executeDepositMint(
+            depositTxHash,
+            p.peerChainId,
+            p.peerToken,
+            p.recipient,
+            p.amount,
+            p.creditAssetKind,
+            canonicalKind,
+            treasury,
+            usdcErc20,
+            gbTokenErc20,
+            buint,
+            wcn,
+            conetGB,
+            wrappedOrZero
+        );
+        if (usdcReplenish > 0) {
+            _replenishOutboundFromInboundUsdc(p.peerChainId, usdcReplenish);
         }
-
-        if (p.peerToken == GB_PEER_TOKEN) {
-            if (conetGB == address(0)) revert ConetGBNotSet();
-            IConetGB1155(conetGB).issueGB(p.recipient, p.amount);
-            emit PeerDepositExecuted(depositTxHash, conetGB, p.recipient, p.amount);
-            emit GBIssueExecuted(depositTxHash, p.recipient, p.amount);
-            return;
-        }
-
-        address wrapped = _ensureWrappedToken(p.peerChainId, p.peerToken);
-        IConetTreasuryFactoryMinter(treasury).mintFactoryToken(wrapped, p.recipient, p.amount);
-        emit PeerDepositExecuted(depositTxHash, wrapped, p.recipient, p.amount);
-        emit MintExecuted(wrapped, p.recipient, p.amount);
-    }
-
-    function _stableKindToken(uint8 kind) internal view returns (address) {
-        if (kind == CANONICAL_USDC_ERC20) return usdcErc20;
-        if (kind == CANONICAL_GB_ERC20) return gbTokenErc20;
-        if (kind == CANONICAL_BUINT_ERC20) return buint;
-        revert InvalidCanonicalKind();
     }
 
     function getPeerDepositProposal(bytes32 depositTxHash)

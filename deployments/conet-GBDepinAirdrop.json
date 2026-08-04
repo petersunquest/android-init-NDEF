@@ -1,0 +1,35 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-01T21:12:19.302Z",
+  "contracts": {
+    "GBToken": {
+      "address": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8"
+    },
+    "ValidatorDepositRedeem": {
+      "address": "0xc71e246DD78B37C2fABc905D340932F28F503433"
+    },
+    "GuardianNodesInfoV6": {
+      "address": "0xBC6b53065b5647261396d002bDBA0d3396E0722f"
+    },
+    "GBDepinAirdrop": {
+      "address": "0x62bcc59cC36C737E8AfBb0914F840d12cd33025f",
+      "monthlyPaidGbPerNode": "3000e9",
+      "freeClaimAmount": "10e9",
+      "freeClaimIntervalSeconds": 86400,
+      "admins": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+        "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+        "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+      ],
+      "gbSettlers": [
+        "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+        "0x678F3570F9173373bB75e7544fcF383153aDAF4C",
+        "0x24103Ea5eA17aBFfDA8b2904acCA679C798b3695",
+        "0x66BAb8A64764e659Fa7FF41D19aDFbb7b956CED2"
+      ]
+    }
+  }
+}

@@ -61,44 +61,46 @@ function detectPlatform(): PosNativePlatform {
 	return 'web'
 }
 
-function useNativeBridge(): boolean {
-	return detectPlatform() !== 'web' && Boolean(window.BeamioPOS?.createWallet)
-}
-
 export const posNativeBridge: PosNativeBridge = {
 	platform: detectPlatform(),
 
 	async getWalletAddress(): Promise<string | null> {
+		if (getSessionWalletAddress()) return getSessionWalletAddress()
+		await checkPosWalletStorage()
+		const fromIdb = getSessionWalletAddress()
+		if (fromIdb) return fromIdb
+		/* Display hint only — signing uses posWalletSession / IndexedDB mnemonic. */
 		if (window.BeamioPOS?.getWalletAddress) {
 			return window.BeamioPOS.getWalletAddress()
 		}
-		if (getSessionWalletAddress()) return getSessionWalletAddress()
-		await checkPosWalletStorage()
-		return getSessionWalletAddress()
+		return null
 	},
 
 	async getWalletPrivateKeyHex(): Promise<string | null> {
-		if (window.BeamioPOS?.getWalletPrivateKeyHex) {
-			const native = await window.BeamioPOS.getWalletPrivateKeyHex()
-			if (native?.trim()) return native.replace(/^0x/i, '').trim()
-		}
 		if (getSessionPrivateKeyHex()) return getSessionPrivateKeyHex()
 		await checkPosWalletStorage()
 		return getSessionPrivateKeyHex()
 	},
 
 	async hasStoredWallet(): Promise<boolean> {
-		if (window.BeamioPOS?.hasStoredWallet) {
-			return window.BeamioPOS.hasStoredWallet()
-		}
+		/* Canonical: local mnemonic (IDB raw/envelope + LS fallback) or live session. */
 		if (hasSessionWallet()) return true
-		return hasPosWalletInIndexedDb()
+		if (await hasPosWalletInIndexedDb()) return true
+		try {
+			const nativePk = await window.BeamioPOS?.getWalletPrivateKeyHex?.()
+			const pk = nativePk?.replace(/^0x/i, '').trim()
+			if (pk && /^[0-9a-fA-F]{64}$/.test(pk)) return true
+		} catch {
+			/* ignore */
+		}
+		return false
 	},
 
 	async createWallet(params) {
-		if (useNativeBridge()) {
-			return window.BeamioPOS!.createWallet!(params)
-		}
+		/*
+		 * Always persist mnemonic in IndexedDB + hydrate session — one global EOA for all
+		 * workspaces. Do not rely on native Keychain-only create (shell may not return pk later).
+		 */
 		const result = await createPosWalletWithIndexedDb(params)
 		if (!result.ok) return result
 		return {
@@ -109,9 +111,7 @@ export const posNativeBridge: PosNativeBridge = {
 	},
 
 	async restoreWallet(params) {
-		if (window.BeamioPOS?.restoreWallet) {
-			return window.BeamioPOS.restoreWallet(params)
-		}
+		/* Same as create: chain recover → IndexedDB mnemonic → session (not native-only). */
 		return restorePosWalletWithIndexedDb(params)
 	},
 
@@ -143,8 +143,7 @@ export function listenNativeBridge(handler: (detail: unknown) => void): () => vo
 	return () => window.removeEventListener(BRIDGE_EVENT, fn)
 }
 
-/** Call once at app boot — SilentPassUI `init` → `checkStorage` parity. */
+/** Call once at app boot — SilentPassUI `init` → `checkStorage` parity. Always hydrate PWA IDB. */
 export async function bootstrapPosWalletFromIndexedDb(): Promise<void> {
-	if (useNativeBridge()) return
 	await checkPosWalletStorage()
 }

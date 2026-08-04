@@ -2,14 +2,16 @@ import {
 	burnChargeRewardByAdminPrepare,
 	fetchUIDAssets,
 	fetchWalletAssetsForRead,
+	formatNfcTopupAdminError,
 	nfcTopupSubmit,
 } from '@/api/beamioApi'
 import type { UIDAssetsResult } from '@/types/pos'
 import { currencyToFiat6 } from '@/utils/beamioPaymentRouting'
+import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import { isNfcUid14Hex, normalizeNfcUid14 } from '@/utils/nfcUid'
 import { readBalancePrimaryCard } from '@/utils/readBalanceAssets'
 import { buildSuccessPassHeroProps, type PosSuccessPassHeroProps } from '@/utils/posSuccessHero'
-import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
+import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
 export type DeductExecuteProgressPhase = 'preparing' | 'signing'
@@ -228,7 +230,7 @@ export async function executeDeductPoints(params: {
 			? params.preloadedAssets
 			: await loadCustomerAssets(params.target, infra)
 	if (!assets?.ok) {
-		return { status: 'error', message: assets?.error ?? 'Could not load customer balance.' }
+		return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 	}
 
 	const balance6 = infraCardChargeRewardPoints6(assets, infra)
@@ -279,6 +281,7 @@ export async function executeDeductPoints(params: {
 		return { status: 'error', message: 'Customer account is unavailable.' }
 	}
 
+	const signerEOA = (await getPosSigningWalletAddress()) ?? undefined
 	const pay = await nfcTopupSubmit({
 		uid: submitIdentity.uid,
 		wallet: submitIdentity.wallet,
@@ -287,13 +290,14 @@ export async function executeDeductPoints(params: {
 		deadline: prep.deadline,
 		nonce: prep.nonce,
 		adminSignature,
+		signerEOA,
 		sun: submitIdentity.sun,
 	})
 	if (!pay) {
 		return { status: 'error', message: 'Deduct points failed.' }
 	}
 	if (!pay.success) {
-		return { status: 'error', message: pay.error ?? 'Deduct points failed.' }
+		return { status: 'error', message: formatNfcTopupAdminError(pay) }
 	}
 
 	const post6 = balance6 > deduct6 ? balance6 - deduct6 : 0n

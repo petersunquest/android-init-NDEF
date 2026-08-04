@@ -68,9 +68,9 @@ export default defineConfig({
     conet: {
       type: "http",
       chainType: "l1",
-      url: "https://mainnet-rpc.conet.network",
+      url: process.env.CONET_RPC_URL || "https://rpc1.conet.network",
       accounts: getConetAccounts(),
-      chainId: 224400
+      chainId: 224422
     }
   },
   verify: {
@@ -99,7 +99,7 @@ export default defineConfig({
         },
       },
     },
-    224400: {
+    224422: {
       name: "CoNET",
       blockExplorers: {
         etherscan: {

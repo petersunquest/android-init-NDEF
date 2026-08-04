@@ -20,6 +20,10 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG = {
+  GenesisNodeReferralVaultV1: {
+    sourceKey: "project/src/mainnet/GenesisNodeReferralVaultV1.sol",
+    contractName: "GenesisNodeReferralVaultV1",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
@@ -28,9 +32,58 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV1",
   },
+  AdminStatsQueryModuleV4: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV4.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV4",
+  },
+  BeamioUserCardChargeRewardModuleV2: {
+    sourceKey: "project/src/BeamioUserCard/ChargeRewardModuleV2.sol",
+    contractName: "BeamioUserCardChargeRewardModuleV2",
+  },
+  BeamioUserCardReferrerLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol",
+    contractName: "BeamioUserCardReferrerLib",
+  },
+  ReferrerRegistryLib: {
+    sourceKey: "project/src/BeamioUserCard/ReferrerRegistryLib.sol",
+    contractName: "ReferrerRegistryLib",
+  },
+
   GovernanceModule: {
     sourceKey: "project/src/BeamioUserCard/GovernanceModule.sol",
     contractName: "BeamioUserCardGovernanceModuleV1",
+  },
+  ConetTreasuryPeer: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeer.sol",
+    contractName: "ConetTreasuryPeer",
+  },
+  ConetTreasuryPeerStableSwapOffline: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeerStableSwapOffline.sol",
+    contractName: "ConetTreasuryPeerStableSwapOffline",
+  },
+  ConetTreasuryPeerDepositLib: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeerDepositLib.sol",
+    contractName: "ConetTreasuryPeerDepositLib",
+  },
+  ConetTreasuryPeerStableSwapSigLib: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeerStableSwapSigLib.sol",
+    contractName: "ConetTreasuryPeerStableSwapSigLib",
+  },
+  ConetTreasuryPeerWrappedLib: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeerWrappedLib.sol",
+    contractName: "ConetTreasuryPeerWrappedLib",
+  },
+  ConetTreasuryPeerStableSwapLib: {
+    sourceKey: "project/src/b-unit/ConetTreasuryPeerStableSwapLib.sol",
+    contractName: "ConetTreasuryPeerStableSwapLib",
+  },
+  GBTokenV2: {
+    sourceKey: "project/src/b-unit/GBTokenV2.sol",
+    contractName: "GBTokenV2",
+  },
+  GBDepinAirdrop: {
+    sourceKey: "project/src/b-unit/GBDepinAirdrop.sol",
+    contractName: "GBDepinAirdrop",
   },
 };
 
@@ -40,8 +93,6 @@ if (buildInfoFiles.length === 0) {
   console.error("未找到 build-info，请先运行: npm run clean && npm run compile");
   process.exit(1);
 }
-const BUILD_INFO = path.join(buildInfoDir, buildInfoFiles[0]);
-
 const contractArg = process.argv[2];
 const useFull = process.argv.includes("--full");
 
@@ -53,6 +104,47 @@ if (!contractArg || !CONFIG[contractArg]) {
 }
 
 const cfg = CONFIG[contractArg];
+
+/**
+ * via-IR: prefer build-info that contains sourceKey.
+ * Among matches, prefer units that also contain ChargeRewardModuleV2 when exporting
+ * UserCard libs/modules (same Hardhat compile unit as live CoNET module deploys).
+ */
+function resolveBuildInfoPath(sourceKey) {
+  const preferCompanion = "project/src/BeamioUserCard/ChargeRewardModuleV2.sol";
+  let best = null;
+  let bestScore = -1;
+  for (const f of buildInfoFiles) {
+    const p = path.join(buildInfoDir, f);
+    try {
+      const j = JSON.parse(fs.readFileSync(p, "utf-8"));
+      const sources = j?.input?.sources || {};
+      const n = Object.keys(sources).length;
+      const hasKey = Boolean(sources[sourceKey]);
+      if (!hasKey && best !== null) continue;
+      // score: must have key (huge), prefer companion unit, then more sources
+      const score =
+        (hasKey ? 1_000_000 : 0) +
+        (sources[preferCompanion] &&
+        sourceKey.startsWith("project/src/BeamioUserCard/")
+          ? 100_000
+          : 0) +
+        n;
+      if (score > bestScore) {
+        best = p;
+        bestScore = score;
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  if (!best) throw new Error("no readable build-info");
+  const n = Object.keys(JSON.parse(fs.readFileSync(best, "utf-8"))?.input?.sources || {}).length;
+  console.log(`build-info: ${path.basename(best)} (sources=${n})`);
+  return best;
+}
+const BUILD_INFO = resolveBuildInfoPath(cfg.sourceKey);
+
 const outPath = path.join(
   __dirname,
   "../deployments",

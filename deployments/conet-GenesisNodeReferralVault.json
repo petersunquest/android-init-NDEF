@@ -1,0 +1,22 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "proxy": "0x051b65E5711E6E74bC236Fe220dcA7021841855C",
+  "implementation": "0xC841e5Cef2e4774990bf34031594C3a65bFcaE39",
+  "previousImplementation": "0xcC300E20Ec69a4cFd692C75A84882f6b4D0d1B39",
+  "deployTx": "0x1440dab1e6ee06bf4938c4b7a14e7289e95be4f1878e457b6fa57918f3d5ebbf",
+  "upgradeTx": "0x134f50c182d5c9c5c97f00c5a8ad2ebae5550d3a83e88c8b63901d33b58fac79",
+  "upgradeBlock": 622680,
+  "SET_L1_RATIO_TYPEHASH": "0xeb68637d89c2d5cbf67a76a64003be5fd6288b3a0f436e258af13fcd77047db6",
+  "bytecodeTail": "a164736f6c6343000821000a",
+  "updatedAt": "2026-07-30T16:34:47.607Z",
+  "verified": {
+    "is_verified": true,
+    "is_partially_verified": true,
+    "explorer": "https://mainnet.conet.network/address/0xC841e5Cef2e4774990bf34031594C3a65bFcaE39"
+  },
+  "features": [
+    "setL1Ratio",
+    "setL1RatioFor"
+  ]
+}

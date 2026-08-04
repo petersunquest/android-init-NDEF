@@ -59,6 +59,14 @@ library AdminStatsPeriodLib {
         uint256 periodIssued;
         uint256 periodUpgraded;
         uint256 adminCount;
+        /// @dev 时间窗内全局 admin↔admin（不含 owner）points 转账次数
+        uint256 cumulativeAdminToAdminTransfer;
+        uint256 cumulativeAdminToAdminTransferAmount;
+        uint256 periodAdminToAdminTransfer;
+        uint256 periodAdminToAdminTransferAmount;
+        /// @dev 卡级终身累计（不因 subordinate clear 清零）
+        uint256 lifetimeAdminToAdminTransferCount;
+        uint256 lifetimeAdminToAdminTransferAmount;
     }
 
     /// @notice 完整返回：自己及下层 admin 的聚合统计 + 从上次 clear 起的计数 + 下层数组
@@ -115,6 +123,23 @@ library AdminStatsPeriodLib {
                     stats.totalUpgraded += h.upgradedCount;
                 }
             }
+        }
+    }
+
+    /// @notice 全局 admin↔admin 转账按小时聚合（独立 mapping，非 per-admin HourlyStats）
+    function aggregateGlobalAdminToAdminBetween(
+        AdminStatsStorage.Layout storage l,
+        uint256 startTimestamp,
+        uint256 endTimestamp
+    ) internal view returns (uint256 totalCount, uint256 totalAmount) {
+        if (endTimestamp < startTimestamp) return (0, 0);
+        uint256 startHour = startTimestamp / 3600;
+        uint256 endHour = endTimestamp / 3600;
+        if (endHour < startHour) return (0, 0);
+        if (endHour - startHour > MAX_HOURS) return (0, 0);
+        for (uint256 i = startHour; i <= endHour; i++) {
+            totalCount += l.globalAdminToAdminTransferCountByHour[i];
+            totalAmount += l.globalAdminToAdminTransferAmountByHour[i];
         }
     }
 
@@ -240,6 +265,13 @@ library AdminStatsPeriodLib {
         result.periodUpgraded = per.totalUpgraded;
 
         result.adminCount = admins.length;
+
+        (result.cumulativeAdminToAdminTransfer, result.cumulativeAdminToAdminTransferAmount) =
+            aggregateGlobalAdminToAdminBetween(l, startCum, endTs);
+        (result.periodAdminToAdminTransfer, result.periodAdminToAdminTransferAmount) =
+            aggregateGlobalAdminToAdminBetween(l, periodStart, periodEnd);
+        result.lifetimeAdminToAdminTransferCount = l.globalAdminToAdminTransferCount;
+        result.lifetimeAdminToAdminTransferAmount = l.globalAdminToAdminTransferAmount;
     }
 
     function getPeriodReports(

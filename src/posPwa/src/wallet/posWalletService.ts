@@ -33,9 +33,13 @@ export type RestorePosWalletResult =
 	| { ok: true; address: string }
 	| { ok: false; error: string }
 
+function normalizeMnemonicPhrase(mnemonicPhrase: string): string {
+	return mnemonicPhrase.trim().replace(/\s+/g, ' ')
+}
+
 function walletFromMnemonic(mnemonicPhrase: string): HDNodeWallet | null {
 	try {
-		return Wallet.fromPhrase(mnemonicPhrase.trim())
+		return Wallet.fromPhrase(normalizeMnemonicPhrase(mnemonicPhrase))
 	} catch {
 		return null
 	}
@@ -47,6 +51,31 @@ function hydrateSessionFromMnemonic(mnemonicPhrase: string): HDNodeWallet | null
 	const pk = w.privateKey.startsWith('0x') ? w.privateKey.slice(2) : w.privateKey
 	setSessionWallet(pk, w.address)
 	return w
+}
+
+/**
+ * Unlock from IndexedDB plaintext mnemonic — no Access Password.
+ * Always re-hydrates session from the stored 12/24-word phrase.
+ */
+export async function unlockPosWalletFromIndexedDbMnemonic(): Promise<{
+	ok: true
+	address: string
+	accountName: string | null
+} | { ok: false; error: string }> {
+	const record = await loadPosWalletInitFromIndexedDb()
+	const phrase = record?.mnemonicPhrase?.trim()
+	if (!phrase) {
+		return { ok: false, error: 'No local mnemonic in IndexedDB.' }
+	}
+	const w = hydrateSessionFromMnemonic(phrase)
+	if (!w) {
+		return { ok: false, error: 'Local mnemonic could not be opened.' }
+	}
+	return {
+		ok: true,
+		address: w.address,
+		accountName: record?.profiles[0]?.accountName?.trim() || null,
+	}
 }
 
 /** SilentPassUI `createOrGetWallet('', true)` + `storeSystemData` parity for POS web. */
@@ -197,6 +226,10 @@ export async function restorePosWalletWithIndexedDb(params: {
 export async function checkPosWalletStorage(): Promise<PosWalletInitRecord | null> {
 	const record = await loadPosWalletInitFromIndexedDb()
 	if (!record?.mnemonicPhrase) return null
+	if (!hasSessionWallet()) {
+		hydrateSessionFromMnemonic(record.mnemonicPhrase)
+	}
+	/* If session still empty, force re-hydrate (corrupt/partial prior session). */
 	if (!hasSessionWallet()) {
 		hydrateSessionFromMnemonic(record.mnemonicPhrase)
 	}

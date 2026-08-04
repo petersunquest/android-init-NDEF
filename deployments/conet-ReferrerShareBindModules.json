@@ -1,0 +1,13 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-04T00:04:08.835Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12",
+  "bindSelector": "0x9beff1dc",
+  "bindRoute": 254,
+  "note": "AdminStats V4: bind + dual referrer amount ratios",
+  "bound": {
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+  }
+}

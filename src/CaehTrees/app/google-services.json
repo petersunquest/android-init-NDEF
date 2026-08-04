@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "289994798174",
+    "project_id": "beamio-5841b",
+    "storage_bucket": "beamio-5841b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:289994798174:android:7c8534e5ebe029a453f0cf",
+        "android_client_info": {
+          "package_name": "com.beamio.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDl8ZrZAgRa4K3xEiq0vlghf6YF0mF3FkE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,19 @@
+{
+  "predictedAddress": "0x6093871d8a3EE6EaADc9869451D1693973cFBCC0",
+  "stableSwapOfflineAddress": "0xdB91AaFf8d076a8B45B48f5d8bA8A1191627f1F2",
+  "treasuryAddress": "0xa311c8fBE7CafC611603Ee925465A62493B73B30",
+  "wrappedLibAddress": "0xB84540C3f3E53B405A0200D5e9228299f1854A49",
+  "stableSwapLibAddress": "0x6D2c8E29282308972cB6bC46C278B182fB2d26DA",
+  "depositLibAddress": "0x080d900E9949D7B808d66599D3d1BcFCcC7d952e",
+  "stableSwapSigLibAddress": "0xfd27239c2f717162D9cE55E82A9ad8Bb11c1E40D",
+  "create2Salt": "0x9903c17c5c25db6942a14bd05fd28117419bf830cd03870c6f01f239aaa220df",
+  "offlineSalt": "0xe44d2bc54412f0c6965ff35b0e2980d5a855d40d1a4fce9c1417d254e3935dc5",
+  "depositLibSalt": "0x269b6389ff4d5930b5d803b654f28441003350b9fa7d1bdfd152d991458b61a9",
+  "initCodeHash": "0xc33a71753cad5badb678e4706de20c378848dd8c9bb973e87ce48010eb70fe97",
+  "nickFactory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "version": "v4-offline-stableswap",
+  "deployments": {
+    "224422": "0x6093871d8a3EE6EaADc9869451D1693973cFBCC0"
+  },
+  "updatedAt": "2026-07-31T20:40:05.738Z"
+}

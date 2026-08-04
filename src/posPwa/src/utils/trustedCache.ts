@@ -451,6 +451,27 @@ export const posHomeTrustedCache = {
 		]
 		posHomeTrustedCache.saveOutboundJoinPending(wallet, next)
 	},
+
+	/**
+	 * Drop outbound Pending join rows once the parent EOA appears as an approved
+	 * workspace upper/owner (Staff approved the terminal on their program card).
+	 * Returns the pruned list (trusted write only when something was removed).
+	 */
+	pruneOutboundJoinPendingForApprovedParents(
+		wallet: string,
+		approvedParentEoas: readonly string[],
+	): PosOutboundJoinPending[] {
+		const remove = new Set(
+			approvedParentEoas.map((e) => normAddr(e)).filter((e) => Boolean(e)),
+		)
+		const prev = posHomeTrustedCache.loadOutboundJoinPending(wallet)
+		if (remove.size === 0) return prev
+		const next = prev.filter((p) => !remove.has(normAddr(p.parentEoa)))
+		if (next.length !== prev.length) {
+			posHomeTrustedCache.saveOutboundJoinPending(wallet, next)
+		}
+		return next
+	},
 }
 
 /** Prefixes scanned by wallet-recover gate for registeredTag keys. */

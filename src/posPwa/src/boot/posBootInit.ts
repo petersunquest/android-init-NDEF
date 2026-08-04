@@ -1,13 +1,20 @@
-import { posNativeBridge } from '@/bridge/nativeBridge'
+import { hasLocalPlaintextMnemonicFromRecord } from '@/utils/posConsumerWalletGate'
+import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
 import {
-	findPosTerminalSessionWithoutMnemonic,
-	hasLocalPlaintextMnemonicFromRecord,
-} from '@/utils/posConsumerWalletGate'
-import { checkPosWalletStorage } from '@/wallet/posWalletService'
+	checkPosWalletStorage,
+	getSessionWalletAddress,
+	unlockPosWalletFromIndexedDbMnemonic,
+} from '@/wallet/posWalletService'
 import type { PosWalletInitRecord } from '@/wallet/posWalletStorage'
-import { getSessionPrivateKeyHex, getSessionWalletAddress } from '@/wallet/posWalletSession'
+import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
 
-export type PosBootPhase = 'no_wallet' | 'wallet_recover' | 'permission' | 'home'
+/**
+ * - `home` — signing EOA is card admin (or owner / upper)
+ * - `workspace` — not admin on active merchant card; user may re-send join / switch
+ * - `permission` — legacy wait gate (onboarding); prefer `workspace` for denied admin
+ * - `no_wallet` — onboarding / recover
+ */
+export type PosBootPhase = 'no_wallet' | 'permission' | 'workspace' | 'home'
 
 export type PosBootInitResult = {
 	phase: PosBootPhase
@@ -17,50 +24,65 @@ export type PosBootInitResult = {
 
 /**
  * SilentPassUI `App.tsx` `init` → `checkStorage` parity for POS PWA.
- * Loads IndexedDB init doc, hydrates session key, reports whether a local wallet exists.
- * Native Keychain / session key also counts as an unlocked terminal wallet (no recover flash).
+ *
+ * Terminal wallet = **one global EOA** via IndexedDB mnemonic → `posWalletSession`.
+ * Native Keychain is not used for boot/signing. Only when **no** local key → onboarding.
  */
 export async function runPosBootWalletCheck(): Promise<{
 	hasStoredWallet: boolean
 	walletAddress: string | null
 	walletRecord: PosWalletInitRecord | null
-	needsWalletRecover: boolean
-	recoverHint: ReturnType<typeof findPosTerminalSessionWithoutMnemonic>
 }> {
 	let record = await checkPosWalletStorage()
-	let hasStoredWallet = hasLocalPlaintextMnemonicFromRecord(record)
-	let walletAddress = record?.profiles[0]?.keyID ?? null
+	let hasMnemonic = hasLocalPlaintextMnemonicFromRecord(record)
 
-	if (!hasStoredWallet) {
+	if (!hasMnemonic) {
 		/* Brief retry — WKWebView IndexedDB can lag one tick after process restore. */
 		await new Promise<void>((r) => {
 			window.setTimeout(r, 40)
 		})
 		record = (await checkPosWalletStorage()) ?? record
-		hasStoredWallet = hasLocalPlaintextMnemonicFromRecord(record)
-		walletAddress = record?.profiles[0]?.keyID ?? walletAddress
+		hasMnemonic = hasLocalPlaintextMnemonicFromRecord(record)
 	}
 
-	if (!hasStoredWallet) {
-		const nativePk = (await posNativeBridge.getWalletPrivateKeyHex())?.trim()
-		const nativeAddr = (await posNativeBridge.getWalletAddress())?.trim()
-		const sessionPk = getSessionPrivateKeyHex()
-		const sessionAddr = getSessionWalletAddress()
-		if ((nativePk || sessionPk) && (nativeAddr || sessionAddr)) {
-			hasStoredWallet = true
-			walletAddress = nativeAddr || sessionAddr
+	/* Always attempt unlock — covers raw JSON / envelope / LS that first checkStorage may miss. */
+	if (hasMnemonic || (await hasPosWalletInIndexedDb())) {
+		const unlocked = await unlockPosWalletFromIndexedDbMnemonic()
+		if (unlocked.ok) {
+			const after = await checkPosWalletStorage()
+			return {
+				hasStoredWallet: true,
+				walletAddress: getSessionWalletAddress() ?? unlocked.address,
+				walletRecord: after ?? record,
+			}
+		}
+	} else {
+		/* First open after deploy: still try unlock once (LS fallback / delayed IDB). */
+		const unlocked = await unlockPosWalletFromIndexedDbMnemonic()
+		if (unlocked.ok) {
+			const after = await checkPosWalletStorage()
+			return {
+				hasStoredWallet: true,
+				walletAddress: getSessionWalletAddress() ?? unlocked.address,
+				walletRecord: after ?? record,
+			}
 		}
 	}
 
-	const recoverHint = hasStoredWallet ? null : findPosTerminalSessionWithoutMnemonic()
-	if (!walletAddress && recoverHint) walletAddress = recoverHint.walletAddress
+	const signingKey = await getPosPrivateKeyHex()
+	if (signingKey) {
+		return {
+			hasStoredWallet: true,
+			walletAddress: getSessionWalletAddress() ?? record?.profiles[0]?.keyID ?? null,
+			walletRecord: record,
+		}
+	}
 
+	/* No local mnemonic / signing key → onboarding (Welcome → create or restore terminal). */
 	return {
-		hasStoredWallet,
-		walletAddress,
+		hasStoredWallet: false,
+		walletAddress: null,
 		walletRecord: record,
-		needsWalletRecover: !hasStoredWallet && recoverHint != null,
-		recoverHint,
 	}
 }
 
@@ -72,20 +94,21 @@ export function resolvePosBootPhase(params: {
 }): PosBootPhase {
 	if (!params.hasStoredWallet) return 'no_wallet'
 	if (params.accessGranted === true || params.permCached === true) return 'home'
-	if (params.accessGranted === false || params.permCached === false) return 'permission'
-	// Untrusted chain/API — prefer last trusted cache; default to permission (safe wait).
+	/* Not card admin → Workspaces (re-send join / switch merchant). */
+	if (params.accessGranted === false || params.permCached === false) return 'workspace'
+	// Untrusted chain/API — prefer last trusted cache; default to workspace (safe).
 	if (params.permCached === true) return 'home'
-	return 'permission'
+	return 'workspace'
 }
 
 export function bootPathForPhase(phase: PosBootPhase): string {
 	switch (phase) {
 		case 'no_wallet':
 			return '/'
-		case 'wallet_recover':
-			return '/recover'
 		case 'permission':
 			return '/permission'
+		case 'workspace':
+			return '/workspace'
 		case 'home':
 			return '/home'
 	}

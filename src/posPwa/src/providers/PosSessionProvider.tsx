@@ -37,13 +37,17 @@ import {
 	resolveParentWorkspaceProfile,
 } from '@/utils/posHomeAdminProfile'
 import {
+	fetchCardCurrencyAndPointsPriceE6,
 	parseMerchantInfraCardFromMyPos,
 	resolvePosTerminalAccessAllowed,
 } from '@/utils/posProgramCardAccess'
 import { computeHomeStatsFromPosLedger } from '@/utils/posLedgerMetrics'
 import { normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
-import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
-import { checkPosWalletStorage, getSessionWalletAddress } from '@/wallet/posWalletService'
+import {
+	getPosPrivateKeyHex,
+	getPosSigningWalletAddress,
+} from '@/wallet/getPosPrivateKeyHex'
+import { unlockPosWalletFromIndexedDbMnemonic } from '@/wallet/posWalletService'
 import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
 
 function normEoa(raw: string | null | undefined): string {
@@ -96,7 +100,7 @@ interface PosContextValue {
 	bootPhase: PosBootPhase | null
 	refreshHome: () => Promise<void>
 	admitProgramCardAccess: () => void
-	/** Recover page: local mnemonic appeared — leave wallet_recover without Access-password flash loop. */
+	/** Local mnemonic unlocked — leave setup splash and resume home/permission boot. */
 	resumeBootAfterLocalWalletReady: () => Promise<boolean>
 	markOnboardingComplete: (params: {
 		wallet: string
@@ -197,18 +201,51 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		if (w && u) posHomeTrustedCache.savePermissionGranted(w, u, true)
 	}, [walletAddress])
 
+	/** No global signing key ⇒ leave app surfaces; local mnemonic unlock or onboarding. */
+	const forceWalletGateForMissingSigningKey = useCallback(async (): Promise<void> => {
+		/* Prefer local mnemonic (IndexedDB raw/envelope + localStorage fallback). */
+		const unlocked = await unlockPosWalletFromIndexedDbMnemonic()
+		if (unlocked.ok && (await getPosPrivateKeyHex())) {
+			setWalletAddress(unlocked.address)
+			if (unlocked.accountName) setRegisteredBeamioTag(unlocked.accountName)
+			return
+		}
+		/* Native / session key without mnemonic doc — keep installed apps off onboarding. */
+		const pk = await getPosPrivateKeyHex()
+		if (pk) {
+			const fromBridge = await posNativeBridge.getWalletAddress()
+			if (fromBridge) {
+				setWalletAddress(fromBridge)
+				const regTag = posHomeTrustedCache.loadRegisteredTag(fromBridge)
+				if (regTag) setRegisteredBeamioTag(regTag)
+				return
+			}
+		}
+		/* Truly no local key material → Welcome / onboarding. */
+		setWalletAddress(null)
+		setRegisteredBeamioTag(null)
+		setBootPhase('no_wallet')
+		setShowPermissionGate(false)
+	}, [])
+
 	const resumeBootAfterLocalWalletReady = useCallback(async (): Promise<boolean> => {
 		if (!(await hasPosWalletInIndexedDb())) return false
-		await checkPosWalletStorage()
-		const addr = getSessionWalletAddress() ?? walletAddress
-		if (!addr) return false
+		const unlocked = await unlockPosWalletFromIndexedDbMnemonic()
+		if (!unlocked.ok || !(await getPosPrivateKeyHex())) return false
+		const addr = unlocked.address
 		setWalletAddress(addr)
 		const regTag =
-			posHomeTrustedCache.loadRegisteredTag(addr) || registeredBeamioTag
+			unlocked.accountName ||
+			posHomeTrustedCache.loadRegisteredTag(addr) ||
+			registeredBeamioTag
 		if (regTag) setRegisteredBeamioTag(regTag)
 		setIsBootLoading(true)
 		try {
 			await refreshHomeRef.current()
+			if (!(await getPosPrivateKeyHex())) {
+				await forceWalletGateForMissingSigningKey()
+				return false
+			}
 			const upperAfter = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(addr)
 			const permAfter = posHomeTrustedCache.loadPermissionGranted(addr, upperAfter)
 			const phase = resolvePosBootPhase({
@@ -217,13 +254,12 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				permCached: permAfter,
 			})
 			setBootPhase(phase)
-			if (phase === 'home') setShowPermissionGate(false)
-			if (phase === 'permission') setShowPermissionGate(true)
+			setShowPermissionGate(false)
 			return true
 		} finally {
 			setIsBootLoading(false)
 		}
-	}, [walletAddress, registeredBeamioTag])
+	}, [registeredBeamioTag, forceWalletGateForMissingSigningKey])
 
 	const setParentBeamioTag = useCallback((tag: string) => {
 		setParentBeamioTagState(tag)
@@ -235,6 +271,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		const items = await fetchMyPosAddresses(wallet)
 		if (items === null) return
 		const rows: PosWorkspaceBindingRow[] = []
+		const approvedParentEoas: string[] = []
 		for (const item of items) {
 			const info = await fetchCardAdminInfo(item.cardAddress, wallet)
 			const upper = resolveUpperFromAdminInfo(info)
@@ -248,9 +285,19 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				upperEoa: upper,
 				adminProfile: admin,
 			})
+			/* Bound card ⇒ Staff already approved this terminal for that merchant tree. */
+			if (upper) approvedParentEoas.push(upper)
+			const owner = info?.owner?.trim()
+			if (owner) approvedParentEoas.push(owner)
+			const upperAdmin = info?.upperAdmin?.trim()
+			if (upperAdmin) approvedParentEoas.push(upperAdmin)
 		}
 		setWorkspaceBindings(rows)
-		setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(wallet))
+		const pending = posHomeTrustedCache.pruneOutboundJoinPendingForApprovedParents(
+			wallet,
+			approvedParentEoas,
+		)
+		setOutboundJoinPending(pending)
 	}, [walletAddress])
 
 	const refreshHome = useCallback(async () => {
@@ -259,7 +306,13 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		setWalletAddress(wallet)
 		const gen = ++refreshGen.current
 
-		let preferredUpper = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(wallet)
+		/*
+		 * Prefer trusted-cache active upper over React ref. switchWorkspace writes cache +
+		 * ref synchronously, but any stale ref alone must not beat a fresher cache write.
+		 */
+		const cachedUpper = posHomeTrustedCache.loadActiveUpper(wallet)
+		let preferredUpper = cachedUpper ?? activeUpperRef.current
+		if (preferredUpper) activeUpperRef.current = preferredUpper
 		let infra: string | null = preferredUpper
 			? posHomeTrustedCache.loadInfraCard(wallet, preferredUpper)
 			: null
@@ -269,21 +322,33 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		const apiInfra = parseMerchantInfraCardFromMyPos(posRes)
 
 		if (preferredUpper && infra && apiInfra && normEoa(apiInfra) !== normEoa(infra)) {
+			/* Local workspace selection wins — push API active card to match. */
 			const align = await setActivePosAddress(wallet, infra)
 			if (gen !== refreshGen.current) return
 			if (!align.ok && apiInfra) {
 				infra = apiInfra
 			}
-		} else if (apiInfra) {
+		} else if (!infra && apiInfra) {
+			infra = apiInfra
+		} else if (apiInfra && !preferredUpper) {
 			infra = apiInfra
 		}
 
 		if (posRes?.currency) setCurrency(posRes.currency)
 
 		if (!infra) {
+			/* No bound merchant card — Workspaces to join / re-request admin. */
+			setShowPermissionGate(false)
+			setBootPhase('workspace')
+			void refreshWorkspaceBindings()
 			setHomeStatsLoaded(true)
 			return
 		}
+
+		/* Charge / Home amounts use merchant program card on-chain currency (fiat6-only). */
+		const chainCur = await fetchCardCurrencyAndPointsPriceE6(infra)
+		if (gen !== refreshGen.current) return
+		if (chainCur?.code) setCurrency(chainCur.code)
 
 		const adminInfoEarly = await fetchCardAdminInfo(infra, wallet)
 		if (gen !== refreshGen.current) return
@@ -298,16 +363,19 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					infra = preferredInfra
 				} else {
 					preferredUpper = cardUpper
+					activeUpperRef.current = cardUpper
 					posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
 					setActiveUpperEoa(cardUpper)
 				}
 			} else {
 				preferredUpper = cardUpper
+				activeUpperRef.current = cardUpper
 				posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
 				setActiveUpperEoa(cardUpper)
 			}
 		} else if (cardUpper) {
 			preferredUpper = cardUpper
+			activeUpperRef.current = cardUpper
 			posHomeTrustedCache.saveActiveUpper(wallet, cardUpper)
 			setActiveUpperEoa(cardUpper)
 		}
@@ -357,12 +425,45 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			})
 		}
 
-		const access = await resolvePosTerminalAccessAllowed(infra, wallet, adminInfo)
+		/*
+		 * Access must use the **signing** EOA (Top-up / ExecuteForAdmin), not a stale
+		 * React walletAddress that can diverge from posWalletSession.
+		 */
+		const signingEoa = (await getPosSigningWalletAddress()) ?? wallet
+		if (gen !== refreshGen.current) return
+		if (signingEoa && normEoa(signingEoa) !== normEoa(wallet)) {
+			setWalletAddress(signingEoa)
+		}
+		const accessWallet = signingEoa || wallet
+		const access = await resolvePosTerminalAccessAllowed(infra, accessWallet, adminInfo)
 		if (gen !== refreshGen.current) return
 		if (access === true || access === false) {
-			setShowPermissionGate(!access)
-			posHomeTrustedCache.savePermissionGranted(wallet, upper, access)
-			setBootPhase(access ? 'home' : 'permission')
+			posHomeTrustedCache.savePermissionGranted(accessWallet, upper, access)
+			if (access) {
+				/* Admin on-chain ≠ unlocked terminal: require global signing key before Home. */
+				const pk = await getPosPrivateKeyHex()
+				if (gen !== refreshGen.current) return
+				if (!pk) {
+					await forceWalletGateForMissingSigningKey()
+					return
+				}
+				setShowPermissionGate(false)
+				setBootPhase('home')
+				/* Approved for this upper → drop matching Pending join row. */
+				const approved: string[] = [upper]
+				const owner = adminInfo?.owner?.trim()
+				if (owner) approved.push(owner)
+				const upperAdmin = adminInfo?.upperAdmin?.trim()
+				if (upperAdmin) approved.push(upperAdmin)
+				setOutboundJoinPending(
+					posHomeTrustedCache.pruneOutboundJoinPendingForApprovedParents(accessWallet, approved),
+				)
+			} else {
+				/* Not lower admin on merchant card → Workspaces to re-send join request. */
+				setShowPermissionGate(false)
+				setBootPhase('workspace')
+				void refreshWorkspaceBindings()
+			}
 		}
 		if (adminInfo?.ok) {
 			const resolvedAdmin = await resolveAdminProfileFromCardAdminInfo(adminInfo)
@@ -422,7 +523,13 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 		setHomeStatsLoaded(true)
 		void refreshWorkspaceBindings()
-	}, [walletAddress, registeredBeamioTag, parentBeamioTag, refreshWorkspaceBindings])
+	}, [
+		walletAddress,
+		registeredBeamioTag,
+		parentBeamioTag,
+		refreshWorkspaceBindings,
+		forceWalletGateForMissingSigningKey,
+	])
 
 	refreshHomeRef.current = refreshHome
 
@@ -437,8 +544,14 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			const setRes = await setActivePosAddress(wallet, card)
 			if (!setRes.ok) return { ok: false as const, error: setRes.error }
 
+			/*
+			 * Persist + sync ref BEFORE refreshHome. React setState is async; if refreshHome
+			 * still sees the old activeUpperRef it will re-call setActivePosAddress with the
+			 * previous infra and undo this switch.
+			 */
 			posHomeTrustedCache.saveActiveUpper(wallet, upper)
 			posHomeTrustedCache.saveInfraCard(wallet, upper, setRes.cardAddress)
+			activeUpperRef.current = upper
 			setActiveUpperEoa(upper)
 			hydratePartitionIntoState(wallet, upper, {
 				setMerchantInfraCard,
@@ -454,9 +567,10 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			})
 			setMerchantInfraCard(setRes.cardAddress)
 			await refreshHomeRef.current()
+			await refreshWorkspaceBindings()
 			return { ok: true as const }
 		},
-		[walletAddress],
+		[walletAddress, refreshWorkspaceBindings],
 	)
 
 	const requestJoinWorkspace = useCallback(
@@ -465,12 +579,14 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			if (!wallet) return { ok: false as const, error: 'No terminal wallet.' }
 			const childTag = registeredBeamioTag?.trim()
 			if (!childTag) return { ok: false as const, error: 'Terminal @BeamioTag is missing.' }
-			/* Same path as Charge / ParentPermissionGate: native global key → session → IndexedDB mnemonic. */
+			/* Global terminal key (all workspaces share one EOA) — IndexedDB mnemonic → session. */
 			const pk = await getPosPrivateKeyHex()
 			if (!pk) {
+				await forceWalletGateForMissingSigningKey()
 				return {
 					ok: false as const,
-					error: 'Signing key is not available. Restore the terminal wallet and try again.',
+					error:
+						'Terminal signing key is missing. Complete onboarding or restore your wallet to continue.',
 				}
 			}
 
@@ -489,24 +605,27 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				}
 			}
 
+			const signingEoa = (await getPosSigningWalletAddress()) ?? wallet
+			if (normEoa(signingEoa) !== normEoa(wallet)) setWalletAddress(signingEoa)
+
 			const sent = await sendPosTerminalPermissionRequest({
 				walletPrivateKeyHex: pk,
-				childEoa: wallet,
+				childEoa: signingEoa,
 				childBeamioTag: childTag,
 				parentBeamioTag: parentTag,
 				parentEoaHint,
 			})
 			if (!sent.ok) return { ok: false as const, error: sent.error }
 
-			posHomeTrustedCache.appendOutboundJoinPending(wallet, {
+			posHomeTrustedCache.appendOutboundJoinPending(signingEoa, {
 				parentTag,
 				parentEoa: sent.recipientEoa,
 				requestedAt: Date.now(),
 			})
-			setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(wallet))
+			setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(signingEoa))
 			return { ok: true as const }
 		},
-		[walletAddress, registeredBeamioTag],
+		[walletAddress, registeredBeamioTag, forceWalletGateForMissingSigningKey],
 	)
 
 	/** App.tsx `init()` — checkStorage, hydrate session, one admin probe before routing. */
@@ -517,16 +636,6 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			try {
 				const boot = await runPosBootWalletCheck()
 				if (cancelled) return
-
-				if (boot.needsWalletRecover && boot.recoverHint) {
-					const hint = boot.recoverHint
-					setWalletAddress(hint.walletAddress)
-					setRegisteredBeamioTag(hint.registeredTag)
-					if (hint.parentTag) setParentBeamioTagState(hint.parentTag)
-					setBootPhase('wallet_recover')
-					setIsBootLoading(false)
-					return
-				}
 
 				if (!boot.hasStoredWallet || !boot.walletAddress) {
 					setBootPhase('no_wallet')
@@ -575,7 +684,21 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 
 				setOutboundJoinPending(posHomeTrustedCache.loadOutboundJoinPending(addr))
 
+				/* Re-verify signing key after home refresh — chain admin must not skip wallet gate. */
+				if (!(await getPosPrivateKeyHex())) {
+					if (cancelled) return
+					await forceWalletGateForMissingSigningKey()
+					return
+				}
+				if (cancelled) return
+
 				await refreshHomeRef.current()
+				if (cancelled) return
+
+				if (!(await getPosPrivateKeyHex())) {
+					await forceWalletGateForMissingSigningKey()
+					return
+				}
 				if (cancelled) return
 
 				const upperAfter = activeUpperRef.current ?? posHomeTrustedCache.loadActiveUpper(addr)
@@ -587,8 +710,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					permCached: permAfter,
 				})
 				setBootPhase(phase)
-				if (phase === 'home') setShowPermissionGate(false)
-				if (phase === 'permission') setShowPermissionGate(true)
+				setShowPermissionGate(false)
 			} finally {
 				if (!cancelled) setIsBootLoading(false)
 			}
@@ -605,8 +727,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			setParentBeamioTagState(params.parentTag)
 			posHomeTrustedCache.saveRegisteredTag(params.wallet, params.accountName)
 			posHomeTrustedCache.saveParentTag(params.wallet, params.parentTag)
-			setShowPermissionGate(true)
-			setBootPhase('permission')
+			setShowPermissionGate(false)
+			/* New terminal is not admin yet — Workspaces to send / track join request. */
+			setBootPhase('workspace')
 			void (async () => {
 				const parentResolved = await resolveParentWorkspaceProfile(params.parentTag)
 				if (parentResolved) {

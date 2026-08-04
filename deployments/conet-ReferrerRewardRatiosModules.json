@@ -1,0 +1,27 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-04T00:04:08.833Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "libraryLinks": {
+    "ReferrerRegistryLib": "0x1A4D7F46B553528e3e0b64425079cCcD8E15e5Ca",
+    "BeamioUserCardReferrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "BeamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664"
+  },
+  "replaced": {
+    "referrerLib": "0x9aBB24d2a3760241a22616DECedA7ab04B452345",
+    "chargeRewardModule": "0x1C2d1fEB8C8011f06D25224BacBC285266552A51",
+    "adminStatsQueryModule": "0x5503d4262Aa1e12bbB7049941333026CF430c24F"
+  },
+  "modules": {
+    "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+  },
+  "note": "Charge/Top-up referrer #1 ratios are % of amountFiat6 (0=off); mint to Referrer AA only. Charge slot reuses referrerRewardFromChargeRewardRatioE6 semantics.",
+  "bound": {
+    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+  }
+}

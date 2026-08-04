@@ -1,5 +1,5 @@
 import { fetchCardAdminInfo } from '@/api/beamioApi'
-import { BASE_RPC } from '@/constants'
+import { CONET_RPC } from '@/constants'
 import type { CardAdminInfoResponse, MyPosAddressResponse } from '@/types/pos'
 
 const OWNER_SELECTOR = '0x8da5cb5b'
@@ -49,7 +49,10 @@ function decodeAbiBoolWord(hex: string): boolean | null {
 	return h.endsWith('1')
 }
 
-/** Base chain: `owner()==wallet` or `isAdmin(wallet)`. `null` = RPC untrusted. */
+/**
+ * CoNET merchant card: `owner()==wallet` or `isAdmin(wallet)`.
+ * `null` = RPC untrusted (must not treat as denied).
+ */
 export async function fetchPosProgramCardHomeAccessAllowed(
 	cardAddress: string,
 	wallet: string,
@@ -63,13 +66,13 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 	if (walBody.length !== 40 || !/^[0-9a-f0-9]+$/.test(walBody)) return null
 
 	try {
-		const ownerRes = await ethCallBase(cardHex, OWNER_SELECTOR)
+		const ownerRes = await ethCallConet(cardHex, OWNER_SELECTOR)
 		if (!ownerRes) return null
 		const owner40 = decodeAbiAddressWord(ownerRes)?.slice(2)
 		if (owner40 && owner40 === walBody) return true
 
 		const isAdminData = IS_ADMIN_SELECTOR + walBody.padStart(64, '0')
-		const isAdminRes = await ethCallBase(cardHex, isAdminData)
+		const isAdminRes = await ethCallConet(cardHex, isAdminData)
 		if (!isAdminRes) return null
 		const isAdm = decodeAbiBoolWord(isAdminRes)
 		return isAdm ?? null
@@ -78,9 +81,9 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 	}
 }
 
-async function ethCallBase(to: string, data: string): Promise<string | null> {
+async function ethCallConet(to: string, data: string): Promise<string | null> {
 	try {
-		const res = await fetch(BASE_RPC, {
+		const res = await fetch(CONET_RPC, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
@@ -152,13 +155,13 @@ export async function fetchCardCurrencyAndPointsPriceE6(
 ): Promise<{ code: string; priceE6: number } | null> {
 	const card = cardAddress.trim().toLowerCase()
 	if (!card.startsWith('0x') || card.length !== 42) return null
-	const curHex = await ethCallBase(card, ETH_CALL_CURRENCY_SELECTOR)
+	const curHex = await ethCallConet(card, ETH_CALL_CURRENCY_SELECTOR)
 	if (!curHex) return null
 	const curNum = decodeAbiUInt256Word(curHex)
 	// iOS: currency enum 0 = CAD — must allow zero (was wrongly rejected as `n <= 0`).
 	if (curNum == null || curNum > 8) return null
 	const code = beamioCurrencyTypeCode(curNum)
-	const priceHex = await ethCallBase(card, ETH_CALL_POINTS_UNIT_PRICE_SELECTOR)
+	const priceHex = await ethCallConet(card, ETH_CALL_POINTS_UNIT_PRICE_SELECTOR)
 	if (!priceHex) return null
 	const priceE6 = decodeAbiUInt256WordPositive(priceHex)
 	if (priceE6 == null) return null

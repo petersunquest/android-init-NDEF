@@ -1,105 +1,70 @@
 import { Loader2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { posNativeBridge } from '@/bridge/nativeBridge'
-import { PosScreenFooter, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
+import { Navigate, useNavigate } from 'react-router-dom'
+import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosSession } from '@/providers/PosSessionProvider'
-
-const FIELD_CLASS =
-	'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-mkt-onSurface outline-none focus:border-brand-blue'
+import { hasPosWalletInIndexedDb } from '@/wallet/posWalletStorage'
+import { unlockPosWalletFromIndexedDbMnemonic } from '@/wallet/posWalletService'
 
 /**
- * Init gate: terminal was configured before but IndexedDB has no plaintext mnemonic.
- * User must restore via @BeamioTag + Access Password (CoNET recover), then save locally.
+ * Legacy `/recover` route.
+ * IndexedDB mnemonic → unlock silently.
+ * No local mnemonic → onboarding workflow (Welcome), never Access Password here.
  */
 export function PosWalletRecoverPage() {
 	const navigate = useNavigate()
-	const {
-		parentBeamioTag,
-		registeredBeamioTag,
-		markOnboardingComplete,
-		resumeBootAfterLocalWalletReady,
-	} = usePosSession()
-	const [password, setPassword] = useState('')
+	const { resumeBootAfterLocalWalletReady } = usePosSession()
+	const [redirectOnboarding, setRedirectOnboarding] = useState(false)
 	const [error, setError] = useState('')
-	const [loading, setLoading] = useState(false)
 
 	useEffect(() => {
-		if (!registeredBeamioTag) {
-			navigate('/', { replace: true })
-			return
-		}
+		let cancelled = false
 		void (async () => {
-			/* Local wallet appeared (IndexedDB lag / race) — advance boot phase; do not bounce /permission. */
-			await resumeBootAfterLocalWalletReady()
+			try {
+				if (await hasPosWalletInIndexedDb()) {
+					const unlocked = await unlockPosWalletFromIndexedDbMnemonic()
+					if (cancelled) return
+					if (unlocked.ok) {
+						const resumed = await resumeBootAfterLocalWalletReady()
+						if (cancelled) return
+						if (resumed) return
+						setError('Local wallet opened but home could not load. Try again.')
+						return
+					}
+				}
+				if (!cancelled) setRedirectOnboarding(true)
+			} catch {
+				if (!cancelled) setRedirectOnboarding(true)
+			}
 		})()
-	}, [registeredBeamioTag, navigate, resumeBootAfterLocalWalletReady])
+		return () => {
+			cancelled = true
+		}
+	}, [resumeBootAfterLocalWalletReady])
 
-	async function onRestore() {
-		setError('')
-		if (!registeredBeamioTag) {
-			setError('Terminal account is missing.')
-			return
-		}
-		if (!password.trim()) {
-			setError('Enter your access password')
-			return
-		}
-		setLoading(true)
-		const result = await posNativeBridge.restoreWallet({
-			accountName: registeredBeamioTag,
-			password,
-		})
-		setLoading(false)
-		if (!result.ok || !result.address) {
-			setError(result.error ?? 'Restore failed')
-			return
-		}
-		markOnboardingComplete({
-			wallet: result.address,
-			accountName: registeredBeamioTag,
-			parentTag: parentBeamioTag || '',
-		})
-		navigate('/permission', { replace: true })
+	if (redirectOnboarding) {
+		return <Navigate to="/" replace />
 	}
 
 	return (
 		<PosScreenShell>
-			<PosScreenMain className="mx-auto w-full max-w-xl overflow-y-auto px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-				<h1 className="text-2xl font-black">Unlock terminal wallet</h1>
-				<p className="mt-2 text-sm text-mkt-onSurfaceVariant">
-					Your terminal wallet needs to be restored from the network. Enter the access password for{' '}
-					<span className="font-semibold text-mkt-onSurface">@{registeredBeamioTag}</span>
-					{parentBeamioTag ? (
-						<>
-							{' '}
-							(linked to <span className="font-semibold">@{parentBeamioTag}</span>)
-						</>
-					) : null}
-					.
+			<PosScreenMain className="mx-auto flex w-full max-w-xl flex-col items-center justify-center px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+				<Loader2 className="h-8 w-8 animate-spin text-brand-blue" aria-hidden />
+				<p className="mt-4 text-center text-sm text-mkt-onSurfaceVariant">
+					{error
+						? error
+						: 'Opening terminal wallet from local storage…'}
 				</p>
-				<label className="mt-6 block text-sm font-semibold">Access password</label>
-				<input
-					type="password"
-					value={password}
-					onChange={(e) => setPassword(e.target.value)}
-					className={FIELD_CLASS}
-					autoComplete="current-password"
-					enterKeyHint="done"
-				/>
-				{error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+				{error ? (
+					<button
+						type="button"
+						className="mt-4 text-sm font-semibold text-brand-blue"
+						onClick={() => navigate('/', { replace: true })}
+					>
+						Continue to setup
+					</button>
+				) : null}
 			</PosScreenMain>
-			<PosScreenFooter className="px-6">
-				<button
-					type="button"
-					disabled={loading}
-					onClick={() => void onRestore()}
-					className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue py-4 font-bold text-white disabled:opacity-50"
-				>
-					{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-					Restore and continue
-				</button>
-			</PosScreenFooter>
 		</PosScreenShell>
 	)
 }

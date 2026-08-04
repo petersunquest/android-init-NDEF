@@ -52,7 +52,10 @@ export function ParentPermissionGatePage() {
 			const pk = await getPosPrivateKeyHex()
 			if (!pk) {
 				setStatusError(true)
-				setStatusMessage('Wallet signing key is unavailable in this session.')
+				setStatusMessage(
+					'Terminal signing key is missing. Go back and complete wallet setup or restore.',
+				)
+				navigate('/', { replace: true })
 				return false
 			}
 			if (manualResend) {
@@ -88,7 +91,7 @@ export function ParentPermissionGatePage() {
 			setStatusMessage(result.error)
 			return false
 		},
-		[walletAddress, parentBeamioTag, childBeamioTag, parentProfile?.address],
+		[walletAddress, parentBeamioTag, childBeamioTag, parentProfile?.address, navigate],
 	)
 
 	useEffect(() => {

@@ -1,0 +1,27 @@
+# GBDepinAirdrop — CoNET Blockscout verification (chainId 224422)
+
+Contract: GBDepinAirdrop
+Address: 0x62bcc59cC36C737E8AfBb0914F840d12cd33025f
+Network: CoNET mainnet (https://mainnet.conet.network)
+Compiler: v0.8.33+commit.64118f21
+viaIR: true
+evmVersion: cancun
+optimizer runs: (see hardhat.config.ts)
+
+Contract Name (Standard JSON): project/src/b-unit/GBDepinAirdrop.sol:GBDepinAirdrop
+
+Constructor:
+  gbToken_ = 0xC3EF02DaE632b4C10abB66e07d92a387c10838D8
+  initialOwner = 0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1
+
+Verify command:
+  npm run clean && npm run compile
+  npx tsx scripts/verifyGBDepinAirdropConet.ts
+
+Pruned Standard JSON output:
+  deployments/conet-GBDepinAirdrop-verify-buildinfo.json
+
+Explorer:
+  https://mainnet.conet.network/address/0x62bcc59cC36C737E8AfBb0914F840d12cd33025f#code
+
+Verified: 2026-08-01 (Blockscout Standard JSON, 16 pruned sources, ~165 KB)

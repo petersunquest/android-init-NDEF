@@ -9,7 +9,9 @@
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
-    "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953"
+    "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
+    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
   },
   "txs": {
     "issuedNftModule": "0x8ae9a08ad29e9769ccc7e296674ef593ee7013aebeba7d8e87713b55853dfde1",
@@ -23,5 +25,10 @@
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711"
+  },
+  "referrerRewardRatiosUpgrade": {
+    "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
   }
 }

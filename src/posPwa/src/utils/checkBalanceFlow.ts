@@ -1,5 +1,6 @@
 import { fetchUIDAssets, fetchWalletAssetsForRead } from '@/api/beamioApi'
 import type { UIDAssetsResult } from '@/types/pos'
+import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import { isNfcUid14Hex, normalizeNfcUid14 } from '@/utils/nfcUid'
 import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
 
@@ -36,7 +37,7 @@ async function queryAssetsFromNfc(
 		return { status: 'error', message: 'Balance query failed. Check network and try again.' }
 	}
 	if (!result.ok) {
-		return { status: 'error', message: result.error?.trim() || 'Query failed.' }
+		return { status: 'error', message: formatPosAssetsQueryError(result.error) }
 	}
 	const nfcScan =
 		detail.sun && isNfcUid14Hex(uid)
@@ -70,7 +71,7 @@ async function queryAssetsFromQrIdentity(
 		return { status: 'error', message: 'Balance query failed. Check network and try again.' }
 	}
 	if (!result.ok) {
-		return { status: 'error', message: result.error?.trim() || 'Query failed.' }
+		return { status: 'error', message: formatPosAssetsQueryError(result.error) }
 	}
 	return {
 		status: 'success',

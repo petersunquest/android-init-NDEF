@@ -6,7 +6,8 @@ import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @dev EIP-2612-style permit for ERC1155 `setApprovalForAll`, plus EIP-3009-style
- *      signed single-id transfers. Used by ConetGB1155 (normally non-transferable).
+ *      signed single-id transfers. Legacy ConetGB1155 only (normally non-transferable).
+ *      Canonical GB is GBToken ERC20 — see `.cursor/rules/beamio-gb-erc20-canonical.mdc`.
  *
  * Child must implement {_authTransfer1155} to perform the actual balance move.
  */
