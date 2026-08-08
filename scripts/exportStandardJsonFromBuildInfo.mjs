@@ -36,6 +36,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV4.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV4",
   },
+  BeamioUserCardIssuedNftModuleV2: {
+    sourceKey: "project/src/BeamioUserCard/IssuedNftModuleV2.sol",
+    contractName: "BeamioUserCardIssuedNftModuleV2",
+  },
   BeamioUserCardChargeRewardModuleV2: {
     sourceKey: "project/src/BeamioUserCard/ChargeRewardModuleV2.sol",
     contractName: "BeamioUserCardChargeRewardModuleV2",
@@ -85,6 +89,30 @@ const CONFIG = {
     sourceKey: "project/src/b-unit/GBDepinAirdrop.sol",
     contractName: "GBDepinAirdrop",
   },
+  DepinGbSettlement1155: {
+    sourceKey: "project/src/b-unit/DepinGbSettlement1155.sol",
+    contractName: "DepinGbSettlement1155",
+  },
+  DeveloperTokenFxRegistry: {
+    sourceKey: "project/src/b-unit/DeveloperTokenFxRegistry.sol",
+    contractName: "DeveloperTokenFxRegistry",
+  },
+  TreasuryBridgeV3: {
+    sourceKey: "project/src/b-unit/TreasuryBridgeV3.sol",
+    contractName: "TreasuryBridgeV3",
+  },
+  TreasuryCanonicalERC20V3: {
+    sourceKey: "project/src/b-unit/TreasuryCanonicalERC20V3.sol",
+    contractName: "TreasuryCanonicalERC20V3",
+  },
+  DeveloperFxIssuer: {
+    sourceKey: "project/src/b-unit/DeveloperFxIssuer.sol",
+    contractName: "DeveloperFxIssuer",
+  },
+  TreasuryDeveloperFxLib: {
+    sourceKey: "project/src/b-unit/TreasuryDeveloperFxLib.sol",
+    contractName: "TreasuryDeveloperFxLib",
+  },
 };
 
 const buildInfoDir = path.join(__dirname, "../artifacts/build-info");
@@ -109,9 +137,20 @@ const cfg = CONFIG[contractArg];
  * via-IR: prefer build-info that contains sourceKey.
  * Among matches, prefer units that also contain ChargeRewardModuleV2 when exporting
  * UserCard libs/modules (same Hardhat compile unit as live CoNET module deploys).
+ * Prefer content matching the on-disk Solidity file so stale larger units lose.
  */
 function resolveBuildInfoPath(sourceKey) {
   const preferCompanion = "project/src/BeamioUserCard/ChargeRewardModuleV2.sol";
+  const diskRel = sourceKey.startsWith("project/")
+    ? sourceKey.slice("project/".length)
+    : sourceKey;
+  const diskPath = path.join(__dirname, "..", diskRel);
+  let diskContent = null;
+  try {
+    diskContent = fs.readFileSync(diskPath, "utf-8");
+  } catch {
+    /* optional */
+  }
   let best = null;
   let bestScore = -1;
   for (const f of buildInfoFiles) {
@@ -121,14 +160,21 @@ function resolveBuildInfoPath(sourceKey) {
       const sources = j?.input?.sources || {};
       const n = Object.keys(sources).length;
       const hasKey = Boolean(sources[sourceKey]);
-      if (!hasKey && best !== null) continue;
-      // score: must have key (huge), prefer companion unit, then more sources
+      if (!hasKey) continue;
+      const biContent = sources[sourceKey]?.content || "";
+      const contentExact = diskContent != null && biContent === diskContent ? 1 : 0;
+      const contentLenClose =
+        diskContent != null
+          ? Math.max(0, 50_000 - Math.abs(biContent.length - diskContent.length))
+          : 0;
+      // score: exact disk match >> companion unit >> content length proximity >> source count
       const score =
-        (hasKey ? 1_000_000 : 0) +
+        contentExact * 10_000_000 +
         (sources[preferCompanion] &&
         sourceKey.startsWith("project/src/BeamioUserCard/")
           ? 100_000
           : 0) +
+        contentLenClose +
         n;
       if (score > bestScore) {
         best = p;

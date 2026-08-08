@@ -1,0 +1,22 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-08T04:28:20.462Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "replaced": {
+    "issuedNftModule": "0xdAF4DcEcF1717345310fB00C08C2ce021C767e47",
+    "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E"
+  },
+  "modules": {
+    "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
+    "adminStatsQueryModule": "0x2446834f4Bd63B509C0298Ef111d80335AE6ca89"
+  },
+  "note": "mintPointsForProtocolUsdcSettlement via IssuedNftModule (Factory owner/paymaster); gateway USDC accounting, not admin airdrop.",
+  "bound": {
+    "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
+    "adminStatsQueryModule": "0x2446834f4Bd63B509C0298Ef111d80335AE6ca89",
+    "setIssuedNftModuleTx": "0x669f039e42379f074f2c774b54cf1ad0f39e1670d5564ff64ae8a8c7fe97e86a",
+    "setAdminStatsQueryModuleTx": "0x9b64ec9482c1ba57e31e23801ced3e3982245594425bdf760962001d9a9e6d86"
+  }
+}

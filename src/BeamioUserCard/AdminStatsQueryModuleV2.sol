@@ -40,6 +40,7 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                         )
                     )
                 || sel == bytes4(keccak256("validateAndRecordSocialExchangeUsdcClaim(address,uint256)"))
+                || sel == bytes4(keccak256("mintPointsForProtocolUsdcSettlement(address,uint256)"))
         ) {
             return ROUTE_ISSUED_NFT;
         }
@@ -59,6 +60,7 @@ contract BeamioUserCardAdminStatsQueryModuleV2 is BeamioUserCardAdminStatsQueryM
                 || sel == bytes4(keccak256("purchaseRewardProgram(address,uint8,uint256,uint256,uint8,uint256)"))
                 || sel == bytes4(keccak256("dispatchEventReward13(uint256,address,address,uint8,uint256,uint256)"))
                 || sel == bytes4(keccak256("recordTopupCumulativeStat(address,uint256)"))
+                || sel == bytes4(keccak256("recordChargeReferrerReward(address,uint256)"))
                 || sel == bytes4(keccak256("setBunitAirdropCaller(address)"))
                 || sel == bytes4(keccak256("bunitAirdropCaller()"))
                 || sel == bytes4(keccak256("recordBUnitInstallAttribution(address,address,uint8,uint256)"))

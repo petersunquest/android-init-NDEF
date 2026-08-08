@@ -5,13 +5,24 @@
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "factory": "0xd57eac0372aa2fbfC6625D20fA9E4a963F3F5063",
   "modules": {
-    "issuedNftModule": "0x6A870AFe1dB4A4E4652D85E7f3CeD70C6Fb010EF",
+    "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
-    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
-    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0x2446834f4Bd63B509C0298Ef111d80335AE6ca89"
+  },
+  "chargeReferrerRewardGatewayUpgrade": {
+    "timestamp": "2026-08-06T16:00:50.298Z",
+    "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E",
+    "replaced": {
+      "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+      "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+    },
+    "note": "recordChargeReferrerReward gateway for Charge Referrer #1 (existing cards)"
   },
   "txs": {
     "issuedNftModule": "0x8ae9a08ad29e9769ccc7e296674ef593ee7013aebeba7d8e87713b55853dfde1",
@@ -28,7 +39,17 @@
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
-    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
-    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E"
+  },
+  "protocolUsdcSettlementMintUpgrade": {
+    "timestamp": "2026-08-08T04:28:38.315Z",
+    "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
+    "adminStatsQueryModule": "0x2446834f4Bd63B509C0298Ef111d80335AE6ca89",
+    "replaced": {
+      "issuedNftModule": "0xdAF4DcEcF1717345310fB00C08C2ce021C767e47",
+      "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E"
+    },
+    "note": "mintPointsForProtocolUsdcSettlement gateway mint"
   }
 }

@@ -7,6 +7,7 @@ import "./Errors.sol";
 import "./UserCumulativeStatLib.sol";
 import "./RewardPoolStorage.sol";
 import "./BeamioUserCardModuleMintLib.sol";
+import "./BeamioUserCardModuleKinds.sol";
 import "./IBeamioUserCardSelfDelegate.sol";
 import "./BeamioUserCardInterfaces.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
@@ -16,6 +17,12 @@ interface IBeamioUserCardFactoryEip712 {
     function DOMAIN_SEPARATOR() external view returns (bytes32);
 }
 
+/// @dev Factory owner / paymaster auth for protocol CONET-USDC settlement mint (EntryPoint relayer AA).
+interface IUserCardFactoryProtocolAuth {
+    function owner() external view returns (address);
+    function isPaymaster(address account) external view returns (bool);
+}
+
 /**
  * @title BeamioUserCardIssuedNftModuleV2
  * @notice Kind 2 extension: user cumulative stats (L0/L1/L2) without new module kind.
@@ -23,6 +30,7 @@ interface IBeamioUserCardFactoryEip712 {
 contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
     uint8 private constant MODULE_ISSUED_NFT = 2;
     uint8 private constant MODULE_CHARGE_REWARD = 5;
+    uint256 private constant POINTS_ID = 0;
 
     bytes32 public constant RECORD_USER_LIKE_TYPEHASH = keccak256(
         "RecordUserLike(address cardAddress,address userEOA,uint8 targetKind,uint256 issuedParentId,bool liked,uint256 deadline,bytes32 nonce)"
@@ -477,5 +485,59 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
     function bootstrapIssuedNftV2StatTokens(uint256 parentTokenId) external onlyOwnerAdminOrGateway {
         _requireRealIssuedNft(parentTokenId);
         _initializeIssuedNftStatTokens(IssuedNftStorage.layout(), parentTokenId);
+    }
+
+    /**
+     * @notice Protocol gateway mint after CONET-USDC settlement (treasuryBridge / CoNET usdcTopup).
+     * @dev Auth: Factory.owner() or Factory.isPaymaster(msg.sender). Uses gateway USDC mint accounting
+     *      (`adminUSDCMintCounter` via cardSelfRecordAdminUsdcMint), NOT admin airdrop limits.
+     *      Operator recorded = card.owner(). Relayer AA EntryPoint path is the intended caller.
+     */
+    function mintPointsForProtocolUsdcSettlement(address userEOA, uint256 points6) external returns (address acct) {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (points6 == 0) revert UC_AmountZero();
+        _requireFactoryOwnerOrPaymaster();
+        address operator = IBeamioUserCardSelfDelegate(address(this)).cardSelfOwner();
+        if (operator == address(0)) revert BM_ZeroAddress();
+        return _mintPointsByGatewayWithOperatorLocal(userEOA, points6, operator);
+    }
+
+    function _requireFactoryOwnerOrPaymaster() private view {
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        if (gw == address(0)) revert BM_ZeroAddress();
+        IUserCardFactoryProtocolAuth factory = IUserCardFactoryProtocolAuth(gw);
+        if (msg.sender == factory.owner()) return;
+        if (factory.isPaymaster(msg.sender)) return;
+        revert BM_NotAuthorized();
+    }
+
+    /// @dev Inlined from BeamioUserCardGatewayMintLib.mintPointsByGatewayWithOperator (no library link).
+    function _mintPointsByGatewayWithOperatorLocal(address userEOA, uint256 points6, address operator)
+        private
+        returns (address acct)
+    {
+        IBeamioUserCardSelfDelegate delegate = IBeamioUserCardSelfDelegate(address(this));
+        acct = delegate.cardSelfToAccount(userEOA);
+        uint8 membershipStats = BeamioUserCardModuleKinds.MEMBERSHIP_STATS;
+        delegate.cardSelfCallModule(
+            membershipStats,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.syncActiveToBestValid.selector, acct)
+        );
+        delegate.cardSelfRequirePointsMintAllowsFirstMembership(acct, points6);
+        (uint256 issuedBefore, uint256 upgradedBefore) = delegate.cardSelfMembershipFlowTotals();
+        delegate.cardSelfMint(acct, POINTS_ID, points6);
+        delegate.cardSelfCallModule(
+            membershipStats,
+            abi.encodeWithSelector(
+                IBeamioMembershipStatsModuleV1.maybeIssueOnlyIfNoneOrExpiredByPointsDelta.selector, acct, points6
+            )
+        );
+        delegate.cardSelfCallModule(
+            membershipStats,
+            abi.encodeWithSelector(IBeamioMembershipStatsModuleV1.maybeUpgrade.selector, acct, points6)
+        );
+        delegate.cardSelfRecordAdminUsdcMint(operator, points6);
+        delegate.cardSelfRecordAdminMembershipFlow(operator, issuedBefore, upgradedBefore);
+        delegate.cardSelfEmitPointsMintedByGateway(userEOA, acct, points6);
     }
 }
