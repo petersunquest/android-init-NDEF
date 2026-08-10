@@ -27,13 +27,13 @@ interface ITreasuryBridgeMintCallback {
 /**
  * @title GenesisNodeReferralVaultV1
  * @notice Admin → L0 → L1 registry for Genesis Node Offers.
- *         LockMint callback splits per node: L0 pool = 10% of 1250 (=125), Admin = 120+20% of 1250 (=370),
- *         Foundation = remainder (=875). Purchase `referrer` may be:
+ *         LockMint callback splits per node: L0 pool = 10% of 3880 (=388), Admin = 120+20% of 3880 (=896),
+ *         Foundation = remainder (=2716). List price 4000 already includes OPEX 120. Purchase `referrer` may be:
  *         - active L1 → L1 takes `ratioBps` of the L0 pool; remainder to parent L0; admin = L0.parentAdmin
  *         - active L0 → full L0 pool to that L0 (no L1 cut); admin = L0.parentAdmin
  *         - Admin → no L0/L1 cut (L0 pool → foundation); admin bucket to that Admin
  *         - zero → no L0/L1 cut; admin bucket to `defaultAdminPayout`
- *         `testMode` sales use 1/1000 economics (1.25 + 0.12 = 1.37 USDC) with the same split ratios;
+ *         `testMode` sales use 1/1000 economics (3.88 + 0.12 = 4.00 USDC) with the same split ratios;
  *         owner may permanently disable testMode via `disableSaleTestMode`.
  */
 contract GenesisNodeReferralVaultV1 is
@@ -44,13 +44,13 @@ contract GenesisNodeReferralVaultV1 is
     ITreasuryBridgeMintCallback
 {
     uint256 public constant BPS = 10_000;
-    uint256 public constant NODE_PRICE_USDC6 = 1_250_000_000;
+    uint256 public constant NODE_PRICE_USDC6 = 3_880_000_000;
     uint256 public constant SERVER_FEE_USDC6 = 120_000_000;
-    uint256 public constant TOTAL_PER_NODE_USDC6 = 1_370_000_000;
-    /// @notice testMode seat: 1/1000 of production (1.25 + 0.12 = 1.37 USDC).
-    uint256 public constant TEST_NODE_PRICE_USDC6 = 1_250_000;
+    uint256 public constant TOTAL_PER_NODE_USDC6 = 4_000_000_000;
+    /// @notice testMode seat: 1/1000 of production (3.88 + 0.12 = 4.00 USDC).
+    uint256 public constant TEST_NODE_PRICE_USDC6 = 3_880_000;
     uint256 public constant TEST_SERVER_FEE_USDC6 = 120_000;
-    uint256 public constant TEST_TOTAL_PER_NODE_USDC6 = 1_370_000;
+    uint256 public constant TEST_TOTAL_PER_NODE_USDC6 = 4_000_000;
     uint256 public constant L0_OF_NODE_BPS = 1_000;
     uint256 public constant ADMIN_OF_NODE_BPS = 2_000;
 
@@ -421,7 +421,7 @@ contract GenesisNodeReferralVaultV1 is
         return _previewSplit(qty, NODE_PRICE_USDC6, SERVER_FEE_USDC6, TOTAL_PER_NODE_USDC6);
     }
 
-    /// @notice testMode buckets — same ratios as production at 1/1000 price (1.37 USDC / seat).
+    /// @notice testMode buckets — same ratios as production at 1/1000 price (4.00 USDC / seat).
     function previewSplitTest(uint256 qty)
         public
         pure
@@ -443,7 +443,7 @@ contract GenesisNodeReferralVaultV1 is
         l0Amount = l0Pool - l1Amount;
     }
 
-    /// @notice Apply L1 ratio on testMode economics (1.37 USDC / seat).
+    /// @notice Apply L1 ratio on testMode economics (4.00 USDC / seat).
     function previewSplitTestWithL1(uint256 qty, uint256 ratioBps)
         public
         pure
