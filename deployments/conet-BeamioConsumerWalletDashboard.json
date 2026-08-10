@@ -1,0 +1,30 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-10T18:46:38.131Z",
+  "deployBlock": 782180,
+  "implementation": "0x7922B887dD5b7dEf0355e9537AB642E7eC5065F9",
+  "proxy": "0x28370397A2b0C504e93754288ABb4F47EAaf168f",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "usdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+    "gbToken": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+    "validatorDepositRedeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+    "referralRegistry": "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6"
+  },
+  "Multicall3": "0x4e73d76E7fC6b6Aa471dca7238107246BF4c8145",
+  "nextSteps": {
+    "syncSilentPassUI": "Set APP_DAEMON_CONET_MULTICALL3 + APP_DAEMON_WALLET_DASHBOARD in workers/appDaemon/protocol.ts",
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs BeamioConsumerWalletDashboard --full",
+    "verify": "Blockscout v2 standard-input (impl) + legacy partial (proxy)"
+  },
+  "upgradeTx": "0xa6118a46aebe6ded23c6aad58b73b5cf4d44b8efc6dcd7db10889c7c54abd21a",
+  "originalImplementation": "0x6160eececc01cef1c335b3d54cde0831839906ba",
+  "verification": {
+    "Multicall3": "partial verified (Blockscout v2)",
+    "implementation": "partial verified (Blockscout v2)",
+    "proxy": "partial verified as ERC1967Proxy (OZ); linked impl BeamioConsumerWalletDashboard",
+    "proxyExplorer": "https://mainnet.conet.network/address/0x28370397A2b0C504e93754288ABb4F47EAaf168f"
+  }
+}

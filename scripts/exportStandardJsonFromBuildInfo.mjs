@@ -24,6 +24,26 @@ const CONFIG = {
     sourceKey: "project/src/mainnet/GenesisNodeReferralVaultV1.sol",
     contractName: "GenesisNodeReferralVaultV1",
   },
+  ChatIndexRegistry: {
+    sourceKey: "project/src/mainnet/ChatIndexRegistry.sol",
+    contractName: "ChatIndexRegistry",
+  },
+  ChatIndexRegistryProxy: {
+    sourceKey: "project/src/mainnet/ChatIndexRegistryProxy.sol",
+    contractName: "ChatIndexRegistryProxy",
+  },
+  Multicall3: {
+    sourceKey: "project/src/mainnet/Multicall3.sol",
+    contractName: "Multicall3",
+  },
+  BeamioConsumerWalletDashboard: {
+    sourceKey: "project/src/mainnet/BeamioConsumerWalletDashboard.sol",
+    contractName: "BeamioConsumerWalletDashboard",
+  },
+  BeamioConsumerWalletDashboardProxy: {
+    sourceKey: "project/src/mainnet/BeamioConsumerWalletDashboardProxy.sol",
+    contractName: "BeamioConsumerWalletDashboardProxy",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",

@@ -1,0 +1,8 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-10T18:44:13.658Z",
+  "Multicall3": "0x4e73d76E7fC6b6Aa471dca7238107246BF4c8145",
+  "note": "Standard Multicall3 aggregate3 for App Daemon / Discover / Coupon batching"
+}
