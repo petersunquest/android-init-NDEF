@@ -18,6 +18,15 @@ object CashTreesNativeAppStateBridge {
     private const val BADGE_NOTIFICATION_ID = 9001
     private const val CHAT_NOTIFICATION_ID = 9002
 
+    /**
+     * Server-side FCM offline badge (`offlineChatPush.ts` → `android.notification`).
+     * The tray entry is created by the FCM SDK, so only these identifiers can cancel it;
+     * on Android the launcher badge is derived from active notifications, meaning a stale
+     * FCM entry keeps the icon number alive even after [applyAppIconBadge] with 0.
+     */
+    private const val FCM_OFFLINE_CHANNEL_ID = "beamio_chat_offline"
+    private const val FCM_OFFLINE_TAG = "beamio_chat_badge"
+
     /** Accepts full bridge payload `{ action, state }` or bare `{ footerBadges, appIconBadge }`. */
     fun applyFromJsonString(context: Context, json: String) {
         val trimmed = json.trim()
@@ -91,12 +100,35 @@ object CashTreesNativeAppStateBridge {
         return n.coerceIn(0, 999)
     }
 
+    /**
+     * Drop every offline chat alert that contributes to the launcher badge: the local
+     * background notification and the FCM tray entry posted while the app was away.
+     * Call on foreground so the badge only reflects the PWA unread count.
+     */
+    fun clearOfflineChatAlerts(context: Context) {
+        val nm = NotificationManagerCompat.from(context)
+        nm.cancel(CHAT_NOTIFICATION_ID)
+        nm.cancel(FCM_OFFLINE_TAG, 0)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        try {
+            manager.activeNotifications.forEach { active ->
+                val channel = active.notification?.channelId
+                if (channel == FCM_OFFLINE_CHANNEL_ID || active.tag == FCM_OFFLINE_TAG) {
+                    nm.cancel(active.tag, active.id)
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     fun applyAppIconBadge(context: Context, count: Int) {
         val safe = count.coerceIn(0, 999)
         ensureBadgeChannel(context)
         val nm = NotificationManagerCompat.from(context)
         if (safe <= 0) {
             nm.cancel(BADGE_NOTIFICATION_ID)
+            clearOfflineChatAlerts(context)
             return
         }
         if (!nm.areNotificationsEnabled()) return

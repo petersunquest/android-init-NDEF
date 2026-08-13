@@ -40,6 +40,8 @@ declare global {
 			cancelPhysicalCardBind?: () => void
 			scanQr?: (payload: { requestId?: string }) => void
 			openURL?: (payload: { url?: string }) => void
+			publishAppState?: (state: Record<string, unknown>) => void
+			notifyBackgroundChat?: (payload: Record<string, unknown>) => void
 			printReceipt?: (payload: { text?: string; title?: string }) => void
 		}
 		CashTreesAndroid?: {
@@ -48,6 +50,8 @@ declare global {
 			cancelPhysicalCardBind?: () => void
 			scanQr?: (requestId: string) => void
 			openURL?: (url: string) => void
+			publishAppState?: (json: string) => void
+			notifyBackgroundChat?: (json: string) => void
 		}
 	}
 }
@@ -111,7 +115,44 @@ function isAllowedExternalUrl(raw: string): boolean {
 	}
 }
 
-/** Native shell → system browser; web → `window.open`. Mirrors iOS/Android `openURL` bridge. */
+function tryBeamioPosOpenUrl(url: string): boolean {
+	const bridge = window.BeamioPOS as
+		| { openURL?: (p: { url: string } | string) => void; postMessage?: (b: unknown) => void }
+		| undefined
+	if (typeof bridge?.openURL === 'function') {
+		try {
+			bridge.openURL({ url })
+			return true
+		} catch {
+			try {
+				;(bridge.openURL as (u: string) => void)(url)
+				return true
+			} catch {
+				/* fall through */
+			}
+		}
+	}
+	if (typeof bridge?.postMessage === 'function') {
+		try {
+			bridge.postMessage({ action: 'openURL', type: 'openURL', url })
+			return true
+		} catch {
+			/* fall through */
+		}
+	}
+	const wk = window.webkit?.messageHandlers?.BeamioPOS
+	if (wk?.postMessage) {
+		try {
+			wk.postMessage({ action: 'openURL', type: 'openURL', url })
+			return true
+		} catch {
+			return false
+		}
+	}
+	return false
+}
+
+/** Native shell → system browser; web → `window.open`. CashTreesIOS/Android + BeamioPOS. */
 export function openExternalUrl(url: string): boolean {
 	const trimmed = url.trim()
 	if (!isAllowedExternalUrl(trimmed)) return false
@@ -123,6 +164,7 @@ export function openExternalUrl(url: string): boolean {
 		androidBridge()!.openURL!(trimmed)
 		return true
 	}
+	if (tryBeamioPosOpenUrl(trimmed)) return true
 	window.open(trimmed, '_blank', 'noopener,noreferrer')
 	return false
 }

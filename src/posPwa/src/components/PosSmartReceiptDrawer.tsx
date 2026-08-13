@@ -19,7 +19,11 @@ import { openExternalUrl } from '@/bridge/cashTreesScanBridge'
 import type { PosLedgerDisplayItem } from '@/utils/posLedgerDisplay'
 import { preferredLedgerDisplayAmount } from '@/utils/posLedgerDisplay'
 import { displayFiatPrefixFromCode, formatAmount, shortAddress } from '@/utils/display'
-import { baseScanTxUrl } from '@/utils/posReceiptUtils'
+import { baseScanTxUrl, conetMainnetTxUrl } from '@/utils/posReceiptUtils'
+import {
+	isPosCouponLedgerKind,
+	posCouponLedgerAmountLabel,
+} from '@/utils/posCouponLedger'
 import {
 	buildPosReceiptBreakdown,
 	buildPosReceiptRouteLines,
@@ -50,11 +54,17 @@ export function PosSmartReceiptDrawer({
 }) {
 	const [open, setOpen] = useState(false)
 	const { tx } = item
-	const baseScanTxHash = resolvePosLedgerBaseScanTxHash(tx)
-	const baseScanUrl = baseScanTxHash ? baseScanTxUrl(baseScanTxHash) : null
-	const openBaseScan = () => {
-		if (!baseScanUrl) return
-		openExternalUrl(baseScanUrl)
+	const isCoupon = isPosCouponLedgerKind(tx.type)
+	const explorerTxHash = resolvePosLedgerBaseScanTxHash(tx)
+	const explorerUrl = explorerTxHash
+		? isCoupon
+			? conetMainnetTxUrl(explorerTxHash)
+			: baseScanTxUrl(explorerTxHash)
+		: null
+	const explorerLabel = isCoupon ? 'View on CoNET Scan' : 'View on BaseScan'
+	const openExplorer = () => {
+		if (!explorerUrl) return
+		openExternalUrl(explorerUrl)
 	}
 	const { dateStr, timeStr } = formatPosReceiptDateTime(item.topupLatestTimestamp ?? tx.timestamp)
 	const statusPill = posReceiptStatusPill(tx)
@@ -87,6 +97,18 @@ export function PosSmartReceiptDrawer({
 	}
 
 	const amountPreview = (() => {
+		if (isCoupon) {
+			return (
+				<div className="flex items-start gap-2">
+					<Ticket className="mt-0.5 h-[15px] w-[15px] shrink-0 text-amber-600" strokeWidth={2} />
+					<div className="min-w-0">
+						<div className="flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-slate-900">
+							{posCouponLedgerAmountLabel(tx)}
+						</div>
+					</div>
+				</div>
+			)
+		}
 		const base = item.topupMergedTotal ?? preferredLedgerDisplayAmount(tx)
 		const prefix = displayFiatPrefixFromCode(base.currencyCode, merchantCurrency)
 		return (
@@ -232,16 +254,16 @@ export function PosSmartReceiptDrawer({
 									<div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
 										<div className="min-w-0 flex-1">{amountPreview}</div>
 										<div className="flex shrink-0 flex-col items-start gap-2 sm:min-w-[140px]">
-											{baseScanTxHash ? (
+											{explorerTxHash ? (
 												<button
 													type="button"
-													onClick={openBaseScan}
+													onClick={openExplorer}
 													className="flex cursor-pointer items-center gap-1.5 rounded-md border border-slate-100 bg-slate-50 px-2 py-1 transition-colors hover:border-slate-200 hover:bg-slate-100"
-													title="View transaction on BaseScan"
+													title={explorerLabel}
 												>
 													<CheckCircle2 size={12} className="shrink-0 text-emerald-500" />
 													<span className="font-mono text-[12px] text-slate-500">
-														{baseScanTxHash.slice(0, 6)}…{baseScanTxHash.slice(-4)}
+														{explorerTxHash.slice(0, 6)}…{explorerTxHash.slice(-4)}
 													</span>
 												</button>
 											) : (
@@ -252,11 +274,13 @@ export function PosSmartReceiptDrawer({
 													</span>
 												</div>
 											)}
-											<div className="flex items-center gap-1.5 rounded-md border border-slate-200/50 bg-slate-100 px-2 py-1">
-												<span className="text-[11px] font-bold text-slate-400">
-													0.00 B-Units (Base Gas)
-												</span>
-											</div>
+											{!isCoupon ? (
+												<div className="flex items-center gap-1.5 rounded-md border border-slate-200/50 bg-slate-100 px-2 py-1">
+													<span className="text-[11px] font-bold text-slate-400">
+														0.00 B-Units (Base Gas)
+													</span>
+												</div>
+											) : null}
 										</div>
 									</div>
 								</div>
@@ -291,7 +315,13 @@ export function PosSmartReceiptDrawer({
 								))}
 								<div className="flex items-center justify-between border-t border-[#e5e9eb] pt-4">
 									<span className="text-base font-bold text-[#2c2f31]">
-										{tx.type === 'topUp' ? 'Net issued' : 'Total charged'}
+										{isCoupon
+											? tx.type === 'couponClaim'
+												? 'Claimed'
+												: 'Redeemed'
+											: tx.type === 'topUp'
+												? 'Net issued'
+												: 'Total charged'}
 									</span>
 									<span
 										className={`text-xl font-extrabold tabular-nums ${
@@ -302,9 +332,15 @@ export function PosSmartReceiptDrawer({
 													: 'text-[#2c2f31]'
 										}`}
 									>
-										{tx.type === 'topUp' ? '+' : ''}
-										{totalPrefix}
-										{formatAmount(total.value)}
+										{isCoupon ? (
+											posCouponLedgerAmountLabel(tx)
+										) : (
+											<>
+												{tx.type === 'topUp' ? '+' : ''}
+												{totalPrefix}
+												{formatAmount(total.value)}
+											</>
+										)}
 									</span>
 								</div>
 							</div>
@@ -358,14 +394,14 @@ export function PosSmartReceiptDrawer({
 						) : null}
 					</div>
 
-					{baseScanUrl ? (
+					{explorerUrl ? (
 						<button
 							type="button"
-							onClick={openBaseScan}
+							onClick={openExplorer}
 							className="mb-6 flex w-full items-center justify-center gap-2 rounded-full border border-[#abadaf]/40 py-3 text-sm font-bold text-[#595c5e] transition-colors hover:bg-[#eef1f3]"
 						>
 							<ExternalLink size={16} aria-hidden />
-							View on BaseScan
+							{explorerLabel}
 						</button>
 					) : null}
 

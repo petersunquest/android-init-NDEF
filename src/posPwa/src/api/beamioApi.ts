@@ -360,9 +360,11 @@ export async function nfcTopupPrepare(body: {
 	currency: string
 	cardAddress: string
 	sun?: { e: string; c: string; m: string }
+	membershipTierIndex?: number
+	membershipFeeFiat6?: string
 }): Promise<NfcTopupPrepareResult | null> {
 	try {
-		const payload: Record<string, string> = {
+		const payload: Record<string, string | number> = {
 			amount: body.amount,
 			currency: body.currency,
 			cardAddress: body.cardAddress,
@@ -376,6 +378,12 @@ export async function nfcTopupPrepare(body: {
 			payload.e = body.sun.e
 			payload.c = body.sun.c
 			payload.m = body.sun.m
+		}
+		if (body.membershipTierIndex != null && Number.isFinite(body.membershipTierIndex)) {
+			payload.membershipTierIndex = Math.trunc(body.membershipTierIndex)
+		}
+		if (body.membershipFeeFiat6?.trim()) {
+			payload.membershipFeeFiat6 = body.membershipFeeFiat6.trim()
 		}
 		const res = await fetch(`${BEAMIO_API}/api/nfcTopupPrepare`, {
 			method: 'POST',
@@ -470,6 +478,8 @@ export async function nfcTopupSubmit(body: {
 		bonusCurrencyAmount: string
 	}
 	usdcTopupSessionId?: string
+	membershipTierIndex?: number
+	membershipFeeFiat6?: string
 }): Promise<NfcTopupSubmitResult | null> {
 	try {
 		const payload: Record<string, string | number> = {
@@ -497,6 +507,12 @@ export async function nfcTopupSubmit(body: {
 		}
 		if (body.usdcTopupSessionId) {
 			payload.usdcTopupSessionId = body.usdcTopupSessionId.toLowerCase()
+		}
+		if (body.membershipTierIndex != null && Number.isFinite(body.membershipTierIndex)) {
+			payload.membershipTierIndex = Math.trunc(body.membershipTierIndex)
+		}
+		if (body.membershipFeeFiat6?.trim()) {
+			payload.membershipFeeFiat6 = body.membershipFeeFiat6.trim()
 		}
 		const res = await fetch(`${BEAMIO_API}/api/nfcTopup`, {
 			method: 'POST',

@@ -1,5 +1,5 @@
 /** Cluster `/api/posLedger` row — aligned with iOS `PosLedgerItem`. */
-export type PosLedgerItemKind = 'charge' | 'topUp' | 'tip'
+export type PosLedgerItemKind = 'charge' | 'topUp' | 'tip' | 'couponClaim' | 'couponRedeem'
 
 export interface PosLedgerItem {
 	id: string
@@ -104,6 +104,9 @@ export interface LedgerDisplayAmount {
 }
 
 export function preferredLedgerDisplayAmount(tx: PosLedgerItem): LedgerDisplayAmount {
+	if (tx.type === 'couponClaim' || tx.type === 'couponRedeem') {
+		return { value: 0, currencyCode: beamioCurrencyCodeForCurrencyFiat(tx.currencyFiat) }
+	}
 	const fiat6 = Number(tx.amountFiat6)
 	const usdc6 = Number(tx.amountUSDC6)
 	if (Number.isFinite(fiat6) && fiat6 > 0) {
@@ -332,14 +335,23 @@ export function parsePosLedgerResponse(body: unknown): PosLedgerSnapshot | null 
 		const row = raw as Record<string, unknown>
 		const id = String(row.id ?? '').trim()
 		const typeRaw = String(row.type ?? '').trim()
-		if (!id || (typeRaw !== 'charge' && typeRaw !== 'topUp' && typeRaw !== 'tip')) continue
+		if (
+			!id ||
+			(typeRaw !== 'charge' &&
+				typeRaw !== 'topUp' &&
+				typeRaw !== 'tip' &&
+				typeRaw !== 'couponClaim' &&
+				typeRaw !== 'couponRedeem')
+		) {
+			continue
+		}
 		const noteRaw = String(row.note ?? '').trim()
 		const tagRaw = String(row.payerBeamioTag ?? '').trim()
 		const methodRaw = String(row.paymentMethodLabel ?? '').trim()
 		items.push({
 			id,
 			originalPaymentHash: String(row.originalPaymentHash ?? '').trim() || undefined,
-			type: typeRaw,
+			type: typeRaw as PosLedgerItemKind,
 			txCategory: String(row.txCategory ?? ''),
 			timestamp: coerceInt64(row.timestamp),
 			payer: String(row.payer ?? ''),

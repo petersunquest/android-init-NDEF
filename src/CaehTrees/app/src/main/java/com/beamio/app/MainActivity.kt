@@ -876,6 +876,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         maybeEnableNfcForegroundDispatch()
+        // Launcher badge follows active notifications: drop stale offline alerts so the
+        // PWA unread count (publishAppState) is the only badge source once we are visible.
+        CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this)
         if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.checkForUpdatesNow()
         }

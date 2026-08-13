@@ -20,6 +20,9 @@ Deployed at:
 | `/pos/onboarding` | Wallet setup (create / restore) | `OnboardingView` / `OnboardingScreen` |
 | `/pos/permission` | Parent workspace approval gate | `AwaitingParentWorkspacePermissionOverlay` |
 | `/pos/home` | Home KPI + action grid | `HomeRootView` / `NdefScreen` |
+| `/pos/chat` | Messages list | SilentPassUI ChatList |
+| `/pos/chat/new` | New message (@tag / address) | — |
+| `/pos/chat/:peer` | Conversation thread | SilentPassUI chat thread |
 | `/pos/topup` | Top-up amount pad + NFC/QR + success | iOS `TopupAmountPadFullPage` → scan → `runTopup` |
 | `/pos/check-balance` | Check Balance loading + result | `ReadBalanceView` |
 | `/pos/native/:action` | Native action loading handoff | Charge / Top-up / History… |
@@ -72,19 +75,35 @@ WebView shells inject **hardware / navigation** helpers — **wallet + mnemonic 
 ```javascript
 window.BeamioPOS = {
   platform: 'ios', // or 'android'
-  // Web mode: PWA uses IndexedDB + session memory; bridge optional for NFC/camera.
-  navigateNative(action) {
-    // legacy handoff — prefer PWA routes /charge, /topup, /check-balance
-  },
-  async resendParentPermissionRequest() { /* optional; PWA uses src/conet/ */ },
+  navigateNative(action) { /* legacy */ },
+  async resendParentPermissionRequest() { /* optional */ },
+  openURL({ url }) { /* system browser — http/https/mailto/tel */ },
+  publishAppState(state) { /* { footerBadges:{chat}, appIconBadge } */ },
+  notifyBackgroundChat({ badge, title, body }) { /* local push + badge */ },
 }
 ```
 
+Also accepts `CashTreesIOS` / `CashTreesAndroid` (same Consumer shell APIs) when injected.
+
 Full bridge shape: `src/posPwa/src/bridge/nativeBridge.ts`. Shell rules: `.cursor/rules/beamio-pos-pwa-native-webview-shell.mdc`.
 
-## CoNET Chat (terminal permission)
+## CoNET Chat (Messages + terminal permission)
 
-On `/pos/permission`, the PWA automatically:
+### Messages (`/chat`)
+
+Chat list / compose / thread (SilentPassUI-style CoNET gossip):
+
+- Encrypt to recipient **EOA** PGP; POST via entry **A ≠ B**
+- Listen: mining command encrypted to mailbox **B**, HTTP/SSE via entry **C ≠ B**
+- `beamio_pos_terminal_permission_v1` is **excluded** from Messages
+- Unread → native **app icon badge** (`publishAppState` / `notifyBackgroundChat`)
+- Links → `openExternalUrl` → native `openURL` → system browser
+
+Implementation: `src/chat/` + `src/providers/PosChatProvider.tsx`.
+
+### Terminal permission
+
+On `/permission`, the PWA automatically:
 
 1. Registers sender PGP on CoNET `AddressPGP` (`ensureRegisteredForSenderGossip`)
 2. Resolves parent `@BeamioTag` → EOA via `/api/search-users`
@@ -92,7 +111,7 @@ On `/pos/permission`, the PWA automatically:
 
 Implementation: `src/conet/` — see `.cursor/rules/conet-decentralized-chat-dev.mdc`.
 
-**Private keys must not be written to localStorage** (session memory in native only). The PWA only caches profiles, KPIs, and permission flags.
+Chat PGP private key may be persisted in IndexedDB (`beamio_pos_chat_pgp_v1`) for listen/decrypt (Consumer/POS wallet storage rules). EOA signing key remains session + mnemonic IDB — never log secrets.
 
 ### Web wallet (IndexedDB)
 

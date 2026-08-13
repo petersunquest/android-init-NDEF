@@ -292,11 +292,16 @@ export function mergeInfraKind1Items(
 
 export interface MetadataTierRow {
 	chainTierIndex?: number
+	/** Metadata `index` when present (on-chain tier index). */
+	index?: number
 	name?: string
 	description?: string
 	discountPercent?: number
 	backgroundColor?: string
 	image?: string
+	membershipFeeE6?: string
+	membershipFee?: string
+	membershipDurationKind?: number
 }
 
 export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTierRow[] {
@@ -308,6 +313,8 @@ export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTi
 			typeof row.chainTierIndex === 'number'
 				? row.chainTierIndex
 				: Number(row.chainTierIndex) || undefined
+		const indexRaw = row.index != null ? Number(row.index) : NaN
+		const index = Number.isFinite(indexRaw) ? Math.trunc(indexRaw) : undefined
 		const name = String(row.name ?? row.tierName ?? '').trim() || undefined
 		const description = String(row.description ?? '').trim() || undefined
 		let discountPercent: number | undefined
@@ -320,9 +327,100 @@ export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTi
 		}
 		const backgroundColor = String(row.backgroundColor ?? row.backgroundColorHex ?? '').trim() || undefined
 		const image = String(row.image ?? row.imageUrl ?? '').trim() || undefined
-		out.push({ chainTierIndex, name, description, discountPercent, backgroundColor, image })
+		let membershipFeeE6: string | undefined
+		if (row.membershipFeeE6 != null && String(row.membershipFeeE6).trim() !== '') {
+			try {
+				membershipFeeE6 = BigInt(String(row.membershipFeeE6).replace(/,/g, '').trim()).toString()
+			} catch {
+				membershipFeeE6 = undefined
+			}
+		}
+		const membershipFee =
+			row.membershipFee != null && String(row.membershipFee).trim() !== ''
+				? String(row.membershipFee).replace(/,/g, '').trim()
+				: undefined
+		const durationRaw =
+			row.membershipDurationKind != null ? Number(row.membershipDurationKind) : NaN
+		const membershipDurationKind =
+			Number.isFinite(durationRaw) && durationRaw >= 1 && durationRaw <= 6
+				? Math.trunc(durationRaw)
+				: undefined
+		out.push({
+			chainTierIndex,
+			index,
+			name,
+			description,
+			discountPercent,
+			backgroundColor,
+			image,
+			membershipFeeE6,
+			membershipFee,
+			membershipDurationKind,
+		})
 	}
 	return out
+}
+
+/** Human fee → E6 string; empty/invalid → "0". */
+export function membershipFeeHumanToE6(raw: string | number | undefined | null): string {
+	if (raw == null || raw === '') return '0'
+	const s = String(raw).replace(/,/g, '').trim()
+	if (!s) return '0'
+	const n = Number(s)
+	if (!Number.isFinite(n) || n <= 0) return '0'
+	return String(Math.round(n * 1e6))
+}
+
+export function membershipFeeE6ToHuman(e6: string | number | undefined | null): string {
+	if (e6 == null || e6 === '') return ''
+	try {
+		const bi = BigInt(String(e6).replace(/,/g, '').trim() || '0')
+		if (bi <= 0n) return ''
+		const whole = bi / 1000000n
+		const frac = bi % 1000000n
+		if (frac === 0n) return whole.toString()
+		const fracStr = frac.toString().padStart(6, '0').replace(/0+$/, '')
+		return `${whole}.${fracStr}`
+	} catch {
+		return ''
+	}
+}
+
+export function metadataTierMembershipFeeE6(row: MetadataTierRow): string {
+	if (row.membershipFeeE6 && BigInt(row.membershipFeeE6) > 0n) return row.membershipFeeE6
+	return membershipFeeHumanToE6(row.membershipFee)
+}
+
+export function metadataTiersHaveMembershipFee(tiers: MetadataTierRow[]): boolean {
+	return tiers.some((t) => BigInt(metadataTierMembershipFeeE6(t)) > 0n)
+}
+
+export function membershipDurationLabel(kind: number | undefined): string {
+	switch (kind) {
+		case 1:
+			return 'Day'
+		case 2:
+			return 'Week'
+		case 3:
+			return 'Month'
+		case 4:
+			return 'Quarter'
+		case 5:
+			return 'Year'
+		case 6:
+			return 'Forever'
+		default:
+			return ''
+	}
+}
+
+/** Prefer metadata `index`, then `chainTierIndex`, else array position. */
+export function metadataTierOnChainIndex(row: MetadataTierRow, fallbackIndex: number): number {
+	if (typeof row.index === 'number' && Number.isFinite(row.index)) return Math.trunc(row.index)
+	if (typeof row.chainTierIndex === 'number' && Number.isFinite(row.chainTierIndex)) {
+		return Math.trunc(row.chainTierIndex)
+	}
+	return fallbackIndex
 }
 
 function chainTierIndexCandidates(nft: { tier?: string; tokenId: string }): number[] {

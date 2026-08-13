@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import {
 	fetchCardCurrencyCode,
 	fetchCardMetadataRoot,
+	fetchCardMetadataTiersBundle,
 	fetchCardOwner,
 } from '@/api/beamioApi'
+import {
+	metadataTiersHaveMembershipFee,
+	type MetadataTierRow,
+} from '@/utils/beamioPaymentRouting'
+import { displayFiatPrefixFromCode } from '@/utils/display'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
@@ -52,6 +58,8 @@ interface TopupDraft {
 	currencyAmount: string
 	apiAmount: string
 	split: NfcTopupCurrencySplit | null
+	membershipTierIndex?: number
+	membershipFeeFiat6?: string
 }
 
 function customerTargetFromScan(
@@ -91,6 +99,28 @@ export function TopUpPage() {
 	const pollAbortRef = useRef<AbortController | null>(null)
 	const scanStartedRef = useRef(false)
 	const [topupProgress, setTopupProgress] = useState<TopupExecuteProgressPhase>('preparing')
+	const [membershipFeeMode, setMembershipFeeMode] = useState(false)
+	const [membershipTiers, setMembershipTiers] = useState<MetadataTierRow[]>([])
+	const [cardCurrencyPrefix, setCardCurrencyPrefix] = useState('$')
+
+	useEffect(() => {
+		const infra = merchantInfraCard?.trim() ?? ''
+		if (!infra) return
+		let cancelled = false
+		void (async () => {
+			const [tiersBundle, currency] = await Promise.all([
+				fetchCardMetadataTiersBundle(infra),
+				fetchCardCurrencyCode(infra),
+			])
+			if (cancelled) return
+			setMembershipTiers(tiersBundle.rows)
+			setMembershipFeeMode(metadataTiersHaveMembershipFee(tiersBundle.rows))
+			setCardCurrencyPrefix(displayFiatPrefixFromCode(currency ?? 'CAD', 'CAD'))
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [merchantInfraCard])
 
 	const goHome = useCallback(
 		(error?: string) => {
@@ -101,7 +131,13 @@ export function TopUpPage() {
 	)
 
 	const onAmountContinue = useCallback(
-		async (input: { method: TopupPaymentMethodRaw; keypadAmount: string; currencyAmount: string }) => {
+		async (input: {
+			method: TopupPaymentMethodRaw
+			keypadAmount: string
+			currencyAmount: string
+			membershipTierIndex?: number
+			membershipFeeFiat6?: string
+		}) => {
 			const infra = merchantInfraCard?.trim() ?? ''
 			if (!infra) {
 				goHome('Terminal program card is not configured.')
@@ -122,6 +158,8 @@ export function TopUpPage() {
 				currencyAmount: input.currencyAmount,
 				apiAmount: resolved.apiAmount,
 				split: resolved.split,
+				membershipTierIndex: input.membershipTierIndex,
+				membershipFeeFiat6: input.membershipFeeFiat6,
 			})
 			scanStartedRef.current = false
 			setPhase('scan-customer')
@@ -145,6 +183,8 @@ export function TopUpPage() {
 				posWallet: walletAddress,
 				usdcTopupSessionId: sid,
 				pointSystemEnabled,
+				membershipTierIndex: draft.membershipTierIndex,
+				membershipFeeFiat6: draft.membershipFeeFiat6,
 				onProgress: setTopupProgress,
 			})
 			if (outcome.status === 'success') {
@@ -320,6 +360,9 @@ export function TopUpPage() {
 	if (phase === 'amount') {
 		return (
 			<TopupAmountPadPage
+				membershipFeeMode={membershipFeeMode}
+				membershipTiers={membershipTiers}
+				cardCurrencyPrefix={cardCurrencyPrefix}
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}
 			/>

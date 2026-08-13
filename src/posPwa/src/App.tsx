@@ -5,6 +5,7 @@ import { PosAppBootSplash } from '@/components/PosAppBootSplash'
 import { PosDataDaemonProvider } from '@/providers/PosDataDaemonProvider'
 import { IpfsImageLibraryProvider } from '@/providers/IpfsImageLibraryProvider'
 import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvider'
+import { PosChatProvider } from '@/providers/PosChatProvider'
 import { isPosHomePhasePath } from '@/utils/posHomeActionRoutes'
 
 const WelcomePage = lazy(() =>
@@ -41,6 +42,15 @@ const WorkspaceMerchantsPage = lazy(() =>
 )
 const NativeActionPage = lazy(() =>
 	import('@/pages/NativeActionPage').then((m) => ({ default: m.NativeActionPage })),
+)
+const ChatListPage = lazy(() =>
+	import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
+)
+const ChatThreadPage = lazy(() =>
+	import('@/pages/ChatThreadPage').then((m) => ({ default: m.ChatThreadPage })),
+)
+const ChatComposePage = lazy(() =>
+	import('@/pages/ChatComposePage').then((m) => ({ default: m.ChatComposePage })),
 )
 
 const SETUP_PATHS = new Set(['/', '/onboarding'])
@@ -148,6 +158,9 @@ function BootRouter() {
 				<Route path="/transactions" element={<TransactionsPage />} />
 				<Route path="/active-coupons" element={<ActiveCouponsPage />} />
 				<Route path="/workspace" element={<WorkspaceMerchantsPage />} />
+				<Route path="/chat" element={<ChatListPage />} />
+				<Route path="/chat/new" element={<ChatComposePage />} />
+				<Route path="/chat/:peerAddress" element={<ChatThreadPage />} />
 				<Route path="/native/:action" element={<NativeActionPage />} />
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>
@@ -163,7 +176,9 @@ export default function App() {
 			<PosSessionProvider>
 				<IpfsImageLibraryProvider>
 					<PosDataDaemonProvider>
-						<BootRouter />
+						<PosChatProvider>
+							<BootRouter />
+						</PosChatProvider>
 					</PosDataDaemonProvider>
 				</IpfsImageLibraryProvider>
 			</PosSessionProvider>

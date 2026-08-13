@@ -16,6 +16,30 @@ export async function aesGcmEncrypt(plaintext: string, password: string): Promis
 	return btoa(ivStr + ctStr)
 }
 
+/** Decrypt on-chain AddressPGP encrypted private key (AES-GCM, password = EOA pk hex with `0x`). */
+export async function aesGcmDecrypt(ciphertextB64: string, password: string): Promise<string> {
+	const pwUtf8 = new TextEncoder().encode(password)
+	const pwHash = await crypto.subtle.digest('SHA-256', pwUtf8)
+	const ctStr = atob(ciphertextB64)
+	const iv = new Uint8Array(12)
+	const ct = new Uint8Array(ctStr.length - 12)
+	for (let i = 0; i < 12; i++) iv[i] = ctStr.charCodeAt(i)
+	for (let i = 12; i < ctStr.length; i++) ct[i - 12] = ctStr.charCodeAt(i)
+	const alg = { name: 'AES-GCM', iv }
+	const key = await crypto.subtle.importKey('raw', pwHash, alg, false, ['decrypt'])
+	const ptBuffer = await crypto.subtle.decrypt(alg, key, ct)
+	return new TextDecoder().decode(ptBuffer)
+}
+
+export function utf8ToBase64(s: string): string {
+	return btoa(Array.from(new TextEncoder().encode(s), (c) => String.fromCharCode(c)).join(''))
+}
+
+export function randomBase64Bytes(byteLen: number): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(byteLen))
+	return btoa(String.fromCharCode(...bytes))
+}
+
 export function toBase64Utf8(s: string): string {
 	return btoa(Array.from(new TextEncoder().encode(s), (c) => String.fromCharCode(c)).join(''))
 }

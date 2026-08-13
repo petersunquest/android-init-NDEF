@@ -20,14 +20,27 @@ export function shortWalletAddr(address: string | undefined | null): string | nu
 	return a
 }
 
-export function baseScanTxUrl(txHash: string): string | null {
+function normalizeTxHashPath(txHash: string): string | null {
 	const t = txHash.trim()
 	if (!t) return null
 	let path = t
 	if (!path.startsWith('0x') && !path.startsWith('0X') && path.length === 64 && /^[0-9a-fA-F]+$/.test(path)) {
 		path = `0x${path.toLowerCase()}`
 	}
+	return path
+}
+
+export function baseScanTxUrl(txHash: string): string | null {
+	const path = normalizeTxHashPath(txHash)
+	if (!path) return null
 	return `https://basescan.org/tx/${path}`
+}
+
+/** Coupon / merchant-card ledger txs settle on CoNET, not Base. */
+export function conetMainnetTxUrl(txHash: string): string | null {
+	const path = normalizeTxHashPath(txHash)
+	if (!path) return null
+	return `https://mainnet.conet.network/tx/${path}`
 }
 
 export function beamioTierDiscountFiatAmount(subtotal: number, tierDiscountPercent: number): number {

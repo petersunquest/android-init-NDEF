@@ -27,6 +27,13 @@ export interface PosNativeBridge {
 	}): Promise<{ ok: boolean; address?: string; error?: string }>
 	navigateNative(action: PosNativeAction): void
 	resendParentPermissionRequest(): Promise<void>
+	/** Open http(s)/mailto/tel in system browser */
+	openURL?: (payload: { url: string } | string) => void
+	/** App icon / footer badges */
+	publishAppState?: (state: Record<string, unknown>) => void
+	/** Background chat local notification + badge */
+	notifyBackgroundChat?: (payload: Record<string, unknown> | string) => void
+	postMessage?: (body: unknown) => void
 }
 
 declare global {

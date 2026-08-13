@@ -1,15 +1,23 @@
-import { ArrowDown, ArrowUp, Gift, Heart } from 'lucide-react'
+import { ArrowDown, ArrowUp, Gift, Heart, Package, Store } from 'lucide-react'
 import type { PosLedgerDisplayItem } from '@/utils/posLedgerDisplay'
 import {
 	posTransactionRelativeTime,
 	posTransactionSecondaryLine,
 	preferredLedgerDisplayAmount,
 } from '@/utils/posLedgerDisplay'
+import {
+	isPosCouponLedgerKind,
+	posCouponLedgerAmountLabel,
+	posCouponLedgerHeadline,
+} from '@/utils/posCouponLedger'
 import { readBalanceFormatMoney } from '@/utils/readBalanceDisplay'
 
 const BRAND_BLUE = '#1562f0'
 const MINT_GREEN = '#34c759'
 const TIP_PINK = '#f43f5e'
+const CLAIM_FUCHSIA = '#c026d3'
+const CLAIM_VIOLET = '#7c3aed'
+const REDEEM_AMBER = '#d97706'
 
 function tipTotalsByCurrency(item: PosLedgerDisplayItem): Record<string, number> {
 	const totals: Record<string, number> = {}
@@ -36,12 +44,15 @@ export function PosTransactionRow({
 	onPress?: () => void
 }) {
 	const { tx } = item
+	const isCoupon = isPosCouponLedgerKind(tx.type)
 	const base = item.topupMergedTotal ?? preferredLedgerDisplayAmount(tx)
 	const tipExtra = tx.type === 'charge' ? tipTotalInCurrency(item, base.currencyCode) : 0
 	const total = base.value + tipExtra
 	const parts = readBalanceFormatMoney(total, base.currencyCode)
 	const sign = tx.type === 'topUp' ? '+' : '−'
-	const amountLine = `${sign}${parts.prefix}${parts.mid}${parts.suffix}`
+	const amountLine = isCoupon
+		? posCouponLedgerAmountLabel(tx)
+		: `${sign}${parts.prefix}${parts.mid}${parts.suffix}`
 
 	let topupBonusLine: string | null = null
 	if (tx.type === 'topUp' && item.topupBonus && item.topupBonus.value > 0.000_001) {
@@ -63,15 +74,41 @@ export function PosTransactionRow({
 		}
 	}
 
-	const typeTitle = tx.type === 'topUp' ? 'Top-Up' : tx.type === 'tip' ? 'Tip' : 'Charge'
+	const typeTitle = isCoupon
+		? posCouponLedgerHeadline(tx)
+		: tx.type === 'topUp'
+			? 'Top-Up'
+			: tx.type === 'tip'
+				? 'Tip'
+				: 'Charge'
 	const secondaryLine = posTransactionSecondaryLine(tx)
 	const timeLine = posTransactionRelativeTime(item.topupLatestTimestamp ?? tx.timestamp)
 
-	const tint =
-		tx.type === 'topUp' ? MINT_GREEN : tx.type === 'tip' ? TIP_PINK : BRAND_BLUE
-	const amountTint = tx.type === 'topUp' ? MINT_GREEN : undefined
+	const couponHeadline = isCoupon ? posCouponLedgerHeadline(tx) : ''
+	const tint = isCoupon
+		? couponHeadline === 'Claim Catalog'
+			? CLAIM_VIOLET
+			: couponHeadline === 'In-Store Coupon Redeem'
+				? REDEEM_AMBER
+				: CLAIM_FUCHSIA
+		: tx.type === 'topUp'
+			? MINT_GREEN
+			: tx.type === 'tip'
+				? TIP_PINK
+				: BRAND_BLUE
+	const amountTint = tx.type === 'topUp' ? MINT_GREEN : isCoupon ? tint : undefined
 
-	const Icon = tx.type === 'topUp' ? ArrowUp : tx.type === 'tip' ? Heart : ArrowDown
+	const Icon = isCoupon
+		? couponHeadline === 'Claim Catalog'
+			? Package
+			: couponHeadline === 'In-Store Coupon Redeem'
+				? Store
+				: Gift
+		: tx.type === 'topUp'
+			? ArrowUp
+			: tx.type === 'tip'
+				? Heart
+				: ArrowDown
 
 	return (
 		<button

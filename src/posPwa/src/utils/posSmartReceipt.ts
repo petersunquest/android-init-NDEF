@@ -5,6 +5,11 @@ import {
 } from '@/utils/posLedgerDisplay'
 import type { PosLedgerItem } from '@/utils/posLedgerMetrics'
 import { displayFiatPrefixFromCode, formatAmount } from '@/utils/display'
+import {
+	isPosCouponLedgerKind,
+	posCouponLedgerAmountLabel,
+	posCouponLedgerHeadline,
+} from '@/utils/posCouponLedger'
 
 const ZERO_HASH = `0x${'0'.repeat(64)}`
 
@@ -71,6 +76,7 @@ export function formatPosReceiptDateTime(timestamp: number): { dateStr: string; 
 
 export function posReceiptBadge(item: PosLedgerDisplayItem): string {
 	const { tx } = item
+	if (isPosCouponLedgerKind(tx.type)) return posCouponLedgerHeadline(tx)
 	if (tx.type === 'charge') return 'Charge'
 	if (tx.type === 'topUp') return 'Top-up'
 	return 'Tip'
@@ -78,6 +84,7 @@ export function posReceiptBadge(item: PosLedgerDisplayItem): string {
 
 export function posReceiptLedgerTypeTitle(item: PosLedgerDisplayItem): string {
 	const { tx } = item
+	if (isPosCouponLedgerKind(tx.type)) return posCouponLedgerHeadline(tx)
 	if (tx.type === 'topUp') return 'Top-Up'
 	if (tx.type === 'tip') return 'Tip'
 	const obj = parsePosLedgerDisplayJson(tx.displayJson)
@@ -114,6 +121,15 @@ export function buildPosReceiptBreakdown(
 	const { tx } = item
 	const total = receiptTotalAmount(item)
 	const prefix = displayFiatPrefixFromCode(total.currencyCode, merchantCurrency)
+
+	if (isPosCouponLedgerKind(tx.type)) {
+		return [
+			{
+				label: tx.type === 'couponClaim' ? 'Issued NFT' : 'Coupon NFT',
+				value: posCouponLedgerAmountLabel(tx),
+			},
+		]
+	}
 
 	if (tx.type === 'charge') {
 		const rows: PosReceiptBreakdownRow[] = []
@@ -221,6 +237,7 @@ export function posReceiptTotalLine(
 	item: PosLedgerDisplayItem,
 	merchantCurrency: string,
 ): string {
+	if (isPosCouponLedgerKind(item.tx.type)) return posCouponLedgerAmountLabel(item.tx)
 	const { value, currencyCode } = receiptTotalAmount(item)
 	const prefix = displayFiatPrefixFromCode(currencyCode, merchantCurrency)
 	const sign = item.tx.type === 'topUp' ? '+' : item.tx.type === 'tip' ? '' : ''

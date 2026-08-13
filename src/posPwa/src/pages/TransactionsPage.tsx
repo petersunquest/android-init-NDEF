@@ -88,7 +88,7 @@ export function TransactionsPage() {
 					<div className="min-w-0 flex-1">
 						<h1 className="text-lg font-semibold text-mkt-onSurface">Transactions</h1>
 						<p className="text-[11px] text-mkt-onSurfaceVariant">
-							Top-Ups &amp; charges since last clear
+							Top-Ups, charges &amp; coupons since last clear
 						</p>
 					</div>
 					<div className="flex shrink-0 items-center gap-2">

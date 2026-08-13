@@ -80,6 +80,8 @@ async function submitPreparedTopup(params: {
 	preTag?: string
 	usdcTopupSessionId?: string
 	pointSystemEnabled?: boolean
+	membershipTierIndex?: number
+	membershipFeeFiat6?: string
 	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
 	const onProgress = params.onProgress
@@ -119,6 +121,8 @@ async function submitPreparedTopup(params: {
 		sun: params.target.sun,
 		currencySplit: params.currencySplit ?? undefined,
 		usdcTopupSessionId: params.usdcTopupSessionId,
+		membershipTierIndex: params.membershipTierIndex,
+		membershipFeeFiat6: params.membershipFeeFiat6,
 	})
 	if (!pay) {
 		return { status: 'error', message: 'Top-up request failed. Check network and try again.' }
@@ -195,6 +199,9 @@ export async function executeNfcTopup(params: {
 	posWallet: string
 	usdcTopupSessionId?: string
 	pointSystemEnabled?: boolean
+	/** Required by Cluster when membershipFeeMode && customer has no valid membership. */
+	membershipTierIndex?: number
+	membershipFeeFiat6?: string
 	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
 	const onProgress = params.onProgress
@@ -213,6 +220,8 @@ export async function executeNfcTopup(params: {
 		wallet: params.target.wallet,
 		uid: params.target.uid,
 		sun: params.target.sun,
+		membershipTierIndex: params.membershipTierIndex,
+		membershipFeeFiat6: params.membershipFeeFiat6,
 	}
 
 	onProgress?.('preparing')
@@ -232,17 +241,37 @@ export async function executeNfcTopup(params: {
 	let preMemberNo: string | undefined
 	let preTag: string | undefined
 	let resolvedWallet = params.target.wallet
+	let hasValidMembership = false
+
+	const applyAssets = (assets: NonNullable<Awaited<ReturnType<typeof fetchUIDAssets>>>) => {
+		const c = cardFromAssets(assets, prep!.cardAddr!)
+		preBalance = c.points
+		preCurrency = c.currency
+		preMemberNo = c.memberNo
+		preTag = c.tag
+		const primary = String(assets.primaryMemberTokenId ?? '').trim()
+		if (primary && primary !== '0') {
+			hasValidMembership = true
+			return
+		}
+		const cardRow = assets.cards?.find(
+			(row) => row.cardAddress?.toLowerCase() === prep!.cardAddr!.toLowerCase(),
+		)
+		const primaryOnCard = String(cardRow?.primaryMemberTokenId ?? '').trim()
+		if (primaryOnCard && primaryOnCard !== '0') {
+			hasValidMembership = true
+			return
+		}
+		const nfts = cardRow?.nfts ?? assets.nfts ?? []
+		hasValidMembership = nfts.some((n) => Number(n.tokenId) > 0)
+	}
 
 	if (params.target.beamioTag) {
 		const assets = await fetchUIDAssets({ uid: params.target.beamioTag, merchantInfraCard: infra })
 		if (!assets?.ok) {
 			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
-		const c = cardFromAssets(assets, prep.cardAddr)
-		preBalance = c.points
-		preCurrency = c.currency
-		preMemberNo = c.memberNo
-		preTag = c.tag
+		applyAssets(assets)
 		resolvedWallet = prep.wallet ?? resolvedWallet
 	} else if (params.target.wallet) {
 		const assets = await fetchWalletAssetsForRead({
@@ -252,11 +281,7 @@ export async function executeNfcTopup(params: {
 		if (!assets?.ok) {
 			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
-		const c = cardFromAssets(assets, prep.cardAddr)
-		preBalance = c.points
-		preCurrency = c.currency
-		preMemberNo = c.memberNo
-		preTag = c.tag
+		applyAssets(assets)
 	} else if (params.target.uid && params.target.sun) {
 		const assets = await fetchUIDAssets({
 			uid: params.target.uid,
@@ -266,14 +291,13 @@ export async function executeNfcTopup(params: {
 		if (!assets?.ok) {
 			return { status: 'error', message: formatPosAssetsQueryError(assets?.error) }
 		}
-		const c = cardFromAssets(assets, prep.cardAddr)
-		preBalance = c.points
-		preCurrency = c.currency
-		preMemberNo = c.memberNo
-		preTag = c.tag
+		applyAssets(assets)
 	} else {
 		return { status: 'error', message: 'Cannot read customer identity.' }
 	}
+
+	const membershipTierIndex = hasValidMembership ? undefined : params.membershipTierIndex
+	const membershipFeeFiat6 = hasValidMembership ? undefined : params.membershipFeeFiat6
 
 	return submitPreparedTopup({
 		target: {
@@ -296,6 +320,8 @@ export async function executeNfcTopup(params: {
 		preTag,
 		usdcTopupSessionId: params.usdcTopupSessionId,
 		pointSystemEnabled: params.pointSystemEnabled,
+		membershipTierIndex,
+		membershipFeeFiat6,
 		onProgress,
 	})
 }

@@ -3,6 +3,7 @@ import {
 	ClipboardList,
 	Gift,
 	Link2,
+	MessageCircle,
 	MinusCircle,
 	Nfc,
 	Plus,
@@ -14,6 +15,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BeamioCapsuleCompact } from '@/components/BeamioCapsule'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
+import { usePosChat } from '@/providers/PosChatProvider'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
@@ -78,6 +80,7 @@ export function HomePage() {
 		pointSystemEnabled,
 		activeCoupons,
 	} = usePosSession()
+	const { unreadTotal } = usePosChat()
 
 	const [homeActionError, setHomeActionError] = useState<string | null>(null)
 	const [eoaCopied, setEoaCopied] = useState(false)
@@ -115,7 +118,8 @@ export function HomePage() {
 		}
 	}
 
-	const actionRowCount = pointSystemEnabled ? 3 : 2
+	/** Always 3 action rows so Chat + Link App stay visible with Charge. */
+	const actionRowCount = 3
 	const { containerRef, heights } = useHomeButtonAreaHeights(actionRowCount)
 
 	const totalDue = chargeAmount
@@ -181,6 +185,23 @@ export function HomePage() {
 							Workspaces
 						</button>
 					)}
+					<button
+						type="button"
+						onClick={() => navigate(POS_HOME_ROUTES.chat)}
+						className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white text-[#1562f0] shadow-sm active:scale-[0.96]"
+						aria-label={
+							unreadTotal > 0
+								? `Chat, ${unreadTotal} unread`
+								: 'Chat'
+						}
+					>
+						<MessageCircle className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+						{unreadTotal > 0 ? (
+							<span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+								{unreadTotal > 99 ? '99+' : unreadTotal}
+							</span>
+						) : null}
+					</button>
 				</div>
 			</PosScreenHeader>
 
@@ -309,37 +330,54 @@ export function HomePage() {
 									iconTint={DEDUCT_ORANGE}
 									onClick={() => navigate(POS_HOME_ROUTES.deductPoints)}
 								/>
-							) : null}
-							<HomeActionGridButton
-								title="History"
-								icon={ClipboardList}
-								iconTint={BRAND_BLUE}
-								onClick={() => navigate(POS_HOME_ROUTES.transactions)}
-							/>
-							{!pointSystemEnabled ? (
+							) : (
 								<HomeActionGridButton
-									title="Link App"
-									icon={Link2}
+									title="History"
+									icon={ClipboardList}
 									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.nativeAction('linkApp'))}
+									onClick={() => navigate(POS_HOME_ROUTES.transactions)}
 								/>
-							) : null}
+							)}
+							{pointSystemEnabled ? (
+								<HomeActionGridButton
+									title="History"
+									icon={ClipboardList}
+									iconTint={BRAND_BLUE}
+									onClick={() => navigate(POS_HOME_ROUTES.transactions)}
+								/>
+							) : (
+								<HomeActionGridButton
+									title="Chat"
+									icon={MessageCircle}
+									iconTint={BRAND_BLUE}
+									onClick={() => navigate(POS_HOME_ROUTES.chat)}
+									badge={unreadTotal}
+								/>
+							)}
 						</div>
 
-						{pointSystemEnabled ? (
-							<div
-								className="grid grid-cols-2 gap-3"
-								style={{ height: heights.actionRow, minHeight: heights.actionRow }}
-							>
+						<div
+							className="grid grid-cols-2 gap-3"
+							style={{ height: heights.actionRow, minHeight: heights.actionRow }}
+						>
+							<HomeActionGridButton
+								title="Link App"
+								icon={Link2}
+								iconTint={BRAND_BLUE}
+								onClick={() => navigate(POS_HOME_ROUTES.nativeAction('linkApp'))}
+							/>
+							{pointSystemEnabled ? (
 								<HomeActionGridButton
-									title="Link App"
-									icon={Link2}
+									title="Chat"
+									icon={MessageCircle}
 									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.nativeAction('linkApp'))}
+									onClick={() => navigate(POS_HOME_ROUTES.chat)}
+									badge={unreadTotal}
 								/>
-								<div aria-hidden />
-							</div>
-						) : null}
+							) : (
+								<div className="min-h-0" aria-hidden />
+							)}
+						</div>
 					</div>
 				</div>
 			</PosScreenMain>
@@ -377,25 +415,32 @@ function HomeActionGridButton({
 	iconTint,
 	onClick,
 	disabled = false,
+	badge = 0,
 }: {
 	title: string
 	icon: LucideIcon
 	iconTint: string
 	onClick: () => void
 	disabled?: boolean
+	badge?: number
 }) {
 	return (
 		<button
 			type="button"
 			onClick={onClick}
 			disabled={disabled}
-			className="flex h-full min-h-0 flex-col items-center justify-center gap-2 rounded-3xl border border-slate-200/70 bg-white px-2 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-3 sm:py-3"
+			className="relative flex h-full min-h-0 flex-col items-center justify-center gap-2 rounded-3xl border border-slate-200/70 bg-white px-2 py-2 shadow-[0_2px_8px_rgba(0,0,0,0.06)] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:gap-3 sm:px-3 sm:py-3"
 		>
 			<span
-				className="flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12"
+				className="relative flex h-10 w-10 items-center justify-center rounded-full sm:h-12 sm:w-12"
 				style={{ backgroundColor: `${iconTint}1f` }}
 			>
 				<Icon className="h-5 w-5 sm:h-[22px] sm:w-[22px]" style={{ color: iconTint }} aria-hidden />
+				{badge > 0 ? (
+					<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+						{badge > 99 ? '99+' : badge}
+					</span>
+				) : null}
 			</span>
 			<span className="text-center text-xs font-bold leading-tight text-slate-900 sm:text-sm">
 				{title}

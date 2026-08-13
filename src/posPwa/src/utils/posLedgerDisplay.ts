@@ -258,6 +258,9 @@ export function posTransactionSecondaryLine(tx: PosLedgerItem): string {
 		}
 	}
 	if (!method) return who
+	if (tx.type === 'couponClaim' || tx.type === 'couponRedeem') {
+		return who
+	}
 	return `${who} · ${method}`
 }
 

@@ -9,6 +9,9 @@ export const POS_HOME_ROUTES = {
 	transactions: '/transactions',
 	activeCoupons: '/active-coupons',
 	workspace: '/workspace',
+	chat: '/chat',
+	chatCompose: '/chat/new',
+	chatThread: (peerAddress: string) => `/chat/${encodeURIComponent(peerAddress)}`,
 	nativeAction: (action: PosNativeAction) => `/native/${action}`,
 } as const
 
@@ -22,10 +25,13 @@ export function isPosHomePhasePath(path: string): boolean {
 		path === POS_HOME_ROUTES.deductPoints ||
 		path === POS_HOME_ROUTES.transactions ||
 		path === POS_HOME_ROUTES.activeCoupons ||
-		path === POS_HOME_ROUTES.workspace
+		path === POS_HOME_ROUTES.workspace ||
+		path === POS_HOME_ROUTES.chat ||
+		path === POS_HOME_ROUTES.chatCompose
 	) {
 		return true
 	}
+	if (path.startsWith('/chat/')) return true
 	return path.startsWith('/native/')
 }
 
