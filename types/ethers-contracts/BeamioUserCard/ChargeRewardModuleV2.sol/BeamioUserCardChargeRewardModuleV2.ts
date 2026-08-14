@@ -13,7 +13,7 @@ export declare namespace BeamioUserCardChargeRewardModuleV2 {
     }
 
   export interface BeamioUserCardChargeRewardModuleV2Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "configureEventRewardRulesBatch" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "configureEventRewardRulesBatch" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordChargeReferrerReward" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "SocialExchangeUsdcEscrowFunded" | "SocialExchangeUsdcPaid" | "SocialPointsBurnedForExchange" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -37,6 +37,7 @@ encodeFunctionData(functionFragment: 'payoutSocialExchangeUsdcToUser', values: [
 encodeFunctionData(functionFragment: 'previewChargeRewardAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'purchaseRewardProgram', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordBUnitInstallAttribution', values: [AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'recordChargeReferrerReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordTopupCumulativeStat', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'rewardEscrowPoints6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'rewardEscrowUsdc6', values?: undefined): string;
@@ -70,6 +71,7 @@ decodeFunctionResult(functionFragment: 'payoutSocialExchangeUsdcToUser', data: B
 decodeFunctionResult(functionFragment: 'previewChargeRewardAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'purchaseRewardProgram', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordBUnitInstallAttribution', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'recordChargeReferrerReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordTopupCumulativeStat', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rewardEscrowPoints6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'rewardEscrowUsdc6', data: BytesLike): Result;
@@ -447,6 +449,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    recordChargeReferrerReward: TypedContractMethod<
+      [userEOA: AddressLike, amountFiat6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     recordTopupCumulativeStat: TypedContractMethod<
       [userEOA: AddressLike, points6: BigNumberish, ],
       [void],
@@ -642,6 +652,11 @@ getFunction(nameOrSignature: 'purchaseRewardProgram'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'recordBUnitInstallAttribution'): TypedContractMethod<
       [claimant: AddressLike, referrer: AddressLike, targetKind: BigNumberish, issuedParentId: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'recordChargeReferrerReward'): TypedContractMethod<
+      [userEOA: AddressLike, amountFiat6: BigNumberish, ],
       [void],
       'nonpayable'
     >;

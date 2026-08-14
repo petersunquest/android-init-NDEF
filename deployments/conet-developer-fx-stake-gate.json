@@ -1,0 +1,32 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T21:03:35.856Z",
+  "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+  "treasuryImpl": "0xd813b3FB2789d7A404b3888b5f14f7Ce03d76Da1",
+  "treasuryUpgradeTx": "0x81d6167c6929e60c77a68dc3b90daa6a66e0d4b849c1e95c0cf43ccdf3ae550f",
+  "developerFxIssuer": "0x083da39C81D9078fE5d31e852eBAdb34B885b698",
+  "treasuryDeveloperFxLib": "0xfB92a208237D02Df14f2C7781F51e335C5AaF44F",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "settlementImpl": "0x5b6C2e2A3959621D58516C2ADA0F4566e54543af",
+  "settlementUpgradeTx": "0xe3e304a523e3ac8dc7aeaec9e8279af39f283dd72d2bd9bf75163a3b324ede6f",
+  "registry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "registryImpl": "0x80FC673849080D721516765c9E64Fa97eA732c6a",
+  "registryUpgradeTx": "0xdb27a8ef599127d1730ee4f91261408f72bc3810b292bb6d34eca04cbb3e4514",
+  "tgb5": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "tgb5Impl": "0xF7c2797EF7094011a50eBf76D6C4d83709Fe8052",
+  "tgb5UpgradeTx": "0x456fd55628fcc4bec4c33ff77d0772bf4cb1af5393d5c8587590f71b8c05fd3a",
+  "feeAsset": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+  "economics": {
+    "minStakeWei": "10000000000000000000",
+    "minerGasRefundWei": "10000000000000000",
+    "deployFeeUsdc6": "10000000"
+  },
+  "tgb5StakeWei": "10000000000000000000",
+  "mintAuthority": {
+    "treasuryHasTreasuryRole": true,
+    "registryHasTreasuryRole": false,
+    "registryHasBurnRole": true,
+    "note": "Canonical mint only via treasury; Registry burn-only; GB→mint via treasury.mintDeveloperFxFromRegistry"
+  }
+}

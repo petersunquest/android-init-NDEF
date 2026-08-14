@@ -20,16 +20,39 @@ class EmbeddedPwaBundleStore(context: Context) {
     fun bootstrapIfNeeded() {
         synchronized(lock) {
             rootDir.mkdirs()
-            if (hasValidBundle(activeDir)) return
+            val bundledDir = File(rootDir, "bundled")
+            if (bundledDir.exists()) {
+                bundledDir.deleteRecursively()
+            }
+            bundledDir.mkdirs()
+            appContext.assets.open(EmbeddedPwaConstants.BUNDLE_ASSET_NAME).use { input ->
+                EmbeddedPwaZip.unzip(input, bundledDir)
+            }
+            if (!hasValidBundle(bundledDir)) {
+                bundledDir.deleteRecursively()
+                if (hasValidBundle(activeDir)) return
+                throw IllegalStateException("Bundled SilentPassUI.zip did not contain index.html")
+            }
+
+            val activeIsValid = hasValidBundle(activeDir)
+            val activeVersion = if (activeIsValid) readUpdateInfo(activeDir)?.ver else null
+            val bundledVersion = readUpdateInfo(bundledDir)?.ver
+            val shouldInstallBundled =
+                !activeIsValid ||
+                    (activeVersion != null &&
+                        bundledVersion != null &&
+                        isSemverNewer(activeVersion, bundledVersion))
+
+            if (!shouldInstallBundled) {
+                bundledDir.deleteRecursively()
+                return
+            }
             if (activeDir.exists()) {
                 activeDir.deleteRecursively()
             }
-            activeDir.mkdirs()
-            appContext.assets.open(EmbeddedPwaConstants.BUNDLE_ASSET_NAME).use { input ->
-                EmbeddedPwaZip.unzip(input, activeDir)
-            }
-            if (!hasValidBundle(activeDir)) {
-                throw IllegalStateException("Bundled SilentPassUI.zip did not contain index.html")
+            if (!bundledDir.renameTo(activeDir)) {
+                bundledDir.deleteRecursively()
+                throw IllegalStateException("Failed to activate bundled SilentPassUI.zip")
             }
         }
     }

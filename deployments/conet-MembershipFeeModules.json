@@ -1,0 +1,19 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-12T19:56:50.612Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "membershipFeeOpsLib": "0xB6e69189F41833711a372431949cB37435DD01e5",
+  "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
+  "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1",
+  "stageSelector": "0xca5cc792",
+  "setFeesSelector": "0xf5f88bcc",
+  "libraryLinks": {
+    "project/src/BeamioUserCard/MembershipFeeOpsLib.sol:MembershipFeeOpsLib": "0xB6e69189F41833711a372431949cB37435DD01e5"
+  },
+  "note": "Membership fee diamond storage + stage via AdminStats V5; issue via MembershipStats",
+  "bound": {
+    "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
+    "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1"
+  }
+}

@@ -3,3 +3,4 @@
 /* eslint-disable */
 export type { BeamioUserCardIssuedNftModuleV2 } from './BeamioUserCardIssuedNftModuleV2.js';
 export type { IBeamioUserCardFactoryEip712 } from './IBeamioUserCardFactoryEip712.js';
+export type { IUserCardFactoryProtocolAuth } from './IUserCardFactoryProtocolAuth.js';

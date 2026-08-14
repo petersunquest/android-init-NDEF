@@ -4,6 +4,7 @@
 export * as adminStatsQueryModuleSol from './AdminStatsQueryModule.sol/index.js';
 export * as adminStatsQueryModuleV2Sol from './AdminStatsQueryModuleV2.sol/index.js';
 export * as adminStatsQueryModuleV4Sol from './AdminStatsQueryModuleV4.sol/index.js';
+export * as adminStatsQueryModuleV5Sol from './AdminStatsQueryModuleV5.sol/index.js';
 export * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
 export * as beamioUserCardSol from './BeamioUserCard.sol/index.js';
@@ -17,6 +18,7 @@ export * as faucetModuleSol from './FaucetModule.sol/index.js';
 export * as governanceModuleSol from './GovernanceModule.sol/index.js';
 export * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export * as issuedNftModuleV2Sol from './IssuedNftModuleV2.sol/index.js';
+export * as membershipFeeOpsLibSol from './MembershipFeeOpsLib.sol/index.js';
 export * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js';
 export * as membershipStatsQueryModuleSol from './MembershipStatsQueryModule.sol/index.js';
 export * as redeemModuleSol from './RedeemModule.sol/index.js';

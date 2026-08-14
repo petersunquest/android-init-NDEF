@@ -31,10 +31,13 @@ export default defineConfig({
       "src/CoNETIndexTaskdiamond",
       "src/b-unit",
       "src/mainnet",
+      "src/dle",
     ],
   },
   solidity: {
-    version: "0.8.33",
+    // New deployments compile with the repository-wide canonical compiler.
+    // Historical verification scripts keep their deployment-time compiler.
+    version: "0.8.35",
     settings: {
       metadata: {
         bytecodeHash: "none",

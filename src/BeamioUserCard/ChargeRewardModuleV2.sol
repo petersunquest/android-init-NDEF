@@ -302,6 +302,21 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         }
     }
 
+    /// @notice Gateway: mint referrer token #1 from charge amountFiat6 (upgradeable module path).
+    /// @dev Mirrors top-up referrer mint. Consumption points (#2) stay on UpdateLib points-debit path.
+    function recordChargeReferrerReward(address userEOA, uint256 amountFiat6)
+        external
+        onlyGatewayOrFactoryPaymaster
+    {
+        if (userEOA == address(0)) revert BM_ZeroAddress();
+        if (amountFiat6 == 0) revert UC_AmountZero();
+        address gw = IUserCardCtx(address(this)).factoryGateway();
+        address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
+        BeamioUserCardReferrerLib.mintReferrerRewardForChargeIfConfigured(
+            IBeamioUserCardSelfDelegate(address(this)), acct, amountFiat6
+        );
+    }
+
     /// @notice Merchant owner funds CONET-USDC escrow for social-points → USDC exchange activities.
     function fundSocialExchangeUsdcEscrow(address payerEOA, uint256 amount6) external onlyGatewayOrFactoryPaymaster {
         if (payerEOA == address(0)) revert BM_ZeroAddress();

@@ -10,15 +10,21 @@ alwaysApply: false
 
 - **当前 BUint (CoNET mainnet)**: `0x4A3E59519eE72B9Dcf376f0617fF0a0a5a1ef879`
 - **当前 BUnitAirdrop (CoNET mainnet): `0xa7410a532544aB7d1bA70701D9D0E389e4f4Cc1F`
-- **当前 ConetTreasury (CoNET mainnet)**: `0xA7fb50fE8e09E17E74081014d49f4E80729cCA48`
-- **conet-USDC**: `0x28fBBb6C5C06A4736B00A540b66378091c224456` (ConetTreasury 工厂创建)
-- 配置来源: `deployments/conet-addresses.json`
+- **当前业务国库 TreasuryBridgeV3 / `CONET_TREASURY`**: `0xa208982212978550594A7FEEB70a61665d129003`
+- **当前 conet-USDC（TreasuryCanonicalERC20V3）**: `0x5209865D404aA5646eDe5B91CD4218909eA72eDA`
+- 配置来源: `deployments/conet-addresses.json`、`src/x402sdk/src/chainAddresses.ts`
+- **禁止**再使用任何非 V3 国库（`0xa311…` CREATE2、`0xA7fb50…`、旧 `conetTreasury.sol`）或工厂 `createERC20` 路径作为业务国库；见 **`beamio-treasury-v3-only.mdc`**
 
 ## 禁止使用的废弃地址
 
-以下 BUint 地址已废弃，**禁止**在部署脚本、配置或代码中引用：
+以下地址已废弃，**禁止**在部署脚本、配置或新代码中引用：
 
-- `0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9` (旧 conetUsdc)
+- `0xa311c8fBE7CafC611603Ee925465A62493B73B30`（旧 CREATE2 `ConetTreasury` / `BASE_TREASURY`）
+- `0x5c64a8b0935DA72d60933bBD8cD10579E1C40c58`（旧 BaseTreasury）
+- `0x6dC686831A497c2a9d0a2ff5A000E3Bb40a2E795`（旧非 CREATE2 CoNET Treasury）
+- `0xA7fb50fE8e09E17E74081014d49f4E80729cCA48`（更早 ConetTreasury，现网无 bytecode）
+- `0x28fBBb6C5C06A4736B00A540b66378091c224456`（旧工厂 conet-USDC）
+- `0x2B7d42E560fC324f34ec57ce2FB8968F517EC7f9` (旧 BUint / conetUsdc)
 - `0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB`
 
 ## 部署 BUnitAirdrop
@@ -31,5 +37,5 @@ alwaysApply: false
 
 运行脚本完成登记：`npx hardhat run scripts/registerBUnitAirdropToConet.ts --network conet`
 
-- **ConetTreasury.setBUnitAirdrop(新地址)**：ConetTreasury owner 执行
+- **TreasuryBridgeV3 / feeSettlement**：B-Unit 购入 USDC 走 `mintForAdmin`（仅 `feeSettlementAsset` = canonical USDC）；勿再调旧 ConetTreasury
 - **BeamioIndexerDiamond AdminFacet.setAdmin(新地址, true)**：Indexer owner 执行，用于 claim/焚烧/USDC 购买记账

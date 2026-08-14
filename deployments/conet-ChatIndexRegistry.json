@@ -1,0 +1,24 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-09T04:55:02.746Z",
+  "deployBlock": 759487,
+  "implementation": "0xF94299760E07E62eC33A8e91fA585f0b40d137Ee",
+  "proxy": "0x1511Caa71081C84d8a591490D1b83879088EED72",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "eip712": {
+    "name": "ChatIndexRegistry",
+    "version": "1",
+    "chainId": 224422,
+    "verifyingContract": "0x1511Caa71081C84d8a591490D1b83879088EED72",
+    "setPointerType": "SetPointer(address owner,bytes32 indexHash,uint64 ts,uint64 seq,uint256 nonce)"
+  },
+  "nextSteps": {
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs ChatIndexRegistry --full",
+    "verifyImpl": "Blockscout v2 standard-input (impl)",
+    "verifyProxy": "Blockscout legacy partial (OZ ERC1967 proxy)"
+  }
+}

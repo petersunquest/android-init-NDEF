@@ -1,0 +1,22 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-11T02:31:26.141Z",
+  "deployBlock": 786850,
+  "implementation": "0x51a3C3D083271A27c02EE3EA854D3e93fB2Dd4e8",
+  "proxy": "0x1e156e2aDaBce8f7a03445ee6A8939D3B90eb05D",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "nextSteps": {
+    "syncSilentPassUI": "Set CONET_MY_BRANDS_DASHBOARD in SilentPassUI config/chainAddresses.ts + utils/myBrandsDashboard.ts",
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs BeamioMyBrandsDashboard --full",
+    "verify": "npx tsx scripts/verifyBeamioMyBrandsDashboardConet.ts"
+  },
+  "verification": {
+    "implementation": "verified (Blockscout v2)",
+    "proxy": "verify via legacy ERC1967Proxy (partial OK)",
+    "proxyExplorer": "https://mainnet.conet.network/address/0x1e156e2aDaBce8f7a03445ee6A8939D3B90eb05D"
+  }
+}

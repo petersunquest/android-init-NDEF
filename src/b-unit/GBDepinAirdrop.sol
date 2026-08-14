@@ -17,10 +17,11 @@ import {CoNETIncomePeriodLib} from "./CoNETIncomePeriodLib.sol";
  *   - beneficiaryUserFeePaidMinted — paidBurned portion minted to beneficiary on user charge
  *   - beneficiaryProtocolPaidGbMinted — protocol time-accrual via airdropDepinPaidAll
  *
- * User fee path (GBToken V2 consumeGb):
+ * User fee path (DEPRECATED — migrate to DepinGbSettlement1155.batchSettle):
  *   chargeUserGbForGuardianNode(nodeId, user, amount) → consumeGb(user) + ledger + mintPaid(beneficiary, paidBurned)
+ *   New DePIN bandwidth charges must use DepinGbSettlement1155 (CNET settler bond + ERC-1155 passes).
  *
- * Protocol subsidy path:
+ * Protocol subsidy path (retained):
  *   airdropDepinPaidAll() — perSecond × elapsed since lastDepinPaidCallAt, mint to each node's beneficiary.
  *
  * Mint recipient = ValidatorDepositRedeem redeem **beneficiary**, never DePIN node operator wallet.
@@ -374,7 +375,8 @@ contract GBDepinAirdrop is Ownable, EIP712 {
     /**
      * @notice Deduct `amount` GB from `user` (GBToken consumeGb waterfall), attribute to `guardianNodeId`,
      *         book cumulative bandwidth on this contract, and mint `paidBurned` to the node's redeem beneficiary.
-     * @dev GBDepinAirdrop must be GBToken admin. Requires GBToken V2 `consumeGb`.
+     * @dev DEPRECATED: use DepinGbSettlement1155.batchSettle. Kept for transition; do not add new callers.
+     *      GBDepinAirdrop must be GBToken admin. Requires GBToken V2 `consumeGb`.
      */
     function chargeUserGbForGuardianNode(uint256 guardianNodeId, address user, uint256 amount)
         external

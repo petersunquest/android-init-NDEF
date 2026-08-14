@@ -28,3 +28,5 @@ alwaysApply: true
 ## 新增代码
 
 新增 Base 链 RPC 调用时，默认使用 `https://base-rpc.conet.network`。
+
+**用途受 `beamio-base-treasury-and-multisig-aa-only.mdc` 约束：** Base RPC 只服务 **国库 / USDC / 机构多签 AA / miner 聆听**；禁止用来创建商家卡或 Consumer AA。

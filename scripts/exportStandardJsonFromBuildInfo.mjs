@@ -44,6 +44,14 @@ const CONFIG = {
     sourceKey: "project/src/mainnet/BeamioConsumerWalletDashboardProxy.sol",
     contractName: "BeamioConsumerWalletDashboardProxy",
   },
+  BeamioMyBrandsDashboard: {
+    sourceKey: "project/src/mainnet/BeamioMyBrandsDashboard.sol",
+    contractName: "BeamioMyBrandsDashboard",
+  },
+  BeamioMyBrandsDashboardProxy: {
+    sourceKey: "project/src/mainnet/BeamioMyBrandsDashboardProxy.sol",
+    contractName: "BeamioMyBrandsDashboardProxy",
+  },
   BeamioUserCard: {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
@@ -55,6 +63,18 @@ const CONFIG = {
   AdminStatsQueryModuleV4: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV4.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV4",
+  },
+  AdminStatsQueryModuleV5: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV5.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV5",
+  },
+  MembershipStatsModule: {
+    sourceKey: "project/src/BeamioUserCard/MembershipStatsModule.sol",
+    contractName: "BeamioUserCardMembershipStatsModuleV1",
+  },
+  MembershipFeeOpsLib: {
+    sourceKey: "project/src/BeamioUserCard/MembershipFeeOpsLib.sol",
+    contractName: "MembershipFeeOpsLib",
   },
   BeamioUserCardIssuedNftModuleV2: {
     sourceKey: "project/src/BeamioUserCard/IssuedNftModuleV2.sol",
@@ -132,6 +152,42 @@ const CONFIG = {
   TreasuryDeveloperFxLib: {
     sourceKey: "project/src/b-unit/TreasuryDeveloperFxLib.sol",
     contractName: "TreasuryDeveloperFxLib",
+  },
+  OperatorDomainRegistryV1: {
+    sourceKey: "project/src/dle/OperatorDomainRegistryV1.sol",
+    contractName: "OperatorDomainRegistryV1",
+  },
+  ArchiveGroupRegistryV1: {
+    sourceKey: "project/src/dle/ArchiveGroupRegistryV1.sol",
+    contractName: "ArchiveGroupRegistryV1",
+  },
+  ArchiveCertificateVerifierV1: {
+    sourceKey: "project/src/dle/ArchiveCertificateVerifierV1.sol",
+    contractName: "ArchiveCertificateVerifierV1",
+  },
+  DLEChainRegistry1155V1: {
+    sourceKey: "project/src/dle/DLEChainRegistry1155V1.sol",
+    contractName: "DLEChainRegistry1155V1",
+  },
+  AssetAdmissionRegistryV1: {
+    sourceKey: "project/src/dle/AssetAdmissionRegistryV1.sol",
+    contractName: "AssetAdmissionRegistryV1",
+  },
+  DLEArchiveDisputeManagerV1: {
+    sourceKey: "project/src/dle/DLEArchiveDisputeManagerV1.sol",
+    contractName: "DLEArchiveDisputeManagerV1",
+  },
+  AssetBurnMintGateway: {
+    sourceKey: "project/src/dle/AssetBurnMintGateway.sol",
+    contractName: "AssetBurnMintGateway",
+  },
+  L1QueueAccumulatorV1: {
+    sourceKey: "project/src/dle/L1QueueAccumulatorV1.sol",
+    contractName: "L1QueueAccumulatorV1",
+  },
+  DLEERC1967Proxy: {
+    sourceKey: "project/src/dle/DLEERC1967Proxy.sol",
+    contractName: "DLEERC1967Proxy",
   },
 };
 

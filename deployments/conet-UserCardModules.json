@@ -8,10 +8,10 @@
     "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
-    "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
+    "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
     "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
-    "adminStatsQueryModule": "0x2446834f4Bd63B509C0298Ef111d80335AE6ca89"
+    "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1"
   },
   "chargeReferrerRewardGatewayUpgrade": {
     "timestamp": "2026-08-06T16:00:50.298Z",
@@ -51,5 +51,12 @@
       "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E"
     },
     "note": "mintPointsForProtocolUsdcSettlement gateway mint"
+  },
+  "membershipFeeUpgrade": {
+    "timestamp": "2026-08-12T19:57:04.392Z",
+    "membershipFeeOpsLib": "0xB6e69189F41833711a372431949cB37435DD01e5",
+    "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
+    "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1",
+    "note": "Membership fee mode: stage + fee-aware MembershipStats"
   }
 }

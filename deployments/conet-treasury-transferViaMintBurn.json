@@ -1,0 +1,11 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T17:08:32.201Z",
+  "treasuryImpl": "0x22ec859e0eDcfb3B44D1ffD57dB9aa3215a02522",
+  "transferTx": "0xbb8059c61c69da135dfe32240168cf5e4d1507fa730c809423c2b8e23593b8d3",
+  "from": "0x82DADaeC25bebB58D6FaD2B91f394Ad10A9b0eE1",
+  "to": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "asset": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "amount": "50000000000000000"
+}

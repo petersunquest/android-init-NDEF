@@ -7,6 +7,8 @@ import type * as adminStatsQueryModuleV2Sol from './AdminStatsQueryModuleV2.sol/
 export type { adminStatsQueryModuleV2Sol };
 import type * as adminStatsQueryModuleV4Sol from './AdminStatsQueryModuleV4.sol/index.js';
 export type { adminStatsQueryModuleV4Sol };
+import type * as adminStatsQueryModuleV5Sol from './AdminStatsQueryModuleV5.sol/index.js';
+export type { adminStatsQueryModuleV5Sol };
 import type * as beamioErc1155LogicSol from './BeamioERC1155Logic.sol/index.js';
 export type { beamioErc1155LogicSol };
 import type * as beamioQuoteHelperV07Sol from './BeamioQuoteHelperV07.sol/index.js';
@@ -33,6 +35,8 @@ import type * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export type { issuedNftModuleSol };
 import type * as issuedNftModuleV2Sol from './IssuedNftModuleV2.sol/index.js';
 export type { issuedNftModuleV2Sol };
+import type * as membershipFeeOpsLibSol from './MembershipFeeOpsLib.sol/index.js';
+export type { membershipFeeOpsLibSol };
 import type * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js';
 export type { membershipStatsModuleSol };
 import type * as membershipStatsQueryModuleSol from './MembershipStatsQueryModule.sol/index.js';

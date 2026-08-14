@@ -1,0 +1,20 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-06T14:52:38.073Z",
+  "implementation": "0x80FC673849080D721516765c9E64Fa97eA732c6a",
+  "proxy": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "settlementProxy": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "settlementImplementationNew": "0x37b948a54279fB7fD19001287246ebD66fB85bB6",
+  "settlementImplementationOld": "0xc1D3605A3C77cAff59F52CA55a06BD1DA30d4929",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "gbToken": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+    "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287"
+  },
+  "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+  "minGbPerFullToken": "1000000000",
+  "upgradedAt": "2026-08-07T21:03:35.853Z",
+  "fxIssuer": "0x083da39C81D9078fE5d31e852eBAdb34B885b698"
+}

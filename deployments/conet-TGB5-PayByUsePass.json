@@ -1,0 +1,28 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T17:59:26.327Z",
+  "tgb5": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "registry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "settlementImpl": "0x3fee5545e595b88eEf1591a8E8B5774FCD1aa622",
+  "gbToken": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+  "developer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "passTokenId": "5",
+  "passKind": "FX_DUAL",
+  "expiresAt": "4102444800",
+  "gbPerFullToken": "5000000000",
+  "rate": "1 TGB5 = 5 GB",
+  "economics": "NFT#5 Dual: billingMode=2 PayByUse burns user TGB5 (whole tokens), miner gets usage GB, surplus GB → TGB5 contract (owner rescueERC20). billingMode=3 Subscription burns issuer TGB5 prepaid. Supply only via USDC→treasury mint.",
+  "txs": {
+    "settlementUpgrade": "0x08277521cfa23f092888cd94d106ab89d6f47f8cbce1202782f13c09070b79fb",
+    "registerToken": "0xa2b5d3a7f3e8d359cf60c0a19f6a7db410864cd8aa945765ea5382e6af02637d",
+    "configurePass": "0xeda20155eaaef4ccc7384e503c4c512bde2eec45887de0cc7e375b0b83f6cec2",
+    "mintPass": "0xfeca430a588c0633851174fd2402f84af338cd86dd7d91537d84de5f2d7424b2"
+  },
+  "model": "fx_dual_paybyuse_and_subscription",
+  "configurePassTx": "0x3d6d12c388bab3d812db558fb70021937940ebd4d19645b31e2cbf09a402086d",
+  "upgradeTx": "0xde53d1530e2404d51438f2f73304402e7c6d32c778eb5243d7fa929e3d808578",
+  "registryImpl": "0x9F861cE3daB85E7746ddEE0c0a6Ea98Bf713A344",
+  "tgb5Impl": "0x87b1fbF8b478094c0ae3F34855304b54eAf654D8"
+}

@@ -40,5 +40,7 @@
   "ChatIndexRegistryImpl": "0xF94299760E07E62eC33A8e91fA585f0b40d137Ee",
   "Multicall3": "0x4e73d76E7fC6b6Aa471dca7238107246BF4c8145",
   "BeamioConsumerWalletDashboard": "0x28370397A2b0C504e93754288ABb4F47EAaf168f",
-  "BeamioConsumerWalletDashboardImpl": "0x7922B887dD5b7dEf0355e9537AB642E7eC5065F9"
+  "BeamioConsumerWalletDashboardImpl": "0x7922B887dD5b7dEf0355e9537AB642E7eC5065F9",
+  "BeamioMyBrandsDashboard": "0x1e156e2aDaBce8f7a03445ee6A8939D3B90eb05D",
+  "BeamioMyBrandsDashboardImpl": "0x51a3C3D083271A27c02EE3EA854D3e93fB2Dd4e8"
 }

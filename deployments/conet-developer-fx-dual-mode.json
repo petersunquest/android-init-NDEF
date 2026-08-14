@@ -1,0 +1,19 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T17:59:26.327Z",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "settlementImpl": "0x3fee5545e595b88eEf1591a8E8B5774FCD1aa622",
+  "settlementUpgradeTx": "0xde53d1530e2404d51438f2f73304402e7c6d32c778eb5243d7fa929e3d808578",
+  "registry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "registryImpl": "0x9F861cE3daB85E7746ddEE0c0a6Ea98Bf713A344",
+  "registryUpgradeTx": "0x3dfc357b45d4da5a9e3189f4a507aa916a6ddee742a74bd49cf6a69d5d54cfc3",
+  "tgb5": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "tgb5Impl": "0x87b1fbF8b478094c0ae3F34855304b54eAf654D8",
+  "tgb5UpgradeTx": "0xb295eaa798e0a0a079cb2e9eddf523c7abc91aa775629aedd1d997947199acf4",
+  "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+  "passTokenId": "5",
+  "passKind": 4,
+  "bindTx": "0xb8dd3c06736f1e3eec25787faa6339cd7cbc687dae0c6c2ec46de4ef06094eb0",
+  "configurePassTx": "0x3d6d12c388bab3d812db558fb70021937940ebd4d19645b31e2cbf09a402086d"
+}

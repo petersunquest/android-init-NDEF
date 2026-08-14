@@ -4,9 +4,11 @@ pragma solidity ^0.8.20;
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 
 /**
- * @title ConetTreasury (CoNET L1)
- * @dev CoNET 链上的国库合约，与 BaseTreasury 对齐：无 owner/admin，自维护 miner 表，部署者默认为首个 miner。
- *      提供 ERC20 工厂（miner 可创建）与 miner 2/3 投票 mint 机制。
+ * @title ConetTreasury (CoNET L1) — DEPRECATED
+ * @dev **已弃用。** CoNET 业务国库请用 `TreasuryBridgeV3`（`CONET_TREASURY` =
+ *      `0xa208982212978550594A7FEEB70a61665d129003`）+ `TreasuryCanonicalERC20V3`。
+ *      本合约的 `createERC20` / miner vote mint 不得再用于新业务；现网旧地址常无 bytecode。
+ *      历史：与 BaseTreasury 对齐的 miner 表 + ERC20 工厂。
  */
 
 // --- 工厂创建的 ERC20 模板 ---

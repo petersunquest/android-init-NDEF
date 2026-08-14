@@ -21,6 +21,7 @@ PUBLIC_UPDATE_JSON_URL="${PUBLIC_UPDATE_JSON_URL:-https://beamio.app/app/update.
 PUBLIC_APP_BASE_URL="${PUBLIC_APP_BASE_URL:-https://beamio.app/app}"
 
 SKIP_VERSION_BUMP=0
+SKIP_EMBEDDED_OTA=0
 DRY_RUN=0
 
 usage() {
@@ -38,9 +39,11 @@ Deploy SilentPassUI PWA:
   7) smoke: live update.json.ver == package.json version AND zip HTTP 200
 
 Options:
-  --skip-version-bump  Skip local package.json patch bump (not recommended)
-  --dry-run            Print planned steps without changing files or publishing
-  -h, --help           Show this help
+  --skip-version-bump   Skip local package.json patch bump (not recommended)
+  --skip-embedded-ota   Web /app/ only: do not pack/publish SilentPassUI-*.zip or overwrite
+                        live update.json (rsync also excludes update.json). Native shell OTA unchanged.
+  --dry-run             Print planned steps without changing files or publishing
+  -h, --help            Show this help
 
 Environment:
   REMOTE_BUILD_HOST  SSH host used for build (default: conet.network)
@@ -52,6 +55,7 @@ EOF
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--skip-version-bump) SKIP_VERSION_BUMP=1; shift ;;
+		--skip-embedded-ota) SKIP_EMBEDDED_OTA=1; shift ;;
 		--dry-run) DRY_RUN=1; shift ;;
 		-h | --help) usage; exit 0 ;;
 		*) echo "Unknown option: $1" >&2; usage; exit 1 ;;
@@ -88,10 +92,16 @@ bump_pwa_version() {
 	new_version="$(node -p "require('./package.json').version")"
 
 	echo "==> Bumped SilentPassUI version: ${old_version} -> ${new_version}"
-	sync_public_update_json "$new_version"
-
-	git add package.json package-lock.json public/update.json
-	git commit -m "chore(pwa): bump version to ${new_version}"
+	if [[ "$SKIP_EMBEDDED_OTA" -eq 1 ]]; then
+		# Leave repo public/update.json (and live OTA) alone; only bump package.json.
+		echo "==> Skipping public/update.json sync (--skip-embedded-ota)"
+		git add package.json package-lock.json
+		git commit -m "chore(pwa): bump version to ${new_version} (web only; OTA unchanged)"
+	else
+		sync_public_update_json "$new_version"
+		git add package.json package-lock.json public/update.json
+		git commit -m "chore(pwa): bump version to ${new_version}"
+	fi
 	git push
 }
 
@@ -136,13 +146,32 @@ smoke_embedded_ota() {
 if [[ "$DRY_RUN" -eq 1 ]]; then
 	echo "==> Dry run: would deploy SilentPassUI"
 	if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
-		echo "    1) npm version patch + sync public/update.json in $PWA_DIR (commit + push)"
+		if [[ "$SKIP_EMBEDDED_OTA" -eq 1 ]]; then
+			echo "    1) npm version patch in $PWA_DIR (commit + push; leave public/update.json)"
+		else
+			echo "    1) npm version patch + sync public/update.json in $PWA_DIR (commit + push)"
+		fi
 	fi
 	echo "    2) ssh $REMOTE_BUILD_HOST 'cd $REMOTE_BUILD_DIR && git fetch origin cashtree && git reset --hard origin/cashtree && npm install --legacy-peer-deps && npm run build'"
-	echo "    3) rsync -av --delete --exclude 'SilentPassUI-*.zip' build/ $REMOTE_APP_DIR"
-	echo "    4) PUBLIC_URL=/ npm run build; zip SilentPassUI-{ver}.zip; publish update.json"
-	echo "    5) smoke curl $PUBLIC_UPDATE_JSON_URL + zip"
+	if [[ "$SKIP_EMBEDDED_OTA" -eq 1 ]]; then
+		echo "    3) rsync -av --delete --exclude 'SilentPassUI-*.zip' --exclude 'update.json' build/ $REMOTE_APP_DIR"
+		echo "    4) skip Embedded OTA pack/smoke; assert live update.json unchanged"
+	else
+		echo "    3) rsync -av --delete --exclude 'SilentPassUI-*.zip' build/ $REMOTE_APP_DIR"
+		echo "    4) PUBLIC_URL=/ npm run build; zip SilentPassUI-{ver}.zip; publish update.json"
+		echo "    5) smoke curl $PUBLIC_UPDATE_JSON_URL + zip"
+	fi
 	exit 0
+fi
+
+PRE_OTA_JSON=""
+if [[ "$SKIP_EMBEDDED_OTA" -eq 1 ]]; then
+	PRE_OTA_JSON="$(curl -fsS "$PUBLIC_UPDATE_JSON_URL" || true)"
+	if [[ -z "$PRE_OTA_JSON" ]]; then
+		echo "Cannot read live update.json before web-only deploy; aborting to avoid blind overwrite risk." >&2
+		exit 1
+	fi
+	echo "==> Preserving live Embedded OTA: $PRE_OTA_JSON"
 fi
 
 if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
@@ -154,6 +183,40 @@ else
 fi
 
 EXPECTED_VERSION="$(node -p "require('${PWA_DIR}/package.json').version")"
+
+if [[ "$SKIP_EMBEDDED_OTA" -eq 1 ]]; then
+	echo "==> Remote build and deploy SilentPassUI web only (package ${EXPECTED_VERSION}; Embedded OTA unchanged)"
+	ssh "$REMOTE_BUILD_HOST" "set -euo pipefail
+cd '$REMOTE_BUILD_DIR'
+git fetch origin cashtree
+git reset --hard origin/cashtree
+npm install --legacy-peer-deps
+npm run build
+test -f build/index.html
+# Preserve native OTA artifacts: never delete/overwrite zips or live update.json.
+rsync -av --delete --exclude 'SilentPassUI-*.zip' --exclude 'update.json' build/ '$REMOTE_APP_DIR'
+test -f '${REMOTE_APP_DIR}index.html'
+test -f '${REMOTE_APP_DIR}update.json'
+echo \"==> Web /app/ rsync OK (update.json + SilentPassUI-*.zip excluded)\"
+ls -lh '${REMOTE_APP_DIR}update.json'
+"
+	POST_OTA_JSON="$(curl -fsS "$PUBLIC_UPDATE_JSON_URL" || true)"
+	if [[ "$POST_OTA_JSON" != "$PRE_OTA_JSON" ]]; then
+		echo "Embedded OTA changed unexpectedly after web-only deploy." >&2
+		echo "  before: $PRE_OTA_JSON" >&2
+		echo "  after:  $POST_OTA_JSON" >&2
+		exit 1
+	fi
+	APP_CODE="$(curl -fsSI -o /dev/null -w '%{http_code}' "${PUBLIC_APP_BASE_URL}/" || true)"
+	if [[ "$APP_CODE" != "200" ]]; then
+		echo "Web smoke FAILED: ${PUBLIC_APP_BASE_URL}/ HTTP ${APP_CODE}" >&2
+		exit 1
+	fi
+	echo "==> Done (web only). Spot-check:"
+	echo "    https://beamio.app/app/  (HTTP ${APP_CODE})"
+	echo "    https://beamio.app/app/update.json  (unchanged: ${POST_OTA_JSON})"
+	exit 0
+fi
 
 echo "==> Remote build and deploy SilentPassUI (expected OTA ver=${EXPECTED_VERSION})"
 ssh "$REMOTE_BUILD_HOST" "set -euo pipefail

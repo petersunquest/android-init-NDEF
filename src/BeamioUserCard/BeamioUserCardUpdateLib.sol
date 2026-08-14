@@ -139,8 +139,10 @@ library BeamioUserCardUpdateLib {
         delegate.cardSelfEmitChargeRewardAirdropped(
             _ownerOfAccountOrSelf(payerAcct), payerAcct, delegate.cardSelfCurrencyType(), amountFiat6, reward
         );
-        // Referrer #1 base = charge amountFiat6 (not token #2 reward).
-        BeamioUserCardReferrerLib.mintReferrerRewardForChargeIfConfigured(delegate, payerAcct, amountFiat6);
+        // Charge Referrer token #1 is minted via ChargeRewardModule.recordChargeReferrerReward
+        // (gateway, same model as top-up). Do not call ReferrerLib here: cards link an immutable
+        // UpdateLib at create time; older ReferrerLib deployments omit mint selectors, so inline
+        // mint silently never runs on existing cards.
     }
 
     function _ownerOfAccountOrSelf(address acct) private view returns (address) {

@@ -1,0 +1,39 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T16:10:32.412Z",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "treasury": "0xa208982212978550594A7FEEB70a61665d129003",
+  "treasuryKind": "TreasuryBridgeV3",
+  "token": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "tokenImpl": "0xF7c2797EF7094011a50eBf76D6C4d83709Fe8052",
+  "tokenKind": "TreasuryCanonicalERC20V3",
+  "name": "Test Developer FX 1:5",
+  "symbol": "TGB5",
+  "decimals": 18,
+  "gbPerFullToken": "5000000000",
+  "rate": "1 TOKEN = 5 GB",
+  "registry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "gbToken": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+  "deprecatedNotUsed": {
+    "ConetTreasury_legacy": "0xA7fb50fE8e09E17E74081014d49f4E80729cCA48"
+  },
+  "tests": {
+    "quoteOk": true,
+    "forwardBurnDeveloperMintGb": {
+      "tx": "0xfe9db38efcab5b19595e7c2ad778d095a0d0401e7cf1fdb7867241f0c1145542",
+      "gb": "5000000000",
+      "tokenBurned": "1000000000000000000"
+    },
+    "reverseBurnGbMintDeveloper": {
+      "tx": "0xc864b88319bdc9a34917b97d94d12cbb8c60c6dafa547b1618e913ed93093c09",
+      "gb": "5000000000",
+      "tokenMinted": "1000000000000000000"
+    }
+  },
+  "upgradedAt": "2026-08-07T21:03:35.854Z",
+  "rescueERC20": true,
+  "developerStake": true,
+  "stakePolicy": "0x083da39C81D9078fE5d31e852eBAdb34B885b698"
+}

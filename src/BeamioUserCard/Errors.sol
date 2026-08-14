@@ -42,6 +42,11 @@ error DEP_InvalidFactory();
 // membership / tiers
 error UC_AlreadyHasValidCard();
 error UC_TierLenMismatch();
+error UC_MembershipFeeLenMismatch();
+error UC_MembershipFeeInvalidDuration();
+error UC_MembershipFeeMismatch();
+error UC_MembershipFeePendingRequired();
+error UC_MembershipFeePendingExpired();
 error UC_TierMinZero();
 error UC_InvalidUpgradeType();
 error UC_TiersNotIncreasing();

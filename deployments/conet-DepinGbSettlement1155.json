@@ -1,0 +1,49 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-06T14:28:26.014Z",
+  "implementation": "0x5b6C2e2A3959621D58516C2ADA0F4566e54543af",
+  "proxy": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "gbToken": "0xC3EF02DaE632b4C10abB66e07d92a387c10838D8",
+    "validatorDepositRedeem": "0xc71e246DD78B37C2fABc905D340932F28F503433",
+    "uri": "https://beamio.app/api/metadata/depin-settle/{id}.json",
+    "minBondWei": "10000000000000000000",
+    "unbondDelay": "604800"
+  },
+  "minBondWeiUpdatedAt": "2026-08-06T20:00:00.000Z",
+  "minBondWeiTx": "0x426d474fda23a152fb37e5024104119d8191448d36ec907eb2585a1186f66f59",
+  "nextSteps": {
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs DepinGbSettlement1155 --full",
+    "verifyNote": "Verify implementation via Blockscout v2 standard-input; proxy via legacy partial (OZ ERC1967).",
+    "settlerBond": "Nodes call bondDeposit{value: minBondWei} on proxy before batchSettle",
+    "deprecateCharge": "Stop new callers of GBDepinAirdrop.chargeUserGbForGuardianNode"
+  },
+  "developerTokenFxRegistry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "upgradedAt": "2026-08-07T21:03:35.850Z",
+  "payByUseSurplusUpgrade": {
+    "note": "Whole-token FX burn; surplus GB → pass developer",
+    "impl": "0xdD2a4dBc663458348eBA9d24570Ba211fe6974a3",
+    "upgradeTx": "0x08277521cfa23f092888cd94d106ab89d6f47f8cbce1202782f13c09070b79fb"
+  },
+  "subscriptionIssuerDebit": {
+    "note": "Subscription NFT: burn issuer FX ERC20 prepaid; customer GB not charged",
+    "impl": "0x4Eb7106e1E1112620ad68BDC4D72dd8E5678311C",
+    "upgradeTx": "0xdbd4aab0c4934914ab3f3f228ae8b77febf1760cc5b992f5474e06170f026404",
+    "passTokenId": "5"
+  },
+  "dualMode": {
+    "note": "PayByUse burns user FX (surplus→ERC20); Subscription burns issuer; NFT# FX_DUAL billingMode",
+    "impl": "0x3fee5545e595b88eEf1591a8E8B5774FCD1aa622",
+    "upgradeTx": "0xde53d1530e2404d51438f2f73304402e7c6d32c778eb5243d7fa929e3d808578",
+    "passTokenId": "5",
+    "passKind": "FX_DUAL"
+  },
+  "userAssetsQuery": {
+    "impl": "0x4BE19b5B4CC9da9a7d161ba3a86A0643a6C52D87",
+    "upgradeTx": "0xd8e4aab1fe7735cbaa0235bfeb5c39f73f6d88689194a1ff573038491494d631",
+    "seedTx": "0x89a3db14f06693652a137556b7da2a3ffb542886050f81c79e7add1fc7d306f9"
+  }
+}

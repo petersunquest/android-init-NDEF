@@ -1,0 +1,27 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-06T16:00:50.298Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "libraryLinks": {
+    "BeamioUserCardReferrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "BeamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664"
+  },
+  "replaced": {
+    "chargeRewardModule": "0xA4559e916b399e3e084Fbc2be5ce04d5e3425C1E",
+    "adminStatsQueryModule": "0x29e10621fF159422237d2a0B9F020303F9BDdD12"
+  },
+  "modules": {
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E",
+    "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6"
+  },
+  "note": "Charge Referrer #1 via ChargeRewardModule.recordChargeReferrerReward gateway (Plan A EntryPoint). Consumption #2 remains UpdateLib.",
+  "bound": {
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0xA9D6e14c2D57184ACD8431E87cd644d5ff7BCf0E",
+    "setChargeRewardModuleTx": "0x8b6d718234f8c6e9323ee0119f9126eca136a1935b337a4f28997260a24b7795",
+    "setAdminStatsQueryModuleTx": "0x0d3afc531555e8819d239c343f25c44f08c45091602fea172e3f2c767e7ba91a"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T18:15:20.490Z",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "impl": "0x4BE19b5B4CC9da9a7d161ba3a86A0643a6C52D87",
+  "upgradeTx": "0xd8e4aab1fe7735cbaa0235bfeb5c39f73f6d88689194a1ff573038491494d631",
+  "seedTx": "0x89a3db14f06693652a137556b7da2a3ffb542886050f81c79e7add1fc7d306f9",
+  "api": {
+    "getUserSettlementAssets": "getUserSettlementAssets(address)",
+    "getUserSettlementAssetsByIds": "getUserSettlementAssetsByIds(address,uint256[],bool)",
+    "suggestSettleRoute": "suggestSettleRoute(address,uint256)",
+    "configuredPassIds": "configuredPassIds()"
+  }
+}

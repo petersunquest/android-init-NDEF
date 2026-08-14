@@ -1,0 +1,12 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "timestamp": "2026-08-07T17:38:57.218Z",
+  "settlement": "0x06cf5bF56DF3E327FB30214E001A67456aaBB287",
+  "impl": "0x4Eb7106e1E1112620ad68BDC4D72dd8E5678311C",
+  "upgradeTx": "0xdbd4aab0c4934914ab3f3f228ae8b77febf1760cc5b992f5474e06170f026404",
+  "passTokenId": "5",
+  "tgb5": "0xEb8c8b0f4e3f779D8A8d863580AaaD72AFebe242",
+  "registry": "0x3B00a3F7341C0449e7a3D6e466f85F6F39dFf6e0",
+  "developer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+}

@@ -1,0 +1,243 @@
+{
+  "schema": "conet-dle-deployment-v1",
+  "recordState": "template",
+  "chainId": 224422,
+  "compiler": {
+    "solcVersion": "0.8.35",
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "optimizerRuns": 0,
+    "metadataBytecodeHash": "none"
+  },
+  "configuration": {
+    "owner": "$OWNER",
+    "chainRegistryUri": "$DLE_CHAIN_REGISTRY_URI",
+    "disputeChallengePeriodSeconds": "$DISPUTE_CHALLENGE_PERIOD_SECONDS",
+    "disputeMinimumBondWei": "$DISPUTE_MINIMUM_BOND_WEI",
+    "forceExitChallengePeriodSeconds": "$FORCE_EXIT_CHALLENGE_PERIOD_SECONDS",
+    "normalExitTimeoutSeconds": "$NORMAL_EXIT_TIMEOUT_SECONDS"
+  },
+  "components": [
+    {
+      "key": "OperatorDomainRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/OperatorDomainRegistryV1.sol",
+      "contractName": "OperatorDomainRegistryV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "OperatorDomainRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "OperatorDomainRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "$OWNER"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "ArchiveGroupRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/ArchiveGroupRegistryV1.sol",
+      "contractName": "ArchiveGroupRegistryV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "ArchiveGroupRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "ArchiveGroupRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,address)",
+        "args": [
+          "$OWNER",
+          "$OperatorDomainRegistryV1Proxy"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "ArchiveCertificateVerifierV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/ArchiveCertificateVerifierV1.sol",
+      "contractName": "ArchiveCertificateVerifierV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "ArchiveCertificateVerifierV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "ArchiveCertificateVerifierV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,address)",
+        "args": [
+          "$OWNER",
+          "$ArchiveGroupRegistryV1Proxy"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "DLEChainRegistry1155V1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/DLEChainRegistry1155V1.sol",
+      "contractName": "DLEChainRegistry1155V1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "DLEChainRegistry1155V1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "DLEChainRegistry1155V1Implementation",
+      "initializer": {
+        "signature": "initialize(address,string,address,address,address)",
+        "args": [
+          "$OWNER",
+          "$DLE_CHAIN_REGISTRY_URI",
+          "$ArchiveGroupRegistryV1Proxy",
+          "$ArchiveCertificateVerifierV1Proxy",
+          "$OWNER"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "AssetAdmissionRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/AssetAdmissionRegistryV1.sol",
+      "contractName": "AssetAdmissionRegistryV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "AssetAdmissionRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "AssetAdmissionRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "$OWNER"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "DLEArchiveDisputeManagerV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/DLEArchiveDisputeManagerV1.sol",
+      "contractName": "DLEArchiveDisputeManagerV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "DLEArchiveDisputeManagerV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "DLEArchiveDisputeManagerV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,uint64,uint256)",
+        "args": [
+          "$OWNER",
+          "$DISPUTE_CHALLENGE_PERIOD_SECONDS",
+          "$DISPUTE_MINIMUM_BOND_WEI"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "AssetBurnMintGatewayImplementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/AssetBurnMintGateway.sol",
+      "contractName": "AssetBurnMintGateway",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "AssetBurnMintGatewayProxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "AssetBurnMintGatewayImplementation",
+      "initializer": {
+        "signature": "initialize(address,address,address,address,address,uint64,uint64)",
+        "args": [
+          "$OWNER",
+          "$AssetAdmissionRegistryV1Proxy",
+          "$ArchiveCertificateVerifierV1Proxy",
+          "$DLEChainRegistry1155V1Proxy",
+          "$DLEArchiveDisputeManagerV1Proxy",
+          "$FORCE_EXIT_CHALLENGE_PERIOD_SECONDS",
+          "$NORMAL_EXIT_TIMEOUT_SECONDS"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "L1QueueAccumulatorV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/L1QueueAccumulatorV1.sol",
+      "contractName": "L1QueueAccumulatorV1",
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    },
+    {
+      "key": "L1QueueAccumulatorV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "L1QueueAccumulatorV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "$OWNER"
+        ]
+      },
+      "address": null,
+      "deploymentTxHash": null,
+      "deploymentBlock": null
+    }
+  ],
+  "libraries": [],
+  "verification": {
+    "blockscoutV2": {
+      "status": "not-started",
+      "completedAt": null
+    }
+  }
+}
