@@ -10,7 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
-| [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer 分期** | P0 已落地；P1 `archive`/`daemon` 已拆；**P1 联网 Mode A / 4-of-5 实验室 AC**（HMAC，非 EIP-712/SSZ）；**P2 JSON-RPC facade 已落地**；**P3 on-demand 7+2 可重算抽选已落地**（实验室 beacon ≠ L1 CL）；**P4 explorer 已展示 AC 与 P3 等待池 / 7+2** |
+| [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer 分期** | P0–P3 实验室已落地；**P4 公开 `https://dle.conet.network` 已显现 AC 与 P3 7+2**；P5 待书面授权 |
 | [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **当前 30 天验收主机分配** | 7 台独立主机、5+2、TCP 27101 quorum、USD 4/月不限流量 |
 | [DLE 全局 RPC 跨组代理](./dle-global-rpc-proxy-2026-08.md) | 无独立交互 Canvas | **当前 RPC 路由冻结** | 任一归档全局 RPC 入口；非本组必须 proxy 到托管组 `historyProviders` |
 | [DLE P1 真实成本实测报告](./dle-p1-real-cost-measurement-report.md) | `dle-p1-real-cost-measurement-report.canvas.tsx` | **当前 P1 经济证据门** | 区分真实实测、现役组件代理数据、确定性公式与尚不可测项 |
