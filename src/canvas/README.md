@@ -10,8 +10,9 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
-| [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer 分期** | P0 已落地；P1 `archive`/`daemon` 已拆且七主机 27101 已验收（心跳，非 BFT）；P4 explorer 脚手架在 `src/conet-layer2/explorer` |
+| [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer 分期** | P0 已落地；P1 `archive`/`daemon` 已拆；**P1 联网 Mode A / 4-of-5 实验室 AC**（HMAC，非 EIP-712/SSZ）；**P2 JSON-RPC facade 已落地**；P4 explorer 可展示实验室非空 AC |
 | [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **当前 30 天验收主机分配** | 7 台独立主机、5+2、TCP 27101 quorum、USD 4/月不限流量 |
+| [DLE 全局 RPC 跨组代理](./dle-global-rpc-proxy-2026-08.md) | 无独立交互 Canvas | **当前 RPC 路由冻结** | 任一归档全局 RPC 入口；非本组必须 proxy 到托管组 `historyProviders` |
 | [DLE P1 真实成本实测报告](./dle-p1-real-cost-measurement-report.md) | `dle-p1-real-cost-measurement-report.canvas.tsx` | **当前 P1 经济证据门** | 区分真实实测、现役组件代理数据、确定性公式与尚不可测项 |
 | [DLE P0/P1 形式化补正评估](./dle-p0-p1-formalization-review.md) | `dle-p0-p1-formalization-review.canvas.tsx` | **当前安全发布门参考** | Burn/mint 守恒、Tendermint/WAL/动态名册向量、OperatorDomain 边界 |
 | [经济费率压力模型](./dle-economic-fee-stress-model.md) | `dle-economic-fee-stress-model.canvas.tsx` | **当前配套模型** | 调整成本、流量、预算和流入区间，观察覆盖率与盈亏边界 |
@@ -19,6 +20,7 @@
 | [归档平面 P0/P1 安全评估](./archive-plane-p0-p1-security-review.md) | `archive-plane-p0-p1-security-review.canvas.tsx` | **历史评估，核心控制已采纳** | 自适应腐化、运营者相关性、DA 编码与全局队列 |
 | [Archive BFT 与裂变安全审查](./archive-bft-fission-security-review.md) | `archive-BFT-fission-security-review.canvas.tsx` | **历史评估，参数已演进** | BFT 基线、五人组风险、非重叠裂变与 Placement |
 | [版权内容访问协议](./copyright-content-protocol.md) | `copyright-content-protocol.canvas.tsx` | **跨项目设计参考** | Card Module、PGP 内容交付、first-completer、IPFS 与访问期限 |
+| [CONET 外部 USDC 迁 Circle](./conet-circle-usdc-treasury-2026-08.md) | `conet-circle-usdc-treasury.canvas.tsx` | **调研结论，未部署** | CCTP 可跨链代币仅 USDC + USYC；Gateway 仅 USDC；EURC 非 CCTP |
 
 ## 使用与更新
 

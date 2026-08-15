@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-mvp-phased-runtime.canvas.tsx`
 - **日期：** 2026-08-14
-- **状态：** P1 已拆 `archive` / `daemon`；P4 explorer 脚手架已落地（`src/conet-layer2/explorer`，复用 27101 `/health` `/rpc` `/api/v2/dle`）；联网 BFT / AC 仍未完成
+- **状态：** P1 已拆 `archive` / `daemon`；**P1 联网归档 BFT / Mode A / 4-of-5 AC 已落地**（独立 `runtime/src/archive/bft`，复用 TCP 27101；实验室 HMAC-SHA256，**不是**冻结 EIP-712 / corpus SSZ）；**P2 JSON-RPC 2.0 只读 facade 已落地**；P4 explorer 可展示实验室非空 AC
 - **规范优先级：** 英中白皮书 §5.1 / §5.4 / §6.3 / §8.1 与现有合约 / corpus > 本快照
 
 ## 事实来源
@@ -10,9 +10,11 @@
 - 白皮书：归档全节点、RPC 仅授权参与者、AC 才是最终性、on-demand 等待队列、无 tip VM。
 - `implementations/archive-a` / `archive-b`：进程内 SSZ / QC / WAL / RS(7,4) / 5+2 生命周期；明确排除网络、钥匙、L1 客户端。
 - `src/dle/*`：L1 UUPS 合约源码存在，**未部署**。
-- 7 主机实验室：TCP 27101 7×7 HTTP 200；**P1 `archive` command 已替换旧 `agent.mjs`**（2026-08-14 验收：`command:archive`、daemon probe、`eth_chainId=0x44c45`、无 tip VM）。仍是心跳 quorum，**不是**归档 BFT / AC。
+- 7 主机实验室：TCP 27101 7×7 HTTP 200；**P1 `archive` command 已替换旧 `agent.mjs`**（2026-08-14：`command:archive`、daemon probe、`eth_chainId=0x44c45`）。**2026-08-14：联网 BFT 在 27101 交换 prevote/precommit，Mode A 重放冻结 TradeOpened 候选，签发实验室 4-of-5 AC**（证据 `pilot/evidence/conet-dle-30d-lab-2026-08/bft-p1-accept.json`）。心跳 `lastQuorumOk` 仍不是 BFT。
 - 用户目标：最终实现归档节点、ethers 对应 JSON 查询、on-demand 参与、给 block explorer 的接口。
 - P4 explorer（2026-08-14）：`src/conet-layer2/explorer` 独立 Vite/React；协议常量本地拷贝；读 `27101` `/health` `/rpc` `/api/v2/dle`；失败保留上次可信快照；禁止 `setInterval` / 新域名 / archive-a·b import。
+- P2 JSON-RPC（2026-08-14）：`jsonrpcFacade.ts` 提供 ethers 形状只读面；`l1Isolated=true`；**禁止**把 DLE `/rpc` 代理到 L1 `publicrpc`/`rpc1`。有实验室 AC 时 `dle_tip.finalized=true`、`eth_blockNumber=0x1`；无 BFT 的 `startArchiveNode` 仍诚实空。
+- P1 BFT（2026-08-14）：独立包 `runtime/src/archive/bft`（自研 Keccak、Mode A Trade FSM、独立 Tendermint lock/valid、实验室 HMAC MAC、4-of-5 QC）。**禁止** import `implementations/archive-a` / `archive-b`。归档仍不出块、无 tip VM。L1 预检只用 DepositBundle 内嵌 `l1EscrowView`，不打 publicrpc。实验室 MAC 由公开 `domainId` 派生，**可伪造**，不得称为生产 secp256k1 / EIP-712 / corpus SSZ。
 
 ## 假设
 
@@ -25,7 +27,7 @@
 | 阶段 | 交付 | 非目标 |
 |---|---|---|
 | P0 | corpus、双实现、L1 源码、27101 心跳 | 联网共识 |
-| P1 | **归档 node**（Node.js WAL/HTTP）与 **daemon**（browser-safe `fetch` 客户端）分 command；后续再上 Mode A / 4-of-5 AC | 归档出块；把 daemon 当归档全节点 |
+| P1 | **归档 node**（Node.js WAL/HTTP）与 **daemon**（browser-safe `fetch` 客户端）分 command；**联网 Mode A + 4-of-5 实验室 AC**（独立包） | 归档出块；把 daemon 当归档全节点；把实验室 HMAC 当成生产签名 |
 | P2 | `eth_*` 只读 + `dle_getArchiveCertificate` | tip VM / eth_call |
 | P3 | 等待钩、poolRoot、7+2、DepositBundle | 全历史轻节点 |
 | P4 | 独立 `explorer/` Web UI + 归档 `GET /api/v2/dle`（27101，无新域名） | 新子域；L1 Blockscout；eth_call 浏览器 |
@@ -42,7 +44,7 @@
 ## 替代关系
 
 - 本快照不替代白皮书或 TLA+/corpus。
-- 不把 27101 心跳实验室计为 P1 完成。
+- 不把 27101 **心跳**实验室计为 P1 完成。实验室 HMAC 4-of-5 AC 是 P1 联网门，**不是**生产 EIP-712 / corpus SSZ，也不是 30 天资格。
 
 ## 未决项
 
@@ -53,8 +55,8 @@
 ## 实现检查表
 
 - [x] P1 脚手架：`npm run archive`（Node.js）/ `npm run daemon`（isomorphic，可 browser）；七主机 `lab-cli.js` 已部署并验收（证据 `pilot/evidence/conet-dle-30d-lab-2026-08/archive-runtime-accept.json`）
-- [ ] P1 联网归档 BFT / Mode A / 4-of-5 AC（独立包，无共享共识核）
-- [ ] P2 JSON-RPC 2.0 与 L1 publicrpc 隔离
+- [x] P1 联网归档 BFT / Mode A / 4-of-5 AC（独立包 `runtime/src/archive/bft`，无共享共识核；七主机证据 `pilot/evidence/conet-dle-30d-lab-2026-08/bft-p1-accept.json`。实验室 HMAC，非 EIP-712 / corpus SSZ，非 30 天资格）
+- [x] P2 JSON-RPC 2.0 与 L1 publicrpc 隔离（`runtime/src/archive/jsonrpcFacade.ts`；`eth_chainId=0x44c45`；batch；拒绝 `eth_call` / `eth_getBalance`；不代理 L1 RPC。七主机验收见 `pilot/evidence/conet-dle-30d-lab-2026-08/jsonrpc-p2-accept.json`）
 - [ ] P3 on-demand 钩与可重算抽选
 - [x] P4 脚手架：`explorer/`（`npm run explorer:dev` / `explorer:build`）+ 归档 `GET /api/v2/dle`；无新域名，无 30 天资格宣称
 - [ ] P5 部署当场验证；30 天资格未宣称
