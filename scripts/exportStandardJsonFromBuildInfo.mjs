@@ -32,6 +32,18 @@ const CONFIG = {
     sourceKey: "project/src/mainnet/ChatIndexRegistryProxy.sol",
     contractName: "ChatIndexRegistryProxy",
   },
+  ReferralPurchaseSplitV1: {
+    sourceKey: "project/src/mainnet/ReferralPurchaseSplitV1.sol",
+    contractName: "ReferralPurchaseSplitV1",
+  },
+  ReferralPurchaseSplitV1Proxy: {
+    sourceKey: "project/src/mainnet/ReferralPurchaseSplitV1Proxy.sol",
+    contractName: "ReferralPurchaseSplitV1Proxy",
+  },
+  BUnitAirdropV2: {
+    sourceKey: "project/src/b-unit/BUnitAirdropV2.sol",
+    contractName: "BUnitAirdropV2",
+  },
   Multicall3: {
     sourceKey: "project/src/mainnet/Multicall3.sol",
     contractName: "Multicall3",
@@ -160,6 +172,10 @@ const CONFIG = {
   ArchiveGroupRegistryV1: {
     sourceKey: "project/src/dle/ArchiveGroupRegistryV1.sol",
     contractName: "ArchiveGroupRegistryV1",
+  },
+  GlobalArchiveRoutingRegistryV1: {
+    sourceKey: "project/src/dle/GlobalArchiveRoutingRegistryV1.sol",
+    contractName: "GlobalArchiveRoutingRegistryV1",
   },
   ArchiveCertificateVerifierV1: {
     sourceKey: "project/src/dle/ArchiveCertificateVerifierV1.sol",

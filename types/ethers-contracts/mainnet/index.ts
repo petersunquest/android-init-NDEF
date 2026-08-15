@@ -7,6 +7,8 @@ import type * as beamioMyBrandsDashboardSol from './BeamioMyBrandsDashboard.sol/
 export type { beamioMyBrandsDashboardSol };
 import type * as genesisNodeReferralVaultV1Sol from './GenesisNodeReferralVaultV1.sol/index.js';
 export type { genesisNodeReferralVaultV1Sol };
+import type * as referralPurchaseSplitV1Sol from './ReferralPurchaseSplitV1.sol/index.js';
+export type { referralPurchaseSplitV1Sol };
 import type * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
 export type { validatorDepositRedeemSol };
 import type * as validatorDepositRedeemAllocLibSol from './ValidatorDepositRedeemAllocLib.sol/index.js';
@@ -35,5 +37,6 @@ export type { ChatIndexRegistry } from './ChatIndexRegistry.js';
 export type { ChatIndexRegistryProxy } from './ChatIndexRegistryProxy.js';
 export type { MerchantPOSManagement } from './MerchantPOSManagement.js';
 export type { Multicall3 } from './Multicall3.js';
+export type { ReferralPurchaseSplitV1Proxy } from './ReferralPurchaseSplitV1Proxy.js';
 export type { ValidatorDepositRedeemExitLib } from './ValidatorDepositRedeemExitLib.js';
 export type { ValidatorDepositRedeemRewardLib } from './ValidatorDepositRedeemRewardLib.js';

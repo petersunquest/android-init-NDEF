@@ -42,5 +42,11 @@
   "BeamioConsumerWalletDashboard": "0x28370397A2b0C504e93754288ABb4F47EAaf168f",
   "BeamioConsumerWalletDashboardImpl": "0x7922B887dD5b7dEf0355e9537AB642E7eC5065F9",
   "BeamioMyBrandsDashboard": "0x1e156e2aDaBce8f7a03445ee6A8939D3B90eb05D",
-  "BeamioMyBrandsDashboardImpl": "0x51a3C3D083271A27c02EE3EA854D3e93fB2Dd4e8"
+  "BeamioMyBrandsDashboardImpl": "0x51a3C3D083271A27c02EE3EA854D3e93fB2Dd4e8",
+  "GlobalArchiveRoutingRegistry": "0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB",
+  "GlobalArchiveRoutingRegistryImpl": "0x65691CFc82D55eFbe03cE91f6Ab6109b6c73ab9d",
+  "ReferralPurchaseSplitV1": "0x7Be303160Dd23DE0B6D420827441a8AaA1Fb0f87",
+  "ReferralPurchaseSplitV1Impl": "0x24536faFe5aB5294bd46932eA18BE4564eDe1A45",
+  "BUnitAirdropV2Impl": "0x2badd1e25252703012E7BCDadf353218bc0b3362",
+  "BUnitAirdropV2": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2"
 }

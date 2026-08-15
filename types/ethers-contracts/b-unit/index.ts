@@ -5,6 +5,8 @@ import type * as bUintSol from './BUint.sol/index.js';
 export type { bUintSol };
 import type * as bUnitAirdropSol from './BUnitAirdrop.sol/index.js';
 export type { bUnitAirdropSol };
+import type * as bUnitAirdropV2Sol from './BUnitAirdropV2.sol/index.js';
+export type { bUnitAirdropV2Sol };
 import type * as conetTreasuryPeerSol from './ConetTreasuryPeer.sol/index.js';
 export type { conetTreasuryPeerSol };
 import type * as conetTreasuryPeerDepositLibSol from './ConetTreasuryPeerDepositLib.sol/index.js';

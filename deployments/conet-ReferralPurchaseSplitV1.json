@@ -1,0 +1,25 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-15T07:00:34.944Z",
+  "deployBlock": 847071,
+  "implementation": "0x24536faFe5aB5294bd46932eA18BE4564eDe1A45",
+  "proxy": "0x7Be303160Dd23DE0B6D420827441a8AaA1Fb0f87",
+  "initializeArgs": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "conetUsdc": "0x5209865D404aA5646eDe5B91CD4218909eA72eDA",
+    "vault": "0xD6252Cbf266B80231397Ac2a4f25ed2d9b01DEE6",
+    "airdrop": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+    "adminPayout": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "airdropProxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+  "airdropPreviousImplementation": "0xD402b631F5171427FB2e04c4C975bb7d9b807504",
+  "airdropImplementation": "0x2badd1e25252703012E7BCDadf353218bc0b3362",
+  "upgradeTx": "0x3bd266c4dd3b156d5f71ce7a67875be6caebb9fccde2acf74ace3e2830af0fcb",
+  "setPurchaseSplitTx": "0x9377d1526edc25cb4a88b003a35016e41c10faf8bf81bd857335cb7c465bad50",
+  "nextSteps": {
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs ReferralPurchaseSplitV1 --full",
+    "verify": "npx tsx scripts/verifyReferralPurchaseSplitConet.ts"
+  }
+}

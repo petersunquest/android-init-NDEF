@@ -3,6 +3,7 @@
 /* eslint-disable */
 export * as bUintSol from './BUint.sol/index.js';
 export * as bUnitAirdropSol from './BUnitAirdrop.sol/index.js';
+export * as bUnitAirdropV2Sol from './BUnitAirdropV2.sol/index.js';
 export * as conetTreasuryPeerSol from './ConetTreasuryPeer.sol/index.js';
 export * as conetTreasuryPeerDepositLibSol from './ConetTreasuryPeerDepositLib.sol/index.js';
 export * as conetTreasuryPeerStableSwapOfflineSol from './ConetTreasuryPeerStableSwapOffline.sol/index.js';

@@ -4,6 +4,7 @@
 export * as beamioConsumerWalletDashboardSol from './BeamioConsumerWalletDashboard.sol/index.js';
 export * as beamioMyBrandsDashboardSol from './BeamioMyBrandsDashboard.sol/index.js';
 export * as genesisNodeReferralVaultV1Sol from './GenesisNodeReferralVaultV1.sol/index.js';
+export * as referralPurchaseSplitV1Sol from './ReferralPurchaseSplitV1.sol/index.js';
 export * as validatorDepositRedeemSol from './ValidatorDepositRedeem.sol/index.js';
 export * as validatorDepositRedeemAllocLibSol from './ValidatorDepositRedeemAllocLib.sol/index.js';
 export * as validatorDepositRedeemBundleLibSol from './ValidatorDepositRedeemBundleLib.sol/index.js';
@@ -22,5 +23,6 @@ export { ChatIndexRegistry__factory } from './ChatIndexRegistry__factory.js';
 export { ChatIndexRegistryProxy__factory } from './ChatIndexRegistryProxy__factory.js';
 export { MerchantPOSManagement__factory } from './MerchantPOSManagement__factory.js';
 export { Multicall3__factory } from './Multicall3__factory.js';
+export { ReferralPurchaseSplitV1Proxy__factory } from './ReferralPurchaseSplitV1Proxy__factory.js';
 export { ValidatorDepositRedeemExitLib__factory } from './ValidatorDepositRedeemExitLib__factory.js';
 export { ValidatorDepositRedeemRewardLib__factory } from './ValidatorDepositRedeemRewardLib__factory.js';
