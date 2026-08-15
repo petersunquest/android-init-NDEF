@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** 无独立交互 `.canvas.tsx`（规范决策快照）
 - **日期：** 2026-08-15
-- **状态：** 产品冻结：方案 C（只动 prevote）；runtime / Explore / 英中白皮书 §5.2.0e 已落地；`runtime:test` 50/50；`lab:deploy-archive-keep` 7/7；Explore 已发；live smoke 通过
+- **状态：** 产品冻结：方案 C（只动 prevote）；runtime / Explore / 英中白皮书 §5.2.0e 已落地；`runtime:test` 51/51；`lab:deploy-archive-keep` 7/7；Explore 已发；live smoke 通过；旧裸 AC freezer 不得投影为 `prevoteQc`
 - **规范优先级：** 英中白皮书 §5.2.0e > 本快照。本页不是第二份规范。
 
 ## 事实来源
@@ -64,7 +64,7 @@ prevoteQCRef = topicQcRef({ kind: PREVOTE_QC, valueHash, membershipRoot, height,
 ## 实现检查表
 
 - [x] `HASH_OBJECT_KINDS` 含 `prevoteQc`；禁止 tip/membership alias
-- [x] freezer 按 kind 合并；`getByHash` 投影
+- [x] freezer 按 kind 合并；`getByHash` 投影；旧裸 AC 仅 `kind=ac` 可投影
 - [x] 本组 KV miss → `notFound`；hop/adapter 失败 → `unavailable`
 - [x] BFT 持久化 / 索引 / 启动回填 PrevoteQC
 - [x] Explore 三分 pill + Prevote QC / Archive Certificate
