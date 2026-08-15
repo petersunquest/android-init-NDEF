@@ -2,14 +2,25 @@
 
 - **Canvas 标识：** `dle-mvp-phased-runtime.canvas.tsx`
 - **日期：** 2026-08-15
-- **状态：** P1 已拆 `archive` / `daemon`；**P1 联网归档 BFT / Mode A / 4-of-5 AC 已落地**（独立 `runtime/src/archive/bft`，复用 TCP 27101；实验室 HMAC-SHA256，**不是**冻结 EIP-712 / corpus SSZ）；**P2 JSON-RPC 2.0 只读 facade 已落地**；**P3 on-demand 钩 / poolRoot / 可重算 7+2 已落地**（实验室 beacon ≠ L1 CL RANDAO）；**P4 explorer 已在 `https://dle.conet.network` Home / Certificates 显现实验室 AC 与 P3 等待池 / 7+2 SelectionLog**
+- **状态：** P1 已拆 `archive` / `daemon`；**P1 联网归档 BFT / Mode A / 4-of-5 AC 已落地**（独立 `runtime/src/archive/bft`，复用 TCP 27101；实验室 HMAC-SHA256，**不是**冻结 EIP-712 / corpus SSZ）；**P2 JSON-RPC 2.0 只读 facade 已落地**；**P3 on-demand 钩 / poolRoot / 可重算 7+2 已落地**（实验室 beacon ≠ L1 CL RANDAO）；**P4 explorer 已在 `https://dle.conet.network` Home / Certificates 显现实验室 AC 与 P3 等待池 / 7+2 SelectionLog**；**P5 其余 DLE L1 UUPS 栈已部署到 CoNET 224422 并当场 Blockscout 验证（16/16）**，**不是** 30 天资格
 - **规范优先级：** 英中白皮书 §5.1 / §5.4 / §6.3 / §8.1 与现有合约 / corpus > 本快照
 
 ## 事实来源
 
 - 白皮书：归档全节点、RPC 仅授权参与者、AC 才是最终性、on-demand 等待队列、无 tip VM。
 - `implementations/archive-a` / `archive-b`：进程内 SSZ / QC / WAL / RS(7,4) / 5+2 生命周期；明确排除网络、钥匙、L1 客户端。
-- `src/dle/*`：L1 UUPS 合约源码存在，**未部署**。
+- `src/dle/*`：L1 UUPS 合约源码存在。**P5（2026-08-15）**：其余 8 对 impl+`DLEERC1967Proxy` 已部署到 CoNET 224422（`deployBlock=847316`，记录 `deployments/conet-DLE-MVP.json`）。**未重部署**已上线的 `GlobalArchiveRoutingRegistry` `0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB`。canonical 业务地址 = 代理。`chainRegistryUri` = `https://mainnet.conet.network/dle/erc1155/metadata.json`（现有域名路径，HTTP 200）。Blockscout v2 **16/16** `is_verified` 且合约名匹配（impl 为本合约名，proxy 为 `DLEERC1967Proxy`）。**诚实边界：已部署验证 ≠ 30 天 5+2 资格。**
+
+| 合约（canonical = 代理） | 代理 | 实现 |
+|---|---|---|
+| OperatorDomainRegistryV1 | `0x80BB7639B6C23A9660a49461f517F92dfce2fc00` | `0x97e6D06B78F94e37c2bE9755A1D2A9F9487Ed2C3` |
+| ArchiveGroupRegistryV1 | `0x12b3A568439411fD90ede5A853ee728D40918C70` | `0x4D94aEda052d2379A23f51f5Eb7707651C145C57` |
+| ArchiveCertificateVerifierV1 | `0xdA06E6d06eB2816795102B18171a079E3bEA948f` | `0xCC98f0d4De8972F9154870C0eC5a8D18a5B4ca48` |
+| DLEChainRegistry1155V1 | `0x100DC8f0Ff5Fce2D0be3974a5E797dF3627E0989` | `0xFe0587AcED519C5964Fa38B8942334EA1bA6C3B6` |
+| AssetAdmissionRegistryV1 | `0xa7F2a53a7f5a18aa6cc7CCDbBADbc071a47EF1AE` | `0x47D47F4E0541EBB3caA7e88D8E384C7a23DeEeDD` |
+| DLEArchiveDisputeManagerV1 | `0x10F0000727933D6718Fc5269BEC137c86464Bb41` | `0x5E26f1b0A3aD81526F124FA690377c0d347b4d49` |
+| AssetBurnMintGateway | `0x87fB2d6337A320223471c671e9f4C6bd331d85B2` | `0x4A1d0766EbEf8E2BDC9f6CbD8fEe3e6E5ec3Cf0A` |
+| L1QueueAccumulatorV1 | `0xf5e12f2153A1BD59Cafb946B97248708A78ed00A` | `0x9d8c5c09386a5052E49bfb22C9Fdf95B16eA6AE9` |
 - 7 主机实验室：TCP 27101 7×7 HTTP 200；**P1 `archive` command 已替换旧 `agent.mjs`**（2026-08-14：`command:archive`、daemon probe、`eth_chainId=0x44c45`）。**2026-08-14：联网 BFT 在 27101 交换 prevote/precommit，Mode A 重放冻结 TradeOpened 候选，签发实验室 4-of-5 AC**（证据 `pilot/evidence/conet-dle-30d-lab-2026-08/bft-p1-accept.json`）。心跳 `lastQuorumOk` 仍不是 BFT。
 - 用户目标：最终实现归档节点、ethers 对应 JSON 查询、on-demand 参与、给 block explorer 的接口。
 - P4 explorer（2026-08-15）：`src/conet-layer2/explorer` 独立 Vite/React；协议常量本地拷贝；读 `27101` `/health` `/rpc` `/api/v2/dle` `/ondemand/pool` `/ondemand/selection`；失败保留上次可信快照；禁止 `setInterval` / 新域名 / archive-a·b import。公开 host `https://dle.conet.network` Home / Certificates 展示 P3 `waitingPool` + SelectionLog（`poolRoot` / 7+2 / attestors / `endorsed`）。首屏 seed 七主机验收 `ondemand-p3-accept.json`；仅可信 live 覆盖。nginx 只反代 GET `/ondemand/pool` `/ondemand/selection`，不暴露 hook/freeze POST。SelectionLog **不是** AC。
@@ -32,7 +43,7 @@
 | P2 | `eth_*` 只读 + `dle_getArchiveCertificate` | tip VM / eth_call |
 | P3 | 等待钩、poolRoot、7+2、DepositBundle | 全历史轻节点 |
 | P4 | 独立 `explorer/` Web UI + 归档 `GET /api/v2/dle`（27101，无新域名） | 新子域；L1 Blockscout；eth_call 浏览器 |
-| P5 | 授权后部署验证 + 30 天资格 | 未授权重启 EL/CL |
+| P5 | **L1 栈已部署并当场验证**；30 天资格仍未宣称 | 未授权重启 EL/CL；不得把验证当资格 |
 
 ## 冻结结论
 
@@ -51,7 +62,8 @@
 
 - P1 以 archive-a 还是 archive-b 为运行时（须保持双实现差分，运行时另包）。
 - 公开 explorer 是否只读副本 + 授权名单（当前仅本地 / 实验室 27101）。
-- L1 部署需用户同条消息授权。
+- 30 天 5+2 资格计数、Placement / Burn-Mint 生产接线仍未宣称。
+- P5 其余 L1 栈已获同条消息授权并完成部署+验证（2026-08-15）。
 
 ## 实现检查表
 
@@ -61,4 +73,5 @@
 - [x] P3 on-demand 钩与可重算抽选（`shared/ondemand` + `archive/ondemand`；`dle_getWaitingPool` / `dle_getSelectionLog`。实验室 beacon ≠ L1 CL；HMAC 可伪造；SelectionLog 不是 AC；不改 P1 `valueHash`。七主机证据 `pilot/evidence/conet-dle-30d-lab-2026-08/ondemand-p3-accept.json`，`acceptedAt=2026-08-15T06:14:24.034Z`，`poolRoot=0x1a0895b0…8def74`，5-of-5 active attest）
 - [x] P4 脚手架：`explorer/`（`npm run explorer:dev` / `explorer:build`）+ 归档 `GET /api/v2/dle`；无新域名，无 30 天资格宣称
 - [x] P4 explorer 显现 P3 证据：Home / Certificates 画 waiting pool、`poolRoot`、7+2、`endorsed`；seed `0x1a0895b0…8def74`；live 成功才覆盖；诚实标注 lab beacon ≠ L1 CL、HMAC 可伪造、SelectionLog ≠ AC
-- [ ] P5 部署当场验证；30 天资格未宣称
+- [x] P5 其余 DLE L1 栈部署到 CoNET 224422 并当场 Blockscout 验证（8 impl + 8 `DLEERC1967Proxy`；独立复核 16/16 `is_verified` + name match；记录 `deployments/conet-DLE-MVP.json`，`verification.blockscoutV2.completedAt=2026-08-15T07:36:16.070Z`）
+- [ ] 30 天 5+2 资格未宣称（部署验证不构成资格）

@@ -11,6 +11,7 @@ node_modules/
 
 # Deployment files (可选，如果不想提交部署记录)
 # deployments/
+deployments/*.wallets.local.json
 
 # IDE
 .vscode/

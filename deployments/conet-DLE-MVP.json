@@ -1,0 +1,427 @@
+{
+  "schema": "conet-dle-deployment-v1",
+  "recordState": "deployed",
+  "network": "conet",
+  "chainId": 224422,
+  "compiler": {
+    "solcVersion": "0.8.35",
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "optimizerRuns": 0,
+    "metadataBytecodeHash": "none"
+  },
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-15T07:25:01.761Z",
+  "deployBlock": 847316,
+  "configuration": {
+    "owner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "chainRegistryUri": "https://mainnet.conet.network/dle/erc1155/metadata.json",
+    "disputeChallengePeriodSeconds": "86400",
+    "disputeMinimumBondWei": "10000000000000000",
+    "forceExitChallengePeriodSeconds": "86400",
+    "normalExitTimeoutSeconds": "604800"
+  },
+  "components": [
+    {
+      "key": "OperatorDomainRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/OperatorDomainRegistryV1.sol",
+      "contractName": "OperatorDomainRegistryV1",
+      "address": "0x97e6D06B78F94e37c2bE9755A1D2A9F9487Ed2C3",
+      "deploymentTxHash": "0x8af0074e8f4dfc6faaaf1c2cfbcf768564a3c8775244ef5dcf52d7e53799cd9b",
+      "deploymentBlock": 847301,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:34:35.207Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 15072,
+          "name": "OperatorDomainRegistryV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x97e6D06B78F94e37c2bE9755A1D2A9F9487Ed2C3#code"
+      }
+    },
+    {
+      "key": "OperatorDomainRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "OperatorDomainRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+        ]
+      },
+      "address": "0x80BB7639B6C23A9660a49461f517F92dfce2fc00",
+      "deploymentTxHash": "0x1dcffeddac1dc9ea60a5cc831db08ff6e0c9c4b2cd1f72266593d03ed20bcf90",
+      "deploymentBlock": 847302,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:34:40.351Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x80BB7639B6C23A9660a49461f517F92dfce2fc00#code"
+      }
+    },
+    {
+      "key": "ArchiveGroupRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/ArchiveGroupRegistryV1.sol",
+      "contractName": "ArchiveGroupRegistryV1",
+      "address": "0x4D94aEda052d2379A23f51f5Eb7707651C145C57",
+      "deploymentTxHash": "0x018f0200a0a44dbbcf58000bb5d3f9864cc9d2d3072dd5da4b6161d1daa30471",
+      "deploymentBlock": 847303,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:34:45.925Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 11089,
+          "name": "ArchiveGroupRegistryV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x4D94aEda052d2379A23f51f5Eb7707651C145C57#code"
+      }
+    },
+    {
+      "key": "ArchiveGroupRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "ArchiveGroupRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+          "0x80BB7639B6C23A9660a49461f517F92dfce2fc00"
+        ]
+      },
+      "address": "0x12b3A568439411fD90ede5A853ee728D40918C70",
+      "deploymentTxHash": "0x1b22f8ce80b7ddd720b959d720f5aef4a94f81035eb090585353d6a3bc22b0dc",
+      "deploymentBlock": 847304,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:34:50.934Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x12b3A568439411fD90ede5A853ee728D40918C70#code"
+      }
+    },
+    {
+      "key": "ArchiveCertificateVerifierV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/ArchiveCertificateVerifierV1.sol",
+      "contractName": "ArchiveCertificateVerifierV1",
+      "address": "0xCC98f0d4De8972F9154870C0eC5a8D18a5B4ca48",
+      "deploymentTxHash": "0x39d5217be6921d5901661538fee620d0bcd4c3f92b0e995f94befa8aede8c039",
+      "deploymentBlock": 847305,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:00.724Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 8346,
+          "name": "ArchiveCertificateVerifierV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0xCC98f0d4De8972F9154870C0eC5a8D18a5B4ca48#code"
+      }
+    },
+    {
+      "key": "ArchiveCertificateVerifierV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "ArchiveCertificateVerifierV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+          "0x12b3A568439411fD90ede5A853ee728D40918C70"
+        ]
+      },
+      "address": "0xdA06E6d06eB2816795102B18171a079E3bEA948f",
+      "deploymentTxHash": "0x5b24da2baf2d7f8155cf7117103ba33bd32b83d1b87a40718dd0fbbb6d72cafb",
+      "deploymentBlock": 847306,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:05.681Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0xdA06E6d06eB2816795102B18171a079E3bEA948f#code"
+      }
+    },
+    {
+      "key": "DLEChainRegistry1155V1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/DLEChainRegistry1155V1.sol",
+      "contractName": "DLEChainRegistry1155V1",
+      "address": "0xFe0587AcED519C5964Fa38B8942334EA1bA6C3B6",
+      "deploymentTxHash": "0xa98340a18e0bb95c571a5d9b0e2ad27422b0ab7fb183c656ae41c34bbfb0d18c",
+      "deploymentBlock": 847307,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:15.872Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 13362,
+          "name": "DLEChainRegistry1155V1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0xFe0587AcED519C5964Fa38B8942334EA1bA6C3B6#code"
+      }
+    },
+    {
+      "key": "DLEChainRegistry1155V1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "DLEChainRegistry1155V1Implementation",
+      "initializer": {
+        "signature": "initialize(address,string,address,address,address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+          "https://mainnet.conet.network/dle/erc1155/metadata.json",
+          "0x12b3A568439411fD90ede5A853ee728D40918C70",
+          "0xdA06E6d06eB2816795102B18171a079E3bEA948f",
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+        ]
+      },
+      "address": "0x100DC8f0Ff5Fce2D0be3974a5E797dF3627E0989",
+      "deploymentTxHash": "0x4b65837df3f6afecbf42e3bbf895957dd22376424a31299c1f780b49845d1355",
+      "deploymentBlock": 847308,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:21.009Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x100DC8f0Ff5Fce2D0be3974a5E797dF3627E0989#code"
+      }
+    },
+    {
+      "key": "AssetAdmissionRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/AssetAdmissionRegistryV1.sol",
+      "contractName": "AssetAdmissionRegistryV1",
+      "address": "0x47D47F4E0541EBB3caA7e88D8E384C7a23DeEeDD",
+      "deploymentTxHash": "0x69b7bd98f42227d06e97f00af3c193c371a742419e0bbbe8d32acb71e3d6bdb5",
+      "deploymentBlock": 847309,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:26.456Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 11058,
+          "name": "AssetAdmissionRegistryV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x47D47F4E0541EBB3caA7e88D8E384C7a23DeEeDD#code"
+      }
+    },
+    {
+      "key": "AssetAdmissionRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "AssetAdmissionRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+        ]
+      },
+      "address": "0xa7F2a53a7f5a18aa6cc7CCDbBADbc071a47EF1AE",
+      "deploymentTxHash": "0x52fe882bc567afe7914d310e3324ec06ce80ef0259e76ceb9d7597d1e43de43f",
+      "deploymentBlock": 847310,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:31.436Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0xa7F2a53a7f5a18aa6cc7CCDbBADbc071a47EF1AE#code"
+      }
+    },
+    {
+      "key": "DLEArchiveDisputeManagerV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/DLEArchiveDisputeManagerV1.sol",
+      "contractName": "DLEArchiveDisputeManagerV1",
+      "address": "0x5E26f1b0A3aD81526F124FA690377c0d347b4d49",
+      "deploymentTxHash": "0xdf6f94fa3013dcee986d165d59c56cdb12a954038102b238497c9a8d07deeb23",
+      "deploymentBlock": 847311,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:36.902Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 5451,
+          "name": "DLEArchiveDisputeManagerV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x5E26f1b0A3aD81526F124FA690377c0d347b4d49#code"
+      }
+    },
+    {
+      "key": "DLEArchiveDisputeManagerV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "DLEArchiveDisputeManagerV1Implementation",
+      "initializer": {
+        "signature": "initialize(address,uint64,uint256)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+          "86400",
+          "10000000000000000"
+        ]
+      },
+      "address": "0x10F0000727933D6718Fc5269BEC137c86464Bb41",
+      "deploymentTxHash": "0x034e491c294e9ba8eb03b3709b3a11ef7da99700d5bac293f1031e47a9d47652",
+      "deploymentBlock": 847312,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:35:41.884Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x10F0000727933D6718Fc5269BEC137c86464Bb41#code"
+      }
+    },
+    {
+      "key": "AssetBurnMintGatewayImplementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/AssetBurnMintGateway.sol",
+      "contractName": "AssetBurnMintGateway",
+      "address": "0x4A1d0766EbEf8E2BDC9f6CbD8fEe3e6E5ec3Cf0A",
+      "deploymentTxHash": "0xb19e2ddccc651a06cd8e8cc411dabec89af7c6be2b734f86fe87443286d47e59",
+      "deploymentBlock": 847313,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:36:00.772Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 29197,
+          "name": "AssetBurnMintGateway",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x4A1d0766EbEf8E2BDC9f6CbD8fEe3e6E5ec3Cf0A#code"
+      }
+    },
+    {
+      "key": "AssetBurnMintGatewayProxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "AssetBurnMintGatewayImplementation",
+      "initializer": {
+        "signature": "initialize(address,address,address,address,address,uint64,uint64)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+          "0xa7F2a53a7f5a18aa6cc7CCDbBADbc071a47EF1AE",
+          "0xdA06E6d06eB2816795102B18171a079E3bEA948f",
+          "0x100DC8f0Ff5Fce2D0be3974a5E797dF3627E0989",
+          "0x10F0000727933D6718Fc5269BEC137c86464Bb41",
+          "86400",
+          "604800"
+        ]
+      },
+      "address": "0x87fB2d6337A320223471c671e9f4C6bd331d85B2",
+      "deploymentTxHash": "0xd17e388fb0b21ba725852abe3f95bd709378141f073358cd757679fa385d2f9e",
+      "deploymentBlock": 847314,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:36:05.770Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x87fB2d6337A320223471c671e9f4C6bd331d85B2#code"
+      }
+    },
+    {
+      "key": "L1QueueAccumulatorV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/L1QueueAccumulatorV1.sol",
+      "contractName": "L1QueueAccumulatorV1",
+      "address": "0x9d8c5c09386a5052E49bfb22C9Fdf95B16eA6AE9",
+      "deploymentTxHash": "0x3c40860561394741ce68bc43767fad584c1c23ecd212d9bbaadac20b2534bbfc",
+      "deploymentBlock": 847315,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:36:11.034Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 6186,
+          "name": "L1QueueAccumulatorV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x9d8c5c09386a5052E49bfb22C9Fdf95B16eA6AE9#code"
+      }
+    },
+    {
+      "key": "L1QueueAccumulatorV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "L1QueueAccumulatorV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+        ]
+      },
+      "address": "0xf5e12f2153A1BD59Cafb946B97248708A78ed00A",
+      "deploymentTxHash": "0x0eca95c265940570641297a7fb480fe945ac8d9a149140fae931d7faaea024a3",
+      "deploymentBlock": 847316,
+      "verification": {
+        "verifiedAt": "2026-08-15T07:36:16.070Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0xf5e12f2153A1BD59Cafb946B97248708A78ed00A#code"
+      }
+    }
+  ],
+  "libraries": [],
+  "verification": {
+    "blockscoutV2": {
+      "status": "verified",
+      "completedAt": "2026-08-15T07:36:16.070Z"
+    }
+  },
+  "nextSteps": {
+    "verify": "completed 2026-08-15T07:36:16.070Z — 16/16 Blockscout v2 is_verified + name match",
+    "notClaimed": "30-day 5+2 qualification is not claimed by this deployment"
+  }
+}

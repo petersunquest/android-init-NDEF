@@ -1,0 +1,5 @@
+{
+  "name": "CoNET-DLE Chain Registry",
+  "description": "ERC-1155 chain NFTs for CoNET-DLE on CoNET L1 (chainId 224422). Collection metadata only; token-specific documents may be added later via setURI.",
+  "external_url": "https://mainnet.conet.network"
+}

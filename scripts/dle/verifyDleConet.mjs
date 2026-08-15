@@ -161,6 +161,29 @@ function findSolcBinary(solcLongVersion) {
   fail(`matching local solc ${solcLongVersion} was not found in the Hardhat compiler cache`);
 }
 
+function bytecodeMatchesAllowingAddressThis(localHex, onchainHex, ...addresses) {
+  const local = localHex.replace(/^0x/i, "").toLowerCase();
+  const onchain = onchainHex.replace(/^0x/i, "").toLowerCase();
+  if (local === onchain) return true;
+  if (local.length !== onchain.length) return false;
+  const candidates = addresses
+    .filter((value) => typeof value === "string" && /^0x[0-9a-fA-F]{40}$/i.test(value))
+    .map((value) => value.replace(/^0x/i, "").toLowerCase());
+  let otherDiffs = 0;
+  for (let i = 0; i < local.length; i += 1) {
+    if (local[i] === onchain[i]) continue;
+    const matched = candidates.some(
+      (address) => local.slice(i, i + 40) === "0".repeat(40) && onchain.slice(i, i + 40) === address,
+    );
+    if (matched) {
+      i += 39;
+      continue;
+    }
+    otherDiffs += 1;
+  }
+  return otherDiffs === 0;
+}
+
 function compileRuntimeWithSolc(standardJson, target, solcPath) {
   const output = execFileSync(solcPath, ["--standard-json"], {
     cwd: root,
@@ -267,16 +290,22 @@ function loadExactBuildInfo(component) {
   return { buildInfo, artifact };
 }
 
-async function selfStatus(address) {
+async function selfStatus(address, expectedName) {
   const response = await fetch(`${blockscoutUrl}/api/v2/smart-contracts/${address}`);
   if (!response.ok) return { verified: false, detail: `HTTP ${response.status}` };
   const data = await response.json();
+  const name = typeof data.name === "string" ? data.name : "";
+  const sourceLength = String(data.source_code ?? "").length;
+  const flagged = Boolean(data.is_verified || data.is_partially_verified);
+  const nameMatches = !expectedName || name === expectedName;
   return {
-    verified: Boolean(data.is_verified || data.is_partially_verified || String(data.source_code ?? "").length > 0),
+    verified: flagged && nameMatches,
     detail: {
       isVerified: Boolean(data.is_verified),
       isPartiallyVerified: Boolean(data.is_partially_verified),
-      sourceLength: String(data.source_code ?? "").length,
+      sourceLength,
+      name,
+      verifiedTwin: data.verified_twin_address_hash ?? null,
     },
   };
 }
@@ -303,13 +332,35 @@ async function submitStandardJson(target, standardJson, compilerVersion, constru
   }
 }
 
-async function pollSelfStatus(address) {
+async function submitLegacyProxy(target, standardJson, compilerVersion, constructorArgs) {
+  const params = new URLSearchParams();
+  params.set("module", "contract");
+  params.set("action", "verifysourcecode");
+  params.set("codeformat", "solidity-standard-json-input");
+  params.set("contractaddress", target.address);
+  params.set("contractname", `${target.sourceKey}:${target.contractName}`);
+  params.set("compilerversion", `v${compilerVersion}`);
+  params.set("licenseType", "3");
+  params.set("constructorArguements", constructorArgs ?? "");
+  params.set("sourceCode", JSON.stringify(standardJson));
+  const response = await fetch(`${blockscoutUrl}/api`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
+  const body = await response.text();
+  if (!response.ok && !/already verified/i.test(body)) {
+    fail(`${target.key} Blockscout legacy submission failed (HTTP ${response.status}): ${body.slice(0, 500)}`);
+  }
+}
+
+async function pollSelfStatus(address, expectedName) {
   for (let attempt = 0; attempt < pollAttempts; attempt += 1) {
-    const status = await selfStatus(address);
+    const status = await selfStatus(address, expectedName);
     if (status.verified) return status;
     await new Promise((resolve) => setTimeout(resolve, 4000));
   }
-  return selfStatus(address);
+  return selfStatus(address, expectedName);
 }
 
 async function main() {
@@ -332,7 +383,9 @@ async function main() {
     const localRuntime = compileRuntimeWithSolc(standardJson, target, solcPath).toLowerCase();
     const chainRuntime = (await provider.getCode(ensureAddress(target.address, target.key))).toLowerCase();
     if (chainRuntime === "0x") fail(`${target.key} has no deployed code at ${target.address}`);
-    if (localRuntime !== chainRuntime) {
+    const implementationAddress =
+      target.kind === "proxy" ? byKey.get(target.implementationKey)?.address : null;
+    if (!bytecodeMatchesAllowingAddressThis(localRuntime, chainRuntime, target.address, implementationAddress)) {
       fail(`${target.key} local deployed bytecode does not equal eth_getCode(${target.address})`);
     }
     const constructorArgs = target.kind === "proxy" ? buildProxyConstructorArgs(target, byKey) : null;
@@ -342,7 +395,7 @@ async function main() {
 
   if (!submit) {
     for (const { target } of preflighted) {
-      const status = await selfStatus(target.address);
+      const status = await selfStatus(target.address, target.contractName);
       console.log(`${status.verified ? "✓" : "!"} Blockscout self-status ${target.key}: ${JSON.stringify(status.detail)}`);
     }
     console.log("Read-only preflight complete. Re-run with --submit to verify every preflighted target.");
@@ -350,11 +403,17 @@ async function main() {
   }
 
   for (const entry of preflighted) {
-    const existing = await selfStatus(entry.target.address);
+    const existing = await selfStatus(entry.target.address, entry.target.contractName);
     if (!existing.verified) {
-      await submitStandardJson(entry.target, entry.standardJson, entry.compilerVersion, entry.constructorArgs);
+      try {
+        await submitStandardJson(entry.target, entry.standardJson, entry.compilerVersion, entry.constructorArgs);
+      } catch (error) {
+        if (entry.target.kind !== "proxy") throw error;
+        console.warn(`${entry.target.key} v2 submit failed; trying legacy partial-match`);
+        await submitLegacyProxy(entry.target, entry.standardJson, entry.compilerVersion, entry.constructorArgs);
+      }
     }
-    const confirmed = await pollSelfStatus(entry.target.address);
+    const confirmed = await pollSelfStatus(entry.target.address, entry.target.contractName);
     if (!confirmed.verified) {
       fail(`${entry.target.key} did not reach Blockscout v2 verified/partially-verified self-status`);
     }

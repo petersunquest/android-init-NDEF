@@ -44,6 +44,7 @@
     "sync:card-artifact:full": "npm run compile && node scripts/syncBeamioUserCardToX402sdk.mjs",
     "sync:card-abis-to-ui": "node scripts/syncBeamioCardAbisToUI.mjs",
     "dle:deploy:dry-run": "node scripts/dle/dryRunDeployDleConet.mjs",
+    "dle:deploy:conet": "hardhat run scripts/dle/deployDleConet.ts --network conet",
     "dle:verify:conet:preflight": "node scripts/dle/verifyDleConet.mjs",
     "dle:verify:conet": "node scripts/dle/verifyDleConet.mjs --submit",
     "export:usercard-basescan-json": "npx tsx scripts/exportBeamioUserCardBasescanStandardJson.ts",
