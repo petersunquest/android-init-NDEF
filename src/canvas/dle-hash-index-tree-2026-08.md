@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-hash-index-tree-2026-08.canvas.tsx`
 - **日期：** 2026-08-15
-- **状态：** **已入白皮书 §5.2.0e**；runtime 仍未改
+- **状态：** **已入白皮书 §5.2.0e**；实验室 M5 已落地为独立检查点（`committedInAc: false`），**不是** AC 投票字段，**不是**热 Get
 - **规范优先级：** §5.2.0d 与上一篇 `dle-rpc-hash-proxy-2026-08.md` > 本快照
 
 ## 事实来源
@@ -39,13 +39,13 @@
 
 ## 未决项
 
-- `hashIndexRoot` 是每条 AC 必带，还是独立检查点高度。
+- 生产是否把 `hashIndexRoot` 写入每条 AC（实验室已选独立检查点）。
 - 外组树：全量复制 vs 只复制根 + 按需节点。
 - 墓碑 TTL / 索引保留策略。
-- 是否写入英中白皮书（需用户确认）。
 
 ## 实现检查表
 
 - [x] 与已有 Merkle 根区分
-- [ ] 用户确认后写入 §5.2.0d 增补
-- [ ] 语料：包含 / 不包含证明向量
+- [x] 写入英中白皮书 §5.2.0e
+- [x] 实验室 runtime：排序 Keccak 包含 / 不包含证明（`hash-index-tree.test.ts`）
+- [x] `dle_getHashIndexRoot` / `dle_proveHash`；locate 仍只走 KV
