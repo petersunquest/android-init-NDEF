@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** 无独立交互 Canvas
 - **日期：** 2026-08-16
-- **状态：** 用 7 台绿场主机落地实验室第二归档组 + 跨组 hash 证据；**不是** 生产 DePIN，**不是** 30 天资格；G2 Group ID **尚未** L1 `registerLiveGroup`
+- **状态：** 用 7 台绿场主机落地实验室第二归档组 + 跨组 hash 证据；**不是** 生产 DePIN，**不是** 30 天资格。当时 G2 Group ID 是实验室 keccak（诚实占位）。**随后**由 `dle-lab-g2-l1-register-2026-08.md` 补 L1 `registerLiveGroup`（tx `0xf781f2c2…876d5153`）；本页不改写成「当时已有 L1 tx」。
 - **规范优先级：** 英中白皮书 §5.2.0e > runtime `RULES.md` §Archive > 本快照。本页不是第二份规范。
 
 ## 事实来源
@@ -49,7 +49,7 @@ timeout     = unavailable  (never JSON-RPC null)
 
 ## 未决项
 
-- G2 L1 `registerLiveGroup`（之后才可以把用户可见 Group ID 换成登记交易 hash 并链到 Blockscout）。
+- G2 L1 `registerLiveGroup` — 已由 `dle-lab-g2-l1-register-2026-08.md` 关闭。
 - 生产 DePIN 传输替换实验室 HTTP `:27101`。
 
 ## 实现检查表

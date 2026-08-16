@@ -7,6 +7,7 @@ import { IpfsImageLibraryProvider } from '@/providers/IpfsImageLibraryProvider'
 import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvider'
 import { PosChatProvider } from '@/providers/PosChatProvider'
 import { isPosHomePhasePath } from '@/utils/posHomeActionRoutes'
+import { EmbeddedPwaUpdateBanner } from '@/components/EmbeddedPwaUpdateBanner'
 
 const WelcomePage = lazy(() =>
 	import('@/pages/WelcomePage').then((m) => ({ default: m.WelcomePage })),
@@ -173,6 +174,7 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
 export default function App() {
 	return (
 		<BrowserRouter basename={routerBasename || undefined}>
+			<EmbeddedPwaUpdateBanner />
 			<PosSessionProvider>
 				<IpfsImageLibraryProvider>
 					<PosDataDaemonProvider>

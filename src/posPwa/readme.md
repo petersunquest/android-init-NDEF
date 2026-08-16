@@ -2,23 +2,49 @@
 
 **唯一活跃的 POS 终端 UI。** Merchant terminals run inside **native iOS/Android WebView shells** that load this PWA — not the deprecated native POS apps (`src/CashTrees_iOS/iOS_NDEF/`, `src/android-NDEF/`).
 
+Cold start uses a **bundled Embedded PWA zip** (`BeamioPOS.zip`) inside the shell. Runtime daemon polls `https://pos.beamio.app/update.json` and stages `BeamioPOS-{ver}.zip`; the in-WebView banner (**Update ready** / **Restart**) hot-reloads the new bundle.
+
 Deployed at:
 
-- `https://pos.conet.network/` (primary — POS WebView shells)
-- `https://beamio.app/pos/` (alternate path; build with default `POS_PWA_BASE=/pos/`)
+- `https://pos.beamio.app/` (canonical Embedded OTA + POS WebView fallback)
+- `https://pos.conet.network/` (proxy / alternate host; same root-base build)
+- `https://beamio.app/pos/` (alternate path; **not** the native OTA zip source)
 
-| Active shell | Path | Default URL |
-|--------------|------|-------------|
-| iOS WebView | `src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS/ContentView.swift` | `https://pos.conet.network/` |
-| Android WebView | `src/android/softPOS/.../MainActivity.kt` | `https://pos.beamio.app/` |
+| Active shell | Path | Default / Embedded |
+|--------------|------|--------------------|
+| iOS WebView | `src/iOS/softPOS/` (`com.beamio.app.pos`) | bundled `BeamioPOS.zip` via `beamio-pos-local://` |
+| Android WebView | `src/android/softPOS/` (`com.beamio.pos`) | bundled `BeamioPOS.zip` via `appassets.androidplatform.net` |
+
+## Embedded OTA (native shells)
+
+Same model as Consumer SilentPassUI, **separate** from `/app/`:
+
+| Item | Value |
+|------|--------|
+| Manifest | `https://pos.beamio.app/update.json` → `{"ver","filename"}` |
+| Zip | `https://pos.beamio.app/BeamioPOS-{ver}.zip` (files at zip **root**, `POS_PWA_BASE=/`) |
+| Bootstrap in shell | iOS `src/iOS/softPOS/softPOS/BeamioPOS.zip`; Android `src/android/softPOS/app/src/main/assets/BeamioPOS.zip` |
+| Daemon | 15 min `setTimeout`/`Task.sleep` chain; download to staging; banner **Update ready** / **Restart** |
+| Hot apply | `CashTreesIOS` / `CashTreesAndroid.applyEmbeddedPwaUpdate` → promote staging → reload local entry |
+
+`https://beamio.app/pos/` is **not** the native OTA zip source. Do not reuse `SilentPassUI-*.zip` or `beamio.app/app/update.json`.
+
+### No Service Worker updates
+
+POS PWA **must not** register a Service Worker for app updates (`vite-plugin-pwa`, Workbox, `registerSW`, `autoUpdate`).
+
+- Boot: inline script in `index.html` + `unregisterPosServiceWorkers()` in `main.tsx` clear any leftover registrations/caches.
+- nginx: `/sw.js`, `/service-worker.js`, `/registerSW.js`, `workbox*.js` return **404** (never SPA HTML).
+- Native shell version bumps only via Embedded OTA above.
 
 ## Routes
 
 | Path | Screen | Native equivalent |
 |------|--------|-------------------|
-| `/pos/` | Terminal Setup (Welcome) | `VerraEntrySplashView` / `WelcomePage` |
+| `/pos/` | Terminal Setup (Welcome) — pick workspace parent | `VerraEntrySplashView` / `WelcomePage` |
 | `/pos/onboarding` | Wallet setup (create / restore) | `OnboardingView` / `OnboardingScreen` |
-| `/pos/permission` | Parent workspace approval gate | `AwaitingParentWorkspacePermissionOverlay` |
+| `/pos/workspace` | Workspaces — carry Welcome parent + join / Pending | Staff approval wait |
+| `/pos/permission` | Legacy parent wait gate (not default after onboarding) | `AwaitingParentWorkspacePermissionOverlay` |
 | `/pos/home` | Home KPI + action grid | `HomeRootView` / `NdefScreen` |
 | `/pos/chat` | Messages list | SilentPassUI ChatList |
 | `/pos/chat/new` | New message (@tag / address) | — |
@@ -63,8 +89,14 @@ POS_PWA_BASE=/ npm run build
 
 | Target | Script | Remote path |
 |--------|--------|-------------|
-| `https://pos.conet.network` | `./scripts/deployPosConetNetwork.sh` | `/var/www/pos.conet.network/` |
-| `https://beamio.app/pos/` | `./scripts/deployBeamioPosPwa.sh` | `/var/www/beamio.app/pos/` |
+| `https://pos.conet.network` / `https://pos.beamio.app` | `./scripts/deployPosConetNetwork.sh` | `/var/www/pos.conet.network/` + Embedded OTA zip |
+| `https://beamio.app/pos/` | `./scripts/deployBeamioPosPwa.sh` | `/var/www/beamio.app/pos/` (not native OTA) |
+
+Sync live OTA zip into native shells:
+
+```bash
+./scripts/syncEmbeddedPosPwaZipToNativeShells.sh
+```
 
 Staging dirs: `posTemp/` on each host before atomic promote.
 
@@ -87,6 +119,23 @@ Also accepts `CashTreesIOS` / `CashTreesAndroid` (same Consumer shell APIs) when
 
 Full bridge shape: `src/posPwa/src/bridge/nativeBridge.ts`. Shell rules: `.cursor/rules/beamio-pos-pwa-native-webview-shell.mdc`.
 
+## Workspace parent (Welcome → Workspaces)
+
+**Iron rule:** The upper admin (`@BeamioTag` + profile) chosen on **Welcome** must survive into **Workspaces**. Never force the user to re-search the same parent under “Request to join another.”
+
+| Step | Behavior |
+|------|----------|
+| Welcome | `setParentBeamioTag` + `setParentProfile` |
+| Onboarding complete | `markOnboardingComplete({ wallet, accountName, parentTag, parentProfile })` → persist tag + profile; `bootPhase = 'workspace'`; navigate **`/workspace`** |
+| Workspaces | Show **Workspace parent** capsule; **auto** `requestJoinWorkspace`; **Resend** to retry admin permission — no amber info banner, no Pending join list, no Confirm workspace parent form |
+
+BootRouter maps `bootPhase === 'workspace'` → `/workspace` (not `/permission`). Join auto-send therefore lives on **Workspaces**, not only the legacy Permission page.
+
+**Cursor rule (AI):** `.cursor/rules/beamio-pos-pwa-workspace-parent-onboarding.mdc`  
+**Code:** `WelcomePage`, `OnboardingPage`, `PosSessionProvider.markOnboardingComplete`, `WorkspaceMerchantsPage`, `trustedCache` parent + `outboundJoinPending`.
+
+Admin hierarchy (Owner → POS lower admin): `.cursor/rules/beamio-pos-terminal-admin-hierarchy.mdc`.
+
 ## CoNET Chat (Messages + terminal permission)
 
 ### Messages (`/chat`)
@@ -101,15 +150,13 @@ Chat list / compose / thread (SilentPassUI-style CoNET gossip):
 
 Implementation: `src/chat/` + `src/providers/PosChatProvider.tsx`.
 
-### Terminal permission
+### Terminal permission (join Staff)
 
-On `/permission`, the PWA automatically:
+Primary path after onboarding: **Workspaces** calls `requestJoinWorkspace` (registers CoNET chat keys, exact `@tag` → parent EOA, sends `beamio_pos_terminal_permission_v1`, appends Pending).
 
-1. Registers sender PGP on CoNET `AddressPGP` (`ensureRegisteredForSenderGossip`)
-2. Resolves parent `@BeamioTag` → EOA via `/api/search-users`
-3. Sends encrypted `beamio_pos_terminal_permission_v1` via Guardian gossip POST
+Legacy `/permission` uses the same `requestJoinWorkspace` if the user lands there; it is **not** the default post-onboarding route when `bootPhase === 'workspace'`.
 
-Implementation: `src/conet/` — see `.cursor/rules/conet-decentralized-chat-dev.mdc`.
+Implementation: `src/conet/` + session `requestJoinWorkspace` — see `.cursor/rules/conet-decentralized-chat-dev.mdc` and `.cursor/rules/beamio-pos-pwa-workspace-parent-onboarding.mdc`.
 
 Chat PGP private key may be persisted in IndexedDB (`beamio_pos_chat_pgp_v1`) for listen/decrypt (Consumer/POS wallet storage rules). EOA signing key remains session + mnemonic IDB — never log secrets.
 
@@ -132,6 +179,7 @@ POS PWA runs inside **iOS / Android WebView** with notches, home indicators, and
 
 - **Rule:** `.cursor/rules/beamio-pos-pwa-fullscreen-layout.mdc`
 - **Home action loading:** `.cursor/rules/beamio-pos-pwa-home-action-flow.mdc`
+- **Workspace parent carry-forward:** `.cursor/rules/beamio-pos-pwa-workspace-parent-onboarding.mdc`
 - **Shell:** `src/components/PosScreenShell.tsx` (`PosScreenShell`, `PosScreenHeader`, `PosScreenMain`, `PosScreenFooter`)
 - **Document lock:** `index.html` (`viewport-fit=cover`) + `src/index.css` (`html/body/#root` → `100dvh overflow:hidden`)
 - **Native shell:** must preserve `viewport-fit=cover` and avoid double safe-area padding — see `.cursor/rules/beamio-native-webview-pwa-shell.mdc` §5

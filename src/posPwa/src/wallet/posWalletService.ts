@@ -1,6 +1,6 @@
 import { Interface, Wallet, type HDNodeWallet } from 'ethers'
 import { addUser } from '@/api/beamioApi'
-import { ACCOUNT_REGISTRY, CONET_RPC } from '@/constants'
+import { ACCOUNT_REGISTRY, CONET_RPC, CONET_RPC_FALLBACK } from '@/constants'
 import { fromBase64Utf8 } from '@/conet/crypto'
 import {
 	aesGcmDecryptWithStored,
@@ -143,25 +143,32 @@ async function fetchRecoverPayloadByAccountName(
 ): Promise<RecoverStoragePayload | null> {
 	try {
 		const data = registryIface.encodeFunctionData('getBase64ByAccountName', [accountName])
-		const res = await fetch(CONET_RPC, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_call',
-				params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
-				id: 1,
-			}),
+		const rpcPayload = JSON.stringify({
+			jsonrpc: '2.0',
+			method: 'eth_call',
+			params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
+			id: 1,
 		})
-		if (!res.ok) return null
-		const json = (await res.json()) as { error?: unknown; result?: string }
-		if (json.error || !json.result) return null
-		const decoded = registryIface.decodeFunctionResult('getBase64ByAccountName', json.result)
-		const encoded = String(decoded[0] ?? '').trim()
-		if (!encoded) return null
-		const payload = decodeRecoverStoragePayload(encoded)
-		if (!payload) return null
-		return payload
+		for (const rpc of [CONET_RPC, CONET_RPC_FALLBACK]) {
+			try {
+				const res = await fetch(rpc, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: rpcPayload,
+				})
+				if (!res.ok) continue
+				const json = (await res.json()) as { error?: unknown; result?: string }
+				if (json.error || !json.result || json.result === '0x') continue
+				const decoded = registryIface.decodeFunctionResult('getBase64ByAccountName', json.result)
+				const encoded = String(decoded[0] ?? '').trim()
+				if (!encoded) continue
+				const payload = decodeRecoverStoragePayload(encoded)
+				if (payload) return payload
+			} catch {
+				continue
+			}
+		}
+		return null
 	} catch {
 		return null
 	}

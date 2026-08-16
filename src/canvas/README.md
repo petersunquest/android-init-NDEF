@@ -10,11 +10,17 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
+| [归档同步资格：追块不是席位](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-qualification-2026-08.canvas.tsx` | **2026-08-16 规范冻结；实验室门面已落地抽检 + 从零加入** | IdentityEligible ≠ SyncQualified；`SYNCING` 无席位；随机抽检全部托管链；\(Q_A=4/5\)（禁 3/5）；不是 30 天门 |
+| [为何随机 test 等于「已有该组信息」](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-possession-soundness-2026-08.canvas.tsx` | **2026-08-16 可靠性论证已入 §5.2.0f** | 承诺根绑定库存；不可预测本地打开；分层覆盖 \(C_G\)；禁 hop/proxy；每链 1 样本只是覆盖 |
 | [Testnet EIP-155 vs Group ID = 登记 hash](./dle-testnet-chainid-group-hash-2026-08.md) | 无独立交互 Canvas | **2026-08-16 7 台归档已 wipe+重启，Explorer 已发** | `0x44c45` = CoNET-DLE Testnet；Group ID = 引导组 L1 register tx；uint `1` 只是存储键 |
 | [§5.2.0e 新增修正落到上一轮](./dle-whitepaper-520e-corrections-2026-08.md) | `dle-whitepaper-520e-corrections-2026-08.canvas.tsx` | **2026-08-15 审查 + keep 落地** | 白皮书三分状态 / 方案 C 如何收紧上一轮 M0–M5；旧 freezer 投影不得 alias PrevoteQC |
 | [Hash RPC 事实核查 + 方案 C PrevoteQC](./dle-hash-rpc-fact-check-2026-08.md) | 无独立交互 Canvas | **2026-08-15 方案 C 已上线（keep + live smoke）** | 三分 `hit` / 本组 `notFound` / `unavailable`；`prevoteQc` 一等对象；禁止 tip/membership alias |
-| [实验室 M6 第二归档组裂变](./dle-lab-m6-fission-2026-08.md) | 无独立交互 Canvas | **2026-08-16 七台绿场 + 跨组证据；Explorer/GitBook 已写 Clusters=2** | \(G_e: 1 \to 2\)；G2 实验室 hash 非 L1 tx；`locatePlane`；全平面 `null` 仅全组可信 notFound；非 30 天资格 |
-| [修正 MVP：Hash 检索管道](./dle-mvp-hash-lookup-fix-2026-08.md) | `dle-mvp-hash-lookup-fix-2026-08.canvas.tsx` | **2026-08-15 实验室 M0–M5 已落地；M6 见独立快照** | M0–M5：停错误 null + 本组 KV/freezer + locate/getByHash + hop-1 historyProviders + 每组证明树 |
+| [实验室 M6 第二归档组裂变](./dle-lab-m6-fission-2026-08.md) | 无独立交互 Canvas | **2026-08-16 七台绿场 + 跨组证据；Explorer/GitBook 已写 Clusters=2** | \(G_e: 1 \to 2\)；当时 G2 用实验室 hash；随后由 G2 L1 canvas 补登记；`locatePlane`；全平面 `null` 仅全组可信 notFound；非 30 天资格 |
+| [实验室 P6 创世协议化](./dle-lab-p6-genesis-protocol-2026-08.md) | 无独立交互 Canvas | **2026-08-16 live keep 已过：7/7 独立 AC；NFT 42 tip 仍 0x1** | 新链补 5/7 验证人 HMAC 与 4-of-5 AC；不抢 NFT 42；不是 L1 出生证 / 30 天资格 |
+| [实验室 G2 L1 登记](./dle-lab-g2-l1-register-2026-08.md) | 无独立交互 Canvas | **2026-08-16 已登记：tx `0xf781f2c2…876d5153` block 868793** | 第二组 `registerLiveGroup`；用户可见 Group ID = 登记 tx；实验室 keccak 为别名；不是 30 天资格 |
+| [实验室 G2 主机 emit 登记 tx](./dle-lab-g2-own-groupid-register-tx-2026-08.md) | 无独立交互 Canvas | **2026-08-16 keep-deploy + accept 已过** | G2 `hop1.ownGroupId` / `liveGroupIds` 换成 L1 登记 tx；marker 仍用实验室 keccak 播种；不是 30 天资格 |
+| [实验室 M7 typed tip/membership 根](./dle-lab-m7-typed-roots-2026-08.md) | 无独立交互 Canvas | **2026-08-16 已 keep 发版 + Explorer 目视** | `tipStateRoot` / `membershipRoot` 独立 kind + typed 对象；禁止 AC 别名；first-write-wins；非 30 天资格 |
+| [修正 MVP：Hash 检索管道](./dle-mvp-hash-lookup-fix-2026-08.md) | `dle-mvp-hash-lookup-fix-2026-08.canvas.tsx` | **2026-08-15 实验室 M0–M5 已落地；M6/M7 见独立快照** | M0–M5：停错误 null + 本组 KV/freezer + locate/getByHash + hop-1 historyProviders + 每组证明树 |
 | [Hash 必须击中某条链](./dle-hash-must-hit-chain-2026-08.md) | `dle-hash-must-hit-chain-2026-08.canvas.tsx` | **已入白皮书 §5.2.0e** | 多链聚合：locate 必须返回 chainNftId；组只是 route() 派生；freezer 键为 (nft, height) |
 | [Archive geth hash 快路径 vs DLE](./dle-geth-archive-hash-lookup-2026-08.md) | `dle-geth-archive-hash-lookup-2026-08.canvas.tsx` | **已入白皮书 §5.2.0e** | 组内照搬 geth `H`/`l` 热 KV + freezer；locator 须带 chainNftId；本地 miss 不得直接 null |
 | [每组 Hash 索引树](./dle-hash-index-tree-2026-08.md) | `dle-hash-index-tree-2026-08.canvas.tsx` | **实验室 M5 已落地（独立检查点，非 AC 投票）** | 每组 `hashIndexRoot` 做包含 / 不包含证明；不是热 Get，也不是第二套真相 |

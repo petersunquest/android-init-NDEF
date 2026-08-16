@@ -1,0 +1,15 @@
+# App Store Connect — Beamio POS (com.beamio.app.pos)
+# Copy into App Store Connect → English → Version → What's New in This Version
+
+## What's New in This Version (version 1.1.1)
+
+Beamio POS now shows unread Chat on the home-screen app icon and opens Explorer / help links in Safari.
+
+• Home-screen badge for new Chat / push messages from the POS terminal
+• Native bridge to open https / mailto / tel links in the system browser
+• Opens pos.beamio.app for Check Balance, Top-up, Charge, and Chat
+• Native NFC prompt when waiting for a customer card
+• Native QR scanner if NFC is cancelled or unavailable
+• Print receipt from success screens via AirPrint
+
+Thank you for using Beamio POS.

@@ -106,6 +106,8 @@ interface PosContextValue {
 		wallet: string
 		accountName: string
 		parentTag: string
+		/** Welcome-screen parent selection — persist immediately so Workspaces does not forget it. */
+		parentProfile?: TerminalProfile | null
 	}) => void
 	clearSessionForNewWorkspace: () => void
 	/** Switch active merchant workspace (partition + DB active card). */
@@ -721,16 +723,27 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	}, [])
 
 	const markOnboardingComplete = useCallback(
-		(params: { wallet: string; accountName: string; parentTag: string }) => {
+		(params: {
+			wallet: string
+			accountName: string
+			parentTag: string
+			parentProfile?: TerminalProfile | null
+		}) => {
 			setWalletAddress(params.wallet)
 			setRegisteredBeamioTag(params.accountName)
 			setParentBeamioTagState(params.parentTag)
 			posHomeTrustedCache.saveRegisteredTag(params.wallet, params.accountName)
 			posHomeTrustedCache.saveParentTag(params.wallet, params.parentTag)
+			const welcomeParent = params.parentProfile ?? null
+			if (welcomeParent) {
+				setParentProfile(welcomeParent)
+				posHomeTrustedCache.saveParentProfile(welcomeParent, params.wallet)
+			}
 			setShowPermissionGate(false)
 			/* New terminal is not admin yet — Workspaces to send / track join request. */
 			setBootPhase('workspace')
 			void (async () => {
+				if (welcomeParent?.address?.trim()) return
 				const parentResolved = await resolveParentWorkspaceProfile(params.parentTag)
 				if (parentResolved) {
 					setParentProfile(parentResolved)

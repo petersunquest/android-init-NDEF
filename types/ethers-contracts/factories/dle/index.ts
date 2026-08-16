@@ -11,5 +11,6 @@ export { DLEArchiveDisputeManagerV1__factory } from './DLEArchiveDisputeManagerV
 export { DLEChainRegistry1155V1__factory } from './DLEChainRegistry1155V1__factory.js';
 export { DLEERC1967Proxy__factory } from './DLEERC1967Proxy__factory.js';
 export { DLEUpgradeableBase__factory } from './DLEUpgradeableBase__factory.js';
+export { GlobalArchiveRoutingRegistryV1__factory } from './GlobalArchiveRoutingRegistryV1__factory.js';
 export { L1QueueAccumulatorV1__factory } from './L1QueueAccumulatorV1__factory.js';
 export { OperatorDomainRegistryV1__factory } from './OperatorDomainRegistryV1__factory.js';

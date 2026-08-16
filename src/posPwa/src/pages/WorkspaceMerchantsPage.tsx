@@ -9,8 +9,8 @@ import { usePosSession } from '@/providers/PosSessionProvider'
 import type { TerminalProfile } from '@/types/pos'
 import { localValidateBeamioTag, normalizeBeamioTagInput, pickExactBeamioTagProfile } from '@/utils/beamioTagRules'
 import { profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/display'
+import { resolveParentWorkspaceProfile } from '@/utils/posHomeAdminProfile'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
-import type { PosOutboundJoinPending } from '@/utils/trustedCache'
 
 export function WorkspaceMerchantsPage() {
 	const navigate = useNavigate()
@@ -20,6 +20,8 @@ export function WorkspaceMerchantsPage() {
 		walletAddress,
 		workspaceBindings,
 		outboundJoinPending,
+		parentBeamioTag,
+		parentProfile,
 		refreshHome,
 		refreshWorkspaceBindings,
 		switchWorkspace,
@@ -36,16 +38,92 @@ export function WorkspaceMerchantsPage() {
 	const [joinSearching, setJoinSearching] = useState(false)
 	const [joinSending, setJoinSending] = useState(false)
 	const [selectedParent, setSelectedParent] = useState<TerminalProfile | null>(null)
-	const [resendingParentEoa, setResendingParentEoa] = useState<string | null>(null)
+	const [resending, setResending] = useState(false)
 	const resendInFlightRef = useRef(false)
+	const onboardingParentSeededRef = useRef(false)
+	const onboardingJoinAutoSentRef = useRef(false)
+	const onboardingJoinInFlightRef = useRef(false)
 
 	useEffect(() => {
 		void refreshWorkspaceBindings()
 	}, [refreshWorkspaceBindings])
 
+	/** Carry Welcome / onboarding parent into session display (do not force re-search). */
 	useEffect(() => {
-		if (requiresAdminJoin) setShowJoin(true)
-	}, [requiresAdminJoin])
+		if (onboardingParentSeededRef.current) return
+		const tag = normalizeBeamioTagInput(parentBeamioTag || profileBeamioTag(parentProfile ?? {}) || '')
+		if (!tag && !parentProfile) return
+		onboardingParentSeededRef.current = true
+		if (tag) setJoinQuery(tag)
+		if (parentProfile) {
+			setSelectedParent(parentProfile)
+			return
+		}
+		if (!tag) return
+		let cancelled = false
+		void (async () => {
+			const resolved = await resolveParentWorkspaceProfile(tag)
+			if (cancelled || !resolved) return
+			setSelectedParent(resolved)
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [parentBeamioTag, parentProfile])
+
+	/**
+	 * After onboarding, boot skips /permission — auto-send join for the Welcome parent
+	 * so Staff receives the request without re-typing @tag.
+	 */
+	useEffect(() => {
+		if (!requiresAdminJoin || !walletAddress) return
+		if (onboardingJoinAutoSentRef.current || onboardingJoinInFlightRef.current) return
+		const tag = normalizeBeamioTagInput(parentBeamioTag || profileBeamioTag(parentProfile ?? {}) || '')
+		if (!tag) return
+
+		const parentEoa = parentProfile?.address?.trim().toLowerCase() ?? ''
+		const alreadyPending = outboundJoinPending.some((p) => {
+			const sameTag = normalizeBeamioTagInput(p.parentTag) === tag
+			const sameEoa = Boolean(parentEoa) && p.parentEoa?.trim().toLowerCase() === parentEoa
+			return sameTag || sameEoa
+		})
+		if (alreadyPending) {
+			onboardingJoinAutoSentRef.current = true
+			return
+		}
+
+		onboardingJoinInFlightRef.current = true
+		let cancelled = false
+		void (async () => {
+			setJoinSending(true)
+			setActionError(null)
+			try {
+				const res = await requestJoinWorkspace({
+					parentTag: tag,
+					parentEoaHint: parentProfile?.address?.trim() || null,
+				})
+				if (cancelled) return
+				if (!res.ok) {
+					setActionError(res.error)
+					return
+				}
+				onboardingJoinAutoSentRef.current = true
+			} finally {
+				onboardingJoinInFlightRef.current = false
+				if (!cancelled) setJoinSending(false)
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [
+		requiresAdminJoin,
+		walletAddress,
+		parentBeamioTag,
+		parentProfile,
+		outboundJoinPending,
+		requestJoinWorkspace,
+	])
 
 	/* While waiting for Staff approval, re-check on-chain admin → Home when granted. */
 	useEffect(() => {
@@ -67,11 +145,11 @@ export function WorkspaceMerchantsPage() {
 	}, [requiresAdminJoin, walletAddress, refreshHome])
 
 	/*
-	 * While Pending join rows remain, re-check myPosAddresses so items disappear
-	 * when Staff approves (without leaving Workspaces). setTimeout chain — no setInterval.
+	 * While waiting for approval, re-check myPosAddresses so Linked updates when Staff
+	 * approves (without leaving Workspaces). setTimeout chain — no setInterval.
 	 */
 	useEffect(() => {
-		if (outboundJoinPending.length === 0) return
+		if (!requiresAdminJoin) return
 		let cancelled = false
 		let timer: ReturnType<typeof setTimeout> | undefined
 		const tick = () => {
@@ -86,9 +164,10 @@ export function WorkspaceMerchantsPage() {
 			cancelled = true
 			if (timer !== undefined) clearTimeout(timer)
 		}
-	}, [outboundJoinPending.length, refreshWorkspaceBindings])
+	}, [requiresAdminJoin, refreshWorkspaceBindings])
 
 	useEffect(() => {
+		if (!showJoin) return
 		const q = normalizeBeamioTagInput(joinQuery)
 		if (q.length < 2) {
 			setJoinHits([])
@@ -111,7 +190,7 @@ export function WorkspaceMerchantsPage() {
 			cancelled = true
 			window.clearTimeout(t)
 		}
-	}, [joinQuery])
+	}, [joinQuery, showJoin])
 
 	const onSwitch = useCallback(
 		async (upperEoa: string, cardAddress: string) => {
@@ -154,36 +233,52 @@ export function WorkspaceMerchantsPage() {
 				return
 			}
 			setShowJoin(false)
-			setJoinQuery('')
-			setSelectedParent(null)
 			setJoinHits([])
 		} finally {
 			setJoinSending(false)
 		}
 	}, [joinSending, selectedParent, joinQuery, joinHits, requestJoinWorkspace])
 
-	const onResendJoin = useCallback(
-		async (row: PosOutboundJoinPending) => {
-			if (resendInFlightRef.current || joinSending) return
-			const tag = row.parentTag?.trim()
-			const eoa = row.parentEoa?.trim()
-			if (!tag || !eoa) return
-			resendInFlightRef.current = true
-			setResendingParentEoa(eoa.toLowerCase())
-			setActionError(null)
-			try {
-				const res = await requestJoinWorkspace({
-					parentTag: tag,
-					parentEoaHint: eoa,
-				})
-				if (!res.ok) setActionError(res.error)
-			} finally {
-				resendInFlightRef.current = false
-				setResendingParentEoa(null)
-			}
-		},
-		[joinSending, requestJoinWorkspace],
+	const onboardingParentDisplay = selectedParent ?? parentProfile
+	const onboardingParentTag = normalizeBeamioTagInput(
+		parentBeamioTag || profileBeamioTag(onboardingParentDisplay ?? {}) || '',
 	)
+
+	const onResendParentPermission = useCallback(async () => {
+		if (resendInFlightRef.current || joinSending) return
+		const tag =
+			onboardingParentTag ||
+			normalizeBeamioTagInput(outboundJoinPending[0]?.parentTag || '')
+		const eoa =
+			onboardingParentDisplay?.address?.trim() ||
+			outboundJoinPending[0]?.parentEoa?.trim() ||
+			''
+		if (!tag) {
+			setActionError('Workspace parent is missing. Choose a parent on Welcome, then try again.')
+			return
+		}
+		resendInFlightRef.current = true
+		setResending(true)
+		setActionError(null)
+		try {
+			const res = await requestJoinWorkspace({
+				parentTag: tag,
+				parentEoaHint: eoa || null,
+			})
+			if (!res.ok) setActionError(res.error)
+		} finally {
+			resendInFlightRef.current = false
+			setResending(false)
+		}
+	}, [
+		joinSending,
+		onboardingParentTag,
+		onboardingParentDisplay,
+		outboundJoinPending,
+		requestJoinWorkspace,
+	])
+
+	const resendBusy = resending || joinSending
 
 	return (
 		<PosScreenShell bg="bg-[#f2f2f7]">
@@ -198,7 +293,7 @@ export function WorkspaceMerchantsPage() {
 						<h1 className="text-lg font-semibold text-mkt-onSurface">Workspaces</h1>
 						<p className="text-[11px] text-mkt-onSurfaceVariant">
 							{requiresAdminJoin
-								? 'Request merchant approval for this terminal'
+								? 'Waiting for merchant approval'
 								: 'Linked merchants & join requests'}
 						</p>
 					</div>
@@ -206,20 +301,79 @@ export function WorkspaceMerchantsPage() {
 			</PosScreenHeader>
 
 			<PosScreenMain className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
-				{requiresAdminJoin ? (
-					<p
-						className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-950"
-						role="status"
-					>
-						This terminal wallet is not a lower admin on the merchant program card. Top-up
-						and admin-signed actions will fail until Staff approves you. Request to join
-						below (or resend a pending request), then wait for approval.
-					</p>
-				) : null}
 				{actionError ? (
 					<p className="mb-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
 						{actionError}
 					</p>
+				) : null}
+
+				{requiresAdminJoin && onboardingParentDisplay ? (
+					<section className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+						<h2 className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
+							Workspace parent
+						</h2>
+						<BeamioCapsule
+							profile={onboardingParentDisplay}
+							fallbackAddress={onboardingParentDisplay.address}
+							address={onboardingParentDisplay.address}
+							showAddressCapsule
+							tone="onLight"
+							className="w-full rounded-full border border-mkt-outlineVariant/30 bg-slate-50 py-1 pl-1 pr-3"
+						/>
+						{joinSending && !resending ? (
+							<p className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+								<Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+								Sending join request via CoNET chat…
+							</p>
+						) : null}
+						<button
+							type="button"
+							tabIndex={-1}
+							disabled={resendBusy}
+							aria-busy={resendBusy}
+							aria-label="Resend admin permission request"
+							onClick={() => void onResendParentPermission()}
+							className={[
+								'mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold',
+								'bg-[#1562f0] text-white shadow-[0_4px_16px_rgba(21,98,240,0.28)]',
+								'transition active:scale-[0.99] disabled:opacity-60',
+							].join(' ')}
+						>
+							{resendBusy ? (
+								<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+							) : (
+								<RefreshCw className="h-4 w-4" aria-hidden />
+							)}
+							Resend
+						</button>
+					</section>
+				) : requiresAdminJoin && onboardingParentTag ? (
+					<section className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+						<h2 className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
+							Workspace parent
+						</h2>
+						<p className="text-sm font-semibold text-slate-900">@{onboardingParentTag}</p>
+						<button
+							type="button"
+							tabIndex={-1}
+							disabled={resendBusy}
+							aria-busy={resendBusy}
+							aria-label="Resend admin permission request"
+							onClick={() => void onResendParentPermission()}
+							className={[
+								'mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold',
+								'bg-[#1562f0] text-white shadow-[0_4px_16px_rgba(21,98,240,0.28)]',
+								'transition active:scale-[0.99] disabled:opacity-60',
+							].join(' ')}
+						>
+							{resendBusy ? (
+								<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+							) : (
+								<RefreshCw className="h-4 w-4" aria-hidden />
+							)}
+							Resend
+						</button>
+					</section>
 				) : null}
 
 				<section className="mb-6">
@@ -228,8 +382,9 @@ export function WorkspaceMerchantsPage() {
 					</h2>
 					{workspaceBindings.length === 0 ? (
 						<p className="rounded-2xl bg-white px-4 py-5 text-sm text-slate-500 shadow-sm">
-							No linked merchant cards yet. Ask a merchant to approve this terminal, or
-							request to join below.
+							{requiresAdminJoin
+								? 'No linked merchant cards yet — waiting for Staff approval.'
+								: 'No linked merchant cards yet. Ask a merchant to approve this terminal, or request to join below.'}
 						</p>
 					) : (
 						<ul className="space-y-2">
@@ -251,7 +406,7 @@ export function WorkspaceMerchantsPage() {
 									<li key={row.cardAddress}>
 										<button
 											type="button"
-											disabled={Boolean(isActive) || busy || !upper}
+											disabled={Boolean(isActive) || busy || !upper || requiresAdminJoin}
 											onClick={() => {
 												if (!upper) return
 												void onSwitch(upper, row.cardAddress)
@@ -281,7 +436,7 @@ export function WorkspaceMerchantsPage() {
 													<Check className="h-3.5 w-3.5" aria-hidden />
 													Current
 												</span>
-											) : (
+											) : requiresAdminJoin ? null : (
 												<span className="text-[12px] font-semibold text-[#1562f0]">Switch</span>
 											)}
 										</button>
@@ -292,172 +447,118 @@ export function WorkspaceMerchantsPage() {
 					)}
 				</section>
 
-				<section className="mb-6">
-					<h2 className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
-						Pending join
-					</h2>
-					{outboundJoinPending.length === 0 ? (
-						<p className="rounded-2xl bg-white/70 px-4 py-4 text-sm text-slate-500">
-							No outbound join requests.
-						</p>
+				{/* Already approved: optional join another parent */}
+				{!requiresAdminJoin ? (
+					showJoin ? (
+						<section className="rounded-2xl bg-white p-4 shadow-sm">
+							<h2 className="mb-3 text-sm font-semibold text-slate-900">Request to join another</h2>
+							<label htmlFor="workspace-join-tag" className="sr-only">
+								Parent @BeamioTag
+							</label>
+							<div className="relative">
+								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+								<input
+									id="workspace-join-tag"
+									type="text"
+									autoComplete="off"
+									autoCorrect="off"
+									autoCapitalize="none"
+									spellCheck={false}
+									enterKeyHint="search"
+									inputMode="text"
+									value={joinQuery}
+									onChange={(e) => {
+										setSelectedParent(null)
+										setJoinQuery(e.target.value)
+									}}
+									placeholder="@merchant"
+									/* text-base (16px): iOS will not auto-zoom on focus when font-size >= 16. */
+									className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-base text-slate-900 outline-none focus:border-[#1562f0] focus:ring-2 focus:ring-[#1562f0]/20"
+								/>
+							</div>
+							{joinSearching ? (
+								<p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+									<Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
+								</p>
+							) : null}
+							{joinHits.length > 0 ? (
+								<ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+									{joinHits.map((hit) => {
+										const tag = profileBeamioTag(hit)
+										const selected =
+											selectedParent?.address?.toLowerCase() === hit.address?.toLowerCase()
+										return (
+											<li key={`${hit.address}-${tag}`}>
+												<button
+													type="button"
+													onClick={() => {
+														setSelectedParent(hit)
+														if (tag) setJoinQuery(tag)
+														const el = document.getElementById(
+															'workspace-join-tag',
+														) as HTMLInputElement | null
+														el?.blur()
+													}}
+													className={[
+														'flex w-full items-center rounded-xl px-2 py-2 text-left',
+														selected ? 'bg-[#1562f0]/10' : 'hover:bg-slate-50',
+													].join(' ')}
+												>
+													<BeamioCapsule profile={hit} tone="onLight" className="min-w-0" />
+												</button>
+											</li>
+										)
+									})}
+								</ul>
+							) : null}
+							{selectedParent ? (
+								<p className="mt-2 text-xs text-slate-500">
+									Selected{' '}
+									<span className="font-semibold text-slate-800">
+										{profileDisplayName(selectedParent) || `@${profileBeamioTag(selectedParent)}`}
+									</span>
+								</p>
+							) : null}
+							<div className="mt-4 flex gap-2">
+								<button
+									type="button"
+									tabIndex={-1}
+									disabled={joinSending}
+									onClick={() => {
+										setShowJoin(false)
+										setJoinHits([])
+										setActionError(null)
+									}}
+									className="flex-1 rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-700"
+								>
+									Cancel
+								</button>
+								<button
+									type="button"
+									disabled={joinSending}
+									aria-busy={joinSending}
+									onClick={() => void onSendJoin()}
+									className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1562f0] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+								>
+									{joinSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+									Send request
+								</button>
+							</div>
+						</section>
 					) : (
-						<ul className="space-y-2">
-							{outboundJoinPending.map((p) => {
-								const eoaKey = (p.parentEoa || '').toLowerCase()
-								const resending = resendingParentEoa === eoaKey
-								return (
-									<li
-										key={`${p.parentEoa}-${p.requestedAt}`}
-										className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm"
-									>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-semibold text-slate-900">
-												@{p.parentTag}
-											</p>
-											<p className="mt-0.5 text-[11px] text-slate-400">
-												{shortAddress(p.parentEoa)} · waiting for approval
-											</p>
-										</div>
-										<button
-											type="button"
-											tabIndex={-1}
-											disabled={resending || joinSending || Boolean(resendingParentEoa)}
-											aria-busy={resending}
-											aria-label="Send request again"
-											title="Send request again"
-											onClick={() => void onResendJoin(p)}
-											className={[
-												'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-												'border border-black/[0.08] bg-slate-50 text-[#1562f0]',
-												'shadow-[0_1px_3px_rgba(0,0,0,0.1)]',
-												'transition active:scale-[0.96] hover:bg-[#1562f0]/10',
-												'disabled:pointer-events-none disabled:opacity-40',
-											].join(' ')}
-										>
-											{resending ? (
-												<Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-											) : (
-												<RefreshCw className="h-4 w-4" aria-hidden />
-											)}
-										</button>
-									</li>
-								)
-							})}
-						</ul>
-					)}
-				</section>
-
-				{showJoin ? (
-					<section className="rounded-2xl bg-white p-4 shadow-sm">
-						<h2 className="mb-3 text-sm font-semibold text-slate-900">Request to join another</h2>
-						<label htmlFor="workspace-join-tag" className="sr-only">
-							Parent @BeamioTag
-						</label>
-						<div className="relative">
-							<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-							<input
-								id="workspace-join-tag"
-								type="text"
-								autoComplete="off"
-								autoCorrect="off"
-								autoCapitalize="none"
-								spellCheck={false}
-								enterKeyHint="search"
-								inputMode="text"
-								value={joinQuery}
-								onChange={(e) => {
-									setSelectedParent(null)
-									setJoinQuery(e.target.value)
-								}}
-								placeholder="@merchant"
-								/* text-base (16px): iOS will not auto-zoom on focus when font-size >= 16. */
-								className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-base text-slate-900 outline-none focus:border-[#1562f0] focus:ring-2 focus:ring-[#1562f0]/20"
-							/>
-						</div>
-						{joinSearching ? (
-							<p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-								<Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
-							</p>
-						) : null}
-						{joinHits.length > 0 ? (
-							<ul className="mt-2 max-h-48 space-y-1 overflow-y-auto">
-								{joinHits.map((hit) => {
-									const tag = profileBeamioTag(hit)
-									const selected =
-										selectedParent?.address?.toLowerCase() === hit.address?.toLowerCase()
-									return (
-										<li key={`${hit.address}-${tag}`}>
-											<button
-												type="button"
-												onClick={() => {
-													setSelectedParent(hit)
-													if (tag) setJoinQuery(tag)
-													// Blur search field so iOS dismisses keyboard and any focus zoom.
-													const el = document.getElementById(
-														'workspace-join-tag',
-													) as HTMLInputElement | null
-													el?.blur()
-												}}
-												className={[
-													'flex w-full items-center rounded-xl px-2 py-2 text-left',
-													selected ? 'bg-[#1562f0]/10' : 'hover:bg-slate-50',
-												].join(' ')}
-											>
-												<BeamioCapsule profile={hit} tone="onLight" className="min-w-0" />
-											</button>
-										</li>
-									)
-								})}
-							</ul>
-						) : null}
-						{selectedParent ? (
-							<p className="mt-2 text-xs text-slate-500">
-								Selected{' '}
-								<span className="font-semibold text-slate-800">
-									{profileDisplayName(selectedParent) || `@${profileBeamioTag(selectedParent)}`}
-								</span>
-							</p>
-						) : null}
-						<div className="mt-4 flex gap-2">
-							<button
-								type="button"
-								tabIndex={-1}
-								disabled={joinSending}
-								onClick={() => {
-									setShowJoin(false)
-									setJoinQuery('')
-									setSelectedParent(null)
-									setActionError(null)
-								}}
-								className="flex-1 rounded-xl bg-slate-100 py-2.5 text-sm font-semibold text-slate-700"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								disabled={joinSending}
-								aria-busy={joinSending}
-								onClick={() => void onSendJoin()}
-								className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#1562f0] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-							>
-								{joinSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-								Send request
-							</button>
-						</div>
-					</section>
-				) : (
-					<button
-						type="button"
-						onClick={() => {
-							setActionError(null)
-							setShowJoin(true)
-						}}
-						className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1562f0] py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(21,98,240,0.28)]"
-					>
-						<Plus className="h-4 w-4" aria-hidden />
-						Request to join another
-					</button>
-				)}
+						<button
+							type="button"
+							onClick={() => {
+								setActionError(null)
+								setShowJoin(true)
+							}}
+							className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1562f0] py-3.5 text-sm font-bold text-white shadow-[0_4px_16px_rgba(21,98,240,0.28)]"
+						>
+							<Plus className="h-4 w-4" aria-hidden />
+							Request to join another
+						</button>
+					)
+				) : null}
 			</PosScreenMain>
 		</PosScreenShell>
 	)

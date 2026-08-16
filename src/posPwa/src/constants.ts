@@ -1,7 +1,9 @@
 export const BEAMIO_API = 'https://beamio.app'
 export const CONET_RPC = 'https://rpc1.conet.network'
+export const CONET_RPC_FALLBACK = 'https://publicrpc.conet.network'
 export const BASE_RPC = 'https://base-rpc.conet.network'
-export const ACCOUNT_REGISTRY = '0x26626a515EDFb5DF9547ac1A32Ec1785352211Ba'
+/** CoNET AccountRegistry (canonical) — same as SilentPassUI / bizSite `CONET_ACCOUNT_REGISTRY`. */
+export const ACCOUNT_REGISTRY = '0xfFDc8d2021A41F4638Cb3eCf58B5155383EE9f6d'
 /** Base USDC (charge container kind=0). */
 export const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 /** Deprecated global cards — exclude from charge routing (iOS parity). */

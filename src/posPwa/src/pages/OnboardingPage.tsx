@@ -19,7 +19,7 @@ type TagStatus = 'idle' | 'checking' | 'valid' | 'invalid'
 
 export function OnboardingPage() {
 	const navigate = useNavigate()
-	const { parentBeamioTag, markOnboardingComplete } = usePosSession()
+	const { parentBeamioTag, parentProfile, markOnboardingComplete } = usePosSession()
 	const [beamioTag, setBeamioTag] = useState('')
 	const [password, setPassword] = useState('')
 	const [confirmPassword, setConfirmPassword] = useState('')
@@ -138,8 +138,9 @@ export function OnboardingPage() {
 			wallet: result.address,
 			accountName: normalizedTag,
 			parentTag: parentBeamioTag,
+			parentProfile,
 		})
-		navigate('/permission', { replace: true })
+		navigate('/workspace', { replace: true })
 	}
 
 	async function onRestore() {
@@ -167,8 +168,9 @@ export function OnboardingPage() {
 			wallet: result.address,
 			accountName: loc.value,
 			parentTag: parentBeamioTag,
+			parentProfile,
 		})
-		navigate('/permission', { replace: true })
+		navigate('/workspace', { replace: true })
 	}
 
 	if (showRestore) {

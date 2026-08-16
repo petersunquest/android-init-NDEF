@@ -36,6 +36,9 @@ declare global {
 	interface Window {
 		CashTreesIOS?: {
 			getNfcStatus?: () => string
+			getEmbeddedPwaVersion?: () => string
+			getEmbeddedPwaPendingVersion?: () => string
+			applyEmbeddedPwaUpdate?: () => void
 			startPhysicalCardBind?: () => void
 			cancelPhysicalCardBind?: () => void
 			scanQr?: (payload: { requestId?: string }) => void
@@ -46,6 +49,9 @@ declare global {
 		}
 		CashTreesAndroid?: {
 			getNfcStatus?: () => string
+			getEmbeddedPwaVersion?: () => string
+			getEmbeddedPwaPendingVersion?: () => string
+			applyEmbeddedPwaUpdate?: () => void
 			startPhysicalCardBind?: () => void
 			cancelPhysicalCardBind?: () => void
 			scanQr?: (requestId: string) => void

@@ -14,5 +14,6 @@ export type { DLEArchiveDisputeManagerV1 } from './DLEArchiveDisputeManagerV1.js
 export type { DLEChainRegistry1155V1 } from './DLEChainRegistry1155V1.js';
 export type { DLEERC1967Proxy } from './DLEERC1967Proxy.js';
 export type { DLEUpgradeableBase } from './DLEUpgradeableBase.js';
+export type { GlobalArchiveRoutingRegistryV1 } from './GlobalArchiveRoutingRegistryV1.js';
 export type { L1QueueAccumulatorV1 } from './L1QueueAccumulatorV1.js';
 export type { OperatorDomainRegistryV1 } from './OperatorDomainRegistryV1.js';

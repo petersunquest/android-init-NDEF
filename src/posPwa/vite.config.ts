@@ -6,6 +6,8 @@ import path from 'node:path'
 const base = process.env.POS_PWA_BASE ?? '/pos/'
 
 export default defineConfig({
+	// Do **not** add vite-plugin-pwa / Workbox — POS updates are Embedded OTA only
+	// (`update.json` + `BeamioPOS-*.zip`), not Service Worker autoUpdate.
 	plugins: [react()],
 	base,
 	resolve: {

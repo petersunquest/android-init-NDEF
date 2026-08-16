@@ -6,7 +6,6 @@ import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/Pos
 import {
 	loadPermissionAutoSent,
 	savePermissionAutoSent,
-	sendPosTerminalPermissionRequest,
 } from '@/conet/posTerminalPermissionChat'
 import { sleep } from '@/conet/crypto'
 import { usePosDataDaemon } from '@/providers/PosDataDaemonProvider'
@@ -25,6 +24,7 @@ export function ParentPermissionGatePage() {
 		terminalProfile,
 		registeredBeamioTag,
 		showPermissionGate,
+		requestJoinWorkspace,
 	} = usePosSession()
 	const { tickInFlight, lastSuccessfulTickAt } = usePosDataDaemon()
 	const [lastResendAt, setLastResendAt] = useState<number | null>(null)
@@ -43,8 +43,6 @@ export function ParentPermissionGatePage() {
 			address: walletAddress ?? undefined,
 		}
 	}, [terminalProfile, registeredBeamioTag, walletAddress])
-
-	const childBeamioTag = registeredBeamioTag ?? terminalProfile?.accountName ?? ''
 
 	const dispatchPermissionRequest = useCallback(
 		async (manualResend: boolean): Promise<boolean> => {
@@ -67,12 +65,9 @@ export function ParentPermissionGatePage() {
 					? 'Sending approval request via CoNET chat…'
 					: 'Registering CoNET chat keys and sending approval request…',
 			)
-			const result = await sendPosTerminalPermissionRequest({
-				walletPrivateKeyHex: pk,
-				childEoa: walletAddress,
-				childBeamioTag,
-				parentBeamioTag,
-				parentEoaHint: parentProfile?.address,
+			const result = await requestJoinWorkspace({
+				parentTag: parentBeamioTag,
+				parentEoaHint: parentProfile?.address?.trim() || null,
 			})
 			if (manualResend) {
 				setResendBusy(false)
@@ -91,7 +86,7 @@ export function ParentPermissionGatePage() {
 			setStatusMessage(result.error)
 			return false
 		},
-		[walletAddress, parentBeamioTag, childBeamioTag, parentProfile?.address, navigate],
+		[walletAddress, parentBeamioTag, parentProfile?.address, navigate, requestJoinWorkspace],
 	)
 
 	useEffect(() => {

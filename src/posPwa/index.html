@@ -55,6 +55,32 @@
 				html.dataset.posTheme = 'light'
 			})()
 		</script>
+		<!-- Early kill any leftover Service Worker (no SW update path; Embedded OTA only). -->
+		<script>
+			;(function () {
+				if (!('serviceWorker' in navigator)) return
+				try {
+					navigator.serviceWorker.getRegistrations().then(function (regs) {
+						regs.forEach(function (reg) {
+							try {
+								reg.unregister()
+							} catch (e) {}
+						})
+					})
+				} catch (e) {}
+				if (typeof caches !== 'undefined' && caches.keys) {
+					try {
+						caches.keys().then(function (keys) {
+							keys.forEach(function (key) {
+								try {
+									caches.delete(key)
+								} catch (e) {}
+							})
+						})
+					} catch (e) {}
+				}
+			})()
+		</script>
 		<div id="root"></div>
 		<script type="module" src="/src/main.tsx"></script>
 	</body>

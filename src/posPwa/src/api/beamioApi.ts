@@ -1,5 +1,5 @@
 import { Interface } from 'ethers'
-import { ACCOUNT_REGISTRY, BEAMIO_API, CONET_RPC } from '@/constants'
+import { ACCOUNT_REGISTRY, BEAMIO_API, CONET_RPC, CONET_RPC_FALLBACK } from '@/constants'
 import type { PosLedgerSnapshot } from '@/utils/posLedgerMetrics'
 import { parsePosLedgerResponse } from '@/utils/posLedgerMetrics'
 import {
@@ -79,28 +79,32 @@ export async function searchUsers(keyword: string): Promise<TerminalProfile[] | 
 export async function isBeamioAccountNameAvailable(normalizedHandle: string): Promise<boolean | null> {
 	const name = normalizedHandle.trim()
 	if (!name || !/^[a-zA-Z0-9_.]{3,20}$/.test(name)) return false
-	try {
-		const data = registryIface.encodeFunctionData('isAccountNameAvailable', [name])
-		const res = await fetch(CONET_RPC, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_call',
-				params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
-				id: 1,
-			}),
-		})
-		if (!res.ok) return null
-		const json = await res.json()
-		if (json.error) return null
-		const hex = String(json.result ?? '')
-		if (!hex || hex === '0x') return null
-		const decoded = registryIface.decodeFunctionResult('isAccountNameAvailable', hex)
-		return Boolean(decoded[0])
-	} catch {
-		return null
+	const data = registryIface.encodeFunctionData('isAccountNameAvailable', [name])
+	const payload = JSON.stringify({
+		jsonrpc: '2.0',
+		method: 'eth_call',
+		params: [{ to: ACCOUNT_REGISTRY, data }, 'latest'],
+		id: 1,
+	})
+	for (const rpc of [CONET_RPC, CONET_RPC_FALLBACK]) {
+		try {
+			const res = await fetch(rpc, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: payload,
+			})
+			if (!res.ok) continue
+			const json = await res.json()
+			if (json.error) continue
+			const hex = String(json.result ?? '')
+			if (!hex || hex === '0x') continue
+			const decoded = registryIface.decodeFunctionResult('isAccountNameAvailable', hex)
+			return Boolean(decoded[0])
+		} catch {
+			continue
+		}
 	}
+	return null
 }
 
 export async function addUser(params: {

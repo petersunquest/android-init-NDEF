@@ -1,0 +1,188 @@
+{
+  "schema": "conet-dle-global-routing-v1",
+  "recordState": "deployed",
+  "network": "conet",
+  "chainId": 224422,
+  "compiler": {
+    "solcVersion": "0.8.35",
+    "viaIR": true,
+    "evmVersion": "cancun",
+    "optimizerRuns": 0,
+    "metadataBytecodeHash": "none"
+  },
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-08-16T19:22:25.995Z",
+  "deployBlock": 840617,
+  "implementation": "0x65691CFc82D55eFbe03cE91f6Ab6109b6c73ab9d",
+  "proxy": "0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB",
+  "initializeArgs": {
+    "initialOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "bootstrapGroup": {
+    "groupId": 1,
+    "keyEpoch": 1,
+    "membershipEpoch": 1,
+    "groupKeyHash": "0xfe9d00afa65dee9b8cf19de95c94527f9180d05fa709089071251e4fb47b055b",
+    "membershipRoot": "0x52967747993dcdf00080fcf6bc19d3d13d357c2024c64af4f24ac946846c5520",
+    "standbyRoot": "0x3cf4ea4ac1a1fc6099584e37d46863f2dfd5f2a5977bd6a886ceb01480c27d72",
+    "registerTxHash": "0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0",
+    "registerBlock": 840617
+  },
+  "roster": [
+    {
+      "index": 0,
+      "domainId": "fd-01-ionos-45",
+      "role": "active",
+      "participantWallet": "0xB7D3541290b6Ca21C94427D738b1C250c1Cb9d14"
+    },
+    {
+      "index": 1,
+      "domainId": "fd-02-ionos-189",
+      "role": "active",
+      "participantWallet": "0x6da445Bd5ffC8a68A09b132e0AD5Eb5416fBe9B9"
+    },
+    {
+      "index": 2,
+      "domainId": "fd-03-ionos-98",
+      "role": "active",
+      "participantWallet": "0xf264D0EA6A78D3a35EDb1F6A6358088d02D0a626"
+    },
+    {
+      "index": 3,
+      "domainId": "fd-04-hosthatch-tokyo1",
+      "role": "active",
+      "participantWallet": "0x7C162b6A2e6d81f80163666ddAE3Cf368bDCA026"
+    },
+    {
+      "index": 4,
+      "domainId": "fd-05-hosthatch-tokyo2",
+      "role": "active",
+      "participantWallet": "0x02480639F3A87309a1EeC4BcC1A10B7AE13e7f7a"
+    },
+    {
+      "index": 5,
+      "domainId": "fd-06-ionos-174",
+      "role": "standby",
+      "participantWallet": "0xb25932EBB7460B40741aA9431798b0f18331fE7a"
+    },
+    {
+      "index": 6,
+      "domainId": "fd-07-ionos-207",
+      "role": "standby",
+      "participantWallet": "0xc97BBcF81C793e32d385337eccD1f211DF4757a5"
+    }
+  ],
+  "components": [
+    {
+      "key": "GlobalArchiveRoutingRegistryV1Implementation",
+      "kind": "implementation",
+      "sourceKey": "project/src/dle/GlobalArchiveRoutingRegistryV1.sol",
+      "contractName": "GlobalArchiveRoutingRegistryV1",
+      "address": "0x65691CFc82D55eFbe03cE91f6Ab6109b6c73ab9d",
+      "deploymentTxHash": "0x8b3d94f42c13857c9f1ac3b0d39b039185500f4199b3063d179efcc50502303b",
+      "deploymentBlock": 840617,
+      "verification": {
+        "verifiedAt": "2026-08-14T20:18:40.576Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 10762,
+          "name": "GlobalArchiveRoutingRegistryV1",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x65691CFc82D55eFbe03cE91f6Ab6109b6c73ab9d#code"
+      }
+    },
+    {
+      "key": "GlobalArchiveRoutingRegistryV1Proxy",
+      "kind": "proxy",
+      "sourceKey": "project/src/dle/DLEERC1967Proxy.sol",
+      "contractName": "DLEERC1967Proxy",
+      "implementationKey": "GlobalArchiveRoutingRegistryV1Implementation",
+      "initializer": {
+        "signature": "initialize(address)",
+        "args": [
+          "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+        ]
+      },
+      "address": "0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB",
+      "deploymentTxHash": "0xbc99880b62eea36a8d1545ef639394f4db237f25cf3b256d8325a24011ab4a09",
+      "deploymentBlock": 840617,
+      "verification": {
+        "verifiedAt": "2026-08-14T20:18:58.163Z",
+        "status": {
+          "isVerified": true,
+          "isPartiallyVerified": true,
+          "sourceLength": 399,
+          "name": "DLEERC1967Proxy",
+          "verifiedTwin": null
+        },
+        "explorer": "https://mainnet.conet.network/address/0x8B261eAECdFfeE9e7aC9fFe73386B0d6C9E76AfB#code"
+      }
+    }
+  ],
+  "nextSteps": {
+    "verify": "node scripts/verifyGlobalArchiveRoutingRegistryConet.mjs --submit"
+  },
+  "verification": {
+    "blockscoutV2": {
+      "status": "verified",
+      "completedAt": "2026-08-14T20:18:58.164Z"
+    }
+  },
+  "secondGroup": {
+    "groupId": 2,
+    "keyEpoch": 1,
+    "membershipEpoch": 1,
+    "groupKeyHash": "0x919bb34216cc058fa1365f009c8a43e12add93cd2c2b919d6c8d83c131d2c0ff",
+    "membershipRoot": "0xd74ccaae42cbdd25f4823810efee68508c01ab9ce35d731a5224ed3021e4ff07",
+    "standbyRoot": "0x01a97e31d4033c1abbe232f83c27f98c979bb01a5003575510956717fcd85d9a",
+    "registerTxHash": "0xf781f2c23fe3b3dac09dc3e1929016b0af200ee93978e916df64d750876d5153",
+    "registerBlock": 868793,
+    "roster": [
+      {
+        "index": 0,
+        "domainId": "fd-g2-01-tokyo4",
+        "role": "active",
+        "participantWallet": "0xd67437B6c13f2FC3f929050cadaBf2eBA1c1b394"
+      },
+      {
+        "index": 1,
+        "domainId": "fd-g2-02-tokyo3",
+        "role": "active",
+        "participantWallet": "0xCc6A279F7b22D6ebfF20Be89b631eC699D2feb07"
+      },
+      {
+        "index": 2,
+        "domainId": "fd-g2-03-tokyo9",
+        "role": "active",
+        "participantWallet": "0x06Ccec85fb8aF48135947f23aec272869667a5a6"
+      },
+      {
+        "index": 3,
+        "domainId": "fd-g2-04-tokyo8",
+        "role": "active",
+        "participantWallet": "0x8bEE1097614c78D2ebbF5CF4D0c92827c7D6B090"
+      },
+      {
+        "index": 4,
+        "domainId": "fd-g2-05-tokyo7",
+        "role": "active",
+        "participantWallet": "0x7d3DE56898b751984B41474353E2EBDC97592CFF"
+      },
+      {
+        "index": 5,
+        "domainId": "fd-g2-06-tokyo6",
+        "role": "standby",
+        "participantWallet": "0xD3Bb911632CeF5b46A949bCD4e91d7C53ED05B73"
+      },
+      {
+        "index": 6,
+        "domainId": "fd-g2-07-tokyo5",
+        "role": "standby",
+        "participantWallet": "0x58096C8f9CaD6D1133B902AD7e696cAc1651ef39"
+      }
+    ],
+    "note": "User-visible Group ID is registerTxHash, not uint 2 and not the lab keccak placeholder."
+  }
+}

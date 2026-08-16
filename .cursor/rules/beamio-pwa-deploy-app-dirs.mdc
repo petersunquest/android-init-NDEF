@@ -100,7 +100,7 @@ alwaysApply: true
 - ❌ `rsync --delete` **不** exclude `SilentPassUI-*.zip`（会删光 OTA 包）
 - ❌ 仓库 `public/update.json` 的 `ver` 长期落后于 `package.json`（会把线上 OTA 打回旧版）
 - ❌ 以为「发了 `/app/` 新 JS」原生壳就会提示更新（壳只看 `update.json` + zip）
-- ❌ 把 POS PWA（`pos.beamio.app` / `autoUpdate` SW）的更新模型套到 Consumer Embedded OTA
+- ❌ 把 POS PWA 的更新模型搞混：POS 与 Consumer **均为** Embedded OTA（`update.json` + zip），**不是** Service Worker `autoUpdate`；勿再给 posPwa 加 `vite-plugin-pwa`
 - ❌ 用 homepage `rsync --delete` 覆盖站点根且未带齐 7 项 exclude
 
 ---
