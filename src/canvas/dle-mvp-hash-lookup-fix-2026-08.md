@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-mvp-hash-lookup-fix-2026-08.canvas.tsx`
 - **日期：** 2026-08-15
-- **状态：** 实验室已落地 **M0–M5**（清零后 hash 管道 + hop-1 `historyProviders` + 每组独立 `hashIndexRoot`）；**M0 语义收紧**为三分 + **方案 C** `kind=prevoteQc`（见 `dle-hash-rpc-fact-check-2026-08.md`）；**M6** 未做
+- **状态：** 实验室已落地 **M0–M5**（清零后 hash 管道 + hop-1 `historyProviders` + 每组独立 `hashIndexRoot`）；**M0 语义收紧**为三分 + **方案 C** `kind=prevoteQc`（见 `dle-hash-rpc-fact-check-2026-08.md`）；**M6** 见 `dle-lab-m6-fission-2026-08.md`
 - **规范优先级：** 英中白皮书 §5.2.0e > 本快照。本页不是第二份规范。
 
 ## 事实来源
