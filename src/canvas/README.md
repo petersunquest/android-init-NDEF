@@ -10,6 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
+| [Testnet EIP-155 vs Group ID = 登记 hash](./dle-testnet-chainid-group-hash-2026-08.md) | 无独立交互 Canvas | **2026-08-15 已入白皮书 §5.2.0d + runtime/Explorer** | `0x44c45` = CoNET-DLE Testnet；Group ID = 引导组 L1 register tx；uint `1` 只是存储键 |
 | [§5.2.0e 新增修正落到上一轮](./dle-whitepaper-520e-corrections-2026-08.md) | `dle-whitepaper-520e-corrections-2026-08.canvas.tsx` | **2026-08-15 审查 + keep 落地** | 白皮书三分状态 / 方案 C 如何收紧上一轮 M0–M5；旧 freezer 投影不得 alias PrevoteQC |
 | [Hash RPC 事实核查 + 方案 C PrevoteQC](./dle-hash-rpc-fact-check-2026-08.md) | 无独立交互 Canvas | **2026-08-15 方案 C 已上线（keep + live smoke）** | 三分 `hit` / 本组 `notFound` / `unavailable`；`prevoteQc` 一等对象；禁止 tip/membership alias |
 | [修正 MVP：Hash 检索管道](./dle-mvp-hash-lookup-fix-2026-08.md) | `dle-mvp-hash-lookup-fix-2026-08.canvas.tsx` | **2026-08-15 实验室 M0–M5 已落地；M0 语义收紧为三分 + 方案 C** | M0–M5：停错误 null + 本组 KV/freezer + locate/getByHash + hop-1 historyProviders + 每组证明树；M6 仍开放 |
@@ -18,6 +19,7 @@
 | [每组 Hash 索引树](./dle-hash-index-tree-2026-08.md) | `dle-hash-index-tree-2026-08.canvas.tsx` | **实验室 M5 已落地（独立检查点，非 AC 投票）** | 每组 `hashIndexRoot` 做包含 / 不包含证明；不是热 Get，也不是第二套真相 |
 | [DLE RPC hash 跨组 proxy](./dle-rpc-hash-proxy-2026-08.md) | `dle-rpc-hash-proxy-2026-08.canvas.tsx` | **已入白皮书 §5.2.0e** | hash-only 检索必须 locate 后单跳 proxy；禁止本组未命中直接 null；禁止 payload 全组扇出 |
 | [DLE MVP 里程碑评估](./dle-mvp-milestone-assessment-2026-08.md) | `dle-mvp-milestone-assessment-2026-08.canvas.tsx` | **2026-08-15 审查：实验室门已闭环 / 资格未开** | P0–P4 实验室完成、P5 16/16 验证；HMAC/HTTP/lab beacon 不得外推生产；warmup ~24/72h；`pilotStartedAt=null` |
+| [实验室三类新链创世 + daemon 用户](./dle-lab-newchain-genesis-user-2026-08.md) | 无独立交互 Canvas | **2026-08-15 实验室已落地** | 资产/存储/交易 Mode A 创世；`70.35.205.77` `/home/peter/dle-newchain-user` 随机开链；**不是** L1 NFT / 30 天资格；未改白皮书 |
 | [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer/L1 分期** | P0–P4 实验室已落地；**P3 HTTP 30 客户端已在 `70.35.205.77` 排队**（`poolRoot=0xafdf42e9…c3c2c4`）；**规范已入白皮书 §5.4 / §7.8.5 / §8.1 / §15.19**；**P5 其余 DLE L1 栈已部署 224422 并当场验证（16/16）**；30 天资格未宣称 |
 | [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **当前 30 天验收主机分配** | 7 台独立主机、5+2、TCP 27101 quorum、USD 4/月不限流量 |
 | [DLE 全局 RPC 跨组代理](./dle-global-rpc-proxy-2026-08.md) | 无独立交互 Canvas | **当前 RPC 路由冻结** | 任一归档全局 RPC 入口；非本组必须 proxy 到托管组 `historyProviders` |
