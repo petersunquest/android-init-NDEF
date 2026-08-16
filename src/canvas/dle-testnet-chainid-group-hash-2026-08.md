@@ -1,8 +1,8 @@
 # CoNET-DLE Testnet EIP-155 vs Group ID = 登记交易 hash（2026-08-15）
 
 - **Canvas 标识：** 无独立交互 `.canvas.tsx`（白皮书 / runtime 身份冻结快照）
-- **日期：** 2026-08-15
-- **状态：** **已写入** runtime / Explorer / GitBook / 英中白皮书 §5.2.0d；**未**部署 7 台实验室归档新包
+- **日期：** 2026-08-16
+- **状态：** **已写入并已发版** — runtime / Explorer / GitBook / 英中白皮书 §5.2.0d；2026-08-16 已清空 7 台实验室归档 `dle-30d-lab/data` 并重启 Node 归档；公开 Explorer 已发 `https://dle.conet.network`
 - **规范优先级：** 英中白皮书 §5.2.0d > runtime `protocol.ts` / `hashLookup.ts` > 本快照。本页取代旧冻结「DLE Chain ID ≡ 整数 `groupId`」。
 
 ## 事实来源
@@ -40,7 +40,7 @@ sameGroupId("dle.lab.group.v2", registerTxHash) = false
 ```
 
 - **确定性映射**（代码常量，非链上实测公式）。
-- **不可测 / 未部署：** 7 台归档未发版前，线上 `/health` 仍可能返回 `dle.lab.group.v1`。
+- **已部署（2026-08-16）：** 7 台归档 `/health` 的 `liveGroupIds` = `[registerTxHash]`，`liveGroupCount` = 1，`chainName` = `CoNET-DLE Testnet`。`lab:accept-archive` mesh / daemon / BFT / leftover EL·CL 保护均通过。未重启 geth / beacon / validator。
 
 ## 冻结结论
 
@@ -59,7 +59,6 @@ sameGroupId("dle.lab.group.v2", registerTxHash) = false
 
 ## 未决项
 
-- 7 台实验室归档发版后，`liveGroupIds` 才会从 `dle.lab.group.v1` 变成 hash。
 - L1 合约若日后增加 `registerTxHash` 字段，须另开升级任务；今日仅门面映射。
 - 裂变组 `dle.lab.group.v2` 在没有自己的 L1 register tx 前保持字符串。
 
@@ -68,7 +67,9 @@ sameGroupId("dle.lab.group.v2", registerTxHash) = false
 - [x] runtime `DLE_TESTNET_CHAIN_ID` / `DLE_TESTNET_CHAIN_NAME` / `DLE_LAB_GROUP_ID` = register hash
 - [x] `canonicalGroupId` / `sameGroupId`；Explorer 独立拷贝常量
 - [x] facade `chainName`；Home 胶囊标签 **Group ID**
-- [x] `npm run runtime:test` 61/61
+- [x] `npm run runtime:test` 身份相关通过（hashStore 迁移 / routeView 发出 hash）
 - [x] GitBook explorer / routing-registry / design-thesis / archive-plane / README
 - [x] 英中白皮书 Revision、摘要、术语、§5.2.0d、§5.2.0e、checklist、glossary
-- [ ] 部署 / 重启 7 台实验室归档（本任务未授权）
+- [x] 清空 7 台 `dle-30d-lab/data` 并重启 Node 归档（`lab:deploy-archive`；未动 EL/CL/VA）
+- [x] `lab:accept-archive` ok / meshOk / bftOk / protectedOk
+- [x] 公开 Explorer `https://dle.conet.network` 发版（CoNET-DLE `d106f7d`）

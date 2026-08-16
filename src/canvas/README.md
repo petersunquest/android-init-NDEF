@@ -10,7 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
-| [Testnet EIP-155 vs Group ID = 登记 hash](./dle-testnet-chainid-group-hash-2026-08.md) | 无独立交互 Canvas | **2026-08-15 已入白皮书 §5.2.0d + runtime/Explorer** | `0x44c45` = CoNET-DLE Testnet；Group ID = 引导组 L1 register tx；uint `1` 只是存储键 |
+| [Testnet EIP-155 vs Group ID = 登记 hash](./dle-testnet-chainid-group-hash-2026-08.md) | 无独立交互 Canvas | **2026-08-16 7 台归档已 wipe+重启，Explorer 已发** | `0x44c45` = CoNET-DLE Testnet；Group ID = 引导组 L1 register tx；uint `1` 只是存储键 |
 | [§5.2.0e 新增修正落到上一轮](./dle-whitepaper-520e-corrections-2026-08.md) | `dle-whitepaper-520e-corrections-2026-08.canvas.tsx` | **2026-08-15 审查 + keep 落地** | 白皮书三分状态 / 方案 C 如何收紧上一轮 M0–M5；旧 freezer 投影不得 alias PrevoteQC |
 | [Hash RPC 事实核查 + 方案 C PrevoteQC](./dle-hash-rpc-fact-check-2026-08.md) | 无独立交互 Canvas | **2026-08-15 方案 C 已上线（keep + live smoke）** | 三分 `hit` / 本组 `notFound` / `unavailable`；`prevoteQc` 一等对象；禁止 tip/membership alias |
 | [修正 MVP：Hash 检索管道](./dle-mvp-hash-lookup-fix-2026-08.md) | `dle-mvp-hash-lookup-fix-2026-08.canvas.tsx` | **2026-08-15 实验室 M0–M5 已落地；M0 语义收紧为三分 + 方案 C** | M0–M5：停错误 null + 本组 KV/freezer + locate/getByHash + hop-1 historyProviders + 每组证明树；M6 仍开放 |
