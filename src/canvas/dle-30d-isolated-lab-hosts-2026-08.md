@@ -1,21 +1,25 @@
 # DLE 30 天隔离实验室主机分配（2026-08-14）
 
 - **Canvas 标识：** 无独立交互 Canvas；本快照记录用户指定的 7 台正式验收主机。
-- **日期：** 2026-08-14
-- **状态：** 已分配、72h warmup 进行中、跨域 TCP 27101 quorum 已形成；尚未资格通过。
+- **日期：** 2026-08-14；**2026-08-17** 把 `fd-01` 从 `74.208.224.45` 换到 `45.132.74.220`，把 `fd-03` 从 `198.251.77.98` 换到 `45.132.74.221`。
+- **状态：** 官方 7 席位身份仍在名册；两席均 **live**。已停 `74.208.224.45` 与 `198.251.77.98` 上的 L2，且这两台旧 IP **今后不可再被 MVP 使用**。2026-08-17 已对 `45.132.74.220` / `45.132.74.221` 做 keep-data 并启 L2（`lab:keep-remap-l2`）；现役 `fd-02` / `fd-04` / `fd-05` extraPeers 已指向新 IP。`dle.conet.network` upstream 现为 `.220` / `.221` + 东京两台。未开 `pilotStartedAt`。未自动升 standby。未反代 `.189`。
 - **规范优先级：** 白皮书 5+2 / 4-of-5 与 `pilot/` 资格门 > 本快照。
 
 ## 事实来源
 
 - 用户 `RPC Cancun` 清单指定 7 台主机。
 - 2026-08-14 `peter@` SSH 只读盘点：hostname、CPU/RAM/磁盘、监听端口、systemd unit、ipinfo ASN。
-- whois / ipinfo：IONOS `AS8560`（5 台）、HostHatch `AS63473`（东京 2 台）。
+- whois / ipinfo：IONOS `AS8560`（3 台 leftover）、HostHatch `AS63473`（东京 2 台 + NYC `45.132.74.220` fd-01 + NYC `45.132.74.221` fd-03）。
+- 2026-08-17：用户指定用 `45.132.74.220` 替代 `74.208.224.45`。旧机 L2 已停；`:27101` 已无监听。席位仍 live。
+- 2026-08-17：用户指定用 `45.132.74.221` 替代 `198.251.77.98`。旧机 `lab-cli.js` pid 3299829 已停；`:27101` 已无监听；`~/dle-30d-lab/data` 保留。当时旧机无 geth/beacon/validator。新机 `NY2` 1C/1.9Gi、无 `dle-30d-lab`、无 `:27101`、无 EL/CL、ASN `AS63473`。
+- 2026-08-17：用户授权对 `.220` / `.221` keep / 启 L2。`lab:keep-remap-l2` keep-data 成功：`fd-01` STARTED=2190 LIVE_OK；`fd-03` STARTED=2050 LIVE_OK。随后 keep-data 刷新 `fd-02` / `fd-04` / `fd-05` extraPeers（去掉旧 `.45` / `.98`）。公网 `http://45.132.74.220:27101/liveness` 与 `.221` 均为 `"ok":true`。未碰 EL/CL，未启 standby。
+- 2026-08-17：用户授权把 `.220` / `.221` 加进 `dle.conet.network` upstream 并部署 Explorer。nginx `least_conn` 现为四台上游；仍不反代 `.189` / 旧 IONOS / standby leftover。
 - 用户声明：每台主机每月账单 **USD 4**，**无限制流量**；云防火墙已放行实验室 **TCP 27101**。
 - 2026-08-14 实测：7×7 `http://<peer>:27101/health` 全部 HTTP 200；7 个 agent 均 `lastQuorumOk=true`、`lastPeerOk=6`。
 
 ## 假设
 
-- 7 个 `hostId` 视为独立故障域，即使 5 台同属 IONOS/AS8560。
+- 7 个 `hostId` 视为独立故障域。live IONOS leftover 为 3 台（fd-02 / fd-06 / fd-07）。`fd-01` 与 `fd-03` 现为 HostHatch NYC，与东京 HostHatch 同 ASN、不同 region。
 - 实验室只跑 `~/dle-30d-lab` 轻量 Node 副本，不与 leftover / 现役 EL/CL 共进程。
 - 主机月租 $4 + 不限流量是本窗口可归属成本；**不**因此关闭生产成本 epoch 或宣称 30 天资格。
 
@@ -30,9 +34,9 @@
 
 | domainId | IP | 角色 | 盘点 |
 |---|---|---|---|
-| fd-01-ionos-45 | 74.208.224.45 | active | 已弃用 L1，EL/CL 未运行 |
+| fd-01-ionos-45 | 45.132.74.220 | active | 2026-08-17 换机。旧机 `74.208.224.45` L2 已停并永久排除。新机 keep-data L2 已启。席位仍 live，禁止 wipe。 |
 | fd-02-ionos-189 | 216.225.197.189 | active | 现役只读 beacon，勿重启 |
-| fd-03-ionos-98 | 198.251.77.98 | active | 现役 geth+beacon，内存紧 |
+| fd-03-ionos-98 | 45.132.74.221 | active | 2026-08-17 换机。旧机 `198.251.77.98` L2 已停并永久排除。新机 keep-data L2 已启。席位仍 live，禁止 wipe。 |
 | fd-04-hosthatch-tokyo1 | 167.254.243.38 | active | 绿场 1C/2G/9G |
 | fd-05-hosthatch-tokyo2 | 170.205.39.67 | active | 绿场 1C/2G/9G |
 | fd-06-ionos-174 | 216.225.193.174 | standby | leftover geth+beacon 可能仍在 |

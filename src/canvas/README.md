@@ -31,7 +31,7 @@
 | [DLE MVP 里程碑评估](./dle-mvp-milestone-assessment-2026-08.md) | `dle-mvp-milestone-assessment-2026-08.canvas.tsx` | **2026-08-15 审查：实验室门已闭环 / 资格未开**（后续见 P8 快照） | P0–P4 实验室完成、P5 16/16 验证；HMAC/HTTP/lab beacon 不得外推生产；warmup ~24/72h；`pilotStartedAt=null` |
 | [实验室三类新链创世 + daemon 用户](./dle-lab-newchain-genesis-user-2026-08.md) | 无独立交互 Canvas | **2026-08-16 身份 wipe 后已重开：三类创世 7/7 合格，随机开链已跑** | 资产/存储/交易 Mode A 创世；`70.35.205.77` `/home/peter/dle-newchain-user` 随机开链；**不是** L1 NFT / 30 天资格；未改白皮书 |
 | [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer/L1 分期** | P0–P4 实验室已落地；**P3 HTTP 30 客户端已在 `70.35.205.77` 排队**（`poolRoot=0xafdf42e9…c3c2c4`）；**规范已入白皮书 §5.4 / §7.8.5 / §8.1 / §15.19**；**P5 其余 DLE L1 栈已部署 224422 并当场验证（16/16）**；30 天资格未宣称 |
-| [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **当前 30 天验收主机分配** | 7 台独立主机、5+2、TCP 27101 quorum、USD 4/月不限流量 |
+| [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **2026-08-17：fd-01 `45.132.74.220` / fd-03 `45.132.74.221` keep-data L2 已启并进入 Explorer upstream；永久排除 `74.208.224.45` / `198.251.77.98`** | 官方 7 名册仍在；两席 live；nginx 四台上游；未升 standby |
 | [DLE 全局 RPC 跨组代理](./dle-global-rpc-proxy-2026-08.md) | 无独立交互 Canvas | **当前 RPC 路由冻结** | 任一归档全局 RPC 入口；非本组必须 proxy 到托管组 `historyProviders` |
 | [DLE P1 真实成本实测报告](./dle-p1-real-cost-measurement-report.md) | `dle-p1-real-cost-measurement-report.canvas.tsx` | **当前 P1 经济证据门** | 区分真实实测、现役组件代理数据、确定性公式与尚不可测项 |
 | [DLE P0/P1 形式化补正评估](./dle-p0-p1-formalization-review.md) | `dle-p0-p1-formalization-review.canvas.tsx` | **当前安全发布门参考** | Burn/mint 守恒、Tendermint/WAL/动态名册向量、OperatorDomain 边界 |
