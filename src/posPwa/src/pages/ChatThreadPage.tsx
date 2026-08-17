@@ -131,6 +131,7 @@ export function ChatThreadPage() {
 											hour: 'numeric',
 											minute: '2-digit',
 										})}
+										{mine && m.status === 'delivered' ? ' · Delivered' : ''}
 									</p>
 								</div>
 							</div>

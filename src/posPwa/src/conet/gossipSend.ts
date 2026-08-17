@@ -1,8 +1,9 @@
 import { createMessage, encrypt, enums, readKey } from 'openpgp'
 import { Wallet } from 'ethers'
-import { GOSSIP_POST_DOMAIN_HEX_IDS, POS_TERMINAL_PERMISSION_TYPE } from '@/conet/constants'
-import { normalizePrivateKeyHex, shuffleTake, toBase64Utf8 } from '@/conet/crypto'
-import { fetchRecipientPublicArmored } from '@/conet/searchKey'
+import { POS_TERMINAL_PERMISSION_TYPE } from '@/conet/constants'
+import { normalizePrivateKeyHex, toBase64Utf8 } from '@/conet/crypto'
+import { fetchRecipientChatKeys } from '@/conet/searchKey'
+import { postArmoredGossipToEntries } from '@/chat/posChatGossipPost'
 
 export interface TerminalPermissionInner {
 	type: typeof POS_TERMINAL_PERMISSION_TYPE
@@ -45,24 +46,9 @@ function jsonChatOuterLine(params: {
 	})
 }
 
-async function postGossipPayload(domainHex: string, armored: string): Promise<boolean> {
-	const url = `https://${domainHex.toLowerCase()}.conet.network/post`
-	try {
-		const res = await fetch(url, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ data: armored }),
-			signal: AbortSignal.timeout(12_000),
-		})
-		return res.ok
-	} catch {
-		return false
-	}
-}
-
 /**
- * Encrypt + POST POS terminal permission request via CoNET gossip.
- * Align bizSite `chat.ts` `sendMessage` + iOS `BeamioConetGossipSend.sendTerminalPermissionRequest`.
+ * Encrypt + POST POS terminal permission via CoNET gossip.
+ * Onboarding runs before chat Worker init — always main-thread mailbox wrap + live entries.
  */
 export async function sendTerminalPermissionRequest(params: {
 	recipientEoa: string
@@ -74,8 +60,8 @@ export async function sendTerminalPermissionRequest(params: {
 	const pk = normalizePrivateKeyHex(params.walletPrivateKeyHex)
 	if (!pk) return false
 
-	const armoredPub = await fetchRecipientPublicArmored(params.recipientEoa)
-	if (!armoredPub) return false
+	const keys = await fetchRecipientChatKeys(params.recipientEoa)
+	if (!keys?.userPublicArmored) return false
 
 	const wallet = new Wallet(`0x${pk}`)
 	const sendId = crypto.randomUUID().toLowerCase()
@@ -96,20 +82,21 @@ export async function sendTerminalPermissionRequest(params: {
 		from: wallet.address.toLowerCase(),
 		signMessage,
 	}
-	const envelopeB64 = toBase64Utf8(JSON.stringify(envelope))
 
-	let postData: string
+	let innerArmor: string
 	try {
-		postData = await encrypt({
-			message: await createMessage({ text: envelopeB64 }),
-			encryptionKeys: await readKey({ armoredKey: armoredPub }),
+		innerArmor = await encrypt({
+			message: await createMessage({ text: toBase64Utf8(JSON.stringify(envelope)) }),
+			encryptionKeys: await readKey({ armoredKey: keys.userPublicArmored }),
 			config: { preferredCompressionAlgorithm: enums.compression.zlib },
 		})
 	} catch {
 		return false
 	}
 
-	const domains = shuffleTake(GOSSIP_POST_DOMAIN_HEX_IDS, 6)
-	const results = await Promise.all(domains.map((d) => postGossipPayload(d, postData)))
-	return results.some(Boolean)
+	return postArmoredGossipToEntries({
+		innerArmor,
+		mailboxRoutePublicArmored: keys.mailboxRoutePublicArmored,
+		noPush: true,
+	})
 }

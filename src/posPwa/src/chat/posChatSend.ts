@@ -1,88 +1,96 @@
 import { createMessage, encrypt, enums, readKey } from 'openpgp'
 import { Wallet } from 'ethers'
-import { fetchRecipientPublicArmored } from '@/conet/searchKey'
-import { fetchCoNETGossipNodes, pickGossipNodes } from '@/conet/guardianNodes'
+import { fetchRecipientChatKeys } from '@/conet/searchKey'
 import { normalizePrivateKeyHex, utf8ToBase64 } from '@/conet/crypto'
-
-async function postWithTimeout(url: string, init: RequestInit, timeoutMs = 12_000) {
-	const ctrl = new AbortController()
-	const t = setTimeout(() => ctrl.abort(), timeoutMs)
-	try {
-		return await fetch(url, { ...init, signal: ctrl.signal })
-	} finally {
-		clearTimeout(t)
-	}
-}
+import { postArmoredGossipToEntries } from '@/chat/posChatGossipPost'
+import { isWorkerGossipActive, sendWorkerChatPayload } from '@/chat/posChatWorkerBridge'
 
 /**
- * Send a plain text chat message via CoNET gossip (encrypt to recipient EOA PGP, POST entry A).
- * Aligns SilentPassUI / Alliance `sendMessage` envelope.
+ * Send a signed pending-line JSON via CoNET gossip.
+ * Worker path when listen is up; otherwise main-thread mailbox wrap + live entries.
  */
+export async function sendPosChatPendingLine(params: {
+	recipientEoa: string
+	pendingLine: string
+	walletPrivateKeyHex: string
+	sendId?: string
+	noPush?: boolean
+}): Promise<{ ok: boolean; sendId: string; createdAt: number }> {
+	const pk = normalizePrivateKeyHex(params.walletPrivateKeyHex)
+	const createdAt = Date.now()
+	const sendId = params.sendId || `pos-${createdAt}-${Math.random().toString(36).slice(2, 10)}`
+	if (!pk || !params.pendingLine.trim()) return { ok: false, sendId, createdAt }
+
+	const keys = await fetchRecipientChatKeys(params.recipientEoa)
+	if (!keys?.userPublicArmored) {
+		console.warn('[sendPosChatPendingLine] recipient has no PGP')
+		return { ok: false, sendId, createdAt }
+	}
+
+	const noPush = params.noPush !== false
+	if (isWorkerGossipActive()) {
+		const r = await sendWorkerChatPayload(
+			{
+				address: params.recipientEoa.toLowerCase(),
+				userPublicKeyArmored: keys.userPublicArmored,
+				routerArmoredPublicKey: keys.mailboxRoutePublicArmored || undefined,
+			},
+			params.pendingLine,
+			{ sendId, beamioNoPush: noPush && !!keys.mailboxRoutePublicArmored },
+		)
+		return { ok: r.ok, sendId: r.sendId, createdAt }
+	}
+
+	const wallet = new Wallet(`0x${pk}`)
+	const signMessage = await wallet.signMessage(params.pendingLine)
+	const envelope = {
+		timestamp: createdAt,
+		text: params.pendingLine,
+		from: wallet.address,
+		signMessage,
+	}
+
+	let innerArmor: string
+	try {
+		innerArmor = await encrypt({
+			message: await createMessage({ text: utf8ToBase64(JSON.stringify(envelope)) }),
+			encryptionKeys: await readKey({ armoredKey: keys.userPublicArmored }),
+			config: { preferredCompressionAlgorithm: enums.compression.zlib },
+		})
+	} catch (ex) {
+		console.warn('[sendPosChatPendingLine] encrypt', ex)
+		return { ok: false, sendId, createdAt }
+	}
+
+	const ok = await postArmoredGossipToEntries({
+		innerArmor,
+		mailboxRoutePublicArmored: keys.mailboxRoutePublicArmored,
+		noPush,
+	})
+	return { ok, sendId, createdAt }
+}
+
 export async function sendPosChatTextMessage(params: {
 	recipientEoa: string
 	text: string
 	walletPrivateKeyHex: string
 	sendId?: string
 }): Promise<{ ok: boolean; sendId: string; createdAt: number }> {
-	const pk = normalizePrivateKeyHex(params.walletPrivateKeyHex)
 	const text = params.text.trim()
-	const sendId = params.sendId || `pos-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 	const createdAt = Date.now()
-	if (!pk || !text) return { ok: false, sendId, createdAt }
-
-	const armoredPub = await fetchRecipientPublicArmored(params.recipientEoa)
-	if (!armoredPub) {
-		console.warn('[sendPosChatTextMessage] recipient has no PGP')
-		return { ok: false, sendId, createdAt }
-	}
-
-	const nodes = await fetchCoNETGossipNodes()
-	if (!nodes.length) return { ok: false, sendId, createdAt }
-
-	const wallet = new Wallet(`0x${pk}`)
+	const sendId = params.sendId || `pos-${createdAt}-${Math.random().toString(36).slice(2, 10)}`
+	if (!text) return { ok: false, sendId, createdAt }
 	const pendingLine = JSON.stringify({
 		sendId,
 		from: 'me',
 		text,
 		createdAt,
 	})
-	const signMessage = await wallet.signMessage(pendingLine)
-	const envelope = {
-		timestamp: createdAt,
-		text: pendingLine,
-		from: wallet.address,
-		signMessage,
-	}
-
-	let postData: string
-	try {
-		const encryptObj = {
-			message: await createMessage({ text: utf8ToBase64(JSON.stringify(envelope)) }),
-			encryptionKeys: await readKey({ armoredKey: armoredPub }),
-			config: { preferredCompressionAlgorithm: enums.compression.zlib },
-		}
-		postData = await encrypt(encryptObj)
-	} catch (ex) {
-		console.warn('[sendPosChatTextMessage] encrypt', ex)
-		return { ok: false, sendId, createdAt }
-	}
-
-	const wave = pickGossipNodes(nodes, Math.min(4, nodes.length))
-	const results = await Promise.all(
-		wave.map(async (node) => {
-			const url = `https://${node.domain}.conet.network/post`
-			try {
-				const res = await postWithTimeout(url, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ data: postData }),
-					referrerPolicy: 'no-referrer',
-				})
-				return res.ok
-			} catch {
-				return false
-			}
-		}),
-	)
-	return { ok: results.some(Boolean), sendId, createdAt }
+	return sendPosChatPendingLine({
+		recipientEoa: params.recipientEoa,
+		pendingLine,
+		walletPrivateKeyHex: params.walletPrivateKeyHex,
+		sendId,
+		noPush: true,
+	})
 }

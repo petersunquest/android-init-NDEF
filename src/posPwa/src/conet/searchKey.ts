@@ -1,6 +1,16 @@
+import { Contract, JsonRpcProvider } from 'ethers'
 import { CONET_RPC } from '@/constants'
 import { CONET_ADDRESS_PGP_MANAGER } from '@/conet/constants'
 import { fromBase64Utf8, normalizeEoaLower40 } from '@/conet/crypto'
+
+const SEARCH_KEY_ABI = [
+	'function searchKey(address account) view returns (string userPgpKeyID, string userPublicKeyArmored, string routePgpKeyID, string routePublicKeyArmored, bool routeOnline)',
+] as const
+
+export type RecipientChatKeys = {
+	userPublicArmored: string
+	mailboxRoutePublicArmored: string
+}
 
 const SEARCH_KEY_SELECTOR = '052f2778'
 
@@ -80,12 +90,39 @@ export async function conetEthCall(to: string, dataHex: string): Promise<string 
 	}
 }
 
+/** Recipient EOA user PGP + mailbox B route PGP (AddressPGP `searchKey`). */
+export async function fetchRecipientChatKeys(recipientEoa: string): Promise<RecipientChatKeys | null> {
+	const h = normalizeEoaLower40(recipientEoa)
+	if (!h) return null
+	try {
+		const provider = new JsonRpcProvider(CONET_RPC, 224422, { staticNetwork: true })
+		const sc = new Contract(CONET_ADDRESS_PGP_MANAGER, SEARCH_KEY_ABI, provider)
+		const info = (await sc.searchKey(`0x${h}`)) as {
+			userPublicKeyArmored?: string
+			routePublicKeyArmored?: string
+		}
+		const userPublicArmored = info.userPublicKeyArmored
+			? fromBase64Utf8(info.userPublicKeyArmored)
+			: ''
+		const mailboxRoutePublicArmored = info.routePublicKeyArmored
+			? fromBase64Utf8(info.routePublicKeyArmored)
+			: ''
+		if (!userPublicArmored.includes('BEGIN PGP')) return null
+		return { userPublicArmored, mailboxRoutePublicArmored }
+	} catch {
+		const dataHex = encodeSearchKeyCall(recipientEoa)
+		if (!dataHex) return null
+		const hex = await conetEthCall(CONET_ADDRESS_PGP_MANAGER, dataHex)
+		if (!hex) return null
+		const userPublicArmored = decodeSearchKeyUserPublicArmored(hex)
+		if (!userPublicArmored) return null
+		return { userPublicArmored, mailboxRoutePublicArmored: '' }
+	}
+}
+
 export async function fetchRecipientPublicArmored(recipientEoa: string): Promise<string | null> {
-	const dataHex = encodeSearchKeyCall(recipientEoa)
-	if (!dataHex) return null
-	const hex = await conetEthCall(CONET_ADDRESS_PGP_MANAGER, dataHex)
-	if (!hex) return null
-	return decodeSearchKeyUserPublicArmored(hex)
+	const keys = await fetchRecipientChatKeys(recipientEoa)
+	return keys?.userPublicArmored ?? null
 }
 
 export async function hasOnChainUserPgpPublic(walletEoa: string): Promise<boolean> {

@@ -56,7 +56,7 @@ export function upsertInboundMessage(
 		return snap
 	}
 	if (messages.some((m) => m.id === msg.id)) return snap
-	messages.push(msg)
+	messages.push({ ...msg, status: msg.status ?? (msg.from === 'me' ? 'sent' : undefined) })
 	messages.sort((a, b) => a.createdAt - b.createdAt)
 	const unread = opts.incrementUnread
 		? Math.max(0, Number(existing?.unreadCount || 0)) + 1
@@ -95,6 +95,27 @@ export function markThreadRead(snap: PosChatStoreSnapshot, peerAddress: string):
 		t.peerAddress.toLowerCase() === peer ? { ...t, unreadCount: 0 } : t,
 	)
 	return { version: 1, threads, updatedAt: Date.now() }
+}
+
+export function markOutboundDeliveredBySendId(
+	snap: PosChatStoreSnapshot,
+	sendId: string,
+): PosChatStoreSnapshot {
+	if (!sendId) return snap
+	let changed = false
+	const threads = snap.threads.map((t) => {
+		let touched = false
+		const messages = t.messages.map((m) => {
+			if (m.from !== 'me') return m
+			const id = m.sendId || m.id
+			if (id !== sendId || m.status === 'delivered') return m
+			touched = true
+			changed = true
+			return { ...m, status: 'delivered' as const }
+		})
+		return touched ? { ...t, messages } : t
+	})
+	return changed ? { version: 1, threads, updatedAt: Date.now() } : snap
 }
 
 export function ensureThread(

@@ -4,6 +4,9 @@
  */
 export const CONET_ADDRESS_PGP_MANAGER = '0x684b0ac760cEE9c9b85de36d69746420648Cf9e2'
 
+/** ChatIndexRegistry UUPS proxy (CoNET 224422) — encrypted history head pointer. */
+export const CONET_CHAT_INDEX_REGISTRY = '0x1511Caa71081C84d8a591490D1b83879088EED72'
+
 /** Guardian gossip POST domain hex ids (16-char), same pool as iOS/Android POS. */
 export const GOSSIP_POST_DOMAIN_HEX_IDS: readonly string[] = [
 	'9977E9A45187DD80',

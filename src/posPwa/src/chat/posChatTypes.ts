@@ -5,6 +5,7 @@ export type PosChatMessage = {
 	text: string
 	createdAt: number
 	peerAddress: string
+	status?: 'sent' | 'delivered'
 }
 
 export type PosChatThread = {

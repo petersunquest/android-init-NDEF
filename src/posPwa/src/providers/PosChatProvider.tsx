@@ -13,19 +13,28 @@ import {
 	stopPosChatGossipListen,
 } from '@/chat/posChatBootstrap'
 import {
+	extractInboundArmorHash,
+	emitDualChatDeliveryReceipts,
+	postMailboxDeliveryAck,
+} from '@/chat/posChatDeliveryReceipt'
+import { mergeHistoryBatchIntoStore, mirrorPosChatMessageToHistory } from '@/chat/posChatHistoryMirror'
+import {
 	inboundToPosChatMessage,
 	parseInboundChatLine,
+	parseInboundDeliveryReceiptLine,
 } from '@/chat/posChatInbound'
 import { sendPosChatTextMessage } from '@/chat/posChatSend'
 import {
 	ensureThread,
 	loadPosChatStore,
+	markOutboundDeliveredBySendId,
 	markThreadRead,
 	savePosChatStore,
 	totalUnreadCount,
 	upsertInboundMessage,
 	upsertOutboundMessage,
 } from '@/chat/posChatStore'
+import { onHistoryBuffer } from '@/chat/posChatWorkerBridge'
 import type { PosChatStoreSnapshot, PosChatThread } from '@/chat/posChatTypes'
 import {
 	isPosAppBackgrounded,
@@ -89,6 +98,24 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 	const handleLine = useCallback(
 		(line: string) => {
 			if (!eoa) return
+			const pk = getSessionPrivateKeyHex()
+			const armorHash = extractInboundArmorHash(line)
+			const receipt = parseInboundDeliveryReceiptLine(line)
+			if (receipt) {
+				setSnap((prev) => {
+					const next = markOutboundDeliveredBySendId(prev, receipt.sendId)
+					if (next !== prev) savePosChatStore(eoa, next)
+					return next
+				})
+				if (armorHash && pk) {
+					void postMailboxDeliveryAck({
+						armorHash,
+						sendId: receipt.sendId,
+						walletPrivateKeyHex: pk,
+					})
+				}
+				return
+			}
 			const parsed = parseInboundChatLine(line)
 			if (!parsed) return
 			const msg = inboundToPosChatMessage(parsed, eoa)
@@ -96,14 +123,37 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			const viewing =
 				activePeerRef.current?.toLowerCase() === msg.peerAddress.toLowerCase() &&
 				!isPosAppBackgrounded()
+			let ingested = false
 			setSnap((prev) => {
 				const next = upsertInboundMessage(prev, msg, { incrementUnread: !viewing })
-				savePosChatStore(eoa, next)
+				ingested = next !== prev
+				if (ingested) savePosChatStore(eoa, next)
 				return next
 			})
+			if (!ingested) return
+			mirrorPosChatMessageToHistory(msg.peerAddress, msg, 'in')
+			if (pk) {
+				void emitDualChatDeliveryReceipts({
+					armorHash,
+					sendId: msg.sendId,
+					senderEoa: msg.peerAddress,
+					walletPrivateKeyHex: pk,
+				})
+			}
 		},
 		[eoa],
 	)
+
+	useEffect(() => {
+		if (!eoa) return
+		return onHistoryBuffer((batch) => {
+			setSnap((prev) => {
+				const next = mergeHistoryBatchIntoStore(prev, batch, eoa)
+				if (next !== prev) savePosChatStore(eoa, next)
+				return next
+			})
+		})
+	}, [eoa])
 
 	useEffect(() => {
 		if (bootPhase !== 'home' || !eoa) {
@@ -193,12 +243,14 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 				text: trimmed,
 				createdAt: result.createdAt,
 				peerAddress,
+				status: 'sent' as const,
 			}
 			setSnap((prev) => {
 				const next = upsertOutboundMessage(prev, msg)
 				savePosChatStore(eoa, next)
 				return next
 			})
+			mirrorPosChatMessageToHistory(peerAddress, msg, 'out')
 			return { ok: true }
 		},
 		[eoa],

@@ -1,4 +1,9 @@
+import { verifyMessage } from 'ethers'
 import { POS_TERMINAL_PERMISSION_TYPE } from '@/conet/constants'
+import {
+	parseChatDeliveryReceiptV1,
+	type ChatDeliveryReceiptV1,
+} from '@/chat/posChatDeliveryReceipt'
 import type { PosChatMessage } from '@/chat/posChatTypes'
 
 function tryParseJson(raw: string): unknown {
@@ -77,6 +82,17 @@ export function parseInboundChatLine(line: string): ParsedInboundChat | null {
 	const textStr = typeof textRaw === 'string' ? textRaw : JSON.stringify(textRaw)
 
 	if (isPosTerminalPermissionChatPayload(textStr)) return null
+	if (parseChatDeliveryReceiptV1(textStr)) return null
+
+	const signMessage = typeof obj.signMessage === 'string' ? obj.signMessage : ''
+	if (!signMessage || !verifyEnvelopeSign(from, textStr, signMessage)) {
+		const midProbe = tryParseJson(textStr)
+		const innerText =
+			midProbe && typeof midProbe === 'object' && typeof (midProbe as { text?: unknown }).text === 'string'
+				? String((midProbe as { text: string }).text)
+				: ''
+		if (!innerText || !verifyEnvelopeSign(from, innerText, signMessage)) return null
+	}
 
 	const unwrapped = unwrapTextLayers(textStr)
 	if (isPosTerminalPermissionPayload(unwrapped)) return null
@@ -95,6 +111,7 @@ export function parseInboundChatLine(line: string): ParsedInboundChat | null {
 			if (typeof u.createdAt === 'number') createdAt = u.createdAt
 		}
 		if (typeof u.sendId === 'string') sendId = u.sendId
+		if (parseChatDeliveryReceiptV1(u) || parseChatDeliveryReceiptV1(displayText)) return null
 	}
 
 	// Nested pending row: { sendId, from:'me', text }
@@ -125,6 +142,38 @@ export function parseInboundChatLine(line: string): ParsedInboundChat | null {
 		createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
 		signMessage: typeof obj.signMessage === 'string' ? obj.signMessage : undefined,
 	}
+}
+
+function verifyEnvelopeSign(from: string, text: string, signMessage: string): boolean {
+	if (!signMessage) return false
+	try {
+		return verifyMessage(text, signMessage).toLowerCase() === from.toLowerCase()
+	} catch {
+		return false
+	}
+}
+
+/** Delivery receipt after EIP-191 verify. Null if not a receipt or sign fails. */
+export function parseInboundDeliveryReceiptLine(line: string): ChatDeliveryReceiptV1 | null {
+	const root = tryParseJson(line)
+	if (!root || typeof root !== 'object') return null
+	const obj = root as Record<string, unknown>
+	if ('epoch' in obj && ('nodeWallets' in obj || 'status' in obj)) return null
+	const from = String(obj.from ?? '').trim()
+	if (!/^0x[0-9a-fA-F]{40}$/.test(from)) return null
+	const textRaw = obj.text
+	if (textRaw == null) return null
+	const textStr = typeof textRaw === 'string' ? textRaw : JSON.stringify(textRaw)
+	const signMessage = typeof obj.signMessage === 'string' ? obj.signMessage : ''
+	if (!signMessage || !verifyEnvelopeSign(from, textStr, signMessage)) {
+		const midProbe = tryParseJson(textStr)
+		const innerText =
+			midProbe && typeof midProbe === 'object' && typeof (midProbe as { text?: unknown }).text === 'string'
+				? String((midProbe as { text: string }).text)
+				: ''
+		if (!innerText || !verifyEnvelopeSign(from, innerText, signMessage)) return null
+	}
+	return parseChatDeliveryReceiptV1(textStr)
 }
 
 export function inboundToPosChatMessage(
