@@ -10,7 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
-| [conet-l0d crate MVP 验收 + P1 encrypt+POST](./conet-l0d-mvp-accept-p1-2026-08.md) | `conet-l0d-mvp-accept-p1.canvas.tsx` | **2026-08-17 22:45Z：crate MVP 已验收；P1 出站 + 入站解密/TUN 写回 + listen HTTP+SSE worker 已在 crate（mock、未签）；未打开生产 SI listen；实验室 `[l0]` 关；`.98` geth 已恢复** | 两机公网 P2P 现场数；可通过 vs 不得声称；P1 复用现役 `/post`；禁 vIP advertise |
+| [conet-l0d crate MVP 验收 + P1 encrypt+POST](./conet-l0d-mvp-accept-p1-2026-08.md) | `conet-l0d-mvp-accept-p1.canvas.tsx` | **2026-08-17 23:30Z：crate MVP 已验收；P1 出站 + 入站解密/TUN 写回 + EIP-191 listen wrap 已在 crate（mock）；未打开生产 SI listen；实验室 `[l0]` 关；`.98` geth 已恢复** | 两机公网 P2P 现场数；可通过 vs 不得声称；P1 复用现役 `/post`；禁 vIP advertise |
 | [CoNET L0 Linux P2P 传输模块](./conet-l0-linux-p2p-transport-2026-08.md) | `conet-l0-linux-p2p-transport-2026-08.canvas.tsx` | **2026-08-17 调研冻结，未部署** | 用户态 `conet-l0d` + TUN/iptables；`web3://wallet\|tag.web3`；不改 geth/beacon/va；现有 UDP ≠ raw UDP；禁 SilentPass egress |
 | [归档同步资格：追块不是席位](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-qualification-2026-08.canvas.tsx` | **2026-08-16 规范冻结；实验室门面已落地抽检 + 从零加入** | IdentityEligible ≠ SyncQualified；`SYNCING` 无席位；随机抽检全部托管链；\(Q_A=4/5\)（禁 3/5）；不是 30 天门 |
 | [为何随机 test 等于「已有该组信息」](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-possession-soundness-2026-08.canvas.tsx` | **2026-08-16 可靠性论证已入 §5.2.0f** | 承诺根绑定库存；不可预测本地打开；分层覆盖 \(C_G\)；禁 hop/proxy；每链 1 样本只是覆盖 |
