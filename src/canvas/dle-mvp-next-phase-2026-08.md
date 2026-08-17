@@ -92,8 +92,8 @@ P8d 现场四根（wipe 与 accept 相同，全组一致）：
 - P9 已过（2026-08-17；七台 opening 2103===2103；leaf 5225；不 wipe）。
 - P10 已过（2026-08-17；keep 七台 LIVE_OK；smoke `p10-rejected-safety.json` 06:55:13Z；不 wipe、不注入缺对象）。
 - P11 已过（2026-08-17T07:52:17Z；extra joiner QUALIFIED；opening 2249===2249；官方 7 + fd-05 未 wipe）。
-- 下一阶段建设序：`dle-mvp-p12-milestones-2026-08.md`（**P12–P20 已落地**；`runtime:test` 140/140；不得开 `pilotStartedAt`）。
-- IdentityEligible / OperatorDomain / \(U_e\)、`hashIndexRoot` 进 AC、官方 standby 就绪签：停放。生产 DePIN gossip 仍停放（P20 只切实验室 HTTP 钩诚实）。
+- 下一阶段建设序：`dle-mvp-p12-milestones-2026-08.md`（**P12–P22 已落地**；`runtime:test` 153/153；不得开 `pilotStartedAt`）。
+- IdentityEligible / OperatorDomain / \(U_e\)：停放。官方 standby 就绪签 **不再停放**（P22）。实验室 `hashIndexRoot` overlay 已落地（树仍 `committedInAc: false`）。生产 DePIN gossip 仍停放（P20 只切实验室 HTTP 钩诚实）。
 - 30 天 100/30/100 计数：未开。
 
 ## 实现检查表

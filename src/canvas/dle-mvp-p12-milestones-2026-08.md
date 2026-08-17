@@ -2,8 +2,8 @@
 
 - **Canvas 标识：** `dle-mvp-p12-milestones-2026-08.canvas.tsx`
 - **日期：** 2026-08-17
-- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 已落地（引擎 + 单测，2026-08-17；`runtime:test` 140/140）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。
-- **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
+- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 已落地（引擎 + 单测，2026-08-17；`runtime:test` 153/153）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。
+- **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §P21 / §P22 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
 
 ## 事实来源
 
@@ -19,7 +19,7 @@
 - 「实验室完成」只表示对应控制面门有证据，不表示生产可发布。
 - 再做一次从零加入（无新授权主机）只重复 P8d/P11，不关闭 HMAC 缺口。
 - CoNET 是否已有 **终局** CL RANDAO / 等价 beacon view：**本页视为不可测**；有则只读绑定，无则诚实实验室等待。
-- 不重启 EL/CL；P12–P20 默认 **keep-only**。
+- 不重启 EL/CL；P12–P22 默认 **keep-only**。
 - `fd-08` 仍是 extra standby，不是第 8 个投票域。
 
 ## 公式 / 数据
@@ -64,13 +64,20 @@ prod C_G      = L1 archiveGroupId(G) ∪ {lastAC, membershipRoot, hashIndexRoot}
 lab hosted    = freezer chainNftIds      // 2249；≠ prod C_G
 P14 probe     = no_l1_archive_group_id_view   // default; publicrpc/rpc1 forbidden
 injected C_G  = small-set smoke only     // ≠ lab hosted-set; still notProductionCg
+official standby ready = EIP-712 ArchiveStandbyReadiness  // P22；string groupId；无 domainId
+                 // recoverAddress == labSeatingAddress(domainId)
+hmac standby ready = ERR_SYNC_STANDBY_HMAC_CUTOVER
+official count = fd-06 + fd-07 only     // OFFICIAL_STANDBY_COUNT=2
+extra fd-08    = ingest-only            // extraStandbyReadyDoesNotCount
+newchain accept = officialStandbysReady // lab-cli syncHolder；else 409
+node.ts        = not wired              // 官方 standby 门不在 startArchiveNode
 pilotStartedAt = null
 ```
 
 ## 冻结结论
 
 1. **总评：** 实验室入座 **控制面**（P7–P11）已闭环。下一阶段 MVP 的主缺口是 **密码学诚实**，不是再加入一台机器。
-2. **建设序已串行完成：P12 → P13 → P14 → P15 → P16 → P17 → P18 → P19 → P20。九闸均已落地。**
+2. **建设序已串行完成：P12 → P13 → P14 → P15 → P16 → P17 → P18 → P19 → P20 → P21 → P22。十一闸均已落地。**
    - **P12 入座 EIP-712（landed，引擎 + `runtime:test`）：** 只替换 `ArchiveSyncQualificationCertificate` / `POST /sync/vote` / `/sync/reject`。cutover 后拒绝 HMAC 入座票。`recoverAddress` 必须等于 `labSeatingAddress(domainId)` 且落在现任 active `membershipRoot`。keep-only（磁盘旧 HMAC 证仍可恢复 `QUALIFIED`）。**不** settle 到 L1 MembershipCheckpoint。**不**同闸替换 BFT AC 或 on-demand HMAC。
    - **P13 先冻后信标（landed，引擎 + `runtime:test`）：** 在绑定 beacon 已知前冻结 `hostedChainSetRoot` / `lastACRef` / 候选集（`ArchiveSyncFreezeV1`，无 seed）。引擎先 persist freeze 再 bind。有注入终局 CL view 则绑定该 hex（仍 `notClRandao`）；无则诚实实验室 `labSyncBeaconAfterFreeze`。**禁止**把 `publicrpc` / `rpc1` 读成 live CL RANDAO。**禁止**把 freeze 后 keccak 宣传为生产 \(R^{\mathrm{sync}}_e\)。BFT 后于 **P16** 切；on-demand attest 后于 **P17** 切（beacon / P6 \(Q_V\) 未换）。
    - **P14 \(C_G\) 分轨（landed，引擎 + `runtime:test`）：** 实验室 hosted-set 继续当实验室开口（P9/P11 全开语义不变）；生产 \(C_G\) 只认 L1 `archiveGroupId` ∪ `{lastAC, membershipRoot, hashIndexRoot}`。默认无 L1 view。可选注入小集 smoke **不替代** freezer opening，且不得等于非空实验室 hosted-set。**禁止**把 2249 条实验室链写进白皮书当生产 \(C_G\)。**禁止** HTTP 扫 `publicrpc`/`rpc1` 当生产 \(C_G\)。**禁止**把 live 七台入座改成只抽 L1 小集。BFT 后于 **P16** 切；on-demand attest 后于 **P17** 切（beacon / P6 \(Q_V\) 未换）。
@@ -80,6 +87,8 @@ pilotStartedAt = null
    - **P18 \(Q_V\) EIP-712（landed，引擎 + `runtime:test` 当时 131/131）：** 同域签发 `ArchiveValidatorQuorumAttest`（`requestId, valueHash, tipStateRoot, bodyCommitment`；typed data **不含** `validatorId` / `domainId`）。复用 P12 入座钥于 request 派生 `validatorId`（`labValidatorId`；**不**另造 validator 钥前缀）。`recoverAddress` 必须等于 `labSeatingAddress(validatorId)` 且等于 `attest.signer`。HMAC / 未签名票 `ERR_VALIDATOR_QUORUM_HMAC_CUTOVER`；验签失败 `ERR_VALIDATOR_QUORUM_SIG`。keep-only：磁盘旧 HMAC \(Q_V\) 仍可恢复；新 `POST /newchain/request` 必须 EIP-712。**不**换 on-demand lab beacon。**不**改 gossip wait-hook。**不**改 `membershipRootOf` / Mode A `valueHash` / `chainNftId` / NFT 42 tip。**不得**把 `newchainValidatorQuorumEip712` 画成生产 secp256k1 或 30 天资格。
    - **P19 on-demand 先冻后绑（landed，引擎 + `runtime:test` 当时 134/134）：** 对齐 P13。先 persist `ondemandFreezeHex`（无 beacon / roulette / committee），再 bind：默认 honest-wait `labOnDemandBeaconAfterFreeze`；可选注入 CL view / `options.beacon`。即时 `labBeaconAfterFreeze(poolRoot)` 仅 contrast。**禁止**把 `publicrpc` / `rpc1` 读成 live CL RANDAO。**禁止**把 `ondemandLabBeaconAfterFreeze` 画成生产信标。keep-only：磁盘旧即时 keccak SelectionLog 仍可恢复 `endorsed`（`legacy-instant`）。**不**换 P17 attest / P18 \(Q_V\) / 入座 / 挑战 / BFT。**不**改 gossip wait-hook（后于 **P20** 切诚实）。**不**改 7+2 公式。
    - **P20 gossip wait-hook honesty（landed，引擎 + daemon + `runtime:test` 140/140）：** 白皮书 §5.4 / §8.1：等待钩 **不得假定**已在同组归档间 gossip。`ingest` 若带 `miners` / `hooks` / `hook` → 整包拒绝 `ERR_ONDEMAND_HOOK_NOT_GOSSIP`。`gossip()` 仍只转发 attests + selection。miner / daemon **必须**对组内每一台活跃归档 POST 同一钩；一台 accept ≠ 组等待池一致。daemon `fanoutComplete` 仅当全部 queued；单台 `submitWaitHook` 标 `singleArchiveAcceptNotGroupPool`。实验室 `POST /ondemand/hook`（TCP **27101**）**不是**生产 DePIN gossip。Explorer nginx **不得**暴露 hook。**不是**把 HTTP 钩改成生产 DePIN gossip。**不**换 P12–P19 票 / beacon / \(Q_V\)。**不得**把 `ondemandHookNotGossip` 画成生产 gossip。
+   - **P21 hashIndexRoot into lab BFT（landed，引擎 + `runtime:test` 当时 148/148）：** 把 live/bound `hashIndexRoot` 写入实验室 BFT 票 / QC / AC typed data（在 `membershipRoot` 之后），并 **改** `topicQcRef` 编码。树视图 / `dle_getHashIndexRoot` / `dle_proveHash` 仍 `committedInAc: false`。overlay `hashIndexCommittedInAc` 仅当 AC 根 ≠ `ZERO32`（`emptyHashIndexRoot()` ≠ `ZERO32` → overlay true；磁盘 HMAC 缺字段 → `ZERO32` → overlay false）。keep-only：已有证书则跳过 QC/AC 重建；重建 `qcRef` 不一致则保留磁盘 QC。HMAC / 坏签仍优先于 `ERR_BFT_HASH_INDEX_ROOT`。**不**改 `membershipRootOf` / Mode A `valueHash` / daemon / on-demand。**不得**把 overlay 画成生产 AC 承诺或 30 天门。
+   - **P22 official standby readiness（landed，引擎 + `runtime:test` 153/153）：** 官方 standby（`fd-06` / `fd-07`）`QUALIFIED` 后签实验室 EIP-712 `ArchiveStandbyReadiness`（`groupId` 为 **string**；typed data **不含** `domainId`；复用 P12 入座钥）。HMAC / 未签名 → `ERR_SYNC_STANDBY_HMAC_CUTOVER`。extra `fd-08` / `fd-08-hosthatch-hk1` 可 ingest，**不计入** `OFFICIAL_STANDBY_COUNT=2`。`POST /sync/standby-ready`。`REJECTED` 重载保留 `standbyReady` map。`lab-cli` 经 `syncHolder` 把门注入 newchain accept；未就绪 → 409 `ERR_NEWCHAIN_STANDBY_NOT_READY`。**`node.ts` 未接线。** Explorer 绿点仍只看 `seatingQualified`。**不得**把 `standbyReadyEip712` / `officialStandbysReady` / `newchainOfficialStandbysReady` 画成生产 OperatorDomain / secp256k1 / 30 天门。**不**改入座票 / 挑战 / BFT / on-demand / \(Q_V\)。
 3. **30 天门仍拒绝。** 完成本页任一闸都 **不得** 开 `pilotStartedAt` / `PilotQualificationGate`。
 4. **本页不改白皮书生产条款。**
 
@@ -89,7 +98,7 @@ pilotStartedAt = null
 |---|---|
 | 下一步再做全开从零加入 | 只重复 P11；不关闭 HMAC |
 | 把 EIP-712 / RANDAO / 30 天绑成一闸 | 范围过大，会再次把实验室完成说成生产就绪 |
-| 同闸换 BFT AC + on-demand HMAC | 入座票 / 挑战是最高杠杆；BFT 已在 P16 另闸切；on-demand attest 已在 P17 另闸切；\(Q_V\) 已在 P18 另闸切；on-demand beacon 已在 P19 另闸切；gossip wait-hook 已在 P20 另闸切诚实，**不是**生产 DePIN gossip |
+| 同闸换 BFT AC + on-demand HMAC | 入座票 / 挑战是最高杠杆；BFT 已在 P16 另闸切；on-demand attest 已在 P17 另闸切；\(Q_V\) 已在 P18 另闸切；on-demand beacon 已在 P19 另闸切；gossip wait-hook 已在 P20 另闸切诚实，**不是**生产 DePIN gossip；`hashIndexRoot` 已在 P21 另闸写入实验室 BFT（树 `committedInAc` 仍 false，**不是**生产 AC 承诺）；官方 standby 就绪签已在 P22 另闸切（extra `fd-08` 不计；**不是**生产 OperatorDomain） |
 | 开 `pilotStartedAt` | 入座门面 ≠ 生产准入时钟 |
 | 把 fd-08 编进官方 5+2 | `REQUIRED_DOMAIN_COUNT=7` |
 | 走 P8d wipe / 清 fd-05 | P11 已证明不必清官方机 |
@@ -99,10 +108,10 @@ pilotStartedAt = null
 
 ## 未决项
 
-- P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 **已落地**。本轨下一事项是停放项，不是再开 `pilotStartedAt`。
+- P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 **已落地**。本轨下一事项是停放项，不是再开 `pilotStartedAt`。
 - CoNET 终局 CL RANDAO view：P13 只读探测默认 `no_finalized_cl_view`；未 HTTP 拉 `publicrpc` / `rpc1`。生产 \(R^{\mathrm{sync}}_e\) 仍未接 live CL。
 - 生产 \(C_G\) 仍无 live L1 `archiveGroupId` view（P14 默认 `no_l1_archive_group_id_view`；注入小集仍 `notLiveL1Scan` / `notProductionCg`）。
-- IdentityEligible / OperatorDomain / \(U_e\)、`hashIndexRoot` 进 AC、官方 standby 就绪签：停放。生产 DePIN gossip 仍停放（P20 只切实验室 HTTP 钩诚实，不是生产 gossip）。
+- IdentityEligible / OperatorDomain / \(U_e\)：停放。官方 standby 就绪签 **不再停放**（P22 已落地；extra `fd-08` 不计）。实验室 overlay `hashIndexCommittedInAc` 已落地（树仍 `committedInAc: false`；生产 AC 承诺公式未改）。生产 DePIN gossip 仍停放（P20 只切实验室 HTTP 钩诚实，不是生产 gossip）。
 - 30 天 100/30/100 计数：未开。
 - 实验室确定性入座密钥仍可从算法派生；生产 OperatorDomain / L1 成员密钥未接。
 
@@ -121,4 +130,6 @@ pilotStartedAt = null
 - [x] P18 \(Q_V\) EIP-712（引擎 + 单测 + 全 runtime 当时 131/131；`ArchiveValidatorQuorumAttest`；HMAC cutover；keep-only 磁盘 HMAC \(Q_V\)；on-demand beacon / gossip wait-hook 未动）
 - [x] P19 on-demand 先冻后绑（引擎 + 单测 + 全 runtime 当时 134/134；`ondemandFreezeHex` + honest-wait / injected view；publicrpc/rpc1 拒绝；keep-only `legacy-instant`；gossip wait-hook 当时未动）
 - [x] P20 gossip wait-hook honesty（引擎 + daemon + 单测 + 全 runtime 140/140；`ERR_ONDEMAND_HOOK_NOT_GOSSIP`；fan-out 诚实；**不是**生产 DePIN gossip）
+- [x] P21 hashIndexRoot into lab BFT（引擎 + 单测 + 全 runtime 当时 148/148；树 `committedInAc` 仍 false；overlay 仅当 AC 根 ≠ `ZERO32`；**不是**生产 AC 承诺）
+- [x] P22 official standby readiness（引擎 + 单测 + 全 runtime 153/153；`ArchiveStandbyReadiness`；extra `fd-08` 不计；`lab-cli` 新链 gate；`node.ts` 未接线；**不是**生产 OperatorDomain / 30 天门）
 - [ ] 30 天资格（明确未宣称）

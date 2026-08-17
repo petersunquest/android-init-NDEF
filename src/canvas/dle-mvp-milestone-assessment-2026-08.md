@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-mvp-milestone-assessment-2026-08.canvas.tsx`
 - **日期：** 2026-08-15
-- **状态：** 实验室控制面 MVP（P0–P4 门 + P5 合约验证）已闭环；**30 天 5+2 资格未开**；生产签名 / gossip / CL beacon 未宣称
+- **状态：** **历史审查（2026-08-15）**。当前审查见 [`dle-mvp-milestone-assessment-2026-08-17.md`](./dle-mvp-milestone-assessment-2026-08-17.md)。当时：实验室控制面 MVP（P0–P4 门 + P5 合约验证）已闭环；**30 天 5+2 资格未开**；生产签名 / gossip / CL beacon 未宣称
 - **规范优先级：** 英中白皮书 Revision 2026-08-15 与合约 / corpus > 本快照。本页是审查，不是协议真相。
 
 ## 事实来源
