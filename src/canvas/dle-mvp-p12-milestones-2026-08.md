@@ -2,8 +2,8 @@
 
 - **Canvas 标识：** `dle-mvp-p12-milestones-2026-08.canvas.tsx`
 - **日期：** 2026-08-17
-- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。
-- **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §P21 / §P22 / §P24 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
+- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。P25 Explorer overlay 已落地（`explorer:test` 8/8）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。
+- **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §P21 / §P22 / §P24 / §P25 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
 
 ## 事实来源
 
@@ -71,13 +71,14 @@ official count = fd-06 + fd-07 only     // OFFICIAL_STANDBY_COUNT=2
 extra fd-08    = ingest-only            // extraStandbyReadyDoesNotCount
 newchain accept = officialStandbysReady // lab-cli syncHolder + isolated node.ts；else 409
 node.ts        = P24 wired              // 同一回调；不 sync.start() / 不冻库存
+explorer UI    = P25 overlays           // 非绿芯片；绿点仍 seatingQualified
 pilotStartedAt = null
 ```
 
 ## 冻结结论
 
 1. **总评：** 实验室入座 **控制面**（P7–P11）已闭环。下一阶段 MVP 的主缺口是 **密码学诚实**，不是再加入一台机器。
-2. **建设序已串行完成：P12 → P13 → P14 → P15 → P16 → P17 → P18 → P19 → P20 → P21 → P22 → P24。十二闸均已落地（P23 是 live keep-deploy，不是本页引擎闸）。**
+2. **建设序已串行完成：P12 → P13 → P14 → P15 → P16 → P17 → P18 → P19 → P20 → P21 → P22 → P24 → P25。十三闸均已落地（P23 是 live keep-deploy，不是本页引擎闸）。**
    - **P12 入座 EIP-712（landed，引擎 + `runtime:test`）：** 只替换 `ArchiveSyncQualificationCertificate` / `POST /sync/vote` / `/sync/reject`。cutover 后拒绝 HMAC 入座票。`recoverAddress` 必须等于 `labSeatingAddress(domainId)` 且落在现任 active `membershipRoot`。keep-only（磁盘旧 HMAC 证仍可恢复 `QUALIFIED`）。**不** settle 到 L1 MembershipCheckpoint。**不**同闸替换 BFT AC 或 on-demand HMAC。
    - **P13 先冻后信标（landed，引擎 + `runtime:test`）：** 在绑定 beacon 已知前冻结 `hostedChainSetRoot` / `lastACRef` / 候选集（`ArchiveSyncFreezeV1`，无 seed）。引擎先 persist freeze 再 bind。有注入终局 CL view 则绑定该 hex（仍 `notClRandao`）；无则诚实实验室 `labSyncBeaconAfterFreeze`。**禁止**把 `publicrpc` / `rpc1` 读成 live CL RANDAO。**禁止**把 freeze 后 keccak 宣传为生产 \(R^{\mathrm{sync}}_e\)。BFT 后于 **P16** 切；on-demand attest 后于 **P17** 切（beacon / P6 \(Q_V\) 未换）。
    - **P14 \(C_G\) 分轨（landed，引擎 + `runtime:test`）：** 实验室 hosted-set 继续当实验室开口（P9/P11 全开语义不变）；生产 \(C_G\) 只认 L1 `archiveGroupId` ∪ `{lastAC, membershipRoot, hashIndexRoot}`。默认无 L1 view。可选注入小集 smoke **不替代** freezer opening，且不得等于非空实验室 hosted-set。**禁止**把 2249 条实验室链写进白皮书当生产 \(C_G\)。**禁止** HTTP 扫 `publicrpc`/`rpc1` 当生产 \(C_G\)。**禁止**把 live 七台入座改成只抽 L1 小集。BFT 后于 **P16** 切；on-demand attest 后于 **P17** 切（beacon / P6 \(Q_V\) 未换）。
@@ -90,6 +91,7 @@ pilotStartedAt = null
    - **P21 hashIndexRoot into lab BFT（landed，引擎 + `runtime:test` 当时 148/148）：** 把 live/bound `hashIndexRoot` 写入实验室 BFT 票 / QC / AC typed data（在 `membershipRoot` 之后），并 **改** `topicQcRef` 编码。树视图 / `dle_getHashIndexRoot` / `dle_proveHash` 仍 `committedInAc: false`。overlay `hashIndexCommittedInAc` 仅当 AC 根 ≠ `ZERO32`（`emptyHashIndexRoot()` ≠ `ZERO32` → overlay true；磁盘 HMAC 缺字段 → `ZERO32` → overlay false）。keep-only：已有证书则跳过 QC/AC 重建；重建 `qcRef` 不一致则保留磁盘 QC。HMAC / 坏签仍优先于 `ERR_BFT_HASH_INDEX_ROOT`。**不**改 `membershipRootOf` / Mode A `valueHash` / daemon / on-demand。**不得**把 overlay 画成生产 AC 承诺或 30 天门。
    - **P22 official standby readiness（landed，引擎 + `runtime:test` 当时 153/153）：** 官方 standby（`fd-06` / `fd-07`）`QUALIFIED` 后签实验室 EIP-712 `ArchiveStandbyReadiness`（`groupId` 为 **string**；typed data **不含** `domainId`；复用 P12 入座钥）。HMAC / 未签名 → `ERR_SYNC_STANDBY_HMAC_CUTOVER`。extra `fd-08` / `fd-08-hosthatch-hk1` 可 ingest，**不计入** `OFFICIAL_STANDBY_COUNT=2`。`POST /sync/standby-ready`。`REJECTED` 重载保留 `standbyReady` map。`lab-cli` 经 `syncHolder` 把门注入 newchain accept；未就绪 → 409 `ERR_NEWCHAIN_STANDBY_NOT_READY`。Explorer 绿点仍只看 `seatingQualified`。**不得**把 `standbyReadyEip712` / `officialStandbysReady` / `newchainOfficialStandbysReady` 画成生产 OperatorDomain / secp256k1 / 30 天门。**不**改入座票 / 挑战 / BFT / on-demand / \(Q_V\)。
    - **P24 isolated `node.ts` gate（landed，引擎 + `runtime:test` 154/154）：** `startArchiveNode` 把同一 `officialStandbysReady` 回调注入 `createNewChainEngine`。extra `fd-08` 仍不计。隔离节点 **不** `sync.start()`、**不**冻库存。测试：`runtime/test/node-standby-gate.test.ts`。**不是** 7/7 健康 / **不是** 30 天资格。
+   - **P25 Explorer overlays（landed，Explorer + `explorer:test` 8/8）：** Certificates + Home **非绿**芯片展示 `officialStandbysReady` / `hashIndexCommittedInAc`。绿点仍只 `seatingQualified === true`。`archiveSeating.ts` 未改。树 `committedInAc` 仍 false。**不是** 生产 AC / **不是** 30 天资格。
 3. **30 天门仍拒绝。** 完成本页任一闸都 **不得** 开 `pilotStartedAt` / `PilotQualificationGate`。
 4. **本页不改白皮书生产条款。**
 
@@ -109,7 +111,7 @@ pilotStartedAt = null
 
 ## 未决项
 
-- P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 **已落地**。本轨下一事项是停放项，不是再开 `pilotStartedAt`。
+- P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 / P25 **已落地**。本轨下一事项是停放项，不是再开 `pilotStartedAt`。
 - CoNET 终局 CL RANDAO view：P13 只读探测默认 `no_finalized_cl_view`；未 HTTP 拉 `publicrpc` / `rpc1`。生产 \(R^{\mathrm{sync}}_e\) 仍未接 live CL。
 - 生产 \(C_G\) 仍无 live L1 `archiveGroupId` view（P14 默认 `no_l1_archive_group_id_view`；注入小集仍 `notLiveL1Scan` / `notProductionCg`）。
 - IdentityEligible / OperatorDomain / \(U_e\)：停放。官方 standby 就绪签 **不再停放**（P22 已落地；extra `fd-08` 不计）。实验室 overlay `hashIndexCommittedInAc` 已落地（树仍 `committedInAc: false`；生产 AC 承诺公式未改）。生产 DePIN gossip 仍停放（P20 只切实验室 HTTP 钩诚实，不是生产 gossip）。
@@ -134,4 +136,5 @@ pilotStartedAt = null
 - [x] P21 hashIndexRoot into lab BFT（引擎 + 单测 + 全 runtime 当时 148/148；树 `committedInAc` 仍 false；overlay 仅当 AC 根 ≠ `ZERO32`；**不是**生产 AC 承诺）
 - [x] P22 official standby readiness（引擎 + 单测 + 全 runtime 当时 153/153；`ArchiveStandbyReadiness`；extra `fd-08` 不计；`lab-cli` 新链 gate；**不是**生产 OperatorDomain / 30 天门）
 - [x] P24 isolated `node.ts` gate（引擎 + 单测 + 全 runtime 154/154；同一 `officialStandbysReady` 回调；不 `sync.start()` / 不冻库存；**不是** 7/7 / 30 天门）
+- [x] P25 Explorer overlays（Certificates + Home 非绿芯片；`explorer:test` 8/8；绿点仍只 `seatingQualified`；**不是** 生产 AC / 30 天门）
 - [ ] 30 天资格（明确未宣称）
