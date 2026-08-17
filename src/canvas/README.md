@@ -10,6 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
+| [CoNET L0 Linux P2P 传输模块](./conet-l0-linux-p2p-transport-2026-08.md) | `conet-l0-linux-p2p-transport-2026-08.canvas.tsx` | **2026-08-17 调研冻结，未部署** | 用户态 `conet-l0d` + TUN/iptables；`web3://wallet\|tag.web3`；不改 geth/beacon/va；现有 UDP ≠ raw UDP；禁 SilentPass egress |
 | [归档同步资格：追块不是席位](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-qualification-2026-08.canvas.tsx` | **2026-08-16 规范冻结；实验室门面已落地抽检 + 从零加入** | IdentityEligible ≠ SyncQualified；`SYNCING` 无席位；随机抽检全部托管链；\(Q_A=4/5\)（禁 3/5）；不是 30 天门 |
 | [为何随机 test 等于「已有该组信息」](./dle-archive-sync-qualification-2026-08.md) | `dle-archive-sync-possession-soundness-2026-08.canvas.tsx` | **2026-08-16 可靠性论证已入 §5.2.0f** | 承诺根绑定库存；不可预测本地打开；分层覆盖 \(C_G\)；禁 hop/proxy；每链 1 样本只是覆盖 |
 | [Testnet EIP-155 vs Group ID = 登记 hash](./dle-testnet-chainid-group-hash-2026-08.md) | 无独立交互 Canvas | **2026-08-16 7 台归档已 wipe+重启，Explorer 已发** | `0x44c45` = CoNET-DLE Testnet；Group ID = 引导组 L1 register tx；uint `1` 只是存储键 |
@@ -25,7 +26,9 @@
 | [Archive geth hash 快路径 vs DLE](./dle-geth-archive-hash-lookup-2026-08.md) | `dle-geth-archive-hash-lookup-2026-08.canvas.tsx` | **已入白皮书 §5.2.0e** | 组内照搬 geth `H`/`l` 热 KV + freezer；locator 须带 chainNftId；本地 miss 不得直接 null |
 | [每组 Hash 索引树](./dle-hash-index-tree-2026-08.md) | `dle-hash-index-tree-2026-08.canvas.tsx` | **实验室 M5 已落地（独立检查点，非 AC 投票）** | 每组 `hashIndexRoot` 做包含 / 不包含证明；不是热 Get，也不是第二套真相 |
 | [DLE RPC hash 跨组 proxy](./dle-rpc-hash-proxy-2026-08.md) | `dle-rpc-hash-proxy-2026-08.canvas.tsx` | **已入白皮书 §5.2.0e** | hash-only 检索必须 locate 后单跳 proxy；禁止本组未命中直接 null；禁止 payload 全组扇出 |
-| [DLE MVP 里程碑评估](./dle-mvp-milestone-assessment-2026-08.md) | `dle-mvp-milestone-assessment-2026-08.canvas.tsx` | **2026-08-15 审查：实验室门已闭环 / 资格未开** | P0–P4 实验室完成、P5 16/16 验证；HMAC/HTTP/lab beacon 不得外推生产；warmup ~24/72h；`pilotStartedAt=null` |
+| [DLE MVP：P11 之后的下一闸](./dle-mvp-p12-milestones-2026-08.md) | `dle-mvp-p12-milestones-2026-08.canvas.tsx` | **2026-08-17：P12–P20 已落地（引擎+单测 140/140）** | 入座票、挑战/opening、BFT AC、on-demand attest、P6 \(Q_V\) 实验室 EIP-712；挑战与 on-demand 先冻后绑实验室 beacon（非 live CL RANDAO）；\(C_G\) 分轨（实验室 2249 ≠ L1 `archiveGroupId`）；gossip wait-hook 诚实闸已落地（**不是**生产 DePIN gossip）；不得开 `pilotStartedAt`；不改白皮书生产条款 |
+| [DLE MVP 入座后评估与 P8 / P9 / P10 / P11](./dle-mvp-next-phase-2026-08.md) | `dle-mvp-next-phase-2026-08.canvas.tsx` | **2026-08-17：P8 + P9 + P10 + P11 已过；P11 opening 2249===2249** | P7 入座门面已过；P8d leaf 5194 零增长；P9 七台 G1 unique hosted 2103 全开（仍 HMAC）；P10 七台 QUALIFIED、无 active REJECTED；P11 extra `fd-08` @ `167.104.98.104` QUALIFIED、官方 7 不动；不是生产 \(C_G\) / 30 天资格 |
+| [DLE MVP 里程碑评估](./dle-mvp-milestone-assessment-2026-08.md) | `dle-mvp-milestone-assessment-2026-08.canvas.tsx` | **2026-08-15 审查：实验室门已闭环 / 资格未开**（后续见 P8 快照） | P0–P4 实验室完成、P5 16/16 验证；HMAC/HTTP/lab beacon 不得外推生产；warmup ~24/72h；`pilotStartedAt=null` |
 | [实验室三类新链创世 + daemon 用户](./dle-lab-newchain-genesis-user-2026-08.md) | 无独立交互 Canvas | **2026-08-16 身份 wipe 后已重开：三类创世 7/7 合格，随机开链已跑** | 资产/存储/交易 Mode A 创世；`70.35.205.77` `/home/peter/dle-newchain-user` 随机开链；**不是** L1 NFT / 30 天资格；未改白皮书 |
 | [DLE MVP 分期运行时](./dle-mvp-phased-runtime-2026-08.md) | `dle-mvp-phased-runtime.canvas.tsx` | **当前归档/RPC/on-demand/explorer/L1 分期** | P0–P4 实验室已落地；**P3 HTTP 30 客户端已在 `70.35.205.77` 排队**（`poolRoot=0xafdf42e9…c3c2c4`）；**规范已入白皮书 §5.4 / §7.8.5 / §8.1 / §15.19**；**P5 其余 DLE L1 栈已部署 224422 并当场验证（16/16）**；30 天资格未宣称 |
 | [DLE 30 天隔离实验室主机](./dle-30d-isolated-lab-hosts-2026-08.md) | 无独立交互 Canvas | **当前 30 天验收主机分配** | 7 台独立主机、5+2、TCP 27101 quorum、USD 4/月不限流量 |

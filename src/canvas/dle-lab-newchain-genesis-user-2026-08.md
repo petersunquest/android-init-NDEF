@@ -42,6 +42,7 @@
 2. **daemon 用户已部署**：先强制三类 smoke，再随机类别持续开链。入口 `newchain-user-cli.js`，状态 `/home/peter/dle-newchain-user/data/status.json`。
 3. **诚实边界**：实验室 stub。**不是** L1 出生证、Treasury burn、Settlement escrow、或 30 天资格。
 4. **未改白皮书**；未实现 M6 / 第二组 / 裂变 / 改 5+2。
+5. **P18（2026-08-17）** 新 \(Q_V\) 改为 EIP-712 `ArchiveValidatorQuorumAttest`；new-chain-user HTTP 仍只查 `schema === 'DleLabValidatorQuorumV1'`。磁盘旧 HMAC \(Q_V\) keep-only。**不是**生产 secp256k1 / 30 天资格。
 
 ## 替代关系
 
