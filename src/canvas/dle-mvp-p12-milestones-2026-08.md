@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-mvp-p12-milestones-2026-08.canvas.tsx`
 - **日期：** 2026-08-17
-- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。P25 Explorer overlay 已落地（`explorer:test` 8/8）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。
+- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。P25 Explorer overlay 已落地（`explorer:test` 8/8）；公开 SPA `index-DaEv6psZ.js` 已发到 `dle.conet.network`（2026-08-18T00:02:39Z）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。不得发明 P26。
 - **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §P21 / §P22 / §P24 / §P25 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
 
 ## 事实来源
@@ -72,6 +72,7 @@ extra fd-08    = ingest-only            // extraStandbyReadyDoesNotCount
 newchain accept = officialStandbysReady // lab-cli syncHolder + isolated node.ts；else 409
 node.ts        = P24 wired              // 同一回调；不 sync.start() / 不冻库存
 explorer UI    = P25 overlays           // 非绿芯片；绿点仍 seatingQualified
+                 // public SPA index-DaEv6psZ.js @ dle.conet.network 2026-08-18T00:02:39Z
 pilotStartedAt = null
 ```
 
