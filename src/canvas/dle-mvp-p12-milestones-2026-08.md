@@ -2,7 +2,7 @@
 
 - **Canvas 标识：** `dle-mvp-p12-milestones-2026-08.canvas.tsx`
 - **日期：** 2026-08-17
-- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。P25 Explorer overlay 已落地（`explorer:test` 8/8）；公开 SPA `index-DaEv6psZ.js` 已发到 `dle.conet.network`（2026-08-18T00:02:39Z）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。不得发明 P26。
+- **状态：** **P12 / P13 / P14 / P15 / P16 / P17 / P18 / P19 / P20 / P21 / P22 / P24 已落地（引擎 + 单测，2026-08-17；`runtime:test` 154/154）。P25 Explorer overlay 已落地（`explorer:test` 8/8）；公开 SPA `index-U1o9ul_I.js` 已发到 `dle.conet.network`（2026-08-18T00:18:49Z）。** P8–P11 控制面已过。未改白皮书生产条款，未开 `pilotStartedAt`。不得发明 P26。
 - **规范优先级：** 英中白皮书 §5.2.0f（生产协议）> runtime `RULES.md` §ArchiveSyncQualificationV1 / §P12 / §P13 / §P14 / §P15 / §P16 / §P17 / §P18 / §P19 / §P20 / §P21 / §P22 / §P24 / §P25 / §After P11 > 本快照。本页不改生产 \(C_G\)、生产 EIP-712 成员密钥、CL RANDAO 公式。
 
 ## 事实来源
@@ -72,7 +72,7 @@ extra fd-08    = ingest-only            // extraStandbyReadyDoesNotCount
 newchain accept = officialStandbysReady // lab-cli syncHolder + isolated node.ts；else 409
 node.ts        = P24 wired              // 同一回调；不 sync.start() / 不冻库存
 explorer UI    = P25 overlays           // 非绿芯片；绿点仍 seatingQualified
-                 // public SPA index-DaEv6psZ.js @ dle.conet.network 2026-08-18T00:02:39Z
+                 // public SPA index-U1o9ul_I.js @ dle.conet.network 2026-08-18T00:18:49Z
 pilotStartedAt = null
 ```
 
@@ -92,7 +92,7 @@ pilotStartedAt = null
    - **P21 hashIndexRoot into lab BFT（landed，引擎 + `runtime:test` 当时 148/148）：** 把 live/bound `hashIndexRoot` 写入实验室 BFT 票 / QC / AC typed data（在 `membershipRoot` 之后），并 **改** `topicQcRef` 编码。树视图 / `dle_getHashIndexRoot` / `dle_proveHash` 仍 `committedInAc: false`。overlay `hashIndexCommittedInAc` 仅当 AC 根 ≠ `ZERO32`（`emptyHashIndexRoot()` ≠ `ZERO32` → overlay true；磁盘 HMAC 缺字段 → `ZERO32` → overlay false）。keep-only：已有证书则跳过 QC/AC 重建；重建 `qcRef` 不一致则保留磁盘 QC。HMAC / 坏签仍优先于 `ERR_BFT_HASH_INDEX_ROOT`。**不**改 `membershipRootOf` / Mode A `valueHash` / daemon / on-demand。**不得**把 overlay 画成生产 AC 承诺或 30 天门。
    - **P22 official standby readiness（landed，引擎 + `runtime:test` 当时 153/153）：** 官方 standby（`fd-06` / `fd-07`）`QUALIFIED` 后签实验室 EIP-712 `ArchiveStandbyReadiness`（`groupId` 为 **string**；typed data **不含** `domainId`；复用 P12 入座钥）。HMAC / 未签名 → `ERR_SYNC_STANDBY_HMAC_CUTOVER`。extra `fd-08` / `fd-08-hosthatch-hk1` 可 ingest，**不计入** `OFFICIAL_STANDBY_COUNT=2`。`POST /sync/standby-ready`。`REJECTED` 重载保留 `standbyReady` map。`lab-cli` 经 `syncHolder` 把门注入 newchain accept；未就绪 → 409 `ERR_NEWCHAIN_STANDBY_NOT_READY`。Explorer 绿点仍只看 `seatingQualified`。**不得**把 `standbyReadyEip712` / `officialStandbysReady` / `newchainOfficialStandbysReady` 画成生产 OperatorDomain / secp256k1 / 30 天门。**不**改入座票 / 挑战 / BFT / on-demand / \(Q_V\)。
    - **P24 isolated `node.ts` gate（landed，引擎 + `runtime:test` 154/154）：** `startArchiveNode` 把同一 `officialStandbysReady` 回调注入 `createNewChainEngine`。extra `fd-08` 仍不计。隔离节点 **不** `sync.start()`、**不**冻库存。测试：`runtime/test/node-standby-gate.test.ts`。**不是** 7/7 健康 / **不是** 30 天资格。
-   - **P25 Explorer overlays（landed，Explorer + `explorer:test` 8/8）：** Certificates + Home **非绿**芯片展示 `officialStandbysReady` / `hashIndexCommittedInAc`。绿点仍只 `seatingQualified === true`。`archiveSeating.ts` 未改。树 `committedInAc` 仍 false。**不是** 生产 AC / **不是** 30 天资格。
+   - **P25 Explorer overlays（landed，Explorer + `explorer:test` 8/8）：** Certificates + Home **非绿**芯片展示 `officialStandbysReady` / `hashIndexCommittedInAc`。绿点仍只 `seatingQualified === true`。`archiveSeating.ts` 未改。树 `committedInAc` 仍 false。Home / 归档详情入座文案为 **lab EIP-712**，不得再写 HMAC（同闸诚实收尾，**不是** P26）。**不是** 生产 AC / **不是** 30 天资格。
 3. **30 天门仍拒绝。** 完成本页任一闸都 **不得** 开 `pilotStartedAt` / `PilotQualificationGate`。
 4. **本页不改白皮书生产条款。**
 
