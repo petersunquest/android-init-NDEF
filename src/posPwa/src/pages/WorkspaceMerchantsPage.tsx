@@ -12,6 +12,7 @@ import { localValidateBeamioTag, normalizeBeamioTagInput, pickExactBeamioTagProf
 import { profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/display'
 import { resolveParentWorkspaceProfile } from '@/utils/posHomeAdminProfile'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
+import { APP_VERSION } from '@/version'
 
 export function WorkspaceMerchantsPage() {
 	const navigate = useNavigate()
@@ -310,7 +311,7 @@ export function WorkspaceMerchantsPage() {
 				</div>
 			</PosScreenHeader>
 
-			<PosScreenMain className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2">
+			<PosScreenMain className="overflow-y-auto px-4 pb-2 pt-2">
 				{actionError ? (
 					<p className="mb-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
 						{actionError}
@@ -570,6 +571,12 @@ export function WorkspaceMerchantsPage() {
 					)
 				) : null}
 			</PosScreenMain>
+			<p
+				className="shrink-0 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-1 text-center text-[11px] font-medium tabular-nums text-slate-400"
+				aria-label={`Version ${APP_VERSION}`}
+			>
+				v{APP_VERSION}
+			</p>
 		</PosScreenShell>
 	)
 }
