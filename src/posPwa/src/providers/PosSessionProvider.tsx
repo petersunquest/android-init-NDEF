@@ -595,8 +595,9 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			const parentTag = normalizeBeamioTagInput(params.parentTag)
 			let parentEoaHint = params.parentEoaHint?.trim() ?? ''
 			if (!parentEoaHint) {
-				const rows =
-					(await searchUsersByCardOwnerOrAdmin(parentTag)) ?? (await searchUsers(parentTag))
+				const remote = await searchUsers(parentTag)
+				const filtered = await searchUsersByCardOwnerOrAdmin(parentTag)
+				const rows = remote?.length ? remote : filtered
 				const exact = pickExactBeamioTagProfile(rows, parentTag)
 				parentEoaHint = exact?.address?.trim() ?? ''
 				if (!parentEoaHint) {

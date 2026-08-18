@@ -2,6 +2,7 @@ import { Check, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchUsers, searchUsersByCardOwnerOrAdmin } from '@/api/beamioApi'
+import { AddressCapsule } from '@/components/AddressCapsule'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
@@ -22,6 +23,7 @@ export function WorkspaceMerchantsPage() {
 		outboundJoinPending,
 		parentBeamioTag,
 		parentProfile,
+		terminalProfile,
 		refreshHome,
 		refreshWorkspaceBindings,
 		switchWorkspace,
@@ -178,8 +180,9 @@ export function WorkspaceMerchantsPage() {
 			void (async () => {
 				setJoinSearching(true)
 				try {
-					const rows =
-						(await searchUsersByCardOwnerOrAdmin(q)) ?? (await searchUsers(q)) ?? []
+					const remote = await searchUsers(q)
+					const filtered = await searchUsersByCardOwnerOrAdmin(q)
+					const rows = remote?.length ? remote : (filtered ?? [])
 					if (!cancelled) setJoinHits(rows)
 				} finally {
 					if (!cancelled) setJoinSearching(false)
@@ -279,6 +282,7 @@ export function WorkspaceMerchantsPage() {
 	])
 
 	const resendBusy = resending || joinSending
+	const selfTerminalAddress = (walletAddress || terminalProfile?.address || '').trim()
 
 	return (
 		<PosScreenShell bg="bg-[#f2f2f7]">
@@ -297,6 +301,12 @@ export function WorkspaceMerchantsPage() {
 								: 'Linked merchants & join requests'}
 						</p>
 					</div>
+					{selfTerminalAddress.length >= 10 ? (
+						<AddressCapsule
+							address={selfTerminalAddress}
+							className="max-w-[min(10.5rem,40%)] shrink-0 border-[#dce2f7] bg-[#e9edff] text-[#424655]"
+						/>
+					) : null}
 				</div>
 			</PosScreenHeader>
 

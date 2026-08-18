@@ -26,21 +26,19 @@ export async function sendPosTerminalPermissionRequest(params: {
 		return { ok: false, error: 'No workspace parent is set.' }
 	}
 
-	let recipientEoa = ''
-	let resolveVia: 'hint' | 'exact_tag' = 'exact_tag'
 	const hint = params.parentEoaHint?.trim() ?? ''
-	if (hint) {
+	const rows = await searchUsers(parentTag)
+	const exact = pickExactBeamioTagProfile(rows, parentTag, hint)
+	let recipientEoa = exact?.address?.trim() ?? ''
+	let resolveVia: 'hint' | 'exact_tag' = 'exact_tag'
+	if (!recipientEoa && hint && rows === null) {
 		recipientEoa = hint
 		resolveVia = 'hint'
-	} else {
-		const rows = await searchUsers(parentTag)
-		const exact = pickExactBeamioTagProfile(rows, parentTag)
-		recipientEoa = exact?.address?.trim() ?? ''
-		if (!recipientEoa) {
-			return {
-				ok: false,
-				error: 'Could not uniquely resolve the parent @BeamioTag. Check the handle and try again.',
-			}
+	}
+	if (!recipientEoa) {
+		return {
+			ok: false,
+			error: 'Could not uniquely resolve the parent @BeamioTag. Check the handle and try again.',
 		}
 	}
 
