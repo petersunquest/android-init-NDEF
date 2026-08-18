@@ -1,12 +1,13 @@
 /**
  * Main-thread gossip POST (onboarding / worker-not-ready fallback).
- * Encrypts already-built user-PGP armor as mailbox work (NoPush) and posts
- * `{ data }` to live entry A ≠ B. Never uses OPTIONS /post.
  *
- * Keyless domain fallback must POST **user-PGP** armor (same shape as
- * `scripts/testConetDepinMessage.ts` probe). Posting mailbox-work (encrypted to
- * B's route key) without wrap-to-entry lets SI `getRoute(nodeKey)` miss and
- * still return HTTP 200 `{}` — POS shows success, mailbox B never sees the packet.
+ * Delivery packet must be recipient **user-PGP** armor posted to entry A ≠ B
+ * (same shape as `scripts/testConetDepinMessage.ts probe`).
+ *
+ * Do **not** route mailbox-work (encrypted to B's route key) through A:
+ * SI `forwardEncryptedSocket` → `getRoute(nodeKey)` often misses and still
+ * returns HTTP 200 `{}`. POS shows success; mailbox B never sees the packet.
+ * 0.1.8 Resend hit that path (`noPush` wrap then wrap-to-entry).
  */
 import { readKey } from 'openpgp'
 import { GOSSIP_POST_DOMAIN_HEX_IDS } from '@/conet/constants'
@@ -17,7 +18,7 @@ import {
 	pickRouteNodesByArmoredKey,
 	postUrl,
 } from '@/vendor/beamio-chat-sdk/nodes'
-import { wrapArmorToEntryRoute, wrapArmorToMailboxWork } from '@/vendor/beamio-chat-sdk/envelope'
+import { wrapArmorToEntryRoute } from '@/vendor/beamio-chat-sdk/envelope'
 import type { NodeInfo } from '@/vendor/beamio-chat-sdk/types'
 
 function asNodeInfo(nodes: GossipNodeInfo[]): NodeInfo[] {
@@ -28,15 +29,19 @@ function normDomainHex(raw: string): string {
 	return raw.trim().toUpperCase()
 }
 
-async function mailboxDomainHexFromArmored(armored: string): Promise<string | null> {
+async function mailboxDomainHexesFromArmored(armored: string): Promise<string[]> {
 	const key = armored.trim()
-	if (!key.includes('BEGIN PGP')) return null
+	if (!key.includes('BEGIN PGP')) return []
 	try {
 		const parsed = await readKey({ armoredKey: key })
-		const id = parsed.getKeyIDs()[0]?.toHex().toUpperCase() ?? ''
-		return /^[0-9A-F]{16}$/.test(id) ? id : null
+		const out: string[] = []
+		for (const id of parsed.getKeyIDs()) {
+			const hex = id.toHex().toUpperCase()
+			if (/^[0-9A-F]{16}$/.test(hex)) out.push(hex)
+		}
+		return out
 	} catch {
-		return null
+		return []
 	}
 }
 
@@ -62,31 +67,22 @@ async function postWithTimeout(url: string, armored: string, timeoutMs = 12_000)
 export async function postArmoredGossipToEntries(params: {
 	innerArmor: string
 	mailboxRoutePublicArmored?: string | null
+	/** Kept for callers; mailbox-work is not used as the routed packet (see file header). */
 	noPush?: boolean
 }): Promise<boolean> {
 	const innerArmor = params.innerArmor
-	const mailboxKey = params.mailboxRoutePublicArmored?.trim() || ''
-	let mailboxWorkArmor = innerArmor
-	if (params.noPush) {
-		if (!mailboxKey) {
-			console.warn('[POS Chat] NoPush skipped: missing recipient mailbox route key')
-		} else {
-			try {
-				mailboxWorkArmor = await wrapArmorToMailboxWork(innerArmor, mailboxKey, { NoPush: true })
-			} catch (ex) {
-				console.warn('[POS Chat] mailbox wrap failed', (ex as Error)?.message ?? ex)
-				return false
-			}
-		}
-	}
+	if (!innerArmor.includes('BEGIN PGP')) return false
+	void params.noPush
 
+	const mailboxKey = params.mailboxRoutePublicArmored?.trim() || ''
 	const live = await fetchCoNETGossipNodes()
 	const nodes = asNodeInfo(live)
 	const mailboxDomains = new Set(
 		pickRouteNodesByArmoredKey(nodes, mailboxKey).map((n) => n.domain).filter(Boolean).map(normDomainHex),
 	)
-	const mailboxHex = await mailboxDomainHexFromArmored(mailboxKey)
-	if (mailboxHex) mailboxDomains.add(mailboxHex)
+	for (const hex of await mailboxDomainHexesFromArmored(mailboxKey)) {
+		mailboxDomains.add(hex)
+	}
 
 	const liveWithoutMailbox = live.filter((n) => !mailboxDomains.has(normDomainHex(n.domain)))
 	const entries = await pickGossipEntryNodesForSend(asNodeInfo(liveWithoutMailbox), 4)
@@ -97,8 +93,12 @@ export async function postArmoredGossipToEntries(params: {
 			targets.map(async (node) => {
 				try {
 					if (!node.armoredPublicKey?.includes('BEGIN PGP')) return false
-					const wrapped = await wrapArmorToEntryRoute(mailboxWorkArmor, node.armoredPublicKey)
-					return postWithTimeout(postUrl(node.domain), wrapped)
+					const wrapped = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+					const ok = await postWithTimeout(postUrl(node.domain), wrapped)
+					if (ok) {
+						console.log('[POS Chat] gossip POST user-PGP wrap-to-entry', node.domain)
+					}
+					return ok
 				} catch (ex) {
 					console.warn('[POS Chat] wrap-to-entry failed', node.domain, (ex as Error)?.message ?? ex)
 					return false
@@ -116,17 +116,13 @@ export async function postArmoredGossipToEntries(params: {
 		console.warn('[POS Chat] gossip POST: no entry A ≠ B available')
 		return false
 	}
-	/*
-	 * No entry route keys on this path — do not POST mailbox-work (B route key).
-	 * Post user-PGP armor so entry getRoute(userPgpKeyID) can find mailbox B.
-	 */
 	const fallback = await Promise.all(
 		fallbackDomains.map((d) =>
 			postWithTimeout(`https://${d.toLowerCase()}.conet.network/post`, innerArmor),
 		),
 	)
 	if (fallback.some(Boolean)) {
-		console.warn('[POS Chat] gossip POST used keyless entry fallback (user-PGP, no mailbox wrap)')
+		console.warn('[POS Chat] gossip POST used keyless entry fallback (user-PGP)')
 		return true
 	}
 	return false

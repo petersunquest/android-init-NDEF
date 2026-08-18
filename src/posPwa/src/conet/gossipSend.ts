@@ -48,7 +48,8 @@ function jsonChatOuterLine(params: {
 
 /**
  * Encrypt + POST POS terminal permission via CoNET gossip.
- * Onboarding runs before chat Worker init — always main-thread mailbox wrap + live entries.
+ * Onboarding runs before chat Worker init — main-thread user-PGP to entry A ≠ B
+ * (probe-aligned; do not mailbox-wrap the routed packet).
  */
 export async function sendTerminalPermissionRequest(params: {
 	recipientEoa: string
@@ -97,6 +98,6 @@ export async function sendTerminalPermissionRequest(params: {
 	return postArmoredGossipToEntries({
 		innerArmor,
 		mailboxRoutePublicArmored: keys.mailboxRoutePublicArmored,
-		noPush: true,
+		noPush: false,
 	})
 }
