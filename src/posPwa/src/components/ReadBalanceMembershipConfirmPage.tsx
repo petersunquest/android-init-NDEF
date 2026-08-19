@@ -26,8 +26,8 @@ export function ReadBalanceMembershipConfirmPage({
 	onConfirm: () => void
 }) {
 	const feeHuman = membershipFeeE6ToHuman(tier.feeFiat6) || '0'
-	const chargeHuman = membershipPurchaseApiAmountHuman(tier.feeFiat6)
-	const creditHuman = membershipPurchaseBalanceCreditHuman(tier.feeFiat6)
+	const chargeHuman = membershipPurchaseApiAmountHuman(tier.feeFiat6, tier.minUsdc6)
+	const creditHuman = membershipPurchaseBalanceCreditHuman(tier.feeFiat6, tier.minUsdc6)
 	const dur = membershipDurationLabel(tier.durationKind)
 	const actionLabel = mode === 'upgrade' ? 'Confirm upgrade' : 'Confirm & issue card'
 

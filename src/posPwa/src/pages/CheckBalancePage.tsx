@@ -354,7 +354,7 @@ export function CheckBalancePage() {
 				setPhase('result')
 				return
 			}
-			const chargeHuman = membershipPurchaseApiAmountHuman(tier.feeFiat6)
+			const chargeHuman = membershipPurchaseApiAmountHuman(tier.feeFiat6, tier.minUsdc6)
 			const split = nfcTopupCurrencySplitFromPosKeypad(chargeHuman, 'creditCard', false, 20)
 			if (!split) {
 				setCouponToast({ kind: 'error', text: 'Invalid membership fee amount.' })
@@ -517,7 +517,10 @@ export function CheckBalancePage() {
 
 	if (phase === 'membership-executing') {
 		const feeHuman = selectedMembershipTier
-			? membershipPurchaseApiAmountHuman(selectedMembershipTier.feeFiat6)
+			? membershipPurchaseApiAmountHuman(
+					selectedMembershipTier.feeFiat6,
+					selectedMembershipTier.minUsdc6,
+				)
 			: ''
 		const amt = Number(feeHuman.replace(/,/g, '')) || 0
 		return (

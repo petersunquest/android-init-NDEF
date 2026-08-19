@@ -299,6 +299,8 @@ export interface MetadataTierRow {
 	discountPercent?: number
 	backgroundColor?: string
 	image?: string
+	/** On-chain tier floor (points6 units). Membership-fee mode: 1, 2, 3… */
+	minUsdc6?: string
 	membershipFeeE6?: string
 	membershipFee?: string
 	membershipDurationKind?: number
@@ -339,6 +341,15 @@ export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTi
 			row.membershipFee != null && String(row.membershipFee).trim() !== ''
 				? String(row.membershipFee).replace(/,/g, '').trim()
 				: undefined
+		let minUsdc6: string | undefined
+		if (row.minUsdc6 != null && String(row.minUsdc6).trim() !== '') {
+			try {
+				const m = BigInt(String(row.minUsdc6).replace(/,/g, '').trim())
+				if (m > 0n) minUsdc6 = m.toString()
+			} catch {
+				minUsdc6 = undefined
+			}
+		}
 		const durationRaw =
 			row.membershipDurationKind != null ? Number(row.membershipDurationKind) : NaN
 		const membershipDurationKind =
@@ -353,6 +364,7 @@ export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTi
 			discountPercent,
 			backgroundColor,
 			image,
+			minUsdc6,
 			membershipFeeE6,
 			membershipFee,
 			membershipDurationKind,

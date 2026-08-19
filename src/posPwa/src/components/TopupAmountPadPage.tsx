@@ -53,6 +53,7 @@ function methodIcon(method: TopupPaymentMethodRaw) {
 export type TopupMembershipTierChoice = {
 	tierIndex: number
 	feeFiat6: string
+	minUsdc6?: string
 	name: string
 	durationKind?: number
 }
@@ -89,6 +90,7 @@ export function TopupAmountPadPage({
 			out.push({
 				tierIndex: metadataTierOnChainIndex(row, i),
 				feeFiat6,
+				minUsdc6: row.minUsdc6,
 				name: (row.name ?? `Tier ${i + 1}`).trim() || `Tier ${i + 1}`,
 				durationKind: row.membershipDurationKind,
 			})
@@ -112,10 +114,10 @@ export function TopupAmountPadPage({
 
 	useEffect(() => {
 		if (!selectedTier) return
-		/* Amount must exceed fee so Cluster can credit points after membership fee. */
-		const human = membershipPurchaseApiAmountHuman(selectedTier.feeFiat6)
+		/* Amount = fee + tier minUsdc6 so Cluster can credit that floor after membership fee. */
+		const human = membershipPurchaseApiAmountHuman(selectedTier.feeFiat6, selectedTier.minUsdc6)
 		if (human) setAmount(human)
-	}, [selectedTier?.tierIndex, selectedTier?.feeFiat6])
+	}, [selectedTier?.tierIndex, selectedTier?.feeFiat6, selectedTier?.minUsdc6])
 
 	useEffect(() => {
 		if (feeTiers.length && !feeTiers.some((t) => `${t.tierIndex}` === selectedTierKey)) {

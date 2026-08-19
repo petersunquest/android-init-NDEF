@@ -10,6 +10,8 @@ import { readBalancePrimaryCard } from '@/utils/readBalanceAssets'
 export type ReadBalanceMembershipTierChoice = {
 	tierIndex: number
 	feeFiat6: string
+	/** On-chain tier minUsdc6 (points6 units); membership-fee mode uses 1, 2, 3… */
+	minUsdc6?: string
 	name: string
 	durationKind?: number
 }
@@ -41,6 +43,7 @@ export function readBalanceMembershipFeeTiers(
 		out.push({
 			tierIndex: metadataTierOnChainIndex(row, i),
 			feeFiat6,
+			minUsdc6: row.minUsdc6,
 			name: (row.name ?? `Tier ${i + 1}`).trim() || `Tier ${i + 1}`,
 			durationKind: row.membershipDurationKind,
 		})
@@ -50,25 +53,44 @@ export function readBalanceMembershipFeeTiers(
 
 /**
  * Cluster requires points credit after fee: amountCurrency6 must strictly exceed feeFiat6.
- * Bump by 1 whole unit when fee is whole, else +0.01.
+ * Prefer on-chain tier floor `minUsdc6` (membership-fee mode: 1, 2, 3…).
+ * Legacy fallback: +1 whole currency unit when fee is whole, else +0.01.
  */
-export function membershipPurchaseApiAmountHuman(feeFiat6: string): string {
+export function membershipPurchasePointsCreditE6(minUsdc6?: string | number | bigint | null): bigint {
+	if (minUsdc6 != null && String(minUsdc6).trim() !== '') {
+		try {
+			const m = BigInt(String(minUsdc6).replace(/,/g, '').trim())
+			if (m > 0n) return m
+		} catch {
+			/* fall through */
+		}
+	}
+	return 1_000_000n
+}
+
+export function membershipPurchaseApiAmountHuman(
+	feeFiat6: string,
+	minUsdc6?: string | number | bigint | null,
+): string {
 	try {
 		const fee = BigInt(String(feeFiat6).replace(/,/g, '').trim() || '0')
 		if (fee <= 0n) return '0'
-		const bump = fee % 1_000_000n === 0n ? 1_000_000n : 10_000n
-		return membershipFeeE6ToHuman((fee + bump).toString()) || '0'
+		const credit = membershipPurchasePointsCreditE6(minUsdc6)
+		return membershipFeeE6ToHuman((fee + credit).toString()) || '0'
 	} catch {
 		return '0'
 	}
 }
 
-export function membershipPurchaseBalanceCreditHuman(feeFiat6: string): string {
+export function membershipPurchaseBalanceCreditHuman(
+	feeFiat6: string,
+	minUsdc6?: string | number | bigint | null,
+): string {
 	try {
 		const fee = BigInt(String(feeFiat6).replace(/,/g, '').trim() || '0')
 		if (fee <= 0n) return '0'
-		const bump = fee % 1_000_000n === 0n ? 1_000_000n : 10_000n
-		return membershipFeeE6ToHuman(bump.toString()) || '0'
+		const credit = membershipPurchasePointsCreditE6(minUsdc6)
+		return membershipFeeE6ToHuman(credit.toString()) || '0'
 	} catch {
 		return '0'
 	}
