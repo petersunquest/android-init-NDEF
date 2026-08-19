@@ -8,11 +8,20 @@ import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
 import { ReadBalanceCouponsSection } from '@/components/ReadBalanceCouponsSection'
+import { ReadBalanceMembershipConfirmPage } from '@/components/ReadBalanceMembershipConfirmPage'
+import { ReadBalanceMembershipSection } from '@/components/ReadBalanceMembershipSection'
 import { ReadBalancePassHeroCard } from '@/components/ReadBalancePassHeroCard'
 import { ReadBalanceStatsCard } from '@/components/ReadBalanceStatsCard'
+import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import type { MerchantClaimableCouponItem, MerchantCouponBalanceItem, UIDAssetsResult } from '@/types/pos'
+import {
+	fetchCardCurrencyCode,
+	fetchCardMetadataTiersBundle,
+	fetchUIDAssets,
+	fetchWalletAssetsForRead,
+} from '@/api/beamioApi'
 import { runCheckBalanceFlow } from '@/utils/checkBalanceFlow'
 import type { CheckBalanceNfcScanContext } from '@/utils/checkBalanceFlow'
 import {
@@ -22,8 +31,10 @@ import {
 	type DeductExecuteProgressPhase,
 	type DeductExecuteSuccess,
 } from '@/utils/deductPointsExecute'
+import { displayFiatPrefixFromCode } from '@/utils/display'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
+import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
 import { readBalanceResultViewModel } from '@/utils/readBalanceDisplay'
 import {
 	claimMerchantCouponFromRead,
@@ -32,8 +43,21 @@ import {
 	readBalanceHasCouponClaimContext,
 } from '@/utils/readBalanceCouponClaim'
 import { consumeMerchantCouponFromRead } from '@/utils/readBalanceCouponConsume'
+import {
+	membershipPurchaseApiAmountHuman,
+	readBalanceCustomerHasValidMembership,
+	readBalanceMembershipFeeTiers,
+	type ReadBalanceMembershipTierChoice,
+} from '@/utils/readBalanceMembership'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { resolvePosTerminalSignerEoa } from '@/utils/resolvePosTerminalSignerEoa'
+import { nfcTopupCurrencySplitFromPosKeypad } from '@/utils/topupCurrencySplit'
+import {
+	executeNfcTopup,
+	type TopupCustomerTarget,
+	type TopupExecuteProgressPhase,
+	type TopupExecuteSuccess,
+} from '@/utils/topupExecute'
 
 export interface CheckBalanceLocationState {
 	assets?: UIDAssetsResult
@@ -41,7 +65,35 @@ export interface CheckBalanceLocationState {
 	openContainerPayload?: Record<string, unknown>
 }
 
-type Phase = 'loading' | 'result' | 'deduct-amount' | 'deduct-executing' | 'deduct-success'
+type Phase =
+	| 'loading'
+	| 'result'
+	| 'deduct-amount'
+	| 'deduct-executing'
+	| 'deduct-success'
+	| 'membership-scan'
+	| 'membership-confirm'
+	| 'membership-executing'
+	| 'membership-success'
+
+function customerTargetFromScan(
+	scan:
+		| { status: 'nfc'; detail: { queryUid?: string; tagUidHex?: string; sun?: { e: string; c: string; m: string } } }
+		| { status: 'qr'; identity: { beamioTag?: string; wallet?: string } },
+): TopupCustomerTarget | null {
+	if (scan.status === 'nfc') {
+		const uid = (scan.detail.queryUid ?? scan.detail.tagUidHex ?? '').trim()
+		if (!uid || !scan.detail.sun) return null
+		return { uid, sun: scan.detail.sun }
+	}
+	if (scan.identity.beamioTag?.trim()) {
+		return { beamioTag: scan.identity.beamioTag.trim() }
+	}
+	if (scan.identity.wallet) {
+		return { wallet: scan.identity.wallet }
+	}
+	return null
+}
 
 /**
  * Entry from Home → loading until NFC/QR flow finishes, then result or return Home.
@@ -50,7 +102,8 @@ type Phase = 'loading' | 'result' | 'deduct-amount' | 'deduct-executing' | 'dedu
 export function CheckBalancePage() {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { merchantInfraCard, pointSystemEnabled, activeCoupons, walletAddress } = usePosSession()
+	const { merchantInfraCard, pointSystemEnabled, activeCoupons, walletAddress, refreshHome } =
+		usePosSession()
 	const infraCard = merchantInfraCard?.trim() ?? ''
 
 	const navState = location.state as CheckBalanceLocationState | null
@@ -76,12 +129,42 @@ export function CheckBalancePage() {
 	)
 	const flowStartedRef = useRef(false)
 
+	const [membershipTiers, setMembershipTiers] = useState<ReadBalanceMembershipTierChoice[]>([])
+	const [membershipCurrencyPrefix, setMembershipCurrencyPrefix] = useState('$')
+	const [selectedMembershipTier, setSelectedMembershipTier] =
+		useState<ReadBalanceMembershipTierChoice | null>(null)
+	const [membershipCustomer, setMembershipCustomer] = useState<TopupCustomerTarget | null>(null)
+	const [membershipProgress, setMembershipProgress] =
+		useState<TopupExecuteProgressPhase>('preparing')
+	const [membershipSuccess, setMembershipSuccess] = useState<TopupExecuteSuccess | null>(null)
+	const membershipScanStartedRef = useRef(false)
+
 	useEffect(() => {
 		if (!couponToast) return
 		const ms = couponToast.kind === 'error' ? 8000 : 3500
 		const t = setTimeout(() => setCouponToast(null), ms)
 		return () => clearTimeout(t)
 	}, [couponToast])
+
+	useEffect(() => {
+		if (!infraCard) {
+			setMembershipTiers([])
+			return
+		}
+		let cancelled = false
+		void (async () => {
+			const [tiersBundle, currency] = await Promise.all([
+				fetchCardMetadataTiersBundle(infraCard),
+				fetchCardCurrencyCode(infraCard),
+			])
+			if (cancelled) return
+			setMembershipTiers(readBalanceMembershipFeeTiers(tiersBundle.rows))
+			setMembershipCurrencyPrefix(displayFiatPrefixFromCode(currency ?? 'CAD', 'CAD'))
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [infraCard])
 
 	useEffect(() => {
 		if (phase !== 'loading' || assets?.ok || flowStartedRef.current) return
@@ -257,6 +340,119 @@ export function CheckBalancePage() {
 		[assets, infraCard, nfcScan, pointSystemEnabled, syncAssets],
 	)
 
+	const onSelectMembershipTier = useCallback((tier: ReadBalanceMembershipTierChoice) => {
+		setSelectedMembershipTier(tier)
+		setMembershipCustomer(null)
+		membershipScanStartedRef.current = false
+		setPhase('membership-scan')
+	}, [])
+
+	const runMembershipTopup = useCallback(
+		async (target: TopupCustomerTarget, tier: ReadBalanceMembershipTierChoice) => {
+			if (!walletAddress) {
+				setCouponToast({ kind: 'error', text: 'Wallet not initialized' })
+				setPhase('result')
+				return
+			}
+			const chargeHuman = membershipPurchaseApiAmountHuman(tier.feeFiat6)
+			const split = nfcTopupCurrencySplitFromPosKeypad(chargeHuman, 'creditCard', false, 20)
+			if (!split) {
+				setCouponToast({ kind: 'error', text: 'Invalid membership fee amount.' })
+				setPhase('result')
+				return
+			}
+			setMembershipProgress('preparing')
+			setPhase('membership-executing')
+			const outcome = await executeNfcTopup({
+				target,
+				apiAmount: chargeHuman,
+				currencySplit: split,
+				merchantInfraCard: infraCard,
+				posWallet: walletAddress,
+				pointSystemEnabled,
+				membershipTierIndex: tier.tierIndex,
+				membershipFeeFiat6: tier.feeFiat6,
+				onProgress: setMembershipProgress,
+			})
+			if (outcome.status === 'error') {
+				setCouponToast({ kind: 'error', text: outcome.message })
+				setPhase('result')
+				return
+			}
+
+			let refreshed: UIDAssetsResult | null = null
+			if (target.beamioTag) {
+				refreshed = await fetchUIDAssets({
+					uid: target.beamioTag,
+					merchantInfraCard: infraCard,
+				})
+			} else if (target.wallet) {
+				refreshed = await fetchWalletAssetsForRead({
+					wallet: target.wallet,
+					merchantInfraCard: infraCard,
+				})
+			} else if (target.uid && target.sun) {
+				refreshed = await fetchUIDAssets({
+					uid: target.uid,
+					merchantInfraCard: infraCard,
+					sun: target.sun,
+				})
+			}
+			if (refreshed?.ok) {
+				syncAssets(refreshed)
+			}
+			setMembershipSuccess(outcome.result)
+			setPhase('membership-success')
+			void refreshHome()
+		},
+		[infraCard, pointSystemEnabled, refreshHome, syncAssets, walletAddress],
+	)
+
+	useEffect(() => {
+		if (phase !== 'membership-scan') return
+		if (membershipScanStartedRef.current) return
+		membershipScanStartedRef.current = true
+
+		let cancelled = false
+		void (async () => {
+			const scan = await runPosCustomerScanFlow()
+			if (cancelled) return
+
+			if (scan.status === 'aborted') {
+				setSelectedMembershipTier(null)
+				setPhase('result')
+				return
+			}
+			if (scan.status === 'error') {
+				setCouponToast({ kind: 'error', text: scan.message })
+				setSelectedMembershipTier(null)
+				setPhase('result')
+				return
+			}
+
+			const target = customerTargetFromScan(scan)
+			if (!target) {
+				setCouponToast({
+					kind: 'error',
+					text:
+						scan.status === 'nfc'
+							? 'Card does not support SUN. Cannot collect membership fee.'
+							: 'Cannot parse customer identity.',
+				})
+				setSelectedMembershipTier(null)
+				setPhase('result')
+				return
+			}
+			setMembershipCustomer(target)
+			setPhase('membership-confirm')
+		})()
+
+		return () => {
+			cancelled = true
+			cancelPosCustomerScan()
+		}
+	}, [phase])
+
 	if (phase === 'deduct-success' && deductSuccess) {
 		return (
 			<DeductPointsSuccessView
@@ -266,6 +462,72 @@ export function CheckBalancePage() {
 					setDeductSuccess(null)
 					setPhase('result')
 				}}
+			/>
+		)
+	}
+
+	if (phase === 'membership-success' && membershipSuccess) {
+		return (
+			<TopupSuccessView
+				result={membershipSuccess}
+				pointSystemEnabled={pointSystemEnabled}
+				onDone={() => {
+					setMembershipSuccess(null)
+					setSelectedMembershipTier(null)
+					setMembershipCustomer(null)
+					setPhase('result')
+				}}
+			/>
+		)
+	}
+
+	if (phase === 'membership-scan') {
+		return (
+			<PosFlowLoadingShell
+				title="Membership"
+				subtitle="Scan member NFC or QR to continue…"
+			/>
+		)
+	}
+
+	if (phase === 'membership-confirm' && selectedMembershipTier) {
+		const hasValid =
+			assets?.ok === true && readBalanceCustomerHasValidMembership(assets, infraCard)
+		return (
+			<ReadBalanceMembershipConfirmPage
+				tier={selectedMembershipTier}
+				currencyPrefix={membershipCurrencyPrefix}
+				mode={hasValid ? 'upgrade' : 'join'}
+				onCancel={() => {
+					setSelectedMembershipTier(null)
+					setMembershipCustomer(null)
+					setPhase('result')
+				}}
+				onConfirm={() => {
+					if (!membershipCustomer || !selectedMembershipTier) {
+						setCouponToast({ kind: 'error', text: 'Missing customer scan.' })
+						setPhase('result')
+						return
+					}
+					void runMembershipTopup(membershipCustomer, selectedMembershipTier)
+				}}
+			/>
+		)
+	}
+
+	if (phase === 'membership-executing') {
+		const feeHuman = selectedMembershipTier
+			? membershipPurchaseApiAmountHuman(selectedMembershipTier.feeFiat6)
+			: ''
+		const amt = Number(feeHuman.replace(/,/g, '')) || 0
+		return (
+			<PosScanExecutingShell
+				title="Membership"
+				center={
+					<PosTopupExecutingCard signingInProgress={membershipProgress === 'signing'} />
+				}
+				bottomAmount={amt > 0 ? amt : undefined}
+				bottomTone="topup"
 			/>
 		)
 	}
@@ -306,7 +568,11 @@ export function CheckBalancePage() {
 
 	const vm = readBalanceResultViewModel(assets, infraCard, pointSystemEnabled)
 	const deductBusy =
-		claimInFlightId != null || consumeInFlightId != null || phase !== 'result'
+		claimInFlightId != null ||
+		consumeInFlightId != null ||
+		phase !== 'result'
+	const hasValidMembership = readBalanceCustomerHasValidMembership(assets, infraCard)
+	const showMembershipJoin = membershipTiers.length > 0 && !hasValidMembership
 
 	function onBack() {
 		navigate(POS_HOME_ROUTES.home, { replace: true })
@@ -349,6 +615,27 @@ export function CheckBalancePage() {
 							}
 							deductPointsDisabled={deductBusy}
 						/>
+						{showMembershipJoin ? (
+							<ReadBalanceMembershipSection
+								mode="join"
+								tiers={membershipTiers}
+								currencyPrefix={membershipCurrencyPrefix}
+								disabled={deductBusy}
+								onSelectTier={onSelectMembershipTier}
+							/>
+						) : null}
+						{membershipTiers.length > 0 && hasValidMembership ? (
+							<section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+									Upgrade membership
+								</p>
+								<p className="mt-1 text-sm text-slate-600">
+									This member already has a valid card. Membership fee purchase
+									issues a new card for members without an active membership
+									(including expired). Use Top-up to add balance.
+								</p>
+							</section>
+						) : null}
 						<ReadBalanceStatsCard
 							assets={assets}
 							cardCurrency={vm.balCurrency}

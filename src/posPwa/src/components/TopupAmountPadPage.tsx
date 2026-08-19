@@ -26,6 +26,7 @@ import {
 	metadataTierOnChainIndex,
 	type MetadataTierRow,
 } from '@/utils/beamioPaymentRouting'
+import { membershipPurchaseApiAmountHuman } from '@/utils/readBalanceMembership'
 
 const TOPUP_PURPLE = '#7C3AED'
 const METHOD_ACCENT: Record<TopupPaymentMethodRaw, string> = {
@@ -111,7 +112,8 @@ export function TopupAmountPadPage({
 
 	useEffect(() => {
 		if (!selectedTier) return
-		const human = membershipFeeE6ToHuman(selectedTier.feeFiat6)
+		/* Amount must exceed fee so Cluster can credit points after membership fee. */
+		const human = membershipPurchaseApiAmountHuman(selectedTier.feeFiat6)
 		if (human) setAmount(human)
 	}, [selectedTier?.tierIndex, selectedTier?.feeFiat6])
 
