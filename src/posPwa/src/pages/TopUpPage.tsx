@@ -6,10 +6,7 @@ import {
 	fetchCardMetadataTiersBundle,
 	fetchCardOwner,
 } from '@/api/beamioApi'
-import {
-	metadataTiersHaveMembershipFee,
-	type MetadataTierRow,
-} from '@/utils/beamioPaymentRouting'
+import { metadataTiersHaveMembershipFee } from '@/utils/beamioPaymentRouting'
 import { displayFiatPrefixFromCode } from '@/utils/display'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
@@ -100,7 +97,6 @@ export function TopUpPage() {
 	const scanStartedRef = useRef(false)
 	const [topupProgress, setTopupProgress] = useState<TopupExecuteProgressPhase>('preparing')
 	const [membershipFeeMode, setMembershipFeeMode] = useState(false)
-	const [membershipTiers, setMembershipTiers] = useState<MetadataTierRow[]>([])
 	const [cardCurrencyPrefix, setCardCurrencyPrefix] = useState('$')
 
 	useEffect(() => {
@@ -113,7 +109,6 @@ export function TopUpPage() {
 				fetchCardCurrencyCode(infra),
 			])
 			if (cancelled) return
-			setMembershipTiers(tiersBundle.rows)
 			setMembershipFeeMode(metadataTiersHaveMembershipFee(tiersBundle.rows))
 			setCardCurrencyPrefix(displayFiatPrefixFromCode(currency ?? 'CAD', 'CAD'))
 		})()
@@ -135,8 +130,6 @@ export function TopUpPage() {
 			method: TopupPaymentMethodRaw
 			keypadAmount: string
 			currencyAmount: string
-			membershipTierIndex?: number
-			membershipFeeFiat6?: string
 		}) => {
 			const infra = merchantInfraCard?.trim() ?? ''
 			if (!infra) {
@@ -158,8 +151,6 @@ export function TopUpPage() {
 				currencyAmount: input.currencyAmount,
 				apiAmount: resolved.apiAmount,
 				split: resolved.split,
-				membershipTierIndex: input.membershipTierIndex,
-				membershipFeeFiat6: input.membershipFeeFiat6,
 			})
 			scanStartedRef.current = false
 			setPhase('scan-customer')
@@ -361,7 +352,6 @@ export function TopUpPage() {
 		return (
 			<TopupAmountPadPage
 				membershipFeeMode={membershipFeeMode}
-				membershipTiers={membershipTiers}
 				cardCurrencyPrefix={cardCurrencyPrefix}
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}

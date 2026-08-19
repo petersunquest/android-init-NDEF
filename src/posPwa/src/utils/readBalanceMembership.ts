@@ -16,7 +16,9 @@ export type ReadBalanceMembershipTierChoice = {
 	durationKind?: number
 }
 
-/** Same membership validity heuristic as `executeNfcTopup` / Cluster fee staging. */
+/** Same hint as x402sdk `MEMBERSHIP_FEE_CHECK_BALANCE_HINT` — purchase membership on Check Balance, not generic Top-up. */
+export const MEMBERSHIP_FEE_CHECK_BALANCE_HINT =
+	'Active membership required. Purchase membership from Check Balance before top-up.'
 export function readBalanceCustomerHasValidMembership(
 	assets: UIDAssetsResult,
 	merchantInfraCard: string,
