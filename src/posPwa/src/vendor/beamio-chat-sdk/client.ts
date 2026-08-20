@@ -111,6 +111,7 @@ class BeamioChatClientImpl implements BeamioChatClient {
 		this.routes = []
 		const payload: WorkerInitPayload = {
 			identity: this.config.identity,
+			historyUpperAdminEoa: this.config.historyUpperAdminEoa,
 			conetRpcUrl: this.config.conetRpcUrl,
 			addressPgpContractAddress: this.config.addressPgpContractAddress,
 			ipfsBaseUrl: this.config.ipfsBaseUrl,

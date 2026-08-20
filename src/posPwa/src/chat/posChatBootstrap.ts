@@ -34,6 +34,7 @@ async function generatePgpKeyPair(walletAddress: string) {
  */
 export async function bootstrapPosChatSession(params: {
 	walletPrivateKeyHex: string
+	historyUpperAdminEoa: string
 	onLine: (line: string) => void
 }): Promise<{ ok: boolean; bundle?: PosChatPgpBundle; error?: string }> {
 	const pk = normalizePrivateKeyHex(params.walletPrivateKeyHex)
@@ -114,6 +115,7 @@ export async function bootstrapPosChatSession(params: {
 		walletPrivateKeyHex: params.walletPrivateKeyHex,
 		pgpPrivateKeyArmored: privateKey,
 		pgpPublicKeyArmored: publicKey,
+		historyUpperAdminEoa: params.historyUpperAdminEoa,
 		onLine: params.onLine,
 	})
 	if (!started) {

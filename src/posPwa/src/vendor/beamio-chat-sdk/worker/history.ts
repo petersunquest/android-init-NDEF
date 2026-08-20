@@ -90,6 +90,7 @@ export class HistoryStore {
 		private readonly emit: HistoryEmit,
 		private readonly opts: {
 			eoaAddress: string
+			historyUpperAdminEoa: string
 			privateKeyHex: string
 			chainId: number
 			ipfsBaseUrl: string
@@ -123,7 +124,9 @@ export class HistoryStore {
 		this.wallet = wallet
 		// storageFragment auth message = the wallet's own address (checkSign(wallet, sig, wallet)).
 		this.selfSign = await wallet.signMessage(wallet.address)
-		const domain = `beamio.chat.history.v1|${this.opts.chainId}|${this.eoaLower}`
+		const upper = this.opts.historyUpperAdminEoa.trim().toLowerCase().replace(/^0x/, '')
+		if (!/^[0-9a-f]{40}$/.test(upper)) throw new Error('Invalid history workspace partition')
+		const domain = `beamio.chat.history.v2|${this.opts.chainId}|${this.eoaLower}|${upper}`
 		const sig = await wallet.signMessage(domain)
 		this.master = hexToBytes(keccakUtf8(sig))
 		this.indexKey = await hkdf(this.master, 'index-enc', 32)
@@ -133,9 +136,18 @@ export class HistoryStore {
 	}
 
 	// ---- On-chain head pointer / index ---------------------------------------
-	/** Local mirror is keyed per-EOA (index cipher changes each append). */
+	private localPartitionKey(): string {
+		const terminal = this.eoaLower.replace(/^0x/, '')
+		const upper = this.opts.historyUpperAdminEoa.trim().toLowerCase().replace(/^0x/, '')
+		return `terminal:${terminal}:upperAdmin:${upper}`
+	}
+
 	private localIndexKey(): string {
-		return `${LOCAL_INDEX_KEY_PREFIX}${this.eoaLower}`
+		return `${LOCAL_INDEX_KEY_PREFIX}${this.localPartitionKey()}`
+	}
+
+	private localFragmentKey(cid: string): string {
+		return `${LOCAL_FRAG_KEY_PREFIX}${this.localPartitionKey()}:${cid}`
 	}
 
 	/** Read the on-chain head pointer (RPC-first). Returns null when unset/unreachable. */
@@ -303,7 +315,7 @@ export class HistoryStore {
 	private async downloadFragment(cid: string): Promise<string | null> {
 		// Local mirror first.
 		if (this.opts.persistence) {
-			const cached = (await this.opts.persistence.get(`${LOCAL_FRAG_KEY_PREFIX}${cid}`)) as string | undefined
+			const cached = (await this.opts.persistence.get(this.localFragmentKey(cid))) as string | undefined
 			if (cached) return cached
 		}
 		try {
@@ -311,7 +323,7 @@ export class HistoryStore {
 			const res = await fetch(url, { method: 'GET', cache: 'no-store' })
 			if (!res.ok) return null
 			const text = (await res.text()).trim()
-			if (text && this.opts.persistence) await this.opts.persistence.set(`${LOCAL_FRAG_KEY_PREFIX}${cid}`, text)
+			if (text && this.opts.persistence) await this.opts.persistence.set(this.localFragmentKey(cid), text)
 			return text || null
 		} catch {
 			return null
@@ -391,7 +403,7 @@ export class HistoryStore {
 		const cipher = await aesGcmEncryptString(key, entry.body)
 		const cid = keccakUtf8(cipher)
 		// Mirror fragment locally before network (trusted local first).
-		if (this.opts.persistence) await this.opts.persistence.set(`${LOCAL_FRAG_KEY_PREFIX}${cid}`, cipher)
+		if (this.opts.persistence) await this.opts.persistence.set(this.localFragmentKey(cid), cipher)
 		await this.uploadFragment(cipher)
 		const rec: IndexRecord = {
 			seq,

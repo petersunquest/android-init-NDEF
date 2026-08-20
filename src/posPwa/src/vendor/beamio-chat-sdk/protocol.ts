@@ -21,6 +21,7 @@ import type {
 /** Serialisable subset of config passed into the worker at init. */
 export interface WorkerInitPayload {
 	identity: ChatIdentity
+	historyUpperAdminEoa: string
 	conetRpcUrl: string
 	addressPgpContractAddress: string
 	ipfsBaseUrl: string

@@ -183,6 +183,8 @@ export interface SendMessageOptions {
 
 export interface BeamioChatConfig {
 	identity: ChatIdentity
+	/** Required workspace dimension for all encrypted history persistence. */
+	historyUpperAdminEoa: string
 	/** CoNET DePIN RPC endpoint (read AddressPGP etc.). */
 	conetRpcUrl: string
 	/** AddressPGP contract address. */

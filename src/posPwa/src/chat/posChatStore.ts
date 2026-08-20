@@ -1,21 +1,22 @@
 import type { PosChatMessage, PosChatStoreSnapshot, PosChatThread } from '@/chat/posChatTypes'
-import { normalizeEoaLower40 } from '@/conet/crypto'
+import { normalizePosChatPartition, posChatPartitionKey } from '@/chat/posChatPartition'
 
-const STORE_PREFIX = 'beamio_pos_chat_v1:'
+const STORE_PREFIX = 'beamio_pos_chat_v2:'
 
-function storeKey(eoaLower: string): string {
-	return `${STORE_PREFIX}${eoaLower}`
+function storeKey(terminalEoa: string, upperAdminEoa: string): string | null {
+	const partition = normalizePosChatPartition(terminalEoa, upperAdminEoa)
+	return partition ? `${STORE_PREFIX}${posChatPartitionKey(partition)}` : null
 }
 
 function emptySnapshot(): PosChatStoreSnapshot {
 	return { version: 1, threads: [], updatedAt: Date.now() }
 }
 
-export function loadPosChatStore(walletEoa: string): PosChatStoreSnapshot {
-	const h = normalizeEoaLower40(walletEoa)
-	if (!h || typeof localStorage === 'undefined') return emptySnapshot()
+export function loadPosChatStore(walletEoa: string, upperAdminEoa: string): PosChatStoreSnapshot {
+	const key = storeKey(walletEoa, upperAdminEoa)
+	if (!key || typeof localStorage === 'undefined') return emptySnapshot()
 	try {
-		const raw = localStorage.getItem(storeKey(h))
+		const raw = localStorage.getItem(key)
 		if (!raw) return emptySnapshot()
 		const parsed = JSON.parse(raw) as PosChatStoreSnapshot
 		if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.threads)) return emptySnapshot()
@@ -25,12 +26,12 @@ export function loadPosChatStore(walletEoa: string): PosChatStoreSnapshot {
 	}
 }
 
-export function savePosChatStore(walletEoa: string, snap: PosChatStoreSnapshot): void {
-	const h = normalizeEoaLower40(walletEoa)
-	if (!h || typeof localStorage === 'undefined') return
+export function savePosChatStore(walletEoa: string, upperAdminEoa: string, snap: PosChatStoreSnapshot): void {
+	const key = storeKey(walletEoa, upperAdminEoa)
+	if (!key || typeof localStorage === 'undefined') return
 	try {
 		localStorage.setItem(
-			storeKey(h),
+			key,
 			JSON.stringify({ ...snap, updatedAt: Date.now() } satisfies PosChatStoreSnapshot),
 		)
 	} catch {

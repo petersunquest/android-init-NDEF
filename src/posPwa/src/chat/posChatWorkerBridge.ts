@@ -96,6 +96,7 @@ export interface StartWorkerGossipParams {
 	privateKeyHex: string
 	pgpPrivateKeyArmored: string
 	pgpPublicKeyArmored: string
+	historyUpperAdminEoa: string
 	nodes: NodeInfo[]
 	rootSignal: AbortSignal
 	onLine: (line: string) => void
@@ -166,6 +167,7 @@ export const startWorkerGossipListen = async (p: StartWorkerGossipParams): Promi
 			pgpPublicKeyArmored: p.pgpPublicKeyArmored,
 			ownRouteArmoredPublicKey: p.ownRouteArmoredPublicKey,
 		},
+		historyUpperAdminEoa: p.historyUpperAdminEoa,
 		conetRpcUrl: CONET_RPC,
 		addressPgpContractAddress: CONET_ADDRESS_PGP_MANAGER,
 		getNodes: async () => nodeSnapshot,

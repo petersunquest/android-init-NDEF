@@ -3,6 +3,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -35,6 +36,7 @@ import {
 	upsertOutboundMessage,
 } from '@/chat/posChatStore'
 import { onHistoryBuffer } from '@/chat/posChatWorkerBridge'
+import { normalizePosChatPartition, posChatPartitionKey } from '@/chat/posChatPartition'
 import type { PosChatStoreSnapshot, PosChatThread } from '@/chat/posChatTypes'
 import {
 	isPosAppBackgrounded,
@@ -65,26 +67,42 @@ export function usePosChat(): PosChatContextValue {
 }
 
 export function PosChatProvider({ children }: { children: ReactNode }) {
-	const { bootPhase, walletAddress } = usePosSession()
+	const { bootPhase, walletAddress, activeUpperEoa } = usePosSession()
 	const eoa = (walletAddress || getSessionWalletAddress() || '').toLowerCase()
-	const [snap, setSnap] = useState<PosChatStoreSnapshot>(() =>
-		eoa ? loadPosChatStore(eoa) : { version: 1, threads: [], updatedAt: 0 },
+	const partition = useMemo(
+		() => normalizePosChatPartition(eoa, activeUpperEoa ?? undefined),
+		[eoa, activeUpperEoa],
 	)
+	const partitionKey = partition ? posChatPartitionKey(partition) : null
+	const [snap, setSnap] = useState<PosChatStoreSnapshot>(() =>
+		partition ? loadPosChatStore(eoa, activeUpperEoa!) : { version: 1, threads: [], updatedAt: 0 },
+	)
+	const [loadedPartitionKey, setLoadedPartitionKey] = useState<string | null>(partitionKey)
 	const [gossipReady, setGossipReady] = useState(false)
 	const [gossipError, setGossipError] = useState<string | null>(null)
 	const prevUnreadRef = useRef(0)
 	const activePeerRef = useRef<string | null>(null)
 	const bootOnceRef = useRef(false)
 
-	useEffect(() => {
-		if (!eoa) {
+	useLayoutEffect(() => {
+		if (!partitionKey || !partition) {
 			setSnap({ version: 1, threads: [], updatedAt: 0 })
+			setLoadedPartitionKey(null)
 			return
 		}
-		setSnap(loadPosChatStore(eoa))
-	}, [eoa])
+		setSnap({ version: 1, threads: [], updatedAt: 0 })
+		setLoadedPartitionKey(null)
+	}, [partitionKey])
 
-	const unreadTotal = useMemo(() => totalUnreadCount(snap), [snap])
+	useEffect(() => {
+		if (!partitionKey || !partition) return
+		setSnap(loadPosChatStore(eoa, partition.upperAdminEoa))
+		setLoadedPartitionKey(partitionKey)
+	}, [eoa, partitionKey, partition])
+
+	const visibleSnap: PosChatStoreSnapshot =
+		loadedPartitionKey === partitionKey ? snap : { version: 1, threads: [], updatedAt: 0 }
+	const unreadTotal = useMemo(() => totalUnreadCount(visibleSnap), [visibleSnap])
 
 	useEffect(() => {
 		const prev = prevUnreadRef.current
@@ -104,7 +122,7 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			if (receipt) {
 				setSnap((prev) => {
 					const next = markOutboundDeliveredBySendId(prev, receipt.sendId)
-					if (next !== prev) savePosChatStore(eoa, next)
+					if (next !== prev && partition) savePosChatStore(eoa, partition.upperAdminEoa, next)
 					return next
 				})
 				if (armorHash && pk) {
@@ -127,7 +145,7 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			setSnap((prev) => {
 				const next = upsertInboundMessage(prev, msg, { incrementUnread: !viewing })
 				ingested = next !== prev
-				if (ingested) savePosChatStore(eoa, next)
+				if (ingested && partition) savePosChatStore(eoa, partition.upperAdminEoa, next)
 				return next
 			})
 			if (!ingested) return
@@ -141,22 +159,22 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 				})
 			}
 		},
-		[eoa],
+		[eoa, partition],
 	)
 
 	useEffect(() => {
-		if (!eoa) return
+		if (!eoa || !partition) return
 		return onHistoryBuffer((batch) => {
 			setSnap((prev) => {
 				const next = mergeHistoryBatchIntoStore(prev, batch, eoa)
-				if (next !== prev) savePosChatStore(eoa, next)
+				if (next !== prev) savePosChatStore(eoa, partition.upperAdminEoa, next)
 				return next
 			})
 		})
-	}, [eoa])
+	}, [eoa, partitionKey, partition])
 
 	useEffect(() => {
-		if (bootPhase !== 'home' || !eoa) {
+		if (bootPhase !== 'home' || !eoa || !partition) {
 			stopPosChatGossipListen()
 			setGossipReady(false)
 			bootOnceRef.current = false
@@ -173,6 +191,7 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			}
 			const result = await bootstrapPosChatSession({
 				walletPrivateKeyHex: pk,
+				historyUpperAdminEoa: partition.upperAdminEoa,
 				onLine: handleLine,
 			})
 			if (cancelled) return
@@ -188,46 +207,47 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 		return () => {
 			cancelled = true
 		}
-	}, [bootPhase, eoa, handleLine])
+	}, [bootPhase, eoa, partition, handleLine])
 
 	useEffect(() => {
 		return () => stopPosChatGossipListen()
 	}, [])
 
 	const refreshStore = useCallback(() => {
-		if (!eoa) return
-		setSnap(loadPosChatStore(eoa))
-	}, [eoa])
+		if (!eoa || !partition) return
+		setSnap(loadPosChatStore(eoa, partition.upperAdminEoa))
+		setLoadedPartitionKey(partitionKey)
+	}, [eoa, partition, partitionKey])
 
 	const openOrCreateThread = useCallback(
 		(peerAddress: string, meta?: { peerTag?: string; peerName?: string }) => {
-			if (!eoa) return
+			if (!eoa || !partition) return
 			setSnap((prev) => {
 				const next = ensureThread(prev, peerAddress, meta)
-				savePosChatStore(eoa, next)
+				savePosChatStore(eoa, partition.upperAdminEoa, next)
 				return next
 			})
 		},
-		[eoa],
+		[eoa, partition],
 	)
 
 	const markRead = useCallback(
 		(peerAddress: string) => {
-			if (!eoa) return
+			if (!eoa || !partition) return
 			activePeerRef.current = peerAddress
 			setSnap((prev) => {
 				const next = markThreadRead(prev, peerAddress)
-				savePosChatStore(eoa, next)
+				savePosChatStore(eoa, partition.upperAdminEoa, next)
 				return next
 			})
 		},
-		[eoa],
+		[eoa, partition],
 	)
 
 	const sendText = useCallback(
 		async (peerAddress: string, text: string) => {
 			const pk = getSessionPrivateKeyHex()
-			if (!pk || !eoa) return { ok: false, error: 'Wallet locked' }
+			if (!pk || !eoa || !partition) return { ok: false, error: 'Wallet locked' }
 			const trimmed = text.trim()
 			if (!trimmed) return { ok: false, error: 'Empty message' }
 			const result = await sendPosChatTextMessage({
@@ -247,24 +267,24 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			}
 			setSnap((prev) => {
 				const next = upsertOutboundMessage(prev, msg)
-				savePosChatStore(eoa, next)
+				savePosChatStore(eoa, partition.upperAdminEoa, next)
 				return next
 			})
 			mirrorPosChatMessageToHistory(peerAddress, msg, 'out')
 			return { ok: true }
 		},
-		[eoa],
+		[eoa, partition],
 	)
 
 	const getThread = useCallback(
 		(peerAddress: string) =>
-			snap.threads.find((t) => t.peerAddress.toLowerCase() === peerAddress.toLowerCase()),
-		[snap.threads],
+			visibleSnap.threads.find((t) => t.peerAddress.toLowerCase() === peerAddress.toLowerCase()),
+		[visibleSnap.threads],
 	)
 
 	const value = useMemo<PosChatContextValue>(
 		() => ({
-			threads: snap.threads,
+			threads: visibleSnap.threads,
 			unreadTotal,
 			gossipReady,
 			gossipError,
@@ -275,7 +295,7 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			getThread,
 		}),
 		[
-			snap.threads,
+			visibleSnap.threads,
 			unreadTotal,
 			gossipReady,
 			gossipError,

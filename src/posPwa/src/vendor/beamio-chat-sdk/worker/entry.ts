@@ -45,6 +45,7 @@ function makeHistory(payload: WorkerInitPayload): HistoryStore {
 		},
 		{
 			eoaAddress: payload.identity.eoaAddress,
+			historyUpperAdminEoa: payload.historyUpperAdminEoa,
 			privateKeyHex: payload.identity.privateKeyHex,
 			chainId: payload.chainId,
 			ipfsBaseUrl: payload.ipfsBaseUrl,

@@ -25,6 +25,7 @@ export async function startPosChatGossipListen(params: {
 	walletPrivateKeyHex: string
 	pgpPrivateKeyArmored: string
 	pgpPublicKeyArmored: string
+	historyUpperAdminEoa: string
 	onLine: (line: string) => void
 }): Promise<boolean> {
 	stopPosChatGossipListen()
@@ -46,6 +47,7 @@ export async function startPosChatGossipListen(params: {
 		privateKeyHex: pk,
 		pgpPrivateKeyArmored: params.pgpPrivateKeyArmored,
 		pgpPublicKeyArmored: params.pgpPublicKeyArmored,
+		historyUpperAdminEoa: params.historyUpperAdminEoa,
 		nodes: nodes as unknown as NodeInfo[],
 		rootSignal: myController.signal,
 		onLine: params.onLine,
