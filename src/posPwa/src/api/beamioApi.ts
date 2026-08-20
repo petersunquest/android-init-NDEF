@@ -455,6 +455,16 @@ export function formatNfcTopupAdminError(pay: NfcTopupSubmitResult): string {
 			`${who} is not an admin on this merchant card. Open Workspaces, request Staff approval, then retry.`
 		)
 	}
+	if (
+		/stageMembershipFeePurchase/i.test(apiMsg ?? '') ||
+		/UserOperation execution failed/i.test(apiMsg ?? '') ||
+		/MembershipFeeMismatch/i.test(apiMsg ?? '')
+	) {
+		if (/MembershipFeeMismatch|feeE6|membership fee/i.test(apiMsg ?? '')) {
+			return 'Membership fee could not be confirmed on-chain. Ask the merchant to republish card membership settings, then retry.'
+		}
+		return apiMsg?.replace(/^Error:\s*/i, '') || 'Membership purchase failed on-chain. Retry in a moment or contact support.'
+	}
 	return apiMsg || 'Top-up failed'
 }
 
