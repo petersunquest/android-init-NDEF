@@ -45,14 +45,14 @@ function methodIcon(method: TopupPaymentMethodRaw) {
 
 export function TopupAmountPadPage({
 	policy = POS_TERMINAL_TOPUP_POLICY_ALL,
-	membershipFeeMode = false,
+	membershipRequired = false,
 	cardCurrencyPrefix = '$',
 	onCancel,
 	onContinue,
 }: {
 	policy?: PosTerminalTopupPolicy
-	/** Card metadata: any tier fee > 0 — block plain top-up; direct staff to Check Balance. */
-	membershipFeeMode?: boolean
+	/** A confirmed customer without a valid membership — direct staff to Check Balance. */
+	membershipRequired?: boolean
 	cardCurrencyPrefix?: string
 	onCancel: () => void
 	onContinue: (input: {
@@ -77,7 +77,7 @@ export function TopupAmountPadPage({
 
 	const parsed = Number(amount)
 	const canContinue =
-		!membershipFeeMode &&
+		!membershipRequired &&
 		allowed.length > 0 &&
 		Number.isFinite(parsed) &&
 		parsed > 0
@@ -92,7 +92,7 @@ export function TopupAmountPadPage({
 				/>
 				<PosScreenMain className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-14">
 					<div className="flex min-h-0 flex-1 flex-col gap-3">
-						{membershipFeeMode ? (
+						{membershipRequired ? (
 							<div className="shrink-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
 								<p className="font-semibold">Membership required</p>
 								<p className="mt-1 leading-snug">{MEMBERSHIP_FEE_CHECK_BALANCE_HINT}</p>
@@ -119,9 +119,9 @@ export function TopupAmountPadPage({
 								</div>
 								<button
 									type="button"
-									disabled={membershipFeeMode}
+									disabled={membershipRequired}
 									onClick={() => {
-										if (membershipFeeMode || allowed.length <= 1) return
+										if (membershipRequired || allowed.length <= 1) return
 										setMethod(nextMethod)
 										savePersistedTopupMethod(nextMethod)
 									}}
@@ -165,7 +165,7 @@ export function TopupAmountPadPage({
 
 						<BeamioAmountPad
 							amount={amount}
-							onAmountChange={membershipFeeMode ? () => {} : setAmount}
+							onAmountChange={membershipRequired ? () => {} : setAmount}
 						/>
 
 						<button

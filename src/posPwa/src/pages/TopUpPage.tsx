@@ -5,7 +5,10 @@ import {
 	fetchCardMetadataRoot,
 	fetchCardMetadataTiersBundle,
 	fetchCardOwner,
+	fetchUIDAssets,
+	fetchWalletAssetsForRead,
 } from '@/api/beamioApi'
+import type { UIDAssetsResult } from '@/types/pos'
 import { metadataTiersHaveMembershipFee } from '@/utils/beamioPaymentRouting'
 import { displayFiatPrefixFromCode } from '@/utils/display'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
@@ -21,6 +24,9 @@ import {
 } from '@/utils/programRechargeBonus'
 import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
+import {
+	readBalanceCustomerHasValidMembership,
+} from '@/utils/readBalanceMembership'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
 import {
 	executeNfcTopup,
@@ -44,6 +50,7 @@ import {
 type TopUpPhase =
 	| 'amount'
 	| 'scan-customer'
+	| 'membership-required'
 	| 'executing'
 	| 'usdc-qr'
 	| 'scan-nfc-after-usdc'
@@ -74,6 +81,22 @@ function customerTargetFromScan(
 	}
 	if (scan.identity.wallet) {
 		return { wallet: scan.identity.wallet }
+	}
+	return null
+}
+
+async function fetchTopupCustomerAssets(
+	target: TopupCustomerTarget,
+	merchantInfraCard: string,
+): Promise<UIDAssetsResult | null> {
+	if (target.beamioTag) {
+		return fetchUIDAssets({ uid: target.beamioTag, merchantInfraCard })
+	}
+	if (target.wallet) {
+		return fetchWalletAssetsForRead({ wallet: target.wallet, merchantInfraCard })
+	}
+	if (target.uid && target.sun) {
+		return fetchUIDAssets({ uid: target.uid, merchantInfraCard, sun: target.sun })
 	}
 	return null
 }
@@ -272,6 +295,23 @@ export function TopUpPage() {
 			}
 			setCustomer(target)
 
+			if (membershipFeeMode) {
+				const assets = await fetchTopupCustomerAssets(target, merchantInfraCard?.trim() ?? '')
+				if (cancelled) return
+				if (!assets) {
+					goHome('Balance query failed. Check network and try again.')
+					return
+				}
+				if (!assets.ok) {
+					goHome(assets.error || 'Balance query failed. Please retry.')
+					return
+				}
+				if (!readBalanceCustomerHasValidMembership(assets, merchantInfraCard?.trim() ?? '')) {
+					setPhase('membership-required')
+					return
+				}
+			}
+
 			if (phase === 'scan-nfc-after-usdc') {
 				await runCardTopup(target, usdcSid)
 				return
@@ -289,7 +329,16 @@ export function TopUpPage() {
 			cancelled = true
 			cancelPosCustomerScan()
 		}
-	}, [phase, draft, goHome, runCardTopup, startUsdcQrFlow, usdcSid])
+	}, [
+		phase,
+		draft,
+		goHome,
+		merchantInfraCard,
+		membershipFeeMode,
+		runCardTopup,
+		startUsdcQrFlow,
+		usdcSid,
+	])
 
 	useEffect(() => {
 		if (phase !== 'usdc-qr' || !usdcSid) return
@@ -351,10 +400,23 @@ export function TopUpPage() {
 	if (phase === 'amount') {
 		return (
 			<TopupAmountPadPage
-				membershipFeeMode={membershipFeeMode}
+				membershipRequired={false}
 				cardCurrencyPrefix={cardCurrencyPrefix}
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}
+			/>
+		)
+	}
+
+	if (phase === 'membership-required') {
+		return (
+			<TopupAmountPadPage
+				membershipRequired
+				cardCurrencyPrefix={cardCurrencyPrefix}
+				onCancel={() => goHome()}
+				onContinue={() => {
+					/* Membership-required state is intentionally not actionable. */
+				}}
 			/>
 		)
 	}
