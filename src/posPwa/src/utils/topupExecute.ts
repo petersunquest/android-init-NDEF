@@ -296,8 +296,19 @@ export async function executeNfcTopup(params: {
 		return { status: 'error', message: 'Cannot read customer identity.' }
 	}
 
-	const membershipTierIndex = hasValidMembership ? undefined : params.membershipTierIndex
-	const membershipFeeFiat6 = hasValidMembership ? undefined : params.membershipFeeFiat6
+	const explicitMembershipFee =
+		params.membershipTierIndex != null &&
+		params.membershipFeeFiat6 != null &&
+		(() => {
+			try {
+				return BigInt(String(params.membershipFeeFiat6).replace(/,/g, '').trim() || '0') > 0n
+			} catch {
+				return false
+			}
+		})()
+	const passMembershipFields = explicitMembershipFee || !hasValidMembership
+	const membershipTierIndex = passMembershipFields ? params.membershipTierIndex : undefined
+	const membershipFeeFiat6 = passMembershipFields ? params.membershipFeeFiat6 : undefined
 
 	return submitPreparedTopup({
 		target: {

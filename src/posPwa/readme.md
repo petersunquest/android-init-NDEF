@@ -24,8 +24,8 @@ Same model as Consumer SilentPassUI, **separate** from `/app/`:
 | Manifest | `https://pos.beamio.app/update.json` → `{"ver","filename"}` |
 | Zip | `https://pos.beamio.app/BeamioPOS-{ver}.zip` (files at zip **root**, `POS_PWA_BASE=/`) |
 | Bootstrap in shell | iOS `src/iOS/softPOS/softPOS/BeamioPOS.zip`; Android `src/android/softPOS/app/src/main/assets/BeamioPOS.zip` |
-| Daemon | 15 min `setTimeout`/`Task.sleep` chain; download to staging; banner **Update ready** / **Restart** |
-| Hot apply | `CashTreesIOS` / `CashTreesAndroid.applyEmbeddedPwaUpdate` → promote staging → reload local entry |
+| Daemon | 15 min serial `Task.sleep` / Handler chain (same as Consumer); **also** on remote-WebView fallback; foreground resume runs one extra check without stacking timers |
+| Hot apply | `CashTreesIOS` / `CashTreesAndroid.applyEmbeddedPwaUpdate` → promote staging → reload local entry (remote fallback remounts the bundled host) |
 
 `https://beamio.app/pos/` is **not** the native OTA zip source. Do not reuse `SilentPassUI-*.zip` or `beamio.app/app/update.json`.
 
