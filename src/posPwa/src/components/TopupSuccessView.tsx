@@ -22,13 +22,17 @@ export function TopupSuccessView({
 	result,
 	passHero: passHeroProp,
 	pointSystemEnabled: _pointSystemEnabled,
+	variant = 'topup',
 	onDone,
 }: {
 	result: TopupExecuteSuccess
 	passHero?: PosSuccessPassHeroProps
 	pointSystemEnabled?: boolean
+	/** Membership issuance: hide amount; show member welcome only. */
+	variant?: 'topup' | 'membership'
 	onDone: () => void
 }) {
+	const isMembership = variant === 'membership'
 	const passHero =
 		passHeroProp ??
 		result.passHero ??
@@ -64,23 +68,35 @@ export function TopupSuccessView({
 			txHash: result.txHash,
 			settlementViaQr: result.settlementViaQr,
 		})
-		if (!printPosReceipt({ text, title: 'Top-Up Receipt' })) {
+		const receiptTitle = isMembership ? 'Membership Receipt' : 'Top-Up Receipt'
+		if (!printPosReceipt({ text, title: receiptTitle })) {
 			window.print()
 		}
 	}
 
 	const onShare = async () => {
-		const text = [
-			'Top-Up Approved',
-			`+${amtParts.prefix}${amtParts.mid}${amtParts.suffix}`,
-			`Date: ${dateStr}`,
-			result.txHash ? `Tx: ${result.txHash}` : '',
-		]
-			.filter(Boolean)
-			.join('\n')
+		const text = isMembership
+			? [
+					'Membership confirmed',
+					`Date: ${dateStr}`,
+					result.txHash ? `Tx: ${result.txHash}` : '',
+				]
+					.filter(Boolean)
+					.join('\n')
+			: [
+					'Top-Up Approved',
+					`+${amtParts.prefix}${amtParts.mid}${amtParts.suffix}`,
+					`Date: ${dateStr}`,
+					result.txHash ? `Tx: ${result.txHash}` : '',
+				]
+					.filter(Boolean)
+					.join('\n')
 		if (navigator.share) {
 			try {
-				await navigator.share({ title: 'Top-Up Receipt', text })
+				await navigator.share({
+					title: isMembership ? 'Membership Receipt' : 'Top-Up Receipt',
+					text,
+				})
 				return
 			} catch {
 				/* cancelled */
@@ -102,25 +118,34 @@ export function TopupSuccessView({
 							<div className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
 								<CheckCircle2 className="h-8 w-8" style={{ color: CHECK_GREEN }} aria-hidden />
 							</div>
-							<div className="mt-1 flex items-baseline gap-0.5">
-								<span className="text-base font-medium text-[#86868b]">+</span>
-								{amtParts.prefix ? (
-									<span className="text-[10px] font-bold" style={{ color: ON_SURFACE }}>
-										{amtParts.prefix}
-									</span>
-								) : null}
-								<span
-									className="text-4xl font-light tabular-nums"
+							{isMembership ? (
+								<p
+									className="mt-3 max-w-xs text-center text-[22px] font-semibold leading-snug"
 									style={{ color: ON_SURFACE }}
 								>
-									{amtParts.mid}
-								</span>
-								{amtParts.suffix ? (
-									<span className="text-[10px] font-bold" style={{ color: ON_SURFACE }}>
-										{amtParts.suffix}
+									Congratulations! You&apos;re now a member.
+								</p>
+							) : (
+								<div className="mt-1 flex items-baseline gap-0.5">
+									<span className="text-base font-medium text-[#86868b]">+</span>
+									{amtParts.prefix ? (
+										<span className="text-[10px] font-bold" style={{ color: ON_SURFACE }}>
+											{amtParts.prefix}
+										</span>
+									) : null}
+									<span
+										className="text-4xl font-light tabular-nums"
+										style={{ color: ON_SURFACE }}
+									>
+										{amtParts.mid}
 									</span>
-								) : null}
-							</div>
+									{amtParts.suffix ? (
+										<span className="text-[10px] font-bold" style={{ color: ON_SURFACE }}>
+											{amtParts.suffix}
+										</span>
+									) : null}
+								</div>
+							)}
 						</div>
 
 						<div className="space-y-3 px-5 pb-24">

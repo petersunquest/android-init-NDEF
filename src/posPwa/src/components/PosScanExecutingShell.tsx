@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 
 const TOPUP_BLUE = '#1562f0'
+const MEMBERSHIP_PURPLE = '#8d3a8b'
 const BONUS_PINK = '#ec4899'
 const DEDUCT_ORANGE = '#ea580c'
 
@@ -22,27 +23,33 @@ export function PosScanExecutingShell({
 	center: ReactNode
 	bottomAmount?: number
 	bottomBonus?: number
-	bottomTone?: 'topup' | 'charge' | 'deduct'
+	bottomTone?: 'topup' | 'charge' | 'deduct' | 'membership'
 }) {
 	const showBottom = bottomAmount != null && bottomAmount > 0
 	const labelColor =
 		bottomTone === 'topup'
 			? TOPUP_BLUE
-			: bottomTone === 'deduct'
-				? DEDUCT_ORANGE
-				: '#86868b'
+			: bottomTone === 'membership'
+				? MEMBERSHIP_PURPLE
+				: bottomTone === 'deduct'
+					? DEDUCT_ORANGE
+					: '#86868b'
 	const valueColor =
 		bottomTone === 'topup'
 			? TOPUP_BLUE
-			: bottomTone === 'deduct'
-				? DEDUCT_ORANGE
-				: '#000000'
+			: bottomTone === 'membership'
+				? MEMBERSHIP_PURPLE
+				: bottomTone === 'deduct'
+					? DEDUCT_ORANGE
+					: '#000000'
 	const bottomLabel =
 		bottomTone === 'charge'
 			? 'Total Amount'
 			: bottomTone === 'deduct'
 				? 'Points to Deduct'
-				: 'Top-Up Amount'
+				: bottomTone === 'membership'
+					? 'Membership'
+					: 'Top-Up Amount'
 
 	return (
 		<PosScreenShell bg="bg-[#f2f2f7]">

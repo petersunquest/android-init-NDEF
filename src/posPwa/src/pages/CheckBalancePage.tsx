@@ -48,6 +48,7 @@ import {
 	membershipPurchaseApiAmountHuman,
 	readBalanceCustomerHasValidMembership,
 	readBalanceMembershipFeeTiers,
+	readBalanceMembershipUpgradeTiers,
 	type ReadBalanceMembershipTierChoice,
 } from '@/utils/readBalanceMembership'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
@@ -627,6 +628,7 @@ export function CheckBalancePage() {
 	if (phase === 'membership-success' && membershipSuccess) {
 		return (
 			<TopupSuccessView
+				variant="membership"
 				result={membershipSuccess}
 				pointSystemEnabled={pointSystemEnabled}
 				onDone={() => {
@@ -678,7 +680,7 @@ export function CheckBalancePage() {
 					<PosTopupExecutingCard signingInProgress={membershipProgress === 'signing'} />
 				}
 				bottomAmount={amt > 0 ? amt : undefined}
-				bottomTone="topup"
+				bottomTone="membership"
 			/>
 		)
 	}
@@ -723,7 +725,11 @@ export function CheckBalancePage() {
 		consumeInFlightId != null ||
 		phase !== 'result'
 	const hasValidMembership = readBalanceCustomerHasValidMembership(assets, infraCard)
+	const membershipUpgradeTiers = hasValidMembership
+		? readBalanceMembershipUpgradeTiers(membershipTiers, assets, infraCard)
+		: []
 	const showMembershipJoin = membershipTiers.length > 0 && !hasValidMembership
+	const showMembershipUpgrade = membershipUpgradeTiers.length > 0
 
 	function onBack() {
 		navigate(POS_HOME_ROUTES.home, { replace: true })
@@ -775,10 +781,10 @@ export function CheckBalancePage() {
 								onPurchaseTier={onPurchaseMembershipTier}
 							/>
 						) : null}
-						{membershipTiers.length > 0 && hasValidMembership ? (
+						{showMembershipUpgrade ? (
 							<ReadBalanceMembershipSection
 								mode="upgrade"
-								tiers={membershipTiers}
+								tiers={membershipUpgradeTiers}
 								currencyPrefix={membershipCurrencyPrefix}
 								disabled={deductBusy}
 								onPurchaseTier={onPurchaseMembershipTier}
