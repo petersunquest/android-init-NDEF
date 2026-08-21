@@ -10,7 +10,7 @@
 
 | Canvas 快照 | 交互 Canvas 标识 | 状态 | 主要用途 |
 | --- | --- | --- | --- |
-| [DLE Mock-L1 拍卖撮合 MVP](./dle-mock-l1-auction-mvp-2026-08.md) | 无独立交互 Canvas | **2026-08-21：Round 1–8 已落地（custody / list / approve / settle + 只读 `/trade/preflight` / e2e / Explorer）；非主网 / 非生产 RANDAO·DePIN** | EventIngress + certificate + 1bps 50/50；Archive RPC custody + `list`/`approve`/`preflight`/`settle`；Explorer Preflight + List→Approve→Settle；旁路 lab `notL1Nft` |
+| [DLE Mock-L1 拍卖撮合 MVP](./dle-mock-l1-auction-mvp-2026-08.md) | 无独立交互 Canvas | **2026-08-21：Round 1–9 已落地（custody / list / approve / settle / unlist 回收 + 只读 `/trade/preflight` / e2e / Explorer）；非主网 / 非生产 RANDAO·DePIN** | EventIngress + certificate + 1bps 50/50；Archive RPC custody + `list`/`unlist`/`approve`/`preflight`/`settle`；Explorer Unlist / Mark failed / Cancel + Preflight + List→Approve→Settle；旁路 lab `notL1Nft` |
 | [conet-l0d overlay 两端质量 2026-08-18](./conet-l0d-overlay-qos-2026-08-18.md) | `l0-overlay-qos-both-ends.canvas.tsx` | **2026-08-18 18:56Z：mailbox 应用层零丢包；overlay TCP ~500 ms RTT + 乱序；枢纽 TUN tx_dropped=937；不关闭 P1 追链、不是生产 discv5** | 两端 log / TUN / ss 实测；isolate DROP 与 EL 0x0 不是 overlay 丢包 |
 | [conet-l0d crate MVP 验收 + P1 encrypt+POST](./conet-l0d-mvp-accept-p1-2026-08.md) | `conet-l0d-mvp-accept-p1.canvas.tsx` | **2026-08-17 23:30Z：crate MVP 已验收；P1 出站 + 入站解密/TUN 写回 + EIP-191 listen wrap 已在 crate（mock）；未打开生产 SI listen；实验室 `[l0]` 关；`.98` geth 已恢复** | 两机公网 P2P 现场数；可通过 vs 不得声称；P1 复用现役 `/post`；禁 vIP advertise |
 | [CoNET L0 Linux P2P 传输模块](./conet-l0-linux-p2p-transport-2026-08.md) | `conet-l0-linux-p2p-transport-2026-08.canvas.tsx` | **2026-08-17 调研冻结，未部署** | 用户态 `conet-l0d` + TUN/iptables；`web3://wallet\|tag.web3`；不改 geth/beacon/va；现有 UDP ≠ raw UDP；禁 SilentPass egress |

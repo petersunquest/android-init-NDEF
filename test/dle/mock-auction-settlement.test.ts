@@ -65,4 +65,54 @@ describe("DLE mock-L1 certificate settlement", function () {
       ),
     ).to.be.revertedWithCustomError(settlement, "CertificateAlreadySettled");
   });
+
+  it("lets the seller unlist and reclaim the escrowed NFT before settle", async function () {
+    const [authority, seller, stranger] = await ethers.getSigners();
+    const quote = await deployProxy("MockCanonicalAsset", [
+      await authority.getAddress(),
+      "Mock quote",
+      "MQUOTE",
+    ]);
+    const nft = await ethers.deployContract("MockDleAuctionNft");
+    const settlement = await ethers.deployContract("MockDleAuctionSettlement", [
+      await authority.getAddress(),
+    ]);
+    await Promise.all([nft.waitForDeployment(), settlement.waitForDeployment()]);
+
+    const tokenId = await nft.mint.staticCall(await seller.getAddress());
+    await nft.mint(await seller.getAddress());
+    const ask = 1_000_000n;
+    const orderHash = ethers.id("mock-l1-order:unlist");
+    const deadline = BigInt((await ethers.provider.getBlock("latest"))!.timestamp + 3600);
+    await nft.connect(seller).approve(await settlement.getAddress(), tokenId);
+    await settlement
+      .connect(seller)
+      .list(
+        orderHash,
+        await nft.getAddress(),
+        tokenId,
+        await quote.getAddress(),
+        ask,
+        deadline,
+      );
+    expect(await nft.ownerOf(tokenId)).to.equal(await settlement.getAddress());
+
+    await expect(settlement.connect(stranger).unlist(orderHash)).to.be.revertedWithCustomError(
+      settlement,
+      "NotListingSeller",
+    );
+
+    await expect(settlement.connect(seller).unlist(orderHash))
+      .to.emit(settlement, "Unlisted")
+      .withArgs(orderHash, await seller.getAddress(), await nft.getAddress(), tokenId);
+
+    expect(await nft.ownerOf(tokenId)).to.equal(await seller.getAddress());
+    const listing = await settlement.listings(orderHash);
+    expect(listing.seller).to.equal(ethers.ZeroAddress);
+
+    await expect(settlement.connect(seller).unlist(orderHash)).to.be.revertedWithCustomError(
+      settlement,
+      "ListingMissing",
+    );
+  });
 });

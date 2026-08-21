@@ -25,9 +25,11 @@ contract MockDleAuctionNft is ERC721 {
 /// environment and must not be treated as a production settlement design.
 contract MockDleAuctionSettlement is IERC721Receiver {
     error NotCertificateAuthority();
+    error NotListingSeller();
     error ListingExists();
     error ListingMissing();
     error ListingExpired();
+    error ListingAlreadySettled();
     error CertificateAlreadySettled();
     error InvalidRecipient();
     error InvalidCommittee();
@@ -54,6 +56,12 @@ contract MockDleAuctionSettlement is IERC721Receiver {
         address quoteAsset,
         uint256 askAmount,
         uint64 deadline
+    );
+    event Unlisted(
+        bytes32 indexed sellerOrderHash,
+        address indexed seller,
+        address indexed subjectNft,
+        uint256 subjectNftId
     );
     event Settled(
         bytes32 indexed certificateHash,
@@ -99,6 +107,20 @@ contract MockDleAuctionSettlement is IERC721Receiver {
         });
         IERC721(subjectNft).safeTransferFrom(msg.sender, address(this), subjectNftId);
         emit Listed(sellerOrderHash, msg.sender, subjectNft, subjectNftId, quoteAsset, askAmount, deadline);
+    }
+
+    /// @notice Seller reclaim of escrowed NFT before settle (lab recovery after settlement_failed).
+    function unlist(bytes32 sellerOrderHash) external {
+        Listing storage listing = listings[sellerOrderHash];
+        if (listing.seller == address(0)) revert ListingMissing();
+        if (listing.seller != msg.sender) revert NotListingSeller();
+        if (listing.settled) revert ListingAlreadySettled();
+
+        address subjectNft = listing.subjectNft;
+        uint256 subjectNftId = listing.subjectNftId;
+        delete listings[sellerOrderHash];
+        IERC721(subjectNft).safeTransferFrom(address(this), msg.sender, subjectNftId);
+        emit Unlisted(sellerOrderHash, msg.sender, subjectNft, subjectNftId);
     }
 
     /// @notice Atomically exchanges a listed NFT for ERC-20 and splits 1 bps.
