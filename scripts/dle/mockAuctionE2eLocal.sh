@@ -77,6 +77,11 @@ for (const [k, v] of Object.entries(e)) {
 export MOCK_L1_RPC_URL="${MOCK_L1_RPC_URL:-$RPC}"
 export MOCK_L1_SETTLE_ONCHAIN=1
 
-echo "running CoNET-DLE mock-auction-e2e …"
 cd "$DLE"
-npm run mock-auction-e2e
+
+# Round 10: recovery first (list → fail → unlist, NFT back to seller), then happy settle.
+echo "running CoNET-DLE mock-auction-e2e (recovery) …"
+MOCK_L1_E2E_MODE=recovery npm run mock-auction-e2e
+
+echo "running CoNET-DLE mock-auction-e2e (settle) …"
+MOCK_L1_E2E_MODE=settle npm run mock-auction-e2e
