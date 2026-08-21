@@ -1,15 +1,15 @@
 # DLE Mock-L1 拍卖撮合 MVP（2026-08）
 
 - **Canvas 标识：** 无独立交互 Canvas（本页为架构快照）
-- **日期：** 2026-08-21（MVP round 5 写回）
-- **状态：** **代码已落地（mockL1Only）。** Round 1：本地 fixture + EventIngress + CLI + Explorer 只读。**Round 2：** Archive RPC/hook custody、`mock-auction-demo`、Explorer 会话密钥签名、根仓 `dle:deploy:mock-auction-local`。**Round 3：** Archive 真上链 `settle`（`mockL1Settle.ts`）、`mock-auction-e2e` / `dle:mock-auction-e2e`。**Round 4：** Explorer Settlement summary + `POST /trade/settle` CTA（authority 仍在 Archive）。**Round 5：** Archive `POST /trade/list` + Explorer **List NFT escrow**（卖家会话密钥入 escrow，再 settle）。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
+- **日期：** 2026-08-21（MVP round 6 写回）
+- **状态：** **代码已落地（mockL1Only）。** Round 1：本地 fixture + EventIngress + CLI + Explorer 只读。**Round 2：** Archive RPC/hook custody、`mock-auction-demo`、Explorer 会话密钥签名、根仓 `dle:deploy:mock-auction-local`。**Round 3：** Archive 真上链 `settle`（`mockL1Settle.ts`）、`mock-auction-e2e` / `dle:mock-auction-e2e`。**Round 4：** Explorer Settlement summary + `POST /trade/settle` CTA（authority 仍在 Archive）。**Round 5：** Archive `POST /trade/list` + Explorer **List NFT escrow**（卖家会话密钥入 escrow）。**Round 6：** Archive `POST /trade/approve` + Explorer **Approve quote**（买家会话密钥 ERC-20 approve）；e2e/demo 优先 Archive list + approve 后再 settle。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
 - **规范优先级：** `runtime/RULES.md` / `docs/mock-l1-auction-mvp.md` / wire contract > 本快照。本页不是第二份规范，也未改白皮书协议结论。
 
 ## 事实来源
 
 - 根仓：`src/dle/mocks/MockDleAuctionSettlement.sol`、`test/dle/fixtures.ts`（`deployAuctionFixture`）、`scripts/dle/deployMockL1AuctionLocal.ts`、`scripts/dle/mockAuctionE2eLocal.sh`
-- Runtime：`shared/mockL1.ts`、`shared/mockL1Custody.ts`、`shared/mockL1Settle.ts`（含 `listMockL1Auction`）、`shared/tradeMatch.ts`、`archive/mockL1/engine.ts`、`archive/trade/engine.ts`、`archive/bft/modeA.ts`（`replayTradeMatchModeA`）
-- Client：`daemon/mock-l1-auction-cli.ts`、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + List escrow / Settlement summary / Archive settle CTA
+- Runtime：`shared/mockL1.ts`、`shared/mockL1Custody.ts`、`shared/mockL1Settle.ts`（含 `listMockL1Auction` / `approveMockL1AuctionQuote`）、`shared/tradeMatch.ts`、`archive/mockL1/engine.ts`、`archive/trade/engine.ts`、`archive/bft/modeA.ts`（`replayTradeMatchModeA`）
+- Client：`daemon/mock-l1-auction-cli.ts`、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + List / Approve / Settlement summary / Archive settle CTA
 
 ## 假设
 
@@ -20,6 +20,7 @@
 - Round 3：卖家须先 `list`；仅 `certificateAuthority` 可 `settle`；demo 假 txHash ≠ e2e 真上链 hash
 - Round 4：Explorer 可请求 Archive settle，**不得**在浏览器持有 authority 私钥
 - Round 5：Explorer 可带卖家会话私钥请求 Archive `list`（请求作用域；**不**落盘 Archive）；须与 sell `maker` 一致
+- Round 6：Explorer 可带买家会话私钥请求 Archive `approve`；须与 buy `maker` 一致；allowance 已足够时可幂等跳过
 
 ## 公式 / 数据
 
@@ -32,9 +33,10 @@ classId          ASSET=1 STORAGE=2 TRADE=3
 Mode A           Open → MatchProposed → MatchCertified
                  → SettlementSubmitted → Settled | SettlementFailed
 custody (RPC)    NFT ownerOf + approve*; ERC20 balance + allowance
-on-chain settle  list(escrow) → authority.settle(certificateHash, …)
+on-chain path    list(escrow) → approve(quote) → authority.settle(…)
 Explorer R4      POST /trade/settle { candidateHash, outcome, executeOnChain }
 Explorer R5      POST /trade/list { candidateHash, sellerPrivateKey } → listTxHash
+Explorer R6      POST /trade/approve { candidateHash, buyerPrivateKey, amount? } → approveTxHash
 ```
 
 ## 冻结结论
@@ -47,6 +49,7 @@ Explorer R5      POST /trade/list { candidateHash, sellerPrivateKey } → listTx
 6. **Round 3 settle：** Archive 提交真实 local-RPC `settle`；真 `settlementTxHash` ≠ demo 假 hash。
 7. **Round 4 UI：** Explorer 展示 settle 摘要并 HTTP 触发 Archive；authority 不进浏览器。
 8. **Round 5 list：** Explorer / Archive 补齐 escrow `list`；无 list 则 on-chain settle 失败属预期。
+9. **Round 6 approve：** 买家 ERC-20 approve 与卖家 list 对称；e2e/demo 优先走 Archive `/trade/list` + `/trade/approve`。
 
 ## 替代关系
 
@@ -72,4 +75,5 @@ Explorer R5      POST /trade/list { candidateHash, sellerPrivateKey } → listTx
 - [x] Round 3：`mockL1Settle` + Archive `executeOnChain` + e2e shell / npm scripts
 - [x] Round 4：Explorer Settlement summary + Archive settle CTA
 - [x] Round 5：Archive `/trade/list` + Explorer List NFT escrow CTA + `listTxHash`
+- [x] Round 6：Archive `/trade/approve` + Explorer Approve quote CTA + e2e/demo list+approve
 - [ ] （可选）根仓 Hardhat 全量 dle 测试在 CI 绿
