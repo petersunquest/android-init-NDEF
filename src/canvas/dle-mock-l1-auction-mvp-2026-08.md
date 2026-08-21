@@ -1,15 +1,15 @@
 # DLE Mock-L1 拍卖撮合 MVP（2026-08）
 
 - **Canvas 标识：** 无独立交互 Canvas（本页为架构快照）
-- **日期：** 2026-08-21（MVP round 7 写回）
-- **状态：** **代码已落地（mockL1Only）。** Round 1：本地 fixture + EventIngress + CLI + Explorer 只读。**Round 2：** Archive RPC/hook custody、`mock-auction-demo`、Explorer 会话密钥签名、根仓 `dle:deploy:mock-auction-local`。**Round 3：** Archive 真上链 `settle`（`mockL1Settle.ts`）、`mock-auction-e2e` / `dle:mock-auction-e2e`。**Round 4：** Explorer Settlement summary + `POST /trade/settle` CTA（authority 仍在 Archive）。**Round 5：** Archive `POST /trade/list` + Explorer **List NFT escrow**（卖家会话密钥入 escrow）。**Round 6：** Archive `POST /trade/approve` + Explorer **Approve quote**（买家会话密钥 ERC-20 approve）；e2e/demo 优先 Archive list + approve 后再 settle。**Round 7：** settle preflight（`listTxHash`/`approveTxHash` + 可选 RPC eth_call）；CLI `list`/`approve` + settle `--executeOnChain`；Explorer one-shot **List → Approve → Settle**。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
+- **日期：** 2026-08-21（MVP round 8 写回）
+- **状态：** **代码已落地（mockL1Only）。** Round 1：本地 fixture + EventIngress + CLI + Explorer 只读。**Round 2：** Archive RPC/hook custody、`mock-auction-demo`、Explorer 会话密钥签名、根仓 `dle:deploy:mock-auction-local`。**Round 3：** Archive 真上链 `settle`（`mockL1Settle.ts`）、`mock-auction-e2e` / `dle:mock-auction-e2e`。**Round 4：** Explorer Settlement summary + `POST /trade/settle` CTA（authority 仍在 Archive）。**Round 5：** Archive `POST /trade/list` + Explorer **List NFT escrow**（卖家会话密钥入 escrow）。**Round 6：** Archive `POST /trade/approve` + Explorer **Approve quote**（买家会话密钥 ERC-20 approve）；e2e/demo 优先 Archive list + approve 后再 settle。**Round 7：** settle preflight（`listTxHash`/`approveTxHash` + 可选 RPC eth_call）；CLI `list`/`approve` + settle `--executeOnChain`；Explorer one-shot **List → Approve → Settle**。**Round 8：** 只读 `POST /trade/preflight` + 共享 `evaluateSettlePreflight`；CLI `preflight`；Explorer **Preflight** CTA + Settlement summary 费用拆分。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
 - **规范优先级：** `runtime/RULES.md` / `docs/mock-l1-auction-mvp.md` / wire contract > 本快照。本页不是第二份规范，也未改白皮书协议结论。
 
 ## 事实来源
 
 - 根仓：`src/dle/mocks/MockDleAuctionSettlement.sol`、`test/dle/fixtures.ts`（`deployAuctionFixture`）、`scripts/dle/deployMockL1AuctionLocal.ts`、`scripts/dle/mockAuctionE2eLocal.sh`
-- Runtime：`shared/mockL1.ts`、`shared/mockL1Custody.ts`、`shared/mockL1Settle.ts`（含 `listMockL1Auction` / `approveMockL1AuctionQuote`）、`shared/tradeMatch.ts`、`archive/mockL1/engine.ts`、`archive/trade/engine.ts`、`archive/bft/modeA.ts`（`replayTradeMatchModeA`）
-- Client：`daemon/mock-l1-auction-cli.ts`（含 Round 7 `list`/`approve`/`--executeOnChain`/`--skipSettlePreflight`）、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + List / Approve / one-shot List→Approve→Settle / Settlement summary / Archive settle CTA
+- Runtime：`shared/mockL1.ts`、`shared/mockL1Custody.ts`、`shared/mockL1Settle.ts`（含 `listMockL1Auction` / `approveMockL1AuctionQuote` / `preflightMockL1AuctionSettle`）、`shared/tradeMatch.ts`、`archive/mockL1/engine.ts`、`archive/trade/engine.ts`（`evaluateSettlePreflight` / `/trade/preflight`）、`archive/bft/modeA.ts`（`replayTradeMatchModeA`）
+- Client：`daemon/mock-l1-auction-cli.ts`（含 Round 8 `preflight`、Round 7 `list`/`approve`/`--executeOnChain`/`--skipSettlePreflight`）、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + Preflight / List / Approve / one-shot List→Approve→Settle / Settlement summary（含 fee） / Archive settle CTA
 
 ## 假设
 
@@ -22,6 +22,7 @@
 - Round 5：Explorer 可带卖家会话私钥请求 Archive `list`（请求作用域；**不**落盘 Archive）；须与 sell `maker` 一致
 - Round 6：Explorer 可带买家会话私钥请求 Archive `approve`；须与 buy `maker` 一致；allowance 已足够时可幂等跳过
 - Round 7：无 list/approve 的 on-chain settle → 400 且 phase 仍为 `match_certified`；`skipSettlePreflight` 仅实验室绕过
+- Round 8：`/trade/preflight` **只读**，不改 phase；与 settle 共用 `evaluateSettlePreflight`
 
 ## 公式 / 数据
 
@@ -40,6 +41,8 @@ Explorer R5      POST /trade/list { candidateHash, sellerPrivateKey } → listTx
 Explorer R6      POST /trade/approve { candidateHash, buyerPrivateKey, amount? } → approveTxHash
 Explorer R7      list+approve required before executeOnChain; preflightMockL1AuctionSettle eth_call
                  skipSettlePreflight bypass; one-shot List→Approve→Settle CTA
+Explorer R8      POST /trade/preflight { candidateHash } → checks + fees (read-only)
+                 evaluateSettlePreflight shared with settle gate
 ```
 
 ## 冻结结论
@@ -54,6 +57,7 @@ Explorer R7      list+approve required before executeOnChain; preflightMockL1Auc
 8. **Round 5 list：** Explorer / Archive 补齐 escrow `list`；无 list 则 on-chain settle 失败属预期。
 9. **Round 6 approve：** 买家 ERC-20 approve 与卖家 list 对称；e2e/demo 优先走 Archive `/trade/list` + `/trade/approve`。
 10. **Round 7 preflight：** settle 前强制 list+approve 记录（及可选链上 eth_call）；失败不写 `settlement_failed`；CLI/Explorer 可一键跑完整链。
+11. **Round 8 read-only preflight API：** `POST /trade/preflight` + CLI/Explorer CTA；返回 fee 拆分；不改 phase。
 
 ## 替代关系
 
@@ -81,4 +85,5 @@ Explorer R7      list+approve required before executeOnChain; preflightMockL1Auc
 - [x] Round 5：Archive `/trade/list` + Explorer List NFT escrow CTA + `listTxHash`
 - [x] Round 6：Archive `/trade/approve` + Explorer Approve quote CTA + e2e/demo list+approve
 - [x] Round 7：settle preflight + CLI list/approve + Explorer List→Approve→Settle one-shot
+- [x] Round 8：`POST /trade/preflight` + CLI `preflight` + Explorer Preflight CTA + fee summary
 - [ ] （可选）根仓 Hardhat 全量 dle 测试在 CI 绿
