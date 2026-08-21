@@ -308,3 +308,78 @@ export async function deployGatewayFixture() {
     gateway,
   };
 }
+
+/** Local-only mock-L1 auction stack. Never wires CoNET mainnet addresses. */
+export async function deployAuctionFixture() {
+  const archive = await deployArchiveFixture();
+  const [authority, seller, buyer, scanner, ...rest] = await ethers.getSigners();
+  const committee = rest.slice(0, 7);
+  const quote = await deployProxy("MockCanonicalAsset", [
+    await archive.owner.getAddress(),
+    "Mock Auction Quote",
+    "MAQ",
+  ]);
+  const subjectNft = await ethers.deployContract("MockDleAuctionNft");
+  await subjectNft.waitForDeployment();
+  const settlement = await ethers.deployContract("MockDleAuctionSettlement", [
+    await authority.getAddress(),
+  ]);
+  await settlement.waitForDeployment();
+
+  async function mintAndBindClass(classId: 1 | 2 | 3, holder = archive.user) {
+    const tokenId = await archive.chainRegistry
+      .connect(holder)
+      .mintChain.staticCall(await holder.getAddress(), classId);
+    await archive.chainRegistry.connect(holder).mintChain(await holder.getAddress(), classId);
+    const block = await ethers.provider.getBlock("latest");
+    if (!block) throw new Error("missing latest block");
+    const requestId = ethers.id(`auction-request:${classId}:${tokenId}`);
+    const assignmentId = ethers.id(`auction-assignment:${classId}:${tokenId}`);
+    const deadline = block.timestamp + 3600;
+    await archive.chainRegistry.reserveArchiveGroup(
+      tokenId,
+      requestId,
+      assignmentId,
+      1,
+      archive.groupKeyHash,
+      1,
+      archive.membershipRoot,
+      archive.standbyRoot,
+      deadline,
+    );
+    const genesisAcHash = ethers.id(`auction-genesis:${classId}:${tokenId}`);
+    const placement = {
+      tokenId,
+      requestId,
+      assignmentId,
+      attemptNonce: 1,
+      groupId: 1,
+      groupKeyHash: archive.groupKeyHash,
+      genesisAcHash,
+      membershipEpoch: 1,
+      membershipRoot: archive.membershipRoot,
+      deadline,
+    };
+    const signatures = await signSorted(
+      archive.active.slice(0, 4),
+      archive.domain,
+      placementCertificateTypes,
+      placement,
+    );
+    await archive.chainRegistry.finalizeArchiveGroup(tokenId, genesisAcHash, signatures);
+    return { tokenId, requestId, assignmentId, genesisAcHash };
+  }
+
+  return {
+    ...archive,
+    authority,
+    seller,
+    buyer,
+    scanner,
+    committee,
+    quote,
+    subjectNft,
+    settlement,
+    mintAndBindClass,
+  };
+}
