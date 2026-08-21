@@ -10,8 +10,8 @@
  *   #1 seller     0x59c699…690d
  *   #2 buyer      0x5de411…365a
  */
-import { ethers } from 'hardhat'
-import { deployAuctionFixture } from '../../test/dle/fixtures.js'
+// Hardhat 3: ethers comes from network.connect(), not `import { ethers } from 'hardhat'`.
+import { deployAuctionFixture, ethers } from '../../test/dle/fixtures.js'
 
 /** Well-known Hardhat/Anvil account keys — local lab only. */
 export const MOCK_L1_LOCAL_KEYS = {

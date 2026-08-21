@@ -1,0 +1,81 @@
+# Full Hardhat mock-L1 auction CI (unit tests + local e2e).
+# Local Hardhat/Anvil only — never CoNET 224422 / production DePIN.
+name: DLE mock-L1 Hardhat CI
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/dle/**"
+      - "test/dle/**"
+      - "scripts/dle/**"
+      - "src/conet-layer2/runtime/**"
+      - "src/conet-layer2/package.json"
+      - "src/conet-layer2/package-lock.json"
+      - "package.json"
+      - "package-lock.json"
+      - "hardhat.config.*"
+      - ".github/workflows/dle-mock-auction-hardhat.yml"
+  pull_request:
+    paths:
+      - "src/dle/**"
+      - "test/dle/**"
+      - "scripts/dle/**"
+      - "src/conet-layer2/runtime/**"
+      - "src/conet-layer2/package.json"
+      - "src/conet-layer2/package-lock.json"
+      - "package.json"
+      - "package-lock.json"
+      - "hardhat.config.*"
+      - ".github/workflows/dle-mock-auction-hardhat.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dle-mock-auction-hardhat-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardhat-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install root dependencies
+        run: npm ci
+      - name: Compile (Hardhat)
+        run: npm run compile
+      - name: DLE Hardhat unit + property + mock-auction tests
+        run: npm run test:dle
+
+  hardhat-e2e:
+    needs: hardhat-unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            src/conet-layer2/package-lock.json
+      - name: Install root dependencies
+        run: npm ci
+      - name: Install CoNET-DLE dependencies
+        run: npm ci --prefix src/conet-layer2
+      - name: Compile (Hardhat)
+        run: npm run compile
+      - name: Full mock-auction e2e (hardhat node → deploy → recovery → settle)
+        run: npm run dle:mock-auction-e2e

@@ -58,7 +58,25 @@ if [[ "$ready" -ne 1 ]]; then
 fi
 
 echo "deploying mock auction stack …"
-DEPLOY_JSON="$(npx hardhat run scripts/dle/deployMockL1AuctionLocal.ts --network localhost)"
+# hardhat/dotenv may print non-JSON noise on stdout — extract the JSON object.
+DEPLOY_RAW="$(npx hardhat run scripts/dle/deployMockL1AuctionLocal.ts --network localhost)"
+DEPLOY_JSON="$(
+  printf '%s\n' "$DEPLOY_RAW" | node --input-type=module -e "
+let s = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (d) => { s += d; });
+process.stdin.on('end', () => {
+  const i = s.indexOf('{');
+  const j = s.lastIndexOf('}');
+  if (i < 0 || j <= i) {
+    console.error('deploy output missing JSON object');
+    console.error(s);
+    process.exit(1);
+  }
+  process.stdout.write(s.slice(i, j + 1));
+});
+"
+)"
 echo "$DEPLOY_JSON"
 
 # Export env from deploy JSON for the DLE e2e.

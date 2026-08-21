@@ -1,15 +1,16 @@
 # DLE Mock-L1 拍卖撮合 MVP（2026-08）
 
 - **Canvas 标识：** 无独立交互 Canvas（本页为架构快照）
-- **日期：** 2026-08-21（MVP round 10 写回）
-- **状态：** **代码已落地（mockL1Only）。** Round 1–9 见既有条目。**Round 10：** e2e/demo **recovery** 模式（list → fail → unlist + `ownerOf` 断言）；一键 `dle:mock-auction-e2e` **先 recovery 再 settle**；demo 非 RPC 注入 list/unlist/approve hook。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
+- **日期：** 2026-08-21（MVP round 11 写回）
+- **状态：** **代码已落地（mockL1Only）。** Round 1–10 见既有条目。**Round 11：** CI 全量 Hardhat e2e（父仓 `test:dle` + `dle:mock-auction-e2e` workflow）+ DLE `mock-auction-ci`；Explorer recovery 英语文案 + **Mark failed → Unlist**。**不是** CoNET 224422 现网接线，**不是** 生产 CL RANDAO / DePIN gossip。
 - **规范优先级：** `runtime/RULES.md` / `docs/mock-l1-auction-mvp.md` / wire contract > 本快照。本页不是第二份规范，也未改白皮书协议结论。
 
 ## 事实来源
 
 - 根仓：`src/dle/mocks/MockDleAuctionSettlement.sol`、`test/dle/fixtures.ts`（`deployAuctionFixture`）、`scripts/dle/deployMockL1AuctionLocal.ts`、`scripts/dle/mockAuctionE2eLocal.sh`
 - Runtime：`shared/mockL1.ts`、`shared/mockL1Custody.ts`、`shared/mockL1Settle.ts`（含 `listMockL1Auction` / `unlistMockL1Auction` / `approveMockL1AuctionQuote` / `preflightMockL1AuctionSettle`）、`shared/tradeMatch.ts`、`archive/mockL1/engine.ts`、`archive/trade/engine.ts`（`evaluateSettlePreflight` / `/trade/preflight` / `/trade/unlist`）、`archive/bft/modeA.ts`（`replayTradeMatchModeA`）
-- Client：`daemon/mock-l1-auction-cli.ts`（含 Round 9 `unlist`、Round 8 `preflight`、Round 7 `list`/`approve`/`--executeOnChain`/`--skipSettlePreflight`）、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + Unlist / Mark failed / Cancel + Preflight / List / Approve / one-shot List→Approve→Settle / Settlement summary（含 fee / unlist） / Archive settle CTA
+- Client：`daemon/mock-l1-auction-cli.ts`（含 Round 9 `unlist`、Round 8 `preflight`、Round 7 `list`/`approve`/`--executeOnChain`/`--skipSettlePreflight`）、`daemon/mock-l1-auction-demo.ts`、`daemon/mock-l1-auction-e2e.ts`；Explorer `/mock-auction` + `explorer/src/lib/mockAuctionWire.ts` + Unlist / Mark failed / Mark failed→Unlist / Cancel + Preflight / List / Approve / one-shot List→Approve→Settle / Settlement summary（含 fee / unlist） / Archive settle CTA
+- CI：父仓 `.github/workflows/dle-mock-auction-hardhat.yml`；DLE `.github/workflows/mock-l1-auction-ci.yml` + `scripts/ci/run-mock-l1-auction-gate.sh`
 
 ## 假设
 
@@ -25,6 +26,7 @@
 - Round 8：`/trade/preflight` **只读**，不改 phase；与 settle 共用 `evaluateSettlePreflight`
 - Round 9：unlist 成功清 `listTxHash`、写 `unlistTxHash`、**不**改 phase；仅卖家可 unlist；已 settled 不可 unlist
 - Round 10：`MOCK_L1_E2E_MODE` / `MOCK_L1_DEMO_MODE` = `settle`|`recovery`；一键 shell 同次部署先 recovery 再 settle
+- Round 11：CI Hardhat + DLE TypeScript gate；Explorer recovery 文案 + Mark failed→Unlist；e2e settle 在 recovery unlist 后重 approve NFT
 
 ## 公式 / 数据
 
@@ -51,6 +53,9 @@ Explorer R9      POST /trade/unlist { candidateHash, sellerPrivateKey } → unli
                  POST /trade/cancel (EIP-191) → cancel sell
 E2E/demo R10     MOCK_L1_E2E_MODE=recovery|settle; shell: recovery then settle
                  MOCK_L1_DEMO_MODE=recovery|settle; hook list/unlist without Anvil
+CI R11           parent: test:dle + dle:mock-auction-e2e workflow
+                 DLE: npm run mock-auction-ci (tests + demo settle/recovery)
+Explorer R11     recovery English copy; Mark failed → Unlist one-shot
 ```
 
 ## 冻结结论
@@ -68,6 +73,7 @@ E2E/demo R10     MOCK_L1_E2E_MODE=recovery|settle; shell: recovery then settle
 11. **Round 8 read-only preflight API：** `POST /trade/preflight` + CLI/Explorer CTA；返回 fee 拆分；不改 phase。
 12. **Round 9 unlist recovery：** list 后 escrow 可经 `unlist` 回收；`settlement_failed` 后同样可 unlist；取消卖单走既有 `/trade/cancel`。
 13. **Round 10 e2e/demo recovery：** 自动化覆盖 fail→unlist 与随后 happy settle；非 RPC demo 用 hook 验收 Archive 状态机。
+14. **Round 11 CI + Explorer copy：** 父仓 Hardhat 全量 mock-auction 进 CI；DLE TypeScript gate；Explorer 明确 recovery 与 Mark failed→Unlist。
 
 ## 替代关系
 
@@ -79,7 +85,6 @@ E2E/demo R10     MOCK_L1_E2E_MODE=recovery|settle; shell: recovery then settle
 
 - 接真实 CL RANDAO / 生产 DePIN gossip（明确超出本 MVP）
 - 接 CoNET 224422 现网 registry（明确超出本 MVP）
-- 根仓 Hardhat 全量 dle 测试在 CI 绿（可选）
 
 ## 实现检查表
 
@@ -98,4 +103,4 @@ E2E/demo R10     MOCK_L1_E2E_MODE=recovery|settle; shell: recovery then settle
 - [x] Round 8：`POST /trade/preflight` + CLI `preflight` + Explorer Preflight CTA + fee summary
 - [x] Round 9：`unlist` + Archive `/trade/unlist` + Explorer Unlist / Mark failed / Cancel + CLI `unlist`
 - [x] Round 10：e2e/demo `recovery` 模式 + 一键 shell recovery→settle
-- [ ] （可选）根仓 Hardhat 全量 dle 测试在 CI 绿
+- [x] Round 11：CI Hardhat e2e + DLE mock-auction-ci + Explorer recovery 文案
