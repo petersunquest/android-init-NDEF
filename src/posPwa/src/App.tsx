@@ -8,6 +8,7 @@ import { PosSessionProvider, usePosSession } from '@/providers/PosSessionProvide
 import { PosChatProvider } from '@/providers/PosChatProvider'
 import { isPosHomePhasePath } from '@/utils/posHomeActionRoutes'
 import { EmbeddedPwaUpdateBanner } from '@/components/EmbeddedPwaUpdateBanner'
+import { installPwaLifecycleRecovery } from '@/bridge/pwaLifecycleRecovery'
 
 const WelcomePage = lazy(() =>
 	import('@/pages/WelcomePage').then((m) => ({ default: m.WelcomePage })),
@@ -172,6 +173,8 @@ function BootRouter() {
 const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '')
 
 export default function App() {
+	useEffect(() => installPwaLifecycleRecovery(), [])
+
 	return (
 		<BrowserRouter basename={routerBasename || undefined}>
 			<EmbeddedPwaUpdateBanner />
