@@ -64,5 +64,10 @@
   "AssetBurnMintGateway": "0x87fB2d6337A320223471c671e9f4C6bd331d85B2",
   "AssetBurnMintGatewayImpl": "0x4A1d0766EbEf8E2BDC9f6CbD8fEe3e6E5ec3Cf0A",
   "L1QueueAccumulatorV1": "0xf5e12f2153A1BD59Cafb946B97248708A78ed00A",
-  "L1QueueAccumulatorV1Impl": "0x9d8c5c09386a5052E49bfb22C9Fdf95B16eA6AE9"
+  "L1QueueAccumulatorV1Impl": "0x9d8c5c09386a5052E49bfb22C9Fdf95B16eA6AE9",
+  "UserCardBeacon": "0x01716C6b755a0FBfCF4e548A6d6B7af19ADf6698",
+  "UserCardBeaconImpl": "0x910b6A10a086ee41F1E32613FCaDA47A91B81665",
+  "BeamioUserCardFormattingLib": "0x62F18eeC53B423bb36246856Fe2216A7Df270873",
+  "BeamioUserCardTransferLib": "0x4B2F90F252427E7b894BbBC8a146fA8E3fddfDc0",
+  "BeamioUserCardViewsLib": "0x1c7c122429Da18e6078d9CEbb7B5b30F0Aa2a033"
 }

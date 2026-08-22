@@ -1,0 +1,37 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-22T19:04:45.424Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "beaconOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "implOwnerSentinel": "0x000000000000000000000000000000000000dEaD",
+  "deployBlock": 954975,
+  "libraryLinks": {
+    "BeamioUserCardFormattingLib": "0x62F18eeC53B423bb36246856Fe2216A7Df270873",
+    "BeamioUserCardTransferLib": "0x4B2F90F252427E7b894BbBC8a146fA8E3fddfDc0",
+    "BeamioUserCardViewsLib": "0x1c7c122429Da18e6078d9CEbb7B5b30F0Aa2a033"
+  },
+  "reusedLibraries": {
+    "BeamioUserCardFormattingLib": false,
+    "BeamioUserCardTransferLib": false,
+    "BeamioUserCardViewsLib": true
+  },
+  "impl": "0x910b6A10a086ee41F1E32613FCaDA47A91B81665",
+  "beacon": "0x01716C6b755a0FBfCF4e548A6d6B7af19ADf6698",
+  "implDeployedSize": 24570,
+  "constructorArgs": {
+    "impl": [
+      "",
+      0,
+      0,
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000"
+    ],
+    "beacon": [
+      "0x910b6A10a086ee41F1E32613FCaDA47A91B81665",
+      "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+    ]
+  },
+  "note": "UserCard V13 sentinel impl + UpgradeableBeacon. New cards use BeaconProxy initCode. Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck."
+}

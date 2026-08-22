@@ -11,6 +11,11 @@ import "./GovernanceStorage.sol";
 import "./MembershipStatsStorage.sol";
 import "./TotalSupplyStorage.sol";
 import "./AdminStatsStorage.sol";
+import "./BeamioUserCardFormattingLib.sol";
+import {BeamioUserCardTransferLib} from "./BeamioUserCardTransferLib.sol";
+import "./BeamioUserCardViewsLib.sol";
+import "./IBeamioUserCardNftInventory.sol";
+import { NFTDetail, UpdatePreResult } from "./BeamioUserCardTypes.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -31,6 +36,7 @@ interface IBeamioUserCardFactoryPaymasterV07 {
     function defaultIssuedNftModule() external view returns (address);
     function defaultGovernanceModule() external view returns (address);
     function defaultMembershipStatsModule() external view returns (address);
+    function defaultChargeRewardModule() external view returns (address);
     function defaultAdminStatsQueryModule() external view returns (address);
     function metadataBaseURI() external view returns (string memory);
 }
@@ -153,7 +159,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    uint256 public constant VERSION = 12;
+    /// @dev V13: deployer is storage (BeaconProxy-safe); CREATE path unchanged; initialize for beacon proxies.
+    uint256 public constant VERSION = 13;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -167,12 +174,24 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     uint8 private constant MODULE_ISSUED_NFT = 2;
     uint8 private constant MODULE_GOVERNANCE = 3;
     uint8 private constant MODULE_MEMBERSHIP_STATS = 4;
+    uint8 private constant MODULE_CHARGE_REWARD = 5;
     uint8 private constant ROUTE_STATS_QUERY = type(uint8).max - 1;
 
-    // ===== Immutable / gateway =====
-    address public immutable deployer;
+    // ===== Deployer / gateway =====
+    /// @dev Storage (not immutable) so BeaconProxy cards store the CREATE deployer correctly.
+    address public deployer;
     address public gateway;
     address public debugGateway; // allow debug override
+
+    /// @dev Ownable sentinel for the logic implementation (never used as a live card owner).
+    address private constant _IMPL_OWNER_SENTINEL = 0x000000000000000000000000000000000000dEaD;
+
+    /// @dev Lightweight init lock (avoids OZ Initializable bytecode bloat for EIP-170).
+    ///      true after CREATE ctor, impl sentinel ctor, or successful `initialize` on a BeaconProxy.
+    bool private _initializationLocked;
+
+    error UC_AlreadyInitialized();
+    error UC_InitializeLocked();
 
     function factoryGateway() public view returns (address) {
         return gateway;
@@ -242,13 +261,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     uint256 public totalActiveMemberships;
     mapping(uint256 => uint256) public totalMembershipIssuedByTierIndex;
 
-    struct NFTDetail {
-        uint256 tokenId;
-        uint256 attribute;
-        uint256 tierIndexOrMax;
-        uint256 expiry;
-        bool isExpired;
-    }
+    // NFTDetail imported from BeamioUserCardTypes (shared with ViewsLib)
 
     // ===== tiers =====
     struct Tier {
@@ -291,22 +304,64 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     event RedeemCancelled(bytes32 indexed hash);
 
     // ==========================================================
-    // ctor
+    // ctor / initialize (CREATE + BeaconProxy)
     // ==========================================================
+    /// @notice CREATE bootstrap (Factory Deployer) OR logic-impl sentinel.
+    /// @dev Sentinel: `initialOwner == 0 && gateway_ == 0` → Ownable(dead) + lock init, no live card state.
+    ///      CREATE: full bootstrap + lock so `initialize` cannot run on CREATE cards.
+    ///      BeaconProxy: use `initialize` via proxy constructor `data` (impl stays locked).
     constructor(
         string memory uri_,
         BeamioCurrency.CurrencyType currency_,
         uint256 pointsUnitPriceInCurrencyE6_,
         address initialOwner,
         address gateway_
-    ) ERC1155("") Ownable(initialOwner) {
+    )
+        ERC1155("")
+        Ownable(
+            (initialOwner == address(0) && gateway_ == address(0)) ? _IMPL_OWNER_SENTINEL : initialOwner
+        )
+    {
+        if (initialOwner == address(0) && gateway_ == address(0)) {
+            _initializationLocked = true;
+            return;
+        }
+
         if (initialOwner == address(0)) revert BM_ZeroAddress();
         if (gateway_ == address(0) || gateway_.code.length == 0) revert UC_GlobalMisconfigured();
 
+        _bootstrapCardState(uri_, currency_, pointsUnitPriceInCurrencyE6_, initialOwner, gateway_);
+        _initializationLocked = true;
+    }
+
+    /// @notice BeaconProxy-only bootstrap. CREATE cards have init locked in the constructor.
+    function initialize(
+        string memory uri_,
+        BeamioCurrency.CurrencyType currency_,
+        uint256 pointsUnitPriceInCurrencyE6_,
+        address initialOwner,
+        address gateway_
+    ) external {
+        if (_initializationLocked) revert UC_AlreadyInitialized();
+        if (initialOwner == address(0)) revert BM_ZeroAddress();
+        if (gateway_ == address(0) || gateway_.code.length == 0) revert UC_GlobalMisconfigured();
+
+        _initializationLocked = true;
+        _bootstrapCardState(uri_, currency_, pointsUnitPriceInCurrencyE6_, initialOwner, gateway_);
+        _transferOwnership(initialOwner);
+    }
+
+    function _bootstrapCardState(
+        string memory uri_,
+        BeamioCurrency.CurrencyType currency_,
+        uint256 pointsUnitPriceInCurrencyE6_,
+        address initialOwner,
+        address gateway_
+    ) private {
         deployer = msg.sender;
         gateway = gateway_;
         debugGateway = gateway_;
-        uri_; // kept for constructor ABI compatibility; metadata base URI is shared in factory
+        uri_; // kept for ABI compatibility; metadata base URI is shared in factory
 
         currency = currency_;
         pointsUnitPriceInCurrencyE6 = pointsUnitPriceInCurrencyE6_;
@@ -322,7 +377,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     /// @notice Base Explorer / EIP-1155 约定：base URI 前缀 + 0x{合约地址}{id}.json，{id} 由客户端替换为 tokenId（64 位十六进制）
     function uri(uint256) public view override returns (string memory) {
-        return string(abi.encodePacked(_metadataBaseURI(), _addressToHex40(address(this)), "{id}.json"));
+        // External lib keeps main-card runtime under EIP-170 (24 KiB).
+        return BeamioUserCardFormattingLib.buildErc1155MetadataUri(_metadataBaseURI(), address(this));
     }
 
     function metadataBaseURI() external view returns (string memory) {
@@ -335,17 +391,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         string memory baseURI = IBeamioUserCardFactoryPaymasterV07(gw).metadataBaseURI();
         if (bytes(baseURI).length == 0) revert UC_GlobalMisconfigured();
         return baseURI;
-    }
-
-    function _addressToHex40(address a) internal pure returns (string memory) {
-        bytes memory b = abi.encodePacked(a);
-        bytes memory h = "0123456789abcdef";
-        bytes memory r = new bytes(40);
-        for (uint256 i = 0; i < 20; i++) {
-            r[i * 2] = h[uint8(b[i]) >> 4];
-            r[i * 2 + 1] = h[uint8(b[i]) & 0x0f];
-        }
-        return string(r);
     }
 
     // ==========================================================
@@ -675,7 +720,9 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         else if (moduleKind == MODULE_FAUCET) module = f.defaultFaucetModule();
         else if (moduleKind == MODULE_ISSUED_NFT) module = f.defaultIssuedNftModule();
         else if (moduleKind == MODULE_GOVERNANCE) module = f.defaultGovernanceModule();
-        else module = f.defaultMembershipStatsModule();
+        else if (moduleKind == MODULE_MEMBERSHIP_STATS) module = f.defaultMembershipStatsModule();
+        else if (moduleKind == MODULE_CHARGE_REWARD) module = f.defaultChargeRewardModule();
+        else revert BM_CallFailed();
         if (module != address(0)) return module;
         if (moduleKind == MODULE_MEMBERSHIP_STATS) revert UC_StatsModuleZero();
         revert UC_RedeemModuleZero();
@@ -703,6 +750,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         else if (route == MODULE_GOVERNANCE) module = _module(MODULE_GOVERNANCE);
         else if (route == MODULE_FAUCET) module = _module(MODULE_FAUCET);
         else if (route == MODULE_ISSUED_NFT) module = _module(MODULE_ISSUED_NFT);
+        else if (route == MODULE_CHARGE_REWARD) module = _module(MODULE_CHARGE_REWARD);
         else revert BM_CallFailed();
         assembly {
             calldatacopy(0, 0, calldatasize())
@@ -941,6 +989,13 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         _setTransferWhitelist(target, allowed);
     }
 
+    /// @dev TransferLib.updatePreProcess reads this via address(this); keep whitelist semantics here.
+    function isPointsTransferRecipientAllowed(address effectiveTo) public view returns (bool) {
+        if (!transferWhitelistEnabled) return true;
+        if (transferWhitelist[address(0)]) return true;
+        return transferWhitelist[effectiveTo];
+    }
+
     function mintMemberCardByAdmin(address user, uint256 tierIndex) external nonReentrant {
         _requireOwnerOrGateway();
         (uint256 issuedBefore, uint256 upgradedBefore) = _membershipFlowTotals();
@@ -992,62 +1047,6 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         );
     }
 
-    function _resolveTransferStatsOperator(address from) internal view returns (address operator) {
-        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
-        if (g.isAdmin[msg.sender]) return msg.sender;
-        if (from == address(0) || from.code.length == 0) return address(0);
-
-        (bool ok, bytes memory ret) = from.staticcall(abi.encodeWithSignature("owner()"));
-        if (!ok || ret.length < 32) return address(0);
-        address ownerOfFrom = abi.decode(ret, (address));
-        if (g.isAdmin[ownerOfFrom]) return ownerOfFrom;
-        return address(0);
-    }
-
-    /// @notice 当受益人为 admin 且其 parent 非 owner 时，解析实际收款地址为上层 admin 的 AA；否则返回原 to
-    /// @dev 受益人必须为 AA；通过 AA.owner() 获取 EOA，再以 EOA 检测 admin（admin 以 EOA 登记）
-    /// @return effectiveTo 实际转账目标地址
-    /// @return beneficiaryAdmin 指定受益人对应的 admin（EOA）；address(0) 表示无需重定向
-    /// @return upperAdmin 上层 admin（adminParent[beneficiaryAdmin]）；address(0) 表示无需重定向
-    function _resolveTransferRecipientForAdminRedirect(address to)
-        internal
-        view
-        returns (address effectiveTo, address beneficiaryAdmin, address upperAdmin)
-    {
-        effectiveTo = to;
-        beneficiaryAdmin = address(0);
-        upperAdmin = address(0);
-
-        // 受益人必须为 AA；从 AA.owner() 获取 EOA，admin 以 EOA 登记
-        if (to.code.length == 0) return (to, address(0), address(0));
-        (bool ok, bytes memory ret) = to.staticcall(abi.encodeWithSignature("owner()"));
-        if (!ok || ret.length < 32) return (to, address(0), address(0));
-        address eoa = abi.decode(ret, (address));
-
-        GovernanceStorage.Layout storage g = GovernanceStorage.layout();
-        if (!g.isAdmin[eoa]) return (to, address(0), address(0));
-        address parent = g.adminParent[eoa];
-        if (parent == address(0)) return (to, address(0), address(0)); // owner 添加的 admin，不重定向
-
-        beneficiaryAdmin = eoa;
-        upperAdmin = parent;
-        effectiveTo = _toAccount(parent);
-    }
-
-    /// @dev 统计以 EOA 为键：每笔 transfer 仅记入一个 admin，避免 aggregate 时 double count
-    /// @dev 有 beneficiaryAdmin 时记入接收方；否则记入 operator（发送方）
-    function _recordPointTransferStats(address from, address beneficiaryAdmin, address upperAdmin, uint256 count, uint256 amount) internal {
-        upperAdmin; // unused
-        if (beneficiaryAdmin != address(0)) {
-            AdminStatsStorage.recordTransfer(beneficiaryAdmin, count, amount);
-            return;
-        }
-        address operator = _resolveTransferStatsOperator(from);
-        if (operator != address(0) && (count > 0 || amount > 0)) {
-            AdminStatsStorage.recordTransfer(operator, count, amount);
-        }
-    }
-
     /// @dev 每笔 redeem_mint 仅记入 operator，避免 aggregate 时 double count
     function _recordAdminRedeemMintForOperatorAndParents(address operator, uint256 amount) internal {
         if (operator == address(0) || amount == 0) return;
@@ -1063,53 +1062,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     // ==========================================================
     // ERC1155 update hook
     // ==========================================================
-    struct _UpdatePreResult {
-        address effectiveTo;
-        address beneficiaryAdmin;
-        address upperAdmin;
-        uint256 pointTransferCount;
-        uint256 pointTransferAmount;
-        address[] burnedFrom;
-        uint256[] burnedIds;
-        uint256 burnedCount;
-    }
-
-    function _updatePreProcess(address from, address to, uint256[] memory ids, uint256[] memory values)
-        internal
-        view
-        returns (_UpdatePreResult memory r)
-    {
-        bool isRealTransfer = (from != address(0) && to != address(0));
-        if (isRealTransfer && to.code.length == 0) revert UC_BeneficiaryMustBeAA();
-
-        (r.effectiveTo, r.beneficiaryAdmin, r.upperAdmin) = _resolveTransferRecipientForAdminRedirect(to);
-        r.burnedFrom = new address[](ids.length);
-        r.burnedIds = new uint256[](ids.length);
-
-        for (uint256 i = 0; i < ids.length; i++) {
-            uint256 id = ids[i];
-            if (id >= NFT_START_ID && id < ISSUED_NFT_START_ID) {
-                if (to == address(0) && from != address(0)) {
-                    r.burnedFrom[r.burnedCount] = from;
-                    r.burnedIds[r.burnedCount] = id;
-                    r.burnedCount++;
-                }
-                continue;
-            }
-            if (id == POINTS_ID && isRealTransfer) {
-                if (values[i] > 0) {
-                    r.pointTransferCount += 1;
-                    r.pointTransferAmount += values[i];
-                }
-                if (transferWhitelistEnabled && !transferWhitelist[address(0)] && !transferWhitelist[r.effectiveTo]) {
-                    revert UC_PointsToNotWhitelisted();
-                }
-            }
-        }
-    }
-
     function _update(address from, address to, uint256[] memory ids, uint256[] memory values) internal override {
-        _UpdatePreResult memory r = _updatePreProcess(from, to, ids, values);
+        UpdatePreResult memory r = BeamioUserCardTransferLib.updatePreProcess(factoryGateway(), from, to, ids, values);
 
         super._update(from, r.effectiveTo, ids, values);
 
@@ -1127,7 +1081,15 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
             if (syncReceiverMembership) _syncActiveToBestValid(r.effectiveTo);
         }
         if (isRealTransfer && (r.pointTransferCount > 0 || r.pointTransferAmount > 0)) {
-            _recordPointTransferStats(from, r.beneficiaryAdmin, r.upperAdmin, r.pointTransferCount, r.pointTransferAmount);
+            BeamioUserCardTransferLib.recordPointTransferStats(
+                from,
+                to,
+                r.beneficiaryAdmin,
+                r.upperAdmin,
+                r.pointTransferCount,
+                r.pointTransferAmount,
+                owner()
+            );
         }
 
         if (from == address(0)) {
@@ -1181,18 +1143,33 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         return TotalSupplyStorage.layout().totalSupplyAll;
     }
 
+    /// @dev Inventory hooks for BeamioUserCardViewsLib (external DELEGATECALL target).
+    function nftInventoryLength(address user) external view returns (uint256) {
+        return _userOwnedNfts[user].length;
+    }
+
+    function nftInventoryAt(address user, uint256 index) external view returns (uint256) {
+        return _userOwnedNfts[user][index];
+    }
+
+    function nftExpiresAt(uint256 tokenId) external view returns (uint256) {
+        return expiresAt[tokenId];
+    }
+
+    function nftAttributes(uint256 tokenId) external view returns (uint256) {
+        return attributes[tokenId];
+    }
+
+    function nftTierIndexOrMax(uint256 tokenId) external view returns (uint256) {
+        return tokenTierIndexOrMax[tokenId];
+    }
+
+    function pointsBalanceOf(address user) external view returns (uint256) {
+        return balanceOf(user, POINTS_ID);
+    }
+
     function getOwnership(address user) public view returns (uint256 pt, NFTDetail[] memory nfts) {
-        uint256[] storage nftIds = _userOwnedNfts[user];
-        nfts = new NFTDetail[](nftIds.length);
-
-        for (uint256 i = 0; i < nftIds.length; i++) {
-            uint256 id = nftIds[i];
-            uint256 exp = expiresAt[id];
-            bool expired = (exp != 0 && block.timestamp > exp);
-            nfts[i] = NFTDetail(id, attributes[id], tokenTierIndexOrMax[id], exp, expired);
-        }
-
-        return (balanceOf(user, POINTS_ID), nfts);
+        return BeamioUserCardViewsLib.getOwnership(IBeamioUserCardNftInventory(address(this)), user);
     }
 
     function getOwnershipByEOA(address userEOA) external view returns (uint256 pt, NFTDetail[] memory nfts) {

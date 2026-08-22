@@ -2,16 +2,20 @@
  * 将 BeamioContract 本地 Hardhat 编译产物同步到 x402sdk 项目：
  * - BeamioUserCard（artifact + ABI）
  * - BeamioUserCardFactoryPaymasterV07（artifact）
+ * - BeamioUserCardBeaconProxy（artifact — CREATE initCode when CONET_USER_CARD_BEACON is set）
  *
  * 源：
  *   - artifacts/src/BeamioUserCard/BeamioUserCard.sol/BeamioUserCard.json
  *   - artifacts/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol/BeamioUserCardFactoryPaymasterV07.json
+ *   - artifacts/src/BeamioUserCard/BeamioUserCardBeaconProxy.sol/BeamioUserCardBeaconProxy.json
  * 目标（x402sdk 项目内，相对其根目录）：
  *   - src/ABI/BeamioUserCardArtifact.json
  *   - src/ABI/BeamioUserCard.json
  *   - src/ABI/BeamioUserCardFactoryPaymaster.json
+ *   - src/ABI/BeamioUserCardBeaconProxyArtifact.json
  *   - scripts/API server/ABI/BeamioUserCardArtifact.json
  *   - scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json
+ *   - scripts/API server/ABI/BeamioUserCardBeaconProxyArtifact.json
  *
  * 用法（在 BeamioContract 仓库根目录）：
  *   1. 先编译：npm run compile
@@ -37,13 +41,22 @@ const FACTORY_ARTIFACT_PATH = path.join(
   BEAMIO_CONTRACT_ROOT,
   "artifacts/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol/BeamioUserCardFactoryPaymasterV07.json"
 );
+const BEACON_PROXY_ARTIFACT_PATH = path.join(
+  BEAMIO_CONTRACT_ROOT,
+  "artifacts/src/BeamioUserCard/BeamioUserCardBeaconProxy.sol/BeamioUserCardBeaconProxy.json"
+);
 
 const OUT = {
   x402Artifact: path.join(X402SDK_ROOT, "src/ABI/BeamioUserCardArtifact.json"),
   x402Abi: path.join(X402SDK_ROOT, "src/ABI/BeamioUserCard.json"),
   x402FactoryArtifact: path.join(X402SDK_ROOT, "src/ABI/BeamioUserCardFactoryPaymaster.json"),
+  x402BeaconProxyArtifact: path.join(X402SDK_ROOT, "src/ABI/BeamioUserCardBeaconProxyArtifact.json"),
   scriptsApiArtifact: path.join(X402SDK_ROOT, "scripts/API server/ABI/BeamioUserCardArtifact.json"),
   scriptsApiFactoryArtifact: path.join(X402SDK_ROOT, "scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json"),
+  scriptsApiBeaconProxyArtifact: path.join(
+    X402SDK_ROOT,
+    "scripts/API server/ABI/BeamioUserCardBeaconProxyArtifact.json"
+  ),
 };
 
 if (!fs.existsSync(USER_CARD_ARTIFACT_PATH)) {
@@ -58,8 +71,15 @@ if (!fs.existsSync(FACTORY_ARTIFACT_PATH)) {
   process.exit(1);
 }
 
+if (!fs.existsSync(BEACON_PROXY_ARTIFACT_PATH)) {
+  console.error("BeamioUserCardBeaconProxy artifact not found:", BEACON_PROXY_ARTIFACT_PATH);
+  console.error("Run: npx hardhat compile");
+  process.exit(1);
+}
+
 const userCardArtifact = JSON.parse(fs.readFileSync(USER_CARD_ARTIFACT_PATH, "utf-8"));
 const factoryArtifact = JSON.parse(fs.readFileSync(FACTORY_ARTIFACT_PATH, "utf-8"));
+const beaconProxyArtifact = JSON.parse(fs.readFileSync(BEACON_PROXY_ARTIFACT_PATH, "utf-8"));
 if (!Array.isArray(userCardArtifact.abi)) {
   console.error("Invalid BeamioUserCard artifact: missing or non-array abi");
   process.exit(1);
@@ -68,11 +88,16 @@ if (!Array.isArray(factoryArtifact.abi)) {
   console.error("Invalid BeamioUserCardFactoryPaymasterV07 artifact: missing or non-array abi");
   process.exit(1);
 }
+if (!Array.isArray(beaconProxyArtifact.abi) || !beaconProxyArtifact.bytecode) {
+  console.error("Invalid BeamioUserCardBeaconProxy artifact: missing abi or bytecode");
+  process.exit(1);
+}
 
 // 完整 artifact 写入 x402sdk 与 scripts/API server
 fs.mkdirSync(path.dirname(OUT.x402Artifact), { recursive: true });
 fs.writeFileSync(OUT.x402Artifact, JSON.stringify(userCardArtifact, null, 2), "utf-8");
 fs.writeFileSync(OUT.x402FactoryArtifact, JSON.stringify(factoryArtifact, null, 2), "utf-8");
+fs.writeFileSync(OUT.x402BeaconProxyArtifact, JSON.stringify(beaconProxyArtifact, null, 2), "utf-8");
 
 const scriptsApiDir = path.dirname(OUT.scriptsApiArtifact);
 if (!fs.existsSync(scriptsApiDir)) {
@@ -80,16 +105,19 @@ if (!fs.existsSync(scriptsApiDir)) {
 }
 fs.writeFileSync(OUT.scriptsApiArtifact, JSON.stringify(userCardArtifact, null, 2), "utf-8");
 fs.writeFileSync(OUT.scriptsApiFactoryArtifact, JSON.stringify(factoryArtifact, null, 2), "utf-8");
+fs.writeFileSync(OUT.scriptsApiBeaconProxyArtifact, JSON.stringify(beaconProxyArtifact, null, 2), "utf-8");
 
 // 仅 ABI 数组写入 BeamioUserCard.json（MemberCard 等直接 import 用作 ABI）
 fs.writeFileSync(OUT.x402Abi, JSON.stringify(userCardArtifact.abi, null, 2), "utf-8");
 
-console.log("Synced BeamioUserCard + BeamioUserCardFactoryPaymasterV07 from Hardhat build to:");
+console.log("Synced BeamioUserCard + Factory + BeaconProxy from Hardhat build to:");
 console.log("  -", OUT.x402Artifact);
 console.log("  -", OUT.x402Abi);
 console.log("  -", OUT.x402FactoryArtifact);
+console.log("  -", OUT.x402BeaconProxyArtifact);
 console.log("  -", OUT.scriptsApiArtifact);
 console.log("  -", OUT.scriptsApiFactoryArtifact);
+console.log("  -", OUT.scriptsApiBeaconProxyArtifact);
 console.log("\n若需推送到远程（服务器 git pull 能拿到 ABI）：在 x402sdk 目录执行");
-console.log("  git add src/ABI/BeamioUserCardArtifact.json src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardFactoryPaymaster.json 'scripts/API server/ABI/BeamioUserCardArtifact.json' 'scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json'");
+console.log("  git add src/ABI/BeamioUserCardArtifact.json src/ABI/BeamioUserCard.json src/ABI/BeamioUserCardFactoryPaymaster.json src/ABI/BeamioUserCardBeaconProxyArtifact.json 'scripts/API server/ABI/BeamioUserCardArtifact.json' 'scripts/API server/ABI/BeamioUserCardFactoryPaymaster.json' 'scripts/API server/ABI/BeamioUserCardBeaconProxyArtifact.json'");
 console.log("  git commit -m 'chore: sync BeamioUserCard and factory ABI/artifact' && git push");
