@@ -134,7 +134,10 @@ function chatNotifyBody(badge: number): string {
 	return `${badge} new messages`
 }
 
-/** Local system notification + icon badge while shell is backgrounded. */
+/**
+ * @deprecated Prefer SI mailbox APNs/FCM. Do not call from POS chat unread effects —
+ * PWA local notify + SI push caused double notifications.
+ */
 export function notifyPosBackgroundChat(chatCount: number): boolean {
 	const badge = clampBadgeCount(chatCount)
 	const body = chatNotifyBody(badge)

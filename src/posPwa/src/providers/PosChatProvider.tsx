@@ -40,7 +40,6 @@ import { normalizePosChatPartition, posChatPartitionKey } from '@/chat/posChatPa
 import type { PosChatStoreSnapshot, PosChatThread } from '@/chat/posChatTypes'
 import {
 	isPosAppBackgrounded,
-	notifyPosBackgroundChat,
 	syncPosChatAppIconBadge,
 } from '@/bridge/posNativeAppStateBridge'
 import {
@@ -86,7 +85,6 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 	const [loadedPartitionKey, setLoadedPartitionKey] = useState<string | null>(partitionKey)
 	const [gossipReady, setGossipReady] = useState(false)
 	const [gossipError, setGossipError] = useState<string | null>(null)
-	const prevUnreadRef = useRef(0)
 	const activePeerRef = useRef<string | null>(null)
 	const bootOnceRef = useRef(false)
 
@@ -110,14 +108,10 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 		loadedPartitionKey === partitionKey ? snap : { version: 1, threads: [], updatedAt: 0 }
 	const unreadTotal = useMemo(() => totalUnreadCount(visibleSnap), [visibleSnap])
 
+	/** Icon badge only — system push is SI mailbox → APNs/FCM (avoid PWA local double notify). */
 	useEffect(() => {
-		const prev = prevUnreadRef.current
-		prevUnreadRef.current = unreadTotal
 		syncPosChatAppIconBadge(unreadTotal)
 		void syncChatBadgeToApi(unreadTotal)
-		if (unreadTotal > prev && isPosAppBackgrounded()) {
-			notifyPosBackgroundChat(unreadTotal)
-		}
 	}, [unreadTotal])
 
 	const handleLine = useCallback(
