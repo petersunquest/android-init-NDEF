@@ -46,7 +46,7 @@ export function parseDeductKeypadAmount6(keypadAmount: string): string | null {
 	return currencyToFiat6(v)
 }
 
-/** Charge-reward pts (token #2) on merchant program card — same source as Check Balance hero. */
+/** Reward PT (#13) on merchant program card — same source as Check Balance hero. */
 export function deductChargeRewardPoints6(
 	assets: UIDAssetsResult,
 	merchantInfraCard: string,

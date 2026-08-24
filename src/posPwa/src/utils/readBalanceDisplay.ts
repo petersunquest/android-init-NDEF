@@ -103,7 +103,7 @@ export function readBalanceLastTopUpFallbackLine(assets: UIDAssetsResult): strin
 	return '—'
 }
 
-/** NFT #2 charge-reward pts amount (Check Balance hero / success). */
+/** Reward PT (#13) amount (Check Balance hero / success). */
 export function readBalancePointRewardPtsAmount(
 	primary: ReadBalanceCardItem | undefined,
 	assets: UIDAssetsResult,

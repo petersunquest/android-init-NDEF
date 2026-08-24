@@ -3,6 +3,11 @@
  * Mirrors SilentPassUI `cashTreesNativeAppStateBridge` + BeamioPOS postMessage fallback.
  */
 
+import {
+	ensureCashTreesAppLifecycleTracking,
+	isCashTreesAppBackgrounded,
+} from '../utils/cashTreesAppLifecycle'
+
 type CashTreesHost = 'ios' | 'android' | null
 
 function detectCashTreesHost(): CashTreesHost {
@@ -185,6 +190,48 @@ export function notifyPosBackgroundChat(chatCount: number): boolean {
 }
 
 export function isPosAppBackgrounded(): boolean {
-	if (typeof document === 'undefined') return false
-	return document.visibilityState === 'hidden'
+	ensureCashTreesAppLifecycleTracking()
+	return isCashTreesAppBackgrounded()
+}
+
+/**
+ * Clear offline chat tray notifications (FCM / local). Does not reset icon badge —
+ * call {@link syncPosChatAppIconBadge} afterward with current unread.
+ * Native shell also clears tray on resume; this is for entering Chat while already foreground.
+ */
+export function clearOfflineChatAlertsViaBridge(): boolean {
+	const host = detectCashTreesHost()
+	const w = window as Window & {
+		CashTreesIOS?: { clearOfflineChatAlerts?: () => void }
+		CashTreesAndroid?: { clearOfflineChatAlerts?: () => void }
+	}
+
+	if (host === 'ios' && typeof w.CashTreesIOS?.clearOfflineChatAlerts === 'function') {
+		try {
+			w.CashTreesIOS.clearOfflineChatAlerts()
+			return true
+		} catch {
+			/* fall through */
+		}
+	}
+	if (host === 'android' && typeof w.CashTreesAndroid?.clearOfflineChatAlerts === 'function') {
+		try {
+			w.CashTreesAndroid.clearOfflineChatAlerts()
+			return true
+		} catch {
+			/* fall through */
+		}
+	}
+
+	const bridge = window.BeamioPOS as { clearOfflineChatAlerts?: () => void } | undefined
+	if (typeof bridge?.clearOfflineChatAlerts === 'function') {
+		try {
+			bridge.clearOfflineChatAlerts()
+			return true
+		} catch {
+			/* fall through */
+		}
+	}
+
+	return postBeamioPosAction('clearOfflineChatAlerts', {})
 }

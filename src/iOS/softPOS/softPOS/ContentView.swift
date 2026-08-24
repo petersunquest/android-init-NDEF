@@ -252,6 +252,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var becameActiveObserver: NSObjectProtocol?
     private var embeddedPwaUpdateObserver: NSObjectProtocol?
     private var pushTokenObserver: NSObjectProtocol?
+    private var appLifecycleObserver: NSObjectProtocol?
     var lastHandledDeepLinkNonce = 0
 
     override init() {
@@ -278,9 +279,23 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             guard let hex = note.userInfo?["deviceToken"] as? String, !hex.isEmpty else { return }
             self?.dispatchIOSBridgeJsonToWeb(CashTreesPushRegistration.payloadForWebEvent(deviceToken: hex))
         }
+        appLifecycleObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesAppLifecycle,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            let phase = (note.userInfo?["phase"] as? String) ?? ""
+            guard phase == "background" || phase == "active" || phase == "inactive" else { return }
+            self?.dispatchIOSBridgeJsonToWeb([
+                "action": "appLifecycle",
+                "phase": phase,
+            ])
+        }
     }
 
     private func handleAppBecameActive() {
+        // Match Consumer: drop stale offline push badge before PWA re-publishes unread.
+        CashTreesNativeAppStateBridge.clearOfflineChatAlerts()
         // Recover the WebContent process first; OTA is network-backed and must
         // never delay the latency-sensitive reload path.
         if webContentProcessNeedsReload {
@@ -303,6 +318,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
         if let pushTokenObserver {
             NotificationCenter.default.removeObserver(pushTokenObserver)
+        }
+        if let appLifecycleObserver {
+            NotificationCenter.default.removeObserver(appLifecycleObserver)
         }
     }
 
@@ -539,6 +557,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 state:state||{}
               });
             },
+            clearOfflineChatAlerts:function(){
+              window.webkit.messageHandlers[H].postMessage({
+                action:'clearOfflineChatAlerts'
+              });
+            },
             notifyBackgroundChat:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
@@ -569,6 +592,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
           window.BeamioPOS={
             openURL:function(payload){window.CashTreesIOS.openURL(payload);},
             publishAppState:function(state){window.CashTreesIOS.publishAppState(state);},
+            clearOfflineChatAlerts:function(){window.CashTreesIOS.clearOfflineChatAlerts();},
             notifyBackgroundChat:function(payload){window.CashTreesIOS.notifyBackgroundChat(payload);},
             postMessage:function(body){
               body=body||{};
@@ -670,6 +694,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let state = body["state"] as? [String: Any] ?? body
             DispatchQueue.main.async {
                 CashTreesNativeAppStateBridge.applyFromWebPayload(state)
+            }
+        case "clearOfflineChatAlerts":
+            // PWA entered Chat: tray only; unread badge restored by next publishAppState.
+            DispatchQueue.main.async {
+                CashTreesNativeAppStateBridge.clearOfflineChatAlerts(resetBadge: false)
             }
         case "notifyBackgroundChat":
             DispatchQueue.main.async {
@@ -1289,6 +1318,26 @@ struct ContentView: View {
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
+            let phase: String
+            switch newPhase {
+            case .background:
+                phase = "background"
+            case .inactive:
+                phase = "inactive"
+            case .active:
+                phase = "active"
+            @unknown default:
+                phase = "active"
+            }
+            NotificationCenter.default.post(
+                name: .cashTreesAppLifecycle,
+                object: nil,
+                userInfo: ["phase": phase]
+            )
+            if newPhase == .background {
+                webContentVisible = !webLoadState.isSplashVisible
+                return
+            }
             guard newPhase == .active else { return }
             // Keep existing pixels during an ordinary app switch. A terminated
             // process is covered by the coordinator's recovery splash.

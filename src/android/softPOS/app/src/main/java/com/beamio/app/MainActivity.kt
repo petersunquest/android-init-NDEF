@@ -600,6 +600,17 @@ class MainActivity : ComponentActivity() {
         }
 
         /**
+         * PWA entered Chat (or equivalent): drop offline FCM / local chat tray alerts.
+         * Does not change PWA unread — caller should re-`publishAppState` badge if needed.
+         */
+        @JavascriptInterface
+        fun clearOfflineChatAlerts() {
+            runOnUiThread {
+                CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this@MainActivity)
+            }
+        }
+
+        /**
          * PWA still running behind Home: local system notification + badge.
          * Payload: JSON string `{ badge, title?, body? }`.
          */
@@ -916,10 +927,16 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         qrScanOverlay?.resumeScan()
         maybeEnableNfcForegroundDispatch()
+        // Launcher badge follows active notifications: drop stale offline alerts so the
+        // PWA unread count (publishAppState) is the only badge source once we are visible.
+        CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this)
         probeWebContentLivenessAndRecoverIfNeeded()
         if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.checkForUpdatesNow()
         }
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject().put("action", "appLifecycle").put("phase", "active"),
+        )
     }
 
     /**
@@ -997,7 +1014,17 @@ class MainActivity : ComponentActivity() {
         if (nfcBindSessionActive) {
             disarmNfcReader(true, "paused")
         }
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject().put("action", "appLifecycle").put("phase", "inactive"),
+        )
         super.onPause()
+    }
+
+    override fun onStop() {
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject().put("action", "appLifecycle").put("phase", "background"),
+        )
+        super.onStop()
     }
 
     override fun onDestroy() {

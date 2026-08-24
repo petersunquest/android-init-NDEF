@@ -9,6 +9,7 @@ import {
 	useState,
 	type ReactNode,
 } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
 	bootstrapPosChatSession,
 	stopPosChatGossipListen,
@@ -39,6 +40,7 @@ import { onHistoryBuffer } from '@/chat/posChatWorkerBridge'
 import { normalizePosChatPartition, posChatPartitionKey } from '@/chat/posChatPartition'
 import type { PosChatStoreSnapshot, PosChatThread } from '@/chat/posChatTypes'
 import {
+	clearOfflineChatAlertsViaBridge,
 	isPosAppBackgrounded,
 	syncPosChatAppIconBadge,
 } from '@/bridge/posNativeAppStateBridge'
@@ -48,6 +50,7 @@ import {
 	stopEnsurePosPushDeviceRegistered,
 	syncChatBadgeToApi,
 } from '@/bridge/posCashTreesPushBind'
+import { ensureCashTreesAppLifecycleTracking } from '@/utils/cashTreesAppLifecycle'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import { getSessionPrivateKeyHex, getSessionWalletAddress } from '@/wallet/posWalletService'
 
@@ -87,6 +90,12 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 	const [gossipError, setGossipError] = useState<string | null>(null)
 	const activePeerRef = useRef<string | null>(null)
 	const bootOnceRef = useRef(false)
+	const location = useLocation()
+	const onChatRoute = location.pathname === '/chat' || location.pathname.startsWith('/chat/')
+
+	useEffect(() => {
+		ensureCashTreesAppLifecycleTracking()
+	}, [])
 
 	useLayoutEffect(() => {
 		if (!partitionKey || !partition) {
@@ -107,6 +116,12 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 	const visibleSnap: PosChatStoreSnapshot =
 		loadedPartitionKey === partitionKey ? snap : { version: 1, threads: [], updatedAt: 0 }
 	const unreadTotal = useMemo(() => totalUnreadCount(visibleSnap), [visibleSnap])
+
+	/** Enter Chat: clear offline tray; badge comes from unread sync below. */
+	useEffect(() => {
+		if (!onChatRoute) return
+		clearOfflineChatAlertsViaBridge()
+	}, [onChatRoute])
 
 	/** Icon badge only — system push is SI mailbox → APNs/FCM (avoid PWA local double notify). */
 	useEffect(() => {

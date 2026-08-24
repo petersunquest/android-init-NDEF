@@ -1047,7 +1047,7 @@ export interface BurnChargeRewardPrepareResult {
 	error?: string
 }
 
-/** Burn charge-reward points (token #2) — iOS `burnChargeRewardByAdminPrepare`. */
+/** Burn Reward PT (#13) — iOS `burnChargeRewardByAdminPrepare`. */
 export async function burnChargeRewardByAdminPrepare(params: {
 	cardAddress: string
 	target: string

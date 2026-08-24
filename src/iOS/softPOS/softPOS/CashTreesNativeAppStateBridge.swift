@@ -10,8 +10,37 @@ import Foundation
 import UIKit
 import UserNotifications
 
+extension Notification.Name {
+	static let cashTreesAppLifecycle = Notification.Name("cashTreesAppLifecycle")
+}
+
 enum CashTreesNativeAppStateBridge {
 	private static let backgroundChatNotifyId = "beamio.pos.chat.background"
+
+	/// Drop tray alerts from offline APNs / local chat push.
+	/// - Parameter resetBadge: When `true` (app became active), also zero the icon badge
+	///   so the next PWA `publishAppState` is the sole badge source. When `false` (PWA
+	///   entered Chat), clear tray only — caller re-publishes unread via `publishAppState`.
+	static func clearOfflineChatAlerts(resetBadge: Bool = true) {
+		let center = UNUserNotificationCenter.current()
+		center.removeDeliveredNotifications(withIdentifiers: [backgroundChatNotifyId])
+		center.getDeliveredNotifications { notes in
+			let ids = notes
+				.filter { note in
+					let id = note.request.identifier
+					return id == backgroundChatNotifyId
+						|| id.hasPrefix("beamio.chat")
+						|| id.hasPrefix("beamio.pos.chat")
+				}
+				.map(\.request.identifier)
+			if !ids.isEmpty {
+				center.removeDeliveredNotifications(withIdentifiers: ids)
+			}
+		}
+		if resetBadge {
+			applyAppIconBadge(0)
+		}
+	}
 
 	static func requestBadgeAuthorizationIfNeeded() {
 		let center = UNUserNotificationCenter.current()
@@ -90,6 +119,10 @@ enum CashTreesNativeAppStateBridge {
 	static func applyAppIconBadge(_ count: Int) {
 		let safe = max(0, min(count, 999))
 		DispatchQueue.main.async {
+			if safe <= 0 {
+				let center = UNUserNotificationCenter.current()
+				center.removeDeliveredNotifications(withIdentifiers: [backgroundChatNotifyId])
+			}
 			if #available(iOS 16.0, *) {
 				setBadgeCountModern(safe)
 			} else {
