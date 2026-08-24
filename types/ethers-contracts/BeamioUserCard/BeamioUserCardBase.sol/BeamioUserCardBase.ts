@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardBaseInterface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "isApprovedForAll" | "owner" | "pointsUnitPriceInCurrencyE6" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "isApprovedForAll" | "owner" | "pointsUnitPriceInCurrencyE6" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "ApprovalForAll" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -25,6 +25,7 @@ encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], B
 encodeFunctionData(functionFragment: 'currency', values?: undefined): string;
 encodeFunctionData(functionFragment: 'debugGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultAttrWhenNoTiers', values?: undefined): string;
+encodeFunctionData(functionFragment: 'deployer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'expiresAt', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'expirySeconds', values?: undefined): string;
 encodeFunctionData(functionFragment: 'factoryGateway', values?: undefined): string;
@@ -46,6 +47,7 @@ encodeFunctionData(functionFragment: 'totalMembershipUpgraded', values?: undefin
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelist', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferWhitelistEnabled', values?: undefined): string;
+encodeFunctionData(functionFragment: 'upgradeType', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'ISSUED_NFT_START_ID', data: BytesLike): Result;
@@ -63,6 +65,7 @@ decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Resul
 decodeFunctionResult(functionFragment: 'currency', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'debugGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultAttrWhenNoTiers', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'deployer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expiresAt', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'expirySeconds', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'factoryGateway', data: BytesLike): Result;
@@ -84,6 +87,7 @@ decodeFunctionResult(functionFragment: 'totalMembershipUpgraded', data: BytesLik
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelist', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferWhitelistEnabled', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'upgradeType', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -338,6 +342,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    deployer: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     expiresAt: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -506,6 +518,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    upgradeType: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     uri: TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -589,6 +609,11 @@ getFunction(nameOrSignature: 'debugGateway'): TypedContractMethod<
 getFunction(nameOrSignature: 'defaultAttrWhenNoTiers'): TypedContractMethod<
       [],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'deployer'): TypedContractMethod<
+      [],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'expiresAt'): TypedContractMethod<
@@ -694,6 +719,11 @@ getFunction(nameOrSignature: 'transferWhitelist'): TypedContractMethod<
 getFunction(nameOrSignature: 'transferWhitelistEnabled'): TypedContractMethod<
       [],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'upgradeType'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<

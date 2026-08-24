@@ -16,6 +16,10 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         CashTreesNativeAppStateBridge.requestBadgeAuthorizationIfNeeded()
+        // Re-register if PWA already bound an EOA (cold start after prior grant).
+        if CashTreesPushRegistration.boundEoa != nil {
+            CashTreesPushRegistration.requestAuthorizationAndRegister()
+        }
         return true
     }
 
@@ -50,6 +54,20 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         supportedInterfaceOrientationsFor window: UIWindow?
     ) -> UIInterfaceOrientationMask {
         .portrait
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        CashTreesPushRegistration.handleDidRegister(deviceToken: deviceToken)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        CashTreesPushRegistration.handleDidFail(error: error)
     }
 }
 

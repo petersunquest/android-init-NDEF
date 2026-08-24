@@ -6,9 +6,9 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardChargeRewardModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "burnChargeRewardByAdmin" | "chargeRewardRatioE6" | "isApprovedForAll" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "supportsInterface" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "burnChargeRewardByAdmin" | "chargeRewardRatioE6" | "isApprovedForAll" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setTopupActorRewardRatio" | "setTopupActorRewardRatioByAdmin" | "supportsInterface" | "topupActorRewardRatioE6" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "TopupActorRewardRatioUpdated" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
@@ -23,7 +23,10 @@ encodeFunctionData(functionFragment: 'safeTransferFrom', values: [AddressLike, A
 encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupActorRewardRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupActorRewardRatioByAdmin', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'topupActorRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
@@ -39,7 +42,10 @@ decodeFunctionResult(functionFragment: 'safeTransferFrom', data: BytesLike): Res
 decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupActorRewardRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupActorRewardRatioByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupActorRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -81,6 +87,18 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   
 
     export namespace ChargeRewardRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace TopupActorRewardRatioUpdatedEvent {
       export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
       export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
       export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
@@ -266,9 +284,33 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    setTopupActorRewardRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setTopupActorRewardRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >
+    
+
+    
+    topupActorRewardRatioE6: TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >
     
@@ -349,9 +391,24 @@ getFunction(nameOrSignature: 'setChargeRewardRatioByAdmin'): TypedContractMethod
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setTopupActorRewardRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupActorRewardRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'topupActorRewardRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
       'view'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<
@@ -364,6 +421,7 @@ getFunction(nameOrSignature: 'uri'): TypedContractMethod<
 getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
 getEvent(key: 'ChargeRewardAirdropped'): TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
 getEvent(key: 'ChargeRewardRatioUpdated'): TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'TopupActorRewardRatioUpdated'): TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
 getEvent(key: 'TransferBatch'): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
 getEvent(key: 'TransferSingle'): TypedContractEvent<TransferSingleEvent.InputTuple, TransferSingleEvent.OutputTuple, TransferSingleEvent.OutputObject>;
 getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
@@ -384,6 +442,10 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'ChargeRewardRatioUpdated(uint256,uint256)': TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
       ChargeRewardRatioUpdated: TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
+    
+
+      'TopupActorRewardRatioUpdated(uint256,uint256)': TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
+      TopupActorRewardRatioUpdated: TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
     
 
       'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;

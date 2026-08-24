@@ -68,6 +68,26 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCard.sol",
     contractName: "BeamioUserCard",
   },
+  BeamioUserCardUpgradeableBeacon: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardUpgradeableBeacon.sol",
+    contractName: "BeamioUserCardUpgradeableBeacon",
+  },
+  BeamioUserCardBeaconProxy: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardBeaconProxy.sol",
+    contractName: "BeamioUserCardBeaconProxy",
+  },
+  BeamioUserCardFormattingLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol",
+    contractName: "BeamioUserCardFormattingLib",
+  },
+  BeamioUserCardTransferLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardTransferLib.sol",
+    contractName: "BeamioUserCardTransferLib",
+  },
+  BeamioUserCardViewsLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol",
+    contractName: "BeamioUserCardViewsLib",
+  },
   AdminStatsQueryModule: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV1",
@@ -79,6 +99,14 @@ const CONFIG = {
   AdminStatsQueryModuleV5: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV5.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV5",
+  },
+  AdminStatsQueryModuleV6: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV6.sol",
+    contractName: "BeamioUserCardAdminStatsQueryModuleV6",
+  },
+  AdminStatsReferrerViews: {
+    sourceKey: "project/src/BeamioUserCard/AdminStatsReferrerViews.sol",
+    contractName: "BeamioUserCardAdminStatsReferrerViews",
   },
   MembershipStatsModule: {
     sourceKey: "project/src/BeamioUserCard/MembershipStatsModule.sol",

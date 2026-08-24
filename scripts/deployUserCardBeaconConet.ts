@@ -234,7 +234,7 @@ async function main(): Promise<void> {
 	const version = await implReader.VERSION()
 	const implOwner = await implReader.owner()
 	console.log(`[beacon] impl VERSION=${version} owner=${implOwner}`)
-	if (Number(version) !== 13) throw new Error(`Expected VERSION 13, got ${version}`)
+	if (Number(version) !== 14) throw new Error(`Expected VERSION 14, got ${version}`)
 	if (String(implOwner).toLowerCase() !== IMPL_OWNER_SENTINEL.toLowerCase()) {
 		throw new Error(`Expected sentinel owner ${IMPL_OWNER_SENTINEL}, got ${implOwner}`)
 	}
@@ -290,7 +290,7 @@ async function main(): Promise<void> {
 			beacon: [implAddr, FACTORY_OWNER],
 		},
 		note:
-			'UserCard V13 sentinel impl + UpgradeableBeacon. New cards use BeaconProxy initCode. Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck.',
+			'UserCard V14 sentinel impl + UpgradeableBeacon. New cards use BeaconProxy initCode. Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck.',
 	}
 	const outPath = path.join(process.cwd(), 'deployments', 'conet-UserCardBeacon.json')
 	fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + '\n')

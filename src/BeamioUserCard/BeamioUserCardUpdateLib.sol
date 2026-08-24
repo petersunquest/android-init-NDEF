@@ -17,7 +17,8 @@ import "./BeamioUserCardReferrerLib.sol";
 library BeamioUserCardUpdateLib {
     uint256 internal constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
     uint256 internal constant POINTS_ONE = 1_000_000;
-    uint256 internal constant CHARGE_REWARD_TOKEN_ID = 2;
+    /// @dev Unified reward points (#13). Legacy #2 balances remain on-chain but are not minted here.
+    uint256 internal constant CHARGE_REWARD_TOKEN_ID = 13;
     uint256 internal constant REWARD_RATIO_ONE_E6 = 1_000_000;
     uint256 internal constant NFT_START_ID = BeamioERC1155Logic.NFT_START_ID;
     uint256 internal constant ISSUED_NFT_START_ID = BeamioERC1155Logic.ISSUED_NFT_START_ID;
@@ -139,7 +140,7 @@ library BeamioUserCardUpdateLib {
         delegate.cardSelfEmitChargeRewardAirdropped(
             _ownerOfAccountOrSelf(payerAcct), payerAcct, delegate.cardSelfCurrencyType(), amountFiat6, reward
         );
-        // Charge Referrer token #1 is minted via ChargeRewardModule.recordChargeReferrerReward
+        // Charge Referrer #13 is minted via ChargeRewardModule.recordChargeReferrerReward
         // (gateway, same model as top-up). Do not call ReferrerLib here: cards link an immutable
         // UpdateLib at create time; older ReferrerLib deployments omit mint selectors, so inline
         // mint silently never runs on existing cards.

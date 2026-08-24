@@ -9,6 +9,7 @@ import {
 import type { NfcTopupCurrencySplit } from '@/utils/topupCurrencySplit'
 import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import { memberNoFromCard } from '@/utils/readBalanceAssets'
+import { readBalanceCustomerHasValidMembership } from '@/utils/readBalanceMembership'
 import {
 	buildTopupSuccessPassHero,
 	type PosSuccessPassHeroProps,
@@ -249,21 +250,7 @@ export async function executeNfcTopup(params: {
 		preCurrency = c.currency
 		preMemberNo = c.memberNo
 		preTag = c.tag
-		const primary = String(assets.primaryMemberTokenId ?? '').trim()
-		if (primary && primary !== '0') {
-			hasValidMembership = true
-			return
-		}
-		const cardRow = assets.cards?.find(
-			(row) => row.cardAddress?.toLowerCase() === prep!.cardAddr!.toLowerCase(),
-		)
-		const primaryOnCard = String(cardRow?.primaryMemberTokenId ?? '').trim()
-		if (primaryOnCard && primaryOnCard !== '0') {
-			hasValidMembership = true
-			return
-		}
-		const nfts = cardRow?.nfts ?? assets.nfts ?? []
-		hasValidMembership = nfts.some((n) => Number(n.tokenId) > 0)
+		hasValidMembership = readBalanceCustomerHasValidMembership(assets, prep!.cardAddr!)
 	}
 
 	if (params.target.beamioTag) {

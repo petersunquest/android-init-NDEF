@@ -47,6 +47,8 @@ error UC_MembershipFeeInvalidDuration();
 error UC_MembershipFeeMismatch();
 error UC_MembershipFeePendingRequired();
 error UC_MembershipFeePendingExpired();
+/// @dev Membership NFT tokenId must be in `[NFT_START_ID, ISSUED_NFT_START_ID)`.
+error UC_MembershipNftTokenId();
 error UC_TierMinZero();
 error UC_InvalidUpgradeType();
 error UC_TiersNotIncreasing();

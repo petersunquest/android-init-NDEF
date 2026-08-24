@@ -11,6 +11,15 @@
 -keep class com.beamio.app.MainActivity$CashTreesJsBridge {
     *;
 }
+-keep class com.beamio.app.CashTreesNativeAppStateBridge {
+    *;
+}
+-keep class com.beamio.app.CashTreesPushRegistration {
+    *;
+}
+-keep class com.beamio.app.CashTreesFirebaseMessagingService {
+    *;
+}
 -keep class com.beamio.app.GeneralQRScannerActivity {
     *;
 }

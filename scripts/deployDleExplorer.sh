@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Deploy CoNET-DLE explorer to https://dle.conet.network on 70.35.205.77.
-# Static SPA only. nginx proxies /health /rpc /api/v2/dle to lab archives on TCP 27101.
+# Static SPA only. nginx proxies /health /rpc /api/v2/dle /ondemand/* (GET)
+# and Mode A /newchain/chains|/queue|/request to lab archives on TCP 27101.
+# Does not proxy /newchain/bft.
 # Does not restart geth / beacon-chain / validator. Does not copy ~/.master.json.
 
 set -euo pipefail
@@ -87,4 +89,6 @@ fi
 echo "==> Done. Spot-check:"
 echo "    https://${DLE_DOMAIN}/"
 echo "    https://${DLE_DOMAIN}/health"
+echo "    GET  https://${DLE_DOMAIN}/newchain/chains"
 echo "    POST https://${DLE_DOMAIN}/rpc  {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_chainId\",\"params\":[]}"
+echo "    POST https://${DLE_DOMAIN}/newchain/request  (expects Archive JSON, not nginx 405 HTML)"

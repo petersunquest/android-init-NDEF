@@ -1,6 +1,7 @@
 import type { ReadBalanceCardItem, UIDAssetsResult } from '@/types/pos'
 import { displayFiatPrefixFromCode, formatAmount, shortAddress } from '@/utils/display'
 import { memberNoFromCard, readBalancePrimaryCard } from '@/utils/readBalanceAssets'
+import { isMembershipNftTokenId } from '@/utils/membershipNft'
 
 export interface ReadBalanceMoneyParts {
 	prefix: string
@@ -231,7 +232,7 @@ export function readBalanceResultViewModel(
 		memberDisplay,
 		memberNo: memberNoFromCard(primary) || (() => {
 			const p = assets.primaryMemberTokenId?.trim() ?? ''
-			if (p && Number(p) > 0) return `M-${p.padStart(6, '0')}`
+			if (p && isMembershipNftTokenId(p)) return `M-${p.padStart(6, '0')}`
 			return ''
 		})(),
 		tierName,

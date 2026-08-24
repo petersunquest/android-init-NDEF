@@ -3,3 +3,5 @@
 /* eslint-disable */
 import type * as dleMocksSol from './DLEMocks.sol/index.js';
 export type { dleMocksSol };
+import type * as mockDleAuctionSettlementSol from './MockDleAuctionSettlement.sol/index.js';
+export type { mockDleAuctionSettlementSol };

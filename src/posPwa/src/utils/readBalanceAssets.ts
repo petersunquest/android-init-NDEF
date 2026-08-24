@@ -5,6 +5,7 @@ import type {
 	MerchantCouponBalanceItem,
 	UIDAssetsResult,
 } from '@/types/pos'
+import { isMembershipNftTokenId } from '@/utils/membershipNft'
 
 function normAddr(a: string): string {
 	return a.trim().toLowerCase()
@@ -19,12 +20,19 @@ function padMemberNo(raw: string): string {
 export function memberNoFromCard(card: ReadBalanceCardItem | undefined): string {
 	if (!card) return ''
 	const primary = card.primaryMemberTokenId?.trim() ?? ''
-	if (primary && Number(primary) > 0) return `M-${padMemberNo(primary)}`
+	if (primary && isMembershipNftTokenId(primary)) return `M-${padMemberNo(primary)}`
 	const legacy = (card.nfts ?? [])
-		.map((n) => Number(n.tokenId))
-		.filter((n) => Number.isFinite(n) && n > 0)
-		.sort((a, b) => b - a)[0]
-	if (legacy != null) return `M-${padMemberNo(String(legacy))}`
+		.map((n) => String(n.tokenId ?? '').trim())
+		.filter((id) => isMembershipNftTokenId(id))
+		.sort((a, b) => {
+			try {
+				const d = BigInt(b) - BigInt(a)
+				return d > 0n ? 1 : d < 0n ? -1 : 0
+			} catch {
+				return 0
+			}
+		})[0]
+	if (legacy) return `M-${padMemberNo(legacy)}`
 	return ''
 }
 
@@ -35,10 +43,17 @@ export function memberNoPrimaryFromSortedCards(assets: UIDAssetsResult): string 
 		if (m) return m
 	}
 	const legacy = (assets.nfts ?? [])
-		.map((n) => Number(n.tokenId))
-		.filter((n) => Number.isFinite(n) && n > 0)
-		.sort((a, b) => b - a)[0]
-	if (legacy != null) return `M-${padMemberNo(String(legacy))}`
+		.map((n) => String(n.tokenId ?? '').trim())
+		.filter((id) => isMembershipNftTokenId(id))
+		.sort((a, b) => {
+			try {
+				const d = BigInt(b) - BigInt(a)
+				return d > 0n ? 1 : d < 0n ? -1 : 0
+			} catch {
+				return 0
+			}
+		})[0]
+	if (legacy) return `M-${padMemberNo(legacy)}`
 	return ''
 }
 

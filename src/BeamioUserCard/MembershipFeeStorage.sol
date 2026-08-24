@@ -16,6 +16,9 @@ library MembershipFeeStorage {
 
     uint64 internal constant PENDING_TTL_SECONDS = 15 minutes;
 
+    /// @dev Paid membership slots (base = 0, Add-tier higher = 1+). Independent of on-card `tiers[]`.
+    uint256 internal constant MAX_FEE_TIERS = 16;
+
     struct PendingPurchase {
         uint256 tierIndex;
         uint256 feePaid6;
@@ -52,5 +55,29 @@ library MembershipFeeStorage {
 
     function isValidDurationKind(uint8 kind) internal pure returns (bool) {
         return kind >= DURATION_DAY && kind <= DURATION_FOREVER;
+    }
+
+    /// @dev Fee mode is diamond `feeE6` only. Never infer from misaligned `tiers.length`.
+    function isFeeMode() internal view returns (bool) {
+        Layout storage l = layout();
+        for (uint256 i = 0; i < MAX_FEE_TIERS; i++) {
+            if (l.feeE6[i] > 0) return true;
+        }
+        return false;
+    }
+
+    /// @dev Highest index with feeE6 > 0, or `type(uint256).max` if none.
+    function highestFeeTierIndex() internal view returns (uint256 highest) {
+        Layout storage l = layout();
+        highest = type(uint256).max;
+        for (uint256 i = 0; i < MAX_FEE_TIERS; i++) {
+            if (l.feeE6[i] > 0) highest = i;
+        }
+    }
+
+    /// @dev Count of slots to report: `highest + 1`, or 0 if no fee is set.
+    function feeTierCount() internal view returns (uint256) {
+        uint256 highest = highestFeeTierIndex();
+        return highest == type(uint256).max ? 0 : highest + 1;
     }
 }

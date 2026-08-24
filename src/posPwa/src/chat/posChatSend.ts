@@ -27,7 +27,9 @@ export async function sendPosChatPendingLine(params: {
 		return { ok: false, sendId, createdAt }
 	}
 
-	const noPush = params.noPush !== false
+	// Opt-in only: NoPush skips SI offline APNs/FCM badge (delivery receipts).
+	// Normal POS→user chat must allow push — same as SilentPassUI user↔user send.
+	const noPush = params.noPush === true
 	if (isWorkerGossipActive()) {
 		const r = await sendWorkerChatPayload(
 			{
@@ -91,6 +93,6 @@ export async function sendPosChatTextMessage(params: {
 		pendingLine,
 		walletPrivateKeyHex: params.walletPrivateKeyHex,
 		sendId,
-		noPush: true,
+		noPush: false,
 	})
 }

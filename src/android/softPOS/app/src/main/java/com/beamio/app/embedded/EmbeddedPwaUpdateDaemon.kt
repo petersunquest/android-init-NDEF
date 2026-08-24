@@ -10,7 +10,12 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Polls `https://pos.beamio.app/update.json`, downloads newer bundles into `staging/`. */
+/**
+ * Polls `https://pos.beamio.app/update.json`, downloads newer bundles into `staging/`.
+ *
+ * Same cadence as Consumer CaehTrees: one serial Handler chain (no overlapping ticks).
+ * `checkNow()` only runs [performCheck] — it does not start extra 15-minute chains.
+ */
 class EmbeddedPwaUpdateDaemon(
     private val bundleStore: EmbeddedPwaBundleStore,
     private val onUpdateAvailable: (currentVer: String, pendingVer: String) -> Unit,
@@ -18,37 +23,39 @@ class EmbeddedPwaUpdateDaemon(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val checkInFlight = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
     @Volatile
     private var stopped = false
 
+    private val loopRunnable: Runnable = Runnable {
+        if (stopped) return@Runnable
+        executor.execute {
+            try {
+                performCheck()
+            } finally {
+                if (!stopped) {
+                    mainHandler.postDelayed(loopRunnable, CHECK_INTERVAL_MS)
+                }
+            }
+        }
+    }
+
     fun start() {
+        if (!started.compareAndSet(false, true)) return
         stopped = false
-        scheduleNext(0L)
+        mainHandler.post(loopRunnable)
     }
 
     fun stop() {
         stopped = true
-        mainHandler.removeCallbacksAndMessages(null)
+        started.set(false)
+        mainHandler.removeCallbacks(loopRunnable)
     }
 
+    /** Immediate check (foreground resume). Does not reset the 15-minute chain. */
     fun checkNow() {
-        scheduleNext(0L)
-    }
-
-    private fun scheduleNext(delayMs: Long) {
         if (stopped) return
-        mainHandler.postDelayed({
-            if (stopped) return@postDelayed
-            executor.execute {
-                try {
-                    performCheck()
-                } finally {
-                    if (!stopped) {
-                        mainHandler.post { scheduleNext(CHECK_INTERVAL_MS) }
-                    }
-                }
-            }
-        }, delayMs)
+        executor.execute { performCheck() }
     }
 
     private fun performCheck() {
@@ -124,6 +131,7 @@ class EmbeddedPwaUpdateDaemon(
     }
 
     companion object {
+        /** Matches Consumer CaehTrees `EmbeddedPwaUpdateDaemon.CHECK_INTERVAL_MS`. */
         private const val CHECK_INTERVAL_MS = 15L * 60L * 1000L
     }
 }

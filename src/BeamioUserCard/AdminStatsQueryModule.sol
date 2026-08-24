@@ -231,8 +231,11 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (
             sel == bytes4(keccak256("CHARGE_REWARD_TOKEN_ID()"))
                 || sel == bytes4(keccak256("chargeRewardRatioE6()"))
+                || sel == bytes4(keccak256("topupActorRewardRatioE6()"))
                 || sel == bytes4(keccak256("setChargeRewardRatio(uint256)"))
                 || sel == bytes4(keccak256("setChargeRewardRatioByAdmin(uint256)"))
+                || sel == bytes4(keccak256("setTopupActorRewardRatio(uint256)"))
+                || sel == bytes4(keccak256("setTopupActorRewardRatioByAdmin(uint256)"))
                 || sel == bytes4(keccak256("previewChargeRewardAmount(uint256)"))
                 || sel == bytes4(keccak256("mintChargeRewardByGateway(address,uint256,uint8)"))
                 || sel == bytes4(keccak256("burnChargeRewardByAdmin(address,uint256)"))

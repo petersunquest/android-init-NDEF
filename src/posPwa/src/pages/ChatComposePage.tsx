@@ -1,24 +1,55 @@
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isAddress } from 'ethers'
 import { searchUsers } from '@/api/beamioApi'
+import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosScreenFooter, PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
+import {
+	BEAMIO_TAG_SEARCH_MIN_CHARS,
+	useBeamioTagSearch,
+} from '@/hooks/useBeamioTagSearch'
 import { usePosChat } from '@/providers/PosChatProvider'
+import { usePosSession } from '@/providers/PosSessionProvider'
+import type { TerminalProfile } from '@/types/pos'
 import {
 	localValidateBeamioTag,
 	normalizeBeamioTagInput,
 	pickExactBeamioTagProfile,
 } from '@/utils/beamioTagRules'
+import { profileBeamioTag, profileDisplayName } from '@/utils/display'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 
 export function ChatComposePage() {
 	const navigate = useNavigate()
 	const { openOrCreateThread } = usePosChat()
+	const { walletAddress } = usePosSession()
 	const [input, setInput] = useState('')
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+
+	const { hits, searching, canSearch } = useBeamioTagSearch(input, {
+		excludeAddress: walletAddress,
+	})
+
+	const openHit = useCallback(
+		(hit: TerminalProfile) => {
+			const addr = (hit.address || '').trim()
+			if (!addr || !isAddress(addr)) {
+				setError('Invalid user address')
+				return
+			}
+			const tag = profileBeamioTag(hit)
+			const name = profileDisplayName(hit)
+			openOrCreateThread(addr, {
+				peerTag: tag || undefined,
+				peerName: name || undefined,
+			})
+			navigate(POS_HOME_ROUTES.chatThread(addr), { replace: true })
+		},
+		[navigate, openOrCreateThread],
+	)
 
 	const onContinue = async () => {
 		if (busy) return
@@ -43,18 +74,14 @@ export function ChatComposePage() {
 				return
 			}
 			const tag = normalizeBeamioTagInput(tagCheck.value)
-			const rows = (await searchUsers(tag)) ?? []
+			const fromHits = pickExactBeamioTagProfile(hits, tag)
+			const rows = fromHits ? [fromHits] : ((await searchUsers(tag)) ?? [])
 			const exact = pickExactBeamioTagProfile(rows, tag)
 			if (!exact?.address || !isAddress(exact.address)) {
 				setError('No user found for that @BeamioTag')
 				return
 			}
-			const name = `${exact.first_name || ''} ${String(exact.last_name || '').split('\r\n')[0] || ''}`.trim()
-			openOrCreateThread(exact.address, {
-				peerTag: exact.accountName || exact.username || tag,
-				peerName: name || undefined,
-			})
-			navigate(POS_HOME_ROUTES.chatThread(exact.address), { replace: true })
+			openHit(exact)
 		} finally {
 			setBusy(false)
 		}
@@ -80,14 +107,17 @@ export function ChatComposePage() {
 					id="pos-chat-to"
 					type="text"
 					value={input}
-					onChange={(e) => setInput(e.target.value)}
+					onChange={(e) => {
+						setInput(e.target.value)
+						setError(null)
+					}}
 					placeholder="@BeamioTag or 0x…"
 					autoComplete="off"
 					autoCapitalize="none"
 					spellCheck={false}
 					enterKeyHint="done"
 					tabIndex={1}
-					className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[15px] text-slate-800 outline-none focus:border-[#1562f0]/40 focus:ring-2 focus:ring-[#1562f0]/15"
+					className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-[#1562f0]/40 focus:ring-2 focus:ring-[#1562f0]/15"
 					onKeyDown={(e) => {
 						if (e.key === 'Enter') {
 							e.preventDefault()
@@ -101,9 +131,57 @@ export function ChatComposePage() {
 					</p>
 				) : (
 					<p className="mt-2 text-sm text-slate-500">
-						Messages are encrypted to the recipient&apos;s EOA PGP on CoNET.
+						Type {BEAMIO_TAG_SEARCH_MIN_CHARS}+ characters to search @BeamioTag. Messages are
+						encrypted to the recipient&apos;s EOA PGP on CoNET.
 					</p>
 				)}
+
+				{canSearch ? (
+					<div className="mt-4">
+						<div className="mb-1 flex items-center justify-between">
+							<p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+								People
+							</p>
+							{searching ? (
+								<span className="flex items-center gap-1 text-[11px] text-slate-400">
+									<Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+									Searching…
+								</span>
+							) : null}
+						</div>
+						{hits.length > 0 ? (
+							<ul className="max-h-64 space-y-1 overflow-y-auto rounded-2xl border border-slate-100 bg-white py-1">
+								{hits.map((hit) => {
+									const key = `${hit.address}-${profileBeamioTag(hit)}`
+									return (
+										<li key={key}>
+											<button
+												type="button"
+												tabIndex={-1}
+												disabled={busy}
+												className="flex w-full items-center rounded-xl px-2 py-2 text-left hover:bg-slate-50 active:bg-slate-50 disabled:opacity-50"
+												onClick={() => openHit(hit)}
+											>
+												<BeamioCapsule
+													profile={hit}
+													fallbackAddress={hit.address}
+													address={hit.address}
+													showAddressCapsule
+													tone="onLight"
+													className="min-w-0"
+												/>
+											</button>
+										</li>
+									)
+								})}
+							</ul>
+						) : !searching ? (
+							<p className="rounded-2xl border border-dashed border-slate-200 px-3 py-3 text-sm text-slate-400">
+								No results
+							</p>
+						) : null}
+					</div>
+				) : null}
 			</PosScreenMain>
 
 			<PosScreenFooter>

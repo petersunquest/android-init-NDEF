@@ -46,6 +46,14 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.CaehTrees" />
+
+        <service
+            android:name="com.beamio.app.CashTreesFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

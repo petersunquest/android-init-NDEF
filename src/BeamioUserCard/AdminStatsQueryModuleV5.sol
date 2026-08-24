@@ -22,6 +22,10 @@ contract BeamioUserCardAdminStatsQueryModuleV5 is BeamioUserCardAdminStatsQueryM
                 || sel == bytes4(keccak256("membershipFeeMode()"))
                 || sel == bytes4(keccak256("membershipFeePending(address)"))
                 || sel == bytes4(keccak256("stageMembershipFeePurchase(address,uint256,uint256,uint256)"))
+                || sel
+                    == bytes4(
+                        keccak256("stageMembershipFeePurchaseWithBootstrap(address,uint256,uint256,uint256,uint8)")
+                    )
                 || sel == bytes4(keccak256("clearMembershipFeePurchase(address)"))
         ) {
             return ROUTE_STATS_QUERY;
@@ -68,6 +72,23 @@ contract BeamioUserCardAdminStatsQueryModuleV5 is BeamioUserCardAdminStatsQueryM
     ) external {
         MembershipFeeOpsLib.requireGatewayOrPaymaster();
         MembershipFeeOpsLib.stageMembershipFeePurchase(user, tierIndex, feePaid6, pointsCredit6);
+    }
+
+    function stageMembershipFeePurchaseWithBootstrap(
+        address user,
+        uint256 tierIndex,
+        uint256 feePaid6,
+        uint256 pointsCredit6,
+        uint8 durationKind
+    ) external {
+        MembershipFeeOpsLib.requireGatewayOrPaymaster();
+        MembershipFeeOpsLib.stageMembershipFeePurchaseWithBootstrap(
+            user,
+            tierIndex,
+            feePaid6,
+            pointsCredit6,
+            durationKind
+        );
     }
 
     function clearMembershipFeePurchase(address user) external {

@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardReferrerLibInterface extends Interface {
-    getFunction(nameOrSignature: "calcReferrerRewardFromChargeAmount" | "calcReferrerRewardFromChargeReward" | "calcReferrerRewardFromTopupAmount" | "getRefereesByReferrerPage" | "getReferrersPage" | "getRegisteredRefereesPage" | "refereeCountByReferrer" | "referrerTotalCount" | "registeredRefereeTotalCount"): FunctionFragment;
+    getFunction(nameOrSignature: "calcReferrerRewardFromChargeAmount" | "calcReferrerRewardFromChargeReward" | "calcReferrerRewardFromTopupAmount" | "getRefereesByReferrerPage" | "getReferrerRefereeLedger" | "getReferrersPage" | "getRegisteredRefereesPage" | "refereeChargePointsTotal6" | "refereeCountByReferrer" | "refereeReferrer" | "referrerTotalCount" | "registeredRefereeTotalCount"): FunctionFragment;
 
     
 
@@ -14,9 +14,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
 encodeFunctionData(functionFragment: 'calcReferrerRewardFromChargeReward', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'calcReferrerRewardFromTopupAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRefereesByReferrerPage', values: [AddressLike, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'getReferrerRefereeLedger', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getReferrersPage', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getRegisteredRefereesPage', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'refereeChargePointsTotal6', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'refereeCountByReferrer', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'refereeReferrer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'referrerTotalCount', values?: undefined): string;
 encodeFunctionData(functionFragment: 'registeredRefereeTotalCount', values?: undefined): string;
 
@@ -24,9 +27,12 @@ encodeFunctionData(functionFragment: 'registeredRefereeTotalCount', values?: und
 decodeFunctionResult(functionFragment: 'calcReferrerRewardFromChargeReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'calcReferrerRewardFromTopupAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRefereesByReferrerPage', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'getReferrerRefereeLedger', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReferrersPage', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRegisteredRefereesPage', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'refereeChargePointsTotal6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'refereeCountByReferrer', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'refereeReferrer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'referrerTotalCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'registeredRefereeTotalCount', data: BytesLike): Result;
   }
@@ -99,6 +105,14 @@ decodeFunctionResult(functionFragment: 'registeredRefereeTotalCount', data: Byte
     
 
     
+    getReferrerRefereeLedger: TypedContractMethod<
+      [referrer: AddressLike, referee: AddressLike, ],
+      [[bigint, bigint, bigint, bigint] & {topupReward13E6: bigint, chargeReward13E6: bigint, topupAmountFiat6: bigint, chargeAmountFiat6: bigint }],
+      'view'
+    >
+    
+
+    
     getReferrersPage: TypedContractMethod<
       [offset: BigNumberish, pageSize: BigNumberish, ],
       [[string[], bigint[], bigint, bigint] & {referrers: string[], referrerRewardBalances: bigint[], total: bigint, nextOffset: bigint }],
@@ -115,9 +129,25 @@ decodeFunctionResult(functionFragment: 'registeredRefereeTotalCount', data: Byte
     
 
     
+    refereeChargePointsTotal6: TypedContractMethod<
+      [referee: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     refereeCountByReferrer: TypedContractMethod<
       [referrerEOA: AddressLike, ],
       [bigint],
+      'view'
+    >
+    
+
+    
+    refereeReferrer: TypedContractMethod<
+      [referee: AddressLike, ],
+      [string],
       'view'
     >
     
@@ -161,6 +191,11 @@ getFunction(nameOrSignature: 'getRefereesByReferrerPage'): TypedContractMethod<
       [[string[], bigint[], bigint, bigint] & {referees: string[], refereeChargeTotals6: bigint[], total: bigint, nextOffset: bigint }],
       'view'
     >;
+getFunction(nameOrSignature: 'getReferrerRefereeLedger'): TypedContractMethod<
+      [referrer: AddressLike, referee: AddressLike, ],
+      [[bigint, bigint, bigint, bigint] & {topupReward13E6: bigint, chargeReward13E6: bigint, topupAmountFiat6: bigint, chargeAmountFiat6: bigint }],
+      'view'
+    >;
 getFunction(nameOrSignature: 'getReferrersPage'): TypedContractMethod<
       [offset: BigNumberish, pageSize: BigNumberish, ],
       [[string[], bigint[], bigint, bigint] & {referrers: string[], referrerRewardBalances: bigint[], total: bigint, nextOffset: bigint }],
@@ -171,9 +206,19 @@ getFunction(nameOrSignature: 'getRegisteredRefereesPage'): TypedContractMethod<
       [[string[], bigint, bigint] & {referees: string[], total: bigint, nextOffset: bigint }],
       'view'
     >;
+getFunction(nameOrSignature: 'refereeChargePointsTotal6'): TypedContractMethod<
+      [referee: AddressLike, ],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'refereeCountByReferrer'): TypedContractMethod<
       [referrerEOA: AddressLike, ],
       [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'refereeReferrer'): TypedContractMethod<
+      [referee: AddressLike, ],
+      [string],
       'view'
     >;
 getFunction(nameOrSignature: 'referrerTotalCount'): TypedContractMethod<

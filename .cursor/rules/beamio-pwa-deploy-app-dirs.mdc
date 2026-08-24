@@ -105,6 +105,37 @@ alwaysApply: true
 
 ---
 
+## POS PWA Embedded OTA（原生 POS 壳「新版本」横幅）— 铁律
+
+| 项 | 约定 |
+|---|---|
+| **产品** | POS PWA `https://pos.beamio.app/`（`src/posPwa`） |
+| **壳** | iOS `src/iOS/softPOS/`、Android `src/android/softPOS/`；桥 `applyEmbeddedPwaUpdate` |
+| **UI** | `EmbeddedPwaUpdateBanner` — **仅** Embedded OTA，**不是** SW |
+| **轮询 URL** | `GET https://pos.beamio.app/update.json` |
+| **JSON** | `{"ver":"<semver>","filename":"BeamioPOS-<semver>.zip"}` |
+| **Zip** | `https://pos.beamio.app/BeamioPOS-<semver>.zip`（`POS_PWA_BASE=/` 产物，zip 根路径） |
+| **非 OTA 源** | `https://beamio.app/pos/` 仅 WebView fallback；**禁止**当作壳 OTA 域名 |
+
+### 正确部署（唯一推荐）
+
+```bash
+./scripts/deployPosConetNetwork.sh
+```
+
+须含：`build:root`、rsync **`--exclude 'BeamioPOS-*.zip'`**、打 zip、写 `update.json`、smoke `pos.beamio.app`。细则：**`beamio-pos-pwa-deploy-embedded-ota.mdc`**。
+
+`/pos/` Web 路径另跑 `./scripts/deployBeamioPosPwa.sh`（同样 exclude `BeamioPOS-*.zip`），**不**替代 OTA 轨。
+
+### 严禁（POS OTA）
+
+- ❌ 只 rsync `beamio.app/pos/` 而不发布 `pos.beamio.app` 的 zip + `update.json`
+- ❌ 用 `/pos` base 的 build 打 `BeamioPOS-*.zip`
+- ❌ `rsync --delete` 不 exclude `BeamioPOS-*.zip`
+- ❌ 壳轮询 `beamio.app/pos/update.json`
+
+---
+
 ## Homepage（`src/homepage` → 站点根）
 
 **只用** `./scripts/deployBeamioHomepage.sh`（已内置全部 exclude）。若必须手写 rsync，**原样复制**上文「强制 exclude 清单」，不得删减。

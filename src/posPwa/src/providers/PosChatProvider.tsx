@@ -43,6 +43,12 @@ import {
 	notifyPosBackgroundChat,
 	syncPosChatAppIconBadge,
 } from '@/bridge/posNativeAppStateBridge'
+import {
+	ensurePosPushDeviceRegisteredOnHome,
+	ensurePushDeviceTokenListener,
+	stopEnsurePosPushDeviceRegistered,
+	syncChatBadgeToApi,
+} from '@/bridge/posCashTreesPushBind'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import { getSessionPrivateKeyHex, getSessionWalletAddress } from '@/wallet/posWalletService'
 
@@ -108,6 +114,7 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 		const prev = prevUnreadRef.current
 		prevUnreadRef.current = unreadTotal
 		syncPosChatAppIconBadge(unreadTotal)
+		void syncChatBadgeToApi(unreadTotal)
 		if (unreadTotal > prev && isPosAppBackgrounded()) {
 			notifyPosBackgroundChat(unreadTotal)
 		}
@@ -173,6 +180,23 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 		})
 	}, [eoa, partitionKey, partition])
 
+	/**
+	 * On /home: query POST /api/pushDeviceStatus (scope=pos). If not registered,
+	 * re-bind native → registerPushDevice until Cluster has a POS device row.
+	 * Do not wait for gossip — otherwise pushDeviceToken can fire before listener exists.
+	 */
+	useEffect(() => {
+		if (bootPhase !== 'home' || !eoa) {
+			stopEnsurePosPushDeviceRegistered()
+			return
+		}
+		ensurePushDeviceTokenListener()
+		ensurePosPushDeviceRegisteredOnHome({ eoa })
+		return () => {
+			stopEnsurePosPushDeviceRegistered()
+		}
+	}, [bootPhase, eoa])
+
 	useEffect(() => {
 		if (bootPhase !== 'home' || !eoa || !partition) {
 			stopPosChatGossipListen()
@@ -198,6 +222,12 @@ export function PosChatProvider({ children }: { children: ReactNode }) {
 			if (result.ok) {
 				setGossipReady(true)
 				setGossipError(null)
+				// Re-bind with pgpKeyId; kick home ensure again if still unregistered.
+				ensurePushDeviceTokenListener()
+				ensurePosPushDeviceRegisteredOnHome({
+					eoa,
+					pgpKeyId: result.bundle?.keyID,
+				})
 			} else {
 				setGossipReady(false)
 				setGossipError(result.error ?? 'Chat listen failed')

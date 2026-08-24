@@ -159,8 +159,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     using BeamioCurrency for *;
 
     // ===== Versioning =====
-    /// @dev V13: deployer is storage (BeaconProxy-safe); CREATE path unchanged; initialize for beacon proxies.
-    uint256 public constant VERSION = 13;
+    /// @dev V14: first beacon.upgradeTo (P3). Same EIP-170 budget as V13; constant-width version only.
+    uint256 public constant VERSION = 14;
 
     // ===== Constants (no magic numbers) =====
     uint256 public constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -207,6 +207,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     BeamioCurrency.CurrencyType public currency;
     /// @dev 单价：每 1e6 points 的价格，货币单位 E6（与购买时 USDC 1e6 一致）
     uint256 public pointsUnitPriceInCurrencyE6;
+    /// @dev 0 = top-up tier; 1 = balance-align; 2 = points-transfer upgrade path (MembershipStats).
+    uint8 public upgradeType;
 
     // ===== per-card expiry policy =====
     uint256 public expirySeconds; // 0 = never expire
@@ -296,6 +298,33 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
     event AdminPointsBurned(address indexed account, uint256 amount);
     event PointsMintedByGateway(address indexed userEOA, address indexed acct, uint256 points6);
 
+    /// @dev Charge / top-up actor reward mint (#13 after unified reward points).
+    event ChargeRewardAirdropped(
+        address indexed userEOA,
+        address indexed acct,
+        uint8 chargeCurrency,
+        uint256 amountFiat6,
+        uint256 rewardMinted
+    );
+    /// @dev Referrer #13 mint (legacy 3-arg shape kept for topic compatibility of first three fields).
+    event ReferrerRewardMinted(address indexed refereeAA, address indexed referrerAA, uint256 rewardAmount);
+    /// @dev Per-card referrer→referee earning ledger: kind 1=topup, 2=charge.
+    event ReferrerRefereeRewardLedgered(
+        address indexed referrer,
+        address indexed referee,
+        uint8 kind,
+        uint256 amountFiat6,
+        uint256 reward13E6
+    );
+    event IssuedNftPurchasedWithPointsCharge(
+        address indexed userEOA,
+        address indexed payeeEOA,
+        uint256 indexed tokenId,
+        uint256 amount,
+        uint256 totalPriceInCurrency6,
+        uint256 pointsCharged6
+    );
+
     // ===== current index (membership NFT; issued NFT index in IssuedNftStorage) =====
     uint256 private _currentIndex = NFT_START_ID;
 
@@ -373,6 +402,8 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
         IssuedNftStorage.Layout storage inft = IssuedNftStorage.layout();
         inft.issuedNftIndex = ISSUED_NFT_START_ID;
+        // BeaconProxy does not copy constructor initializers; membership NFTs start at #100.
+        _currentIndex = NFT_START_ID;
     }
 
     /// @notice Base Explorer / EIP-1155 约定：base URI 前缀 + 0x{合约地址}{id}.json，{id} 由客户端替换为 tokenId（64 位十六进制）
@@ -1266,7 +1297,7 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
 
     function _hasValidCard(address acct) internal view returns (bool) {
         uint256 id = activeMembershipId[acct];
-        return (id != 0 && balanceOf(acct, id) > 0 && !_isExpired(id));
+        return (id >= NFT_START_ID && id < ISSUED_NFT_START_ID && balanceOf(acct, id) > 0 && !_isExpired(id));
     }
 
     function _syncActiveToBestValid(address user) internal {
@@ -1335,5 +1366,166 @@ contract BeamioUserCard is ERC1155, Ownable, ReentrancyGuard {
         address acct = IBeamioAccountFactoryV07(aaFactory).beamioAccountOf(eoa);
         if (acct == address(0) || acct.code.length == 0) revert UC_ResolveAccountFailed(eoa, aaFactory, acct);
         return acct;
+    }
+
+    // ==========================================================
+    // IBeamioUserCardSelfDelegate (runtime library / module callbacks)
+    // ==========================================================
+    modifier onlySelf() {
+        if (msg.sender != address(this)) revert BM_NotAuthorized();
+        _;
+    }
+
+    function cardSelfMint(address to, uint256 id, uint256 amount) external onlySelf {
+        _mint(to, id, amount, "");
+    }
+
+    function cardSelfBurn(address from, uint256 id, uint256 amount) external onlySelf {
+        _burn(from, id, amount);
+    }
+
+    function cardSelfCallModule(uint8 kind, bytes calldata data) external onlySelf returns (bytes memory) {
+        return _callModule(kind, data);
+    }
+
+    function cardSelfGovernanceDelegate(address module, bytes calldata data) external onlySelf returns (bool) {
+        (bool ok,) = module.delegatecall(data);
+        return ok;
+    }
+
+    function cardSelfAppendMembershipNftIfMissing(address acct, uint256 id) external onlySelf {
+        uint256[] storage list = _userOwnedNfts[acct];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == id) return;
+        }
+        list.push(id);
+    }
+
+    function cardSelfMembershipFlowTotals() external view onlySelf returns (uint256 issued, uint256 upgraded) {
+        return (totalMembershipIssued, totalMembershipUpgraded);
+    }
+
+    function cardSelfRecordAdminMembershipFlow(address operator, uint256 issuedBefore, uint256 upgradedBefore)
+        external
+        onlySelf
+    {
+        _recordAdminMembershipFlowForOperatorAndParents(operator, issuedBefore, upgradedBefore);
+    }
+
+    /// @dev No valid membership + tiers configured → points mint must meet lowest tier threshold.
+    function cardSelfRequirePointsMintAllowsFirstMembership(address acct, uint256 points6) external view onlySelf {
+        if (points6 == 0) return;
+        if (_hasValidCard(acct)) return;
+        uint256 len = tiers.length;
+        if (len == 0) return;
+        uint256 minVal = tiers[0].minUsdc6;
+        for (uint256 i = 1; i < len; i++) {
+            uint256 m = tiers[i].minUsdc6;
+            if (m < minVal) minVal = m;
+        }
+        if (points6 < minVal) revert UC_BelowMinThreshold();
+    }
+
+    function cardSelfHasValidCard(address acct) external view onlySelf returns (bool) {
+        return _hasValidCard(acct);
+    }
+
+    function cardSelfToAccount(address eoa) external view onlySelf returns (address) {
+        return _toAccount(eoa);
+    }
+
+    function cardSelfOwner() external view onlySelf returns (address) {
+        return owner();
+    }
+
+    function cardSelfUpgradeType() external view onlySelf returns (uint8) {
+        return upgradeType;
+    }
+
+    function cardSelfPointsUnitPriceInCurrencyE6() external view onlySelf returns (uint256) {
+        return pointsUnitPriceInCurrencyE6;
+    }
+
+    function cardSelfCurrencyType() external view onlySelf returns (uint8) {
+        return uint8(currency);
+    }
+
+    function cardSelfEmitChargeRewardAirdropped(
+        address userEOA,
+        address acct,
+        uint8 chargeCurrency,
+        uint256 amountFiat6,
+        uint256 reward
+    ) external onlySelf {
+        emit ChargeRewardAirdropped(userEOA, acct, chargeCurrency, amountFiat6, reward);
+    }
+
+    function cardSelfTransferPointsUpdate(address from, address to, uint256 amount) external onlySelf {
+        uint256 bal = balanceOf(from, POINTS_ID);
+        if (amount > bal) revert UC_InsufficientBalance(from, POINTS_ID, bal, amount);
+        uint256[] memory ids = new uint256[](1);
+        uint256[] memory vals = new uint256[](1);
+        ids[0] = POINTS_ID;
+        vals[0] = amount;
+        _update(from, to, ids, vals);
+    }
+
+    function cardSelfRecordAdminRedeemMint(address operator, uint256 amount) external onlySelf {
+        _recordAdminRedeemMintForOperatorAndParents(operator, amount);
+    }
+
+    function cardSelfRecordAdminUsdcMint(address operator, uint256 amount) external onlySelf {
+        _recordAdminUSDCMintForOperatorAndParents(operator, amount);
+    }
+
+    function cardSelfRecordAdminStatsMint(address operator, uint256 amount) external onlySelf {
+        if (operator == address(0) || amount == 0) return;
+        AdminStatsStorage.recordUSDCMint(operator, amount);
+    }
+
+    function cardSelfEmitFaucetClaimed(
+        uint256 id,
+        address userEOA,
+        address acct,
+        uint256 amount,
+        uint256 claimedAfter
+    ) external onlySelf {
+        emit FaucetClaimed(id, userEOA, acct, amount, claimedAfter);
+    }
+
+    function cardSelfEmitPointsMintedByGateway(address userEOA, address acct, uint256 points6) external onlySelf {
+        emit PointsMintedByGateway(userEOA, acct, points6);
+    }
+
+    function cardSelfEmitAdminPointsMinted(address acct, uint256 points6) external onlySelf {
+        emit AdminPointsMinted(acct, points6);
+    }
+
+    function cardSelfEmitIssuedNftMinted(uint256 tokenId, address acct, uint256 amount) external onlySelf {
+        emit IssuedNftMinted(tokenId, acct, amount);
+    }
+
+    function cardSelfEmitReferrerRewardMinted(
+        address refereeAA,
+        address referrerAA,
+        uint256 rewardAmount,
+        uint256 amountFiat6,
+        uint8 kind
+    ) external onlySelf {
+        emit ReferrerRewardMinted(refereeAA, referrerAA, rewardAmount);
+        emit ReferrerRefereeRewardLedgered(referrerAA, refereeAA, kind, amountFiat6, rewardAmount);
+    }
+
+    function cardSelfEmitIssuedNftPurchasedWithPointsCharge(
+        address userEOA,
+        address payeeEOA,
+        uint256 tokenId,
+        uint256 amount,
+        uint256 totalPriceInCurrency6,
+        uint256 pointsCharged6
+    ) external onlySelf {
+        emit IssuedNftPurchasedWithPointsCharge(
+            userEOA, payeeEOA, tokenId, amount, totalPriceInCurrency6, pointsCharged6
+        );
     }
 }

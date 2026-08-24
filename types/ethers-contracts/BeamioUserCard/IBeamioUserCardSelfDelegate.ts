@@ -20,7 +20,7 @@ encodeFunctionData(functionFragment: 'cardSelfEmitFaucetClaimed', values: [BigNu
 encodeFunctionData(functionFragment: 'cardSelfEmitIssuedNftMinted', values: [BigNumberish, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfEmitIssuedNftPurchasedWithPointsCharge', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfEmitPointsMintedByGateway', values: [AddressLike, AddressLike, BigNumberish]): string;
-encodeFunctionData(functionFragment: 'cardSelfEmitReferrerRewardMinted', values: [AddressLike, AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'cardSelfEmitReferrerRewardMinted', values: [AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'cardSelfGovernanceDelegate', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'cardSelfHasValidCard', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'cardSelfMembershipFlowTotals', values?: undefined): string;
@@ -180,7 +180,7 @@ decodeFunctionResult(functionFragment: 'cardSelfUpgradeType', data: BytesLike): 
 
     
     cardSelfEmitReferrerRewardMinted: TypedContractMethod<
-      [refereeAA: AddressLike, referrerAA: AddressLike, rewardAmount: BigNumberish, ],
+      [refereeAA: AddressLike, referrerAA: AddressLike, rewardAmount: BigNumberish, amountFiat6: BigNumberish, kind: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -352,7 +352,7 @@ getFunction(nameOrSignature: 'cardSelfEmitPointsMintedByGateway'): TypedContract
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'cardSelfEmitReferrerRewardMinted'): TypedContractMethod<
-      [refereeAA: AddressLike, referrerAA: AddressLike, rewardAmount: BigNumberish, ],
+      [refereeAA: AddressLike, referrerAA: AddressLike, rewardAmount: BigNumberish, amountFiat6: BigNumberish, kind: BigNumberish, ],
       [void],
       'nonpayable'
     >;

@@ -1,0 +1,25 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-21T06:44:15.705Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "adminStatsV5": "0x444626D20214b7c4aF7BDb43E93cBc1727963719",
+  "adminStatsReferrerViews": "0x20845FF9Ee9EA9e65e33d827C51BB118efA32276",
+  "beamioUserCardReferrerLib": "0x78939FF276f1cCcE5E3fdbED9b86355910105aE2",
+  "referrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+  "priorChargeRewardReferrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+  "adminStatsQueryModule": "0xCb1386C56b898f0DD48cD53e804d43742536E06b",
+  "replacedAdminStatsQueryModule": "0x444626D20214b7c4aF7BDb43E93cBc1727963719",
+  "libraryLinks": {
+    "project/src/BeamioUserCard/ReferrerRegistryLib.sol:ReferrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+    "project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol:BeamioUserCardReferrerLib": "0x78939FF276f1cCcE5E3fdbED9b86355910105aE2"
+  },
+  "constructorArgs": {
+    "v5": "0x444626D20214b7c4aF7BDb43E93cBc1727963719",
+    "referrerViews": "0x20845FF9Ee9EA9e65e33d827C51BB118efA32276"
+  },
+  "note": "AdminStats V6 router: referrer reads → ReferrerViews; else → V5",
+  "bound": {
+    "adminStatsQueryModule": "0xCb1386C56b898f0DD48cD53e804d43742536E06b"
+  }
+}

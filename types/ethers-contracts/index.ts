@@ -60,6 +60,12 @@ export type { IBeamioUserCardFactoryEip712V4 } from './BeamioUserCard/AdminStats
 export { IBeamioUserCardFactoryEip712V4__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV4.sol/IBeamioUserCardFactoryEip712V4__factory.js';
 export type { BeamioUserCardAdminStatsQueryModuleV5 } from './BeamioUserCard/AdminStatsQueryModuleV5.sol/BeamioUserCardAdminStatsQueryModuleV5.js';
 export { BeamioUserCardAdminStatsQueryModuleV5__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV5.sol/BeamioUserCardAdminStatsQueryModuleV5__factory.js';
+export type { BeamioUserCardAdminStatsQueryModuleV6 } from './BeamioUserCard/AdminStatsQueryModuleV6.sol/BeamioUserCardAdminStatsQueryModuleV6.js';
+export { BeamioUserCardAdminStatsQueryModuleV6__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV6.sol/BeamioUserCardAdminStatsQueryModuleV6__factory.js';
+export type { IAdminStatsSelectorRouter } from './BeamioUserCard/AdminStatsQueryModuleV6.sol/IAdminStatsSelectorRouter.js';
+export { IAdminStatsSelectorRouter__factory } from './factories/BeamioUserCard/AdminStatsQueryModuleV6.sol/IAdminStatsSelectorRouter__factory.js';
+export type { BeamioUserCardAdminStatsReferrerViews } from './BeamioUserCard/AdminStatsReferrerViews.sol/BeamioUserCardAdminStatsReferrerViews.js';
+export { BeamioUserCardAdminStatsReferrerViews__factory } from './factories/BeamioUserCard/AdminStatsReferrerViews.sol/BeamioUserCardAdminStatsReferrerViews__factory.js';
 export type { BeamioERC1155Logic } from './BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic.js';
 export { BeamioERC1155Logic__factory } from './factories/BeamioUserCard/BeamioERC1155Logic.sol/BeamioERC1155Logic__factory.js';
 export type { IBeamioAccountFactoryV07 } from './BeamioUserCard/BeamioERC1155Logic.sol/IBeamioAccountFactoryV07.js';
@@ -96,6 +102,8 @@ export type { IBeamioUserCardSelectorRouter } from './BeamioUserCard/BeamioUserC
 export { IBeamioUserCardSelectorRouter__factory } from './factories/BeamioUserCard/BeamioUserCard.sol/IBeamioUserCardSelectorRouter__factory.js';
 export type { BeamioUserCardBase } from './BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase.js';
 export { BeamioUserCardBase__factory } from './factories/BeamioUserCard/BeamioUserCardBase.sol/BeamioUserCardBase__factory.js';
+export type { BeamioUserCardBeaconProxy } from './BeamioUserCard/BeamioUserCardBeaconProxy.js';
+export { BeamioUserCardBeaconProxy__factory } from './factories/BeamioUserCard/BeamioUserCardBeaconProxy__factory.js';
 export type { BeamioUserCardDeployerV07 } from './BeamioUserCard/BeamioUserCardDeployerV07.js';
 export { BeamioUserCardDeployerV07__factory } from './factories/BeamioUserCard/BeamioUserCardDeployerV07__factory.js';
 export type { BeamioUserCardFactoryPaymasterV07 } from './BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol/BeamioUserCardFactoryPaymasterV07.js';
@@ -134,6 +142,8 @@ export type { IReferrerLibUserCardGw } from './BeamioUserCard/BeamioUserCardRefe
 export { IReferrerLibUserCardGw__factory } from './factories/BeamioUserCard/BeamioUserCardReferrerLib.sol/IReferrerLibUserCardGw__factory.js';
 export type { BeamioUserCardTransferLib } from './BeamioUserCard/BeamioUserCardTransferLib.js';
 export { BeamioUserCardTransferLib__factory } from './factories/BeamioUserCard/BeamioUserCardTransferLib__factory.js';
+export type { BeamioUserCardUpgradeableBeacon } from './BeamioUserCard/BeamioUserCardUpgradeableBeacon.js';
+export { BeamioUserCardUpgradeableBeacon__factory } from './factories/BeamioUserCard/BeamioUserCardUpgradeableBeacon__factory.js';
 export type { BeamioUserCardViewsLib } from './BeamioUserCard/BeamioUserCardViewsLib.js';
 export { BeamioUserCardViewsLib__factory } from './factories/BeamioUserCard/BeamioUserCardViewsLib__factory.js';
 export type { BeamioUserCardChargeRewardModuleV1 } from './BeamioUserCard/ChargeRewardModule.sol/BeamioUserCardChargeRewardModuleV1.js';
@@ -484,6 +494,10 @@ export type { MockOracleAdapterV1 } from './dle/mocks/DLEMocks.sol/MockOracleAda
 export { MockOracleAdapterV1__factory } from './factories/dle/mocks/DLEMocks.sol/MockOracleAdapterV1__factory.js';
 export type { MockTreasuryDleAuthorityV1 } from './dle/mocks/DLEMocks.sol/MockTreasuryDleAuthorityV1.js';
 export { MockTreasuryDleAuthorityV1__factory } from './factories/dle/mocks/DLEMocks.sol/MockTreasuryDleAuthorityV1__factory.js';
+export type { MockDleAuctionNft } from './dle/mocks/MockDleAuctionSettlement.sol/MockDleAuctionNft.js';
+export { MockDleAuctionNft__factory } from './factories/dle/mocks/MockDleAuctionSettlement.sol/MockDleAuctionNft__factory.js';
+export type { MockDleAuctionSettlement } from './dle/mocks/MockDleAuctionSettlement.sol/MockDleAuctionSettlement.js';
+export { MockDleAuctionSettlement__factory } from './factories/dle/mocks/MockDleAuctionSettlement.sol/MockDleAuctionSettlement__factory.js';
 export type { AccountRegistry } from './mainnet/AccountRegistry.js';
 export { AccountRegistry__factory } from './factories/mainnet/AccountRegistry__factory.js';
 export type { AddressPGP } from './mainnet/AddressPGP.js';

@@ -25,8 +25,20 @@ final class CashTreesLocalPWAHost: ObservableObject {
 
     private let bundleStore = CashTreesPWABundleStore.shared
     private var startTask: Task<Void, Never>?
+    private var updateObserver: NSObjectProtocol?
 
-    private init() {}
+    private init() {
+        updateObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesEmbeddedPwaUpdateAvailable,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.adoptStagedBundleIfHostUnready()
+            }
+        }
+    }
 
     func startIfNeeded() {
         guard startTask == nil else { return }
@@ -44,6 +56,7 @@ final class CashTreesLocalPWAHost: ObservableObject {
     }
 
     func refreshOnForeground() async {
+        CashTreesPWAUpdateDaemon.shared.start()
         await CashTreesPWAUpdateDaemon.shared.checkNow()
         notifyPendingUpdateIfNeeded()
     }
@@ -70,11 +83,26 @@ final class CashTreesLocalPWAHost: ObservableObject {
             try bundleStore.bootstrapIfNeeded()
             isReady = true
             lastError = nil
-            CashTreesPWAUpdateDaemon.shared.start()
-            notifyPendingUpdateIfNeeded()
         } catch {
             lastError = error.localizedDescription
             print("❌ CashTreesLocalPWAHost boot failed: \(error.localizedDescription)")
+        }
+        // Always start OTA polling (same as Consumer), even if bundled zip bootstrap failed.
+        CashTreesPWAUpdateDaemon.shared.start()
+        adoptStagedBundleIfHostUnready()
+        notifyPendingUpdateIfNeeded()
+    }
+
+    /// If bundled zip failed but a staged OTA bundle is ready, activate it so WebView can load.
+    private func adoptStagedBundleIfHostUnready() {
+        guard !isReady, bundleStore.hasPendingUpdate() else { return }
+        do {
+            try bundleStore.promoteStagingToActive()
+            isReady = true
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+            print("❌ CashTreesLocalPWAHost adopt staged bundle: \(error.localizedDescription)")
         }
     }
 

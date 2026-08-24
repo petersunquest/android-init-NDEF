@@ -1,11 +1,16 @@
 /**
- * Deploy MembershipFeeOpsLib + MembershipStatsModule (fee-aware issue) +
- * AdminStatsQueryModuleV5 (fee config / stage) and bind on CoNET UserCard Factory.
+ * Deploy the membership-fee complete set on CoNET UserCard Factory:
+ *   MembershipFeeOpsLib → AdminStats V5 (linked) → AdminStats **V6 router**
+ *   (new V5 + existing referrerViews) → MembershipStats → bind Factory.
+ *
+ * Factory `defaultAdminStatsQueryModule` MUST stay a **V6 router**. Binding the
+ * new V5 directly drops Referrer Registry reads (BM_CallFailed).
  *
  * Env:
  *   CONET_RPC_URL — default https://rpc1.conet.network
+ *   CONET_ADMIN_STATS_REFERRER_VIEWS — override reused referrerViews
  *   DRY_RUN=1 — deploy only, do not set factory modules
- *   SKIP_VERIFY=1 — skip Blockscout verify probe
+ *   SKIP_VERIFY=1 — skip Blockscout verify probe (default FORBIDDEN)
  *
  * Usage:
  *   npm run compile
@@ -23,6 +28,13 @@ const FACTORY =
 const FACTORY_OWNER = '0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1'
 const BLOCKSCOUT = process.env.CONET_BLOCKSCOUT_URL || 'https://mainnet.conet.network'
 const ROUTE_STATS_QUERY = 254
+const EIP170_MAX = 24576
+const LIVE_REFERRER_VIEWS =
+	process.env.CONET_ADMIN_STATS_REFERRER_VIEWS || '0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C'
+const SMOKE_CARD =
+	process.env.SMOKE_CARD || '0x971f740d78b2602A5aE163C535e52cED54ED7e71'
+const SMOKE_AA =
+	process.env.SMOKE_AA || '0x3F38F68Bf03aF3C1d7bC67893DeA172574B36EAC'
 
 type ArtifactJson = {
 	abi: ethers.InterfaceAbi
@@ -93,7 +105,18 @@ async function main(): Promise<void> {
 	}
 
 	const wallet = new ethers.Wallet(loadOwnerKey(), provider)
-	console.log(`[upgrade] deployer=${wallet.address} factory=${FACTORY}`)
+	const feeData = await provider.getFeeData()
+	const gas: { maxFeePerGas?: bigint; maxPriorityFeePerGas?: bigint } = {}
+	if (feeData.maxFeePerGas) gas.maxFeePerGas = feeData.maxFeePerGas * 2n
+	if (feeData.maxPriorityFeePerGas) {
+		gas.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 2n
+	} else if (feeData.gasPrice) {
+		gas.maxFeePerGas = feeData.gasPrice * 2n
+		gas.maxPriorityFeePerGas = feeData.gasPrice * 2n
+	}
+	console.log(
+		`[upgrade] deployer=${wallet.address} factory=${FACTORY} maxFee=${gas.maxFeePerGas ?? 'auto'}`,
+	)
 
 	const membershipArt = loadArtifact(
 		'src/BeamioUserCard/MembershipStatsModule.sol/BeamioUserCardMembershipStatsModuleV1.json',
@@ -104,7 +127,7 @@ async function main(): Promise<void> {
 	const libArt = loadArtifact('src/BeamioUserCard/MembershipFeeOpsLib.sol/MembershipFeeOpsLib.json')
 
 	console.log('[upgrade] deploying MembershipFeeOpsLib…')
-	const feeLib = await new ethers.ContractFactory(libArt.abi, libArt.bytecode, wallet).deploy()
+	const feeLib = await new ethers.ContractFactory(libArt.abi, libArt.bytecode, wallet).deploy(gas)
 	await feeLib.waitForDeployment()
 	const feeLibAddr = await feeLib.getAddress()
 	console.log(`[upgrade] MembershipFeeOpsLib=${feeLibAddr}`)
@@ -119,7 +142,7 @@ async function main(): Promise<void> {
 		membershipArt.abi,
 		membershipArt.bytecode,
 		wallet,
-	).deploy()
+	).deploy(gas)
 	await membership.waitForDeployment()
 	const membershipAddr = await membership.getAddress()
 	const membershipSize = ((await provider.getCode(membershipAddr)).length - 2) / 2
@@ -127,26 +150,82 @@ async function main(): Promise<void> {
 	if (membershipSize > 24576) throw new Error(`EIP-170 exceeded membership=${membershipSize}`)
 
 	console.log('[upgrade] deploying AdminStatsQueryModuleV5 (linked)…')
-	const admin = await new ethers.ContractFactory(adminArt.abi, linkedBytecode, wallet).deploy()
+	const admin = await new ethers.ContractFactory(adminArt.abi, linkedBytecode, wallet).deploy(gas)
 	await admin.waitForDeployment()
 	const adminAddr = await admin.getAddress()
 	const adminSize = ((await provider.getCode(adminAddr)).length - 2) / 2
 	console.log(`[upgrade] AdminStatsQueryModuleV5=${adminAddr} deployedSize=${adminSize}`)
-	if (adminSize > 24576) throw new Error(`EIP-170 exceeded admin=${adminSize}`)
+	if (adminSize > EIP170_MAX) throw new Error(`EIP-170 exceeded admin=${adminSize}`)
+
+	const factoryRead = new ethers.Contract(
+		FACTORY,
+		['function defaultAdminStatsQueryModule() view returns (address)'],
+		provider,
+	)
+	const liveAdmin = String(await factoryRead.defaultAdminStatsQueryModule())
+	let referrerViews = LIVE_REFERRER_VIEWS
+	try {
+		const liveV6 = new ethers.Contract(
+			liveAdmin,
+			['function referrerViews() view returns (address)', 'function v5() view returns (address)'],
+			provider,
+		)
+		const rv = String(await liveV6.referrerViews())
+		if (ethers.isAddress(rv) && rv !== ethers.ZeroAddress) {
+			referrerViews = ethers.getAddress(rv)
+		}
+		console.log(`[upgrade] live AdminStats=${liveAdmin} referrerViews=${referrerViews}`)
+	} catch {
+		console.log(`[upgrade] live admin ${liveAdmin} is not V6; reuse ${referrerViews}`)
+	}
+	const viewsCode = await provider.getCode(referrerViews)
+	if (!viewsCode || viewsCode === '0x') {
+		throw new Error(`referrerViews has no code: ${referrerViews}`)
+	}
+
+	const routerArt = loadArtifact(
+		'src/BeamioUserCard/AdminStatsQueryModuleV6.sol/BeamioUserCardAdminStatsQueryModuleV6.json',
+	)
+	console.log(`[upgrade] deploying AdminStatsQueryModuleV6(${adminAddr}, ${referrerViews})…`)
+	const router = await new ethers.ContractFactory(routerArt.abi, routerArt.bytecode, wallet).deploy(
+		adminAddr,
+		referrerViews,
+		gas,
+	)
+	await router.waitForDeployment()
+	const routerAddr = await router.getAddress()
+	const routerSize = ((await provider.getCode(routerAddr)).length - 2) / 2
+	console.log(`[upgrade] AdminStatsQueryModuleV6=${routerAddr} deployedSize=${routerSize}`)
+	if (routerSize > EIP170_MAX) throw new Error(`EIP-170 exceeded router=${routerSize}`)
 
 	const stageSel = ethers.id('stageMembershipFeePurchase(address,uint256,uint256,uint256)').slice(0, 10)
+	const bootstrapSel = ethers
+		.id('stageMembershipFeePurchaseWithBootstrap(address,uint256,uint256,uint256,uint8)')
+		.slice(0, 10)
 	const setSel = ethers.id('setMembershipFees(uint256[],uint8[])').slice(0, 10)
+	const referrerCountSel = ethers.id('referrerTotalCount()').slice(0, 10)
 	const adminReader = new ethers.Contract(
-		adminAddr,
+		routerAddr,
 		['function selectorModuleKind(bytes4) view returns (uint8)'],
 		provider,
 	)
 	const stageRoute = Number(await adminReader.selectorModuleKind(stageSel))
+	const bootstrapRoute = Number(await adminReader.selectorModuleKind(bootstrapSel))
 	const setRoute = Number(await adminReader.selectorModuleKind(setSel))
+	const referrerRoute = Number(await adminReader.selectorModuleKind(referrerCountSel))
 	console.log(`[upgrade] stage ${stageSel} → route ${stageRoute}`)
+	console.log(`[upgrade] bootstrap ${bootstrapSel} → route ${bootstrapRoute}`)
 	console.log(`[upgrade] setFees ${setSel} → route ${setRoute}`)
-	if (stageRoute !== ROUTE_STATS_QUERY || setRoute !== ROUTE_STATS_QUERY) {
-		throw new Error(`Unexpected fee routes stage=${stageRoute} set=${setRoute}`)
+	console.log(`[upgrade] referrerTotalCount ${referrerCountSel} → route ${referrerRoute}`)
+	if (
+		stageRoute !== ROUTE_STATS_QUERY ||
+		bootstrapRoute !== ROUTE_STATS_QUERY ||
+		setRoute !== ROUTE_STATS_QUERY ||
+		referrerRoute !== ROUTE_STATS_QUERY
+	) {
+		throw new Error(
+			`Unexpected routes stage=${stageRoute} bootstrap=${bootstrapRoute} set=${setRoute} referrer=${referrerRoute}`,
+		)
 	}
 
 	const outPath = path.join(process.cwd(), 'deployments', 'conet-MembershipFeeModules.json')
@@ -157,13 +236,19 @@ async function main(): Promise<void> {
 		factory: FACTORY,
 		membershipFeeOpsLib: feeLibAddr,
 		membershipStatsModule: membershipAddr,
-		adminStatsQueryModule: adminAddr,
+		adminStatsQueryModuleV5: adminAddr,
+		adminStatsQueryModule: routerAddr,
+		adminStatsReferrerViews: referrerViews,
+		replacedAdminStatsQueryModule: liveAdmin,
 		stageSelector: stageSel,
+		bootstrapStageSelector: bootstrapSel,
 		setFeesSelector: setSel,
+		constructorArgs: { v5: adminAddr, referrerViews },
 		libraryLinks: {
 			'project/src/BeamioUserCard/MembershipFeeOpsLib.sol:MembershipFeeOpsLib': feeLibAddr,
 		},
-		note: 'Membership fee diamond storage + stage via AdminStats V5; issue via MembershipStats',
+		note:
+			'Membership fee diamond + stage via AdminStats V5; Factory binds V6 router(newV5, existing referrerViews); issue via MembershipStats',
 	}
 	fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2))
 	console.log(`[upgrade] wrote ${outPath}`)
@@ -185,9 +270,9 @@ async function main(): Promise<void> {
 	)
 
 	console.log('[upgrade] setMembershipStatsModule…')
-	await (await factory.setMembershipStatsModule(membershipAddr)).wait()
-	console.log('[upgrade] setAdminStatsQueryModule…')
-	await (await factory.setAdminStatsQueryModule(adminAddr)).wait()
+	await (await factory.setMembershipStatsModule(membershipAddr, gas)).wait()
+	console.log('[upgrade] setAdminStatsQueryModule(V6 router)…')
+	await (await factory.setAdminStatsQueryModule(routerAddr, gas)).wait()
 
 	const boundMembership = await factory.defaultMembershipStatsModule()
 	const boundAdmin = await factory.defaultAdminStatsQueryModule()
@@ -196,13 +281,14 @@ async function main(): Promise<void> {
 	if (String(boundMembership).toLowerCase() !== membershipAddr.toLowerCase()) {
 		throw new Error('setMembershipStatsModule did not stick')
 	}
-	if (String(boundAdmin).toLowerCase() !== adminAddr.toLowerCase()) {
-		throw new Error('setAdminStatsQueryModule did not stick')
+	if (String(boundAdmin).toLowerCase() !== routerAddr.toLowerCase()) {
+		throw new Error('setAdminStatsQueryModule did not stick — expected V6 router')
 	}
 
 	snapshot.bound = {
 		membershipStatsModule: boundMembership,
 		adminStatsQueryModule: boundAdmin,
+		adminStatsQueryModuleV5: adminAddr,
 	}
 	fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2))
 
@@ -213,31 +299,59 @@ async function main(): Promise<void> {
 			timestamp: new Date().toISOString(),
 			membershipFeeOpsLib: feeLibAddr,
 			membershipStatsModule: membershipAddr,
-			adminStatsQueryModule: adminAddr,
-			note: 'Membership fee mode: stage + fee-aware MembershipStats',
+			adminStatsQueryModuleV5: adminAddr,
+			adminStatsQueryModule: routerAddr,
+			adminStatsReferrerViews: referrerViews,
+			note: 'Membership fee mode: V6 router + fee-aware MembershipStats (issue #100+)',
 		}
 		if (modules.modules) {
 			modules.modules.membershipStatsModule = membershipAddr
-			modules.modules.adminStatsQueryModule = adminAddr
+			modules.modules.adminStatsQueryModuleV5 = adminAddr
+			modules.modules.adminStatsQueryModule = routerAddr
+			modules.modules.adminStatsReferrerViews = referrerViews
 		}
 		fs.writeFileSync(modulesPath, JSON.stringify(modules, null, 2))
 		console.log(`[upgrade] updated ${modulesPath}`)
 	}
 
+	const card = new ethers.Contract(
+		SMOKE_CARD,
+		[
+			'function membershipFeeMode() view returns (bool)',
+			'function membershipFees() view returns (uint256[] memory, uint8[] memory)',
+			'function referrerTotalCount() view returns (uint256)',
+			'function activeMembershipId(address) view returns (uint256)',
+		],
+		provider,
+	)
+	const feeMode = Boolean(await card.membershipFeeMode())
+	const [feeE6, durationKind] = (await card.membershipFees()) as [bigint[], number[]]
+	const referrerTotal = await card.referrerTotalCount()
+	const activeId = await card.activeMembershipId(SMOKE_AA)
+	console.log(
+		`[smoke] card=${SMOKE_CARD} membershipFeeMode=${feeMode} feeTiers=${feeE6.length} fee0=${feeE6[0] ?? 0n} duration0=${durationKind[0] ?? 0} referrerTotalCount=${referrerTotal} activeMembershipId(AA)=${activeId}`,
+	)
+	if (!feeMode) throw new Error('smoke: membershipFeeMode() is false after bind')
+	if (!feeE6.length || feeE6[0] === 0n) throw new Error('smoke: membershipFees() missing base fee')
+
 	if (process.env.SKIP_VERIFY === '1') {
-		console.log('[upgrade] SKIP_VERIFY=1')
-		return
+		throw new Error('SKIP_VERIFY=1 is forbidden unless the same user message authorizes skip')
 	}
 
 	const okL = await checkVerified(feeLibAddr)
 	const okM = await checkVerified(membershipAddr)
 	const okA = await checkVerified(adminAddr)
+	const okR = await checkVerified(routerAddr)
 	console.log(`[verify] MembershipFeeOpsLib ${feeLibAddr} verified=${okL}`)
 	console.log(`[verify] MembershipStatsModule ${membershipAddr} verified=${okM}`)
 	console.log(`[verify] AdminStatsQueryModuleV5 ${adminAddr} verified=${okA}`)
-	if (!okM || !okA || !okL) {
+	console.log(`[verify] AdminStatsQueryModuleV6 ${routerAddr} verified=${okR}`)
+	if (!okM || !okA || !okL || !okR) {
+		console.log('  Next: node scripts/exportStandardJsonFromBuildInfo.mjs MembershipFeeOpsLib --full')
 		console.log('  Next: node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full')
 		console.log('  Next: node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModuleV5 --full')
+		console.log('  Next: node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModuleV6 --full')
+		console.log('  Next: CONET_VERIFY_POLL_MAX=180 npx tsx scripts/verifyMembershipFeeModulesConet.ts')
 	}
 }
 

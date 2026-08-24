@@ -1,11 +1,12 @@
 /**
  * Blockscout v2 verify for membership-fee module stack:
- * MembershipFeeOpsLib + MembershipStatsModule + AdminStatsQueryModuleV5
+ * MembershipFeeOpsLib + MembershipStatsModule + AdminStats V5 + AdminStats V6 router
  *
  * Prereq:
  *   node scripts/exportStandardJsonFromBuildInfo.mjs MembershipFeeOpsLib --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs MembershipStatsModule --full
  *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModuleV5 --full
+ *   node scripts/exportStandardJsonFromBuildInfo.mjs AdminStatsQueryModuleV6 --full
  *
  * Usage:
  *   CONET_VERIFY_POLL_MAX=180 npx tsx scripts/verifyMembershipFeeModulesConet.ts
@@ -20,10 +21,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
 const SCAN = 'https://mainnet.conet.network'
 const RPC = process.env.CONET_RPC_URL || 'https://publicrpc.conet.network'
-const COMPILER = process.env.CONET_SOLC_VERSION || 'v0.8.33+commit.64118f21'
+const COMPILER = process.env.CONET_SOLC_VERSION || 'v0.8.35+commit.47b9dedd'
 const SOLC =
 	process.env.SOLC ||
-	`${process.env.HOME}/Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.33+commit.64118f21`
+	`${process.env.HOME}/Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.35+commit.47b9dedd`
 
 const snap = JSON.parse(
 	fs.readFileSync(path.join(root, 'deployments/conet-MembershipFeeModules.json'), 'utf-8'),
@@ -31,7 +32,18 @@ const snap = JSON.parse(
 	membershipFeeOpsLib: string
 	membershipStatsModule: string
 	adminStatsQueryModule: string
+	adminStatsQueryModuleV5?: string
+	adminStatsReferrerViews?: string
+	constructorArgs?: { v5?: string; referrerViews?: string }
 	libraryLinks: Record<string, string>
+}
+
+const v5Addr = snap.adminStatsQueryModuleV5 || snap.constructorArgs?.v5
+const viewsAddr = snap.adminStatsReferrerViews || snap.constructorArgs?.referrerViews
+if (!v5Addr || !viewsAddr) {
+	throw new Error(
+		'conet-MembershipFeeModules.json must include adminStatsQueryModuleV5 + adminStatsReferrerViews (V6 router bind)',
+	)
 }
 
 type Target = {
@@ -61,7 +73,7 @@ const TARGETS: Target[] = [
 	},
 	{
 		key: 'AdminStatsQueryModuleV5',
-		address: snap.adminStatsQueryModule,
+		address: v5Addr,
 		fullRel: 'deployments/base-AdminStatsQueryModuleV5-standard-input-FULL.json',
 		sourceKey: 'project/src/BeamioUserCard/AdminStatsQueryModuleV5.sol',
 		contractName:
@@ -71,6 +83,14 @@ const TARGETS: Target[] = [
 				MembershipFeeOpsLib: snap.membershipFeeOpsLib,
 			},
 		},
+	},
+	{
+		key: 'AdminStatsQueryModuleV6',
+		address: snap.adminStatsQueryModule,
+		fullRel: 'deployments/base-AdminStatsQueryModuleV6-standard-input-FULL.json',
+		sourceKey: 'project/src/BeamioUserCard/AdminStatsQueryModuleV6.sol',
+		contractName:
+			'project/src/BeamioUserCard/AdminStatsQueryModuleV6.sol:BeamioUserCardAdminStatsQueryModuleV6',
 	},
 ]
 
@@ -133,6 +153,34 @@ async function ethGetCode(addr: string): Promise<string> {
 	return (j.result || '0x').toLowerCase()
 }
 
+function addressAsImmutableWord(addr: string): string {
+	return addr.replace(/^0x/, '').toLowerCase().padStart(64, '0')
+}
+
+function v6ConstructorArgsHex(): string {
+	return `${addressAsImmutableWord(v5Addr)}${addressAsImmutableWord(viewsAddr)}`
+}
+
+function patchV6Immutables(localHex: string, onchainHex: string): string {
+	const v5Word = addressAsImmutableWord(v5Addr)
+	const viewsWord = addressAsImmutableWord(viewsAddr)
+	const v5Bare = v5Addr.replace(/^0x/, '').toLowerCase()
+	const viewsBare = viewsAddr.replace(/^0x/, '').toLowerCase()
+	const chainBody = onchainHex.startsWith('0x') ? onchainHex.slice(2) : onchainHex
+	let body = localHex.startsWith('0x') ? localHex.slice(2) : localHex
+	if (body.length !== chainBody.length) return localHex
+	for (let i = 0; i + 64 <= body.length; i += 2) {
+		const slot = body.slice(i, i + 64)
+		const chainSlot = chainBody.slice(i, i + 64)
+		if (slot === '0'.repeat(64) && (chainSlot === v5Word || chainSlot.endsWith(v5Bare))) {
+			body = body.slice(0, i) + v5Word + body.slice(i + 64)
+		} else if (slot === '0'.repeat(64) && (chainSlot === viewsWord || chainSlot.endsWith(viewsBare))) {
+			body = body.slice(0, i) + viewsWord + body.slice(i + 64)
+		}
+	}
+	return `0x${body}`
+}
+
 function localDeployedBytecode(prunedPath: string, sourceKey: string, contractSymbol: string): string {
 	if (!fs.existsSync(SOLC)) {
 		console.warn(`[precheck] solc missing at ${SOLC}; skip local bytecode match`)
@@ -183,6 +231,9 @@ async function verifyOne(t: Target): Promise<void> {
 	let local = localDeployedBytecode(outPath, t.sourceKey, symbol)
 	const onchain = await ethGetCode(t.address)
 	if (local) {
+		if (t.key === 'AdminStatsQueryModuleV6') {
+			local = patchV6Immutables(local, onchain)
+		}
 		const addrHex = t.address.replace(/^0x/, '').toLowerCase().padStart(40, '0')
 		let patched = local.startsWith('0x') ? local.slice(2) : local
 		const chainBody = onchain.startsWith('0x') ? onchain.slice(2) : onchain
@@ -207,7 +258,12 @@ async function verifyOne(t: Target): Promise<void> {
 	const form = new FormData()
 	form.set('compiler_version', COMPILER)
 	form.set('contract_name', t.contractName)
-	form.set('autodetect_constructor_args', 'true')
+	if (t.key === 'AdminStatsQueryModuleV6') {
+		form.set('autodetect_constructor_args', 'false')
+		form.set('constructor_args', v6ConstructorArgsHex())
+	} else {
+		form.set('autodetect_constructor_args', 'true')
+	}
 	form.set('license_type', 'mit')
 	form.set(
 		'files[0]',

@@ -228,6 +228,15 @@ final class CashTreesWebLoadState: ObservableObject {
             self.shouldAnimateOut = false
         }
     }
+
+    /// Cover a terminated WKWebView process while the replacement document renders.
+    /// The OTA check must never be allowed to expose an empty WebView surface.
+    func beginRecovery() {
+        splashFallbackWorkItem?.cancel()
+        splashFallbackWorkItem = nil
+        isSplashVisible = true
+        shouldAnimateOut = false
+    }
 }
 
 // MARK: - WK Coordinator
@@ -244,10 +253,22 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var webContentProcessNeedsReload = false
     private var lastLoadedWebURLString: String?
     private var becameActiveObserver: NSObjectProtocol?
+    private var didEnterBackgroundObserver: NSObjectProtocol?
     private var embeddedPwaUpdateObserver: NSObjectProtocol?
     private var pushTokenObserver: NSObjectProtocol?
     private var appLifecycleObserver: NSObjectProtocol?
+    /// Set when the app actually enters background (not Control Center / lock peek).
+    private var backgroundedAt: Date?
+    private var webContentLivenessProbeGeneration = 0
+    private var webContentLivenessProbeInFlight = false
     var lastHandledDeepLinkNonce = 0
+
+    /// JS ping must complete within this window or the content process is treated as dead.
+    private let webContentLivenessPingTimeout: TimeInterval = 1.5
+    /// Skip ping on ordinary app-switch / lock (seconds).
+    private let webContentLivenessMinBackground: TimeInterval = 3
+    /// Overnight / long suspend: last compositor frame can look alive while hit-testing is dead.
+    private let webContentLongBackgroundReload: TimeInterval = 2 * 60 * 60
 
     override init() {
         super.init()
@@ -257,6 +278,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             queue: .main
         ) { [weak self] _ in
             self?.handleAppBecameActive()
+        }
+        didEnterBackgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.backgroundedAt = Date()
         }
         embeddedPwaUpdateObserver = NotificationCenter.default.addObserver(
             forName: .cashTreesEmbeddedPwaUpdateAvailable,
@@ -288,21 +316,28 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     private func handleAppBecameActive() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            await CashTreesLocalPWAHost.shared.refreshOnForeground()
-            if self.webContentProcessNeedsReload {
-                guard let webView = self.webView else { return }
-                self.performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
-            } else {
-                self.recoverWebContentIfNeeded()
+        // Recovery is latency-sensitive. Never await the network-backed OTA check
+        // before replacing a dead WKWebView content process.
+        if webContentProcessNeedsReload {
+            loadState?.beginRecovery()
+            if let webView {
+                performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
             }
+        } else {
+            recoverWebContentIfNeeded()
+            probeWebContentLivenessAndRecoverIfNeeded()
+        }
+        Task { @MainActor in
+            await CashTreesLocalPWAHost.shared.refreshOnForeground()
         }
     }
 
     deinit {
         if let becameActiveObserver {
             NotificationCenter.default.removeObserver(becameActiveObserver)
+        }
+        if let didEnterBackgroundObserver {
+            NotificationCenter.default.removeObserver(didEnterBackgroundObserver)
         }
         if let embeddedPwaUpdateObserver {
             NotificationCenter.default.removeObserver(embeddedPwaUpdateObserver)
@@ -395,8 +430,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     /// iOS often kills the WKWebView content process after long background; reload on terminate or next foreground.
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        cancelWebContentLivenessProbe()
         webContentProcessNeedsReload = true
         initialWebRenderReadySignaled = false
+        loadState?.beginRecovery()
         guard UIApplication.shared.applicationState == .active else { return }
         performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
     }
@@ -406,11 +443,90 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
     }
 
+    /// Overnight jetsam often leaves the last compositor frame on screen without calling
+    /// `webViewWebContentProcessDidTerminate`. A JS ping (or long-background policy) is the
+    /// only reliable way to detect a frozen WebContent process.
+    private func probeWebContentLivenessAndRecoverIfNeeded() {
+        guard !webContentProcessNeedsReload, let webView else { return }
+        guard loadState?.isSplashVisible != true else { return }
+        guard let started = backgroundedAt else { return }
+        backgroundedAt = nil
+        let elapsed = Date().timeIntervalSince(started)
+        guard elapsed >= webContentLivenessMinBackground else { return }
+
+        if elapsed >= webContentLongBackgroundReload {
+            CashTreesWebConsoleRelay.logNative(
+                "WKWebView long-background \(Int(elapsed))s — reloading last URL"
+            )
+            beginZombieWebContentRecovery(on: webView)
+            return
+        }
+
+        guard !webContentLivenessProbeInFlight else { return }
+        webContentLivenessProbeInFlight = true
+        webContentLivenessProbeGeneration += 1
+        let generation = webContentLivenessProbeGeneration
+        var finished = false
+
+        let finish: (Bool) -> Void = { [weak self] alive in
+            guard let self, !finished else { return }
+            finished = true
+            self.webContentLivenessProbeInFlight = false
+            guard generation == self.webContentLivenessProbeGeneration else { return }
+            if alive {
+                self.pokeWebViewInteraction(webView)
+                return
+            }
+            CashTreesWebConsoleRelay.logNative("WKWebView JS ping failed — reloading zombie process")
+            self.beginZombieWebContentRecovery(on: webView)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + webContentLivenessPingTimeout) {
+            finish(false)
+        }
+        webView.evaluateJavaScript("1") { result, error in
+            DispatchQueue.main.async {
+                if error != nil {
+                    finish(false)
+                    return
+                }
+                if let number = result as? NSNumber, number.intValue == 1 {
+                    finish(true)
+                    return
+                }
+                finish(result != nil)
+            }
+        }
+    }
+
+    private func cancelWebContentLivenessProbe() {
+        webContentLivenessProbeGeneration += 1
+        webContentLivenessProbeInFlight = false
+    }
+
+    private func beginZombieWebContentRecovery(on webView: WKWebView) {
+        cancelWebContentLivenessProbe()
+        webContentProcessNeedsReload = true
+        initialWebRenderReadySignaled = false
+        loadState?.beginRecovery()
+        performWebContentRecovery(on: webView, localBase: CashTreesLocalPWAHost.shared.baseURL)
+    }
+
+    private func pokeWebViewInteraction(_ webView: WKWebView) {
+        webView.isUserInteractionEnabled = false
+        webView.scrollView.isScrollEnabled = false
+        webView.isUserInteractionEnabled = true
+        webView.scrollView.isScrollEnabled = true
+        webView.setNeedsLayout()
+        webView.layoutIfNeeded()
+    }
+
     private func performWebContentRecovery(on webView: WKWebView, localBase: URL) {
         webContentProcessNeedsReload = false
         initialWebRenderReadySignaled = false
-        if webView.url != nil {
-            webView.reload()
+        // Zombie WKWebView often no-ops `reload()`. Always issue a fresh load of the last URL.
+        if let current = webView.url {
+            loadWebAppURL(current, in: webView, bypassDedup: true)
             return
         }
         if let last = lastLoadedWebURLString, let url = URL(string: last) {
@@ -1328,12 +1444,9 @@ struct ContentView: View {
                 return
             }
             guard newPhase == .active else { return }
-            Task { @MainActor in
-                await localPWAHost.refreshOnForeground()
-                if !webLoadState.isSplashVisible {
-                    webContentVisible = true
-                }
-            }
+            // Keep the current pixels visible during an ordinary app switch.
+            // If WKWebView was terminated, the coordinator has already restored
+            // the splash before reloading and will reveal the page after render.
             guard !webLoadState.isSplashVisible else { return }
             webContentVisible = true
         }

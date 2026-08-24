@@ -36,7 +36,14 @@ interface IBeamioUserCardSelfDelegate {
     function cardSelfEmitPointsMintedByGateway(address userEOA, address acct, uint256 points6) external;
     function cardSelfEmitAdminPointsMinted(address acct, uint256 points6) external;
     function cardSelfEmitIssuedNftMinted(uint256 tokenId, address acct, uint256 amount) external;
-    function cardSelfEmitReferrerRewardMinted(address refereeAA, address referrerAA, uint256 rewardAmount) external;
+    /// @param kind 1 = topup, 2 = charge (referrer→referee ledger).
+    function cardSelfEmitReferrerRewardMinted(
+        address refereeAA,
+        address referrerAA,
+        uint256 rewardAmount,
+        uint256 amountFiat6,
+        uint8 kind
+    ) external;
     function cardSelfEmitIssuedNftPurchasedWithPointsCharge(
         address userEOA,
         address payeeEOA,

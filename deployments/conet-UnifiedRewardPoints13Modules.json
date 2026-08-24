@@ -1,0 +1,38 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-23T09:13:35.387Z",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "modules": {
+    "referrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544",
+    "adminStatsV5": "0x444626D20214b7c4aF7BDb43E93cBc1727963719"
+  },
+  "libraryLinks": {
+    "ReferrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+    "BeamioUserCardReferrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "BeamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664"
+  },
+  "replaced": {
+    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+    "adminStatsQueryModule": "0xCb1386C56b898f0DD48cD53e804d43742536E06b",
+    "priorChargeRewardReferrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+    "priorRegistryViewsReferrerLib": "0x78939FF276f1cCcE5E3fdbED9b86355910105aE2",
+    "priorAdminStatsReferrerViews": "0x20845FF9Ee9EA9e65e33d827C51BB118efA32276"
+  },
+  "txs": {
+    "referrerLib": "0x3830a3e7929efeaee7c773888e14358629a75139e838f5c028b965759779d3bf",
+    "chargeRewardModule": "0x198a7dd83448e53de984171c707b69f5b2cac7c6e59c0ca16fcd1284400f2a84",
+    "adminStatsReferrerViews": "0xf15616017348a9058ddba491f152e8f178dce037bc694ea8562780b4366345f1",
+    "adminStatsQueryModule": "0xe9fb5fb99de3380456b79f6433b039c2c4b4b1321f051b44d38a17e9768c3217"
+  },
+  "note": "Unified Reward Points #13: ReferrerLib mint #13 + ledger; ChargeReward topupActor/record*; V6+Views keep V5 membership fee",
+  "bound": {
+    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+    "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544",
+    "note": "Factory bind completed; smoke Charge views soft-fail on pre-CHARGE-route cards"
+  }
+}

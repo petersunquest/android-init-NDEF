@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.JavascriptInterface
@@ -69,6 +70,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
+    private lateinit var jsBridge: CashTreesJsBridge
 
     @Volatile
     private var useEmbeddedPwa = false
@@ -97,6 +99,14 @@ class MainActivity : ComponentActivity() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private var backgroundedAtElapsedMs: Long = 0
+    private var webContentLivenessProbeToken = 0
+    private var webContentLivenessProbeInFlight = false
+
+    private val webContentLivenessPingTimeoutMs = 1_500L
+    private val webContentLivenessMinBackgroundMs = 3_000L
+    private val webContentLongBackgroundReloadMs = 2L * 60L * 60L * 1_000L
+
     private val enableNfcForegroundDispatchRunnable = Runnable { maybeEnableNfcForegroundDispatch() }
 
     private val requestCameraPermission = registerForActivityResult(
@@ -123,7 +133,9 @@ class MainActivity : ComponentActivity() {
 
     private val requestPostNotifications = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { /* badge works after grant; PWA unread count remains source of truth */ }
+    ) { granted ->
+        CashTreesPushRegistration.onPostNotificationsPermissionResult(this, granted)
+    }
 
     private val qrPickImageLauncher = registerForActivityResult(
         ActivityResultContracts.GetContent(),
@@ -561,13 +573,13 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun getEmbeddedPwaVersion(): String {
-            if (!useEmbeddedPwa || !::embeddedPwaHost.isInitialized) return ""
+            if (!::embeddedPwaHost.isInitialized) return ""
             return embeddedPwaHost.bundleStore.activeVersion()
         }
 
         @JavascriptInterface
         fun getEmbeddedPwaPendingVersion(): String {
-            if (!useEmbeddedPwa || !::embeddedPwaHost.isInitialized) return ""
+            if (!::embeddedPwaHost.isInitialized) return ""
             return embeddedPwaHost.bundleStore.pendingUpdateVersion() ?: ""
         }
 
@@ -597,6 +609,17 @@ class MainActivity : ComponentActivity() {
                 CashTreesNativeAppStateBridge.notifyBackgroundChatFromJson(this@MainActivity, json)
             }
         }
+
+        /**
+         * Bind EOA for FCM registration — mirrors iOS `CashTreesIOS.bindPushIdentity`.
+         * Payload: JSON string `{ eoa, pgpKeyId? }`.
+         */
+        @JavascriptInterface
+        fun bindPushIdentity(json: String) {
+            runOnUiThread {
+                CashTreesPushRegistration.bindIdentityFromJson(this@MainActivity, json)
+            }
+        }
     }
 
     private fun openExternalUrlFromBridge(raw: String) {
@@ -612,7 +635,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyEmbeddedPwaUpdateFromBridge() {
-        if (!useEmbeddedPwa || !::webView.isInitialized || !::embeddedPwaHost.isInitialized) {
+        if (!::embeddedPwaHost.isInitialized) {
             dispatchAndroidBridgeJsonToWeb(
                 JSONObject()
                     .put("action", "applyEmbeddedPwaUpdate")
@@ -625,8 +648,12 @@ class MainActivity : ComponentActivity() {
             embeddedPwaHost.bundleStore.promoteStagingToActive()
             embeddedPwaHost.rebuildAssetLoader()
             val ver = embeddedPwaHost.bundleStore.activeVersion()
-            embeddedPwaHost.injectVersionGlobals(webView)
-            webView.loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+            if (!useEmbeddedPwa) {
+                switchRemoteFallbackToEmbedded()
+            } else if (::webView.isInitialized) {
+                embeddedPwaHost.injectVersionGlobals(webView)
+                webView.loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
+            }
             dispatchAndroidBridgeJsonToWeb(
                 JSONObject()
                     .put("action", "applyEmbeddedPwaUpdate")
@@ -684,14 +711,23 @@ class MainActivity : ComponentActivity() {
             },
         )
 
-        val jsBridge = CashTreesJsBridge()
+        jsBridge = CashTreesJsBridge()
         embeddedPwaHost = EmbeddedPwaHost(this)
         rootLayout = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#000414"))
         }
         setContentView(rootLayout)
         hideBottomSystemBar()
+        CashTreesPushRegistration.hydrateFromPrefs(this)
+        CashTreesPushRegistration.onTokenForWeb = { token ->
+            runOnUiThread {
+                dispatchAndroidBridgeJsonToWeb(
+                    CashTreesPushRegistration.payloadForWebEvent(this, token),
+                )
+            }
+        }
         requestPostNotificationsIfNeeded()
+        CashTreesPushRegistration.fetchAndPublishToken(this)
 
         bootstrapExecutor.execute {
             try {
@@ -734,15 +770,19 @@ class MainActivity : ComponentActivity() {
         return hasSunQueries
     }
 
+    private fun startOtaDaemonIfNeeded() {
+        embeddedPwaHost.startUpdateDaemon { currentVer, pendingVer ->
+            dispatchEmbeddedPwaUpdateAvailable(currentVer, pendingVer)
+        }
+        embeddedPwaHost.checkForUpdatesNow()
+    }
+
     private fun mountEmbeddedWebView(jsBridge: CashTreesJsBridge) {
         useEmbeddedPwa = true
         val wv = createEmbeddedWebView(jsBridge, embeddedPwaHost)
         webView = wv
         rootLayout.addView(wv)
-        embeddedPwaHost.startUpdateDaemon { currentVer, pendingVer ->
-            dispatchEmbeddedPwaUpdateAvailable(currentVer, pendingVer)
-        }
-        embeddedPwaHost.checkForUpdatesNow()
+        startOtaDaemonIfNeeded()
     }
 
     private fun mountRemoteFallbackWebView(jsBridge: CashTreesJsBridge) {
@@ -750,6 +790,15 @@ class MainActivity : ComponentActivity() {
         val wv = createRemoteWebView(jsBridge, EmbeddedPwaConstants.REMOTE_FALLBACK_URL)
         webView = wv
         rootLayout.addView(wv)
+        startOtaDaemonIfNeeded()
+    }
+
+    private fun switchRemoteFallbackToEmbedded() {
+        if (::webView.isInitialized) {
+            rootLayout.removeView(webView)
+            webView.destroy()
+        }
+        mountEmbeddedWebView(jsBridge)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -804,6 +853,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    webContentLivenessProbeToken += 1
+                    webContentLivenessProbeInFlight = false
                     view.loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
                     return true
                 }
@@ -828,6 +879,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                    webContentLivenessProbeToken += 1
+                    webContentLivenessProbeInFlight = false
                     view.loadUrl(startUrl, HOME_DOCUMENT_REQUEST_HEADERS)
                     return true
                 }
@@ -863,9 +916,59 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         qrScanOverlay?.resumeScan()
         maybeEnableNfcForegroundDispatch()
-        if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
+        probeWebContentLivenessAndRecoverIfNeeded()
+        if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.checkForUpdatesNow()
         }
+    }
+
+    /**
+     * Overnight process death often leaves the last compositor frame on screen without
+     * [onRenderProcessGone]. Ping JS; timeout or a long background forces a fresh load.
+     */
+    private fun probeWebContentLivenessAndRecoverIfNeeded() {
+        if (!::webView.isInitialized) return
+        val started = backgroundedAtElapsedMs
+        if (started <= 0L) return
+        backgroundedAtElapsedMs = 0
+        val elapsed = SystemClock.elapsedRealtime() - started
+        if (elapsed < webContentLivenessMinBackgroundMs) return
+
+        if (elapsed >= webContentLongBackgroundReloadMs) {
+            reloadWebContentAfterBackground()
+            return
+        }
+        if (webContentLivenessProbeInFlight) return
+        webContentLivenessProbeInFlight = true
+        val token = ++webContentLivenessProbeToken
+        var finished = false
+        val finish: (Boolean) -> Unit = finish@{ alive ->
+            if (finished || token != webContentLivenessProbeToken) return@finish
+            finished = true
+            webContentLivenessProbeInFlight = false
+            if (!alive) reloadWebContentAfterBackground()
+        }
+        mainHandler.postDelayed({ finish(false) }, webContentLivenessPingTimeoutMs)
+        try {
+            webView.evaluateJavascript("1") { result ->
+                mainHandler.post {
+                    finish(result == "1" || result == "1.0")
+                }
+            }
+        } catch (_: Exception) {
+            finish(false)
+        }
+    }
+
+    private fun reloadWebContentAfterBackground() {
+        webContentLivenessProbeToken += 1
+        webContentLivenessProbeInFlight = false
+        if (!::webView.isInitialized) return
+        val url = webView.url?.takeIf { it.isNotBlank() } ?: EmbeddedPwaConstants.entryUrl
+        if (::embeddedPwaHost.isInitialized) {
+            embeddedPwaHost.injectVersionGlobals(webView)
+        }
+        webView.loadUrl(url, HOME_DOCUMENT_REQUEST_HEADERS)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -885,6 +988,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        backgroundedAtElapsedMs = SystemClock.elapsedRealtime()
         qrScanOverlay?.pauseScan()
         try {
             NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
@@ -900,6 +1004,7 @@ class MainActivity : ComponentActivity() {
         hideQrScanOverlay()
         hideNfcScanOverlay()
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
+        CashTreesPushRegistration.onTokenForWeb = null
         if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.stopUpdateDaemon()
         }

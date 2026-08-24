@@ -9,12 +9,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     constructor() BeamioUserCardBase("", address(1)) {}
 
     function _membershipFeeMode() internal view returns (bool) {
-        MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
-        uint256 n = tiers.length;
-        for (uint256 i = 0; i < n; i++) {
-            if (l.feeE6[i] > 0) return true;
-        }
-        return false;
+        return MembershipFeeStorage.isFeeMode();
     }
 
     function _expiryFromMembershipFee(uint256 tierIndex) internal view returns (uint256 expiry) {
@@ -32,17 +27,20 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
             revert UC_MembershipFeePendingExpired();
         }
         uint256 tierIndex = p.tierIndex;
-        if (tierIndex >= tiers.length) revert UC_MustGrow();
+        if (tierIndex >= MembershipFeeStorage.MAX_FEE_TIERS) revert UC_MustGrow();
         uint256 expectedFee = l.feeE6[tierIndex];
         if (expectedFee == 0 || p.feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
         if (p.pointsCredit6 != pointsDelta6) revert UC_MembershipFeeMismatch();
 
-        Tier memory tier = tiers[tierIndex];
+        uint256 attr = defaultAttrWhenNoTiers;
+        if (tierIndex < tiers.length) {
+            attr = tiers[tierIndex].attr;
+        }
         uint256 expiry = _expiryFromMembershipFee(tierIndex);
-        uint256 newId = _mintMembershipNft(acct, tierIndex, tier.attr, expiry);
+        uint256 newId = _mintMembershipNft(acct, tierIndex, attr, expiry);
         _recordMembershipIssuedTotal(tierIndex);
         emit MemberNFTIssued(acct, newId, tierIndex, expectedFee, expiry);
-        emit AdminCardMinted(acct, newId, tier.attr, expiry);
+        emit AdminCardMinted(acct, newId, attr, expiry);
         _activateIssuedMembership(acct, newId, tierIndex, false);
         delete l.pendingByAcct[acct];
         return true;
@@ -50,24 +48,27 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
 
     function mintMemberCardInternal(address user, uint256 tierIndex) external {
         if (user == address(0)) revert BM_ZeroAddress();
-        if (tiers.length == 0 || tierIndex >= tiers.length) revert UC_MustGrow();
+        bool feeOk = MembershipFeeStorage.layout().feeE6[tierIndex] > 0;
+        if (!feeOk && (tiers.length == 0 || tierIndex >= tiers.length)) revert UC_MustGrow();
         address acct = _toAccount(user);
         _syncActiveToBestValidInternal(acct);
-        uint256 currentActiveId = activeMembershipId[acct];
-        if (currentActiveId != 0 && !_isExpired(currentActiveId)) revert UC_AlreadyHasValidCard();
+        if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
 
-        Tier memory tier = tiers[tierIndex];
+        uint256 attr = defaultAttrWhenNoTiers;
+        if (tierIndex < tiers.length) {
+            attr = tiers[tierIndex].attr;
+        }
         uint256 expiry;
-        if (_membershipFeeMode() && MembershipFeeStorage.layout().feeE6[tierIndex] > 0) {
+        if (feeOk) {
             expiry = _expiryFromMembershipFee(tierIndex);
         } else {
             uint256 effExpiry = _effectiveExpirySeconds(tierIndex);
             expiry = effExpiry == 0 ? 0 : block.timestamp + effExpiry;
         }
-        uint256 newId = _mintMembershipNft(acct, tierIndex, tier.attr, expiry);
+        uint256 newId = _mintMembershipNft(acct, tierIndex, attr, expiry);
         _recordMembershipIssuedTotal(tierIndex);
         _activateIssuedMembership(acct, newId, tierIndex, false);
-        emit AdminCardMinted(acct, newId, tier.attr, expiry);
+        emit AdminCardMinted(acct, newId, attr, expiry);
     }
 
     function removeNft(address user, uint256 id) external {
@@ -101,7 +102,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     function maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) external {
         address acct = _toAccount(acctOrEOA);
         _syncActiveToBestValidInternal(acct);
-        if (activeMembershipId[acct] != 0) return;
+        if (_hasValidCard(acct)) return;
         if (_membershipFeeMode()) {
             _issueFromMembershipFeePending(acct, pointsDelta6);
             return;
@@ -110,7 +111,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     }
 
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external {
-        if (activeMembershipId[acct] != 0) revert UC_AlreadyHasValidCard();
+        if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
         if (_membershipFeeMode()) {
             _issueFromMembershipFeePending(acct, pointsDelta6);
             return;
@@ -195,7 +196,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         }
 
         uint256 cur = activeMembershipId[user];
-        if (cur != 0 && balanceOf(user, cur) > 0 && !_isExpired(cur)) {
+        if (cur >= NFT_START_ID && cur < ISSUED_NFT_START_ID && balanceOf(user, cur) > 0 && !_isExpired(cur)) {
             activeTierIndexOrMax[user] = tokenTierIndexOrMax[cur];
             return;
         }
@@ -206,6 +207,7 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
     }
 
     function _issueFromPointsDelta(address acct, uint256 pointsDelta6) internal {
+        if (_membershipFeeMode()) revert UC_MembershipFeePendingRequired();
         if (tiers.length == 0) {
             uint256 expiry = expirySeconds == 0 ? 0 : block.timestamp + expirySeconds;
             uint256 newId = _mintMembershipNft(acct, type(uint256).max, defaultAttrWhenNoTiers, expiry);

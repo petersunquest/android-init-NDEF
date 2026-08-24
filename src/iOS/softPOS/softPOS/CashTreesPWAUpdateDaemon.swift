@@ -2,14 +2,19 @@
 //  CashTreesPWAUpdateDaemon.swift
 //  softPOS
 //
+//  Same cadence as Consumer CashTrees: check immediately, then every 15 minutes
+//  (`Task.sleep` chain — no Timer / setInterval). Foreground resume calls `checkNow()`.
+//
 
 import Foundation
+import UIKit
 
 /// Polls `https://pos.beamio.app/update.json`, downloads newer bundles into `staging/`.
 @MainActor
 final class CashTreesPWAUpdateDaemon {
     static let shared = CashTreesPWAUpdateDaemon(bundleStore: CashTreesPWABundleStore.shared)
 
+    /// Matches Consumer SilentPassUI shell (`CashTreesPWAUpdateDaemon.checkIntervalSeconds`).
     static let checkIntervalSeconds: TimeInterval = 15 * 60
 
     private let bundleStore: CashTreesPWABundleStore
@@ -22,6 +27,7 @@ final class CashTreesPWAUpdateDaemon {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 120
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
         self.session = URLSession(configuration: config)
     }
 
@@ -37,6 +43,7 @@ final class CashTreesPWAUpdateDaemon {
         scheduleTask = nil
     }
 
+    /// Immediate check (foreground resume). Does not reset the 15-minute chain.
     func checkNow() async {
         await performCheck()
     }
@@ -53,7 +60,20 @@ final class CashTreesPWAUpdateDaemon {
     private func performCheck() async {
         guard !checkInFlight else { return }
         checkInFlight = true
-        defer { checkInFlight = false }
+        var bgTask = UIBackgroundTaskIdentifier.invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "BeamioPOS-OTA") {
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
+        defer {
+            checkInFlight = false
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
 
         do {
             let remote = try await fetchRemoteUpdateInfo()

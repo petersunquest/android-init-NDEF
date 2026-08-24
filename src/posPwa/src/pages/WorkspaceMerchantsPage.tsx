@@ -1,8 +1,8 @@
 import { Check, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchUsers, searchUsersByCardOwnerOrAdmin } from '@/api/beamioApi'
-import { AddressCapsule } from '@/components/AddressCapsule'
+import { openExternalUrl } from '@/bridge/cashTreesScanBridge'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
@@ -13,6 +13,8 @@ import { profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/disp
 import { resolveParentWorkspaceProfile } from '@/utils/posHomeAdminProfile'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import { APP_VERSION } from '@/version'
+
+const MERCHANT_OS_BIZ_URL = 'https://biz.beamio.app/biz/'
 
 export function WorkspaceMerchantsPage() {
 	const navigate = useNavigate()
@@ -25,6 +27,7 @@ export function WorkspaceMerchantsPage() {
 		parentBeamioTag,
 		parentProfile,
 		terminalProfile,
+		registeredBeamioTag,
 		refreshHome,
 		refreshWorkspaceBindings,
 		switchWorkspace,
@@ -148,11 +151,12 @@ export function WorkspaceMerchantsPage() {
 	}, [requiresAdminJoin, walletAddress, refreshHome])
 
 	/*
-	 * While waiting for approval, re-check myPosAddresses so Linked updates when Staff
-	 * approves (without leaving Workspaces). setTimeout chain — no setInterval.
+	 * While any join request is waiting (onboarding gate or “join another”), re-check
+	 * myPosAddresses so Linked updates when Staff approves. setTimeout chain — no setInterval.
 	 */
 	useEffect(() => {
-		if (!requiresAdminJoin) return
+		const waiting = requiresAdminJoin || outboundJoinPending.length > 0
+		if (!waiting) return
 		let cancelled = false
 		let timer: ReturnType<typeof setTimeout> | undefined
 		const tick = () => {
@@ -167,7 +171,7 @@ export function WorkspaceMerchantsPage() {
 			cancelled = true
 			if (timer !== undefined) clearTimeout(timer)
 		}
-	}, [requiresAdminJoin, refreshWorkspaceBindings])
+	}, [requiresAdminJoin, outboundJoinPending.length, refreshWorkspaceBindings])
 
 	useEffect(() => {
 		if (!showJoin) return
@@ -236,54 +240,99 @@ export function WorkspaceMerchantsPage() {
 				setActionError(res.error)
 				return
 			}
+			/* Keep outboundJoinPending row visible; close the composer only. */
 			setShowJoin(false)
 			setJoinHits([])
+			setSelectedParent(null)
+			setJoinQuery('')
+			void refreshWorkspaceBindings()
 		} finally {
 			setJoinSending(false)
 		}
-	}, [joinSending, selectedParent, joinQuery, joinHits, requestJoinWorkspace])
+	}, [joinSending, selectedParent, joinQuery, joinHits, requestJoinWorkspace, refreshWorkspaceBindings])
 
 	const onboardingParentDisplay = selectedParent ?? parentProfile
 	const onboardingParentTag = normalizeBeamioTagInput(
 		parentBeamioTag || profileBeamioTag(onboardingParentDisplay ?? {}) || '',
 	)
 
-	const onResendParentPermission = useCallback(async () => {
-		if (resendInFlightRef.current || joinSending) return
-		const tag =
-			onboardingParentTag ||
-			normalizeBeamioTagInput(outboundJoinPending[0]?.parentTag || '')
-		const eoa =
-			onboardingParentDisplay?.address?.trim() ||
-			outboundJoinPending[0]?.parentEoa?.trim() ||
-			''
-		if (!tag) {
-			setActionError('Workspace parent is missing. Choose a parent on Welcome, then try again.')
-			return
-		}
-		resendInFlightRef.current = true
-		setResending(true)
-		setActionError(null)
-		try {
-			const res = await requestJoinWorkspace({
-				parentTag: tag,
-				parentEoaHint: eoa || null,
-			})
-			if (!res.ok) setActionError(res.error)
-		} finally {
-			resendInFlightRef.current = false
-			setResending(false)
-		}
-	}, [
-		joinSending,
-		onboardingParentTag,
-		onboardingParentDisplay,
-		outboundJoinPending,
-		requestJoinWorkspace,
-	])
+	const onResendParentPermission = useCallback(
+		async (opts?: { parentTag?: string; parentEoa?: string | null }) => {
+			if (resendInFlightRef.current || joinSending) return
+			const tag =
+				normalizeBeamioTagInput(opts?.parentTag || '') ||
+				onboardingParentTag ||
+				normalizeBeamioTagInput(outboundJoinPending[0]?.parentTag || '')
+			const eoa =
+				opts?.parentEoa?.trim() ||
+				onboardingParentDisplay?.address?.trim() ||
+				outboundJoinPending[0]?.parentEoa?.trim() ||
+				''
+			if (!tag) {
+				setActionError('Workspace parent is missing. Choose a parent on Welcome, then try again.')
+				return
+			}
+			resendInFlightRef.current = true
+			setResending(true)
+			setActionError(null)
+			try {
+				const res = await requestJoinWorkspace({
+					parentTag: tag,
+					parentEoaHint: eoa || null,
+				})
+				if (!res.ok) setActionError(res.error)
+			} finally {
+				resendInFlightRef.current = false
+				setResending(false)
+			}
+		},
+		[
+			joinSending,
+			onboardingParentTag,
+			onboardingParentDisplay,
+			outboundJoinPending,
+			requestJoinWorkspace,
+		],
+	)
 
 	const resendBusy = resending || joinSending
 	const selfTerminalAddress = (walletAddress || terminalProfile?.address || '').trim()
+
+	/** Pending join rows not yet present as Linked workspace uppers. */
+	const visibleOutboundPending = useMemo(() => {
+		const linked = new Set(
+			workspaceBindings
+				.flatMap((row) => {
+					const out: string[] = []
+					const u = row.upperEoa?.trim().toLowerCase()
+					if (u) out.push(u)
+					const a = row.adminProfile?.address?.trim().toLowerCase()
+					if (a) out.push(a)
+					return out
+				})
+				.filter(Boolean),
+		)
+		return outboundJoinPending.filter((p) => {
+			const eoa = p.parentEoa?.trim().toLowerCase()
+			if (eoa && linked.has(eoa)) return false
+			return Boolean(normalizeBeamioTagInput(p.parentTag) || eoa)
+		})
+	}, [outboundJoinPending, workspaceBindings])
+
+	const selfTerminalCapsuleProfile = useMemo((): TerminalProfile => {
+		const tag = (registeredBeamioTag || profileBeamioTag(terminalProfile ?? {}) || '').trim()
+		const base = terminalProfile ?? {}
+		return {
+			...base,
+			accountName: tag || base.accountName || base.username,
+			username: tag || base.username || base.accountName,
+			address: selfTerminalAddress || base.address,
+		}
+	}, [registeredBeamioTag, terminalProfile, selfTerminalAddress])
+
+	const openMerchantOs = useCallback(() => {
+		void openExternalUrl(MERCHANT_OS_BIZ_URL)
+	}, [])
 
 	return (
 		<PosScreenShell bg="bg-[#f2f2f7]">
@@ -303,10 +352,22 @@ export function WorkspaceMerchantsPage() {
 						</p>
 					</div>
 					{selfTerminalAddress.length >= 10 ? (
-						<AddressCapsule
-							address={selfTerminalAddress}
-							className="max-w-[min(10.5rem,40%)] shrink-0 border-[#dce2f7] bg-[#e9edff] text-[#424655]"
-						/>
+						<button
+							type="button"
+							onClick={openMerchantOs}
+							aria-label="Open Merchant OS in browser"
+							className="max-w-[min(14rem,52%)] shrink-0 rounded-full border border-[#dce2f7] bg-[#e9edff] py-1 pl-1 pr-2 text-left transition active:scale-[0.98]"
+						>
+							<BeamioCapsule
+								profile={selfTerminalCapsuleProfile}
+								fallbackAddress={selfTerminalAddress}
+								address={selfTerminalAddress}
+								showAddressCapsule
+								tone="onLight"
+								compact
+								className="pointer-events-none min-w-0"
+							/>
+						</button>
 					) : null}
 				</div>
 			</PosScreenHeader>
@@ -457,6 +518,70 @@ export function WorkspaceMerchantsPage() {
 						</ul>
 					)}
 				</section>
+
+				{/* Waiting join requests — keep visible until Staff approves (Linked). */}
+				{visibleOutboundPending.length > 0 ? (
+					<section className="mb-6">
+						<h2 className="mb-2 text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
+							Pending
+						</h2>
+						<ul className="space-y-2">
+							{visibleOutboundPending.map((p) => {
+								const tag = normalizeBeamioTagInput(p.parentTag)
+								const eoa = p.parentEoa?.trim() || ''
+								const profile: TerminalProfile = {
+									address: eoa,
+									accountName: tag || undefined,
+									username: tag || undefined,
+								}
+								return (
+									<li
+										key={`${eoa || tag}-${p.requestedAt}`}
+										className="flex items-center gap-3 rounded-2xl bg-white px-3 py-3 shadow-sm"
+									>
+										<div className="min-w-0 flex-1">
+											<BeamioCapsule
+												profile={profile}
+												fallbackAddress={eoa || undefined}
+												address={eoa || undefined}
+												showAddressCapsule={eoa.length >= 10}
+												tone="onLight"
+											/>
+											<p className="mt-1.5 pl-11 text-[11px] font-medium text-amber-700">
+												Waiting for merchant approval
+											</p>
+										</div>
+										<button
+											type="button"
+											tabIndex={-1}
+											disabled={resendBusy}
+											aria-busy={resendBusy}
+											aria-label={`Resend join request to @${tag || shortAddress(eoa)}`}
+											onClick={() =>
+												void onResendParentPermission({
+													parentTag: tag,
+													parentEoa: eoa || null,
+												})
+											}
+											className={[
+												'inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#1562f0]/12 px-2.5 py-1.5',
+												'text-[11px] font-semibold text-[#1562f0]',
+												'disabled:opacity-60',
+											].join(' ')}
+										>
+											{resendBusy ? (
+												<Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+											) : (
+												<RefreshCw className="h-3.5 w-3.5" aria-hidden />
+											)}
+											Resend
+										</button>
+									</li>
+								)
+							})}
+						</ul>
+					</section>
+				) : null}
 
 				{/* Already approved: optional join another parent */}
 				{!requiresAdminJoin ? (

@@ -33,6 +33,9 @@ getContractFactory(name: 'IBeamioAccountFactoryResolveAaV4', signerOrOptions?: e
 getContractFactory(name: 'IBeamioUserCardFactoryAaOracleV4', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardFactoryAaOracleV4__factory>
 getContractFactory(name: 'IBeamioUserCardFactoryEip712V4', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardFactoryEip712V4__factory>
 getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV5', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV5__factory>
+getContractFactory(name: 'BeamioUserCardAdminStatsQueryModuleV6', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV6__factory>
+getContractFactory(name: 'IAdminStatsSelectorRouter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IAdminStatsSelectorRouter__factory>
+getContractFactory(name: 'BeamioUserCardAdminStatsReferrerViews', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardAdminStatsReferrerViews__factory>
 getContractFactory(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioERC1155Logic__factory>
 getContractFactory(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioAccountFactoryV07__factory>
 getContractFactory(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioFactoryOracle__factory>
@@ -54,6 +57,7 @@ getContractFactory(name: 'BeamioUserCardBase', signerOrOptions?: ethers.Signer |
 getContractFactory(name: 'IBeamioGatewayAAFactoryGetter', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter__factory>
 getContractFactory(name: 'IBeamioMembershipStatsModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1__factory>
 getContractFactory(name: 'IBeamioUserCardFactoryPaymasterV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioUserCardFactoryPaymasterV07__factory>
+getContractFactory(name: 'BeamioUserCardBeaconProxy', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardBeaconProxy__factory>
 getContractFactory(name: 'BeamioUserCardDeployerV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardDeployerV07__factory>
 getContractFactory(name: 'BeamioUserCardFactoryPaymasterV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardFactoryPaymasterV07__factory>
 getContractFactory(name: 'IBeamioDeployerV07', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioDeployerV07__factory>
@@ -81,6 +85,7 @@ getContractFactory(name: 'IReferrerLibAaFactory', signerOrOptions?: ethers.Signe
 getContractFactory(name: 'IReferrerLibFactoryAa', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IReferrerLibFactoryAa__factory>
 getContractFactory(name: 'IReferrerLibUserCardGw', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IReferrerLibUserCardGw__factory>
 getContractFactory(name: 'BeamioUserCardTransferLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardTransferLib__factory>
+getContractFactory(name: 'BeamioUserCardUpgradeableBeacon', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardUpgradeableBeacon__factory>
 getContractFactory(name: 'BeamioUserCardViewsLib', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardViewsLib__factory>
 getContractFactory(name: 'BeamioUserCardChargeRewardModuleV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1__factory>
 getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCtx__factory>
@@ -273,6 +278,8 @@ getContractFactory(name: 'ITreasuryDleAuthorityV1', signerOrOptions?: ethers.Sig
 getContractFactory(name: 'MockCanonicalAsset', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockCanonicalAsset__factory>
 getContractFactory(name: 'MockOracleAdapterV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockOracleAdapterV1__factory>
 getContractFactory(name: 'MockTreasuryDleAuthorityV1', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockTreasuryDleAuthorityV1__factory>
+getContractFactory(name: 'MockDleAuctionNft', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockDleAuctionNft__factory>
+getContractFactory(name: 'MockDleAuctionSettlement', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.MockDleAuctionSettlement__factory>
 getContractFactory(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AccountRegistry__factory>
 getContractFactory(name: 'AddressPGP', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.AddressPGP__factory>
 getContractFactory(name: 'BeamioConsumerWalletDashboard', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioConsumerWalletDashboard__factory>
@@ -355,6 +362,9 @@ getContractAt(name: 'IBeamioAccountFactoryResolveAaV4', address: string | ethers
 getContractAt(name: 'IBeamioUserCardFactoryAaOracleV4', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardFactoryAaOracleV4>
 getContractAt(name: 'IBeamioUserCardFactoryEip712V4', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardFactoryEip712V4>
 getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV5', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV5>
+getContractAt(name: 'BeamioUserCardAdminStatsQueryModuleV6', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV6>
+getContractAt(name: 'IAdminStatsSelectorRouter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IAdminStatsSelectorRouter>
+getContractAt(name: 'BeamioUserCardAdminStatsReferrerViews', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardAdminStatsReferrerViews>
 getContractAt(name: 'BeamioERC1155Logic', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioERC1155Logic>
 getContractAt(name: 'IBeamioAccountFactoryV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioAccountFactoryV07>
 getContractAt(name: 'IBeamioFactoryOracle', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioFactoryOracle>
@@ -376,6 +386,7 @@ getContractAt(name: 'BeamioUserCardBase', address: string | ethers.Addressable, 
 getContractAt(name: 'IBeamioGatewayAAFactoryGetter', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 getContractAt(name: 'IBeamioMembershipStatsModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioMembershipStatsModuleV1>
 getContractAt(name: 'IBeamioUserCardFactoryPaymasterV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioUserCardFactoryPaymasterV07>
+getContractAt(name: 'BeamioUserCardBeaconProxy', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardBeaconProxy>
 getContractAt(name: 'BeamioUserCardDeployerV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardDeployerV07>
 getContractAt(name: 'BeamioUserCardFactoryPaymasterV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardFactoryPaymasterV07>
 getContractAt(name: 'IBeamioDeployerV07', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioDeployerV07>
@@ -403,6 +414,7 @@ getContractAt(name: 'IReferrerLibAaFactory', address: string | ethers.Addressabl
 getContractAt(name: 'IReferrerLibFactoryAa', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IReferrerLibFactoryAa>
 getContractAt(name: 'IReferrerLibUserCardGw', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IReferrerLibUserCardGw>
 getContractAt(name: 'BeamioUserCardTransferLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardTransferLib>
+getContractAt(name: 'BeamioUserCardUpgradeableBeacon', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardUpgradeableBeacon>
 getContractAt(name: 'BeamioUserCardViewsLib', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardViewsLib>
 getContractAt(name: 'BeamioUserCardChargeRewardModuleV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCtx>
@@ -595,6 +607,8 @@ getContractAt(name: 'ITreasuryDleAuthorityV1', address: string | ethers.Addressa
 getContractAt(name: 'MockCanonicalAsset', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockCanonicalAsset>
 getContractAt(name: 'MockOracleAdapterV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockOracleAdapterV1>
 getContractAt(name: 'MockTreasuryDleAuthorityV1', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockTreasuryDleAuthorityV1>
+getContractAt(name: 'MockDleAuctionNft', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockDleAuctionNft>
+getContractAt(name: 'MockDleAuctionSettlement', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.MockDleAuctionSettlement>
 getContractAt(name: 'AccountRegistry', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AccountRegistry>
 getContractAt(name: 'AddressPGP', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.AddressPGP>
 getContractAt(name: 'BeamioConsumerWalletDashboard', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioConsumerWalletDashboard>
@@ -677,6 +691,9 @@ deployContract(name: 'IBeamioAccountFactoryResolveAaV4', signerOrOptions?: ether
 deployContract(name: 'IBeamioUserCardFactoryAaOracleV4', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryAaOracleV4>
 deployContract(name: 'IBeamioUserCardFactoryEip712V4', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryEip712V4>
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV5', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV5>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV6', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV6>
+deployContract(name: 'IAdminStatsSelectorRouter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IAdminStatsSelectorRouter>
+deployContract(name: 'BeamioUserCardAdminStatsReferrerViews', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsReferrerViews>
 deployContract(name: 'BeamioERC1155Logic', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>
@@ -698,6 +715,7 @@ deployContract(name: 'BeamioUserCardBase', signerOrOptions?: ethers.Signer | Dep
 deployContract(name: 'IBeamioGatewayAAFactoryGetter', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 deployContract(name: 'IBeamioMembershipStatsModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1>
 deployContract(name: 'IBeamioUserCardFactoryPaymasterV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryPaymasterV07>
+deployContract(name: 'BeamioUserCardBeaconProxy', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardBeaconProxy>
 deployContract(name: 'BeamioUserCardDeployerV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardDeployerV07>
 deployContract(name: 'BeamioUserCardFactoryPaymasterV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardFactoryPaymasterV07>
 deployContract(name: 'IBeamioDeployerV07', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioDeployerV07>
@@ -725,6 +743,7 @@ deployContract(name: 'IReferrerLibAaFactory', signerOrOptions?: ethers.Signer | 
 deployContract(name: 'IReferrerLibFactoryAa', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerLibFactoryAa>
 deployContract(name: 'IReferrerLibUserCardGw', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerLibUserCardGw>
 deployContract(name: 'BeamioUserCardTransferLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardTransferLib>
+deployContract(name: 'BeamioUserCardUpgradeableBeacon', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardUpgradeableBeacon>
 deployContract(name: 'BeamioUserCardViewsLib', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardViewsLib>
 deployContract(name: 'BeamioUserCardChargeRewardModuleV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
@@ -917,6 +936,8 @@ deployContract(name: 'ITreasuryDleAuthorityV1', signerOrOptions?: ethers.Signer 
 deployContract(name: 'MockCanonicalAsset', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockCanonicalAsset>
 deployContract(name: 'MockOracleAdapterV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockOracleAdapterV1>
 deployContract(name: 'MockTreasuryDleAuthorityV1', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockTreasuryDleAuthorityV1>
+deployContract(name: 'MockDleAuctionNft', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockDleAuctionNft>
+deployContract(name: 'MockDleAuctionSettlement', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockDleAuctionSettlement>
 deployContract(name: 'AccountRegistry', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'BeamioConsumerWalletDashboard', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioConsumerWalletDashboard>
@@ -999,6 +1020,9 @@ deployContract(name: 'IBeamioAccountFactoryResolveAaV4', args: any[], signerOrOp
 deployContract(name: 'IBeamioUserCardFactoryAaOracleV4', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryAaOracleV4>
 deployContract(name: 'IBeamioUserCardFactoryEip712V4', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryEip712V4>
 deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV5', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV5>
+deployContract(name: 'BeamioUserCardAdminStatsQueryModuleV6', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsQueryModuleV6>
+deployContract(name: 'IAdminStatsSelectorRouter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IAdminStatsSelectorRouter>
+deployContract(name: 'BeamioUserCardAdminStatsReferrerViews', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardAdminStatsReferrerViews>
 deployContract(name: 'BeamioERC1155Logic', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioERC1155Logic>
 deployContract(name: 'IBeamioAccountFactoryV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioAccountFactoryV07>
 deployContract(name: 'IBeamioFactoryOracle', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioFactoryOracle>
@@ -1020,6 +1044,7 @@ deployContract(name: 'BeamioUserCardBase', args: any[], signerOrOptions?: ethers
 deployContract(name: 'IBeamioGatewayAAFactoryGetter', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioGatewayAAFactoryGetter>
 deployContract(name: 'IBeamioMembershipStatsModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsModuleV1>
 deployContract(name: 'IBeamioUserCardFactoryPaymasterV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioUserCardFactoryPaymasterV07>
+deployContract(name: 'BeamioUserCardBeaconProxy', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardBeaconProxy>
 deployContract(name: 'BeamioUserCardDeployerV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardDeployerV07>
 deployContract(name: 'BeamioUserCardFactoryPaymasterV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardFactoryPaymasterV07>
 deployContract(name: 'IBeamioDeployerV07', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioDeployerV07>
@@ -1047,6 +1072,7 @@ deployContract(name: 'IReferrerLibAaFactory', args: any[], signerOrOptions?: eth
 deployContract(name: 'IReferrerLibFactoryAa', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerLibFactoryAa>
 deployContract(name: 'IReferrerLibUserCardGw', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IReferrerLibUserCardGw>
 deployContract(name: 'BeamioUserCardTransferLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardTransferLib>
+deployContract(name: 'BeamioUserCardUpgradeableBeacon', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardUpgradeableBeacon>
 deployContract(name: 'BeamioUserCardViewsLib', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardViewsLib>
 deployContract(name: 'BeamioUserCardChargeRewardModuleV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardChargeRewardModuleV1>
 deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
@@ -1239,6 +1265,8 @@ deployContract(name: 'ITreasuryDleAuthorityV1', args: any[], signerOrOptions?: e
 deployContract(name: 'MockCanonicalAsset', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockCanonicalAsset>
 deployContract(name: 'MockOracleAdapterV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockOracleAdapterV1>
 deployContract(name: 'MockTreasuryDleAuthorityV1', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockTreasuryDleAuthorityV1>
+deployContract(name: 'MockDleAuctionNft', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockDleAuctionNft>
+deployContract(name: 'MockDleAuctionSettlement', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.MockDleAuctionSettlement>
 deployContract(name: 'AccountRegistry', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AccountRegistry>
 deployContract(name: 'AddressPGP', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.AddressPGP>
 deployContract(name: 'BeamioConsumerWalletDashboard', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioConsumerWalletDashboard>

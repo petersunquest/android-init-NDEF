@@ -36,7 +36,7 @@ describe("BeamioUserCard BeaconProxy", function () {
     const impl = await factory.deploy("", 0, 0n, ethers.ZeroAddress, ethers.ZeroAddress);
     await impl.waitForDeployment();
     expect(await impl.owner()).to.equal(IMPL_OWNER_SENTINEL);
-    expect(await impl.VERSION()).to.equal(13n);
+    expect(await impl.VERSION()).to.equal(14n);
 
     const beacon = await ethers.deployContract("BeamioUserCardUpgradeableBeacon", [
       await impl.getAddress(),
@@ -58,7 +58,7 @@ describe("BeamioUserCard BeaconProxy", function () {
     await proxy.waitForDeployment();
 
     const card = factory.attach(await proxy.getAddress());
-    expect(await card.VERSION()).to.equal(13n);
+    expect(await card.VERSION()).to.equal(14n);
     expect(await card.owner()).to.equal(ownerAddr);
     expect(await card.factoryGateway()).to.equal(dummyGateway);
     expect(await card.currency()).to.equal(0n);
@@ -74,5 +74,47 @@ describe("BeamioUserCard BeaconProxy", function () {
     await expect(
       createCard.initialize("x", 0, 1n, ownerAddr, dummyGateway),
     ).to.be.revertedWithCustomError(createCard, "UC_AlreadyInitialized");
+  });
+
+  it("keeps initialized storage after beacon.upgradeTo", async function () {
+    const [owner] = await ethers.getSigners();
+    const ownerAddr = await owner.getAddress();
+    const { factory, formatting } = await deployLinkedUserCardFactory();
+    const dummyGateway = await formatting.getAddress();
+
+    const impl1 = await factory.deploy("", 0, 0n, ethers.ZeroAddress, ethers.ZeroAddress);
+    await impl1.waitForDeployment();
+    const beacon = await ethers.deployContract("BeamioUserCardUpgradeableBeacon", [
+      await impl1.getAddress(),
+      ownerAddr,
+    ]);
+    await beacon.waitForDeployment();
+
+    const initData = impl1.interface.encodeFunctionData("initialize", [
+      METADATA_URI,
+      0,
+      PRICE_E6,
+      ownerAddr,
+      dummyGateway,
+    ]);
+    const proxy = await ethers.deployContract("BeamioUserCardBeaconProxy", [
+      await beacon.getAddress(),
+      initData,
+    ]);
+    await proxy.waitForDeployment();
+    const card = factory.attach(await proxy.getAddress());
+
+    const impl2 = await factory.deploy("", 0, 0n, ethers.ZeroAddress, ethers.ZeroAddress);
+    await impl2.waitForDeployment();
+    const impl2Addr = await impl2.getAddress();
+    expect(impl2Addr).to.not.equal(await impl1.getAddress());
+
+    await (await beacon.upgradeTo(impl2Addr)).wait();
+    expect(await beacon.implementation()).to.equal(impl2Addr);
+    expect(await card.VERSION()).to.equal(14n);
+    expect(await card.owner()).to.equal(ownerAddr);
+    expect(await card.factoryGateway()).to.equal(dummyGateway);
+    expect(await card.currency()).to.equal(0n);
+    expect(await card.pointsUnitPriceInCurrencyE6()).to.equal(PRICE_E6);
   });
 });

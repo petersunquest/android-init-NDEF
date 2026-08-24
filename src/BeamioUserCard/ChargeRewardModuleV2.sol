@@ -294,16 +294,24 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
         _mintCumulativeStat(acct, UserCumulativeStatLib.METRIC_TOPUP, UserCumulativeStatLib.TARGET_GLOBAL_ONLY, 0, points6);
         uint256 price = ICardPointsUnitPrice(address(this)).pointsUnitPriceInCurrencyE6();
+        // Top-up #13 base = 实付 points→fiat only（不含 promotion bonus #0）。
         uint256 amountFiat6 = price == 0 ? 0 : (points6 * price) / 1_000_000;
         if (amountFiat6 > 0) {
+            uint256 actorReward = _calcTopupActorRewardAmount(amountFiat6);
+            if (actorReward > 0) {
+                BeamioUserCardModuleMintLib.cardMint(acct, CHARGE_REWARD_TOKEN_ID, actorReward);
+                emit ChargeRewardAirdropped(
+                    userEOA, acct, IUserCardCurrency(address(this)).currency(), amountFiat6, actorReward
+                );
+            }
             BeamioUserCardReferrerLib.mintReferrerRewardForTopupIfConfigured(
                 IBeamioUserCardSelfDelegate(address(this)), acct, amountFiat6
             );
         }
     }
 
-    /// @notice Gateway: mint referrer token #1 from charge amountFiat6 (upgradeable module path).
-    /// @dev Mirrors top-up referrer mint. Consumption points (#2) stay on UpdateLib points-debit path.
+    /// @notice Gateway: mint referrer #13 from charge amountFiat6 (upgradeable module path).
+    /// @dev Mirrors top-up referrer mint. Actor consumption points (#13) stay on UpdateLib / mintChargeRewardByGateway.
     function recordChargeReferrerReward(address userEOA, uint256 amountFiat6)
         external
         onlyGatewayOrFactoryPaymaster
@@ -315,6 +323,20 @@ contract BeamioUserCardChargeRewardModuleV2 is BeamioUserCardChargeRewardModuleV
         BeamioUserCardReferrerLib.mintReferrerRewardForChargeIfConfigured(
             IBeamioUserCardSelfDelegate(address(this)), acct, amountFiat6
         );
+    }
+
+    /// @notice referrer→referee ledger (topup/charge cumulative #13 + fiat). Routed via ChargeReward module.
+    function getReferrerRefereeLedger(address referrer, address referee)
+        external
+        view
+        returns (
+            uint256 topupReward13E6,
+            uint256 chargeReward13E6,
+            uint256 topupAmountFiat6,
+            uint256 chargeAmountFiat6
+        )
+    {
+        return BeamioUserCardReferrerLib.getReferrerRefereeLedger(referrer, referee);
     }
 
     /// @notice Merchant owner funds CONET-USDC escrow for social-points → USDC exchange activities.

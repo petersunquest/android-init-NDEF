@@ -227,6 +227,15 @@ final class CashTreesWebLoadState: ObservableObject {
             self.shouldAnimateOut = false
         }
     }
+
+    /// Cover a terminated WKWebView process while the replacement document renders.
+    /// OTA checks run independently and must not expose an empty WebView surface.
+    func beginRecovery() {
+        splashFallbackWorkItem?.cancel()
+        splashFallbackWorkItem = nil
+        isSplashVisible = true
+        shouldAnimateOut = false
+    }
 }
 
 // MARK: - WK Coordinator
@@ -242,6 +251,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var lastLoadedWebURLString: String?
     private var becameActiveObserver: NSObjectProtocol?
     private var embeddedPwaUpdateObserver: NSObjectProtocol?
+    private var pushTokenObserver: NSObjectProtocol?
     var lastHandledDeepLinkNonce = 0
 
     override init() {
@@ -260,13 +270,27 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         ) { [weak self] note in
             self?.dispatchEmbeddedPwaUpdateAvailable(from: note)
         }
+        pushTokenObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesPushDeviceTokenUpdated,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let hex = note.userInfo?["deviceToken"] as? String, !hex.isEmpty else { return }
+            self?.dispatchIOSBridgeJsonToWeb(CashTreesPushRegistration.payloadForWebEvent(deviceToken: hex))
+        }
     }
 
     private func handleAppBecameActive() {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
+        // Recover the WebContent process first; OTA is network-backed and must
+        // never delay the latency-sensitive reload path.
+        if webContentProcessNeedsReload {
+            loadState?.beginRecovery()
+        }
+        recoverWebContentIfNeeded()
+        // Re-dispatch cached APNs token after PWA may have (re)attached listeners.
+        CashTreesPushRegistration.notifyWebOfCachedTokenIfNeeded()
+        Task { @MainActor in
             await CashTreesLocalPWAHost.shared.refreshOnForeground()
-            self.recoverWebContentIfNeeded()
         }
     }
 
@@ -276,6 +300,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
         if let embeddedPwaUpdateObserver {
             NotificationCenter.default.removeObserver(embeddedPwaUpdateObserver)
+        }
+        if let pushTokenObserver {
+            NotificationCenter.default.removeObserver(pushTokenObserver)
         }
     }
 
@@ -344,6 +371,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         webContentProcessNeedsReload = true
         initialWebRenderReadySignaled = false
+        loadState?.beginRecovery()
         if UIApplication.shared.applicationState == .active {
             performWebContentRecovery(on: webView)
         }
@@ -521,6 +549,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 body:payload.body||''
               });
             },
+            bindPushIdentity:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'bindPushIdentity',
+                eoa:payload.eoa||'',
+                pgpKeyId:payload.pgpKeyId||''
+              });
+            },
             printReceipt:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
@@ -603,7 +639,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 self?.presentGeneralQRScanner(requestId: requestId, filter: .anyText, bridgeAction: "scanQr")
             }
         case "webContentReady":
-            DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }
+            DispatchQueue.main.async { [weak self] in
+                self?.beginInitialWebHandoffIfNeeded()
+                // PWA may attach push listeners after the first APNs token event — re-send cache.
+                CashTreesPushRegistration.notifyWebOfCachedTokenIfNeeded()
+            }
         case "openURL":
             let url = body["url"] as? String
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
@@ -634,6 +674,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "notifyBackgroundChat":
             DispatchQueue.main.async {
                 CashTreesNativeAppStateBridge.notifyBackgroundChat(from: body)
+            }
+        case "bindPushIdentity":
+            let eoa = body["eoa"] as? String
+            let pgpKeyId = body["pgpKeyId"] as? String
+            DispatchQueue.main.async {
+                CashTreesPushRegistration.bindIdentity(eoa: eoa, pgpKeyId: pgpKeyId)
             }
         case "printReceipt":
             let text = body["text"] as? String
@@ -1244,12 +1290,8 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            Task { @MainActor in
-                await localPWAHost.refreshOnForeground()
-                if !webLoadState.isSplashVisible {
-                    webContentVisible = true
-                }
-            }
+            // Keep existing pixels during an ordinary app switch. A terminated
+            // process is covered by the coordinator's recovery splash.
             guard !webLoadState.isSplashVisible else { return }
             webContentVisible = true
         }

@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioUserCardFactoryPaymasterV07Interface extends Interface {
-    getFunction(nameOrSignature: "defaultAdminStatsQueryModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "metadataBaseURI"): FunctionFragment;
+    getFunction(nameOrSignature: "defaultAdminStatsQueryModule" | "defaultChargeRewardModule" | "defaultFaucetModule" | "defaultGovernanceModule" | "defaultIssuedNftModule" | "defaultMembershipStatsModule" | "defaultRedeemModule" | "metadataBaseURI"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'defaultAdminStatsQueryModule', values?: undefined): string;
+encodeFunctionData(functionFragment: 'defaultChargeRewardModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultFaucetModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultGovernanceModule', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultIssuedNftModule', values?: undefined): string;
@@ -19,6 +20,7 @@ encodeFunctionData(functionFragment: 'defaultRedeemModule', values?: undefined):
 encodeFunctionData(functionFragment: 'metadataBaseURI', values?: undefined): string;
 
     decodeFunctionResult(functionFragment: 'defaultAdminStatsQueryModule', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'defaultChargeRewardModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultFaucetModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultGovernanceModule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultIssuedNftModule', data: BytesLike): Result;
@@ -64,6 +66,14 @@ decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Resu
     
     
     defaultAdminStatsQueryModule: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
+    defaultChargeRewardModule: TypedContractMethod<
       [],
       [string],
       'view'
@@ -122,6 +132,11 @@ decodeFunctionResult(functionFragment: 'metadataBaseURI', data: BytesLike): Resu
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
     getFunction(nameOrSignature: 'defaultAdminStatsQueryModule'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
+getFunction(nameOrSignature: 'defaultChargeRewardModule'): TypedContractMethod<
       [],
       [string],
       'view'

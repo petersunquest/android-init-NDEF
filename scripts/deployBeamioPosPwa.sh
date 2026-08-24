@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Deploy src/posPwa build to https://beamio.app/pos/ via posTemp staging.
 # Does not touch /app/ (SilentPassUI) or homepage root.
+#
+# Embedded native OTA (iOS/Android POS shell) is NOT published here — use:
+#   ./scripts/deployPosConetNetwork.sh  →  https://pos.beamio.app/update.json + BeamioPOS-{ver}.zip
+# See .cursor/rules/beamio-pos-pwa-deploy-embedded-ota.mdc
 
 set -euo pipefail
 
@@ -21,9 +25,11 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/deployBeamioPosPwa.sh [options]
 
-Build posPwa and publish to /var/www/beamio.app/pos/:
-  1) rsync dist -> posTemp/ (staging)
-  2) rsync posTemp/ -> pos/ (live POS PWA)
+Build posPwa (base /pos) and publish to /var/www/beamio.app/pos/:
+  1) rsync dist -> posTemp/ (staging; exclude BeamioPOS-*.zip)
+  2) rsync posTemp/ -> pos/ (live POS PWA; exclude BeamioPOS-*.zip)
+
+Native Embedded OTA: run deployPosConetNetwork.sh separately (build:root + zip + update.json on pos.beamio.app).
 
 Options:
   --skip-build      Use existing src/posPwa/dist without npm run build
@@ -68,11 +74,11 @@ fi
 REMOTE_POS_TEMP="${SSH_TARGET}:${BEAMIO_WEB_ROOT}/posTemp/"
 REMOTE_POS="${SSH_TARGET}:${BEAMIO_WEB_ROOT}/pos/"
 
-echo "==> Rsync POS PWA build -> posTemp/"
+echo "==> Rsync POS PWA build -> posTemp/ (exclude BeamioPOS-*.zip)"
 if [[ ${#RSYNC_EXTRA[@]} -gt 0 ]]; then
-	rsync -av "${RSYNC_DELETE[@]}" "${RSYNC_EXTRA[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
+	rsync -av "${RSYNC_DELETE[@]}" --exclude 'BeamioPOS-*.zip' "${RSYNC_EXTRA[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
 else
-	rsync -av "${RSYNC_DELETE[@]}" "$BUILD_DIR/" "$REMOTE_POS_TEMP"
+	rsync -av "${RSYNC_DELETE[@]}" --exclude 'BeamioPOS-*.zip' "$BUILD_DIR/" "$REMOTE_POS_TEMP"
 fi
 
 if [[ "$SKIP_PROMOTE" -eq 1 ]]; then
@@ -85,8 +91,9 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 	rsync -av --dry-run "${RSYNC_DELETE[@]}" \
 		"${SSH_TARGET}:${BEAMIO_WEB_ROOT}/posTemp/" "$REMOTE_POS"
 else
-	ssh "$SSH_TARGET" "rsync -a --delete '${BEAMIO_WEB_ROOT}/posTemp/' '${BEAMIO_WEB_ROOT}/pos/'"
+	ssh "$SSH_TARGET" "rsync -a --delete --exclude 'BeamioPOS-*.zip' '${BEAMIO_WEB_ROOT}/posTemp/' '${BEAMIO_WEB_ROOT}/pos/'"
 fi
 
 echo "==> Done. Spot-check:"
 echo "    https://beamio.app/pos/"
+echo "    (Native OTA: https://pos.beamio.app/update.json — deploy via deployPosConetNetwork.sh)"

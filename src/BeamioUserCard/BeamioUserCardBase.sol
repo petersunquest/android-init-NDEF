@@ -5,6 +5,7 @@ import "./BeamioERC1155Logic.sol";
 import "./BeamioCurrency.sol";
 import "./Errors.sol";
 import "./GovernanceStorage.sol";
+import "./MembershipFeeStorage.sol";
 
 import "../contracts/token/ERC1155/ERC1155.sol";
 import "../contracts/access/Ownable.sol";
@@ -40,11 +41,19 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
     uint256 public constant NFT_START_ID = BeamioERC1155Logic.NFT_START_ID;
     uint256 public constant ISSUED_NFT_START_ID = BeamioERC1155Logic.ISSUED_NFT_START_ID;
 
+    // ===== Linear storage MUST match BeamioUserCard (delegatecall) =====
+    // Historical bug: Base omitted `deployer` / `_initializationLocked` / `upgradeType`,
+    // so MembershipStats read card.deployer as gateway → aaFactory() on deployer → empty revert.
+    address public deployer;
     address public gateway;
     address public debugGateway;
+    /// @dev Slot placeholder only for modules; card owns init lock semantics.
+    bool private _initializationLocked;
 
     BeamioCurrency.CurrencyType public currency;
     uint256 public pointsUnitPriceInCurrencyE6;
+    /// @dev 0 = top-up tier; 1 = balance-align; 2 = points-transfer upgrade path.
+    uint8 public upgradeType;
     uint256 public expirySeconds;
 
     mapping(address => bool) public transferWhitelist;
@@ -147,11 +156,21 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
 
     function _hasValidCard(address acct) internal view returns (bool) {
         uint256 id = activeMembershipId[acct];
-        return id != 0 && balanceOf(acct, id) > 0 && !_isExpired(id);
+        return id >= NFT_START_ID && id < ISSUED_NFT_START_ID && balanceOf(acct, id) > 0 && !_isExpired(id);
     }
 
     function _isTrackableTierIndex(uint256 tierIndex) internal view returns (bool) {
-        return tierIndex != type(uint256).max && tierIndex < tiers.length;
+        if (tierIndex == type(uint256).max) return false;
+        if (tierIndex < tiers.length) return true;
+        return MembershipFeeStorage.layout().feeE6[tierIndex] > 0;
+    }
+
+    /// @dev Higher rank = higher paid membership (feeE6) or loyalty floor (minUsdc6).
+    function _membershipRank(uint256 tierIdx) internal view returns (uint256) {
+        uint256 fee = MembershipFeeStorage.layout().feeE6[tierIdx];
+        if (fee > 0) return fee;
+        if (tierIdx < tiers.length) return tiers[tierIdx].minUsdc6;
+        return 0;
     }
 
     function _incrementActiveMembershipCounters(uint256 tokenId, uint256 tierIndex) internal {
@@ -192,7 +211,11 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
     }
 
     function _mintMembershipNft(address acct, uint256 tierIndexOrMax, uint256 attr, uint256 expiry) internal returns (uint256 newId) {
+        if (_currentIndex < NFT_START_ID) {
+            _currentIndex = NFT_START_ID;
+        }
         newId = _currentIndex++;
+        if (newId < NFT_START_ID || newId >= ISSUED_NFT_START_ID) revert UC_MembershipNftTokenId();
         _mint(acct, newId, 1, "");
         expiresAt[newId] = expiry;
         attributes[newId] = attr;
@@ -264,6 +287,7 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
 
         for (uint256 i = 0; i < nftIds.length; i++) {
             uint256 id = nftIds[i];
+            if (id < NFT_START_ID || id >= ISSUED_NFT_START_ID) continue;
             if (balanceOf(user, id) == 0) continue;
             if (_isExpired(id)) continue;
 
@@ -273,7 +297,11 @@ abstract contract BeamioUserCardBase is ERC1155, Ownable, ReentrancyGuard {
                 continue;
             }
 
-            if (bestId == 0 || !_isTrackableTierIndex(bestTierIndexOrMax) || tiers[tierIdx].minUsdc6 > tiers[bestTierIndexOrMax].minUsdc6) {
+            if (
+                bestId == 0 ||
+                !_isTrackableTierIndex(bestTierIndexOrMax) ||
+                _membershipRank(tierIdx) > _membershipRank(bestTierIndexOrMax)
+            ) {
                 bestId = id;
                 bestTierIndexOrMax = tierIdx;
             }

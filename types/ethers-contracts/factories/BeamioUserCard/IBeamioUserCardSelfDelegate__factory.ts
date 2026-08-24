@@ -268,6 +268,16 @@
         "internalType": "uint256",
         "name": "rewardAmount",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amountFiat6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "kind",
+        "type": "uint8"
       }
     ],
     "name": "cardSelfEmitReferrerRewardMinted",

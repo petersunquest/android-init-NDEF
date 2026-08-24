@@ -39,27 +39,49 @@ final class CashTreesPWABundleStore {
         lock.lock()
         defer { lock.unlock() }
         try fileManager.createDirectory(at: rootDir, withIntermediateDirectories: true)
-        if hasValidBundle(at: activeDir) { return }
-        if fileManager.fileExists(atPath: activeDir.path) {
-            try? fileManager.removeItem(at: activeDir)
-        }
-        try fileManager.createDirectory(at: activeDir, withIntermediateDirectories: true)
         guard let zipPath = Bundle.main.url(forResource: "SilentPassUI", withExtension: "zip") else {
+            if hasValidBundle(at: activeDir) { return }
             throw NSError(
                 domain: "CashTreesPWABundleStore",
                 code: 404,
                 userInfo: [NSLocalizedDescriptionKey: "SilentPassUI.zip missing from app bundle"]
             )
         }
-        try fileManager.unzipItem(at: zipPath, to: activeDir)
-        removeMacOsMetadata(from: activeDir)
-        guard hasValidBundle(at: activeDir) else {
+        let bundledDir = rootDir.appendingPathComponent("bundled", isDirectory: true)
+        if fileManager.fileExists(atPath: bundledDir.path) {
+            try? fileManager.removeItem(at: bundledDir)
+        }
+        try fileManager.createDirectory(at: bundledDir, withIntermediateDirectories: true)
+        try fileManager.unzipItem(at: zipPath, to: bundledDir)
+        removeMacOsMetadata(from: bundledDir)
+        guard hasValidBundle(at: bundledDir) else {
+            try? fileManager.removeItem(at: bundledDir)
             throw NSError(
                 domain: "CashTreesPWABundleStore",
                 code: 500,
                 userInfo: [NSLocalizedDescriptionKey: "Bundled SilentPassUI.zip did not contain index.html"]
             )
         }
+        let activeIsValid = hasValidBundle(at: activeDir)
+        let activeUsesEmbeddedPaths = activeIsValid && usesEmbeddedAssetPaths(at: activeDir)
+        let activeVersion = activeIsValid ? readUpdateInfo(from: activeDir)?.ver : nil
+        let bundledVersion = readUpdateInfo(from: bundledDir)?.ver
+        let shouldInstallBundled =
+            !activeIsValid
+            || !activeUsesEmbeddedPaths
+            || (
+                activeVersion != nil
+                    && bundledVersion != nil
+                    && Self.isSemverNewer(oldVer: activeVersion!, newVer: bundledVersion!)
+            )
+        if !shouldInstallBundled {
+            try? fileManager.removeItem(at: bundledDir)
+            return
+        }
+        if fileManager.fileExists(atPath: activeDir.path) {
+            try? fileManager.removeItem(at: activeDir)
+        }
+        try fileManager.moveItem(at: bundledDir, to: activeDir)
     }
 
     func activeRootDirectory() -> URL {
@@ -157,6 +179,20 @@ final class CashTreesPWABundleStore {
 
     private func hasValidBundle(at dir: URL) -> Bool {
         fileManager.fileExists(atPath: dir.appendingPathComponent("index.html").path)
+    }
+
+    /// The app shell serves the PWA at the root of `cashtrees-local://`.
+    /// Older consumer bundles were built for `/app/`, so their JS/CSS requests
+    /// pointed at a non-existent local `/app` directory and left only the splash
+    /// logo visible. Treat those bundles as incompatible even when their
+    /// semver is unchanged, so an app update repairs existing installations.
+    private func usesEmbeddedAssetPaths(at dir: URL) -> Bool {
+        let indexURL = dir.appendingPathComponent("index.html")
+        guard let html = try? String(contentsOf: indexURL, encoding: .utf8) else {
+            return false
+        }
+        return !html.contains("src=\"/app/")
+            && !html.contains("href=\"/app/")
     }
 
     private func readUpdateInfo(from dir: URL) -> CashTreesPWAUpdateInfo? {

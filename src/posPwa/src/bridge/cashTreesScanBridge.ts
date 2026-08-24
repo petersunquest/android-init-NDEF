@@ -45,6 +45,7 @@ declare global {
 			openURL?: (payload: { url?: string }) => void
 			publishAppState?: (state: Record<string, unknown>) => void
 			notifyBackgroundChat?: (payload: Record<string, unknown>) => void
+			bindPushIdentity?: (payload: { eoa: string; pgpKeyId?: string }) => void
 			printReceipt?: (payload: { text?: string; title?: string }) => void
 		}
 		CashTreesAndroid?: {
@@ -58,6 +59,7 @@ declare global {
 			openURL?: (url: string) => void
 			publishAppState?: (json: string) => void
 			notifyBackgroundChat?: (json: string) => void
+			bindPushIdentity?: (json: string) => void
 		}
 	}
 }

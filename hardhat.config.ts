@@ -51,6 +51,7 @@ export default defineConfig({
       },
       viaIR: true  // 解决 "Stack too deep" 错误
       , evmVersion: "cancun"  // 必须：Bytes.sol 使用 mcopy (Cancun)
+      , outputSelection: { "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "storageLayout"] } }
     }
   },
   networks: {

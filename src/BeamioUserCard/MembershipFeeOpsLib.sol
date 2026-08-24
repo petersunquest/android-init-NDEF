@@ -84,8 +84,10 @@ library MembershipFeeOpsLib {
     }
 
     function setMembershipFees(uint256[] calldata feeE6, uint8[] calldata durationKind) external {
-        uint256 n = _tiersLength();
-        if (feeE6.length != n || durationKind.length != n) revert UC_MembershipFeeLenMismatch();
+        uint256 n = feeE6.length;
+        if (n == 0 || n > MembershipFeeStorage.MAX_FEE_TIERS || durationKind.length != n) {
+            revert UC_MembershipFeeLenMismatch();
+        }
         MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
         for (uint256 i = 0; i < n; i++) {
             if (feeE6[i] > 0) {
@@ -101,7 +103,9 @@ library MembershipFeeOpsLib {
     }
 
     function membershipFees() external view returns (uint256[] memory feeE6, uint8[] memory durationKind) {
-        uint256 n = _tiersLength();
+        uint256 chainN = _tiersLength();
+        uint256 feeN = MembershipFeeStorage.feeTierCount();
+        uint256 n = feeN > chainN ? feeN : chainN;
         feeE6 = new uint256[](n);
         durationKind = new uint8[](n);
         MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
@@ -112,12 +116,7 @@ library MembershipFeeOpsLib {
     }
 
     function membershipFeeMode() external view returns (bool) {
-        uint256 n = _tiersLength();
-        MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
-        for (uint256 i = 0; i < n; i++) {
-            if (l.feeE6[i] > 0) return true;
-        }
-        return false;
+        return MembershipFeeStorage.isFeeMode();
     }
 
     function stageMembershipFeePurchase(
@@ -126,12 +125,43 @@ library MembershipFeeOpsLib {
         uint256 feePaid6,
         uint256 pointsCredit6
     ) external {
-        uint256 n = _tiersLength();
-        if (tierIndex >= n) revert UC_MustGrow();
+        _stageMembershipFeePurchaseInternal(user, tierIndex, feePaid6, pointsCredit6, false, 0);
+    }
+
+    /// @dev Metadata-first cards may have fee/duration only in off-chain metadata until the first POS purchase.
+    ///      When on-chain feeE6[tier] is zero, gateway/paymaster may bootstrap fee + duration from the purchase.
+    function stageMembershipFeePurchaseWithBootstrap(
+        address user,
+        uint256 tierIndex,
+        uint256 feePaid6,
+        uint256 pointsCredit6,
+        uint8 durationKind
+    ) external {
+        _stageMembershipFeePurchaseInternal(user, tierIndex, feePaid6, pointsCredit6, true, durationKind);
+    }
+
+    function _stageMembershipFeePurchaseInternal(
+        address user,
+        uint256 tierIndex,
+        uint256 feePaid6,
+        uint256 pointsCredit6,
+        bool allowBootstrap,
+        uint8 bootstrapDurationKind
+    ) private {
+        if (tierIndex >= MembershipFeeStorage.MAX_FEE_TIERS) revert UC_MustGrow();
         MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
         uint256 expectedFee = l.feeE6[tierIndex];
-        if (expectedFee == 0 || feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
-        if (!MembershipFeeStorage.isValidDurationKind(l.durationKind[tierIndex])) revert UC_MembershipFeeInvalidDuration();
+        if (expectedFee == 0) {
+            if (!allowBootstrap) revert UC_MembershipFeeMismatch();
+            if (feePaid6 == 0) revert UC_MembershipFeeMismatch();
+            if (!MembershipFeeStorage.isValidDurationKind(bootstrapDurationKind)) revert UC_MembershipFeeInvalidDuration();
+            l.feeE6[tierIndex] = feePaid6;
+            l.durationKind[tierIndex] = bootstrapDurationKind;
+            expectedFee = feePaid6;
+        } else {
+            if (feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
+            if (!MembershipFeeStorage.isValidDurationKind(l.durationKind[tierIndex])) revert UC_MembershipFeeInvalidDuration();
+        }
 
         address acct = _resolveAcct(user);
         uint64 deadline = uint64(block.timestamp) + MembershipFeeStorage.PENDING_TTL_SECONDS;

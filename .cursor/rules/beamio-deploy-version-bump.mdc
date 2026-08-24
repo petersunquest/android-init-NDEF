@@ -17,8 +17,10 @@ alwaysApply: true
 |---|---|---|---|
 | **bizSite** Merchant OS | `src/bizSite/` | `./scripts/deployBeamioBizSite.sh` | `src/bizSite/package.json` |
 | **SilentPassUI** PWA | `src/SilentPassUI/` | `./scripts/deployBeamioPwa.sh` | `src/SilentPassUI/package.json` |
+| **POS PWA**（Web `/pos/`） | `src/posPwa/` | `./scripts/deployBeamioPosPwa.sh` | `src/posPwa/package.json` |
+| **POS PWA**（Embedded OTA） | `src/posPwa/` | `./scripts/deployPosConetNetwork.sh` | 同上 + **同步** `public/update.json` |
 
-两脚本均：
+SilentPassUI / bizSite 脚本均：
 
 1. 要求子项目 **working tree clean**（有未提交改动则失败，避免 bump 与业务混 commit）。
 2. `npm version patch --no-git-tag-version`
@@ -42,7 +44,9 @@ AI / 人工 **不得**在守则或 runbook 里把 `--skip-version-bump` 当作�
 
 ## 其它 PWA / 站点
 
-新增公网部署脚本时，**须**内置同等 bump 步骤，或在本表登记例外理由。homepage、POS PWA、x402sdk API 等若尚无 bump，发版时应优先补脚本而非手工省略。
+POS PWA bump 时 **必须**同步 `src/posPwa/public/update.json`（`ver` + `BeamioPOS-{ver}.zip`），与 SilentPassUI `public/update.json` 同理；见 **`beamio-pos-pwa-deploy-embedded-ota.mdc`**。
+
+新增公网部署脚本时，**须**内置同等 bump 步骤，或在本表登记例外理由。homepage、x402sdk API 等若尚无 bump，发版时应优先补脚本而非手工省略。
 
 ## AI 部署检查清单
 
@@ -52,6 +56,7 @@ AI / 人工 **不得**在守则或 runbook 里把 `--skip-version-bump` 当作�
 - [ ] bump 后是否 **push**，再 remote build / local-build？
 - [ ] 验收时是否 spot-check 页脚或设置里的 **新版本号**（如 biz 登录页 `vX.Y.Z`）？
 - [ ] SilentPassUI：是否 smoke `https://beamio.app/app/update.json` 与 zip？
+- [ ] POS PWA：是否 smoke `https://pos.beamio.app/update.json` 与 `BeamioPOS-{ver}.zip`（`deployPosConetNetwork.sh`）？
 
 ## 严禁
 

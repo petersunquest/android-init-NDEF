@@ -55,6 +55,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:usercard-beacon": "hardhat --no-typechain test -- test/beamioUserCardBeaconProxy.test.ts",
     "deploy:usercard-beacon:conet": "npx tsx scripts/deployUserCardBeaconConet.ts",
+    "upgrade:usercard-beacon:conet": "npx tsx scripts/upgradeUserCardBeaconConet.ts",
+    "accept:usercard-beacon:conet": "npx tsx scripts/acceptUserCardBeaconConet.ts",
     "verify:usercard-beacon:conet": "npx tsx scripts/verifyUserCardBeaconConet.ts",
     "test:dle": "hardhat --no-typechain test -- test/dle/infrastructure.property.ts test/dle/gateway.state-machine.property.ts test/dle/mock-auction-fixture.test.ts test/dle/mock-auction-settlement.test.ts",
     "test:dle:mock-auction": "hardhat --no-typechain test -- test/dle/mock-auction-fixture.test.ts test/dle/mock-auction-settlement.test.ts",

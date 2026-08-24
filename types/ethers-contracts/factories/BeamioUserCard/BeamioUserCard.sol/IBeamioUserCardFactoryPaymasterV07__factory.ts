@@ -21,6 +21,19 @@
   },
   {
     "inputs": [],
+    "name": "defaultChargeRewardModule",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "defaultFaucetModule",
     "outputs": [
       {

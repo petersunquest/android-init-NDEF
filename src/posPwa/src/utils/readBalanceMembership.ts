@@ -1,10 +1,10 @@
 import type { UIDAssetsResult } from '@/types/pos'
 import {
-	membershipFeeE6ToHuman,
 	metadataTierMembershipFeeE6,
 	metadataTierOnChainIndex,
 	type MetadataTierRow,
 } from '@/utils/beamioPaymentRouting'
+import { isMembershipNftTokenId } from '@/utils/membershipNft'
 import { readBalancePrimaryCard } from '@/utils/readBalanceAssets'
 
 export type ReadBalanceMembershipTierChoice = {
@@ -19,20 +19,21 @@ export type ReadBalanceMembershipTierChoice = {
 /** Same hint as x402sdk `MEMBERSHIP_FEE_CHECK_BALANCE_HINT` — purchase membership on Check Balance, not generic Top-up. */
 export const MEMBERSHIP_FEE_CHECK_BALANCE_HINT =
 	'Active membership required. Purchase membership from Check Balance before top-up.'
+
 export function readBalanceCustomerHasValidMembership(
 	assets: UIDAssetsResult,
 	merchantInfraCard: string,
 ): boolean {
 	const primary = String(assets.primaryMemberTokenId ?? '').trim()
-	if (primary && primary !== '0') return true
+	if (primary && isMembershipNftTokenId(primary)) return true
 	const infra = merchantInfraCard.trim().toLowerCase()
 	const cardRow =
 		assets.cards?.find((row) => row.cardAddress?.trim().toLowerCase() === infra) ??
 		readBalancePrimaryCard(assets, merchantInfraCard)
 	const primaryOnCard = String(cardRow?.primaryMemberTokenId ?? '').trim()
-	if (primaryOnCard && primaryOnCard !== '0') return true
+	if (primaryOnCard && isMembershipNftTokenId(primaryOnCard)) return true
 	const nfts = cardRow?.nfts ?? assets.nfts ?? []
-	return nfts.some((n) => Number(n.tokenId) > 0)
+	return nfts.some((n) => !n.isExpired && isMembershipNftTokenId(n.tokenId))
 }
 
 export function readBalanceMembershipFeeTiers(
@@ -42,11 +43,13 @@ export function readBalanceMembershipFeeTiers(
 	rows.forEach((row, i) => {
 		const feeFiat6 = metadataTierMembershipFeeE6(row)
 		if (BigInt(feeFiat6) <= 0n) return
+		const tierIndex = metadataTierOnChainIndex(row, i)
+		const defaultName = tierIndex === 0 ? 'Membership' : `Tier ${tierIndex}`
 		out.push({
-			tierIndex: metadataTierOnChainIndex(row, i),
+			tierIndex,
 			feeFiat6,
 			minUsdc6: row.minUsdc6,
-			name: (row.name ?? `Tier ${i + 1}`).trim() || `Tier ${i + 1}`,
+			name: (row.name ?? defaultName).trim() || defaultName,
 			durationKind: row.membershipDurationKind,
 		})
 	})
@@ -102,7 +105,8 @@ function resolveHeldPaidMembership(
 	let bestIndex: number | null = null
 	let bestFee: bigint | null = null
 	for (const nft of nfts) {
-		if ((Number(nft.tokenId) || 0) <= 0) continue
+		if (!isMembershipNftTokenId(nft.tokenId)) continue
+		if (nft.isExpired) continue
 		const idx = parseMembershipNftChainTierIndex(nft.tier)
 		if (idx == null || !feeByIndex.has(idx)) continue
 		const fee = feeByIndex.get(idx) ?? 0n
@@ -145,31 +149,53 @@ export function readBalanceMembershipUpgradeTiers(
 }
 
 /**
- * Cluster requires points credit after fee: amountCurrency6 must strictly exceed feeFiat6.
- * Prefer on-chain tier floor `minUsdc6` (membership-fee mode: 1, 2, 3…).
- * Legacy fallback: +1 whole currency unit when fee is whole, else +0.01.
+ * Paid-membership issue must mint a non-zero `#0` top-up (card rejects mint 0).
+ * API mints `MEMBERSHIP_FEE_ONLY_ISSUE_POINTS6 = 1` when client amount equals the locked fee.
+ * Do not add this dust onto the POS payable amount / USDC QR.
  */
-export function membershipPurchasePointsCreditE6(minUsdc6?: string | number | bigint | null): bigint {
-	if (minUsdc6 != null && String(minUsdc6).trim() !== '') {
-		try {
-			const m = BigInt(String(minUsdc6).replace(/,/g, '').trim())
-			if (m > 0n) return m
-		} catch {
-			/* fall through */
-		}
-	}
-	return 1_000_000n
+export const MEMBERSHIP_FEE_ISSUE_TOPUP_E6 = 1n
+
+export function membershipPurchasePointsCreditE6(_minUsdc6?: string | number | bigint | null): bigint {
+	return MEMBERSHIP_FEE_ISSUE_TOPUP_E6
 }
 
+/**
+ * User-facing membership amounts use two decimal places (CA$0.50, not 0.500001).
+ * Extra E6 dust is truncated toward zero — join pays the locked fee only.
+ */
+function membershipFeeE6ToHuman2dp(e6: string | number | undefined | null): string {
+	if (e6 == null || e6 === '') return ''
+	try {
+		const bi = BigInt(String(e6).replace(/,/g, '').trim() || '0')
+		if (bi <= 0n) return ''
+		const whole = bi / 1_000_000n
+		const cents = (bi % 1_000_000n) / 10_000n
+		return `${whole}.${cents.toString().padStart(2, '0')}`
+	} catch {
+		return ''
+	}
+}
+
+/** Full 6dp human string for E6 amounts (unlike 2dp fee formatting). */
+function formatMembershipCurrencyE6Full(e6: bigint): string {
+	if (e6 <= 0n) return '0'
+	const whole = e6 / 1_000_000n
+	const frac = (e6 % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
+	return frac ? `${whole}.${frac}` : `${whole}`
+}
+
+/**
+ * Charge / API amount = locked membership fee only (two decimals).
+ * API adds `MEMBERSHIP_FEE_ONLY_ISSUE_POINTS6` when leftover after fee is 0.
+ */
 export function membershipPurchaseApiAmountHuman(
 	feeFiat6: string,
-	minUsdc6?: string | number | bigint | null,
+	_minUsdc6?: string | number | bigint | null,
 ): string {
 	try {
 		const fee = BigInt(String(feeFiat6).replace(/,/g, '').trim() || '0')
 		if (fee <= 0n) return '0'
-		const credit = membershipPurchasePointsCreditE6(minUsdc6)
-		return membershipFeeE6ToHuman((fee + credit).toString()) || '0'
+		return membershipFeeE6ToHuman2dp(fee.toString()) || '0'
 	} catch {
 		return '0'
 	}
@@ -183,7 +209,7 @@ export function membershipPurchaseBalanceCreditHuman(
 		const fee = BigInt(String(feeFiat6).replace(/,/g, '').trim() || '0')
 		if (fee <= 0n) return '0'
 		const credit = membershipPurchasePointsCreditE6(minUsdc6)
-		return membershipFeeE6ToHuman(credit.toString()) || '0'
+		return formatMembershipCurrencyE6Full(credit)
 	} catch {
 		return '0'
 	}

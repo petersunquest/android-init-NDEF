@@ -26,13 +26,15 @@ interface IUserCardFactoryPaymasterStatus {
 
 /**
  * @title BeamioUserCardChargeRewardModuleV1
- * @notice Delegatecall module: Charge 按卡币种 fiat6 空投 token#2；admin 可改比例 / burn。
+ * @notice Delegatecall module: Charge 按卡币种 fiat6 空投 #13；admin 可改比例 / burn。
  */
 contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
-    uint256 public constant CHARGE_REWARD_TOKEN_ID = 2;
+    /// @dev Unified reward points (#13). Legacy #2 name kept on burn helpers for ABI stability.
+    uint256 public constant CHARGE_REWARD_TOKEN_ID = 13;
     uint256 private constant REWARD_RATIO_ONE_E6 = 1_000_000;
 
     event ChargeRewardRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
+    event TopupActorRewardRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
     event ChargeRewardAirdropped(
         address indexed userEOA,
         address indexed acct,
@@ -79,12 +81,24 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         return ChargeRewardStorage.layout().chargeRewardRatioE6;
     }
 
+    function topupActorRewardRatioE6() external view returns (uint256) {
+        return ChargeRewardStorage.layout().topupActorRewardRatioE6;
+    }
+
     function setChargeRewardRatio(uint256 ratioE6) external onlyOwnerOrGateway {
         _setChargeRewardRatio(ratioE6);
     }
 
     function setChargeRewardRatioByAdmin(uint256 ratioE6) external onlyAdmin {
         _setChargeRewardRatio(ratioE6);
+    }
+
+    function setTopupActorRewardRatio(uint256 ratioE6) external onlyOwnerOrGateway {
+        _setTopupActorRewardRatio(ratioE6);
+    }
+
+    function setTopupActorRewardRatioByAdmin(uint256 ratioE6) external onlyAdmin {
+        _setTopupActorRewardRatio(ratioE6);
     }
 
     function previewChargeRewardAmount(uint256 amountFiat6) external view returns (uint256) {
@@ -112,10 +126,9 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         address acct = BeamioUserCardTransferLib.toAccount(gw, userEOA);
         BeamioUserCardModuleMintLib.cardMint(acct, CHARGE_REWARD_TOKEN_ID, reward);
         emit ChargeRewardAirdropped(userEOA, acct, chargeCurrency, amountFiat6, reward);
-        // Referrer #1 base = charge amountFiat6 (not token #2 reward).
-        BeamioUserCardReferrerLib.mintReferrerRewardForChargeIfConfigured(
-            IBeamioUserCardSelfDelegate(address(this)), acct, amountFiat6
-        );
+        // Referrer #13 + charge[referrer][referee] ledger: only via
+        // recordChargeReferrerReward (Master enqueue). Do not mint here — V2 override
+        // + Master would double-mint if both paths ran.
     }
 
     function burnChargeRewardByAdmin(address target, uint256 amount) external onlyGateway {
@@ -139,9 +152,23 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         emit ChargeRewardRatioUpdated(old, ratioE6);
     }
 
+    function _setTopupActorRewardRatio(uint256 ratioE6) internal {
+        ChargeRewardStorage.Layout storage l = ChargeRewardStorage.layout();
+        uint256 old = l.topupActorRewardRatioE6;
+        l.topupActorRewardRatioE6 = ratioE6;
+        emit TopupActorRewardRatioUpdated(old, ratioE6);
+    }
+
     function _calcChargeRewardAmount(uint256 amountFiat6) internal view returns (uint256) {
         if (amountFiat6 == 0) return 0;
         uint256 ratio = ChargeRewardStorage.layout().chargeRewardRatioE6;
+        if (ratio == 0) return 0;
+        return (amountFiat6 * ratio) / REWARD_RATIO_ONE_E6;
+    }
+
+    function _calcTopupActorRewardAmount(uint256 amountFiat6) internal view returns (uint256) {
+        if (amountFiat6 == 0) return 0;
+        uint256 ratio = ChargeRewardStorage.layout().topupActorRewardRatioE6;
         if (ratio == 0) return 0;
         return (amountFiat6 * ratio) / REWARD_RATIO_ONE_E6;
     }

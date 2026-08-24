@@ -13,7 +13,10 @@ import type {
 	UIDAssetsResult,
 } from '@/types/pos'
 import { parseUIDAssetsResponse } from '@/utils/readBalanceAssets'
-import { parseMetadataTierRows, type MetadataTierRow } from '@/utils/beamioPaymentRouting'
+import {
+	parseCardMetadataMembershipRows,
+	type MetadataTierRow,
+} from '@/utils/beamioPaymentRouting'
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { parsePointSystemEnabledFromMetadata } from '@/utils/pointSystemMetadata'
 
@@ -311,16 +314,16 @@ export async function fetchCardMetadataRoot(
 	}
 }
 
-/** iOS `fetchCardMetadataTiersBundle` — `/api/cardMetadata` → `metadata.tiers`. */
+/** `/api/cardMetadata` → `baseMembership` + higher `tiers[]` (legacy: fee rows in `tiers` only). */
 export async function fetchCardMetadataTiersBundle(
 	cardAddress: string | undefined,
 ): Promise<{ rows: MetadataTierRow[]; fromApi: boolean }> {
 	const addr = cardAddress?.trim() ?? ''
 	if (!addr) return { rows: [], fromApi: false }
 	const resp = await fetchCardMetadataRoot(addr)
-	const tiersArr = (resp?.metadata as { tiers?: unknown[] } | undefined)?.tiers
-	if (!Array.isArray(tiersArr) || tiersArr.length === 0) return { rows: [], fromApi: false }
-	const rows = parseMetadataTierRows(tiersArr)
+	const meta = (resp?.metadata ?? null) as Record<string, unknown> | null
+	if (!meta) return { rows: [], fromApi: false }
+	const rows = parseCardMetadataMembershipRows(meta)
 	return { rows, fromApi: rows.length > 0 }
 }
 

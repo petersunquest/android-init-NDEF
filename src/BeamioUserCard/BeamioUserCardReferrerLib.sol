@@ -23,12 +23,15 @@ interface IReferrerLibAaFactory {
     function beamioAccountOf(address eoa) external view returns (address);
 }
 
-/// @dev Referrer registry, pagination views, and token #1 reward minting (external library).
+/// @dev Referrer registry, pagination views, and #13 reward minting (external library).
 /// @dev Canonical registry keys are EOAs; AA keys remain readable for legacy binds.
-/// @dev Token #1 is always minted to the referrer's Beamio AA (never EOA).
+/// @dev Token #13 is always minted to the referrer's Beamio AA (never EOA).
 library BeamioUserCardReferrerLib {
-    uint256 internal constant REFERRER_REWARD_TOKEN_ID = 1;
+    /// @dev Unified reward points (#13). Legacy #1 balances remain on-chain but are not minted here.
+    uint256 internal constant REFERRER_REWARD_TOKEN_ID = 13;
     uint256 internal constant REWARD_RATIO_ONE_E6 = 1_000_000;
+    uint8 internal constant LEDGER_KIND_TOPUP = 1;
+    uint8 internal constant LEDGER_KIND_CHARGE = 2;
 
     function registerReferee(address refereeEOA) external {
         ReferrerStorage.Layout storage r = ReferrerStorage.layout();
@@ -109,7 +112,7 @@ library BeamioUserCardReferrerLib {
         r.refereeChargePointsTotal6[key] += pointsAmount;
     }
 
-    /// @notice Mint referrer token #1 from **charge amountFiat6** when referee has an uplink.
+    /// @notice Mint referrer #13 from **charge amountFiat6** when referee has an uplink.
     function mintReferrerRewardForChargeIfConfigured(
         IBeamioUserCardSelfDelegate delegate,
         address refereeAcct,
@@ -119,11 +122,12 @@ library BeamioUserCardReferrerLib {
             delegate,
             refereeAcct,
             amountFiat6,
-            ReferrerStorage.layout().referrerRewardFromChargeRewardRatioE6
+            ReferrerStorage.layout().referrerRewardFromChargeRewardRatioE6,
+            LEDGER_KIND_CHARGE
         );
     }
 
-    /// @notice Mint referrer token #1 from **top-up amountFiat6** when referee has an uplink.
+    /// @notice Mint referrer #13 from **top-up amountFiat6** when referee has an uplink.
     function mintReferrerRewardForTopupIfConfigured(
         IBeamioUserCardSelfDelegate delegate,
         address refereeAcct,
@@ -133,11 +137,12 @@ library BeamioUserCardReferrerLib {
             delegate,
             refereeAcct,
             amountFiat6,
-            ReferrerStorage.layout().referrerRewardFromTopupAmountRatioE6
+            ReferrerStorage.layout().referrerRewardFromTopupAmountRatioE6,
+            LEDGER_KIND_TOPUP
         );
     }
 
-    /// @dev Alias for charge-amount path (legacy name; base is amountFiat6, not token #2).
+    /// @dev Alias for charge-amount path (legacy name; base is amountFiat6).
     function mintReferrerRewardIfConfigured(
         IBeamioUserCardSelfDelegate delegate,
         address refereeAcct,
@@ -147,8 +152,27 @@ library BeamioUserCardReferrerLib {
             delegate,
             refereeAcct,
             amountFiat6,
-            ReferrerStorage.layout().referrerRewardFromChargeRewardRatioE6
+            ReferrerStorage.layout().referrerRewardFromChargeRewardRatioE6,
+            LEDGER_KIND_CHARGE
         );
+    }
+
+    /// @notice Ledger for referrer UI: topup/charge[referrer][referee] cumulative #13 + fiat bases.
+    function getReferrerRefereeLedger(address referrer, address referee)
+        external
+        view
+        returns (
+            uint256 topupReward13E6,
+            uint256 chargeReward13E6,
+            uint256 topupAmountFiat6,
+            uint256 chargeAmountFiat6
+        )
+    {
+        ReferrerStorage.Layout storage r = ReferrerStorage.layout();
+        address refKey = _canonicalLedgerKey(r, referrer);
+        address eeKey = _canonicalLedgerKey(r, referee);
+        ReferrerStorage.ReferrerRefereeLedger storage row = r.referrerRefereeLedger[refKey][eeKey];
+        return (row.topupReward13E6, row.chargeReward13E6, row.topupAmountFiat6, row.chargeAmountFiat6);
     }
 
     function calcReferrerRewardFromChargeAmount(uint256 amountFiat6) public view returns (uint256) {
@@ -181,11 +205,23 @@ library BeamioUserCardReferrerLib {
         return ReferrerRegistryLib.registeredRefereeTotalCount(ReferrerStorage.layout());
     }
 
+    /// @notice Uplink referrer for a referee (EOA or AA key; tries both).
+    function refereeReferrer(address referee) external view returns (address) {
+        (, address referrerKey) = _resolveRefereeReferrer(ReferrerStorage.layout(), referee);
+        return referrerKey;
+    }
+
+    /// @notice Cumulative charge points (E6) attributed to a referee key (EOA/AA fallback).
+    function refereeChargePointsTotal6(address referee) external view returns (uint256) {
+        return _chargePointsOf(ReferrerStorage.layout(), referee);
+    }
+
     function _mintReferrerFromAmount(
         IBeamioUserCardSelfDelegate delegate,
         address refereeAcct,
         uint256 amountFiat6,
-        uint256 ratioE6
+        uint256 ratioE6,
+        uint8 kind
     ) private {
         if (refereeAcct == address(0) || amountFiat6 == 0 || ratioE6 == 0) return;
         ReferrerStorage.Layout storage r = ReferrerStorage.layout();
@@ -199,7 +235,40 @@ library BeamioUserCardReferrerLib {
         address mintToAa = _beamioAaOrZero(referrerKey);
         if (mintToAa == address(0)) return;
         delegate.cardSelfMint(mintToAa, REFERRER_REWARD_TOKEN_ID, referrerReward);
-        delegate.cardSelfEmitReferrerRewardMinted(refereeKey, referrerKey, referrerReward);
+        _accumulateLedger(r, referrerKey, refereeKey, kind, amountFiat6, referrerReward);
+        delegate.cardSelfEmitReferrerRewardMinted(refereeKey, referrerKey, referrerReward, amountFiat6, kind);
+    }
+
+    function _accumulateLedger(
+        ReferrerStorage.Layout storage r,
+        address referrerKey,
+        address refereeKey,
+        uint8 kind,
+        uint256 amountFiat6,
+        uint256 reward13E6
+    ) private {
+        address refKey = _canonicalLedgerKey(r, referrerKey);
+        address eeKey = _canonicalLedgerKey(r, refereeKey);
+        ReferrerStorage.ReferrerRefereeLedger storage row = r.referrerRefereeLedger[refKey][eeKey];
+        if (kind == LEDGER_KIND_TOPUP) {
+            row.topupReward13E6 += reward13E6;
+            row.topupAmountFiat6 += amountFiat6;
+        } else if (kind == LEDGER_KIND_CHARGE) {
+            row.chargeReward13E6 += reward13E6;
+            row.chargeAmountFiat6 += amountFiat6;
+        }
+    }
+
+    function _canonicalLedgerKey(ReferrerStorage.Layout storage r, address acct) private view returns (address) {
+        if (acct == address(0)) return address(0);
+        address eoa = _eoaOfMaybeAa(acct);
+        if (r.isReferee[eoa] || r.referrerOfReferee[eoa] != address(0) || r.referrerAccountIndexPlusOne[eoa] != 0) {
+            return eoa;
+        }
+        if (r.isReferee[acct] || r.referrerOfReferee[acct] != address(0) || r.referrerAccountIndexPlusOne[acct] != 0) {
+            return acct;
+        }
+        return eoa;
     }
 
     function _calcFromRatio(uint256 amountFiat6, uint256 ratioE6) private pure returns (uint256) {

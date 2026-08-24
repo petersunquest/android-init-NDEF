@@ -1,5 +1,6 @@
 import { DEPRECATED_INFRA_CARD, USDC_BASE } from '@/constants'
 import type { ReadBalanceCardItem, UIDAssetsResult } from '@/types/pos'
+import { isMembershipNftTokenId } from '@/utils/membershipNft'
 
 export interface OracleRates {
 	usdcad: number
@@ -373,6 +374,54 @@ export function parseMetadataTierRows(metadataTiersArray: unknown[]): MetadataTi
 	return out
 }
 
+/**
+ * Parse card0 metadata into membership rows:
+ * - `baseMembership` → index 0 (base membership, not Add-tier)
+ * - `tiers[]` with fees → higher memberships at index 1+
+ * Legacy: no `baseMembership` but `tiers[0]` has fee → treat as base (index 0).
+ */
+export function parseCardMetadataMembershipRows(
+	metadata: Record<string, unknown> | null | undefined,
+): MetadataTierRow[] {
+	if (!metadata || typeof metadata !== 'object') return []
+	const baseRaw = metadata.baseMembership
+	const hasBaseObject = baseRaw != null && typeof baseRaw === 'object' && !Array.isArray(baseRaw)
+	const tiersRaw = Array.isArray(metadata.tiers) ? metadata.tiers : []
+	const higher = parseMetadataTiersRows(tiersRaw)
+
+	if (hasBaseObject) {
+		const baseRows = parseMetadataTiersRows([baseRaw])
+		const base = baseRows[0]
+		if (!base || BigInt(metadataTierMembershipFeeE6(base)) <= 0n) {
+			return higher.map((row, i) => ({
+				...row,
+				index: row.index ?? i + 1,
+				chainTierIndex: row.chainTierIndex ?? row.index ?? i + 1,
+			}))
+		}
+		const baseRow: MetadataTierRow = {
+			...base,
+			index: 0,
+			chainTierIndex: 0,
+			name: (base.name ?? 'Membership').trim() || 'Membership',
+			minUsdc6: base.minUsdc6 ?? '1',
+		}
+		const higherIndexed = higher.map((row, i) => ({
+			...row,
+			index: row.index ?? i + 1,
+			chainTierIndex: row.chainTierIndex ?? row.index ?? i + 1,
+		}))
+		return [baseRow, ...higherIndexed]
+	}
+
+	// Legacy: first fee row is base (index 0); subsequent fee rows are higher.
+	return higher.map((row, i) => ({
+		...row,
+		index: row.index ?? i,
+		chainTierIndex: row.chainTierIndex ?? row.index ?? i,
+	}))
+}
+
 /** Human fee → E6 string; empty/invalid → "0". */
 export function membershipFeeHumanToE6(raw: string | number | undefined | null): string {
 	if (raw == null || raw === '') return '0'
@@ -388,11 +437,9 @@ export function membershipFeeE6ToHuman(e6: string | number | undefined | null): 
 	try {
 		const bi = BigInt(String(e6).replace(/,/g, '').trim() || '0')
 		if (bi <= 0n) return ''
-		const whole = bi / 1000000n
-		const frac = bi % 1000000n
-		if (frac === 0n) return whole.toString()
-		const fracStr = frac.toString().padStart(6, '0').replace(/0+$/, '')
-		return `${whole}.${fracStr}`
+		const whole = bi / 1_000_000n
+		const cents = (bi % 1_000_000n) / 10_000n
+		return `${whole}.${cents.toString().padStart(2, '0')}`
 	} catch {
 		return ''
 	}
@@ -467,21 +514,27 @@ export function selectMetadataTierForPrimaryMembership(
 	if (!tiers.length) return null
 	let primaryTid: string | undefined
 	const p = (card.primaryMemberTokenId ?? '').trim()
-	if (p && (Number(p) || 0) > 0) {
+	if (p && isMembershipNftTokenId(p)) {
 		primaryTid = p
 	} else {
 		const best = [...(card.nfts ?? [])]
-			.filter((n) => (Number(n.tokenId) || 0) > 0)
-			.sort((a, b) => (Number(b.tokenId) || 0) - (Number(a.tokenId) || 0))[0]
-		if (best && (Number(best.tokenId) || 0) > 0) primaryTid = best.tokenId
+			.filter((n) => !n.isExpired && isMembershipNftTokenId(n.tokenId))
+			.sort((a, b) => {
+				try {
+					return Number(BigInt(b.tokenId) - BigInt(a.tokenId))
+				} catch {
+					return 0
+				}
+			})[0]
+		if (best) primaryTid = best.tokenId
 	}
 	if (!primaryTid) return null
 	const primaryNft = (card.nfts ?? []).find(
 		(n) => n.tokenId === primaryTid || n.tokenId.toLowerCase() === primaryTid!.toLowerCase(),
 	)
-	if (!primaryNft) return null
+	if (!primaryNft || !isMembershipNftTokenId(primaryNft.tokenId)) return null
 	for (const idx of chainTierIndexCandidates(primaryNft)) {
-		const row = tiers.find((t) => t.chainTierIndex === idx)
+		const row = tiers.find((t) => t.chainTierIndex === idx || t.index === idx)
 		if (row) return row
 	}
 	const tierLabel = (primaryNft.tier ?? '').trim()

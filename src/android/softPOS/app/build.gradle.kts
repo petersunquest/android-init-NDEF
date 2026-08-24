@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.google.services)
 }
 
 // Release signing: same keystore as android-NDEF POS (`../Android-init-NDEF/keystore.properties`).
@@ -24,8 +25,8 @@ android {
         applicationId = "com.beamio.pos"
         minSdk = 24
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.0.16"
+        versionCode = 18
+        versionName = "1.0.18"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -69,6 +70,9 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.webkit:webkit:1.12.1")
+    // Offline chat → FCM badge (google-services.json includes com.beamio.pos)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -8,10 +8,12 @@
     "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
-    "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
+    "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
-    "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
-    "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1"
+    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+    "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
   "chargeReferrerRewardGatewayUpgrade": {
     "timestamp": "2026-08-06T16:00:50.298Z",
@@ -35,7 +37,9 @@
     "issuedNftModule": "0x6A870AFe1dB4A4E4652D85E7f3CeD70C6Fb010EF",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
-    "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711"
+    "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
+    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+    "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544"
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
@@ -53,10 +57,53 @@
     "note": "mintPointsForProtocolUsdcSettlement gateway mint"
   },
   "membershipFeeUpgrade": {
-    "timestamp": "2026-08-12T19:57:04.392Z",
-    "membershipFeeOpsLib": "0xB6e69189F41833711a372431949cB37435DD01e5",
-    "membershipStatsModule": "0x53187d619D9427D43887876CfdD24064cB28F642",
-    "adminStatsQueryModule": "0xD03EfAE971d1D48228e4a4a375376Ed3dC8eBda1",
-    "note": "Membership fee mode: stage + fee-aware MembershipStats"
+    "timestamp": "2026-08-23T23:16:32.903Z",
+    "membershipFeeOpsLib": "0xF3Ce015B43012E03706b5d1f57970ebCbB01D5a2",
+    "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "note": "Membership fee mode: V6 router + fee-aware MembershipStats (issue #100+)"
+  },
+  "adminStatsReferrerRegistryViewsUpgrade": {
+    "timestamp": "2026-08-21T06:44:20.568Z",
+    "adminStatsQueryModule": "0xCb1386C56b898f0DD48cD53e804d43742536E06b",
+    "adminStatsV5": "0x444626D20214b7c4aF7BDb43E93cBc1727963719",
+    "adminStatsReferrerViews": "0x20845FF9Ee9EA9e65e33d827C51BB118efA32276",
+    "beamioUserCardReferrerLib": "0x78939FF276f1cCcE5E3fdbED9b86355910105aE2",
+    "referrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+    "note": "V6 router + Referrer Registry read views"
+  },
+  "unifiedRewardPoints13Upgrade": {
+    "timestamp": "2026-08-23T09:13:35.387Z",
+    "referrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544",
+    "adminStatsV5": "0x444626D20214b7c4aF7BDb43E93cBc1727963719",
+    "libraryLinks": {
+      "ReferrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+      "BeamioUserCardReferrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+      "BeamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664"
+    },
+    "replaced": {
+      "chargeRewardModule": "0x88E82FfB95AfCdfa313eb806093adab81B123059",
+      "adminStatsQueryModule": "0xCb1386C56b898f0DD48cD53e804d43742536E06b",
+      "priorChargeRewardReferrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
+      "priorRegistryViewsReferrerLib": "0x78939FF276f1cCcE5E3fdbED9b86355910105aE2",
+      "priorAdminStatsReferrerViews": "0x20845FF9Ee9EA9e65e33d827C51BB118efA32276"
+    },
+    "bound": {
+      "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
+      "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544",
+      "note": "Factory bind completed; smoke Charge views soft-fail on pre-CHARGE-route cards"
+    },
+    "note": "Unified Reward Points #13: ReferrerLib mint #13 + ledger; ChargeReward topupActor/record*; V6+Views keep V5 membership fee"
+  },
+  "membershipStatsLayoutFix": {
+    "timestamp": "2026-08-23T19:02:14.322Z",
+    "membershipStatsModule": "0x922AE5770e96DEE2fd438D4431684D8EcC639e27",
+    "replaced": "0x85f3eA6C1cf5FdA63DBBE7d34fF025D4364C7eCF",
+    "note": "Align Base storage with BeamioUserCard deployer slot"
   }
 }

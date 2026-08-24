@@ -48,7 +48,7 @@ export declare namespace BeamioUserCardAdminStatsQueryModuleV1 {
     }
 
   export interface BeamioUserCardAdminStatsQueryModuleV5Interface extends Interface {
-    getFunction(nameOrSignature: "BIND_SHARE_REFEREE_TYPEHASH" | "bindShareRefereeWithSignature" | "clearMembershipFeePurchase" | "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminBurnCounter" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminMintCounter" | "getAdminPeriodReports" | "getAdminRedeemMintCounter" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getGlobalAdminToAdminCounters" | "getGlobalAdminToAdminHourlyData" | "getGlobalStatsFull" | "membershipFeeDurationKind" | "membershipFeeE6" | "membershipFeeMode" | "membershipFeePending" | "membershipFees" | "referrerChargeAmountRatioE6" | "referrerTopupAmountRatioE6" | "selectorModuleKind" | "setMembershipFees" | "setReferrerChargeAmountRatio" | "setReferrerTopupAmountRatio" | "stageMembershipFeePurchase"): FunctionFragment;
+    getFunction(nameOrSignature: "BIND_SHARE_REFEREE_TYPEHASH" | "bindShareRefereeWithSignature" | "clearMembershipFeePurchase" | "getAdminAirdropLimit" | "getAdminAndSubordinateLimits" | "getAdminAndSubordinateLimitsPage" | "getAdminBurnCounter" | "getAdminHourlyData" | "getAdminListWithMetadata" | "getAdminMintCounter" | "getAdminPeriodReports" | "getAdminRedeemMintCounter" | "getAdminStatsFull" | "getAdminSubordinatesWithMetadata" | "getAdminTransferAmountCounter" | "getAdminTransferCounter" | "getAdminUSDCMintCounter" | "getGlobalAdminToAdminCounters" | "getGlobalAdminToAdminHourlyData" | "getGlobalStatsFull" | "membershipFeeDurationKind" | "membershipFeeE6" | "membershipFeeMode" | "membershipFeePending" | "membershipFees" | "referrerChargeAmountRatioE6" | "referrerTopupAmountRatioE6" | "selectorModuleKind" | "setMembershipFees" | "setReferrerChargeAmountRatio" | "setReferrerTopupAmountRatio" | "stageMembershipFeePurchase" | "stageMembershipFeePurchaseWithBootstrap"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "ReferrerChargeAmountRatioUpdated" | "ReferrerTopupAmountRatioUpdated" | "ShareRefereeBoundWithSignature"): EventFragment;
 
@@ -84,6 +84,7 @@ encodeFunctionData(functionFragment: 'setMembershipFees', values: [BigNumberish[
 encodeFunctionData(functionFragment: 'setReferrerChargeAmountRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setReferrerTopupAmountRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'stageMembershipFeePurchase', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'stageMembershipFeePurchaseWithBootstrap', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'BIND_SHARE_REFEREE_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bindShareRefereeWithSignature', data: BytesLike): Result;
@@ -117,6 +118,7 @@ decodeFunctionResult(functionFragment: 'setMembershipFees', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'setReferrerChargeAmountRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setReferrerTopupAmountRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'stageMembershipFeePurchase', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'stageMembershipFeePurchaseWithBootstrap', data: BytesLike): Result;
   }
 
   
@@ -445,6 +447,14 @@ decodeFunctionResult(functionFragment: 'stageMembershipFeePurchase', data: Bytes
     >
     
 
+    
+    stageMembershipFeePurchaseWithBootstrap: TypedContractMethod<
+      [user: AddressLike, tierIndex: BigNumberish, feePaid6: BigNumberish, pointsCredit6: BigNumberish, durationKind: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -605,6 +615,11 @@ getFunction(nameOrSignature: 'setReferrerTopupAmountRatio'): TypedContractMethod
     >;
 getFunction(nameOrSignature: 'stageMembershipFeePurchase'): TypedContractMethod<
       [user: AddressLike, tierIndex: BigNumberish, feePaid6: BigNumberish, pointsCredit6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'stageMembershipFeePurchaseWithBootstrap'): TypedContractMethod<
+      [user: AddressLike, tierIndex: BigNumberish, feePaid6: BigNumberish, pointsCredit6: BigNumberish, durationKind: BigNumberish, ],
       [void],
       'nonpayable'
     >;

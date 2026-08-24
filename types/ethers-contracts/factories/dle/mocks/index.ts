@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export * as dleMocksSol from './DLEMocks.sol/index.js';
+export * as mockDleAuctionSettlementSol from './MockDleAuctionSettlement.sol/index.js';
