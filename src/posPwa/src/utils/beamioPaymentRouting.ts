@@ -387,10 +387,10 @@ export function parseCardMetadataMembershipRows(
 	const baseRaw = metadata.baseMembership
 	const hasBaseObject = baseRaw != null && typeof baseRaw === 'object' && !Array.isArray(baseRaw)
 	const tiersRaw = Array.isArray(metadata.tiers) ? metadata.tiers : []
-	const higher = parseMetadataTiersRows(tiersRaw)
+	const higher = parseMetadataTierRows(tiersRaw)
 
 	if (hasBaseObject) {
-		const baseRows = parseMetadataTiersRows([baseRaw])
+		const baseRows = parseMetadataTierRows([baseRaw])
 		const base = baseRows[0]
 		if (!base || BigInt(metadataTierMembershipFeeE6(base)) <= 0n) {
 			return higher.map((row, i) => ({

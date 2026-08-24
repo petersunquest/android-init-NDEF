@@ -98,6 +98,8 @@ export interface ReadBalanceNftItem {
 	tokenId: string
 	attribute?: string
 	tier?: string
+	/** When true, membership NFT is past expiry (API/chain). */
+	isExpired?: boolean
 }
 
 export interface ReadBalanceCardItem {
