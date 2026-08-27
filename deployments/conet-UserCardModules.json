@@ -10,8 +10,8 @@
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
-    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
-    "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e",
+    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
+    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
     "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
@@ -38,8 +38,8 @@
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
-    "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2",
-    "adminStatsQueryModule": "0xa302E773e7C111123F6C2437f2504980E383e544"
+    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
+    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4"
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
@@ -105,5 +105,36 @@
     "membershipStatsModule": "0x922AE5770e96DEE2fd438D4431684D8EcC639e27",
     "replaced": "0x85f3eA6C1cf5FdA63DBBE7d34fF025D4364C7eCF",
     "note": "Align Base storage with BeamioUserCard deployer slot"
+  },
+  "chargeRewardTopupRatioUpgrade": {
+    "snapshot": "conet-ChargeRewardTopupRatio.json",
+    "chargeRewardModule": "0x126b14aE605008Bd9B0f57aEefD9268a587A1D63",
+    "replaced": {
+      "chargeRewardModule": "0x3CfF14d7c32d199f8ff26AD7Cb5AEA80AaAbd0f2"
+    },
+    "bound": {
+      "chargeRewardModule": "0x126b14aE605008Bd9B0f57aEefD9268a587A1D63"
+    },
+    "note": "Top-up Reward PT / Referrer via ratioE6 in recordTopupCumulativeStat; AdminStats untouched"
+  },
+  "combinedRewardSettersUpgrade": {
+    "timestamp": "2026-08-27T23:49:45.285Z",
+    "referrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
+    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "replaced": {
+      "chargeRewardModule": "0x126b14aE605008Bd9B0f57aEefD9268a587A1D63",
+      "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e"
+    },
+    "bound": {
+      "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
+      "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+      "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+      "setChargeRewardModuleTx": "0xc53f595fadf8de4e274ff05d97a954f8080b25f7e5de48f51d1e0838c148e162",
+      "setAdminStatsQueryModuleTx": "0x57fa0dd1803940310816d40ff30c2a529a655c261b33483caf3863430bd1a02e"
+    },
+    "note": "ChargeRewardModuleV2 + AdminStats V6: topupReward/chargeReward combined E6 setters → route 5; reuse V5 + referrerViews; never bind bare V5"
   }
 }
