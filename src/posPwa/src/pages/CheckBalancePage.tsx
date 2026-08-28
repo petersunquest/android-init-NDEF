@@ -767,9 +767,7 @@ export function CheckBalancePage() {
 							cardMetadataImageUrl={vm.cardImageUrl}
 							balanceParts={vm.balanceParts}
 							pointRewardPts={vm.rewardPtsAmount}
-							onDeductPoints={
-								pointSystemEnabled ? () => setPhase('deduct-amount') : undefined
-							}
+							onDeductPoints={() => setPhase('deduct-amount')}
 							deductPointsDisabled={deductBusy}
 						/>
 						{showMembershipJoin ? (

@@ -203,6 +203,8 @@ export async function executeNfcTopup(params: {
 	/** Required by Cluster when membershipFeeMode && customer has no valid membership. */
 	membershipTierIndex?: number
 	membershipFeeFiat6?: string
+	/** Principal keypad amount (no promotion bonus). When set and &lt; apiAmount, packs #13 base on-chain. */
+	paidAmount?: string
 	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
 	const onProgress = params.onProgress
@@ -223,6 +225,7 @@ export async function executeNfcTopup(params: {
 		sun: params.target.sun,
 		membershipTierIndex: params.membershipTierIndex,
 		membershipFeeFiat6: params.membershipFeeFiat6,
+		paidAmount: params.paidAmount?.trim() || undefined,
 	}
 
 	onProgress?.('preparing')

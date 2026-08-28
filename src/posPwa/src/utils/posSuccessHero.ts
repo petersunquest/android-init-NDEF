@@ -24,7 +24,8 @@ export interface PosSuccessPassHeroProps {
 export function buildSuccessPassHeroProps(params: {
 	assets: UIDAssetsResult
 	merchantInfraCard: string
-	pointSystemEnabled: boolean
+	/** Unused — #13 subtitle always comes from assets. */
+	pointSystemEnabled?: boolean
 	customerBeamioTag?: string
 	customerWalletAddress?: string
 	balanceAmount?: number
@@ -58,11 +59,7 @@ export function buildSuccessPassHeroProps(params: {
 		else balanceAmount = Number(primary?.points ?? params.assets.points ?? '0') || 0
 	}
 	const balanceParts = readBalanceFormatMoney(balanceAmount, currency)
-	const balanceSubtitle = readBalancePointRewardSubtitle(
-		primary,
-		params.assets,
-		params.pointSystemEnabled,
-	)
+	const balanceSubtitle = readBalancePointRewardSubtitle(primary, params.assets)
 	return {
 		memberDisplayName,
 		memberNo,
@@ -122,7 +119,8 @@ export function buildTopupSuccessPassHero(params: {
 	assets: UIDAssetsResult
 	cardAddr: string
 	merchantInfraCard: string
-	pointSystemEnabled: boolean
+	/** Unused — #13 subtitle always comes from assets. */
+	pointSystemEnabled?: boolean
 	postBalance: string
 	cardCurrency: string
 	customerBeamioTag?: string
@@ -148,10 +146,6 @@ export function buildTopupSuccessPassHero(params: {
 		tierCardBackgroundHex: card?.cardBackground?.trim() || undefined,
 		cardMetadataImageUrl: card?.cardImage?.trim() || null,
 		balanceParts: readBalanceFormatMoney(balanceAmount ?? 0, params.cardCurrency),
-		balanceSubtitle: readBalancePointRewardSubtitle(
-			card,
-			params.assets,
-			params.pointSystemEnabled,
-		),
+		balanceSubtitle: readBalancePointRewardSubtitle(card, params.assets),
 	}
 }

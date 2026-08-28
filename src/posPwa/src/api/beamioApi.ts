@@ -369,6 +369,8 @@ export async function nfcTopupPrepare(body: {
 	sun?: { e: string; c: string; m: string }
 	membershipTierIndex?: number
 	membershipFeeFiat6?: string
+	/** Principal fiat only (keypad amount); amount may include Top-up Promotion bonus. */
+	paidAmount?: string
 }): Promise<NfcTopupPrepareResult | null> {
 	try {
 		const payload: Record<string, string | number> = {
@@ -391,6 +393,9 @@ export async function nfcTopupPrepare(body: {
 		}
 		if (body.membershipFeeFiat6?.trim()) {
 			payload.membershipFeeFiat6 = body.membershipFeeFiat6.trim()
+		}
+		if (body.paidAmount?.trim()) {
+			payload.paidAmount = body.paidAmount.trim()
 		}
 		const res = await fetch(`${BEAMIO_API}/api/nfcTopupPrepare`, {
 			method: 'POST',

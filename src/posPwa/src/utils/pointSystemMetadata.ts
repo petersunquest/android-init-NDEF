@@ -38,7 +38,8 @@ function parseMetadataRatioE6String(raw: unknown): string | null {
 }
 
 /**
- * Card Issuance `shareTokenMetadata.pointSystem.enabled` — aligns iOS/Android POS.
+ * Card Issuance `shareTokenMetadata.pointSystem.enabled` — Charge/Top-up Reward PT mint.
+ * POS #13 balance display and Deduct Points are not gated by this flag.
  * Legacy cards without an explicit block default to enabled.
  */
 export function parsePointSystemEnabledFromMetadata(meta: Record<string, unknown>): boolean {

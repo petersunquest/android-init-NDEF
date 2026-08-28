@@ -103,13 +103,16 @@ export function readBalanceLastTopUpFallbackLine(assets: UIDAssetsResult): strin
 	return '—'
 }
 
-/** Reward PT (#13) amount (Check Balance hero / success). */
+/**
+ * Reward PT (#13) amount (Check Balance hero / Charge / Top-up success).
+ * Always shown from wallet assets — Promotion / Consumption Points switches
+ * only control new mint, not existing #13 display.
+ */
 export function readBalancePointRewardPtsAmount(
 	primary: ReadBalanceCardItem | undefined,
 	assets: UIDAssetsResult,
-	pointSystemEnabled: boolean,
+	_pointSystemEnabled?: boolean,
 ): string | null {
-	if (!pointSystemEnabled) return null
 	const raw =
 		primary?.chargeRewardPoints6?.trim() ??
 		assets.chargeRewardPoints6?.trim() ??
@@ -123,9 +126,9 @@ export function readBalancePointRewardPtsAmount(
 export function readBalancePointRewardSubtitle(
 	primary: ReadBalanceCardItem | undefined,
 	assets: UIDAssetsResult,
-	pointSystemEnabled: boolean,
+	_pointSystemEnabled?: boolean,
 ): string | null {
-	const pts = readBalancePointRewardPtsAmount(primary, assets, pointSystemEnabled)
+	const pts = readBalancePointRewardPtsAmount(primary, assets)
 	return pts != null ? `${pts} pts` : null
 }
 
@@ -202,7 +205,7 @@ export function readBalancePassHeroPalette(tierCardBackgroundHex: string | undef
 export function readBalanceResultViewModel(
 	assets: UIDAssetsResult,
 	merchantInfraCard: string,
-	pointSystemEnabled: boolean,
+	_pointSystemEnabled?: boolean,
 ) {
 	const primary = readBalancePrimaryCard(assets, merchantInfraCard)
 	const memberDisplay = readBalancePassHeroMemberDisplayName(assets, primary)
@@ -222,7 +225,7 @@ export function readBalanceResultViewModel(
 					? Number(assets.points6) / 1_000_000
 					: Number(assets.points ?? 0)
 	const balanceParts = readBalanceFormatMoney(balNum, balCurrency)
-	const rewardPtsAmount = readBalancePointRewardPtsAmount(primary, assets, pointSystemEnabled)
+	const rewardPtsAmount = readBalancePointRewardPtsAmount(primary, assets)
 	const rewardSubtitle = rewardPtsAmount != null ? `${rewardPtsAmount} pts` : null
 	const usdcBal = Number(assets.usdcBalance ?? '0')
 	const caddBalRaw = assets.caddBalance?.trim()

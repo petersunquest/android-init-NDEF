@@ -199,6 +199,8 @@ export function TopUpPage() {
 				pointSystemEnabled,
 				membershipTierIndex: draft.membershipTierIndex,
 				membershipFeeFiat6: draft.membershipFeeFiat6,
+				/** Keypad principal only — apiAmount may include Top-up Promotion bonus. */
+				paidAmount: draft.keypadAmount,
 				onProgress: setTopupProgress,
 			})
 			if (outcome.status === 'success') {

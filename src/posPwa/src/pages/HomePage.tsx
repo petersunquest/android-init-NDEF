@@ -77,7 +77,6 @@ export function HomePage() {
 		bUnitBalance,
 		hasAAAccount,
 		homeStatsLoaded,
-		pointSystemEnabled,
 		activeCoupons,
 	} = usePosSession()
 	const { unreadTotal } = usePosChat()
@@ -323,37 +322,18 @@ export function HomePage() {
 							className="grid grid-cols-2 gap-3"
 							style={{ height: heights.actionRow, minHeight: heights.actionRow }}
 						>
-							{pointSystemEnabled ? (
-								<HomeActionGridButton
-									title="Deduct Points"
-									icon={MinusCircle}
-									iconTint={DEDUCT_ORANGE}
-									onClick={() => navigate(POS_HOME_ROUTES.deductPoints)}
-								/>
-							) : (
-								<HomeActionGridButton
-									title="History"
-									icon={ClipboardList}
-									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.transactions)}
-								/>
-							)}
-							{pointSystemEnabled ? (
-								<HomeActionGridButton
-									title="History"
-									icon={ClipboardList}
-									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.transactions)}
-								/>
-							) : (
-								<HomeActionGridButton
-									title="Chat"
-									icon={MessageCircle}
-									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.chat)}
-									badge={unreadTotal}
-								/>
-							)}
+							<HomeActionGridButton
+								title="Deduct Points"
+								icon={MinusCircle}
+								iconTint={DEDUCT_ORANGE}
+								onClick={() => navigate(POS_HOME_ROUTES.deductPoints)}
+							/>
+							<HomeActionGridButton
+								title="History"
+								icon={ClipboardList}
+								iconTint={BRAND_BLUE}
+								onClick={() => navigate(POS_HOME_ROUTES.transactions)}
+							/>
 						</div>
 
 						<div
@@ -366,17 +346,13 @@ export function HomePage() {
 								iconTint={BRAND_BLUE}
 								onClick={() => navigate(POS_HOME_ROUTES.nativeAction('linkApp'))}
 							/>
-							{pointSystemEnabled ? (
-								<HomeActionGridButton
-									title="Chat"
-									icon={MessageCircle}
-									iconTint={BRAND_BLUE}
-									onClick={() => navigate(POS_HOME_ROUTES.chat)}
-									badge={unreadTotal}
-								/>
-							) : (
-								<div className="min-h-0" aria-hidden />
-							)}
+							<HomeActionGridButton
+								title="Chat"
+								icon={MessageCircle}
+								iconTint={BRAND_BLUE}
+								onClick={() => navigate(POS_HOME_ROUTES.chat)}
+								badge={unreadTotal}
+							/>
 						</div>
 					</div>
 				</div>

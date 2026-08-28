@@ -9,19 +9,19 @@ const CHECK_GREEN = '#16a34a'
 /** iOS `DeductPointsSuccessView`. */
 export function DeductPointsSuccessView({
 	result,
-	pointSystemEnabled,
+	pointSystemEnabled: _pointSystemEnabled,
 	onDone,
 }: {
 	result: DeductExecuteSuccess
-	pointSystemEnabled: boolean
+	/** Ignored — #13 balance always displays after deduct. */
+	pointSystemEnabled?: boolean
 	onDone: () => void
 }) {
 	const hero = result.passHero
 	const post6 = Number(result.postPointBalance6)
-	const postPts =
-		pointSystemEnabled && Number.isFinite(post6)
-			? readBalanceFormatUsdcThousands(post6 / 1_000_000)
-			: null
+	const postPts = Number.isFinite(post6)
+		? readBalanceFormatUsdcThousands(post6 / 1_000_000)
+		: null
 	const memberDisplayName = (() => {
 		const tag = result.customerBeamioTag?.trim()
 		if (tag) return tag.startsWith('@') ? tag : `@${tag}`
