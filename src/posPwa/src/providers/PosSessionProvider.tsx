@@ -125,6 +125,11 @@ interface PosContextValue {
 
 const PosContext = createContext<PosContextValue | null>(null)
 
+/**
+ * Swap Home / Transactions memory to this upper-admin workspace partition.
+ * Always apply local cache for the target upper (including trusted-empty / miss → clear)
+ * so switching upperAdmin EOA never leaves the previous workspace's KPI / coupons on screen.
+ */
 function hydratePartitionIntoState(
 	wallet: string,
 	upper: string,
@@ -139,27 +144,36 @@ function hydratePartitionIntoState(
 		setPointSystemEnabled: (v: boolean) => void
 		setActiveCoupons: (v: MerchantActiveIssuedCoupon[] | null) => void
 		setShowPermissionGate: (v: boolean) => void
+		setBUnitBalance?: (v: number | null) => void
+		setHomeStatsLoaded?: (v: boolean) => void
 	},
 ): string | null {
 	posHomeTrustedCache.ensureWorkspace(wallet, upper)
 	const infra = posHomeTrustedCache.loadInfraCard(wallet, upper)
-	if (infra) setters.setMerchantInfraCard(infra)
+	setters.setMerchantInfraCard(infra)
 	const profiles = posHomeTrustedCache.loadProfiles(wallet, upper)
-	if (profiles.admin) setters.setAdminProfile(profiles.admin)
-	else setters.setAdminProfile(null)
-	const parent = posHomeTrustedCache.loadParentProfile(wallet, upper)
-	if (parent) setters.setParentProfile(parent)
-	const parentTag = posHomeTrustedCache.loadParentTag(wallet, upper)
-	if (parentTag) setters.setParentBeamioTagState(parentTag)
+	setters.setAdminProfile(profiles.admin)
+	setters.setParentProfile(posHomeTrustedCache.loadParentProfile(wallet, upper))
+	setters.setParentBeamioTagState(posHomeTrustedCache.loadParentTag(wallet, upper) ?? '')
+	/* B-Unit / loaded flag are upper-scoped at display time; clear until refreshHome. */
+	setters.setBUnitBalance?.(null)
+	setters.setHomeStatsLoaded?.(false)
+
 	if (infra) {
 		const stats = posHomeTrustedCache.loadStats(wallet, upper, infra)
-		if (stats.charge != null) setters.setChargeAmount(stats.charge)
-		if (stats.topUp != null) setters.setTopUpAmount(stats.topUp)
-		if (stats.tips != null) setters.setTipsAmount(stats.tips)
+		setters.setChargeAmount(stats.charge)
+		setters.setTopUpAmount(stats.topUp)
+		setters.setTipsAmount(stats.tips)
 		const cachedPoint = posHomeTrustedCache.loadPointSystemEnabled(wallet, upper, infra)
-		if (cachedPoint === true || cachedPoint === false) setters.setPointSystemEnabled(cachedPoint)
+		setters.setPointSystemEnabled(cachedPoint === true)
 		const cachedCoupons = posHomeTrustedCache.loadActiveCoupons(wallet, upper, infra)
-		if (cachedCoupons !== null) setters.setActiveCoupons(cachedCoupons)
+		setters.setActiveCoupons(cachedCoupons)
+	} else {
+		setters.setChargeAmount(null)
+		setters.setTopUpAmount(null)
+		setters.setTipsAmount(null)
+		setters.setPointSystemEnabled(true)
+		setters.setActiveCoupons(null)
 	}
 	const perm = posHomeTrustedCache.loadPermissionGranted(wallet, upper)
 	if (perm === true) setters.setShowPermissionGate(false)
@@ -555,6 +569,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			posHomeTrustedCache.saveInfraCard(wallet, upper, setRes.cardAddress)
 			activeUpperRef.current = upper
 			setActiveUpperEoa(upper)
+			/* Invalidate any in-flight refreshHome from the previous upper partition. */
+			refreshGen.current += 1
 			hydratePartitionIntoState(wallet, upper, {
 				setMerchantInfraCard,
 				setAdminProfile,
@@ -566,6 +582,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				setPointSystemEnabled,
 				setActiveCoupons,
 				setShowPermissionGate,
+				setBUnitBalance,
+				setHomeStatsLoaded,
 			})
 			setMerchantInfraCard(setRes.cardAddress)
 			await refreshHomeRef.current()
@@ -669,6 +687,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 						setPointSystemEnabled,
 						setActiveCoupons,
 						setShowPermissionGate,
+						setBUnitBalance,
+						setHomeStatsLoaded,
 					})
 				} else {
 					const parent =

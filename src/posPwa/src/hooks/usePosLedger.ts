@@ -19,10 +19,48 @@ export function usePosLedger() {
 	const infra = merchantInfraCard?.trim() ?? ''
 	const upper = activeUpperEoa?.trim() ?? ''
 
+	/*
+	 * Partition key = terminal wallet + upperAdmin EOA + infra card.
+	 * On switch: always replace memory with this partition's local ledger (or null).
+	 * Never leave the previous upper's Transactions on screen.
+	 */
 	useEffect(() => {
-		if (!wallet || !infra || !upper) return
+		if (!wallet || !infra || !upper) {
+			refreshGen.current += 1
+			setSnapshot(null)
+			setLastError(null)
+			setLoading(false)
+			setRefreshing(false)
+			return
+		}
+		/* Invalidate in-flight fetch from the previous partition. */
+		const gen = ++refreshGen.current
 		const cached = posHomeTrustedCache.loadPosLedger(wallet, upper, infra)
-		if (cached) setSnapshot(cached)
+		setSnapshot(cached)
+		setLastError(null)
+
+		const run = async () => {
+			const hadCached = cached != null
+			if (hadCached) {
+				setRefreshing(true)
+				setLoading(false)
+			} else {
+				setLoading(true)
+				setRefreshing(false)
+			}
+			const snap = await fetchPosLedger(wallet, infra)
+			if (gen !== refreshGen.current) return
+			if (snap) {
+				setSnapshot(snap)
+				setLastError(null)
+				posHomeTrustedCache.savePosLedger(snap, wallet, upper, infra)
+			} else {
+				setLastError('Could not refresh transactions. Showing last known list.')
+			}
+			setLoading(false)
+			setRefreshing(false)
+		}
+		void run()
 	}, [wallet, infra, upper])
 
 	const refreshTrustedOnly = useCallback(async () => {
@@ -50,11 +88,6 @@ export function usePosLedger() {
 		setLoading(false)
 		setRefreshing(false)
 	}, [wallet, infra, upper])
-
-	useEffect(() => {
-		if (!wallet || !infra || !upper) return
-		void refreshTrustedOnly()
-	}, [wallet, infra, upper, refreshTrustedOnly])
 
 	return {
 		snapshot,
