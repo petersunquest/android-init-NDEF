@@ -502,9 +502,17 @@ export async function nfcTopupSubmit(body: {
 	usdcTopupSessionId?: string
 	membershipTierIndex?: number
 	membershipFeeFiat6?: string
+	/** Charge: burn customer AA #0 (not merchant transfer). */
+	chargeBurnProgramPoints?: boolean
+	purpose?: string
+	chargeBurnCustomerEOA?: string
+	chargeBurnAmountFiat6?: string
+	chargeBurnCurrency?: string
+	/** Hybrid Charge: USDC Container already paid the 5 B-Unit fee. */
+	chargeBurnSkipBunitFee?: boolean
 }): Promise<NfcTopupSubmitResult | null> {
 	try {
-		const payload: Record<string, string | number> = {
+		const payload: Record<string, string | number | boolean> = {
 			cardAddr: body.cardAddr,
 			data: body.data,
 			deadline: body.deadline,
@@ -535,6 +543,24 @@ export async function nfcTopupSubmit(body: {
 		}
 		if (body.membershipFeeFiat6?.trim()) {
 			payload.membershipFeeFiat6 = body.membershipFeeFiat6.trim()
+		}
+		if (body.chargeBurnProgramPoints) {
+			payload.chargeBurnProgramPoints = true
+			payload.purpose = body.purpose?.trim() || 'chargeCustomerProgramPoints'
+		} else if (body.purpose?.trim()) {
+			payload.purpose = body.purpose.trim()
+		}
+		if (body.chargeBurnCustomerEOA?.trim()) {
+			payload.chargeBurnCustomerEOA = body.chargeBurnCustomerEOA.trim()
+		}
+		if (body.chargeBurnAmountFiat6?.trim()) {
+			payload.chargeBurnAmountFiat6 = body.chargeBurnAmountFiat6.trim()
+		}
+		if (body.chargeBurnCurrency?.trim()) {
+			payload.chargeBurnCurrency = body.chargeBurnCurrency.trim()
+		}
+		if (body.chargeBurnSkipBunitFee) {
+			payload.chargeBurnSkipBunitFee = true
 		}
 		const res = await fetch(`${BEAMIO_API}/api/nfcTopup`, {
 			method: 'POST',
@@ -1050,6 +1076,64 @@ export interface BurnChargeRewardPrepareResult {
 	nonce?: string
 	factoryGateway?: string
 	error?: string
+}
+
+/** Burn program points (#0) — Charge customer settlement / admin deduct path. */
+export async function burnPointsByAdminPrepare(params: {
+	cardAddress: string
+	target: string
+	amount: string
+	purpose?: string
+}): Promise<BurnChargeRewardPrepareResult | null> {
+	const card = params.cardAddress.trim()
+	const target = params.target.trim()
+	const amount = params.amount.trim()
+	if (!card.startsWith('0x') || !target.startsWith('0x') || !amount) {
+		return { success: false, error: 'Invalid burn payload.' }
+	}
+	try {
+		const body: Record<string, string> = { cardAddress: card, target, amount }
+		if (params.purpose?.trim()) body.purpose = params.purpose.trim()
+		const res = await fetch(`${BEAMIO_API}/api/burnPointsByAdminPrepare`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		})
+		const json = (await res.json()) as Record<string, unknown>
+		if (!res.ok) {
+			return { success: false, error: String(json.error ?? `HTTP ${res.status}`) }
+		}
+		const data = String(json.data ?? '').trim() || undefined
+		const nonce = String(json.nonce ?? '').trim() || undefined
+		const deadlineRaw = json.deadline
+		const deadline =
+			typeof deadlineRaw === 'number'
+				? deadlineRaw
+				: Number(String(deadlineRaw ?? '')) || undefined
+		const cardAddr = String(json.cardAddr ?? card).trim() || card
+		const factoryGateway = String(json.factoryGateway ?? '').trim() || undefined
+		if (!data || !nonce || !deadline || deadline <= 0) {
+			return {
+				success: false,
+				cardAddr,
+				data,
+				deadline,
+				nonce,
+				factoryGateway,
+				error: String(json.error ?? 'Prepare failed.'),
+			}
+		}
+		return {
+			success: true,
+			cardAddr,
+			data,
+			deadline,
+			nonce,
+			factoryGateway,
+		}
+	} catch {
+		return null
+	}
 }
 
 /** Burn Reward PT (#13) — iOS `burnChargeRewardByAdminPrepare`. */

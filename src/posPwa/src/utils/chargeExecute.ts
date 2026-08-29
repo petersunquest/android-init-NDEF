@@ -1,8 +1,11 @@
 import {
+	burnPointsByAdminPrepare,
 	fetchCardMetadataTiersBundle,
 	fetchOracle,
 	fetchUIDAssets,
 	fetchWalletAssetsForRead,
+	formatNfcTopupAdminError,
+	nfcTopupSubmit,
 	payByNfcUidPrepare,
 	payByNfcUidSignContainer,
 	postAAtoEOA,
@@ -10,6 +13,8 @@ import {
 import type { ReadBalanceCardItem, UIDAssetsResult } from '@/types/pos'
 import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import {
+	chargeProgramPointsBurnAmount6,
+	chargeProgramPointsBurnFiat6,
 	chargeTipFromRequestAndBps,
 	chargeTotalInCurrency,
 	chargeableCards,
@@ -28,6 +33,7 @@ import {
 } from '@/utils/beamioPaymentRouting'
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { PosTerminalChargePolicy } from '@/utils/chargePaymentMethod'
+import { resolveNfcTopupSubmitIdentity } from '@/utils/deductPointsExecute'
 import { fetchCardCurrencyAndPointsPriceE6 } from '@/utils/posProgramCardAccess'
 import { memberNoPrimaryFromSortedCards } from '@/utils/readBalanceAssets'
 import {
@@ -35,6 +41,8 @@ import {
 	type PosSuccessPassHeroProps,
 } from '@/utils/posSuccessHero'
 import type { PaymentRoutingStepPatch } from '@/utils/paymentRoutingSteps'
+import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
+import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
 export interface ChargeCustomerTarget {
 	uid: string
@@ -79,6 +87,86 @@ function payerUsdcBalance6(assets: UIDAssetsResult, policy: PosTerminalChargePol
 
 async function sleepMs(ms: number): Promise<void> {
 	await new Promise((r) => setTimeout(r, ms))
+}
+
+/**
+ * Charge points leg: burn customer AA #0 via executeForAdmin (not Container transfer).
+ * Hybrid leg sets skipBunitFee after USDC Container already paid the fixed Charge B-Unit fee.
+ */
+async function submitChargeCustomerProgramPointsBurn(params: {
+	merchantInfraCard: string
+	customerAa: string
+	customerEoa?: string
+	burnPoints6: number
+	burnFiat6?: number
+	burnCurrency?: string
+	skipBunitFee: boolean
+	submitIdentity: { uid?: string; wallet?: string; sun?: ChargeCustomerTarget['sun'] }
+}): Promise<{ ok: true; txHash?: string } | { ok: false; error: string }> {
+	const amount = String(Math.floor(params.burnPoints6))
+	if (!(params.burnPoints6 > 0) || !params.customerAa.startsWith('0x')) {
+		return { ok: false, error: 'Invalid program points burn amount.' }
+	}
+	if (!params.submitIdentity.uid && !params.submitIdentity.wallet) {
+		return { ok: false, error: 'Customer account is unavailable.' }
+	}
+	const pk = await getPosPrivateKeyHex()
+	if (!pk) {
+		return { ok: false, error: 'Wallet not initialized.' }
+	}
+	const prep = await burnPointsByAdminPrepare({
+		cardAddress: params.merchantInfraCard,
+		target: params.customerAa,
+		amount,
+		purpose: 'chargeCustomerProgramPoints',
+	})
+	if (!prep?.success || !prep.cardAddr || !prep.data || !prep.deadline || !prep.nonce) {
+		return { ok: false, error: prep?.error ?? 'Charge points prepare failed.' }
+	}
+	let adminSignature: string
+	try {
+		adminSignature = await signExecuteForAdmin({
+			privateKeyHex: pk,
+			cardAddress: prep.cardAddr,
+			dataHex: prep.data,
+			deadline: prep.deadline,
+			nonceHex: prep.nonce,
+			factoryGateway: prep.factoryGateway,
+		})
+	} catch (e) {
+		return {
+			ok: false,
+			error: e instanceof Error ? e.message : 'Merchant signature failed.',
+		}
+	}
+	const signerEOA = (await getPosSigningWalletAddress()) ?? undefined
+	const pay = await nfcTopupSubmit({
+		uid: params.submitIdentity.uid,
+		wallet: params.submitIdentity.wallet,
+		cardAddr: prep.cardAddr,
+		data: prep.data,
+		deadline: prep.deadline,
+		nonce: prep.nonce,
+		adminSignature,
+		signerEOA,
+		sun: params.submitIdentity.sun,
+		chargeBurnProgramPoints: true,
+		chargeBurnCustomerEOA: params.customerEoa,
+		chargeBurnAmountFiat6:
+			params.burnFiat6 != null && params.burnFiat6 > 0
+				? String(Math.floor(params.burnFiat6))
+				: undefined,
+		chargeBurnCurrency: params.burnCurrency,
+		chargeBurnSkipBunitFee: params.skipBunitFee,
+		purpose: 'chargeCustomerProgramPoints',
+	})
+	if (!pay) {
+		return { ok: false, error: 'Charge points burn failed.' }
+	}
+	if (!pay.success) {
+		return { ok: false, error: formatNfcTopupAdminError(pay) }
+	}
+	return { ok: true, txHash: pay.txHash }
 }
 
 function replacePassCardInAssets(
@@ -315,13 +403,28 @@ export async function executeNfcCharge(params: {
 	})
 	let items = buildPayItemsFiat6(split, infra)
 	items = mergeInfraKind1Items(items, infra)
-	const container = {
-		account,
-		to: payeeAA,
-		items,
-		nonce,
-		deadline,
+	const burnPoints6 = chargeProgramPointsBurnAmount6(split)
+	const burnFiat6 = chargeProgramPointsBurnFiat6(burnPoints6, pointsPriceCurE6)
+	const usdcWei = firstUsdcAmount6(items as Array<Record<string, unknown>>)
+	const customerAa = assets.aaAddress?.trim() || account
+	const customerEoa = assets.address?.trim() || undefined
+	if (burnPoints6 > 0 && (!customerAa || !looksLikeAddress(customerAa))) {
+		patch?.('optimizingRoute', 'error', 'Customer Smart Wallet unavailable')
+		return {
+			status: 'error',
+			message: 'Customer Smart Wallet unavailable for points settlement.',
+		}
 	}
+	let routeDetail: string
+	if (burnPoints6 > 0 && usdcWei > 0) {
+		routeDetail = 'Hybrid: points burn + USDC'
+	} else if (burnPoints6 > 0) {
+		routeDetail = 'Points burn only'
+	} else {
+		routeDetail = 'USDC only'
+	}
+	patch?.('optimizingRoute', 'success', routeDetail)
+
 	const taxFiat6 = Math.round(subtotal * (routing.taxPercent / 100) * 1_000_000)
 	const discNorm = normalizeTierDiscountPercent(disc)
 	const discFiat6 = Math.round(subtotal * (discNorm / 100) * 1_000_000)
@@ -339,25 +442,67 @@ export async function executeNfcCharge(params: {
 	}
 
 	patch?.('sendTx', 'loading')
-	const pay = await payByNfcUidSignContainer({
+	let lastTxHash: string | undefined
+	const submitIdentity = resolveNfcTopupSubmitIdentity({
 		uid: params.target.uid,
-		containerPayload: container,
-		amountFiat6: amountFiat6Str,
-		currency: payCurrency,
-		merchantInfraCard: infra,
 		sun: params.target.sun,
-		nfcBill: bill,
+		wallet: customerEoa,
 	})
-	if (!pay?.success) {
-		patch?.('sendTx', 'error', pay?.error ?? 'Payment failed')
-		patch?.('waitTx', 'error')
-		return { status: 'error', message: pay?.error ?? 'Payment failed' }
+
+	if (usdcWei > 0) {
+		const container = {
+			account,
+			to: payeeAA,
+			items,
+			nonce,
+			deadline,
+		}
+		const pay = await payByNfcUidSignContainer({
+			uid: params.target.uid,
+			containerPayload: container,
+			amountFiat6: amountFiat6Str,
+			currency: payCurrency,
+			merchantInfraCard: infra,
+			sun: params.target.sun,
+			nfcBill: bill,
+		})
+		if (!pay?.success) {
+			patch?.('sendTx', 'error', pay?.error ?? 'Payment failed')
+			patch?.('waitTx', 'error')
+			return { status: 'error', message: pay?.error ?? 'Payment failed' }
+		}
+		lastTxHash = pay.txHash
 	}
+
+	if (burnPoints6 > 0) {
+		const burn = await submitChargeCustomerProgramPointsBurn({
+			merchantInfraCard: infra,
+			customerAa,
+			customerEoa,
+			burnPoints6,
+			burnFiat6,
+			burnCurrency: payCurrency,
+			skipBunitFee: usdcWei > 0,
+			submitIdentity,
+		})
+		if (!burn.ok) {
+			patch?.('sendTx', 'error', burn.error)
+			patch?.('waitTx', 'error')
+			return { status: 'error', message: burn.error }
+		}
+		lastTxHash = burn.txHash || lastTxHash
+	}
+
+	if (!(usdcWei > 0) && !(burnPoints6 > 0)) {
+		patch?.('sendTx', 'error', 'Nothing to settle')
+		return { status: 'error', message: 'Nothing to settle for this charge.' }
+	}
+
 	patch?.('sendTx', 'success', 'Sent')
 	patch?.('waitTx', 'success', 'Transaction complete')
 	patch?.('refreshBalance', 'loading', 'Fetching latest balance')
 
-	const useInfraPost = split.ccsaPointsWei + split.infraPointsWei > 0
+	const useInfraPost = burnPoints6 > 0
 	const memberNo = memberNoPrimaryFromSortedCards(assets)
 	const { postBalStr, passHero, customerBeamioTag, customerWalletAddress } =
 		await completeChargeSuccessUi({
@@ -385,7 +530,7 @@ export async function executeNfcCharge(params: {
 			amount: total.toFixed(2),
 			subtotal: subtotal.toFixed(2),
 			tip: tip > 0 ? tip.toFixed(2) : undefined,
-			txHash: pay.txHash,
+			txHash: lastTxHash,
 			postBalance: postBalStr,
 			cardCurrency: payCurrency,
 			memberNo: memberNo || undefined,
@@ -411,21 +556,6 @@ function optPayloadString(v: unknown): string {
 
 function looksLikeAddress(v: string): boolean {
 	return /^0x[0-9a-fA-F]{40}$/.test(v.trim())
-}
-
-function mergedInfraKind1Amount(
-	items: Array<Record<string, unknown>>,
-	infraCard: string,
-): number {
-	const infra = infraCard.trim().toLowerCase()
-	let sum = 0
-	for (const it of items) {
-		if (Number(it.kind) !== 1) continue
-		const asset = optPayloadString(it.asset).trim().toLowerCase()
-		if (asset !== infra) continue
-		sum += Number(optPayloadString(it.amount)) || 0
-	}
-	return sum
 }
 
 function firstUsdcAmount6(items: Array<Record<string, unknown>>): number {
@@ -592,13 +722,23 @@ export async function executeQrCharge(params: {
 	})
 	let items = buildPayItemsFiat6(split, infra)
 	items = mergeInfraKind1Items(items, infra)
-	const beamio1155Wei = mergedInfraKind1Amount(items, infra)
+	const burnPoints6 = chargeProgramPointsBurnAmount6(split)
+	const burnFiat6 = chargeProgramPointsBurnFiat6(burnPoints6, pointsPriceCurE6)
 	const usdcWei = firstUsdcAmount6(items)
+	const customerAa = assets.aaAddress?.trim() || account
+	const customerEoa = assets.address?.trim() || undefined
+	if (burnPoints6 > 0 && (!customerAa || !looksLikeAddress(customerAa))) {
+		patch?.('optimizingRoute', 'error', 'Customer Smart Wallet unavailable')
+		return {
+			status: 'error',
+			message: 'Customer Smart Wallet unavailable for points settlement.',
+		}
+	}
 	let routeDetail: string
-	if (beamio1155Wei > 0 && usdcWei > 0) {
-		routeDetail = 'Hybrid: points + USDC'
-	} else if (beamio1155Wei > 0) {
-		routeDetail = 'Points only'
+	if (burnPoints6 > 0 && usdcWei > 0) {
+		routeDetail = 'Hybrid: points burn + USDC'
+	} else if (burnPoints6 > 0) {
+		routeDetail = 'Points burn only'
 	} else {
 		routeDetail = 'USDC only'
 	}
@@ -644,23 +784,56 @@ export async function executeQrCharge(params: {
 	}
 
 	patch?.('sendTx', 'loading')
-	const pay = await postAAtoEOA({
-		openContainerPayload: payload,
-		currency: payCurrency,
-		currencyAmount: total.toFixed(2),
-		merchantInfraCard: infra,
-		chargeBill: bill,
+	let lastTxHash: string | undefined
+	const submitIdentity = resolveNfcTopupSubmitIdentity({
+		wallet: customerEoa,
 	})
-	if (!pay?.success) {
-		patch?.('sendTx', 'error', pay?.error ?? 'Payment failed')
-		patch?.('waitTx', 'error')
-		return { status: 'error', message: pay?.error ?? 'Payment failed' }
+
+	if (usdcWei > 0) {
+		const pay = await postAAtoEOA({
+			openContainerPayload: payload,
+			currency: payCurrency,
+			currencyAmount: total.toFixed(2),
+			merchantInfraCard: infra,
+			chargeBill: bill,
+		})
+		if (!pay?.success) {
+			patch?.('sendTx', 'error', pay?.error ?? 'Payment failed')
+			patch?.('waitTx', 'error')
+			return { status: 'error', message: pay?.error ?? 'Payment failed' }
+		}
+		lastTxHash = pay.txHash
 	}
+
+	if (burnPoints6 > 0) {
+		const burn = await submitChargeCustomerProgramPointsBurn({
+			merchantInfraCard: infra,
+			customerAa,
+			customerEoa,
+			burnPoints6,
+			burnFiat6,
+			burnCurrency: payCurrency,
+			skipBunitFee: usdcWei > 0,
+			submitIdentity,
+		})
+		if (!burn.ok) {
+			patch?.('sendTx', 'error', burn.error)
+			patch?.('waitTx', 'error')
+			return { status: 'error', message: burn.error }
+		}
+		lastTxHash = burn.txHash || lastTxHash
+	}
+
+	if (!(usdcWei > 0) && !(burnPoints6 > 0)) {
+		patch?.('sendTx', 'error', 'Nothing to settle')
+		return { status: 'error', message: 'Nothing to settle for this charge.' }
+	}
+
 	patch?.('sendTx', 'success', 'Sent')
 	patch?.('waitTx', 'success', 'Transaction complete')
 	patch?.('refreshBalance', 'loading', 'Fetching latest balance')
 
-	const useInfraPost = split.ccsaPointsWei + split.infraPointsWei > 0
+	const useInfraPost = burnPoints6 > 0
 	const memberNo = memberNoPrimaryFromSortedCards(assets)
 	const { postBalStr, passHero, customerBeamioTag, customerWalletAddress } =
 		await completeChargeSuccessUi({
@@ -688,7 +861,7 @@ export async function executeQrCharge(params: {
 			amount: total.toFixed(2),
 			subtotal: subtotal.toFixed(2),
 			tip: tip > 0 ? tip.toFixed(2) : undefined,
-			txHash: pay.txHash,
+			txHash: lastTxHash,
 			postBalance: postBalStr,
 			cardCurrency: payCurrency,
 			memberNo: memberNo || undefined,

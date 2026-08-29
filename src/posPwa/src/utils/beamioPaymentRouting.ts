@@ -223,7 +223,14 @@ export function computeChargeContainerSplitFiat6(params: {
 	return { ccsaPointsWei, infraPointsWei, usdcWei }
 }
 
-export function buildPayItemsFiat6(split: ChargeableSplit, infraCard: string): Array<Record<string, string | number>> {
+/**
+ * Charge Container items: **USDC only**.
+ * Program points (#0) settle via `burnPointsByAdmin(customerAA)` — never transfer #0 to merchant.
+ */
+export function buildPayItemsFiat6(
+	split: ChargeableSplit,
+	_infraCard?: string,
+): Array<Record<string, string | number>> {
 	const items: Array<Record<string, string | number>> = []
 	if (split.usdcWei > 0) {
 		items.push({
@@ -234,61 +241,53 @@ export function buildPayItemsFiat6(split: ChargeableSplit, infraCard: string): A
 			data: '0x',
 		})
 	}
-	if (split.ccsaPointsWei > 0) {
-		items.push({
-			kind: 1,
-			asset: infraCard,
-			amount: String(split.ccsaPointsWei),
-			tokenId: '0',
-			data: '0x',
-		})
-	}
-	if (split.infraPointsWei > 0) {
-		items.push({
-			kind: 1,
-			asset: infraCard,
-			amount: String(split.infraPointsWei),
-			tokenId: '0',
-			data: '0x',
-		})
-	}
 	return items
 }
 
+/** Total #0 program points (6 decimals) consumed by a Charge split. */
+export function chargeProgramPointsBurnAmount6(split: ChargeableSplit): number {
+	return Math.max(0, Math.floor(split.ccsaPointsWei) + Math.floor(split.infraPointsWei))
+}
+
+/** Fiat6 covered by the points leg (when pointsUnitPriceInCurrencyE6 is known). */
+export function chargeProgramPointsBurnFiat6(
+	points6: number,
+	pointsUnitPriceInCurrencyE6: number,
+): number {
+	if (!(points6 > 0) || !(pointsUnitPriceInCurrencyE6 > 0)) return 0
+	return Math.floor((points6 * pointsUnitPriceInCurrencyE6) / 1_000_000)
+}
+
+/**
+ * Charge Container items must be USDC-only.
+ * Strip kind=1 tokenId=0 (#0 program points transfer to merchant) — settlement burns customer #0 instead.
+ */
 export function mergeInfraKind1Items(
 	items: Array<Record<string, string | number>>,
-	infraCard: string,
+	_infraCard?: string,
 ): Array<Record<string, string | number>> {
-	let usdc: Record<string, string | number> | null = null
-	let infraSum = 0
-	const others: Array<Record<string, string | number>> = []
-	const infraLower = infraCard.trim().toLowerCase()
+	const out: Array<Record<string, string | number>> = []
 	for (const it of items) {
 		const kind = Number(it.kind) || 0
-		const asset = String(it.asset ?? '')
 		if (kind === 0) {
-			usdc = it
+			out.push(it)
 			continue
 		}
-		if (kind === 1 && asset.toLowerCase() === infraLower) {
-			infraSum += Math.max(0, Number(it.amount) || 0)
-		} else {
-			others.push(it)
+		if (kind !== 1) {
+			out.push(it)
+			continue
 		}
+		let tid = 0n
+		try {
+			tid = BigInt(String(it.tokenId ?? '0'))
+		} catch {
+			continue
+		}
+		// Forbidden on Charge: transfer program points (#0) to merchant.
+		if (tid === 0n) continue
+		out.push(it)
 	}
-	const out: Array<Record<string, string | number>> = []
-	if (usdc) out.push(usdc)
-	if (infraSum > 0) {
-		out.push({
-			kind: 1,
-			asset: infraCard,
-			amount: String(infraSum),
-			tokenId: '0',
-			data: '0x',
-		})
-	}
-	out.push(...others)
-	return out.length ? out : items
+	return out
 }
 
 export interface MetadataTierRow {
