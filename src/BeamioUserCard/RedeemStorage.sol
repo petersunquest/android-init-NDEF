@@ -59,6 +59,13 @@ library RedeemStorage {
         uint256 mintLimit;  // adminAirdropLimit (points6) when redeemer becomes admin; 0 = no limit
     }
 
+    /// @dev Discover Gift redeem fee/topup split (parallel to Redeem; do not pack into Redeem struct).
+    struct GiftRedeemSplit {
+        bool isGift;
+        uint128 membershipFeeE6;
+        uint128 topupCreditE6;
+    }
+
     struct Layout {
         mapping(bytes32 => Redeem) redeems;   // one-time: hash=keccak256(code)
         mapping(bytes32 => RedeemPool) pools; // pool: hash=keccak256(password)，与 redeems 共用 hash 空间但互斥
@@ -67,6 +74,8 @@ library RedeemStorage {
         /// @dev Enumerable: unredeemed redeem-admin hashes (consumed are removed)
         bytes32[] redeemAdminHashes;
         mapping(bytes32 => uint256) redeemAdminIndex; // hash => index in redeemAdminHashes (1-based, 0 = not in list)
+        /// @dev Append-only: Discover Gift splits keyed by redeem hash (cleared on consume/cancel).
+        mapping(bytes32 => GiftRedeemSplit) giftSplits;
     }
 
     function layout() internal pure returns (Layout storage l) {

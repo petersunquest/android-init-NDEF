@@ -5,6 +5,7 @@ import "./Errors.sol";
 import "./BeamioERC1155Logic.sol";
 import "./GovernanceStorage.sol";
 import "./RedeemStorage.sol";
+import "./BeamioUserCardModuleMintLib.sol";
 
 /* =========================
    Context interfaces (delegatecall)
@@ -13,6 +14,16 @@ import "./RedeemStorage.sol";
 interface IUserCardCtx {
     function owner() external view returns (address);
     function factoryGateway() external view returns (address);
+}
+
+/// @dev Factory owner / paymaster AA (EntryPoint relayer) — same auth as IssuedNft protocol mint.
+interface IUserCardFactoryProtocolAuth {
+    function owner() external view returns (address);
+    function isPaymaster(address account) external view returns (bool);
+}
+
+interface ICardPointsBalance {
+    function balanceOf(address account, uint256 id) external view returns (uint256);
 }
 
 /**
@@ -37,6 +48,13 @@ contract BeamioUserCardRedeemModuleVNext {
     event RedeemAdminCreated(bytes32 indexed hash, uint64 validAfter, uint64 validBefore);
     event RedeemAdminConsumed(bytes32 indexed hash, address indexed to);
     event RedeemAdminCancelled(bytes32 indexed hash);
+    event GiftRedeemCreated(
+        bytes32 indexed hash,
+        uint256 membershipFeeE6,
+        uint256 topupCreditE6,
+        uint64 validAfter,
+        uint64 validBefore
+    );
 
     // ==========================================================
     // access control (card owner OR gateway)
@@ -223,6 +241,120 @@ contract BeamioUserCardRedeemModuleVNext {
         emit RedeemCreated(hash, points6, attr, validAfter, validBefore, tokenIds.length);
     }
 
+    /// @notice Discover Gifting: create open redeem after Master collected payer USDC.
+    /// @dev Auth = Factory owner OR `factory.isPaymaster(msg.sender)` (EntryPoint relayer AA).
+    ///      Does **not** require merchant card `owner()` signature — merchant may be fully offline.
+    ///      `points6` on-chain = membershipFeeE6 + topupCreditE6; giftSplits stores the fee/topup split for claim.
+    function createGiftRedeemForPayer(
+        bytes32 hash,
+        uint256 membershipFeeE6,
+        uint256 topupCreditE6,
+        uint64 validAfter,
+        uint64 validBefore
+    ) external {
+        _requireFactoryOwnerOrPaymaster();
+        if (hash == bytes32(0)) revert BM_InvalidSecret();
+        uint256 points6 = membershipFeeE6 + topupCreditE6;
+        if (points6 == 0) revert UC_AmountZero();
+        if (points6 > type(uint128).max) revert UC_InvalidProposal();
+        if (membershipFeeE6 > type(uint128).max || topupCreditE6 > type(uint128).max) revert UC_InvalidProposal();
+
+        RedeemStorage.Layout storage l = RedeemStorage.layout();
+        RedeemStorage.Redeem storage r = l.redeems[hash];
+        if (r.active) revert UC_InvalidProposal();
+
+        _wipeRedeemArrays(r);
+
+        address creator = IUserCardCtx(address(this)).owner();
+        r.points6 = uint128(points6);
+        r.attr = 0;
+        r.validAfter = validAfter;
+        r.validBefore = validBefore;
+        r.creator = creator;
+        r.recommender = address(0);
+        r.active = true;
+
+        RedeemStorage.GiftRedeemSplit storage g = l.giftSplits[hash];
+        g.isGift = true;
+        g.membershipFeeE6 = uint128(membershipFeeE6);
+        g.topupCreditE6 = uint128(topupCreditE6);
+
+        emit RedeemCreated(hash, points6, 0, validAfter, validBefore, 0);
+        emit GiftRedeemCreated(hash, membershipFeeE6, topupCreditE6, validAfter, validBefore);
+    }
+
+    /// @notice Discover Credit Gift: burn buyer #0 (face G + optional fee F) then create gift redeem for G only.
+    /// @dev Auth = Factory owner OR paymaster (EntryPoint relayer). No merchant owner signature.
+    ///      `burnAmountE6` must be >= membershipFeeE6 + topupCreditE6. Excess (merchant fee F) is burned
+    ///      and never stored in giftSplits / never minted to the claim beneficiary.
+    ///      `payerAccount` is the buyer's AA address (Cluster resolves EOA → AA before relay).
+    function createGiftRedeemWithCreditBurn(
+        bytes32 hash,
+        uint256 membershipFeeE6,
+        uint256 topupCreditE6,
+        uint256 burnAmountE6,
+        address payerAccount,
+        uint64 validAfter,
+        uint64 validBefore
+    ) external {
+        _requireFactoryOwnerOrPaymaster();
+        if (payerAccount == address(0)) revert UC_NoBeamioAccount();
+        if (hash == bytes32(0)) revert BM_InvalidSecret();
+        uint256 giftFaceE6 = membershipFeeE6 + topupCreditE6;
+        if (giftFaceE6 == 0) revert UC_AmountZero();
+        if (burnAmountE6 < giftFaceE6) revert UC_InvalidProposal();
+        if (giftFaceE6 > type(uint128).max) revert UC_InvalidProposal();
+        if (membershipFeeE6 > type(uint128).max || topupCreditE6 > type(uint128).max) revert UC_InvalidProposal();
+
+        uint256 have = ICardPointsBalance(address(this)).balanceOf(payerAccount, POINTS_ID);
+        if (have < burnAmountE6) {
+            revert UC_InsufficientBalance(payerAccount, POINTS_ID, have, burnAmountE6);
+        }
+        BeamioUserCardModuleMintLib.cardBurn(payerAccount, POINTS_ID, burnAmountE6);
+
+        RedeemStorage.Layout storage l = RedeemStorage.layout();
+        RedeemStorage.Redeem storage r = l.redeems[hash];
+        if (r.active) revert UC_InvalidProposal();
+
+        _wipeRedeemArrays(r);
+
+        address creator = IUserCardCtx(address(this)).owner();
+        r.points6 = uint128(giftFaceE6);
+        r.attr = 0;
+        r.validAfter = validAfter;
+        r.validBefore = validBefore;
+        r.creator = creator;
+        r.recommender = address(0);
+        r.active = true;
+
+        RedeemStorage.GiftRedeemSplit storage g = l.giftSplits[hash];
+        g.isGift = true;
+        g.membershipFeeE6 = uint128(membershipFeeE6);
+        g.topupCreditE6 = uint128(topupCreditE6);
+
+        emit RedeemCreated(hash, giftFaceE6, 0, validAfter, validBefore, 0);
+        emit GiftRedeemCreated(hash, membershipFeeE6, topupCreditE6, validAfter, validBefore);
+    }
+
+    /// @notice Peek Discover Gift fee/topup split (cleared on consume/cancel).
+    function getGiftRedeemSplit(bytes32 hash)
+        external
+        view
+        returns (bool isGift, uint256 membershipFeeE6, uint256 topupCreditE6)
+    {
+        RedeemStorage.GiftRedeemSplit storage g = RedeemStorage.layout().giftSplits[hash];
+        return (g.isGift, uint256(g.membershipFeeE6), uint256(g.topupCreditE6));
+    }
+
+    function _requireFactoryOwnerOrPaymaster() internal view {
+        address factory = IUserCardCtx(address(this)).factoryGateway();
+        if (factory == address(0)) revert BM_NotAuthorized();
+        IUserCardFactoryProtocolAuth auth = IUserCardFactoryProtocolAuth(factory);
+        if (msg.sender == auth.owner()) return;
+        if (auth.isPaymaster(msg.sender)) return;
+        revert BM_NotAuthorized();
+    }
+
     /// @notice 创建 redeem-admin：必须由 owner 离线签字后经 gateway 的 executeForOwner 执行。hash=keccak256(secretCode)
     function createRedeemAdmin(bytes32 hash, string calldata metadata, uint64 validAfter, uint64 validBefore) external onlyGateway {
         _createRedeemAdminImpl(hash, metadata, validAfter, validBefore, 0);
@@ -300,6 +432,7 @@ contract BeamioUserCardRedeemModuleVNext {
 
         r.active = false;
         _wipeRedeemArrays(r);
+        delete l.giftSplits[hash];
 
         emit RedeemCancelled(hash);
     }
@@ -327,7 +460,9 @@ contract BeamioUserCardRedeemModuleVNext {
         RedeemStorage.RedeemPool storage p = l.pools[hash];
 
         if (r.active) {
-            return _consumeOneTime(r, hash, to);
+            (uint256 p6, uint256 a, uint256[] memory tids, uint256[] memory amts) = _consumeOneTime(r, hash, to);
+            delete l.giftSplits[hash];
+            return (p6, a, tids, amts);
         }
         if (p.active) {
             return _consumePoolToUnified(l, p, hash, to);

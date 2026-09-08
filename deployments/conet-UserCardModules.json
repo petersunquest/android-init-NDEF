@@ -10,8 +10,8 @@
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
-    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
-    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
     "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
@@ -38,8 +38,8 @@
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
-    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
-    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4"
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf"
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
@@ -118,23 +118,54 @@
     "note": "Top-up Reward PT / Referrer via ratioE6 in recordTopupCumulativeStat; AdminStats untouched"
   },
   "combinedRewardSettersUpgrade": {
-    "timestamp": "2026-08-27T23:49:45.285Z",
+    "timestamp": "2026-08-30T12:03:00.030Z",
     "referrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
-    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
-    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
     "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
     "replaced": {
-      "chargeRewardModule": "0x126b14aE605008Bd9B0f57aEefD9268a587A1D63",
-      "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e"
+      "chargeRewardModule": "0x6A72EeB7e96a09D90C03E4D79ca339907671eF9E",
+      "adminStatsQueryModule": "0xa8F82672e2D37FC013A117d708E875bf39877FdA"
     },
     "bound": {
-      "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
-      "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+      "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+      "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
       "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
-      "setChargeRewardModuleTx": "0xc53f595fadf8de4e274ff05d97a954f8080b25f7e5de48f51d1e0838c148e162",
-      "setAdminStatsQueryModuleTx": "0x57fa0dd1803940310816d40ff30c2a529a655c261b33483caf3863430bd1a02e"
+      "setChargeRewardModuleTx": "0xe436e83cc0b68f8c29eb1aa11d0f84f3b437f670aa12c0c7036edef4901808d0",
+      "setAdminStatsQueryModuleTx": "0xb05b51df50fd4d30a63b3ab527ed7ea372e1b5f75a3cd675756bffb726bda5bc"
     },
-    "note": "ChargeRewardModuleV2 + AdminStats V6: topupReward/chargeReward combined E6 setters → route 5; reuse V5 + referrerViews; never bind bare V5"
+    "note": "ChargeRewardModuleV2 + AdminStats V6: convertReward13ToProgramPoints / convertReward13ToUsdcToAa / peerRedeem13ForContainerTopup / topupWithReward13Container + ratio storage; reuse V5 + referrerViews; never bind bare V5. Blockscout verified 2026-08-30.",
+    "verified": {
+      "chargeRewardModule": true,
+      "adminStatsQueryModule": true,
+      "scan": "https://mainnet.conet.network"
+    }
+  },
+  "redeemModule": "0xb224B24c9167355ac53B110b7B1b0382cecEB03F",
+  "adminStatsQueryModule": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
+  "adminStatsQueryModuleV6": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
+  "updatedAt": "2026-09-08T18:40:56.697Z",
+  "merchantGiftRedeem": {
+    "network": "conet",
+    "chainId": 224422,
+    "timestamp": "2026-09-08T18:40:56.697Z",
+    "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+    "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+    "modules": {
+      "redeemModule": "0xb224B24c9167355ac53B110b7B1b0382cecEB03F",
+      "adminStatsQueryModuleV6": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
+      "adminStatsV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+      "referrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
+    },
+    "replaced": {
+      "redeemModule": "0xFE72fD825270EcaE7a0748119CBA05A70e379821",
+      "adminStatsQueryModule": "0x5B67c69668F70B7C5794B78fdf29d4966603D44d"
+    },
+    "txs": {
+      "redeemModule": "0xfad7548b02527cadba6f25a9e1575894066de93d3997851d2a991916c3f138cd",
+      "adminStatsV6": "0x3a8efcb65d7f7f6842cab7fd51f0196596784b80f55aa148fa4f0418161e483c"
+    },
+    "dryRun": false
   }
 }

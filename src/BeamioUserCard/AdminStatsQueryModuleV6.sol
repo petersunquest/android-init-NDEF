@@ -15,6 +15,7 @@ interface IAdminStatsSelectorRouter {
  *      never routed → BM_CallFailed.
  */
 contract BeamioUserCardAdminStatsQueryModuleV6 {
+    uint8 private constant ROUTE_REDEEM = 0;
     uint8 private constant ROUTE_STATS_QUERY = type(uint8).max - 1;
     uint8 private constant ROUTE_CHARGE_REWARD = 5;
 
@@ -33,7 +34,15 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
         if (_isReferrerRegistryView(sel)) return ROUTE_STATS_QUERY;
         // Live V5 may predate Unified #13 / topupActor routes — hardcode here.
         if (_isChargeRewardUnified13(sel)) return ROUTE_CHARGE_REWARD;
+        // Live V5 may predate Discover Gift redeem — hardcode ROUTE_REDEEM here.
+        if (_isGiftRedeem(sel)) return ROUTE_REDEEM;
         return IAdminStatsSelectorRouter(v5).selectorModuleKind(sel);
+    }
+
+    function _isGiftRedeem(bytes4 sel) private pure returns (bool) {
+        return sel == bytes4(keccak256("createGiftRedeemForPayer(bytes32,uint256,uint256,uint64,uint64)"))
+            || sel == bytes4(keccak256("createGiftRedeemWithCreditBurn(bytes32,uint256,uint256,uint256,address,uint64,uint64)"))
+            || sel == bytes4(keccak256("getGiftRedeemSplit(bytes32)"));
     }
 
     function _isReferrerRegistryView(bytes4 sel) private pure returns (bool) {
@@ -50,10 +59,33 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
 
     function _isChargeRewardUnified13(bytes4 sel) private pure returns (bool) {
         return sel == bytes4(keccak256("topupActorRewardRatioE6()"))
+            || sel == bytes4(keccak256("topupPromotionBonusRatioE6()"))
             || sel == bytes4(keccak256("setTopupActorRewardRatio(uint256)"))
             || sel == bytes4(keccak256("setTopupActorRewardRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("setTopupPromotionBonusRatio(uint256)"))
+            || sel == bytes4(keccak256("setTopupPromotionBonusRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("topupReward(uint256,uint256)"))
+            || sel == bytes4(keccak256("topupReward(uint256,uint256,uint256)"))
+            || sel == bytes4(keccak256("chargeReward(uint256,uint256)"))
             || sel == bytes4(keccak256("recordTopupCumulativeStat(address,uint256)"))
-            || sel == bytes4(keccak256("recordChargeReferrerReward(address,uint256)"));
+            || sel == bytes4(keccak256("recordChargeReferrerReward(address,uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToPointsRatioE6()"))
+            || sel == bytes4(keccak256("convertReward13ToUsdcRatioE6()"))
+            || sel == bytes4(keccak256("merchantOracleSpreadBps()"))
+            || sel == bytes4(keccak256("quoteUsdcDepositForFiat6(uint256)"))
+            || sel == bytes4(keccak256("quoteUsdcWithdrawForFiat6(uint256)"))
+            || sel == bytes4(keccak256("applyDepositSpreadUsdc6(uint256)"))
+            || sel == bytes4(keccak256("applyWithdrawSpreadUsdc6(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToPointsRatio(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToPointsRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToUsdcRatio(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToUsdcRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("setMerchantOracleSpreadBps(uint256)"))
+            || sel == bytes4(keccak256("setMerchantOracleSpreadBpsByAdmin(uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToProgramPoints(address,uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToUsdcToAa(address,uint256)"))
+            || sel == bytes4(keccak256("peerRedeem13ForContainerTopup(address,uint256,uint256,address)"))
+            || sel == bytes4(keccak256("topupWithReward13Container(address,uint256,uint256,uint256,uint256,uint256,bytes32)"));
     }
 
     fallback() external payable {
