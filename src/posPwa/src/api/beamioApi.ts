@@ -301,6 +301,23 @@ export async function fetchCardMetadataPointSystem(cardAddress: string): Promise
 	}
 }
 
+function unwrapCardMetadataRoot(raw: unknown): Record<string, unknown> | undefined {
+	if (!raw) return undefined
+	if (typeof raw === 'string') {
+		try {
+			const parsed = JSON.parse(raw) as unknown
+			if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+				return parsed as Record<string, unknown>
+			}
+		} catch {
+			return undefined
+		}
+		return undefined
+	}
+	if (typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>
+	return undefined
+}
+
 export async function fetchCardMetadataRoot(
 	cardAddress: string,
 ): Promise<{ metadata?: Record<string, unknown> } | null> {
@@ -308,7 +325,9 @@ export async function fetchCardMetadataRoot(
 		const params = new URLSearchParams({ cardAddress })
 		const res = await fetch(`${BEAMIO_API}/api/cardMetadata?${params}`)
 		if (!res.ok) return null
-		return (await res.json()) as { metadata?: Record<string, unknown> }
+		const json = (await res.json()) as { metadata?: unknown; metadata_json?: unknown }
+		const metadata = unwrapCardMetadataRoot(json.metadata ?? json.metadata_json)
+		return metadata ? { metadata } : { metadata: undefined }
 	} catch {
 		return null
 	}

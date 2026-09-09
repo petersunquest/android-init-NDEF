@@ -1,6 +1,10 @@
-import { fetchMyPosAddresses, fetchUIDAssets, fetchWalletAssetsForRead } from '@/api/beamioApi'
+import { fetchCardMetadataRoot, fetchMyPosAddresses, fetchUIDAssets, fetchWalletAssetsForRead } from '@/api/beamioApi'
 import type { UIDAssetsResult } from '@/types/pos'
 import { memberNoFromCard, readBalanceHeroAmount, readBalancePrimaryCard } from '@/utils/readBalanceAssets'
+import {
+	pickMerchantProgramCardBrand,
+	type MerchantProgramCardBrand,
+} from '@/utils/merchantProgramCardBrand'
 import { shortAddress } from '@/utils/display'
 
 export type ChargePendingCustomer =
@@ -17,6 +21,10 @@ export type ChargeAdminCardBalanceRow = {
 	rewardPts: number | null
 	memberNo: string
 	trusted: boolean
+	/** Merchant program brand / pass color. Omitted when unknown. */
+	brandColor?: string
+	/** Card-level logo (metadata icon). Omitted when unknown or factory swirl. */
+	logoUrl?: string
 }
 
 function isLikelyAddress(raw: string): boolean {
@@ -91,6 +99,39 @@ export function qrChargeCustomerWallet(payload: Record<string, unknown>): string
 	return ''
 }
 
+function isFallbackProgramCardName(name: string): boolean {
+	return /^program card 0x/i.test(name.trim())
+}
+
+function applyProgramCardBrand(
+	row: ChargeAdminCardBalanceRow,
+	brand: MerchantProgramCardBrand,
+): ChargeAdminCardBalanceRow {
+	const brandedName =
+		brand.cardName && isFallbackProgramCardName(row.cardName)
+			? displayProgramCardName(brand.cardName, row.cardAddress)
+			: row.cardName
+	return {
+		...row,
+		cardName: brandedName,
+		...(brand.brandColor ? { brandColor: brand.brandColor } : {}),
+		...(brand.logoUrl ? { logoUrl: brand.logoUrl } : {}),
+	}
+}
+
+function brandFromAssetsAndMetadata(
+	cardAddress: string,
+	assets: UIDAssetsResult | null,
+	metadata: Record<string, unknown> | null | undefined,
+): MerchantProgramCardBrand {
+	const primary = assets ? readBalancePrimaryCard(assets, cardAddress) : undefined
+	return pickMerchantProgramCardBrand({
+		assetBackground: primary?.cardBackground,
+		assetImage: primary?.cardImage,
+		metadata: metadata ?? null,
+	})
+}
+
 function rowFromTrustedAssets(cardAddress: string, assets: UIDAssetsResult): ChargeAdminCardBalanceRow {
 	const primary = readBalancePrimaryCard(assets, cardAddress)
 	const name = displayProgramCardName(primary?.cardName ?? assets.cards?.[0]?.cardName ?? '', cardAddress)
@@ -126,19 +167,22 @@ async function fetchOneAdminCardBalance(
 	cardAddress: string,
 	customer: ChargePendingCustomer,
 ): Promise<ChargeAdminCardBalanceRow> {
-	const assets =
+	const assetsPromise =
 		customer.kind === 'nfc'
-			? await fetchUIDAssets({
+			? fetchUIDAssets({
 					uid: customer.uid,
 					merchantInfraCard: cardAddress,
 					sun: customer.sun,
 				})
-			: await fetchWalletAssetsForRead({
+			: fetchWalletAssetsForRead({
 					wallet: qrChargeCustomerWallet(customer.payload),
 					merchantInfraCard: cardAddress,
 				})
-	if (!assets || assets.ok === false) return untrustedRow(cardAddress)
-	return rowFromTrustedAssets(cardAddress, assets)
+	const [assets, root] = await Promise.all([assetsPromise, fetchCardMetadataRoot(cardAddress)])
+	const trustedAssets = assets && assets.ok !== false ? assets : null
+	const brand = brandFromAssetsAndMetadata(cardAddress, trustedAssets, root?.metadata)
+	if (!trustedAssets) return applyProgramCardBrand(untrustedRow(cardAddress), brand)
+	return applyProgramCardBrand(rowFromTrustedAssets(cardAddress, trustedAssets), brand)
 }
 
 /** One request per POS admin card. A failed card stays untrusted — never written as 0. */
@@ -147,7 +191,15 @@ export async function fetchChargeAdminCardBalances(params: {
 	customer: ChargePendingCustomer
 }): Promise<ChargeAdminCardBalanceRow[]> {
 	if (params.customer.kind === 'qr' && !qrChargeCustomerWallet(params.customer.payload)) {
-		return params.cards.map(untrustedRow)
+		return Promise.all(
+			params.cards.map(async (card) => {
+				const root = await fetchCardMetadataRoot(card)
+				return applyProgramCardBrand(
+					untrustedRow(card),
+					brandFromAssetsAndMetadata(card, null, root?.metadata),
+				)
+			}),
+		)
 	}
 	return Promise.all(params.cards.map((card) => fetchOneAdminCardBalance(card, params.customer)))
 }
