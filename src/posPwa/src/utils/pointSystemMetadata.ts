@@ -40,6 +40,7 @@ function parseMetadataRatioE6String(raw: unknown): string | null {
 /**
  * Card Issuance `shareTokenMetadata.pointSystem.enabled` — Charge/Top-up Reward PT mint.
  * POS #13 balance display and Deduct Points are not gated by this flag.
+ * Charge #13 mint (V19+) happens on-chain in the same `burnPointsByAdmin` tx when ratios > 0.
  * Legacy cards without an explicit block default to enabled.
  */
 export function parsePointSystemEnabledFromMetadata(meta: Record<string, unknown>): boolean {

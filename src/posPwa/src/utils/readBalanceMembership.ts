@@ -149,11 +149,10 @@ export function readBalanceMembershipUpgradeTiers(
 }
 
 /**
- * Paid-membership issue must mint a non-zero `#0` top-up (card rejects mint 0).
- * API mints `MEMBERSHIP_FEE_ONLY_ISSUE_POINTS6 = 1` when client amount equals the locked fee.
- * Do not add this dust onto the POS payable amount / USDC QR.
+ * Direct membership purchase mints **`mintPointsByAdmin(0)`** (no leftover `#0`).
+ * POS charge / USDC QR amount = locked membership fee only.
  */
-export const MEMBERSHIP_FEE_ISSUE_TOPUP_E6 = 1n
+export const MEMBERSHIP_FEE_ISSUE_TOPUP_E6 = 0n
 
 export function membershipPurchasePointsCreditE6(_minUsdc6?: string | number | bigint | null): bigint {
 	return MEMBERSHIP_FEE_ISSUE_TOPUP_E6
@@ -186,7 +185,7 @@ function formatMembershipCurrencyE6Full(e6: bigint): string {
 
 /**
  * Charge / API amount = locked membership fee only (two decimals).
- * API adds `MEMBERSHIP_FEE_ONLY_ISSUE_POINTS6` when leftover after fee is 0.
+ * Direct purchase does not mint program points (`pointsCredit6 = 0`).
  */
 export function membershipPurchaseApiAmountHuman(
 	feeFiat6: string,

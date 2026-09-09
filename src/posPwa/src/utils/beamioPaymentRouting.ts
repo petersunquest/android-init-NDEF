@@ -226,6 +226,7 @@ export function computeChargeContainerSplitFiat6(params: {
 /**
  * Charge Container items: **USDC only**.
  * Program points (#0) settle via `burnPointsByAdmin(customerAA)` — never transfer #0 to merchant.
+ * UserCard V19+: same burn tx may mint Charge Reward PT (#13) via UpdateLib (actor + referrer ratios).
  */
 export function buildPayItemsFiat6(
 	split: ChargeableSplit,

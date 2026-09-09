@@ -91,6 +91,7 @@ async function sleepMs(ms: number): Promise<void> {
 
 /**
  * Charge points leg: burn customer AA #0 via executeForAdmin (not Container transfer).
+ * UserCard V19+: burn success may mint Charge Reward PT (#13) in the same tx (UpdateLib).
  * Hybrid leg sets skipBunitFee after USDC Container already paid the fixed Charge B-Unit fee.
  */
 async function submitChargeCustomerProgramPointsBurn(params: {

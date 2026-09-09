@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchWalletAssets } from '@/api/beamioApi'
 import { ChargeAmountPadPage } from '@/components/ChargeAmountPadPage'
+import { ChargeSelectProgramCardPage } from '@/components/ChargeSelectProgramCardPage'
 import {
 	ChargeInsufficientFundsView,
 	ChargeSuccessView,
@@ -34,11 +35,19 @@ import {
 	type PaymentRoutingStep,
 } from '@/utils/paymentRoutingSteps'
 import { isExternalWalletStablecoinMethod } from '@/utils/topupPaymentMethod'
+import {
+	fetchChargeAdminCardBalances,
+	pickDefaultChargeAdminCard,
+	resolvePosAdminMerchantCards,
+	type ChargeAdminCardBalanceRow,
+	type ChargePendingCustomer,
+} from '@/utils/chargeAdminCardBalances'
 
 type ChargePhase =
 	| 'amount'
 	| 'tip'
 	| 'scan-customer'
+	| 'select-card'
 	| 'executing'
 	| 'usdc-qr'
 	| 'success'
@@ -55,8 +64,14 @@ interface ChargeDraft {
  */
 export function ChargePage() {
 	const navigate = useNavigate()
-	const { merchantInfraCard, walletAddress, refreshHome, pointSystemEnabled, currency } =
-		usePosSession()
+	const {
+		merchantInfraCard,
+		walletAddress,
+		refreshHome,
+		pointSystemEnabled,
+		currency,
+		workspaceBindings,
+	} = usePosSession()
 
 	const [phase, setPhase] = useState<ChargePhase>('amount')
 	const [draft, setDraft] = useState<ChargeDraft | null>(null)
@@ -78,6 +93,13 @@ export function ChargePage() {
 	} | null>(null)
 	const pollAbortRef = useRef<AbortController | null>(null)
 	const scanStartedRef = useRef(false)
+	const [pendingCustomer, setPendingCustomer] = useState<ChargePendingCustomer | null>(null)
+	const [adminCardAddresses, setAdminCardAddresses] = useState<string[]>([])
+	const [adminCardRows, setAdminCardRows] = useState<ChargeAdminCardBalanceRow[]>([])
+	const [adminCardsLoading, setAdminCardsLoading] = useState(false)
+	const [selectedChargeCard, setSelectedChargeCard] = useState('')
+	const [selectConfirming, setSelectConfirming] = useState(false)
+	const adminBalanceReqRef = useRef(0)
 	const [routingSteps, setRoutingSteps] = useState<PaymentRoutingStep[]>(() =>
 		makeInitialPaymentRoutingSteps(),
 	)
@@ -172,10 +194,44 @@ export function ChargePage() {
 		[draft, startUsdcChargeFlow],
 	)
 
+	const resetCardSelection = useCallback(() => {
+		adminBalanceReqRef.current += 1
+		setPendingCustomer(null)
+		setAdminCardAddresses([])
+		setAdminCardRows([])
+		setSelectedChargeCard('')
+		setAdminCardsLoading(false)
+		setSelectConfirming(false)
+	}, [])
+
+	const loadAdminCardBalances = useCallback(
+		async (customer: ChargePendingCustomer, cards: string[]) => {
+			const req = ++adminBalanceReqRef.current
+			setAdminCardsLoading(true)
+			const rows = await fetchChargeAdminCardBalances({ cards, customer })
+			if (req !== adminBalanceReqRef.current) return
+			setAdminCardRows(rows)
+			setSelectedChargeCard(
+				pickDefaultChargeAdminCard(rows, currency, merchantInfraCard ?? undefined),
+			)
+			setAdminCardsLoading(false)
+		},
+		[currency, merchantInfraCard],
+	)
+
 	const runNfcCharge = useCallback(
-		async (uid: string, sun?: { e: string; c: string; m: string }) => {
+		async (
+			uid: string,
+			sun: { e: string; c: string; m: string } | undefined,
+			chargeCardAddress?: string,
+		) => {
 			if (!draft || !walletAddress) {
 				goHome('Wallet not initialized')
+				return
+			}
+			const chargeCard = (chargeCardAddress ?? merchantInfraCard)?.trim() ?? ''
+			if (!chargeCard) {
+				goHome('Terminal program card is not configured.')
 				return
 			}
 			setPhase('executing')
@@ -184,7 +240,7 @@ export function ChargePage() {
 				target: { uid, sun },
 				subtotal: Number(draft.subtotal) || 0,
 				tipBps: draft.tipBps,
-				merchantInfraCard: merchantInfraCard?.trim() ?? '',
+				merchantInfraCard: chargeCard,
 				posWallet: walletAddress,
 				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
 				pointSystemEnabled,
@@ -211,9 +267,14 @@ export function ChargePage() {
 	)
 
 	const runQrCharge = useCallback(
-		async (openContainerPayload: Record<string, unknown>) => {
+		async (openContainerPayload: Record<string, unknown>, chargeCardAddress?: string) => {
 			if (!draft || !walletAddress) {
 				goHome('Wallet not initialized')
+				return
+			}
+			const chargeCard = (chargeCardAddress ?? merchantInfraCard)?.trim() ?? ''
+			if (!chargeCard) {
+				goHome('Terminal program card is not configured.')
 				return
 			}
 			setPhase('executing')
@@ -222,7 +283,7 @@ export function ChargePage() {
 				openContainerPayload,
 				subtotal: Number(draft.subtotal) || 0,
 				tipBps: draft.tipBps,
-				merchantInfraCard: merchantInfraCard?.trim() ?? '',
+				merchantInfraCard: chargeCard,
 				posWallet: walletAddress,
 				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
 				pointSystemEnabled,
@@ -247,6 +308,72 @@ export function ChargePage() {
 		},
 		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled, patchRoutingStep],
 	)
+
+	const beginChargeAfterScan = useCallback(
+		async (customer: ChargePendingCustomer, cancelled: () => boolean) => {
+			if (!walletAddress) {
+				goHome('Wallet not initialized')
+				return
+			}
+			const cards = await resolvePosAdminMerchantCards({
+				wallet: walletAddress,
+				activeCard: merchantInfraCard?.trim() ?? '',
+				bindings: workspaceBindings,
+			})
+			if (cancelled()) return
+			if (cards.length <= 1) {
+				const chargeCard = cards[0] ?? merchantInfraCard?.trim() ?? ''
+				if (customer.kind === 'nfc') {
+					await runNfcCharge(customer.uid, customer.sun, chargeCard)
+					return
+				}
+				await runQrCharge(customer.payload, chargeCard)
+				return
+			}
+			setPendingCustomer(customer)
+			setAdminCardAddresses(cards)
+			setAdminCardRows([])
+			setSelectedChargeCard('')
+			setSelectConfirming(false)
+			setPhase('select-card')
+			await loadAdminCardBalances(customer, cards)
+		},
+		[
+			walletAddress,
+			merchantInfraCard,
+			workspaceBindings,
+			goHome,
+			runNfcCharge,
+			runQrCharge,
+			loadAdminCardBalances,
+		],
+	)
+
+	const onSelectCardConfirm = useCallback(async () => {
+		if (!pendingCustomer || !selectedChargeCard || selectConfirming) return
+		setSelectConfirming(true)
+		try {
+			if (pendingCustomer.kind === 'nfc') {
+				await runNfcCharge(pendingCustomer.uid, pendingCustomer.sun, selectedChargeCard)
+				return
+			}
+			await runQrCharge(pendingCustomer.payload, selectedChargeCard)
+		} finally {
+			setSelectConfirming(false)
+		}
+	}, [pendingCustomer, selectedChargeCard, selectConfirming, runNfcCharge, runQrCharge])
+
+	const onSelectCardBack = useCallback(() => {
+		if (selectConfirming) return
+		resetCardSelection()
+		scanStartedRef.current = false
+		setPhase('tip')
+	}, [selectConfirming, resetCardSelection])
+
+	const onSelectCardRetry = useCallback(() => {
+		if (!pendingCustomer || adminCardAddresses.length === 0) return
+		void loadAdminCardBalances(pendingCustomer, adminCardAddresses)
+	}, [pendingCustomer, adminCardAddresses, loadAdminCardBalances])
 
 	useEffect(() => {
 		if (phase !== 'scan-customer') return
@@ -273,18 +400,18 @@ export function ChargePage() {
 					goHome('Cannot read UID from this card.')
 					return
 				}
-				await runNfcCharge(uid, scan.detail.sun)
+				await beginChargeAfterScan({ kind: 'nfc', uid, sun: scan.detail.sun }, () => cancelled)
 				return
 			}
 
-			await runQrCharge(scan.payload)
+			await beginChargeAfterScan({ kind: 'qr', payload: scan.payload }, () => cancelled)
 		})()
 
 		return () => {
 			cancelled = true
 			cancelPosCustomerScan()
 		}
-	}, [phase, goHome, runNfcCharge, runQrCharge])
+	}, [phase, goHome, beginChargeAfterScan])
 
 	useEffect(() => {
 		if (phase !== 'usdc-qr' || !usdcSid) return
@@ -355,6 +482,23 @@ export function ChargePage() {
 				subtotal={draft.subtotal}
 				onBack={() => setPhase('amount')}
 				onConfirm={onTipConfirm}
+			/>
+		)
+	}
+
+	if (phase === 'select-card' && draft) {
+		return (
+			<ChargeSelectProgramCardPage
+				billAmount={draft.subtotal}
+				billCurrency={currency}
+				rows={adminCardRows}
+				loading={adminCardsLoading}
+				selectedAddress={selectedChargeCard}
+				confirming={selectConfirming}
+				onSelect={setSelectedChargeCard}
+				onConfirm={() => void onSelectCardConfirm()}
+				onRetry={onSelectCardRetry}
+				onBack={onSelectCardBack}
 			/>
 		)
 	}
