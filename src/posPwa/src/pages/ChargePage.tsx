@@ -47,6 +47,7 @@ type ChargePhase =
 	| 'amount'
 	| 'tip'
 	| 'scan-customer'
+	| 'resolving-customer'
 	| 'select-card'
 	| 'executing'
 	| 'usdc-qr'
@@ -310,7 +311,7 @@ export function ChargePage() {
 	)
 
 	const beginChargeAfterScan = useCallback(
-		async (customer: ChargePendingCustomer, cancelled: () => boolean) => {
+		async (customer: ChargePendingCustomer) => {
 			if (!walletAddress) {
 				goHome('Wallet not initialized')
 				return
@@ -320,7 +321,6 @@ export function ChargePage() {
 				activeCard: merchantInfraCard?.trim() ?? '',
 				bindings: workspaceBindings,
 			})
-			if (cancelled()) return
 			if (cards.length <= 1) {
 				const chargeCard = cards[0] ?? merchantInfraCard?.trim() ?? ''
 				if (customer.kind === 'nfc') {
@@ -348,6 +348,11 @@ export function ChargePage() {
 			loadAdminCardBalances,
 		],
 	)
+
+	const beginChargeAfterScanRef = useRef(beginChargeAfterScan)
+	beginChargeAfterScanRef.current = beginChargeAfterScan
+	const goHomeRef = useRef(goHome)
+	goHomeRef.current = goHome
 
 	const onSelectCardConfirm = useCallback(async () => {
 		if (!pendingCustomer || !selectedChargeCard || selectConfirming) return
@@ -380,38 +385,48 @@ export function ChargePage() {
 		if (scanStartedRef.current) return
 		scanStartedRef.current = true
 
-		let cancelled = false
+		/*
+		 * Only abandon the *waiting* scan. `beginChargeAfterScan` identity changes
+		 * when workspaceBindings refresh; that must not discard an already-scanned
+		 * customer (scanStartedRef would then block a restart → stuck Waiting).
+		 */
+		let abandonedBeforeScan = false
 		void (async () => {
 			const scan = await runPosChargeScanFlow()
-			if (cancelled) return
+			if (abandonedBeforeScan) return
 
 			if (scan.status === 'aborted') {
-				goHome()
+				goHomeRef.current()
 				return
 			}
 			if (scan.status === 'error') {
-				goHome(scan.message)
+				goHomeRef.current(scan.message)
 				return
 			}
 
+			let customer: ChargePendingCustomer
 			if (scan.status === 'nfc') {
 				const uid = (scan.detail.queryUid ?? scan.detail.tagUidHex ?? '').trim()
 				if (!uid || !scan.detail.sun) {
-					goHome('Cannot read UID from this card.')
+					goHomeRef.current('Cannot read UID from this card.')
 					return
 				}
-				await beginChargeAfterScan({ kind: 'nfc', uid, sun: scan.detail.sun }, () => cancelled)
-				return
+				customer = { kind: 'nfc', uid, sun: scan.detail.sun }
+			} else {
+				customer = { kind: 'qr', payload: scan.payload }
 			}
 
-			await beginChargeAfterScan({ kind: 'qr', payload: scan.payload }, () => cancelled)
+			setPhase('resolving-customer')
+			await beginChargeAfterScanRef.current(customer)
 		})()
 
 		return () => {
-			cancelled = true
+			abandonedBeforeScan = true
 			cancelPosCustomerScan()
+			/* Strict remount must be able to start a new wait; a finished scan already left this phase. */
+			scanStartedRef.current = false
 		}
-	}, [phase, goHome, beginChargeAfterScan])
+	}, [phase])
 
 	useEffect(() => {
 		if (phase !== 'usdc-qr' || !usdcSid) return
@@ -508,6 +523,16 @@ export function ChargePage() {
 			<PosFlowLoadingShell
 				title="Charge"
 				subtitle="Waiting for NFC or QR scan…"
+				bg="bg-[#f2f2f7]"
+			/>
+		)
+	}
+
+	if (phase === 'resolving-customer') {
+		return (
+			<PosFlowLoadingShell
+				title="Charge"
+				subtitle="Looking up program cards…"
 				bg="bg-[#f2f2f7]"
 			/>
 		)

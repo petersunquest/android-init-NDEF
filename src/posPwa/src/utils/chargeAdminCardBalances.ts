@@ -67,8 +67,9 @@ export function listPosAdminMerchantCards(
 }
 
 /**
- * After scan: prefer a trusted `myPosAddresses` list so Charge does not depend
- * on stale React workspaceBindings. Fetch failure keeps last known bindings.
+ * After scan: use session bindings immediately so Charge is not blocked on a
+ * second `myPosAddresses` round-trip. Only fetch when the session list is empty.
+ * Fetch failure keeps the active card (if any).
  */
 export async function resolvePosAdminMerchantCards(params: {
 	wallet: string
@@ -76,10 +77,9 @@ export async function resolvePosAdminMerchantCards(params: {
 	bindings: { cardAddress: string }[]
 }): Promise<string[]> {
 	const fromBindings = listPosAdminMerchantCards(params.bindings, params.activeCard)
+	if (fromBindings.length > 0) return fromBindings
 	const items = await fetchMyPosAddresses(params.wallet)
-	if (items === null) {
-		return fromBindings.length > 0 ? fromBindings : listPosAdminMerchantCards([], params.activeCard)
-	}
+	if (items === null) return listPosAdminMerchantCards([], params.activeCard)
 	return listPosAdminMerchantCards(items, params.activeCard)
 }
 
