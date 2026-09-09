@@ -33,6 +33,9 @@ library RewardPoolStorage {
         mapping(bytes32 => bool) usedRecordUserLikeNonces;
         /// @dev Plan A Discover share-click EIP-712 nonces (key = keccak256(actorEOA, nonce)).
         mapping(bytes32 => bool) usedDiscoverShareClickNonces;
+        /// @dev Atomic multi-source top-up container nonces (key = keccak256(userEOA, nonce)).
+        ///      Append-only — do not reorder prior Layout fields or change SLOT.
+        mapping(bytes32 => bool) usedContainerTopupNonces;
     }
 
     function layout() internal pure returns (Layout storage l) {

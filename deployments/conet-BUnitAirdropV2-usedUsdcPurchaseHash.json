@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-09-04T03:37:32.020Z",
+  "deployBlock": 1131084,
+  "proxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+  "previousImplementation": "0x2badd1e25252703012E7BCDadf353218bc0b3362",
+  "implementation": "0xBCf5A8fD32D3Ba3a2957E426eF2625e8477750ce",
+  "upgradeTx": "0x25577e271be0d009343ae7117d92db5dda74dc08e5d91f7be74c2c246973ed63",
+  "feature": "usedUsdcPurchaseHash — one-time Stripe / off-chain payment hash for mintForUsdcPurchase",
+  "nextSteps": {
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs BUnitAirdropV2 --full",
+    "verify": "npx tsx scripts/verifyReferralPurchaseSplitConet.ts"
+  }
+}

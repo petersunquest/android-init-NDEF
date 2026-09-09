@@ -1,8 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./Errors.sol";
+
+interface IFormattingCardGateway {
+    function metadataBaseURI() external view returns (string memory);
+}
+
 /// @dev External library: ERC-1155 uri() 拼接与 hex 格式化移出主合约以降低 EIP-170 bytecode。
 library BeamioUserCardFormattingLib {
+    /// @dev Resolves the factory-owned metadata root outside the card runtime.
+    function resolveMetadataBaseURI(address gateway) external view returns (string memory) {
+        if (gateway == address(0) || gateway.code.length == 0) revert UC_GlobalMisconfigured();
+        string memory baseURI = IFormattingCardGateway(gateway).metadataBaseURI();
+        if (bytes(baseURI).length == 0) revert UC_GlobalMisconfigured();
+        return baseURI;
+    }
+
     /// @notice `base` + `0x` + 40 hex chars of `self` + `"{id}.json"`（与主合约 uri() 约定一致）
     function buildErc1155MetadataUri(string memory base, address self) external pure returns (string memory) {
         return string(abi.encodePacked(base, _addressToHex40(self), "{id}.json"));

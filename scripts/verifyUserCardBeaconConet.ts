@@ -21,16 +21,28 @@ const root = path.join(__dirname, '..')
 const SCAN = 'https://mainnet.conet.network'
 const RPC = process.env.CONET_RPC_URL || 'https://publicrpc.conet.network'
 
+type LibLinks = {
+	BeamioUserCardFormattingLib: string
+	BeamioUserCardTransferLib: string
+	BeamioUserCardViewsLib: string
+	BeamioUserCardGatewayMintLib?: string
+	BeamioUserCardModuleRouterLib?: string
+	BeamioUserCardAdminGatewayLib?: string
+	BeamioUserCardRedeemGatewayLib?: string
+	BeamioUserCardUpdateLib?: string
+	BeamioUserCardReferrerLib?: string
+	ReferrerRegistryLib?: string
+	BeamioUserCardTierOpsLib?: string
+	MembershipFeeOpsLib?: string
+}
+
 const snap = JSON.parse(
 	fs.readFileSync(path.join(root, 'deployments/conet-UserCardBeacon.json'), 'utf-8'),
 ) as {
 	impl: string
 	beacon: string
-	libraryLinks: {
-		BeamioUserCardFormattingLib: string
-		BeamioUserCardTransferLib: string
-		BeamioUserCardViewsLib: string
-	}
+	libraryLinks: LibLinks
+	issuedNftModule?: string
 	reusedLibraries?: Record<string, boolean>
 }
 
@@ -38,14 +50,26 @@ type Target = {
 	key: string
 	address: string
 	fullRel: string
+	artifactRel: string
 	sourceKey: string
 	contractName: string
 	libraries?: Record<string, Record<string, string>>
 }
 
 const TARGETS: Target[] = []
+const L = snap.libraryLinks
 
-function maybeLib(key: string, address: string, file: string, symbol: string): void {
+function maybeLib(
+	key: string,
+	address: string | undefined,
+	file: string,
+	symbol: string,
+	libraries?: Target['libraries'],
+): void {
+	if (!address) {
+		console.log(`[skip] ${key} not in snap.libraryLinks`)
+		return
+	}
 	if (snap.reusedLibraries?.[key]) {
 		console.log(`[skip] ${key} reused existing runtime ${address}`)
 		return
@@ -54,53 +78,132 @@ function maybeLib(key: string, address: string, file: string, symbol: string): v
 		key,
 		address,
 		fullRel: `deployments/base-${key}-standard-input-FULL.json`,
+		artifactRel: `src/BeamioUserCard/${file}/${symbol}.json`,
 		sourceKey: `project/src/BeamioUserCard/${file}`,
 		contractName: `project/src/BeamioUserCard/${file}:${symbol}`,
+		libraries,
 	})
 }
 
+// Nested first (registry → referrer → update), then plain UserCard libs, then impl.
+maybeLib('MembershipFeeOpsLib', L.MembershipFeeOpsLib, 'MembershipFeeOpsLib.sol', 'MembershipFeeOpsLib')
 maybeLib(
-	'BeamioUserCardFormattingLib',
-	snap.libraryLinks.BeamioUserCardFormattingLib,
-	'BeamioUserCardFormattingLib.sol',
-	'BeamioUserCardFormattingLib',
+	'BeamioUserCardTierOpsLib',
+	L.BeamioUserCardTierOpsLib,
+	'BeamioUserCardTierOpsLib.sol',
+	'BeamioUserCardTierOpsLib',
+	{
+		'project/src/BeamioUserCard/MembershipFeeOpsLib.sol': {
+			MembershipFeeOpsLib: L.MembershipFeeOpsLib!,
+		},
+	},
 )
-maybeLib(
-	'BeamioUserCardTransferLib',
-	snap.libraryLinks.BeamioUserCardTransferLib,
-	'BeamioUserCardTransferLib.sol',
-	'BeamioUserCardTransferLib',
-)
-maybeLib(
-	'BeamioUserCardViewsLib',
-	snap.libraryLinks.BeamioUserCardViewsLib,
-	'BeamioUserCardViewsLib.sol',
-	'BeamioUserCardViewsLib',
-)
+maybeLib('ReferrerRegistryLib', L.ReferrerRegistryLib, 'ReferrerRegistryLib.sol', 'ReferrerRegistryLib')
+maybeLib('BeamioUserCardReferrerLib', L.BeamioUserCardReferrerLib, 'BeamioUserCardReferrerLib.sol', 'BeamioUserCardReferrerLib', {
+	'project/src/BeamioUserCard/ReferrerRegistryLib.sol': {
+		ReferrerRegistryLib: L.ReferrerRegistryLib!,
+	},
+})
+maybeLib('BeamioUserCardUpdateLib', L.BeamioUserCardUpdateLib, 'BeamioUserCardUpdateLib.sol', 'BeamioUserCardUpdateLib', {
+	'project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol': {
+		BeamioUserCardReferrerLib: L.BeamioUserCardReferrerLib!,
+	},
+	'project/src/BeamioUserCard/BeamioUserCardTransferLib.sol': {
+		BeamioUserCardTransferLib: L.BeamioUserCardTransferLib,
+	},
+})
+maybeLib('BeamioUserCardFormattingLib', L.BeamioUserCardFormattingLib, 'BeamioUserCardFormattingLib.sol', 'BeamioUserCardFormattingLib')
+maybeLib('BeamioUserCardTransferLib', L.BeamioUserCardTransferLib, 'BeamioUserCardTransferLib.sol', 'BeamioUserCardTransferLib')
+maybeLib('BeamioUserCardViewsLib', L.BeamioUserCardViewsLib, 'BeamioUserCardViewsLib.sol', 'BeamioUserCardViewsLib')
+maybeLib('BeamioUserCardGatewayMintLib', L.BeamioUserCardGatewayMintLib, 'BeamioUserCardGatewayMintLib.sol', 'BeamioUserCardGatewayMintLib')
+maybeLib('BeamioUserCardModuleRouterLib', L.BeamioUserCardModuleRouterLib, 'BeamioUserCardModuleRouterLib.sol', 'BeamioUserCardModuleRouterLib')
+maybeLib('BeamioUserCardAdminGatewayLib', L.BeamioUserCardAdminGatewayLib, 'BeamioUserCardAdminGatewayLib.sol', 'BeamioUserCardAdminGatewayLib')
+maybeLib('BeamioUserCardRedeemGatewayLib', L.BeamioUserCardRedeemGatewayLib, 'BeamioUserCardRedeemGatewayLib.sol', 'BeamioUserCardRedeemGatewayLib')
+if (snap.issuedNftModule) {
+	TARGETS.push({
+		key: 'BeamioUserCardIssuedNftModuleV2',
+		address: snap.issuedNftModule,
+		fullRel: 'deployments/base-BeamioUserCardIssuedNftModuleV2-standard-input-FULL.json',
+		artifactRel: 'src/BeamioUserCard/IssuedNftModuleV2.sol/BeamioUserCardIssuedNftModuleV2.json',
+		sourceKey: 'project/src/BeamioUserCard/IssuedNftModuleV2.sol',
+		contractName:
+			'project/src/BeamioUserCard/IssuedNftModuleV2.sol:BeamioUserCardIssuedNftModuleV2',
+	})
+}
+
+const cardLibraries: Record<string, Record<string, string>> = {
+	'project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol': {
+		BeamioUserCardFormattingLib: L.BeamioUserCardFormattingLib,
+	},
+	'project/src/BeamioUserCard/BeamioUserCardTransferLib.sol': {
+		BeamioUserCardTransferLib: L.BeamioUserCardTransferLib,
+	},
+	'project/src/BeamioUserCard/BeamioUserCardViewsLib.sol': {
+		BeamioUserCardViewsLib: L.BeamioUserCardViewsLib,
+	},
+}
+if (L.BeamioUserCardGatewayMintLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardGatewayMintLib.sol'] = {
+		BeamioUserCardGatewayMintLib: L.BeamioUserCardGatewayMintLib,
+	}
+}
+if (L.BeamioUserCardModuleRouterLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol'] = {
+		BeamioUserCardModuleRouterLib: L.BeamioUserCardModuleRouterLib,
+	}
+}
+if (L.BeamioUserCardAdminGatewayLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardAdminGatewayLib.sol'] = {
+		BeamioUserCardAdminGatewayLib: L.BeamioUserCardAdminGatewayLib,
+	}
+}
+if (L.BeamioUserCardRedeemGatewayLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardRedeemGatewayLib.sol'] = {
+		BeamioUserCardRedeemGatewayLib: L.BeamioUserCardRedeemGatewayLib,
+	}
+}
+if (L.BeamioUserCardTierOpsLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardTierOpsLib.sol'] = {
+		BeamioUserCardTierOpsLib: L.BeamioUserCardTierOpsLib,
+	}
+}
+if (L.BeamioUserCardUpdateLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol'] = {
+		BeamioUserCardUpdateLib: L.BeamioUserCardUpdateLib,
+	}
+}
+if (L.BeamioUserCardReferrerLib) {
+	cardLibraries['project/src/BeamioUserCard/BeamioUserCardReferrerLib.sol'] = {
+		BeamioUserCardReferrerLib: L.BeamioUserCardReferrerLib,
+	}
+}
+if (L.ReferrerRegistryLib) {
+	cardLibraries['project/src/BeamioUserCard/ReferrerRegistryLib.sol'] = {
+		ReferrerRegistryLib: L.ReferrerRegistryLib,
+	}
+}
+if (L.MembershipFeeOpsLib) {
+	cardLibraries['project/src/BeamioUserCard/MembershipFeeOpsLib.sol'] = {
+		MembershipFeeOpsLib: L.MembershipFeeOpsLib,
+	}
+}
 
 TARGETS.push({
 	key: 'BeamioUserCard',
 	address: snap.impl,
 	fullRel: 'deployments/base-BeamioUserCard-standard-input-FULL.json',
+	artifactRel: 'src/BeamioUserCard/BeamioUserCard.sol/BeamioUserCard.json',
 	sourceKey: 'project/src/BeamioUserCard/BeamioUserCard.sol',
 	contractName: 'project/src/BeamioUserCard/BeamioUserCard.sol:BeamioUserCard',
-	libraries: {
-		'project/src/BeamioUserCard/BeamioUserCardFormattingLib.sol': {
-			BeamioUserCardFormattingLib: snap.libraryLinks.BeamioUserCardFormattingLib,
-		},
-		'project/src/BeamioUserCard/BeamioUserCardTransferLib.sol': {
-			BeamioUserCardTransferLib: snap.libraryLinks.BeamioUserCardTransferLib,
-		},
-		'project/src/BeamioUserCard/BeamioUserCardViewsLib.sol': {
-			BeamioUserCardViewsLib: snap.libraryLinks.BeamioUserCardViewsLib,
-		},
-	},
+	libraries: cardLibraries,
 })
 
 TARGETS.push({
 	key: 'BeamioUserCardUpgradeableBeacon',
 	address: snap.beacon,
 	fullRel: 'deployments/base-BeamioUserCardUpgradeableBeacon-standard-input-FULL.json',
+	artifactRel:
+		'src/BeamioUserCard/BeamioUserCardUpgradeableBeacon.sol/BeamioUserCardUpgradeableBeacon.json',
 	sourceKey: 'project/src/BeamioUserCard/BeamioUserCardUpgradeableBeacon.sol',
 	contractName:
 		'project/src/BeamioUserCard/BeamioUserCardUpgradeableBeacon.sol:BeamioUserCardUpgradeableBeacon',
@@ -239,9 +342,10 @@ function localDeployedBytecode(
 		console.warn(`[precheck] solc missing at ${solcPath}; skip local bytecode match`)
 		return ''
 	}
-	const res = spawnSync(solcPath, ['--standard-json', prunedPath], {
+	const res = spawnSync(solcPath, ['--standard-json'], {
 		encoding: 'utf-8',
 		maxBuffer: 64 * 1024 * 1024,
+		input: fs.readFileSync(prunedPath, 'utf-8'),
 	})
 	if (res.status !== 0) {
 		throw new Error(`solc failed: ${res.stderr || res.stdout}`)
@@ -253,6 +357,32 @@ function localDeployedBytecode(
 		throw new Error(`no deployedBytecode for ${sourceKey}:${contractSymbol}\n${errs}`)
 	}
 	return `0x${obj}`.toLowerCase()
+}
+
+function materializeLibrarySelfAddress(local: string, target: Target): string {
+	const artifactPath = path.join(root, 'artifacts', target.artifactRel)
+	if (!fs.existsSync(artifactPath)) return local
+	const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf-8')) as {
+		immutableReferences?: Record<string, Array<{ start: number; length: number }>>
+	}
+	const references = artifact.immutableReferences?.library_deploy_address ?? []
+	if (references.length === 0) return local
+
+	let body = local.replace(/^0x/, '')
+	const address = target.address.replace(/^0x/, '').toLowerCase()
+	for (const { start, length } of references) {
+		if (length < 20) throw new Error(`${target.key}: unexpected library self-address length ${length}`)
+		const replacement = `${'0'.repeat((length - 20) * 2)}${address}`
+		const startHex = start * 2
+		const endHex = startHex + length * 2
+		const original = body.slice(startHex, endHex)
+		if (original === '0'.repeat(length * 2)) {
+			body = body.slice(0, startHex) + replacement + body.slice(endHex)
+		} else if (original !== replacement) {
+			throw new Error(`${target.key}: unexpected non-zero library self-address placeholder`)
+		}
+	}
+	return `0x${body}`
 }
 
 async function isVerified(addr: string): Promise<boolean> {
@@ -287,19 +417,7 @@ async function verifyOne(t: Target): Promise<void> {
 	const symbol = t.contractName.split(':').pop()!
 	let local = localDeployedBytecode(solcPath, outPath, t.sourceKey, symbol)
 	if (local) {
-		const addrHex = t.address.replace(/^0x/, '').toLowerCase().padStart(40, '0')
-		let patched = local.startsWith('0x') ? local.slice(2) : local
-		const chainBody = onchain.startsWith('0x') ? onchain.slice(2) : onchain
-		if (patched.length === chainBody.length) {
-			for (let i = 0; i + 40 <= patched.length; i += 2) {
-				const slot = patched.slice(i, i + 40)
-				const chainSlot = chainBody.slice(i, i + 40)
-				if (slot === '0'.repeat(40) && chainSlot === addrHex) {
-					patched = patched.slice(0, i) + addrHex + patched.slice(i + 40)
-				}
-			}
-			local = `0x${patched}`
-		}
+		local = materializeLibrarySelfAddress(local, t).toLowerCase()
 		if (local !== onchain) {
 			console.error(`bytecode mismatch localLen=${local.length} chainLen=${onchain.length}`)
 			console.error(`localTail=${local.slice(-24)} chainTail=${onchain.slice(-24)}`)

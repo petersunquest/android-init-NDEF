@@ -6,9 +6,9 @@
   "membershipFeeOpsLib": "0xF3Ce015B43012E03706b5d1f57970ebCbB01D5a2",
   "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
   "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
-  "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+  "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
   "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
-  "replacedAdminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e",
+  "replacedAdminStatsQueryModule": "0xa8F82672e2D37FC013A117d708E875bf39877FdA",
   "stageSelector": "0xca5cc792",
   "bootstrapStageSelector": "0xf6614a5f",
   "setFeesSelector": "0xf5f88bcc",
@@ -22,13 +22,13 @@
   "note": "Membership fee diamond + stage via AdminStats V5; Factory binds V6 router(newV5, existing referrerViews); issue via MembershipStats",
   "bound": {
     "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
-    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
     "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e"
   },
   "combinedRewardSettersUpgrade": {
-    "timestamp": "2026-08-27T23:49:45.285Z",
-    "adminStatsQueryModule": "0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4",
-    "chargeRewardModule": "0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f",
-    "note": "V6 routes topupReward/chargeReward → ChargeReward; V5 + referrerViews unchanged"
+    "timestamp": "2026-08-30T12:03:00.030Z",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "note": "V6 routes convertReward13* / peerRedeem13ForContainerTopup / topupWithReward13Container → ChargeReward; V5 + referrerViews unchanged; Blockscout verified 2026-08-30"
   }
 }

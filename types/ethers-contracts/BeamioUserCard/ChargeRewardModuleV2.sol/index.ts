@@ -5,3 +5,4 @@ export type { BeamioUserCardChargeRewardModuleV2 } from './BeamioUserCardChargeR
 export type { ICardPoints } from './ICardPoints.js';
 export type { ICardPointsUnitPrice } from './ICardPointsUnitPrice.js';
 export type { IERC20Minimal } from './IERC20Minimal.js';
+export type { IFactoryOracleQuote } from './IFactoryOracleQuote.js';

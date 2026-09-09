@@ -14,12 +14,13 @@
     "adminPayout": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
   },
   "airdropProxy": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
-  "airdropPreviousImplementation": "0xD402b631F5171427FB2e04c4C975bb7d9b807504",
-  "airdropImplementation": "0x2badd1e25252703012E7BCDadf353218bc0b3362",
-  "upgradeTx": "0x3bd266c4dd3b156d5f71ce7a67875be6caebb9fccde2acf74ace3e2830af0fcb",
+  "airdropPreviousImplementation": "0x2badd1e25252703012E7BCDadf353218bc0b3362",
+  "airdropImplementation": "0xBCf5A8fD32D3Ba3a2957E426eF2625e8477750ce",
+  "upgradeTx": "0x25577e271be0d009343ae7117d92db5dda74dc08e5d91f7be74c2c246973ed63",
   "setPurchaseSplitTx": "0x9377d1526edc25cb4a88b003a35016e41c10faf8bf81bd857335cb7c465bad50",
   "nextSteps": {
     "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs ReferralPurchaseSplitV1 --full",
     "verify": "npx tsx scripts/verifyReferralPurchaseSplitConet.ts"
-  }
+  },
+  "airdropUsedUsdcPurchaseHashUpgradeAt": "2026-09-04T03:37:32.020Z"
 }

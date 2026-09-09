@@ -3,4 +3,5 @@
 /* eslint-disable */
 export { BeamioUserCardIssuedNftModuleV2__factory } from './BeamioUserCardIssuedNftModuleV2__factory.js';
 export { IBeamioUserCardFactoryEip712__factory } from './IBeamioUserCardFactoryEip712__factory.js';
+export { IIssuedNftCardOwner__factory } from './IIssuedNftCardOwner__factory.js';
 export { IUserCardFactoryProtocolAuth__factory } from './IUserCardFactoryProtocolAuth__factory.js';

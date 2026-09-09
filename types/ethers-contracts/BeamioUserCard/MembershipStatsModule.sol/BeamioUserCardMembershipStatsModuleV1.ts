@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardMembershipStatsModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "ISSUED_NFT_START_ID" | "NFT_START_ID" | "POINTS_DECIMALS" | "POINTS_ID" | "_userOwnedNfts" | "activeMembershipCountByTierIndex" | "activeMembershipCountByTokenId" | "activeMembershipId" | "activeTierIndexOrMax" | "attributes" | "balanceOf" | "balanceOfBatch" | "completeMembershipFeePurchase" | "currency" | "debugGateway" | "defaultAttrWhenNoTiers" | "deployer" | "expiresAt" | "expirySeconds" | "factoryGateway" | "gateway" | "isApprovedForAll" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "owner" | "pointsUnitPriceInCurrencyE6" | "removeNft" | "renounceOwnership" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "supportsInterface" | "syncActiveToBestValid" | "tiers" | "tokenTierIndexOrMax" | "totalActiveMemberships" | "totalMembershipIssued" | "totalMembershipIssuedByTierIndex" | "totalMembershipUpgraded" | "transferOwnership" | "transferWhitelist" | "transferWhitelistEnabled" | "upgradeType" | "uri"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminCardMinted" | "ApprovalForAll" | "MemberNFTIssued" | "MemberNFTUpgraded" | "OwnershipTransferred" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
@@ -22,6 +22,7 @@ encodeFunctionData(functionFragment: 'activeTierIndexOrMax', values: [AddressLik
 encodeFunctionData(functionFragment: 'attributes', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
+encodeFunctionData(functionFragment: 'completeMembershipFeePurchase', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'currency', values?: undefined): string;
 encodeFunctionData(functionFragment: 'debugGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'defaultAttrWhenNoTiers', values?: undefined): string;
@@ -69,6 +70,7 @@ decodeFunctionResult(functionFragment: 'activeTierIndexOrMax', data: BytesLike):
 decodeFunctionResult(functionFragment: 'attributes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'completeMembershipFeePurchase', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'currency', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'debugGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'defaultAttrWhenNoTiers', data: BytesLike): Result;
@@ -328,6 +330,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [accounts: AddressLike[], ids: BigNumberish[], ],
       [bigint[]],
       'view'
+    >
+    
+
+    
+    completeMembershipFeePurchase: TypedContractMethod<
+      [user: AddressLike, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -665,6 +675,11 @@ getFunction(nameOrSignature: 'balanceOfBatch'): TypedContractMethod<
       [accounts: AddressLike[], ids: BigNumberish[], ],
       [bigint[]],
       'view'
+    >;
+getFunction(nameOrSignature: 'completeMembershipFeePurchase'): TypedContractMethod<
+      [user: AddressLike, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'currency'): TypedContractMethod<
       [],

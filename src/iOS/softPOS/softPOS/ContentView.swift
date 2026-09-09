@@ -362,11 +362,18 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             decisionHandler(.cancel)
             return
         }
-        if navigationAction.targetFrame?.isMainFrame ?? false,
-           let unwrapped = BeamioDeepLink.unwrapAppDownloadLandingURL(url) {
-            decisionHandler(.cancel)
-            loadWebAppURL(unwrapped, in: webView, bypassDedup: true)
-            return
+        // Consumer share / PWA URLs must never load in the POS WebView.
+        if navigationAction.targetFrame?.isMainFrame ?? false {
+            let host = url.host?.lowercased() ?? ""
+            let path = url.path
+            let isConsumerHost = host == "beamio.app" || host == "www.beamio.app"
+            let isConsumerPath =
+                path == "/app" || path.hasPrefix("/app/")
+                || path == "/app-download" || path.hasPrefix("/app-download/")
+            if isConsumerHost && isConsumerPath {
+                decisionHandler(.cancel)
+                return
+            }
         }
         decisionHandler(.allow)
     }
@@ -745,11 +752,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
-    /// PWA `CashTreesIOS.openURL({ url })` — open http(s)/mailto/tel in the system browser or handler.
+    /// PWA `CashTreesIOS.openURL({ url })` — http(s)/mailto/tel plus catalog wallet / EIP-681 schemes.
     private func openExternalURLFromBridge(_ raw: String?) {
         let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !trimmed.isEmpty, let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() else { return }
-        let allowed: Set<String> = ["http", "https", "mailto", "tel"]
+        let allowed: Set<String> = [
+            "http", "https", "mailto", "tel",
+            "ethereum",
+            "metamask", "cbwallet", "coinbase", "base",
+            "okx", "okex", "tpdapp", "tpoutside", "phantom",
+        ]
         guard allowed.contains(scheme) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
     }

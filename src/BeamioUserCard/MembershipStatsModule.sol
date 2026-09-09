@@ -110,6 +110,18 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         _issueFromPointsDelta(acct, pointsDelta6);
     }
 
+    /// @notice Complete a staged direct membership purchase with **zero** `#0` program credit.
+    /// @dev POS / Master call this via `executeForAdmin` after `stageMembershipFeePurchase(..., pointsCredit6=0)`.
+    ///      Do not use `mintPointsByAdmin(1)` leftover mint for fee-only joins.
+    function completeMembershipFeePurchase(address user) external {
+        if (user == address(0)) revert BM_ZeroAddress();
+        if (!_membershipFeeMode()) revert UC_MembershipFeePendingRequired();
+        address acct = _toAccount(user);
+        _syncActiveToBestValidInternal(acct);
+        if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
+        _issueFromMembershipFeePending(acct, 0);
+    }
+
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external {
         if (_hasValidCard(acct)) revert UC_AlreadyHasValidCard();
         if (_membershipFeeMode()) {

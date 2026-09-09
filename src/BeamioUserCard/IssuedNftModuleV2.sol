@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+interface IIssuedNftCardOwner {
+    function owner() external view returns (address);
+}
+
 import "./IssuedNftModule.sol";
 import "./IssuedNftStorage.sol";
 import "./Errors.sol";
@@ -10,6 +14,7 @@ import "./BeamioUserCardModuleMintLib.sol";
 import "./BeamioUserCardModuleKinds.sol";
 import "./IBeamioUserCardSelfDelegate.sol";
 import "./BeamioUserCardInterfaces.sol";
+import "./MembershipFeeStorage.sol";
 import {ECDSA} from "../contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "../contracts/utils/cryptography/MessageHashUtils.sol";
 
@@ -495,10 +500,25 @@ contract BeamioUserCardIssuedNftModuleV2 is BeamioUserCardIssuedNftModuleV1 {
      */
     function mintPointsForProtocolUsdcSettlement(address userEOA, uint256 points6) external returns (address acct) {
         if (userEOA == address(0)) revert BM_ZeroAddress();
-        if (points6 == 0) revert UC_AmountZero();
         _requireFactoryOwnerOrPaymaster();
-        address operator = IBeamioUserCardSelfDelegate(address(this)).cardSelfOwner();
+        address operator = IIssuedNftCardOwner(address(this)).owner();
         if (operator == address(0)) revert BM_ZeroAddress();
+        // Direct-purchase membership: stage first, then issue with points6=0 (no #0 mint).
+        if (points6 == 0) {
+            if (!MembershipFeeStorage.isFeeMode()) revert UC_AmountZero();
+            IBeamioUserCardSelfDelegate delegate = IBeamioUserCardSelfDelegate(address(this));
+            acct = delegate.cardSelfToAccount(userEOA);
+            uint8 membershipStats = BeamioUserCardModuleKinds.MEMBERSHIP_STATS;
+            (uint256 issuedBefore, uint256 upgradedBefore) = delegate.cardSelfMembershipFlowTotals();
+            delegate.cardSelfCallModule(
+                membershipStats,
+                abi.encodeWithSelector(
+                    IBeamioMembershipStatsModuleV1.maybeIssueOnlyIfNoneOrExpiredByPointsDelta.selector, acct, 0
+                )
+            );
+            delegate.cardSelfRecordAdminMembershipFlow(operator, issuedBefore, upgradedBefore);
+            return acct;
+        }
         return _mintPointsByGatewayWithOperatorLocal(userEOA, points6, operator);
     }
 

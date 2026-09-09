@@ -6,7 +6,7 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BUnitAirdropV2Interface extends Interface {
-    getFunction(nameOrSignature: "BUNIT_TO_USDC" | "UPGRADE_INTERFACE_VERSION" | "addAdmin" | "admins" | "alreadyClaimedFree" | "balanceOfAll" | "bunit" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimForWithBeneficiary" | "claimNonces" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "getBUnitBalance" | "hasClaimed" | "initialize" | "legacyBunitAirdrop" | "mintForUsdcPurchase" | "mintFreeForReferralSettlement" | "mintPaidForCreditCashPurchase" | "owner" | "payoutClaimable" | "proxiableUUID" | "purchaseSplit" | "referralSettlement" | "removeAdmin" | "renounceOwnership" | "repairLegacyStorageCounters" | "reserveClaimable" | "reservedClaimableUsdc" | "retainedConetUsdc" | "setAdmin" | "setClaimAmount" | "setConfig" | "setLegacyBunitAirdrop" | "setPurchaseSplit" | "storageRepairApplied" | "totalConetUsdcMinted" | "totalPaidBunitAirdropped" | "totalPaidBunitConsumed" | "transferOwnership" | "upgradeToAndCall"): FunctionFragment;
+    getFunction(nameOrSignature: "BUNIT_TO_USDC" | "UPGRADE_INTERFACE_VERSION" | "addAdmin" | "admins" | "alreadyClaimedFree" | "balanceOfAll" | "bunit" | "claim" | "claimAmount" | "claimFor" | "claimForV2" | "claimForWithBeneficiary" | "claimNonces" | "conetTreasury" | "conetUsdc" | "consumeFromUser" | "getBUnitBalance" | "hasClaimed" | "initialize" | "legacyBunitAirdrop" | "mintForUsdcPurchase" | "mintFreeForReferralSettlement" | "mintPaidForCreditCashPurchase" | "owner" | "payoutClaimable" | "proxiableUUID" | "purchaseSplit" | "referralSettlement" | "removeAdmin" | "renounceOwnership" | "repairLegacyStorageCounters" | "reserveClaimable" | "reservedClaimableUsdc" | "retainedConetUsdc" | "setAdmin" | "setClaimAmount" | "setConfig" | "setLegacyBunitAirdrop" | "setPurchaseSplit" | "storageRepairApplied" | "totalConetUsdcMinted" | "totalPaidBunitAirdropped" | "totalPaidBunitConsumed" | "transferOwnership" | "upgradeToAndCall" | "usedUsdcPurchaseHash"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "AdminUpdated" | "ClaimablePaid" | "ClaimableReserved" | "ConfigUpdated" | "FreeBUnitAirdropped" | "FreeClaimed" | "Initialized" | "LegacyAirdropUpdated" | "OwnershipTransferred" | "PaidBUnitAirdropped" | "PaidBUnitConsumed" | "PurchaseSplitUpdated" | "Upgraded"): EventFragment;
 
@@ -55,6 +55,7 @@ encodeFunctionData(functionFragment: 'totalPaidBunitAirdropped', values?: undefi
 encodeFunctionData(functionFragment: 'totalPaidBunitConsumed', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
+encodeFunctionData(functionFragment: 'usedUsdcPurchaseHash', values: [BytesLike]): string;
 
     decodeFunctionResult(functionFragment: 'BUNIT_TO_USDC', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
@@ -101,6 +102,7 @@ decodeFunctionResult(functionFragment: 'totalPaidBunitAirdropped', data: BytesLi
 decodeFunctionResult(functionFragment: 'totalPaidBunitConsumed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'usedUsdcPurchaseHash', data: BytesLike): Result;
   }
 
   
@@ -653,6 +655,14 @@ decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Res
     >
     
 
+    
+    usedUsdcPurchaseHash: TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -880,6 +890,11 @@ getFunction(nameOrSignature: 'upgradeToAndCall'): TypedContractMethod<
       [newImplementation: AddressLike, data: BytesLike, ],
       [void],
       'payable'
+    >;
+getFunction(nameOrSignature: 'usedUsdcPurchaseHash'): TypedContractMethod<
+      [arg0: BytesLike, ],
+      [boolean],
+      'view'
     >;
 
     getEvent(key: 'AdminUpdated'): TypedContractEvent<AdminUpdatedEvent.InputTuple, AdminUpdatedEvent.OutputTuple, AdminUpdatedEvent.OutputObject>;

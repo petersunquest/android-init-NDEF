@@ -78,4 +78,52 @@
         </service>
     </application>
 
+    <queries>
+        <package android:name="io.metamask" />
+        <package android:name="org.toshi" />
+        <package android:name="com.coinbase.wallet" />
+        <package android:name="com.okinc.okex.gp" />
+        <package android:name="com.okinc.okex" />
+        <package android:name="com.okex.okex" />
+        <package android:name="com.okx.wallet" />
+        <package android:name="vip.mytokenpocket" />
+        <package android:name="app.phantom" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="metamask" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="cbwallet" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="coinbase" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="base" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="okx" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="okex" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tpdapp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tpoutside" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="phantom" />
+        </intent>
+    </queries>
+
 </manifest>

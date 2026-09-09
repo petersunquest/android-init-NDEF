@@ -2,6 +2,8 @@
 cache/
 artifacts/
 typechain-types/
+hardhat.config.ts.bak-sl
+probe-*.mjs
 
 # Environment variables
 .env
@@ -19,6 +21,7 @@ deployments/*.wallets.local.json
 *.swp
 *.swo
 *~
+**/xcuserdata/
 
 # Script state
 scripts/.base-sync-state
@@ -27,3 +30,21 @@ scripts/.base-sync-state
 .DS_Store
 Thumbs.db
 .cursor
+
+# Local diagnostics, generated archives, and credentials
+src/x402sdk/build/
+src/CaehTrees/play-console/*.pem
+src/CashTrees_iOS/iOS_NDEF/DerivedDataCI/
+src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS/SilentPassUI-*.zip
+src/android/softPOS/app/google-services.json
+states/
+
+# Independent sibling repos / worktrees (each has its own git remote)
+src/bizSiteMerchant/
+src/conet-l0d/
+src/conet-layer2/
+src/docs/
+src/beamio-chat-sdk/
+src/web3-browser/
+src/web3BeaconDHT/
+src/iOS/SilentPass-pwa/

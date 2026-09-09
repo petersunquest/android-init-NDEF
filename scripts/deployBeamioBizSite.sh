@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Deploy bizSite (Merchant OS) to https://biz.beamio.app/biz/
+# Deploy Merchant OS to https://biz.beamio.app/biz/
+# Local source: src/bizSiteMerchant (cashtrees). NOT src/bizSite (that is a Consumer /app worktree).
 # Default: remote git pull + build on server, then promote bizTemp/ -> biz/.
-# See .cursor/rules/beamio-bizsite-deploy.mdc
+# See .cursor/rules/beamio-biz-app-worktree-deploy.mdc
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-BIZ_DIR="$REPO_ROOT/src/bizSite"
+BIZ_DIR="$REPO_ROOT/src/bizSiteMerchant"
 
 BEAMIO_DEPLOY_HOST="${BEAMIO_DEPLOY_HOST:-conet.network}"
 BEAMIO_BIZ_ROOT="${BEAMIO_BIZ_ROOT:-/var/www/biz.beamio.app}"
@@ -24,16 +25,16 @@ usage() {
 	cat <<'EOF'
 Usage: scripts/deployBeamioBizSite.sh [options]
 
-Deploy bizSite (Merchant OS) to biz.beamio.app/biz/.
+Deploy Merchant OS to biz.beamio.app/biz/.
 
 Default (remote build):
-  1) bump patch version in src/bizSite/package.json (commit + push, branch cashtrees)
+  1) bump patch version in src/bizSiteMerchant/package.json (commit + push, branch cashtrees)
   2) ssh: cd /var/www/biz.beamio.app/SilentPassUI && git pull && npm run build
   3) rsync build/ -> bizTemp/
   4) rsync bizTemp/ -> biz/
 
 Options:
-  --local-build        Build in src/bizSite locally, then rsync to remote
+  --local-build        Build in src/bizSiteMerchant locally, then rsync to remote
   --skip-build         Skip build step (remote: use existing build/ on server)
   --skip-promote       Only update bizTemp/, do not copy to biz/
   --skip-version-bump  Skip local package.json patch bump (not recommended)
@@ -61,9 +62,34 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ! -f "$BIZ_DIR/package.json" ]]; then
-	echo "Missing bizSite package.json: $BIZ_DIR/package.json" >&2
+	echo "Missing Merchant OS package.json: $BIZ_DIR/package.json" >&2
+	echo "Expected src/bizSiteMerchant (not src/bizSite)." >&2
 	exit 1
 fi
+
+assert_merchant_os_tree() {
+	local homepage name branch gitdir
+	homepage="$(node -p "require('$BIZ_DIR/package.json').homepage || ''")"
+	name="$(node -p "require('$BIZ_DIR/package.json').name || ''")"
+	if ! git -C "$BIZ_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		gitdir="$(tr -d '\n' < "$BIZ_DIR/.git" 2>/dev/null || true)"
+		echo "Refusing deploy: $BIZ_DIR is not a usable git worktree." >&2
+		echo "  .git: ${gitdir:-missing}" >&2
+		echo "  Repair: attach src/bizSiteMerchant as a worktree of src/SilentPassUI on branch cashtrees." >&2
+		echo "  Do not bump src/bizSite (if present) — that is not Merchant OS." >&2
+		exit 1
+	fi
+	branch="$(git -C "$BIZ_DIR" rev-parse --abbrev-ref HEAD)"
+	if [[ "$homepage" != "/biz" ]] || [[ "$name" != "beamioBiz" ]] || [[ "$branch" != "cashtrees" ]]; then
+		echo "Refusing deploy: $BIZ_DIR is not Merchant OS." >&2
+		echo "  got:      name=${name} homepage=${homepage} branch=${branch}" >&2
+		echo "  expected: name=beamioBiz homepage=/biz branch=cashtrees" >&2
+		echo "  (src/bizSite, if present, is not Merchant OS — do not bump it for biz.)" >&2
+		exit 1
+	fi
+}
+
+assert_merchant_os_tree
 
 bump_bizsite_version() {
 	local old_version new_version
@@ -71,7 +97,7 @@ bump_bizsite_version() {
 	cd "$BIZ_DIR"
 
 	if ! git diff --quiet || ! git diff --cached --quiet; then
-		echo "bizSite has uncommitted changes. Commit or stash before deploy." >&2
+		echo "src/bizSiteMerchant has uncommitted changes. Commit or stash before deploy." >&2
 		exit 1
 	fi
 
@@ -79,7 +105,7 @@ bump_bizsite_version() {
 	npm version patch --no-git-tag-version >/dev/null
 	new_version="$(node -p "require('./package.json').version")"
 
-	echo "==> Bumped bizSite version: ${old_version} -> ${new_version}"
+	echo "==> Bumped Merchant OS version: ${old_version} -> ${new_version}"
 
 	git add package.json
 	if [[ -f package-lock.json ]]; then
@@ -90,7 +116,7 @@ bump_bizsite_version() {
 }
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
-	echo "==> Dry run: would deploy bizSite"
+	echo "==> Dry run: would deploy Merchant OS from $BIZ_DIR"
 	if [[ "$SKIP_VERSION_BUMP" -eq 0 ]]; then
 		echo "    1) npm version patch in $BIZ_DIR (commit + push)"
 	fi
@@ -136,13 +162,13 @@ rsync -a --delete '${BEAMIO_BIZ_ROOT}/bizTemp/' '${BEAMIO_BIZ_ROOT}/biz/'
 
 if [[ "$LOCAL_BUILD" -eq 1 ]]; then
 	if [[ "$SKIP_BUILD" -eq 0 ]]; then
-		echo "==> Building bizSite locally in $BIZ_DIR"
+		echo "==> Building Merchant OS locally in $BIZ_DIR"
 		( cd "$BIZ_DIR" && npm run build )
 	fi
 
 	BUILD_DIR="$BIZ_DIR/build"
 	if [[ ! -f "$BUILD_DIR/index.html" ]]; then
-		echo "Missing $BUILD_DIR/index.html — run npm run build in src/bizSite first." >&2
+		echo "Missing $BUILD_DIR/index.html — run npm run build in src/bizSiteMerchant first." >&2
 		exit 1
 	fi
 

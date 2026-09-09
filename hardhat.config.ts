@@ -47,7 +47,9 @@ export default defineConfig({
       },
       optimizer: {
         enabled: true,
-        runs: 0  // 偏向部署体积，便于 BeamioUserCard 满足 EIP-170 24KB
+          // V20 UserCard was deployed with the two-run optimizer profile.
+          // Keep this explicit so FULL Standard JSON reproduces the beacon implementation.
+          runs: 2
       },
       viaIR: true  // 解决 "Stack too deep" 错误
       , evmVersion: "cancun"  // 必须：Bytes.sol 使用 mcopy (Cancun)

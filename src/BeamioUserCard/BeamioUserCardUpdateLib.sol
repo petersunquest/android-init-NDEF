@@ -13,6 +13,10 @@ import "./BeamioUserCardModuleKinds.sol";
 import "./IBeamioUserCardSelfDelegate.sol";
 import "./BeamioUserCardReferrerLib.sol";
 
+interface IUpdateCardOwner {
+    function owner() external view returns (address);
+}
+
 /// @dev ERC1155 `_update` post-processing and charge-reward mint path.
 library BeamioUserCardUpdateLib {
     uint256 internal constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
@@ -58,7 +62,7 @@ library BeamioUserCardUpdateLib {
             mintChargeRewardForPointsDebit(delegate, from, pre.pointTransferAmount);
             BeamioUserCardTransferLib.recordPointTransferStats(
                 from, to, pre.beneficiaryAdmin, pre.upperAdmin, pre.pointTransferCount, pre.pointTransferAmount,
-                delegate.cardSelfOwner()
+                IUpdateCardOwner(address(this)).owner()
             );
         }
 
@@ -123,27 +127,47 @@ library BeamioUserCardUpdateLib {
         }
     }
 
+    /// @dev Same-cycle Charge: actor #13 from `chargeRewardRatioE6`, referrer #13 from
+    ///      `referrerRewardFromChargeRewardRatioE6`. Either ratio 0 → that leg skips (OFF).
+    /// @notice After `burnPointsByAdmin` (POS Charge settle): referee charge stats + same-cycle #13.
+    /// @dev Burn path never hits processUpdatePost `isRealTransfer`; must not rely on Master enqueue.
+    function afterAdminPointsBurn(
+        IBeamioUserCardSelfDelegate delegate,
+        address payerAcct,
+        uint256 pointsBurned6
+    ) external {
+        if (payerAcct == address(0) || pointsBurned6 == 0) return;
+        BeamioUserCardReferrerLib.recordRefereeChargePoints(payerAcct, pointsBurned6);
+        mintChargeRewardForPointsDebit(delegate, payerAcct, pointsBurned6);
+    }
+
     function mintChargeRewardForPointsDebit(IBeamioUserCardSelfDelegate delegate, address payerAcct, uint256 pointsDebited6)
         public
     {
         if (payerAcct == address(0) || pointsDebited6 == 0) return;
-        uint256 ratio = ChargeRewardStorage.layout().chargeRewardRatioE6;
-        if (ratio == 0) return;
 
         uint256 price = delegate.cardSelfPointsUnitPriceInCurrencyE6();
         uint256 amountFiat6 = (pointsDebited6 * price) / POINTS_ONE;
         if (amountFiat6 == 0) return;
-        uint256 reward = (amountFiat6 * ratio) / REWARD_RATIO_ONE_E6;
-        if (reward == 0) return;
 
-        delegate.cardSelfMint(payerAcct, CHARGE_REWARD_TOKEN_ID, reward);
-        delegate.cardSelfEmitChargeRewardAirdropped(
-            _ownerOfAccountOrSelf(payerAcct), payerAcct, delegate.cardSelfCurrencyType(), amountFiat6, reward
-        );
-        // Charge Referrer #13 is minted via ChargeRewardModule.recordChargeReferrerReward
-        // (gateway, same model as top-up). Do not call ReferrerLib here: cards link an immutable
-        // UpdateLib at create time; older ReferrerLib deployments omit mint selectors, so inline
-        // mint silently never runs on existing cards.
+        uint256 ratio = ChargeRewardStorage.layout().chargeRewardRatioE6;
+        if (ratio > 0) {
+            uint256 reward = (amountFiat6 * ratio) / REWARD_RATIO_ONE_E6;
+            if (reward > 0) {
+                delegate.cardSelfMint(payerAcct, CHARGE_REWARD_TOKEN_ID, reward);
+                delegate.cardSelfEmitChargeRewardAirdropped(
+                    _ownerOfAccountOrSelf(payerAcct),
+                    payerAcct,
+                    delegate.cardSelfCurrencyType(),
+                    amountFiat6,
+                    reward
+                );
+            }
+        }
+
+        // Beacon-linked UpdateLib + ReferrerLib (V16+): same-cycle referrer #13.
+        // Master enqueueRecordChargeReferrerReward is a no-op to avoid dual mint.
+        BeamioUserCardReferrerLib.mintReferrerRewardForChargeIfConfigured(delegate, payerAcct, amountFiat6);
     }
 
     function _ownerOfAccountOrSelf(address acct) private view returns (address) {

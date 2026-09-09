@@ -1,25 +1,43 @@
 {
   "network": "conet",
   "chainId": 224422,
-  "timestamp": "2026-08-22T19:46:31.946Z",
+  "timestamp": "2026-09-08T13:37:11.875Z",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "beaconOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
   "implOwnerSentinel": "0x000000000000000000000000000000000000dEaD",
   "deployBlock": 954975,
   "libraryLinks": {
-    "BeamioUserCardFormattingLib": "0x62F18eeC53B423bb36246856Fe2216A7Df270873",
-    "BeamioUserCardTransferLib": "0xf5b0d8fF65ce5B4Da1DBf8DB954F4488b23c1916",
-    "BeamioUserCardViewsLib": "0x1c7c122429Da18e6078d9CEbb7B5b30F0Aa2a033"
+    "BeamioUserCardFormattingLib": "0xC951d3c32ad02C9D640bBD72542D8372EeCB14d7",
+    "BeamioUserCardTransferLib": "0x426d7b41fd47Ec9A43C67cB4fd7938F6cDAF398e",
+    "BeamioUserCardViewsLib": "0x1c7c122429Da18e6078d9CEbb7B5b30F0Aa2a033",
+    "BeamioUserCardGatewayMintLib": "0xe6375F58782Ac00Dc13E670cd9be8938efb7C57F",
+    "BeamioUserCardModuleRouterLib": "0x1619a3Ce48C6B45d743E0C8E4636221FfEa88Bc9",
+    "BeamioUserCardAdminGatewayLib": "0x5df97Af7965bb40F5e5a46D29129AbB343310523",
+    "BeamioUserCardRedeemGatewayLib": "0x56A49A638e54fB4Cf557ecA5c2Ad22c815A848a9",
+    "BeamioUserCardUpdateLib": "0x30187342Adf1975c10a99C5139D23458c6569eF2",
+    "BeamioUserCardReferrerLib": "0x6278Ac367b4b4Fd0850C85d6CAf44E1F2a151f96",
+    "ReferrerRegistryLib": "0x7A83755418410076d1E47F3379eF4EDAD51C7cDD",
+    "BeamioUserCardTierOpsLib": "0xFB900D50483E3e4312914ea8533251391eD7C864",
+    "MembershipFeeOpsLib": "0xc55719aa24615dFfF41DAf8801631845973f90dE"
   },
   "reusedLibraries": {
     "BeamioUserCardFormattingLib": true,
-    "BeamioUserCardTransferLib": false,
-    "BeamioUserCardViewsLib": true
+    "BeamioUserCardTransferLib": true,
+    "BeamioUserCardViewsLib": true,
+    "BeamioUserCardGatewayMintLib": true,
+    "BeamioUserCardModuleRouterLib": true,
+    "BeamioUserCardAdminGatewayLib": true,
+    "BeamioUserCardRedeemGatewayLib": false,
+    "ReferrerRegistryLib": true,
+    "MembershipFeeOpsLib": true,
+    "BeamioUserCardTierOpsLib": false,
+    "BeamioUserCardReferrerLib": false,
+    "BeamioUserCardUpdateLib": false
   },
-  "impl": "0xf4eF7F6E661eB4BA57130301ff0E3E5E8A67574a",
+  "impl": "0xF6956B21f1b6f5C3f7Ff2e2468B2335374fCf53A",
   "beacon": "0x01716C6b755a0FBfCF4e548A6d6B7af19ADf6698",
-  "implDeployedSize": 24570,
+  "implDeployedSize": 24485,
   "constructorArgs": {
     "impl": [
       "",
@@ -33,8 +51,8 @@
       "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
     ]
   },
-  "note": "UserCard V14 first beacon.upgradeTo (P3). Beacon + Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck.",
-  "previousImpl": "0x910b6A10a086ee41F1E32613FCaDA47A91B81665",
+  "note": "UserCard V20: BeaconProxy initializer atomically configures every tier schedule. Direct-purchase fee tiers are stored as canonical tiers[0..n]; one card uses exactly one qualification mode. Nested TierOps→MembershipFeeOps. Beacon + Factory bytecode unchanged. Old CREATE cards stay on prior impl.",
+  "previousImpl": "0x0038f0A59382F50aa575D11fb7A45a8AB91D2aDc",
   "upgrades": [
     {
       "at": "2026-08-22T19:46:31.947Z",
@@ -42,6 +60,56 @@
       "to": "0xf4eF7F6E661eB4BA57130301ff0E3E5E8A67574a",
       "tx": "0x8ce402022c10329759c9103e6a16f4c02bfd421cc13b671ddffb353912d33467",
       "version": 14
+    },
+    {
+      "at": "2026-08-24T11:17:12.082Z",
+      "from": "0xf4eF7F6E661eB4BA57130301ff0E3E5E8A67574a",
+      "to": "0xF707957d2Ea1FA8c2a74Ebf802dC367d6005aCFe",
+      "tx": "0x9795afae8ef6c5bde7f892a2b75c66ad3ba437c454f6d447349cdfba2d192193",
+      "version": 16
+    },
+    {
+      "at": "2026-08-28T16:46:56.872Z",
+      "from": "0xF707957d2Ea1FA8c2a74Ebf802dC367d6005aCFe",
+      "to": "0xcdC332f7980e0f7F3badAAC8671CA760eD178c76",
+      "tx": "0x2103249e6a066332714b493b7b7843ff0bae3e7dae62580ea43bb272cb1167d9",
+      "version": 17
+    },
+    {
+      "at": "2026-08-29T01:16:57.231Z",
+      "from": "0xcdC332f7980e0f7F3badAAC8671CA760eD178c76",
+      "to": "0x1C05869b82d29ddBB59eACD2bfA5bFc0C3FD5D59",
+      "tx": "0x785cd8c767d73bbd40f6f0143c1899dd6fe61a85e164d3203ad1fd52484d6105",
+      "version": 18
+    },
+    {
+      "at": "2026-08-29T18:20:32.649Z",
+      "from": "0x1C05869b82d29ddBB59eACD2bfA5bFc0C3FD5D59",
+      "to": "0xc8A7a11bd74a52826dA564EE1Ec42f59b496C862",
+      "tx": "0xc19767951e0c7603a2da8b71901632c79ab484c7f7409ec125ada644cb3e119e",
+      "version": 19
+    },
+    {
+      "at": "2026-09-07T00:58:26.162Z",
+      "from": "0xc8A7a11bd74a52826dA564EE1Ec42f59b496C862",
+      "to": "0xFBAC9d011774a0C0840a1fB1C7260BDB4d98fadB",
+      "tx": "0x40c7855d98ed12f9c5e51346ed8270d654beb393b3be7aa45c4123b9b0e592e7",
+      "version": 20
+    },
+    {
+      "at": "2026-09-07T02:56:50.502Z",
+      "from": "0xFBAC9d011774a0C0840a1fB1C7260BDB4d98fadB",
+      "to": "0x0038f0A59382F50aa575D11fb7A45a8AB91D2aDc",
+      "tx": "0xfbda00bfa16fcfdd01b862023a578176ef7d86fa06132d6d8567b7826680b40b",
+      "version": 20
+    },
+    {
+      "at": "2026-09-08T13:37:11.875Z",
+      "from": "0x0038f0A59382F50aa575D11fb7A45a8AB91D2aDc",
+      "to": "0xF6956B21f1b6f5C3f7Ff2e2468B2335374fCf53A",
+      "tx": "0x60ac2fc57f51c1a0700af4cf144212729da434862200f7b94880c3a8e2d5a050",
+      "version": 21
     }
-  ]
+  ],
+  "issuedNftModule": "0x9BF3ef85EFeA380725f47918EDB15165CbFD1972"
 }

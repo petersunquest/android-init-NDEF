@@ -73,12 +73,16 @@ contract BUnitAirdropV2 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
  bool public storageRepairApplied;
  // Appended after V2 storage. Never insert fields above this line.
  address public purchaseSplit;
+ // Appended after purchaseSplit (UUPS). Stripe / off-chain payment id hash → one-time USDC mint.
+ mapping(bytes32 => bool) public usedUsdcPurchaseHash;
 
  error Unauthorized();
  error InvalidAddress();
  error InvalidAmount();
  error InsufficientReservedBalance();
  error TransferFailed();
+ error InvalidPurchaseHash();
+ error PurchaseHashAlreadyUsed();
 
  event AdminUpdated(address indexed account, bool enabled);
  event ConfigUpdated(address indexed bunit, address indexed treasury, address conetUsdc, address referralSettlement);
@@ -348,7 +352,15 @@ contract BUnitAirdropV2 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
  function mintForUsdcPurchase(address to, uint256 usdcAmount, bytes32 baseTxHash) external onlyAdmin {
  if (to == address(0) || usdcAmount == 0) revert InvalidAmount();
- if (purchaseSplit != address(0) && !IReferralPurchaseSplitV1(purchaseSplit).purchaseAllocated(baseTxHash)) {
+ if (baseTxHash == bytes32(0)) revert InvalidPurchaseHash();
+ if (usedUsdcPurchaseHash[baseTxHash]) revert PurchaseHashAlreadyUsed();
+ // Pre-upgrade mints only marked allocatePurchase — still block remint of the same hash.
+ if (purchaseSplit != address(0) && IReferralPurchaseSplitV1(purchaseSplit).purchaseAllocated(baseTxHash)) {
+ revert PurchaseHashAlreadyUsed();
+ }
+ usedUsdcPurchaseHash[baseTxHash] = true;
+
+ if (purchaseSplit != address(0)) {
  IConetTreasuryV2(conetTreasury).mintForAdmin(conetUsdc, purchaseSplit, usdcAmount);
  totalConetUsdcMinted += usdcAmount;
  IReferralPurchaseSplitV1(purchaseSplit).allocatePurchase(to, usdcAmount, baseTxHash);

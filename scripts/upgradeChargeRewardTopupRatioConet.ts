@@ -1,19 +1,16 @@
 /**
- * CoNET: redeploy ChargeRewardModuleV2 + AdminStats V6 router (combined #13 setters).
+ * CoNET: redeploy ChargeRewardModuleV2 + AdminStats V6 router (Top-up #13 pack / paid base).
  *
- * Live V6 (0xF0d2…) returns kind=255 for `topupReward` / `chargeReward`; live ChargeReward
- * (0x126b…) bytecode does not contain those selectors. Same-task complete set:
- *   - ChargeRewardModuleV2 (inherits V1 topupReward/chargeReward)
- *   - AdminStatsQueryModuleV6(existing V5, existing referrerViews) — routes both to kind=5
+ * Same-task complete set (2026-08-28 TopupMintAmountCodec):
+ *   - ChargeRewardModuleV2 — recordTopup resolves packed paid|total; topupReward 3-arg +
+ *     setTopupPromotionBonusRatio*; topupPromotionBonusRatioE6 storage
+ *   - AdminStatsQueryModuleV6(existing V5, existing referrerViews) — routes new selectors → kind=5
  *   - Factory setChargeRewardModule + setAdminStatsQueryModule(new V6)
  * Reuses ReferrerLib + TransferLib + V5 + referrerViews. Does **not** bind bare V5.
  *
- * Deployed 2026-08-27 (do **not** re-run; it deploys new addresses):
- *   ChargeRewardModuleV2 `0xE9860eDc46F86A1cF21AA49FdF1f73705298ad8f`
- *   AdminStatsQueryModuleV6 `0xDe52428da46fBE6b01F344D3441060F4f95Dc2e4`
- *   Snapshot: `deployments/conet-ChargeRewardTopupRatio.json`
+ * Pair with `upgradeUserCardBeaconConet.ts` (EXPECTED_VERSION=17 GatewayMintLib unpack).
  *
- * Usage (only if a later source change requires a new module):
+ * Usage:
  *   npm run clean && npm run compile
  *   npx tsx scripts/upgradeChargeRewardTopupRatioConet.ts
  *
@@ -261,6 +258,14 @@ async function main(): Promise<void> {
 	}
 
 	await smokeSelector(provider, routerAddr, 'topupReward(uint256,uint256)', ROUTE_CHARGE_REWARD)
+	await smokeSelector(provider, routerAddr, 'topupReward(uint256,uint256,uint256)', ROUTE_CHARGE_REWARD)
+	await smokeSelector(provider, routerAddr, 'setTopupPromotionBonusRatio(uint256)', ROUTE_CHARGE_REWARD)
+	await smokeSelector(
+		provider,
+		routerAddr,
+		'setTopupPromotionBonusRatioByAdmin(uint256)',
+		ROUTE_CHARGE_REWARD,
+	)
 	await smokeSelector(provider, routerAddr, 'chargeReward(uint256,uint256)', ROUTE_CHARGE_REWARD)
 	await smokeSelector(provider, routerAddr, 'setTopupActorRewardRatio(uint256)', ROUTE_CHARGE_REWARD)
 	await smokeSelector(
@@ -308,7 +313,7 @@ async function main(): Promise<void> {
 			adminStatsQueryModule: routerTx,
 		},
 		note:
-			'ChargeRewardModuleV2 + AdminStats V6: topupReward/chargeReward combined E6 setters → route 5; reuse V5 + referrerViews; never bind bare V5',
+			'ChargeRewardModuleV2 + AdminStats V6: TopupMintAmountCodec paid|#13 base; topupReward 3-arg + setTopupPromotionBonusRatio; reuse V5 + referrerViews; never bind bare V5',
 	}
 
 	const outPath = path.join(process.cwd(), 'deployments/conet-ChargeRewardTopupRatio.json')

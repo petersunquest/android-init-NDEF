@@ -6,11 +6,12 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioMembershipStatsModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "alignMembershipTierToPointsBalance" | "handlePointsTransferForUpgradeType2" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "removeNft" | "syncActiveToBestValid"): FunctionFragment;
+    getFunction(nameOrSignature: "alignMembershipTierToPointsBalance" | "completeMembershipFeePurchase" | "handlePointsTransferForUpgradeType2" | "issueCardByPointsDelta_AssumingNoValidCard" | "maybeIssueOnlyIfNoneOrExpiredByPointsDelta" | "maybeUpgrade" | "maybeUpgradeByPointsBalance" | "mintMemberCardInternal" | "removeNft" | "syncActiveToBestValid"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'alignMembershipTierToPointsBalance', values: [AddressLike, boolean]): string;
+encodeFunctionData(functionFragment: 'completeMembershipFeePurchase', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'handlePointsTransferForUpgradeType2', values: [AddressLike, AddressLike, BigNumberish[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', values: [AddressLike, BigNumberish]): string;
@@ -21,6 +22,7 @@ encodeFunctionData(functionFragment: 'removeNft', values: [AddressLike, BigNumbe
 encodeFunctionData(functionFragment: 'syncActiveToBestValid', values: [AddressLike]): string;
 
     decodeFunctionResult(functionFragment: 'alignMembershipTierToPointsBalance', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'completeMembershipFeePurchase', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'handlePointsTransferForUpgradeType2', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'issueCardByPointsDelta_AssumingNoValidCard', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'maybeIssueOnlyIfNoneOrExpiredByPointsDelta', data: BytesLike): Result;
@@ -69,6 +71,14 @@ decodeFunctionResult(functionFragment: 'syncActiveToBestValid', data: BytesLike)
     
     alignMembershipTierToPointsBalance: TypedContractMethod<
       [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    completeMembershipFeePurchase: TypedContractMethod<
+      [user: AddressLike, ],
       [void],
       'nonpayable'
     >
@@ -143,6 +153,11 @@ decodeFunctionResult(functionFragment: 'syncActiveToBestValid', data: BytesLike)
 
     getFunction(nameOrSignature: 'alignMembershipTierToPointsBalance'): TypedContractMethod<
       [acct: AddressLike, allowUpgrade: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'completeMembershipFeePurchase'): TypedContractMethod<
+      [user: AddressLike, ],
       [void],
       'nonpayable'
     >;

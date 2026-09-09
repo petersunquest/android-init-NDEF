@@ -6,14 +6,16 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IERC20MinimalInterface extends Interface {
-    getFunction(nameOrSignature: "transfer" | "transferFrom"): FunctionFragment;
+    getFunction(nameOrSignature: "balanceOf" | "transfer" | "transferFrom"): FunctionFragment;
 
     
 
-    encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
+    encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'transfer', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'transferFrom', values: [AddressLike, AddressLike, BigNumberish]): string;
 
-    decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'transfer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
   }
 
@@ -53,6 +55,14 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 
     
     
+    balanceOf: TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
     transfer: TypedContractMethod<
       [to: AddressLike, amount: BigNumberish, ],
       [boolean],
@@ -71,7 +81,12 @@ decodeFunctionResult(functionFragment: 'transferFrom', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'transfer'): TypedContractMethod<
+    getFunction(nameOrSignature: 'balanceOf'): TypedContractMethod<
+      [account: AddressLike, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'transfer'): TypedContractMethod<
       [to: AddressLike, amount: BigNumberish, ],
       [boolean],
       'nonpayable'

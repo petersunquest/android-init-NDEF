@@ -16,6 +16,30 @@ extension Notification.Name {
 enum CashTreesNativeAppStateBridge {
 	private static let backgroundChatNotifyId = "beamio.chat.background"
 
+	/// Drop tray alerts from offline APNs / local chat push.
+	/// - Parameter resetBadge: When `true` (app became active), also zero the icon badge
+	///   so the next PWA `publishAppState` is the sole badge source. When `false` (PWA
+	///   entered Chat), clear tray only — caller re-publishes unread via `publishAppState`.
+	static func clearOfflineChatAlerts(resetBadge: Bool = true) {
+		let center = UNUserNotificationCenter.current()
+		center.removeDeliveredNotifications(withIdentifiers: [backgroundChatNotifyId])
+		center.getDeliveredNotifications { notes in
+			let ids = notes
+				.filter { note in
+					let id = note.request.identifier
+					return id == backgroundChatNotifyId
+						|| id.hasPrefix("beamio.chat")
+				}
+				.map(\.request.identifier)
+			if !ids.isEmpty {
+				center.removeDeliveredNotifications(withIdentifiers: ids)
+			}
+		}
+		if resetBadge {
+			applyAppIconBadge(0)
+		}
+	}
+
 	static func applyFromWebPayload(_ state: [String: Any]?) {
 		let badge = resolveAppIconBadge(from: state)
 		applyAppIconBadge(badge)

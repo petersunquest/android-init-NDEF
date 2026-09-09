@@ -37,6 +37,7 @@ import android.view.ViewGroup
 import com.beamio.app.embedded.EmbeddedPwaConstants
 import com.beamio.app.embedded.EmbeddedPwaHost
 import java.util.concurrent.Executors
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -64,6 +65,14 @@ private object NfcStatusStrings {
 }
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        private val ALLOWED_EXTERNAL_URL_SCHEMES = setOf(
+            "http", "https", "mailto", "tel",
+            "metamask", "cbwallet", "coinbase", "base",
+            "okx", "okex", "tpdapp", "tpoutside", "phantom",
+        )
+    }
 
     private lateinit var webView: WebView
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
@@ -501,10 +510,52 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Open http(s)/mailto/tel externally — mirrors iOS `CashTreesIOS.openURL({ url })`. */
+        /** Open http(s)/mailto/tel or catalog wallet schemes — mirrors iOS `CashTreesIOS.openURL`. */
         @JavascriptInterface
         fun openURL(url: String) {
             runOnUiThread { openExternalUrlFromBridge(url) }
+        }
+
+        /**
+         * PWA catalog install probe. JSON `{ requestId, queries:[{ id, schemes[], packages[] }] }`.
+         * Returns a JSON array of installed `id`s. Empty / bad JSON → MetaMask / Coinbase Wallet.
+         */
+        @JavascriptInterface
+        fun queryInstalledApps(json: String): String {
+            return try {
+                val obj = JSONObject(json)
+                val queries = obj.optJSONArray("queries")
+                if (queries == null || queries.length() == 0) {
+                    return legacyInstalledWalletIds().toString()
+                }
+                val ids = JSONArray()
+                for (i in 0 until queries.length()) {
+                    val q = queries.optJSONObject(i) ?: continue
+                    val id = q.optString("id").trim().lowercase()
+                    if (id.isEmpty()) continue
+                    val packages = q.optJSONArray("packages") ?: continue
+                    var installed = false
+                    var j = 0
+                    while (j < packages.length()) {
+                        val pkg = packages.optString(j).trim()
+                        if (pkg.isNotEmpty() && isWalletPackageInstalled(pkg)) {
+                            installed = true
+                            break
+                        }
+                        j += 1
+                    }
+                    if (installed) ids.put(id)
+                }
+                ids.toString()
+            } catch (_: Exception) {
+                legacyInstalledWalletIds().toString()
+            }
+        }
+
+        /** Legacy no-arg probe — MetaMask / Coinbase Wallet only. */
+        @JavascriptInterface
+        fun listInstalledWalletApps(): String {
+            return legacyInstalledWalletIds().toString()
         }
 
         /** Embedded PWA OTA — mirrors iOS `CashTreesIOS.getEmbeddedPwaVersion`. */
@@ -539,6 +590,17 @@ class MainActivity : ComponentActivity() {
         }
 
         /**
+         * PWA entered Chat (already foreground): drop offline FCM / local chat tray alerts.
+         * Does not change unread — caller re-`publishAppState` badge if needed.
+         */
+        @JavascriptInterface
+        fun clearOfflineChatAlerts() {
+            runOnUiThread {
+                CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this@MainActivity)
+            }
+        }
+
+        /**
          * PWA still running behind Home: local system notification + badge (not FCM).
          * Payload: JSON string `{ badge, title?, body? }`.
          */
@@ -567,13 +629,39 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun isWalletPackageInstalled(packageName: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            true
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    private fun legacyInstalledWalletIds(): JSONArray {
+        val ids = JSONArray()
+        if (isWalletPackageInstalled("io.metamask")) ids.put("metamask")
+        if (
+            isWalletPackageInstalled("org.toshi") ||
+            isWalletPackageInstalled("com.coinbase.wallet")
+        ) {
+            ids.put("base")
+        }
+        return ids
+    }
+
     private fun openExternalUrlFromBridge(raw: String) {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return
         try {
             val uri = Uri.parse(trimmed)
             val scheme = uri.scheme?.lowercase() ?: return
-            if (scheme !in setOf("http", "https", "mailto", "tel")) return
+            if (scheme !in ALLOWED_EXTERNAL_URL_SCHEMES) return
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (_: Exception) {
         }

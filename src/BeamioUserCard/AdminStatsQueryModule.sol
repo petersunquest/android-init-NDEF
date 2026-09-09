@@ -153,6 +153,8 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
                 || sel == bytes4(keccak256("createRedeemBatch(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
                 || sel == bytes4(keccak256("createRedeemBatchWithCreator(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address)"))
                 || sel == bytes4(keccak256("createRedeemBatchWithCreatorAndRecommender(bytes32[],uint256,uint256,uint64,uint64,uint256[],uint256[],address,address)"))
+                || sel == bytes4(keccak256("createGiftRedeemForPayer(bytes32,uint256,uint256,uint64,uint64)"))
+                || sel == bytes4(keccak256("getGiftRedeemSplit(bytes32)"))
                 || sel == bytes4(keccak256("getRedeemStatus(bytes32)"))
                 || sel == bytes4(keccak256("getRedeemStatusBatch(string[])"))
                 || sel == bytes4(keccak256("getRedeemStatusBatch(bytes32[])"))
@@ -182,6 +184,11 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (
             sel == bytes4(keccak256("membershipFlowBucketAtHour(uint64)"))
                 || sel == bytes4(keccak256("membershipScopedFlowBucketAtHour(uint8,uint256,uint64)"))
+                || sel == bytes4(keccak256("completeMembershipFeePurchase(address)"))
+                || sel == bytes4(keccak256("maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address,uint256)"))
+                || sel == bytes4(keccak256("issueCardByPointsDelta_AssumingNoValidCard(address,uint256)"))
+                || sel == bytes4(keccak256("mintMemberCardInternal(address,uint256)"))
+                || sel == bytes4(keccak256("syncActiveToBestValid(address)"))
         ) {
             return ROUTE_MEMBERSHIP_STATS;
         }
@@ -232,10 +239,16 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
             sel == bytes4(keccak256("CHARGE_REWARD_TOKEN_ID()"))
                 || sel == bytes4(keccak256("chargeRewardRatioE6()"))
                 || sel == bytes4(keccak256("topupActorRewardRatioE6()"))
+                || sel == bytes4(keccak256("topupPromotionBonusRatioE6()"))
                 || sel == bytes4(keccak256("setChargeRewardRatio(uint256)"))
                 || sel == bytes4(keccak256("setChargeRewardRatioByAdmin(uint256)"))
                 || sel == bytes4(keccak256("setTopupActorRewardRatio(uint256)"))
                 || sel == bytes4(keccak256("setTopupActorRewardRatioByAdmin(uint256)"))
+                || sel == bytes4(keccak256("setTopupPromotionBonusRatio(uint256)"))
+                || sel == bytes4(keccak256("setTopupPromotionBonusRatioByAdmin(uint256)"))
+                || sel == bytes4(keccak256("topupReward(uint256,uint256)"))
+                || sel == bytes4(keccak256("topupReward(uint256,uint256,uint256)"))
+                || sel == bytes4(keccak256("chargeReward(uint256,uint256)"))
                 || sel == bytes4(keccak256("previewChargeRewardAmount(uint256)"))
                 || sel == bytes4(keccak256("mintChargeRewardByGateway(address,uint256,uint8)"))
                 || sel == bytes4(keccak256("burnChargeRewardByAdmin(address,uint256)"))

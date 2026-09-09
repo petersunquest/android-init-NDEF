@@ -12,6 +12,25 @@
         "internalType": "address",
         "name": "acct",
         "type": "address"
+      }
+    ],
+    "name": "cardSelfActiveMembershipId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "acct",
+        "type": "address"
       },
       {
         "internalType": "uint256",
@@ -347,6 +366,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "cardSelfMinThresholdPoints6",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -367,19 +399,6 @@
     "name": "cardSelfMint",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "cardSelfOwner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

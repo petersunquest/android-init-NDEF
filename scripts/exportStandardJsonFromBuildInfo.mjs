@@ -88,6 +88,26 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/BeamioUserCardViewsLib.sol",
     contractName: "BeamioUserCardViewsLib",
   },
+  BeamioUserCardGatewayMintLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardGatewayMintLib.sol",
+    contractName: "BeamioUserCardGatewayMintLib",
+  },
+  BeamioUserCardModuleRouterLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardModuleRouterLib.sol",
+    contractName: "BeamioUserCardModuleRouterLib",
+  },
+  BeamioUserCardAdminGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardAdminGatewayLib.sol",
+    contractName: "BeamioUserCardAdminGatewayLib",
+  },
+  BeamioUserCardRedeemGatewayLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardRedeemGatewayLib.sol",
+    contractName: "BeamioUserCardRedeemGatewayLib",
+  },
+  BeamioUserCardUpdateLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardUpdateLib.sol",
+    contractName: "BeamioUserCardUpdateLib",
+  },
   AdminStatsQueryModule: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModule.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV1",
@@ -104,6 +124,10 @@ const CONFIG = {
     sourceKey: "project/src/BeamioUserCard/AdminStatsQueryModuleV6.sol",
     contractName: "BeamioUserCardAdminStatsQueryModuleV6",
   },
+  RedeemModule: {
+    sourceKey: "project/src/BeamioUserCard/RedeemModule.sol",
+    contractName: "BeamioUserCardRedeemModuleVNext",
+  },
   AdminStatsReferrerViews: {
     sourceKey: "project/src/BeamioUserCard/AdminStatsReferrerViews.sol",
     contractName: "BeamioUserCardAdminStatsReferrerViews",
@@ -115,6 +139,10 @@ const CONFIG = {
   MembershipFeeOpsLib: {
     sourceKey: "project/src/BeamioUserCard/MembershipFeeOpsLib.sol",
     contractName: "MembershipFeeOpsLib",
+  },
+  BeamioUserCardTierOpsLib: {
+    sourceKey: "project/src/BeamioUserCard/BeamioUserCardTierOpsLib.sol",
+    contractName: "BeamioUserCardTierOpsLib",
   },
   BeamioUserCardIssuedNftModuleV2: {
     sourceKey: "project/src/BeamioUserCard/IssuedNftModuleV2.sol",

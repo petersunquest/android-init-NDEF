@@ -9,6 +9,24 @@ struct Tier {
     uint256 tierExpirySeconds; // 0 => use global expirySeconds
 }
 
+/// @dev Runtime tier layout for BeamioUserCard. Kept separate from legacy
+///      module-view tiers, which predate the upgrade-by-balance flag.
+struct UserCardTier {
+    uint256 minUsdc6;
+    uint256 attr;
+    uint256 tierExpirySeconds;
+    bool upgradeByBalance;
+}
+
+/// @dev Complete immutable-at-create tier schedule passed through a Beacon
+///      proxy initializer. A card uses either direct fees or threshold tiers.
+struct UserCardInitialTierConfig {
+    uint8 qualificationMode;
+    UserCardTier[] tiers;
+    uint256[] membershipFeeE6;
+    uint8[] membershipDurationKind;
+}
+
 /// @dev ERC1155 `_update` 前置扫描结果（主合约与 BeamioUserCardTransferLib 共用）
 struct UpdatePreResult {
     address effectiveTo;

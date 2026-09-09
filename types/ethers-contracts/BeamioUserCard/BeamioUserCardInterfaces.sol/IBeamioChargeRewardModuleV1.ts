@@ -6,25 +6,37 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioChargeRewardModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "burnChargeRewardByAdmin" | "chargeRewardRatioE6" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "burnChargeRewardByAdmin" | "chargeReward" | "chargeRewardRatioE6" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setTopupPromotionBonusRatio" | "setTopupPromotionBonusRatioByAdmin" | "topupPromotionBonusRatioE6" | "topupReward(uint256,uint256)" | "topupReward(uint256,uint256,uint256)"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'burnChargeRewardByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'chargeReward', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'chargeRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mintChargeRewardByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'previewChargeRewardAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'topupPromotionBonusRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256)', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256,uint256)', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnChargeRewardByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'chargeReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'chargeRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintChargeRewardByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'previewChargeRewardAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupPromotionBonusRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256,uint256)', data: BytesLike): Result;
   }
 
   
@@ -79,6 +91,14 @@ decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: Byte
     
 
     
+    chargeReward: TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     chargeRewardRatioE6: TypedContractMethod<
       [],
       [bigint],
@@ -118,6 +138,46 @@ decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: Byte
     >
     
 
+    
+    setTopupPromotionBonusRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setTopupPromotionBonusRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    topupPromotionBonusRatioE6: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    "topupReward(uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "topupReward(uint256,uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, topupPromotionBonusRatioE6_: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
@@ -128,6 +188,11 @@ decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: Byte
     >;
 getFunction(nameOrSignature: 'burnChargeRewardByAdmin'): TypedContractMethod<
       [target: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'chargeReward'): TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -153,6 +218,31 @@ getFunction(nameOrSignature: 'setChargeRewardRatio'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'setChargeRewardRatioByAdmin'): TypedContractMethod<
       [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'topupPromotionBonusRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, topupPromotionBonusRatioE6_: BigNumberish, ],
       [void],
       'nonpayable'
     >;

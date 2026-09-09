@@ -13,30 +13,42 @@ export declare namespace BeamioUserCardChargeRewardModuleV2 {
     }
 
   export interface BeamioUserCardChargeRewardModuleV2Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "REWARD_VOUCHER_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeRewardRatioE6" | "configureEventRewardRule" | "configureEventRewardRulesBatch" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getReferrerRefereeLedger" | "getRewardRule" | "isApprovedForAll" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "recordBUnitInstallAttribution" | "recordChargeReferrerReward" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setTopupActorRewardRatio" | "setTopupActorRewardRatioByAdmin" | "supportsInterface" | "topupActorRewardRatioE6" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "CONET_USDC_TOKEN" | "MAX_MERCHANT_ORACLE_SPREAD_BPS" | "REWARD_VOUCHER_TOKEN_ID" | "applyDepositSpreadUsdc6" | "applyWithdrawSpreadUsdc6" | "balanceOf" | "balanceOfBatch" | "bunitAirdropCaller" | "burnChargeRewardByAdmin" | "burnSocialPointsFromUserForExchange" | "chargeReward" | "chargeRewardRatioE6" | "configureEventRewardRule" | "configureEventRewardRulesBatch" | "convertReward13ToPointsRatioE6" | "convertReward13ToProgramPoints" | "convertReward13ToUsdcRatioE6" | "convertReward13ToUsdcToAa" | "dispatchEventReward13" | "fundSocialExchangeUsdcEscrow" | "getReferrerRefereeLedger" | "getRewardRule" | "isApprovedForAll" | "merchantOracleSpreadBps" | "mintChargeRewardByGateway" | "payoutSocialExchangeUsdcToUser" | "peerRedeem13ForContainerTopup" | "previewChargeRewardAmount" | "purchaseRewardProgram" | "quoteUsdcDepositForFiat6" | "quoteUsdcWithdrawForFiat6" | "recordBUnitInstallAttribution" | "recordChargeReferrerReward" | "recordTopupCumulativeStat" | "rewardEscrowPoints6" | "rewardEscrowUsdc6" | "rewardMintBudget13" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setBunitAirdropCaller" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setConvertReward13ToPointsRatio" | "setConvertReward13ToPointsRatioByAdmin" | "setConvertReward13ToUsdcRatio" | "setConvertReward13ToUsdcRatioByAdmin" | "setMerchantOracleSpreadBps" | "setMerchantOracleSpreadBpsByAdmin" | "setTopupActorRewardRatio" | "setTopupActorRewardRatioByAdmin" | "setTopupPromotionBonusRatio" | "setTopupPromotionBonusRatioByAdmin" | "supportsInterface" | "topupActorRewardRatioE6" | "topupPromotionBonusRatioE6" | "topupReward(uint256,uint256)" | "topupReward(uint256,uint256,uint256)" | "topupWithReward13Container" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "SocialExchangeUsdcEscrowFunded" | "SocialExchangeUsdcPaid" | "SocialPointsBurnedForExchange" | "TopupActorRewardRatioUpdated" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "BunitInstallAttributionRecorded" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "ConvertReward13ToPointsRatioUpdated" | "ConvertReward13ToUsdcRatioUpdated" | "MerchantOracleSpreadUpdated" | "PeerReward13RedeemedForContainerTopup" | "ReferrerChargeAmountRatioUpdated" | "ReferrerTopupAmountRatioUpdated" | "Reward13ConvertedToProgramPoints" | "Reward13ConvertedToUsdcToAa" | "RewardProgramFunded" | "RewardRuleConfigured" | "RewardVoucher13Minted" | "SocialExchangeUsdcEscrowFunded" | "SocialExchangeUsdcPaid" | "SocialPointsBurnedForExchange" | "TopupActorRewardRatioUpdated" | "TopupPromotionBonusRatioUpdated" | "TopupWithReward13Container" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'CONET_USDC_TOKEN', values?: undefined): string;
+encodeFunctionData(functionFragment: 'MAX_MERCHANT_ORACLE_SPREAD_BPS', values?: undefined): string;
 encodeFunctionData(functionFragment: 'REWARD_VOUCHER_TOKEN_ID', values?: undefined): string;
+encodeFunctionData(functionFragment: 'applyDepositSpreadUsdc6', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'applyWithdrawSpreadUsdc6', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'bunitAirdropCaller', values?: undefined): string;
 encodeFunctionData(functionFragment: 'burnChargeRewardByAdmin', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'burnSocialPointsFromUserForExchange', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'chargeReward', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'chargeRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'configureEventRewardRule', values: [BigNumberish, boolean, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'configureEventRewardRulesBatch', values: [BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[]]): string;
+encodeFunctionData(functionFragment: 'convertReward13ToPointsRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'convertReward13ToProgramPoints', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'convertReward13ToUsdcRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'convertReward13ToUsdcToAa', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'dispatchEventReward13', values: [BigNumberish, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'fundSocialExchangeUsdcEscrow', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'getReferrerRefereeLedger', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'getRewardRule', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'merchantOracleSpreadBps', values?: undefined): string;
 encodeFunctionData(functionFragment: 'mintChargeRewardByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'payoutSocialExchangeUsdcToUser', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'peerRedeem13ForContainerTopup', values: [AddressLike, BigNumberish, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'previewChargeRewardAmount', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'purchaseRewardProgram', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'quoteUsdcDepositForFiat6', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'quoteUsdcWithdrawForFiat6', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordBUnitInstallAttribution', values: [AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordChargeReferrerReward', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'recordTopupCumulativeStat', values: [AddressLike, BigNumberish]): string;
@@ -49,32 +61,56 @@ encodeFunctionData(functionFragment: 'setApprovalForAll', values: [AddressLike, 
 encodeFunctionData(functionFragment: 'setBunitAirdropCaller', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setChargeRewardRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setConvertReward13ToPointsRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setConvertReward13ToPointsRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setConvertReward13ToUsdcRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setConvertReward13ToUsdcRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setMerchantOracleSpreadBps', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setMerchantOracleSpreadBpsByAdmin', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTopupActorRewardRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTopupActorRewardRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatioByAdmin', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'topupActorRewardRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'topupPromotionBonusRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256)', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256,uint256)', values: [BigNumberish, BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'topupWithReward13Container', values: [AddressLike, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'CONET_USDC_TOKEN', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'MAX_MERCHANT_ORACLE_SPREAD_BPS', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'REWARD_VOUCHER_TOKEN_ID', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'applyDepositSpreadUsdc6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'applyWithdrawSpreadUsdc6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bunitAirdropCaller', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnChargeRewardByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnSocialPointsFromUserForExchange', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'chargeReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'chargeRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'configureEventRewardRule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'configureEventRewardRulesBatch', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'convertReward13ToPointsRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'convertReward13ToProgramPoints', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'convertReward13ToUsdcRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'convertReward13ToUsdcToAa', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'dispatchEventReward13', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'fundSocialExchangeUsdcEscrow', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getReferrerRefereeLedger', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'getRewardRule', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'merchantOracleSpreadBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintChargeRewardByGateway', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'payoutSocialExchangeUsdcToUser', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'peerRedeem13ForContainerTopup', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'previewChargeRewardAmount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'purchaseRewardProgram', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'quoteUsdcDepositForFiat6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'quoteUsdcWithdrawForFiat6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordBUnitInstallAttribution', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordChargeReferrerReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'recordTopupCumulativeStat', data: BytesLike): Result;
@@ -87,10 +123,22 @@ decodeFunctionResult(functionFragment: 'setApprovalForAll', data: BytesLike): Re
 decodeFunctionResult(functionFragment: 'setBunitAirdropCaller', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConvertReward13ToPointsRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConvertReward13ToPointsRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConvertReward13ToUsdcRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setConvertReward13ToUsdcRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setMerchantOracleSpreadBps', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setMerchantOracleSpreadBpsByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTopupActorRewardRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTopupActorRewardRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatioByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'topupActorRewardRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupPromotionBonusRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupWithReward13Container', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -147,6 +195,102 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
       export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
       export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ConvertReward13ToPointsRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ConvertReward13ToUsdcRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace MerchantOracleSpreadUpdatedEvent {
+      export type InputTuple = [oldSpreadBps: BigNumberish, newSpreadBps: BigNumberish];
+      export type OutputTuple = [oldSpreadBps: bigint, newSpreadBps: bigint];
+      export interface OutputObject {oldSpreadBps: bigint, newSpreadBps: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace PeerReward13RedeemedForContainerTopupEvent {
+      export type InputTuple = [userEOA: AddressLike, userAcct: AddressLike, targetCard: AddressLike, burn13: BigNumberish, usdcOut6: BigNumberish, escrowAfter: BigNumberish];
+      export type OutputTuple = [userEOA: string, userAcct: string, targetCard: string, burn13: bigint, usdcOut6: bigint, escrowAfter: bigint];
+      export interface OutputObject {userEOA: string, userAcct: string, targetCard: string, burn13: bigint, usdcOut6: bigint, escrowAfter: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReferrerChargeAmountRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReferrerTopupAmountRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace Reward13ConvertedToProgramPointsEvent {
+      export type InputTuple = [userEOA: AddressLike, userAcct: AddressLike, burn13: BigNumberish, minted0: BigNumberish];
+      export type OutputTuple = [userEOA: string, userAcct: string, burn13: bigint, minted0: bigint];
+      export interface OutputObject {userEOA: string, userAcct: string, burn13: bigint, minted0: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace Reward13ConvertedToUsdcToAaEvent {
+      export type InputTuple = [userEOA: AddressLike, userAcct: AddressLike, burn13: BigNumberish, usdcOut6: BigNumberish, escrowAfter: BigNumberish];
+      export type OutputTuple = [userEOA: string, userAcct: string, burn13: bigint, usdcOut6: bigint, escrowAfter: bigint];
+      export interface OutputObject {userEOA: string, userAcct: string, burn13: bigint, usdcOut6: bigint, escrowAfter: bigint };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -231,6 +375,30 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
       export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
       export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace TopupPromotionBonusRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace TopupWithReward13ContainerEvent {
+      export type InputTuple = [userEOA: AddressLike, userAcct: AddressLike, sameStoreBurn13: BigNumberish, sameStoreMinted0: BigNumberish, peerUsdcCredited6: BigNumberish, pointsFromPeerUsdc6: BigNumberish, minted0Total: BigNumberish, nonce: BytesLike];
+      export type OutputTuple = [userEOA: string, userAcct: string, sameStoreBurn13: bigint, sameStoreMinted0: bigint, peerUsdcCredited6: bigint, pointsFromPeerUsdc6: bigint, minted0Total: bigint, nonce: string];
+      export interface OutputObject {userEOA: string, userAcct: string, sameStoreBurn13: bigint, sameStoreMinted0: bigint, peerUsdcCredited6: bigint, pointsFromPeerUsdc6: bigint, minted0Total: bigint, nonce: string };
       export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
       export type Filter = TypedDeferredTopicFilter<Event>
       export type Log = TypedEventLog<Event>
@@ -325,8 +493,32 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    MAX_MERCHANT_ORACLE_SPREAD_BPS: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     REWARD_VOUCHER_TOKEN_ID: TypedContractMethod<
       [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    applyDepositSpreadUsdc6: TypedContractMethod<
+      [fairUsdc6: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    applyWithdrawSpreadUsdc6: TypedContractMethod<
+      [fairUsdc6: BigNumberish, ],
       [bigint],
       'view'
     >
@@ -373,6 +565,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    chargeReward: TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     chargeRewardRatioE6: TypedContractMethod<
       [],
       [bigint],
@@ -392,6 +592,38 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     configureEventRewardRulesBatch: TypedContractMethod<
       [configs: BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[], ],
       [void],
+      'nonpayable'
+    >
+    
+
+    
+    convertReward13ToPointsRatioE6: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    convertReward13ToProgramPoints: TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >
+    
+
+    
+    convertReward13ToUsdcRatioE6: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    convertReward13ToUsdcToAa: TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, ],
+      [bigint],
       'nonpayable'
     >
     
@@ -437,6 +669,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    merchantOracleSpreadBps: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
     mintChargeRewardByGateway: TypedContractMethod<
       [userEOA: AddressLike, amountFiat6: BigNumberish, chargeCurrency: BigNumberish, ],
       [void],
@@ -448,6 +688,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     payoutSocialExchangeUsdcToUser: TypedContractMethod<
       [userEOA: AddressLike, usdcReward6: BigNumberish, ],
       [void],
+      'nonpayable'
+    >
+    
+
+    
+    peerRedeem13ForContainerTopup: TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, usdcOut6: BigNumberish, targetCard: AddressLike, ],
+      [bigint],
       'nonpayable'
     >
     
@@ -465,6 +713,22 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [payerEOA: AddressLike, assetKind: BigNumberish, amount: BigNumberish, budget13PerUnit: BigNumberish, cumulativeTargetKind: BigNumberish, cumulativeIssuedParentId: BigNumberish, ],
       [bigint],
       'nonpayable'
+    >
+    
+
+    
+    quoteUsdcDepositForFiat6: TypedContractMethod<
+      [fiatAmount6: BigNumberish, ],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    quoteUsdcWithdrawForFiat6: TypedContractMethod<
+      [fiatAmount6: BigNumberish, ],
+      [bigint],
+      'view'
     >
     
 
@@ -565,6 +829,54 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    setConvertReward13ToPointsRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setConvertReward13ToPointsRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setConvertReward13ToUsdcRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setConvertReward13ToUsdcRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setMerchantOracleSpreadBps: TypedContractMethod<
+      [spreadBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setMerchantOracleSpreadBpsByAdmin: TypedContractMethod<
+      [spreadBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setTopupActorRewardRatio: TypedContractMethod<
       [ratioE6: BigNumberish, ],
       [void],
@@ -574,6 +886,22 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
     
     setTopupActorRewardRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setTopupPromotionBonusRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setTopupPromotionBonusRatioByAdmin: TypedContractMethod<
       [ratioE6: BigNumberish, ],
       [void],
       'nonpayable'
@@ -593,6 +921,38 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [],
       [bigint],
       'view'
+    >
+    
+
+    
+    topupPromotionBonusRatioE6: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    "topupReward(uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "topupReward(uint256,uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, promotionBonusRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    topupWithReward13Container: TypedContractMethod<
+      [userEOA: AddressLike, sameStoreBurn13: BigNumberish, peerUsdcCredited6: BigNumberish, pointsFromPeerUsdc6: BigNumberish, minTotalPointsOut0: BigNumberish, deadline: BigNumberish, nonce: BytesLike, ],
+      [bigint],
+      'nonpayable'
     >
     
 
@@ -617,8 +977,23 @@ getFunction(nameOrSignature: 'CONET_USDC_TOKEN'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'MAX_MERCHANT_ORACLE_SPREAD_BPS'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'REWARD_VOUCHER_TOKEN_ID'): TypedContractMethod<
       [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'applyDepositSpreadUsdc6'): TypedContractMethod<
+      [fairUsdc6: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'applyWithdrawSpreadUsdc6'): TypedContractMethod<
+      [fairUsdc6: BigNumberish, ],
       [bigint],
       'view'
     >;
@@ -647,6 +1022,11 @@ getFunction(nameOrSignature: 'burnSocialPointsFromUserForExchange'): TypedContra
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'chargeReward'): TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'chargeRewardRatioE6'): TypedContractMethod<
       [],
       [bigint],
@@ -660,6 +1040,26 @@ getFunction(nameOrSignature: 'configureEventRewardRule'): TypedContractMethod<
 getFunction(nameOrSignature: 'configureEventRewardRulesBatch'): TypedContractMethod<
       [configs: BeamioUserCardChargeRewardModuleV2.EventRewardRuleConfigStruct[], ],
       [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'convertReward13ToPointsRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'convertReward13ToProgramPoints'): TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, ],
+      [bigint],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'convertReward13ToUsdcRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'convertReward13ToUsdcToAa'): TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, ],
+      [bigint],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'dispatchEventReward13'): TypedContractMethod<
@@ -687,6 +1087,11 @@ getFunction(nameOrSignature: 'isApprovedForAll'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'merchantOracleSpreadBps'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
 getFunction(nameOrSignature: 'mintChargeRewardByGateway'): TypedContractMethod<
       [userEOA: AddressLike, amountFiat6: BigNumberish, chargeCurrency: BigNumberish, ],
       [void],
@@ -695,6 +1100,11 @@ getFunction(nameOrSignature: 'mintChargeRewardByGateway'): TypedContractMethod<
 getFunction(nameOrSignature: 'payoutSocialExchangeUsdcToUser'): TypedContractMethod<
       [userEOA: AddressLike, usdcReward6: BigNumberish, ],
       [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'peerRedeem13ForContainerTopup'): TypedContractMethod<
+      [userEOA: AddressLike, burn13: BigNumberish, usdcOut6: BigNumberish, targetCard: AddressLike, ],
+      [bigint],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'previewChargeRewardAmount'): TypedContractMethod<
@@ -706,6 +1116,16 @@ getFunction(nameOrSignature: 'purchaseRewardProgram'): TypedContractMethod<
       [payerEOA: AddressLike, assetKind: BigNumberish, amount: BigNumberish, budget13PerUnit: BigNumberish, cumulativeTargetKind: BigNumberish, cumulativeIssuedParentId: BigNumberish, ],
       [bigint],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'quoteUsdcDepositForFiat6'): TypedContractMethod<
+      [fiatAmount6: BigNumberish, ],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'quoteUsdcWithdrawForFiat6'): TypedContractMethod<
+      [fiatAmount6: BigNumberish, ],
+      [bigint],
+      'view'
     >;
 getFunction(nameOrSignature: 'recordBUnitInstallAttribution'): TypedContractMethod<
       [claimant: AddressLike, referrer: AddressLike, targetKind: BigNumberish, issuedParentId: BigNumberish, ],
@@ -767,12 +1187,52 @@ getFunction(nameOrSignature: 'setChargeRewardRatioByAdmin'): TypedContractMethod
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setConvertReward13ToPointsRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setConvertReward13ToPointsRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setConvertReward13ToUsdcRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setConvertReward13ToUsdcRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setMerchantOracleSpreadBps'): TypedContractMethod<
+      [spreadBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setMerchantOracleSpreadBpsByAdmin'): TypedContractMethod<
+      [spreadBps: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setTopupActorRewardRatio'): TypedContractMethod<
       [ratioE6: BigNumberish, ],
       [void],
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'setTopupActorRewardRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatioByAdmin'): TypedContractMethod<
       [ratioE6: BigNumberish, ],
       [void],
       'nonpayable'
@@ -787,6 +1247,26 @@ getFunction(nameOrSignature: 'topupActorRewardRatioE6'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'topupPromotionBonusRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, promotionBonusRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'topupWithReward13Container'): TypedContractMethod<
+      [userEOA: AddressLike, sameStoreBurn13: BigNumberish, peerUsdcCredited6: BigNumberish, pointsFromPeerUsdc6: BigNumberish, minTotalPointsOut0: BigNumberish, deadline: BigNumberish, nonce: BytesLike, ],
+      [bigint],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [string],
@@ -798,6 +1278,14 @@ getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTup
 getEvent(key: 'BunitInstallAttributionRecorded'): TypedContractEvent<BunitInstallAttributionRecordedEvent.InputTuple, BunitInstallAttributionRecordedEvent.OutputTuple, BunitInstallAttributionRecordedEvent.OutputObject>;
 getEvent(key: 'ChargeRewardAirdropped'): TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
 getEvent(key: 'ChargeRewardRatioUpdated'): TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'ConvertReward13ToPointsRatioUpdated'): TypedContractEvent<ConvertReward13ToPointsRatioUpdatedEvent.InputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'ConvertReward13ToUsdcRatioUpdated'): TypedContractEvent<ConvertReward13ToUsdcRatioUpdatedEvent.InputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'MerchantOracleSpreadUpdated'): TypedContractEvent<MerchantOracleSpreadUpdatedEvent.InputTuple, MerchantOracleSpreadUpdatedEvent.OutputTuple, MerchantOracleSpreadUpdatedEvent.OutputObject>;
+getEvent(key: 'PeerReward13RedeemedForContainerTopup'): TypedContractEvent<PeerReward13RedeemedForContainerTopupEvent.InputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputObject>;
+getEvent(key: 'ReferrerChargeAmountRatioUpdated'): TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'ReferrerTopupAmountRatioUpdated'): TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'Reward13ConvertedToProgramPoints'): TypedContractEvent<Reward13ConvertedToProgramPointsEvent.InputTuple, Reward13ConvertedToProgramPointsEvent.OutputTuple, Reward13ConvertedToProgramPointsEvent.OutputObject>;
+getEvent(key: 'Reward13ConvertedToUsdcToAa'): TypedContractEvent<Reward13ConvertedToUsdcToAaEvent.InputTuple, Reward13ConvertedToUsdcToAaEvent.OutputTuple, Reward13ConvertedToUsdcToAaEvent.OutputObject>;
 getEvent(key: 'RewardProgramFunded'): TypedContractEvent<RewardProgramFundedEvent.InputTuple, RewardProgramFundedEvent.OutputTuple, RewardProgramFundedEvent.OutputObject>;
 getEvent(key: 'RewardRuleConfigured'): TypedContractEvent<RewardRuleConfiguredEvent.InputTuple, RewardRuleConfiguredEvent.OutputTuple, RewardRuleConfiguredEvent.OutputObject>;
 getEvent(key: 'RewardVoucher13Minted'): TypedContractEvent<RewardVoucher13MintedEvent.InputTuple, RewardVoucher13MintedEvent.OutputTuple, RewardVoucher13MintedEvent.OutputObject>;
@@ -805,6 +1293,8 @@ getEvent(key: 'SocialExchangeUsdcEscrowFunded'): TypedContractEvent<SocialExchan
 getEvent(key: 'SocialExchangeUsdcPaid'): TypedContractEvent<SocialExchangeUsdcPaidEvent.InputTuple, SocialExchangeUsdcPaidEvent.OutputTuple, SocialExchangeUsdcPaidEvent.OutputObject>;
 getEvent(key: 'SocialPointsBurnedForExchange'): TypedContractEvent<SocialPointsBurnedForExchangeEvent.InputTuple, SocialPointsBurnedForExchangeEvent.OutputTuple, SocialPointsBurnedForExchangeEvent.OutputObject>;
 getEvent(key: 'TopupActorRewardRatioUpdated'): TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'TopupPromotionBonusRatioUpdated'): TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'TopupWithReward13Container'): TypedContractEvent<TopupWithReward13ContainerEvent.InputTuple, TopupWithReward13ContainerEvent.OutputTuple, TopupWithReward13ContainerEvent.OutputObject>;
 getEvent(key: 'TransferBatch'): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
 getEvent(key: 'TransferSingle'): TypedContractEvent<TransferSingleEvent.InputTuple, TransferSingleEvent.OutputTuple, TransferSingleEvent.OutputObject>;
 getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
@@ -829,6 +1319,38 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'ChargeRewardRatioUpdated(uint256,uint256)': TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
       ChargeRewardRatioUpdated: TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
+    
+
+      'ConvertReward13ToPointsRatioUpdated(uint256,uint256)': TypedContractEvent<ConvertReward13ToPointsRatioUpdatedEvent.InputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputObject>;
+      ConvertReward13ToPointsRatioUpdated: TypedContractEvent<ConvertReward13ToPointsRatioUpdatedEvent.InputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputTuple, ConvertReward13ToPointsRatioUpdatedEvent.OutputObject>;
+    
+
+      'ConvertReward13ToUsdcRatioUpdated(uint256,uint256)': TypedContractEvent<ConvertReward13ToUsdcRatioUpdatedEvent.InputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputObject>;
+      ConvertReward13ToUsdcRatioUpdated: TypedContractEvent<ConvertReward13ToUsdcRatioUpdatedEvent.InputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputTuple, ConvertReward13ToUsdcRatioUpdatedEvent.OutputObject>;
+    
+
+      'MerchantOracleSpreadUpdated(uint256,uint256)': TypedContractEvent<MerchantOracleSpreadUpdatedEvent.InputTuple, MerchantOracleSpreadUpdatedEvent.OutputTuple, MerchantOracleSpreadUpdatedEvent.OutputObject>;
+      MerchantOracleSpreadUpdated: TypedContractEvent<MerchantOracleSpreadUpdatedEvent.InputTuple, MerchantOracleSpreadUpdatedEvent.OutputTuple, MerchantOracleSpreadUpdatedEvent.OutputObject>;
+    
+
+      'PeerReward13RedeemedForContainerTopup(address,address,address,uint256,uint256,uint256)': TypedContractEvent<PeerReward13RedeemedForContainerTopupEvent.InputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputObject>;
+      PeerReward13RedeemedForContainerTopup: TypedContractEvent<PeerReward13RedeemedForContainerTopupEvent.InputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputTuple, PeerReward13RedeemedForContainerTopupEvent.OutputObject>;
+    
+
+      'ReferrerChargeAmountRatioUpdated(uint256,uint256)': TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+      ReferrerChargeAmountRatioUpdated: TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+    
+
+      'ReferrerTopupAmountRatioUpdated(uint256,uint256)': TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
+      ReferrerTopupAmountRatioUpdated: TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
+    
+
+      'Reward13ConvertedToProgramPoints(address,address,uint256,uint256)': TypedContractEvent<Reward13ConvertedToProgramPointsEvent.InputTuple, Reward13ConvertedToProgramPointsEvent.OutputTuple, Reward13ConvertedToProgramPointsEvent.OutputObject>;
+      Reward13ConvertedToProgramPoints: TypedContractEvent<Reward13ConvertedToProgramPointsEvent.InputTuple, Reward13ConvertedToProgramPointsEvent.OutputTuple, Reward13ConvertedToProgramPointsEvent.OutputObject>;
+    
+
+      'Reward13ConvertedToUsdcToAa(address,address,uint256,uint256,uint256)': TypedContractEvent<Reward13ConvertedToUsdcToAaEvent.InputTuple, Reward13ConvertedToUsdcToAaEvent.OutputTuple, Reward13ConvertedToUsdcToAaEvent.OutputObject>;
+      Reward13ConvertedToUsdcToAa: TypedContractEvent<Reward13ConvertedToUsdcToAaEvent.InputTuple, Reward13ConvertedToUsdcToAaEvent.OutputTuple, Reward13ConvertedToUsdcToAaEvent.OutputObject>;
     
 
       'RewardProgramFunded(address,address,uint8,uint256,uint256,uint256)': TypedContractEvent<RewardProgramFundedEvent.InputTuple, RewardProgramFundedEvent.OutputTuple, RewardProgramFundedEvent.OutputObject>;
@@ -857,6 +1379,14 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
 
       'TopupActorRewardRatioUpdated(uint256,uint256)': TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
       TopupActorRewardRatioUpdated: TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
+    
+
+      'TopupPromotionBonusRatioUpdated(uint256,uint256)': TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
+      TopupPromotionBonusRatioUpdated: TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
+    
+
+      'TopupWithReward13Container(address,address,uint256,uint256,uint256,uint256,uint256,bytes32)': TypedContractEvent<TopupWithReward13ContainerEvent.InputTuple, TopupWithReward13ContainerEvent.OutputTuple, TopupWithReward13ContainerEvent.OutputObject>;
+      TopupWithReward13Container: TypedContractEvent<TopupWithReward13ContainerEvent.InputTuple, TopupWithReward13ContainerEvent.OutputTuple, TopupWithReward13ContainerEvent.OutputObject>;
     
 
       'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;

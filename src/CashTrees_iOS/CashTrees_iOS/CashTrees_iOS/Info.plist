@@ -13,6 +13,19 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>ethereum</string>
+		<string>metamask</string>
+		<string>cbwallet</string>
+		<string>coinbase</string>
+		<string>base</string>
+		<string>okx</string>
+		<string>okex</string>
+		<string>tpdapp</string>
+		<string>tpoutside</string>
+		<string>phantom</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

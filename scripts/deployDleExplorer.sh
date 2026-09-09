@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # Deploy CoNET-DLE explorer to https://dle.conet.network on 70.35.205.77.
-# Static SPA only. nginx proxies /health /rpc /api/v2/dle /ondemand/* (GET)
+# Static SPA only. nginx proxies /liveness /health /rpc /api/v2/dle /ondemand/* (GET)
 # and Mode A /newchain/chains|/queue|/request to lab archives on TCP 27101.
 # Does not proxy /newchain/bft.
 # Does not restart geth / beacon-chain / validator. Does not copy ~/.master.json.
+#
+# TLS: HTTP bootstrap is first-issue only. If the Let's Encrypt cert already
+# exists, install the full HTTPS + proxy vhost. Never leave bootstrap as the
+# live site (2026-08-21 accident: --skip-tls / failed TLS step left :80 only,
+# public https://dle.conet.network/health connected until timeout).
+# nginx.service must stay enabled (WantedBy=multi-user.target) plus
+# /etc/systemd/system/nginx.service.d/dle-persist.conf (Restart=always).
 
 set -euo pipefail
 
@@ -28,7 +35,8 @@ Build src/conet-layer2/explorer and publish it to dle.conet.network.
 
 Options:
   --skip-build   Use existing explorer/dist
-  --skip-tls     Do not run certbot (HTTP bootstrap only)
+  --skip-tls     Do not run certbot. If a cert already exists, still install
+                 the full HTTPS vhost. HTTP bootstrap only when no cert yet.
   -h, --help     Show this help
 
 Environment:
@@ -68,6 +76,9 @@ fi
 echo "==> Preparing $REMOTE ($DLE_WEB_ROOT)"
 ssh_remote "sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx certbot python3-certbot-nginx >/dev/null"
 ssh_remote "sudo mkdir -p '$DLE_WEB_ROOT/.well-known/acme-challenge' && sudo chown -R ${DLE_DEPLOY_USER}:www-data '$DLE_WEB_ROOT'"
+echo "==> Enabling nginx.service for reboot + crash restart"
+scp -q "$SCRIPT_DIR/nginx-dle.persist.service.d.conf" "${REMOTE}:/tmp/nginx-dle.persist.service.d.conf"
+ssh_remote "sudo mkdir -p /etc/systemd/system/nginx.service.d && sudo cp /tmp/nginx-dle.persist.service.d.conf /etc/systemd/system/nginx.service.d/dle-persist.conf && sudo systemctl daemon-reload && sudo systemctl enable --now nginx"
 
 echo "==> Rsync explorer -> ${REMOTE}:${DLE_WEB_ROOT}/"
 rsync -av --delete \
@@ -77,17 +88,41 @@ rsync -av --delete \
 
 scp -q "$SCRIPT_DIR/nginx-dle.conet.network.http-bootstrap.conf" "$SCRIPT_DIR/nginx-dle.conet.network.conf" "${REMOTE}:/tmp/"
 
-echo "==> Installing nginx bootstrap vhost"
-ssh_remote "sudo cp /tmp/nginx-dle.conet.network.http-bootstrap.conf /etc/nginx/sites-available/${DLE_DOMAIN}.conf && sudo ln -sfn /etc/nginx/sites-available/${DLE_DOMAIN}.conf /etc/nginx/sites-enabled/${DLE_DOMAIN}.conf && sudo rm -f /etc/nginx/sites-enabled/default && sudo nginx -t && sudo systemctl enable --now nginx && sudo systemctl reload nginx"
+link_vhost() {
+	ssh_remote "sudo ln -sfn /etc/nginx/sites-available/${DLE_DOMAIN}.conf /etc/nginx/sites-enabled/${DLE_DOMAIN}.conf && sudo rm -f /etc/nginx/sites-enabled/default && sudo nginx -t && sudo systemctl enable --now nginx && sudo systemctl reload nginx"
+}
 
-if [[ "$SKIP_TLS" -eq 0 ]]; then
-	echo "==> Issuing or reusing Let's Encrypt certificate"
-	ssh_remote "if [[ ! -f /etc/letsencrypt/live/${DLE_DOMAIN}/fullchain.pem ]]; then sudo certbot certonly --webroot -w '$DLE_WEB_ROOT' -d '$DLE_DOMAIN' --non-interactive --agree-tos --register-unsafely-without-email; fi"
-	ssh_remote "sudo cp /tmp/nginx-dle.conet.network.conf /etc/nginx/sites-available/${DLE_DOMAIN}.conf && sudo nginx -t && sudo systemctl reload nginx"
+install_bootstrap_vhost() {
+	echo "==> Installing nginx HTTP bootstrap (cert missing)"
+	ssh_remote "sudo cp /tmp/nginx-dle.conet.network.http-bootstrap.conf /etc/nginx/sites-available/${DLE_DOMAIN}.conf"
+	link_vhost
+}
+
+install_https_vhost() {
+	echo "==> Installing nginx HTTPS + archive proxy vhost"
+	ssh_remote "sudo cp /tmp/nginx-dle.conet.network.conf /etc/nginx/sites-available/${DLE_DOMAIN}.conf"
+	link_vhost
+}
+
+CERT_LIVE="/etc/letsencrypt/live/${DLE_DOMAIN}/fullchain.pem"
+CERT_OK="$(ssh_remote "if [[ -f '$CERT_LIVE' ]]; then echo yes; else echo no; fi")"
+
+if [[ "$CERT_OK" == "yes" ]]; then
+	echo "==> Certificate present at $CERT_LIVE — skip bootstrap overwrite"
+	install_https_vhost
+elif [[ "$SKIP_TLS" -eq 1 ]]; then
+	echo "==> No certificate and --skip-tls — HTTP-only (public HTTPS will time out until TLS is installed)"
+	install_bootstrap_vhost
+else
+	install_bootstrap_vhost
+	echo "==> Issuing Let's Encrypt certificate"
+	ssh_remote "sudo certbot certonly --webroot -w '$DLE_WEB_ROOT' -d '$DLE_DOMAIN' --non-interactive --agree-tos --register-unsafely-without-email"
+	install_https_vhost
 fi
 
 echo "==> Done. Spot-check:"
 echo "    https://${DLE_DOMAIN}/"
+echo "    https://${DLE_DOMAIN}/liveness"
 echo "    https://${DLE_DOMAIN}/health"
 echo "    GET  https://${DLE_DOMAIN}/newchain/chains"
 echo "    POST https://${DLE_DOMAIN}/rpc  {\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"eth_chainId\",\"params\":[]}"

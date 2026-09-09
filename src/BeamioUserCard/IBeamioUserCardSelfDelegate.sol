@@ -15,8 +15,11 @@ interface IBeamioUserCardSelfDelegate {
         external;
     function cardSelfRequirePointsMintAllowsFirstMembership(address acct, uint256 points6) external view;
     function cardSelfHasValidCard(address acct) external view returns (bool);
+    /// @dev Storage slot only (redeem path); may be weaker than cardSelfHasValidCard.
+    function cardSelfActiveMembershipId(address acct) external view returns (uint256);
+    /// @dev Lowest tier.minUsdc6, or 0 when tiers is empty.
+    function cardSelfMinThresholdPoints6() external view returns (uint256);
     function cardSelfToAccount(address eoa) external view returns (address);
-    function cardSelfOwner() external view returns (address);
     function cardSelfUpgradeType() external view returns (uint8);
     function cardSelfPointsUnitPriceInCurrencyE6() external view returns (uint256);
     function cardSelfCurrencyType() external view returns (uint8);

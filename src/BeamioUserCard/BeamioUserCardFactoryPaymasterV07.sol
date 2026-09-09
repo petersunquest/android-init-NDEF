@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "./BeamioUserCard.sol";
+import {UserCardTier} from "./BeamioUserCardTypes.sol";
 import "./BeamioCurrency.sol";
 import "./BeamioERC1155Logic.sol";
 import "./Errors.sol";
@@ -351,18 +352,23 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
     }
 
     /// @notice 创建卡并一次性配置 tiers（与 createCardCollectionWithInitCode 相同，部署后追加 tiers）
-    /// @param tiers BeamioUserCard.Tier 数组，可为空
+    /// @param tiers Runtime UserCardTier array; may be empty.
+    /// @dev CoNET live Factory (0xfA52…774FB) AndTiers is **3-tuple** selector 0x9a7eb0f0
+    ///      (minUsdc6, attr, tierExpirySeconds). This source compiles 4-tuple because
+    ///      UserCardTier includes upgradeByBalance (selector 0x62cb913c).
+    ///      **Do not upgrade the live Factory** to this 4-tuple. Clients must encode
+    ///      3-tuple calldata (see encodeCreateCardCollectionWithInitCodeAndTiersCalldata).
     function createCardCollectionWithInitCodeAndTiers(
         address cardOwner,
         uint8 currency,
         uint256 priceInCurrencyE6,
         bytes calldata initCode,
-        BeamioUserCard.Tier[] calldata tiers
+        UserCardTier[] calldata tiers
     ) external onlyPaymaster returns (address card) {
         card = _deployAndRegisterCard(cardOwner, currency, priceInCurrencyE6, initCode);
         BeamioUserCard c = BeamioUserCard(card);
         for (uint256 i = 0; i < tiers.length; i++) {
-            BeamioUserCard.Tier memory t = tiers[i];
+            UserCardTier memory t = tiers[i];
             if (t.minUsdc6 == 0) revert UC_TierMinZero();
             c.appendTier(t.minUsdc6, t.attr, t.tierExpirySeconds, t.upgradeByBalance);
         }
@@ -475,7 +481,7 @@ contract BeamioUserCardFactoryPaymasterV07 is IBeamioFactoryOracle {
         bytes calldata ownerSignature
     ) external onlyPaymaster {
         bytes memory data = abi.encodeWithSelector(
-            BeamioUserCard.appendTier.selector,
+            bytes4(keccak256("appendTier(uint256,uint256,uint256,bool)")),
             minUsdc6,
             attr,
             tierExpirySeconds,

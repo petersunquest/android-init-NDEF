@@ -6,14 +6,15 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface BeamioUserCardChargeRewardModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "burnChargeRewardByAdmin" | "chargeRewardRatioE6" | "isApprovedForAll" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setTopupActorRewardRatio" | "setTopupActorRewardRatioByAdmin" | "supportsInterface" | "topupActorRewardRatioE6" | "uri"): FunctionFragment;
+    getFunction(nameOrSignature: "CHARGE_REWARD_TOKEN_ID" | "balanceOf" | "balanceOfBatch" | "burnChargeRewardByAdmin" | "chargeReward" | "chargeRewardRatioE6" | "isApprovedForAll" | "mintChargeRewardByGateway" | "previewChargeRewardAmount" | "safeBatchTransferFrom" | "safeTransferFrom" | "setApprovalForAll" | "setChargeRewardRatio" | "setChargeRewardRatioByAdmin" | "setTopupActorRewardRatio" | "setTopupActorRewardRatioByAdmin" | "setTopupPromotionBonusRatio" | "setTopupPromotionBonusRatioByAdmin" | "supportsInterface" | "topupActorRewardRatioE6" | "topupPromotionBonusRatioE6" | "topupReward(uint256,uint256)" | "topupReward(uint256,uint256,uint256)" | "uri"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "TopupActorRewardRatioUpdated" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AdminChargeRewardBurned" | "ApprovalForAll" | "ChargeRewardAirdropped" | "ChargeRewardRatioUpdated" | "ReferrerChargeAmountRatioUpdated" | "ReferrerTopupAmountRatioUpdated" | "TopupActorRewardRatioUpdated" | "TopupPromotionBonusRatioUpdated" | "TransferBatch" | "TransferSingle" | "URI"): EventFragment;
 
     encodeFunctionData(functionFragment: 'CHARGE_REWARD_TOKEN_ID', values?: undefined): string;
 encodeFunctionData(functionFragment: 'balanceOf', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'balanceOfBatch', values: [AddressLike[], BigNumberish[]]): string;
 encodeFunctionData(functionFragment: 'burnChargeRewardByAdmin', values: [AddressLike, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'chargeReward', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'chargeRewardRatioE6', values?: undefined): string;
 encodeFunctionData(functionFragment: 'isApprovedForAll', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'mintChargeRewardByGateway', values: [AddressLike, BigNumberish, BigNumberish]): string;
@@ -25,14 +26,20 @@ encodeFunctionData(functionFragment: 'setChargeRewardRatio', values: [BigNumberi
 encodeFunctionData(functionFragment: 'setChargeRewardRatioByAdmin', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTopupActorRewardRatio', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTopupActorRewardRatioByAdmin', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatio', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'setTopupPromotionBonusRatioByAdmin', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'supportsInterface', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'topupActorRewardRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'topupPromotionBonusRatioE6', values?: undefined): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256)', values: [BigNumberish, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'topupReward(uint256,uint256,uint256)', values: [BigNumberish, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'uri', values: [BigNumberish]): string;
 
     decodeFunctionResult(functionFragment: 'CHARGE_REWARD_TOKEN_ID', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOf', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'balanceOfBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'burnChargeRewardByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'chargeReward', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'chargeRewardRatioE6', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'isApprovedForAll', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'mintChargeRewardByGateway', data: BytesLike): Result;
@@ -44,8 +51,13 @@ decodeFunctionResult(functionFragment: 'setChargeRewardRatio', data: BytesLike):
 decodeFunctionResult(functionFragment: 'setChargeRewardRatioByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTopupActorRewardRatio', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTopupActorRewardRatioByAdmin', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatio', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setTopupPromotionBonusRatioByAdmin', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'supportsInterface', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'topupActorRewardRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupPromotionBonusRatioE6', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'topupReward(uint256,uint256,uint256)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
   }
 
@@ -98,7 +110,43 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
 
   
 
+    export namespace ReferrerChargeAmountRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace ReferrerTopupAmountRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace TopupActorRewardRatioUpdatedEvent {
+      export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
+      export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
+      export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
+    export namespace TopupPromotionBonusRatioUpdatedEvent {
       export type InputTuple = [oldRatioE6: BigNumberish, newRatioE6: BigNumberish];
       export type OutputTuple = [oldRatioE6: bigint, newRatioE6: bigint];
       export interface OutputObject {oldRatioE6: bigint, newRatioE6: bigint };
@@ -212,6 +260,14 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    chargeReward: TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     chargeRewardRatioE6: TypedContractMethod<
       [],
       [bigint],
@@ -300,6 +356,22 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
     
 
     
+    setTopupPromotionBonusRatio: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setTopupPromotionBonusRatioByAdmin: TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     supportsInterface: TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
@@ -312,6 +384,30 @@ decodeFunctionResult(functionFragment: 'uri', data: BytesLike): Result;
       [],
       [bigint],
       'view'
+    >
+    
+
+    
+    topupPromotionBonusRatioE6: TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >
+    
+
+    
+    "topupReward(uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    "topupReward(uint256,uint256,uint256)": TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, promotionBonusRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >
     
 
@@ -343,6 +439,11 @@ getFunction(nameOrSignature: 'balanceOfBatch'): TypedContractMethod<
     >;
 getFunction(nameOrSignature: 'burnChargeRewardByAdmin'): TypedContractMethod<
       [target: AddressLike, amount: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'chargeReward'): TypedContractMethod<
+      [chargeRewardRatioE6: BigNumberish, chargeReferrerRewardRatioE6: BigNumberish, ],
       [void],
       'nonpayable'
     >;
@@ -401,6 +502,16 @@ getFunction(nameOrSignature: 'setTopupActorRewardRatioByAdmin'): TypedContractMe
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatio'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setTopupPromotionBonusRatioByAdmin'): TypedContractMethod<
+      [ratioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'supportsInterface'): TypedContractMethod<
       [interfaceId: BytesLike, ],
       [boolean],
@@ -410,6 +521,21 @@ getFunction(nameOrSignature: 'topupActorRewardRatioE6'): TypedContractMethod<
       [],
       [bigint],
       'view'
+    >;
+getFunction(nameOrSignature: 'topupPromotionBonusRatioE6'): TypedContractMethod<
+      [],
+      [bigint],
+      'view'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'topupReward(uint256,uint256,uint256)'): TypedContractMethod<
+      [topupRewardRatioE6: BigNumberish, topupReferrerRewardRatioE6: BigNumberish, promotionBonusRatioE6: BigNumberish, ],
+      [void],
+      'nonpayable'
     >;
 getFunction(nameOrSignature: 'uri'): TypedContractMethod<
       [arg0: BigNumberish, ],
@@ -421,7 +547,10 @@ getFunction(nameOrSignature: 'uri'): TypedContractMethod<
 getEvent(key: 'ApprovalForAll'): TypedContractEvent<ApprovalForAllEvent.InputTuple, ApprovalForAllEvent.OutputTuple, ApprovalForAllEvent.OutputObject>;
 getEvent(key: 'ChargeRewardAirdropped'): TypedContractEvent<ChargeRewardAirdroppedEvent.InputTuple, ChargeRewardAirdroppedEvent.OutputTuple, ChargeRewardAirdroppedEvent.OutputObject>;
 getEvent(key: 'ChargeRewardRatioUpdated'): TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'ReferrerChargeAmountRatioUpdated'): TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'ReferrerTopupAmountRatioUpdated'): TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
 getEvent(key: 'TopupActorRewardRatioUpdated'): TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
+getEvent(key: 'TopupPromotionBonusRatioUpdated'): TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
 getEvent(key: 'TransferBatch'): TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;
 getEvent(key: 'TransferSingle'): TypedContractEvent<TransferSingleEvent.InputTuple, TransferSingleEvent.OutputTuple, TransferSingleEvent.OutputObject>;
 getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTuple, URIEvent.OutputObject>;
@@ -444,8 +573,20 @@ getEvent(key: 'URI'): TypedContractEvent<URIEvent.InputTuple, URIEvent.OutputTup
       ChargeRewardRatioUpdated: TypedContractEvent<ChargeRewardRatioUpdatedEvent.InputTuple, ChargeRewardRatioUpdatedEvent.OutputTuple, ChargeRewardRatioUpdatedEvent.OutputObject>;
     
 
+      'ReferrerChargeAmountRatioUpdated(uint256,uint256)': TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+      ReferrerChargeAmountRatioUpdated: TypedContractEvent<ReferrerChargeAmountRatioUpdatedEvent.InputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputTuple, ReferrerChargeAmountRatioUpdatedEvent.OutputObject>;
+    
+
+      'ReferrerTopupAmountRatioUpdated(uint256,uint256)': TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
+      ReferrerTopupAmountRatioUpdated: TypedContractEvent<ReferrerTopupAmountRatioUpdatedEvent.InputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputTuple, ReferrerTopupAmountRatioUpdatedEvent.OutputObject>;
+    
+
       'TopupActorRewardRatioUpdated(uint256,uint256)': TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
       TopupActorRewardRatioUpdated: TypedContractEvent<TopupActorRewardRatioUpdatedEvent.InputTuple, TopupActorRewardRatioUpdatedEvent.OutputTuple, TopupActorRewardRatioUpdatedEvent.OutputObject>;
+    
+
+      'TopupPromotionBonusRatioUpdated(uint256,uint256)': TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
+      TopupPromotionBonusRatioUpdated: TypedContractEvent<TopupPromotionBonusRatioUpdatedEvent.InputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputTuple, TopupPromotionBonusRatioUpdatedEvent.OutputObject>;
     
 
       'TransferBatch(address,address,address,uint256[],uint256[])': TypedContractEvent<TransferBatchEvent.InputTuple, TransferBatchEvent.OutputTuple, TransferBatchEvent.OutputObject>;

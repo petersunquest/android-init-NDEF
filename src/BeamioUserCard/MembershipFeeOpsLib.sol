@@ -102,6 +102,32 @@ library MembershipFeeOpsLib {
         emit MembershipFeesUpdated(n);
     }
 
+    /**
+     * @dev Constructor / BeaconProxy initializer helper. Linking the complete
+     * validation loop keeps BeamioUserCard below EIP-170 while a newly created
+     * direct-membership card still receives its full immutable-at-create fee
+     * schedule in the same Factory transaction.
+     */
+    function configureInitialMembershipFees(uint256[] memory feeE6, uint8[] memory durationKind) external {
+        uint256 n = feeE6.length;
+        if (n == 0 || n > MembershipFeeStorage.MAX_FEE_TIERS || durationKind.length != n) {
+            revert UC_MembershipFeeLenMismatch();
+        }
+        MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
+        uint256 prior;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 fee = feeE6[i];
+            if (fee == 0 || !MembershipFeeStorage.isValidDurationKind(durationKind[i])) {
+                revert UC_MembershipFeeInvalidDuration();
+            }
+            if (i > 0 && fee <= prior) revert UC_TiersNotIncreasing();
+            l.feeE6[i] = fee;
+            l.durationKind[i] = durationKind[i];
+            prior = fee;
+        }
+        emit MembershipFeesUpdated(n);
+    }
+
     function membershipFees() external view returns (uint256[] memory feeE6, uint8[] memory durationKind) {
         uint256 chainN = _tiersLength();
         uint256 feeN = MembershipFeeStorage.feeTierCount();

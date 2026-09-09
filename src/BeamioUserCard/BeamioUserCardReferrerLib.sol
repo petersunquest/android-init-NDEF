@@ -128,6 +128,7 @@ library BeamioUserCardReferrerLib {
     }
 
     /// @notice Mint referrer #13 from **top-up amountFiat6** when referee has an uplink.
+    /// @dev Primary same-cycle path: `amountFiat6 × referrerRewardFromTopupAmountRatioE6` (Programs → Referrer Top-up %).
     function mintReferrerRewardForTopupIfConfigured(
         IBeamioUserCardSelfDelegate delegate,
         address refereeAcct,
@@ -140,6 +141,29 @@ library BeamioUserCardReferrerLib {
             ReferrerStorage.layout().referrerRewardFromTopupAmountRatioE6,
             LEDGER_KIND_TOPUP
         );
+    }
+
+    /// @notice Mint fixed #13 to uplink referrer AA (`refMint13` units).
+    /// @dev Legacy / Social Promotion `getRewardRule(2)` helper. Same-cycle top-up referrer uses
+    ///      `mintReferrerRewardForTopupIfConfigured` (ratio) instead — avoid dual-mint.
+    /// @return mintToAa Referrer AA that received #13, or address(0) if skipped.
+    function mintFixedTopupReward13ToReferrerIfAny(
+        IBeamioUserCardSelfDelegate delegate,
+        address refereeAcct,
+        uint256 refMint13,
+        uint256 amountFiat6
+    ) external returns (address mintToAa) {
+        if (refereeAcct == address(0) || refMint13 == 0) return address(0);
+        ReferrerStorage.Layout storage r = ReferrerStorage.layout();
+        (address refereeKey, address referrerKey) = _resolveRefereeReferrer(r, refereeAcct);
+        if (refereeKey == address(0) || referrerKey == address(0)) return address(0);
+        if (!_isRegisteredReferee(r, refereeKey) || !_isRegisteredReferee(r, referrerKey)) return address(0);
+
+        mintToAa = _beamioAaOrZero(referrerKey);
+        if (mintToAa == address(0)) return address(0);
+        delegate.cardSelfMint(mintToAa, REFERRER_REWARD_TOKEN_ID, refMint13);
+        _accumulateLedger(r, referrerKey, refereeKey, LEDGER_KIND_TOPUP, amountFiat6, refMint13);
+        delegate.cardSelfEmitReferrerRewardMinted(refereeKey, referrerKey, refMint13, amountFiat6, LEDGER_KIND_TOPUP);
     }
 
     /// @dev Alias for charge-amount path (legacy name; base is amountFiat6).

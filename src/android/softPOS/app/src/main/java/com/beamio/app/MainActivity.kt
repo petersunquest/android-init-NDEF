@@ -565,7 +565,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Open http(s)/mailto/tel externally — mirrors iOS `CashTreesIOS.openURL({ url })`. */
+        /** Open http(s)/mailto/tel/EIP-681/wallet schemes externally — mirrors iOS `CashTreesIOS.openURL({ url })`. */
         @JavascriptInterface
         fun openURL(url: String) {
             runOnUiThread { openExternalUrlFromBridge(url) }
@@ -639,7 +639,16 @@ class MainActivity : ComponentActivity() {
         try {
             val uri = Uri.parse(trimmed)
             val scheme = uri.scheme?.lowercase() ?: return
-            if (scheme !in setOf("http", "https", "mailto", "tel")) return
+            // Mirror iOS CashTreesIOS.openURL allowlist (EIP-681 + catalog wallet schemes).
+            if (scheme !in setOf(
+                    "http", "https", "mailto", "tel",
+                    "ethereum",
+                    "metamask", "cbwallet", "coinbase", "base",
+                    "okx", "okex", "tpdapp", "tpoutside", "phantom",
+                )
+            ) {
+                return
+            }
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (_: Exception) {
         }

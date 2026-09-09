@@ -167,6 +167,16 @@ interface IBeamioChargeRewardModuleV1 {
     function chargeRewardRatioE6() external view returns (uint256);
     function setChargeRewardRatio(uint256 ratioE6) external;
     function setChargeRewardRatioByAdmin(uint256 ratioE6) external;
+    function topupReward(uint256 topupRewardRatioE6, uint256 topupReferrerRewardRatioE6) external;
+    function topupReward(
+        uint256 topupRewardRatioE6,
+        uint256 topupReferrerRewardRatioE6,
+        uint256 topupPromotionBonusRatioE6_
+    ) external;
+    function topupPromotionBonusRatioE6() external view returns (uint256);
+    function setTopupPromotionBonusRatio(uint256 ratioE6) external;
+    function setTopupPromotionBonusRatioByAdmin(uint256 ratioE6) external;
+    function chargeReward(uint256 chargeRewardRatioE6, uint256 chargeReferrerRewardRatioE6) external;
     function previewChargeRewardAmount(uint256 amountFiat6) external view returns (uint256);
     function mintChargeRewardByGateway(address userEOA, uint256 amountFiat6, uint8 chargeCurrency) external;
     function burnChargeRewardByAdmin(address target, uint256 amount) external;
@@ -205,6 +215,8 @@ interface IBeamioMembershipStatsModuleV1 {
     function syncActiveToBestValid(address user) external;
     function maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address acctOrEOA, uint256 pointsDelta6) external;
     function issueCardByPointsDelta_AssumingNoValidCard(address acct, uint256 pointsDelta6) external;
+    /// @dev Direct membership fee purchase with pointsCredit6 == 0 (no #0 mint).
+    function completeMembershipFeePurchase(address user) external;
     /// @dev upgradeType==2：主合约 delegatecall，模块内汇总并升级（卡侧仅 abi.encode，体积更小）
     function handlePointsTransferForUpgradeType2(
         address from,

@@ -38,6 +38,24 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "chargeRewardRatioE6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "chargeReferrerRewardRatioE6",
+        "type": "uint256"
+      }
+    ],
+    "name": "chargeReward",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "chargeRewardRatioE6",
     "outputs": [
@@ -114,6 +132,86 @@
       }
     ],
     "name": "setChargeRewardRatioByAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ratioE6",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTopupPromotionBonusRatio",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "ratioE6",
+        "type": "uint256"
+      }
+    ],
+    "name": "setTopupPromotionBonusRatioByAdmin",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "topupPromotionBonusRatioE6",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "topupRewardRatioE6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "topupReferrerRewardRatioE6",
+        "type": "uint256"
+      }
+    ],
+    "name": "topupReward",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "topupRewardRatioE6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "topupReferrerRewardRatioE6",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "topupPromotionBonusRatioE6_",
+        "type": "uint256"
+      }
+    ],
+    "name": "topupReward",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

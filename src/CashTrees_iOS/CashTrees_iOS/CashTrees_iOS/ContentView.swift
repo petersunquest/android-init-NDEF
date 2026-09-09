@@ -316,6 +316,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     private func handleAppBecameActive() {
+        // Drop stale offline push tray + badge; PWA re-publishes unread via publishAppState.
+        CashTreesNativeAppStateBridge.clearOfflineChatAlerts()
         // Recovery is latency-sensitive. Never await the network-backed OTA check
         // before replacing a dead WKWebView content process.
         if webContentProcessNeedsReload {
@@ -672,10 +674,31 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 url:payload.url||''
               });
             },
+            queryInstalledApps:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'queryInstalledApps',
+                requestId:payload.requestId||'',
+                queries:payload.queries||[]
+              });
+            },
+            listInstalledWalletApps:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'listInstalledWalletApps',
+                requestId:payload.requestId||'',
+                queries:payload.queries||[]
+              });
+            },
             publishAppState:function(state){
               window.webkit.messageHandlers[H].postMessage({
                 action:'publishAppState',
                 state:state||{}
+              });
+            },
+            clearOfflineChatAlerts:function(){
+              window.webkit.messageHandlers[H].postMessage({
+                action:'clearOfflineChatAlerts'
               });
             },
             notifyBackgroundChat:function(payload){
@@ -778,6 +801,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "openURL":
             let url = body["url"] as? String
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
+        case "queryInstalledApps", "listInstalledWalletApps":
+            let walletListRequestId = body["requestId"] as? String
+            let queries = body["queries"]
+            DispatchQueue.main.async { [weak self] in
+                self?.queryInstalledAppsFromBridge(
+                    action: action,
+                    requestId: walletListRequestId,
+                    queriesRaw: queries
+                )
+            }
         case "applyEmbeddedPwaUpdate":
             Task { @MainActor [weak self] in
                 guard let self, let webView = self.webView else { return }
@@ -801,6 +834,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let state = body["state"] as? [String: Any]
             DispatchQueue.main.async {
                 CashTreesNativeAppStateBridge.applyFromWebPayload(state)
+            }
+        case "clearOfflineChatAlerts":
+            // PWA entered Chat: tray only; unread badge restored by next publishAppState.
+            DispatchQueue.main.async {
+                CashTreesNativeAppStateBridge.clearOfflineChatAlerts(resetBadge: false)
             }
         case "notifyBackgroundChat":
             DispatchQueue.main.async {
@@ -843,13 +881,100 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
-    /// PWA `CashTreesIOS.openURL({ url })` — open http(s)/mailto/tel in the system browser or handler.
+    /// PWA `CashTreesIOS.openURL({ url })` — http(s)/mailto/tel, plus catalog wallet schemes.
+    /// Native opens the PWA URL as-is; do not invent package or scheme URLs.
+    private static let allowedExternalURLSchemes: Set<String> = [
+        "http", "https", "mailto", "tel",
+        // EIP-681 (`ethereum:0x…@8453/transfer?…`) for Coinbase Wallet / system wallet handoff.
+        "ethereum",
+        "metamask", "cbwallet", "coinbase", "base",
+        "okx", "okex", "tpdapp", "tpoutside", "phantom",
+    ]
+
     private func openExternalURLFromBridge(_ raw: String?) {
         let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !trimmed.isEmpty, let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() else { return }
-        let allowed: Set<String> = ["http", "https", "mailto", "tel"]
-        guard allowed.contains(scheme) else { return }
+        guard Self.allowedExternalURLSchemes.contains(scheme) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    /// PWA `queryInstalledApps({ requestId, queries })`. Empty / unparseable queries → MetaMask / Coinbase Wallet.
+    private func queryInstalledAppsFromBridge(action: String, requestId: String?, queriesRaw: Any?) {
+        let queries = parseInstalledAppQueries(queriesRaw)
+        let ids: [String]
+        if queries.isEmpty {
+            ids = legacyInstalledWalletIds()
+        } else {
+            ids = queries.compactMap { query in
+                let installed = query.schemes.contains { scheme in
+                    guard let url = URL(string: "\(scheme)://") else { return false }
+                    return UIApplication.shared.canOpenURL(url)
+                }
+                return installed ? query.id : nil
+            }
+        }
+        var payload: [String: Any] = [
+            "action": action,
+            "ok": true,
+            "ids": ids,
+        ]
+        let rid = requestId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !rid.isEmpty {
+            payload["requestId"] = rid
+        }
+        dispatchIOSBridgeJsonToWeb(payload)
+    }
+
+    private struct NativeInstalledAppQuery {
+        let id: String
+        let schemes: [String]
+    }
+
+    private func parseInstalledAppQueries(_ raw: Any?) -> [NativeInstalledAppQuery] {
+        guard let list = raw as? [Any] else { return [] }
+        var out: [NativeInstalledAppQuery] = []
+        for item in list {
+            guard let dict = item as? [String: Any] else { continue }
+            let id = (dict["id"] as? String ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            guard !id.isEmpty else { continue }
+            let schemes = stringList(from: dict["schemes"])
+                .map { normalizeQueryScheme($0) }
+                .filter { !$0.isEmpty }
+            out.append(NativeInstalledAppQuery(id: id, schemes: schemes))
+        }
+        return out
+    }
+
+    private func stringList(from raw: Any?) -> [String] {
+        if let arr = raw as? [String] { return arr }
+        if let arr = raw as? [Any] { return arr.compactMap { $0 as? String } }
+        return []
+    }
+
+    private func normalizeQueryScheme(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if s.hasSuffix("://") {
+            s = String(s.dropLast(3))
+        } else if s.hasSuffix(":") {
+            s = String(s.dropLast())
+        }
+        return s
+    }
+
+    private func legacyInstalledWalletIds() -> [String] {
+        var ids: [String] = []
+        if let metamask = URL(string: "metamask://"), UIApplication.shared.canOpenURL(metamask) {
+            ids.append("metamask")
+        }
+        let coinbaseInstalled =
+            (URL(string: "cbwallet://").map { UIApplication.shared.canOpenURL($0) } ?? false)
+            || (URL(string: "coinbase://").map { UIApplication.shared.canOpenURL($0) } ?? false)
+        if coinbaseInstalled {
+            ids.append("base")
+        }
+        return ids
     }
 
     private func presentGeneralQRScanner(requestId: String?, filter: GeneralQRScanFilter, bridgeAction: String) {

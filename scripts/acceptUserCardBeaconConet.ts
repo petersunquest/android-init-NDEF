@@ -1,5 +1,6 @@
 /**
- * P3 acceptance: Charge / Referrer / ruleId=2 surface on the live CoNET beacon stack.
+ * V20 acceptance: atomic tier initialization plus Charge / Referrer / ruleId=2
+ * surface on the live CoNET beacon stack.
  *
  * Reads the current Factory on CoNET (0xfA52…). Does not redeploy ChargeReward or AdminStats.
  * If no BeaconProxy card exists after the P2 deploy block, deploys a one-off smoke proxy
@@ -20,15 +21,25 @@ const FACTORY =
 const FACTORY_OWNER = '0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1'
 const EIP1967_BEACON_SLOT =
 	'0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50'
-const INIT_NEEDLE = '631897af8914'
-const LEGACY_NEEDLE = '610745613b8856'
-const EXPECTED_VERSION = 14
+// Do not use compiler-specific internal bytecode needles here.  They changed
+// with via-IR/revert-string settings while the public ABI stayed stable.
+const INITIALIZE_SELECTOR = ethers.id(
+	'initialize(string,uint8,uint256,address,address,bytes)',
+).slice(2, 10)
+const TIERS_SELECTOR = ethers.id('tiers(uint256)').slice(2, 10)
+const EXPECTED_VERSION = 21
 const ROUTE_CHARGE_REWARD = 5
 const LOG_WINDOW = 4990
 
 const CONFIGURE_EVENT_REWARD_RULES_BATCH_SELECTOR = new ethers.Interface([
 	'function configureEventRewardRulesBatch((uint256 ruleId,bool active,uint8 eventKind,uint8 targetKind,uint256 issuedParentId,uint256 actorMint13,uint256 refMint13)[] configs)',
 ]).getFunction('configureEventRewardRulesBatch')!.selector
+const INITIAL_TOPUP_TIER_CONFIG = ethers.AbiCoder.defaultAbiCoder().encode(
+	[
+		'tuple(uint8 qualificationMode,tuple(uint256 minUsdc6,uint256 attr,uint256 tierExpirySeconds,bool upgradeByBalance)[] tiers,uint256[] membershipFeeE6,uint8[] membershipDurationKind)',
+	],
+	[[0, [[1_000_000n, 0n, 0n, false]], [], []]],
+)
 
 type BeaconSnap = {
 	beacon: string
@@ -127,6 +138,7 @@ async function deploySmokeProxy(
 		1_000_000n,
 		wallet.address,
 		FACTORY,
+		INITIAL_TOPUP_TIER_CONFIG,
 	])
 	const ProxyFactory = new ethers.ContractFactory(proxyArt.abi, proxyArt.bytecode, wallet)
 	console.log('[accept] deploying one-off BeaconProxy smoke card…')
@@ -176,13 +188,13 @@ async function smokeCardViews(
 		throw e
 	}
 	const lower = implCode.toLowerCase()
-	if (!lower.includes(INIT_NEEDLE)) {
-		throw new Error(`impl runtime missing initialize needle ${INIT_NEEDLE}`)
+	if (!lower.includes(INITIALIZE_SELECTOR)) {
+		throw new Error(`impl runtime missing initialize selector ${INITIALIZE_SELECTOR}`)
 	}
-	if (lower.includes(LEGACY_NEEDLE)) {
-		throw new Error('impl runtime still has legacy ChargeReward-less needle')
+	if (!lower.includes(TIERS_SELECTOR)) {
+		throw new Error(`impl runtime missing tiers selector ${TIERS_SELECTOR}`)
 	}
-	notes.push('ChargeReward initialize needle present')
+	notes.push('V20 initialize/tier ABI surface present')
 	return notes
 }
 
@@ -253,7 +265,13 @@ export async function acceptUserCardBeacon(opts?: {
 	}
 
 	const fromBlock = Number(snap.deployBlock || 0)
-	let proxyCards = await findBeaconProxyCards(provider, beacon, fromBlock)
+	const configuredCard = process.env.ACCEPT_CARD
+	let proxyCards = configuredCard && ethers.isAddress(configuredCard)
+		? [ethers.getAddress(configuredCard)]
+		: await findBeaconProxyCards(provider, beacon, fromBlock)
+	if (configuredCard && !ethers.isAddress(configuredCard)) {
+		throw new Error(`Invalid ACCEPT_CARD=${configuredCard}`)
+	}
 	console.log(`[accept] BeaconProxy cards from logs=${proxyCards.length}`)
 
 	const notes: string[] = []

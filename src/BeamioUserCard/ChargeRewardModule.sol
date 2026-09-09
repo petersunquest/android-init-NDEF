@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "./Errors.sol";
 import "./ChargeRewardStorage.sol";
 import "./GovernanceStorage.sol";
+import "./ReferrerStorage.sol";
 import "./BeamioUserCardTransferLib.sol";
 import "./BeamioUserCardReferrerLib.sol";
 import "./IBeamioUserCardSelfDelegate.sol";
@@ -35,6 +36,10 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
 
     event ChargeRewardRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
     event TopupActorRewardRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
+    event TopupPromotionBonusRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
+    /// @dev Same topic as AdminStats V4 so Indexer / UI keep a single event family.
+    event ReferrerChargeAmountRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
+    event ReferrerTopupAmountRatioUpdated(uint256 oldRatioE6, uint256 newRatioE6);
     event ChargeRewardAirdropped(
         address indexed userEOA,
         address indexed acct,
@@ -85,6 +90,10 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         return ChargeRewardStorage.layout().topupActorRewardRatioE6;
     }
 
+    function topupPromotionBonusRatioE6() external view returns (uint256) {
+        return ChargeRewardStorage.layout().topupPromotionBonusRatioE6;
+    }
+
     function setChargeRewardRatio(uint256 ratioE6) external onlyOwnerOrGateway {
         _setChargeRewardRatio(ratioE6);
     }
@@ -99,6 +108,44 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
 
     function setTopupActorRewardRatioByAdmin(uint256 ratioE6) external onlyAdmin {
         _setTopupActorRewardRatio(ratioE6);
+    }
+
+    function setTopupPromotionBonusRatio(uint256 ratioE6) external onlyOwnerOrGateway {
+        _setTopupPromotionBonusRatio(ratioE6);
+    }
+
+    function setTopupPromotionBonusRatioByAdmin(uint256 ratioE6) external onlyAdmin {
+        _setTopupPromotionBonusRatio(ratioE6);
+    }
+
+    /// @notice Atomically set actor + referrer Top-up #13 ratios (E6). One executeForOwner; no nonce race.
+    /// @dev Promotion bonus ratio left unchanged (use 3-arg overload or setTopupPromotionBonusRatio).
+    function topupReward(uint256 topupRewardRatioE6, uint256 topupReferrerRewardRatioE6)
+        external
+        onlyOwnerOrGateway
+    {
+        _setTopupActorRewardRatio(topupRewardRatioE6);
+        _setReferrerTopupAmountRatio(topupReferrerRewardRatioE6);
+    }
+
+    /// @notice Atomically set actor + referrer Top-up #13 + Top-up Promotion bonus % (E6).
+    function topupReward(
+        uint256 topupRewardRatioE6,
+        uint256 topupReferrerRewardRatioE6,
+        uint256 promotionBonusRatioE6
+    ) external onlyOwnerOrGateway {
+        _setTopupActorRewardRatio(topupRewardRatioE6);
+        _setReferrerTopupAmountRatio(topupReferrerRewardRatioE6);
+        _setTopupPromotionBonusRatio(promotionBonusRatioE6);
+    }
+
+    /// @notice Atomically set actor + referrer Charge #13 ratios (E6). One executeForOwner; no nonce race.
+    function chargeReward(uint256 chargeRewardRatioE6, uint256 chargeReferrerRewardRatioE6)
+        external
+        onlyOwnerOrGateway
+    {
+        _setChargeRewardRatio(chargeRewardRatioE6);
+        _setReferrerChargeAmountRatio(chargeReferrerRewardRatioE6);
     }
 
     function previewChargeRewardAmount(uint256 amountFiat6) external view returns (uint256) {
@@ -157,6 +204,27 @@ contract BeamioUserCardChargeRewardModuleV1 is ERC1155 {
         uint256 old = l.topupActorRewardRatioE6;
         l.topupActorRewardRatioE6 = ratioE6;
         emit TopupActorRewardRatioUpdated(old, ratioE6);
+    }
+
+    function _setTopupPromotionBonusRatio(uint256 ratioE6) internal {
+        ChargeRewardStorage.Layout storage l = ChargeRewardStorage.layout();
+        uint256 old = l.topupPromotionBonusRatioE6;
+        l.topupPromotionBonusRatioE6 = ratioE6;
+        emit TopupPromotionBonusRatioUpdated(old, ratioE6);
+    }
+
+    function _setReferrerTopupAmountRatio(uint256 ratioE6) internal {
+        ReferrerStorage.Layout storage r = ReferrerStorage.layout();
+        uint256 old = r.referrerRewardFromTopupAmountRatioE6;
+        r.referrerRewardFromTopupAmountRatioE6 = ratioE6;
+        emit ReferrerTopupAmountRatioUpdated(old, ratioE6);
+    }
+
+    function _setReferrerChargeAmountRatio(uint256 ratioE6) internal {
+        ReferrerStorage.Layout storage r = ReferrerStorage.layout();
+        uint256 old = r.referrerRewardFromChargeRewardRatioE6;
+        r.referrerRewardFromChargeRewardRatioE6 = ratioE6;
+        emit ReferrerChargeAmountRatioUpdated(old, ratioE6);
     }
 
     function _calcChargeRewardAmount(uint256 amountFiat6) internal view returns (uint256) {

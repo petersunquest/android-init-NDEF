@@ -93,6 +93,34 @@ if (!Array.isArray(beaconProxyArtifact.abi) || !beaconProxyArtifact.bytecode) {
   process.exit(1);
 }
 
+/**
+ * CoNET live Factory AndTiers is 3-tuple (0x9a7eb0f0). Hardhat V07 compiles
+ * 4-tuple (upgradeByBalance → 0x62cb913c) because BeamioUserCard.Tier has that
+ * field. Rewrite only createCardCollectionWithInitCodeAndTiers. Do not strip
+ * upgradeByBalance from appendTierForCard or other functions. Do not upgrade
+ * the live Factory to the 4-tuple selector.
+ */
+function stripUpgradeByBalanceFromFactoryAndTiersAbi(abi) {
+  if (!Array.isArray(abi)) return { stripped: 0 };
+  let stripped = 0;
+  for (const item of abi) {
+    if (item?.type !== "function" || item.name !== "createCardCollectionWithInitCodeAndTiers") continue;
+    const tiers = item.inputs?.find((i) => i.name === "tiers");
+    if (!Array.isArray(tiers?.components)) continue;
+    const before = tiers.components.length;
+    tiers.components = tiers.components.filter((c) => c.name !== "upgradeByBalance");
+    if (tiers.components.length !== before) stripped += 1;
+  }
+  return { stripped };
+}
+
+const andTiersRewrite = stripUpgradeByBalanceFromFactoryAndTiersAbi(factoryArtifact.abi);
+if (andTiersRewrite.stripped > 0) {
+  console.log(
+    "Rewrote Factory AndTiers ABI to 3-tuple (stripped upgradeByBalance). CoNET live selector is 0x9a7eb0f0; do not deploy 4-tuple 0x62cb913c."
+  );
+}
+
 // 完整 artifact 写入 x402sdk 与 scripts/API server
 fs.mkdirSync(path.dirname(OUT.x402Artifact), { recursive: true });
 fs.writeFileSync(OUT.x402Artifact, JSON.stringify(userCardArtifact, null, 2), "utf-8");

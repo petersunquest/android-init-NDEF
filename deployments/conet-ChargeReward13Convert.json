@@ -1,0 +1,41 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-08-30T12:03:00.030Z",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "modules": {
+    "referrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
+  },
+  "constructorArgs": {
+    "v5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "referrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
+  },
+  "libraryLinks": {
+    "ReferrerRegistryLib": "0x739eAA77A4Fae311d81Eb47f5E0Fff8bbACAF947",
+    "BeamioUserCardReferrerLib": "0x5E16bCFdFA9c41666528b68f475772A8D4a42124",
+    "BeamioUserCardTransferLib": "0xBcf3f8C5994B02B89fB743e1dee6AFDD5a49a664"
+  },
+  "replaced": {
+    "chargeRewardModule": "0x6A72EeB7e96a09D90C03E4D79ca339907671eF9E",
+    "adminStatsQueryModule": "0xa8F82672e2D37FC013A117d708E875bf39877FdA"
+  },
+  "txs": {
+    "chargeRewardModule": "0xf234d834abf0e39b848eaca9eaa61259df2f5fee1d95adf5c5a80911bb461cba",
+    "adminStatsQueryModule": "0x1162d57c0cb31d6c5b5fe31d66999ec4c85d8d2ed818c22942be9512817d08cd",
+    "setChargeRewardModule": "0xe436e83cc0b68f8c29eb1aa11d0f84f3b437f670aa12c0c7036edef4901808d0",
+    "setAdminStatsQueryModule": "0xb05b51df50fd4d30a63b3ab527ed7ea372e1b5f75a3cd675756bffb726bda5bc"
+  },
+  "note": "ChargeRewardModuleV2 + AdminStats V6: convertReward13ToProgramPoints / convertReward13ToUsdcToAa / peerRedeem13ForContainerTopup / topupWithReward13Container + ratio storage; reuse V5 + referrerViews; never bind bare V5. Blockscout verified 2026-08-30.",
+  "bound": {
+    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
+    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "setChargeRewardModuleTx": "0xe436e83cc0b68f8c29eb1aa11d0f84f3b437f670aa12c0c7036edef4901808d0",
+    "setAdminStatsQueryModuleTx": "0xb05b51df50fd4d30a63b3ab527ed7ea372e1b5f75a3cd675756bffb726bda5bc"
+  }
+}

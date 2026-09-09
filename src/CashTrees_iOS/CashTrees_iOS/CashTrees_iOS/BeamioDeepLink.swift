@@ -28,6 +28,7 @@ enum BeamioDeepLink {
     ]
 
     /// Universal Link path prefixes handled by this consumer shell.
+    /// AASA on beamio.app also lists `/app-download` (unwrapped below). POS must not claim these paths.
     static let universalLinkPathPrefixes = ["/app"]
 
     /// Share / install landing: unwrap `?target=https://beamio.app/app/…` to the inner PWA URL.

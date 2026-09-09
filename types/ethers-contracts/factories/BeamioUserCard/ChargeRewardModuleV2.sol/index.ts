@@ -5,3 +5,4 @@ export { BeamioUserCardChargeRewardModuleV2__factory } from './BeamioUserCardCha
 export { ICardPoints__factory } from './ICardPoints__factory.js';
 export { ICardPointsUnitPrice__factory } from './ICardPointsUnitPrice__factory.js';
 export { IERC20Minimal__factory } from './IERC20Minimal__factory.js';
+export { IFactoryOracleQuote__factory } from './IFactoryOracleQuote__factory.js';

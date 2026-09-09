@@ -1,6 +1,7 @@
 /**
- * 将 BeamioUserCard 和 BeamioUserCardFactoryPaymasterV07 的编译产物 ABI 同步到 SilentPassUI abis.ts
- * 运行：npx tsx scripts/syncBeamioCardAbisToUI.ts
+ * Sync BeamioUserCard + Factory Paymaster ABI into SilentPassUI and bizSite abis.ts.
+ * Run: npx tsx scripts/syncBeamioCardAbisToUI.ts
+ * (Requires: npm run compile)
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -16,19 +17,59 @@ const ARTIFACTS = {
     "artifacts/src/BeamioUserCard/BeamioUserCardFactoryPaymasterV07.sol/BeamioUserCardFactoryPaymasterV07.json"
   ),
 };
-const ABIS_TS = path.join(ROOT, "src/SilentPassUI/src/utils/abis.ts");
+const ABIS_TARGETS = [
+  path.join(ROOT, "src/SilentPassUI/src/utils/abis.ts"),
+  path.join(ROOT, "src/bizSite/src/utils/abis.ts"),
+];
+
+function patchAbisTs(abisPath: string, cardAbiJson: string, factoryAbiJson: string) {
+  if (!fs.existsSync(abisPath)) {
+    console.error(`❌ abis.ts not found: ${abisPath}`);
+    process.exit(1);
+  }
+
+  let content = fs.readFileSync(abisPath, "utf-8");
+
+  const cardAbiRegex =
+    /export const cardAbi = \[[\s\S]*?\]\s*\n\s*\n\s*export const BeamioCardFactoryAbi/;
+  const cardAbiRegex2 =
+    /export const cardAbi = \[[\s\S]*?\]\s*\n\s*export const BeamioCardFactoryAbi/;
+  if (cardAbiRegex.test(content)) {
+    content = content.replace(
+      cardAbiRegex,
+      `export const cardAbi = ${cardAbiJson}\n\nexport const BeamioCardFactoryAbi`
+    );
+  } else if (cardAbiRegex2.test(content)) {
+    content = content.replace(
+      cardAbiRegex2,
+      `export const cardAbi = ${cardAbiJson}\n\nexport const BeamioCardFactoryAbi`
+    );
+  } else {
+    console.error(`❌ Could not find cardAbi → BeamioCardFactoryAbi block in ${abisPath}`);
+    process.exit(1);
+  }
+
+  const factoryAbiRegex = /export const BeamioCardFactoryAbi = \[[\s\S]*$/;
+  if (!factoryAbiRegex.test(content)) {
+    console.error(`❌ Could not find BeamioCardFactoryAbi block in ${abisPath}`);
+    process.exit(1);
+  }
+  content = content.replace(
+    factoryAbiRegex,
+    `export const BeamioCardFactoryAbi = ${factoryAbiJson}\n`
+  );
+
+  fs.writeFileSync(abisPath, content);
+  console.log(`✅ Updated ${path.relative(ROOT, abisPath)}`);
+}
 
 function main() {
   for (const [, p] of Object.entries(ARTIFACTS)) {
     if (!fs.existsSync(p)) {
       console.error(`❌ Artifact not found: ${p}`);
-      console.error("   Run: npx hardhat compile");
+      console.error("   Run: npm run compile");
       process.exit(1);
     }
-  }
-  if (!fs.existsSync(ABIS_TS)) {
-    console.error(`❌ abis.ts not found: ${ABIS_TS}`);
-    process.exit(1);
   }
 
   const cardArtifact = JSON.parse(
@@ -41,38 +82,12 @@ function main() {
   const cardAbiJson = JSON.stringify(cardArtifact.abi);
   const factoryAbiJson = JSON.stringify(factoryArtifact.abi, null, 2);
 
-  let content = fs.readFileSync(ABIS_TS, "utf-8");
-
-  // Replace cardAbi (single line): export const cardAbi = [...] until \n\nexport const BeamioCardFactoryAbi
-  const cardAbiRegex =
-    /export const cardAbi = \[[\s\S]*?\]\s*\n\s*\n\s*export const BeamioCardFactoryAbi/;
-  const cardReplacement = `export const cardAbi = ${cardAbiJson}\n\nexport const BeamioCardFactoryAbi`;
-  if (!cardAbiRegex.test(content)) {
-    // Try without double newline
-    const cardAbiRegex2 =
-      /export const cardAbi = \[[\s\S]*?\]\s*\n\s*export const BeamioCardFactoryAbi/;
-    content = content.replace(
-      cardAbiRegex2,
-      `export const cardAbi = ${cardAbiJson}\n\nexport const BeamioCardFactoryAbi`
-    );
-  } else {
-    content = content.replace(cardAbiRegex, cardReplacement);
+  for (const target of ABIS_TARGETS) {
+    patchAbisTs(target, cardAbiJson, factoryAbiJson);
   }
 
-  // Replace BeamioCardFactoryAbi (last export, to end of file)
-  const factoryAbiRegex = /export const BeamioCardFactoryAbi = \[[\s\S]*$/;
-  if (!factoryAbiRegex.test(content)) {
-    console.error("❌ Could not find BeamioCardFactoryAbi block in abis.ts");
-    process.exit(1);
-  }
-  content = content.replace(
-    factoryAbiRegex,
-    `export const BeamioCardFactoryAbi = ${factoryAbiJson}\n`
-  );
-
-  fs.writeFileSync(ABIS_TS, content);
   console.log(
-    "✅ Updated abis.ts with BeamioUserCard and BeamioUserCardFactoryPaymasterV07 ABI"
+    "✅ Synced BeamioUserCard + BeamioUserCardFactoryPaymasterV07 ABI → SilentPassUI + bizSite"
   );
 }
 

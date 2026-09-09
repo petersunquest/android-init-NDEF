@@ -17,7 +17,7 @@
 			<string>com.beamio.app.pos</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>beamio</string>
+				<string>beamiopos</string>
 			</array>
 		</dict>
 	</array>

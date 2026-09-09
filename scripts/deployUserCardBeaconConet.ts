@@ -183,6 +183,21 @@ async function main(): Promise<void> {
 	const beaconArt = loadArtifact(
 		'src/BeamioUserCard/BeamioUserCardUpgradeableBeacon.sol/BeamioUserCardUpgradeableBeacon.json',
 	)
+	const cardLinkNames = new Set<string>()
+	for (const fileRefs of Object.values(cardArt.linkReferences || {})) {
+		for (const libName of Object.keys(fileRefs)) cardLinkNames.add(libName)
+	}
+	const legacyLinkedNames = new Set([
+		'BeamioUserCardFormattingLib',
+		'BeamioUserCardTransferLib',
+		'BeamioUserCardViewsLib',
+	])
+	const unsupportedV20Links = [...cardLinkNames].filter((name) => !legacyLinkedNames.has(name))
+	if (unsupportedV20Links.length > 0) {
+		throw new Error(
+			`V20 UserCard artifact requires linked libraries not handled by this legacy deploy script: ${unsupportedV20Links.join(', ')}. Use upgradeUserCardBeaconConet.ts or update this deploy path before sending any transaction.`,
+		)
+	}
 
 	const reused: Record<string, boolean> = {}
 	let formattingLib = ethers.getAddress(EXISTING_FORMATTING_LIB)
@@ -234,7 +249,7 @@ async function main(): Promise<void> {
 	const version = await implReader.VERSION()
 	const implOwner = await implReader.owner()
 	console.log(`[beacon] impl VERSION=${version} owner=${implOwner}`)
-	if (Number(version) !== 14) throw new Error(`Expected VERSION 14, got ${version}`)
+	if (Number(version) !== 20) throw new Error(`Expected VERSION 20, got ${version}`)
 	if (String(implOwner).toLowerCase() !== IMPL_OWNER_SENTINEL.toLowerCase()) {
 		throw new Error(`Expected sentinel owner ${IMPL_OWNER_SENTINEL}, got ${implOwner}`)
 	}
@@ -290,7 +305,7 @@ async function main(): Promise<void> {
 			beacon: [implAddr, FACTORY_OWNER],
 		},
 		note:
-			'UserCard V14 sentinel impl + UpgradeableBeacon. New cards use BeaconProxy initCode. Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck.',
+			'UserCard V20 sentinel impl + UpgradeableBeacon. New cards use BeaconProxy initCode. Factory bytecode unchanged. Old CREATE cards stay on P0 preCheck.',
 	}
 	const outPath = path.join(process.cwd(), 'deployments', 'conet-UserCardBeacon.json')
 	fs.writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + '\n')

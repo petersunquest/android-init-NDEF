@@ -9,18 +9,18 @@ alwaysApply: true
 
 **凡发布到公网的标准部署脚本，默认在 build / rsync 之前对对应子项目执行 `npm version patch --no-git-tag-version`，commit + push 后再部署。** 禁止「同版本号反复覆盖线上」而不 bump。
 
-用户可见版本来自各子项目 `package.json` 的 `version` 字段（bizSite：`src/bizSite/src/version.ts` → `APP_VERSION`）。
+用户可见版本来自各子项目 `package.json` 的 `version` 字段。Merchant OS：`src/bizSiteMerchant/src/version.ts` → `APP_VERSION`。Consumer PWA：`src/SilentPassUI/package.json`。工作树对照见 **`beamio-biz-app-worktree-deploy.mdc`**（`src/bizSite` **不是** Merchant OS）。
 
 ## 标准脚本（单一事实来源）
 
 | 产品 | 源码 | 部署脚本 | bump 目标 |
 |---|---|---|---|
-| **bizSite** Merchant OS | `src/bizSite/` | `./scripts/deployBeamioBizSite.sh` | `src/bizSite/package.json` |
-| **SilentPassUI** PWA | `src/SilentPassUI/` | `./scripts/deployBeamioPwa.sh` | `src/SilentPassUI/package.json` |
+| **Merchant OS** `/biz/` | **`src/bizSiteMerchant/`**（`cashtrees`） | `./scripts/deployBeamioBizSite.sh` | `src/bizSiteMerchant/package.json` |
+| **SilentPassUI** PWA `/app/` | `src/SilentPassUI/`（`cashtree`） | `./scripts/deployBeamioPwa.sh` | `src/SilentPassUI/package.json` |
 | **POS PWA**（Web `/pos/`） | `src/posPwa/` | `./scripts/deployBeamioPosPwa.sh` | `src/posPwa/package.json` |
 | **POS PWA**（Embedded OTA） | `src/posPwa/` | `./scripts/deployPosConetNetwork.sh` | 同上 + **同步** `public/update.json` |
 
-SilentPassUI / bizSite 脚本均：
+SilentPassUI / Merchant OS 脚本均：
 
 1. 要求子项目 **working tree clean**（有未提交改动则失败，避免 bump 与业务混 commit）。
 2. `npm version patch --no-git-tag-version`
@@ -39,8 +39,8 @@ AI / 人工 **不得**在守则或 runbook 里把 `--skip-version-bump` 当作�
 
 ## 子模块 / 根仓
 
-- bizSite、SilentPassUI 为独立 git 子项目时：**先在子目录 bump + push**，再在根仓更新子模块指针并 push（见 `beamio-git-clean-commit-push.mdc`）。
-- 远程服务器 clone（如 `/var/www/biz.beamio.app/SilentPassUI`）须在 bump push **之后** `git pull`，否则线上仍是旧 `APP_VERSION`。
+- Merchant OS（`src/bizSiteMerchant`）与 SilentPassUI 为同一 GitHub 仓的不同 worktree / 分支时：**在对应工作树 bump + push**，勿 bump 错目录（见 `beamio-biz-app-worktree-deploy.mdc`）。
+- 远程服务器 clone（biz：`/var/www/biz.beamio.app/SilentPassUI`；app：`/var/www/beamio.app/SilentPassUI`）须在 bump push **之后** `git pull`，否则线上仍是旧 `APP_VERSION`。
 
 ## 其它 PWA / 站点
 
@@ -52,7 +52,7 @@ POS PWA bump 时 **必须**同步 `src/posPwa/public/update.json`（`ver` + `Bea
 
 - [ ] 是否走标准脚本（`deployBeamioBizSite.sh` / `deployBeamioPwa.sh`）而非手写 rsync？
 - [ ] 是否 **未** 默认加 `--skip-version-bump`？
-- [ ] bump 前 bizSite / SilentPassUI working tree 是否 clean？
+- [ ] bump 前 **对应工作树**（Merchant = `src/bizSiteMerchant`，PWA = `src/SilentPassUI`）是否 clean？是否未误 bump `src/bizSite`？
 - [ ] bump 后是否 **push**，再 remote build / local-build？
 - [ ] 验收时是否 spot-check 页脚或设置里的 **新版本号**（如 biz 登录页 `vX.Y.Z`）？
 - [ ] SilentPassUI：是否 smoke `https://beamio.app/app/update.json` 与 zip？
@@ -63,7 +63,8 @@ POS PWA bump 时 **必须**同步 `src/posPwa/public/update.json`（`ver` + `Bea
 - ❌ 重复部署同一 `package.json` version 到生产且无文档化例外
 - ❌ 只 rsync build、不 bump、不 push，却告知用户「已发新版」
 - ❌ 在 bump commit 中夹带未相关的业务源码改动
-- ❌ 手工改 `version.ts` 而不改 `package.json`（bizSite 以 `package.json` 为唯一来源）
+- ❌ 手工改 `version.ts` 而不改 `package.json`（Merchant OS / PWA 均以该工作树 `package.json` 为唯一来源）
+- ❌ 在 `src/bizSite`（当前是 app `cashtree` worktree）上 bump Merchant 版本
 
 ## SilentPassUI 额外：Embedded OTA
 
@@ -76,6 +77,6 @@ POS PWA bump 时 **必须**同步 `src/posPwa/public/update.json`（`ver` + `Bea
 
 ## 相关守则
 
-- `beamio-bizsite-deploy.mdc` — bizSite 路径与 promote
+- `beamio-biz-app-worktree-deploy.mdc` — Merchant / Consumer 工作树、远程路径、`BIZ_DIR`
 - `beamio-pwa-deploy-app-dirs.mdc` — PWA bump + `/app/` rsync + **Embedded OTA**
 - `beamio-git-clean-commit-push.mdc` — 子模块 push 顺序

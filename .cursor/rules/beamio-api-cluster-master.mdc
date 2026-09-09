@@ -31,6 +31,8 @@ Beamio 的 API 服务器**必须**遵守 cluster/master 协议。**请勿违反�
 
 示例：createCard、purchasingCard、registerSeries、registerMintMetadata、executeForOwner、AAtoEOA、beamioTransferIndexerAccounting 等。
 
+**USDC 转账与支付（CoNET / Base）**必须离线签名后走本通道代付 gas，见 **`beamio-usdc-offline-sign-gas-sponsor.mdc`**；禁止客户端自付 ETH/CNET 热发 `USDC.transfer`。
+
 ## requestHash 相关预检（Cluster 必须做）
 
 AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`：

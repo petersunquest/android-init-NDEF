@@ -118,6 +118,8 @@ error UC_IssuedNftInactive(uint256 tokenId);
 /// @dev charge 奖励空投：入参 currency 须与卡链上 currency() 一致（fiat6-only，非 USDC 折算金额）
 error UC_ChargeCurrencyMismatch(uint8 expected, uint8 got);
 error UC_ChargeRewardDisabled();
+error UC_OracleSpreadTooHigh(uint256 spreadBps, uint256 maxBps);
+error UC_OracleQuoteZero();
 error UC_RewardBudgetInsufficient(uint256 need13, uint256 have13);
 error UC_BunitAirdropCallerOnly();
 error UC_UserStatNotInitialized();
