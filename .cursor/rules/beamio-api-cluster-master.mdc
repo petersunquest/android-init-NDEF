@@ -33,6 +33,16 @@ Beamio 的 API 服务器**必须**遵守 cluster/master 协议。**请勿违反�
 
 **USDC 转账与支付（CoNET / Base）**必须离线签名后走本通道代付 gas，见 **`beamio-usdc-offline-sign-gas-sponsor.mdc`**；禁止客户端自付 ETH/CNET 热发 `USDC.transfer`。
 
+## 并列运行与业务签名池
+
+Cluster 与 Master 是并列运行面：Cluster 只做预检/转发，Master 将链上写任务放入业务 pool。需要用户或 merchant-card admin EIP-712 签名的任务，签名必须在 Master worker 真正执行时完成，禁止在 webhook/Cluster 预先占用或预签名。
+
+- Stripe merchant-card fulfillment 使用 `masterSetup.initManager[]` 派生的独立 Stripe signer pool；该池只负责 `ExecuteForAdmin` 签名，不负责 gas、EntryPoint nonce 或 settle admin 占用。
+- worker 以 `acquire → sign → submit → finally release` 运行；同一 signer 不得同时租给两个任务。成功、失败、提前 return 和异常路径都必须归还。
+- 无空闲 signer 时任务留在原 pool，由非重叠 `setTimeout` 链延迟重试；禁止 `setInterval`、重复入队或把“无空闲”当作配置缺失。
+- Stripe signer pool 与 `Settle_BasePool` / `Settle_ConetPool` 严格分离；settle pool 只负责 gas/EOA transaction nonce，业务 signer 只负责签名。
+- Stripe webhook 只负责幂等 claim 并入队 unsigned task；链上成功确认后才能把 session 标记 `succeeded`，失败必须可重试且不得重复消费。
+
 ## requestHash 相关预检（Cluster 必须做）
 
 AAtoEOA、beamioTransferIndexerAccounting 等端点，若 body 含 `requestHash`：
