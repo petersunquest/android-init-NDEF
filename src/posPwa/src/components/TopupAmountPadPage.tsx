@@ -7,6 +7,7 @@ import {
 import { useMemo, useState } from 'react'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { BeamioAmountPad, formatAmountPadDisplay } from '@/components/BeamioAmountPad'
+import { StripeIcon } from '@/components/StripeIcon'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { UsdcBaseCompositeIcon } from '@/components/ChainTokenCompositeIcon'
 import { nfcTopupCurrencySplitFromPosKeypad } from '@/utils/topupCurrencySplit'
@@ -24,6 +25,7 @@ import { MEMBERSHIP_FEE_CHECK_BALANCE_HINT } from '@/utils/readBalanceMembership
 const TOPUP_PURPLE = '#7C3AED'
 const METHOD_ACCENT: Record<TopupPaymentMethodRaw, string> = {
 	creditCard: '#D49B1F',
+	stripePhysicalCard: '#635BFF',
 	usdc: '#2775CA',
 	cadd: '#E53A2F',
 	cash: '#6B7280',
@@ -140,6 +142,8 @@ export function TopupAmountPadPage({
 									>
 										{method === 'usdc' ? (
 											<UsdcBaseCompositeIcon size={22} />
+										) : method === 'stripePhysicalCard' ? (
+											<StripeIcon size={22} />
 										) : (
 											(() => {
 												const Icon = methodIcon(method)

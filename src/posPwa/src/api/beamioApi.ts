@@ -20,6 +20,75 @@ import {
 import { isPlausibleEvmAddress } from '@/utils/evmAddress'
 import { parsePointSystemEnabledFromMetadata } from '@/utils/pointSystemMetadata'
 
+export type MerchantCardStripeTerminalIntent = {
+	paymentIntentId: string
+	clientSecret: string
+	publishableKey: string
+	locationId: string
+}
+
+export async function createMerchantCardStripeTerminalPaymentIntent(body: {
+	cardAddress: string
+	buyerEoa: string
+	amountFiat6: string
+	currency: string
+	kind?: 'topup' | 'membership'
+	businessIdempotencyKey: string
+}): Promise<MerchantCardStripeTerminalIntent> {
+	const res = await fetch(`${BEAMIO_API}/api/merchantCardStripe/createTerminalPaymentIntent`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ ...body, kind: body.kind ?? 'topup' }),
+	})
+	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+	if (!res.ok || typeof json.paymentIntentId !== 'string' || typeof json.clientSecret !== 'string') {
+		throw new Error(String(json.error ?? `Stripe Terminal setup failed (HTTP ${res.status})`))
+	}
+	return {
+		paymentIntentId: json.paymentIntentId,
+		clientSecret: json.clientSecret,
+		publishableKey: String(json.publishableKey ?? ''),
+		locationId: String(json.locationId ?? ''),
+	}
+}
+
+export async function fetchMerchantCardStripeTerminalConnectionToken(cardAddress: string): Promise<{
+	secret: string
+	locationId: string
+}> {
+	const res = await fetch(`${BEAMIO_API}/api/merchantCardStripe/connectionToken`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ cardAddress }),
+	})
+	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+	if (!res.ok || typeof json.secret !== 'string') {
+		throw new Error(String(json.error ?? `Stripe Terminal connection failed (HTTP ${res.status})`))
+	}
+	return { secret: json.secret, locationId: String(json.locationId ?? '') }
+}
+
+export async function pollMerchantCardStripePayment(paymentIntentId: string): Promise<{
+	status: string
+	fulfillmentStatus?: string
+	txHash?: string
+	error?: string
+}> {
+	const res = await fetch(`${BEAMIO_API}/api/merchantCardStripe/poll`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ sessionId: paymentIntentId }),
+	})
+	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+	if (!res.ok) throw new Error(String(json.error ?? `Stripe payment status failed (HTTP ${res.status})`))
+	return {
+		status: String(json.status ?? 'unknown'),
+		fulfillmentStatus: typeof json.fulfillmentStatus === 'string' ? json.fulfillmentStatus : undefined,
+		txHash: typeof json.txHash === 'string' ? json.txHash : undefined,
+		error: typeof json.error === 'string' ? json.error : undefined,
+	}
+}
+
 const registryIface = new Interface([
 	'function isAccountNameAvailable(string name) view returns (bool)',
 ])

@@ -32,6 +32,27 @@ export interface CashTreesQrDetail {
 	error?: string
 }
 
+export type StripePhysicalReaderMode = 'auto' | 'tap_to_pay' | 'external_reader'
+
+export interface StripePhysicalPaymentRequest {
+	requestId: string
+	clientSecret: string
+	paymentIntentId: string
+	cardAddress: string
+	locationId: string
+	readerMode?: StripePhysicalReaderMode
+}
+
+export interface StripePhysicalPaymentDetail {
+	action?: string
+	requestId?: string
+	ok: boolean
+	paymentIntentId?: string
+	paymentStatus?: string
+	errorCode?: string
+	error?: string
+}
+
 declare global {
 	interface Window {
 		CashTreesIOS?: {
@@ -47,6 +68,8 @@ declare global {
 			notifyBackgroundChat?: (payload: Record<string, unknown>) => void
 			bindPushIdentity?: (payload: { eoa: string; pgpKeyId?: string }) => void
 			printReceipt?: (payload: { text?: string; title?: string }) => void
+			startStripePhysicalPayment?: (payload: StripePhysicalPaymentRequest) => void
+			cancelStripePhysicalPayment?: (payload: { requestId?: string }) => void
 		}
 		CashTreesAndroid?: {
 			getNfcStatus?: () => string
@@ -60,6 +83,8 @@ declare global {
 			publishAppState?: (json: string) => void
 			notifyBackgroundChat?: (json: string) => void
 			bindPushIdentity?: (json: string) => void
+			startStripePhysicalPayment?: (json: string) => void
+			cancelStripePhysicalPayment?: (json: string) => void
 		}
 	}
 }
@@ -99,6 +124,41 @@ export function startCashTreesPhysicalCardBind(): void {
 export function cancelCashTreesPhysicalCardBind(): void {
 	iosBridge()?.cancelPhysicalCardBind?.()
 	androidBridge()?.cancelPhysicalCardBind?.()
+}
+
+export function hasStripePhysicalPaymentBridge(): boolean {
+	return Boolean(iosBridge()?.startStripePhysicalPayment ?? androidBridge()?.startStripePhysicalPayment)
+}
+
+export function startStripePhysicalPayment(request: StripePhysicalPaymentRequest): void {
+	if (iosBridge()?.startStripePhysicalPayment) {
+		iosBridge()!.startStripePhysicalPayment!(request)
+		return
+	}
+	androidBridge()?.startStripePhysicalPayment?.(JSON.stringify(request))
+}
+
+export function cancelStripePhysicalPayment(requestId?: string): void {
+	if (iosBridge()?.cancelStripePhysicalPayment) {
+		iosBridge()!.cancelStripePhysicalPayment!({ requestId })
+		return
+	}
+	androidBridge()?.cancelStripePhysicalPayment?.(JSON.stringify({ requestId }))
+}
+
+export function listenStripePhysicalPayment(
+	handler: (detail: StripePhysicalPaymentDetail) => void,
+): () => void {
+	const fn = (e: Event) => {
+		const detail = (e as CustomEvent<StripePhysicalPaymentDetail>).detail
+		if (detail && typeof detail === 'object' && typeof detail.ok === 'boolean') handler(detail)
+	}
+	window.addEventListener('cashtreesios', fn)
+	window.addEventListener('cashtreesandroid', fn)
+	return () => {
+		window.removeEventListener('cashtreesios', fn)
+		window.removeEventListener('cashtreesandroid', fn)
+	}
 }
 
 export function launchCashTreesQrScan(requestId: string): void {

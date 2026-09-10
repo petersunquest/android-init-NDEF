@@ -46,6 +46,7 @@ import {
 	pollUsdcTopupSession,
 	usdcTopupCustomerHint,
 } from '@/utils/topupUsdcSession'
+import { collectStripePhysicalTopup } from '@/utils/stripePhysicalPayment'
 
 type TopUpPhase =
 	| 'amount'
@@ -121,6 +122,12 @@ export function TopUpPage() {
 	const [topupProgress, setTopupProgress] = useState<TopupExecuteProgressPhase>('preparing')
 	const [membershipFeeMode, setMembershipFeeMode] = useState(false)
 	const [cardCurrencyPrefix, setCardCurrencyPrefix] = useState('$')
+	const humanAmountToFiat6 = useCallback((raw: string): string => {
+		const value = raw.trim().replace(/,/g, '')
+		if (!/^\d+(?:\.\d{0,6})?$/.test(value)) throw new Error('Enter a valid payment amount.')
+		const [whole, fraction = ''] = value.split('.')
+		return String(BigInt(whole) * 1_000_000n + BigInt(fraction.padEnd(6, '0') || '0'))
+	}, [])
 
 	useEffect(() => {
 		const infra = merchantInfraCard?.trim() ?? ''
@@ -314,6 +321,41 @@ export function TopUpPage() {
 				}
 			}
 
+			if (draft?.method === 'stripePhysicalCard') {
+				const physicalAssets = target.wallet
+					? null
+					: await fetchTopupCustomerAssets(target, merchantInfraCard?.trim() ?? '')
+				const buyerEoa = target.wallet ?? physicalAssets?.address
+				if (!buyerEoa) {
+					goHome('A customer wallet is required for physical card top-up.')
+					return
+				}
+				setTopupProgress('preparing')
+				setPhase('executing')
+				try {
+					const currency = (await fetchCardCurrencyCode(merchantInfraCard?.trim() ?? '')) ?? 'CAD'
+					const result = await collectStripePhysicalTopup({
+						cardAddress: merchantInfraCard?.trim() ?? '',
+						buyerEoa,
+						amountFiat6: humanAmountToFiat6(draft.keypadAmount),
+						currency,
+						onProgress: () => setTopupProgress('refreshing'),
+					})
+					setSuccess({
+						amount: draft.currencyAmount,
+						txHash: result.txHash,
+						preBalance: '—',
+						postBalance: '—',
+						cardCurrency: currency,
+					})
+					setPhase('success')
+					void refreshHome()
+				} catch (error) {
+					goHome(error instanceof Error ? error.message : 'Physical card top-up failed.')
+				}
+				return
+			}
+
 			if (phase === 'scan-nfc-after-usdc') {
 				await runCardTopup(target, usdcSid)
 				return
@@ -337,6 +379,7 @@ export function TopUpPage() {
 		goHome,
 		merchantInfraCard,
 		membershipFeeMode,
+		humanAmountToFiat6,
 		runCardTopup,
 		startUsdcQrFlow,
 		usdcSid,

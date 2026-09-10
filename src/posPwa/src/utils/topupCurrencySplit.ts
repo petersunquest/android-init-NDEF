@@ -28,6 +28,7 @@ export function nfcTopupCurrencySplitFromPosKeypad(
 	const z = formatDecimalTopupApi6(0)
 	switch (methodRaw) {
 		case 'creditCard':
+		case 'stripePhysicalCard':
 		case 'usdc':
 		case 'cadd':
 			if (bonusExpanded) {
@@ -108,6 +109,7 @@ export function nfcTopupCurrencySplitWithProgramRechargeBonus(
 	const z = formatDecimalTopupApi6(0)
 	switch (methodRaw) {
 		case 'creditCard':
+		case 'stripePhysicalCard':
 		case 'usdc':
 		case 'cadd':
 			return {

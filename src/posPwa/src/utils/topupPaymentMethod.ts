@@ -1,7 +1,15 @@
-export type TopupPaymentMethodRaw = 'creditCard' | 'usdc' | 'cadd' | 'cash' | 'bonus'
+export type TopupPaymentMethodRaw =
+	| 'creditCard'
+	| 'stripePhysicalCard'
+	| 'usdc'
+	| 'cadd'
+	| 'cash'
+	| 'bonus'
 
 export interface PosTerminalTopupPolicy {
 	allowTopupBankCard: boolean
+	/** Stripe Terminal is a separate physical-card workflow from the legacy Card mint flow. */
+	allowTopupStripePhysicalCard?: boolean
 	allowTopupUsdc: boolean
 	allowTopupCadd: boolean
 	allowTopupCash: boolean
@@ -10,6 +18,7 @@ export interface PosTerminalTopupPolicy {
 
 export const POS_TERMINAL_TOPUP_POLICY_ALL: PosTerminalTopupPolicy = {
 	allowTopupBankCard: true,
+	allowTopupStripePhysicalCard: true,
 	allowTopupUsdc: true,
 	allowTopupCadd: true,
 	allowTopupCash: true,
@@ -18,6 +27,7 @@ export const POS_TERMINAL_TOPUP_POLICY_ALL: PosTerminalTopupPolicy = {
 
 export const TOPUP_METHOD_CYCLE_ORDER: TopupPaymentMethodRaw[] = [
 	'creditCard',
+	'stripePhysicalCard',
 	'usdc',
 	'cadd',
 	'cash',
@@ -26,6 +36,7 @@ export const TOPUP_METHOD_CYCLE_ORDER: TopupPaymentMethodRaw[] = [
 
 export const TOPUP_METHOD_LABEL: Record<TopupPaymentMethodRaw, string> = {
 	creditCard: 'Card',
+	stripePhysicalCard: 'Stripe physical card',
 	usdc: 'USDC',
 	cadd: 'CADD',
 	cash: 'Cash',
@@ -41,6 +52,8 @@ export function topupMethodAllowed(
 	switch (method) {
 		case 'creditCard':
 			return policy.allowTopupBankCard
+		case 'stripePhysicalCard':
+			return policy.allowTopupStripePhysicalCard !== false
 		case 'usdc':
 			return policy.allowTopupUsdc
 		case 'cadd':
