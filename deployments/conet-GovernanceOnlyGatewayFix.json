@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-09-10T23:31:27.530Z",
+  "rpc": "https://rpc1.conet.network",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "factoryOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "previousGovernanceModule": "0x54009f2388F4198C715A6B45BF36754812f90adD",
+  "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
+  "boundGovernanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
+  "adminStatsQueryModuleBefore": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10",
+  "adminStatsQueryModuleAfter": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10",
+  "deployTx": "0x852a869319d0cc96c6780bcaf8eeea61a4e8d9c5c502f0b9f3b1712a3972feb1",
+  "bindTx": "0xe51ca17de151bd3b9232292d96c9163782eb37630bbac8d0a1dba909340df359",
+  "fix": "Governance onlyGateway accepts Factory gateway or card-internal self-call"
+}

@@ -1,17 +1,17 @@
 {
   "network": "conet",
-  "chainId": "224400",
-  "timestamp": "2026-03-12T23:30:02.768Z",
+  "chainId": "224422",
+  "timestamp": "2026-09-10T23:31:27.530Z",
   "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
-  "factory": "0xd57eac0372aa2fbfC6625D20fA9E4a963F3F5063",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
   "modules": {
     "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
-    "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
+    "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
     "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
     "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
-    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
+    "adminStatsQueryModule": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10",
     "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
@@ -36,10 +36,10 @@
   "bound": {
     "issuedNftModule": "0x6A870AFe1dB4A4E4652D85E7f3CeD70C6Fb010EF",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
-    "governanceModule": "0x1442728d179019c7210B91a227b43318fb1900eE",
+    "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
     "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
-    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf"
+    "adminStatsQueryModule": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10"
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
@@ -142,10 +142,32 @@
       "scan": "https://mainnet.conet.network"
     }
   },
+  "governanceOnlyGatewayFix": {
+    "snapshot": "conet-GovernanceOnlyGatewayFix.json",
+    "timestamp": "2026-09-10T23:31:27.530Z",
+    "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
+    "replaced": {
+      "governanceModule": "0x54009f2388F4198C715A6B45BF36754812f90adD"
+    },
+    "bound": {
+      "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
+      "adminStatsQueryModuleUnchanged": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10"
+    },
+    "txs": {
+      "deploy": "0x852a869319d0cc96c6780bcaf8eeea61a4e8d9c5c502f0b9f3b1712a3972feb1",
+      "setGovernanceModule": "0xe51ca17de151bd3b9232292d96c9163782eb37630bbac8d0a1dba909340df359"
+    },
+    "verified": {
+      "isVerified": true,
+      "isPartiallyVerified": true,
+      "scan": "https://mainnet.conet.network"
+    },
+    "note": "Governance onlyGateway accepts Factory gateway or card-internal self-call; AdminStats untouched."
+  },
   "redeemModule": "0xb224B24c9167355ac53B110b7B1b0382cecEB03F",
   "adminStatsQueryModule": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
   "adminStatsQueryModuleV6": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
-  "updatedAt": "2026-09-08T18:40:56.697Z",
+  "updatedAt": "2026-09-10T23:31:27.530Z",
   "merchantGiftRedeem": {
     "network": "conet",
     "chainId": 224422,

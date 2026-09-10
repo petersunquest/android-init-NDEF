@@ -15,12 +15,17 @@ interface IUserCardCtx {
  * @notice Delegatecall module for multisig governance. Card executes (adminManager/mintPoints/mintMemberCard) after executeProposal returns.
  */
 contract BeamioUserCardGovernanceModuleV1 {
+    uint256 private constant MAX_BATCH_ADMINS = 64;
     event ProposalCreated(uint256 indexed id, bytes4 indexed selector, address indexed proposer);
     event ProposalApproved(uint256 indexed id, address indexed admin);
     event ProposalExecuted(uint256 indexed id);
 
     modifier onlyGateway() {
-        if (msg.sender != IUserCardCtx(address(this)).factoryGateway()) revert UC_UnauthorizedGateway();
+        // External routes enter through the factory gateway; card-internal flows
+        // call modules through cardSelfCallModule, where msg.sender is the card.
+        if (msg.sender != address(this) && msg.sender != IUserCardCtx(address(this)).factoryGateway()) {
+            revert UC_UnauthorizedGateway();
+        }
         _;
     }
 
@@ -173,6 +178,26 @@ contract BeamioUserCardGovernanceModuleV1 {
     function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata, uint256 mintLimit) external onlyGateway {
         if (admin) _addAdmin(to, newThreshold, metadata, address(0), mintLimit, true);
         else _removeAdmin(to, newThreshold, IUserCardCtx(address(this)).owner());
+    }
+
+    /// @notice Owner-authorized batch registration/update for gateway-managed admins.
+    /// @dev The gateway executes this as one card call, so all Stripe fulfillment
+    /// admins are registered and receive their allowance in a single transaction.
+    function adminManagerBatch(
+        address[] calldata tos,
+        uint256 newThreshold,
+        string calldata metadata,
+        uint256 mintLimit
+    ) external onlyGateway {
+        if (tos.length == 0 || tos.length > MAX_BATCH_ADMINS) revert UC_InvalidProposal();
+        for (uint256 i = 0; i < tos.length; i++) {
+            address admin = tos[i];
+            if (admin == address(0)) revert BM_ZeroAddress();
+            for (uint256 j = 0; j < i; j++) {
+                if (tos[j] == admin) revert UC_InvalidProposal();
+            }
+            _addAdmin(admin, newThreshold, metadata, address(0), mintLimit, true);
+        }
     }
 
     /// @notice admin 离线签字后经 gateway 的 executeForAdmin 执行。添加时 authorizer 为 parent；移除时仅 authorizer==parent 可删
