@@ -1,7 +1,7 @@
 {
   "name": "beamio-pos-pwa",
   "private": true,
-  "version": "0.1.36",
+  "version": "0.1.37",
   "homepage": "/pos",
   "type": "module",
   "scripts": {
