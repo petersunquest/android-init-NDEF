@@ -122,6 +122,7 @@ export function TopUpPage() {
 	const [topupProgress, setTopupProgress] = useState<TopupExecuteProgressPhase>('preparing')
 	const [membershipFeeMode, setMembershipFeeMode] = useState(false)
 	const [cardCurrencyPrefix, setCardCurrencyPrefix] = useState('$')
+	const [terminalError, setTerminalError] = useState('')
 	const humanAmountToFiat6 = useCallback((raw: string): string => {
 		const value = raw.trim().replace(/,/g, '')
 		if (!/^\d+(?:\.\d{0,6})?$/.test(value)) throw new Error('Enter a valid payment amount.')
@@ -161,6 +162,7 @@ export function TopUpPage() {
 			keypadAmount: string
 			currencyAmount: string
 		}) => {
+			setTerminalError('')
 			const infra = merchantInfraCard?.trim() ?? ''
 			if (!infra) {
 				goHome('Terminal program card is not configured.')
@@ -351,7 +353,8 @@ export function TopUpPage() {
 					setPhase('success')
 					void refreshHome()
 				} catch (error) {
-					goHome(error instanceof Error ? error.message : 'Physical card top-up failed.')
+					setTerminalError(error instanceof Error ? error.message : 'Physical card top-up failed.')
+					setPhase('amount')
 				}
 				return
 			}
@@ -447,6 +450,9 @@ export function TopUpPage() {
 			<TopupAmountPadPage
 				membershipRequired={false}
 				cardCurrencyPrefix={cardCurrencyPrefix}
+				error={terminalError}
+				initialAmount={draft?.keypadAmount ?? '0'}
+				initialMethod={draft?.method}
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}
 			/>

@@ -698,9 +698,11 @@ export function CheckBalancePage() {
 		const maxPoints6 = deductChargeRewardPoints6(assets, infraCard)
 		return (
 			<DeductPointsAmountPadPage
+				assets={assets}
+				allowUsdcTopup={false}
 				maxPoints6={maxPoints6}
 				onCancel={() => setPhase('result')}
-				onContinue={(amount) => void runDeductFromReadBalance(amount)}
+				onContinue={({ keypadAmount }) => void runDeductFromReadBalance(keypadAmount)}
 			/>
 		)
 	}
@@ -709,7 +711,7 @@ export function CheckBalancePage() {
 		const pts = Number(deductKeypadAmount.replace(/,/g, '')) || 0
 		return (
 			<PosScanExecutingShell
-				title="Deduct Points"
+				title="Points"
 				center={
 					<PosTopupExecutingCard signingInProgress={deductProgress === 'signing'} />
 				}

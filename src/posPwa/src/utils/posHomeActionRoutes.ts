@@ -52,8 +52,8 @@ export const NATIVE_ACTION_LOADING: Record<
 		subtitle: 'Opening balance check…',
 	},
 	deductPoints: {
-		title: 'Deduct Points',
-		subtitle: 'Opening deduct points…',
+		title: 'Points',
+		subtitle: 'Opening points…',
 	},
 	history: {
 		title: 'History',

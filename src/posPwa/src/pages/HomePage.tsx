@@ -323,7 +323,7 @@ export function HomePage() {
 							style={{ height: heights.actionRow, minHeight: heights.actionRow }}
 						>
 							<HomeActionGridButton
-								title="Deduct Points"
+								title="Points"
 								icon={MinusCircle}
 								iconTint={DEDUCT_ORANGE}
 								onClick={() => navigate(POS_HOME_ROUTES.deductPoints)}

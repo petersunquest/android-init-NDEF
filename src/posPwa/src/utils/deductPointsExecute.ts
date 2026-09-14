@@ -110,7 +110,7 @@ function assetsWithPostPointBalance(
 	}
 }
 
-async function loadCustomerAssets(
+export async function loadCustomerAssets(
 	target: DeductCustomerTarget,
 	merchantInfraCard: string,
 ): Promise<UIDAssetsResult | null> {

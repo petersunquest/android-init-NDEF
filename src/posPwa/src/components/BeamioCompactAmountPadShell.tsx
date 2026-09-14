@@ -46,6 +46,7 @@ export function BeamioCompactAmountPadShell({
 	title,
 	continueTitle = 'Continue',
 	amountDisplay,
+	amountTrailing,
 	aboveAmountDisplay,
 	belowAmountHint,
 	canContinue,
@@ -57,6 +58,8 @@ export function BeamioCompactAmountPadShell({
 	title: string
 	continueTitle?: string
 	amountDisplay: ReactNode
+	/** Optional mode/payment selector rendered beside the amount. */
+	amountTrailing?: ReactNode
 	/** e.g. available pts balance below title. */
 	aboveAmountDisplay?: ReactNode
 	/** e.g. validation hint under the amount. */
@@ -96,7 +99,7 @@ export function BeamioCompactAmountPadShell({
 				) : null}
 
 				<div
-					className="shrink-0 text-center font-black tabular-nums leading-none"
+					className="flex shrink-0 items-center justify-center gap-3 font-black tabular-nums leading-none"
 					style={{
 						color: accent,
 						fontSize: amountPx,
@@ -104,7 +107,8 @@ export function BeamioCompactAmountPadShell({
 						paddingBottom: gap,
 					}}
 				>
-					{amountDisplay}
+					<span>{amountDisplay}</span>
+					{amountTrailing ? <span className="shrink-0">{amountTrailing}</span> : null}
 				</div>
 
 				{belowAmountHint ? (

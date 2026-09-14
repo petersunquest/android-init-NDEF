@@ -24,6 +24,32 @@ function post(msg: WorkerOutbound): void {
 
 let gossip: GossipCore | null = null
 let history: HistoryStore | null = null
+let historySyncTimer: ReturnType<typeof setTimeout> | null = null
+
+const HISTORY_SYNC_DELAY_MS = 30_000
+
+function stopHistorySync(): void {
+	if (historySyncTimer !== null) {
+		clearTimeout(historySyncTimer)
+		historySyncTimer = null
+	}
+}
+
+function scheduleHistorySync(): void {
+	stopHistorySync()
+	historySyncTimer = setTimeout(async () => {
+		historySyncTimer = null
+		if (!history) return
+		try {
+			await history.syncFromHead()
+			await history.load({ localOnly: true })
+		} catch (ex) {
+			post({ type: 'event:log', level: 'warn', message: `history sync failed: ${(ex as Error)?.message ?? String(ex)}` })
+		} finally {
+			if (history) scheduleHistorySync()
+		}
+	}, HISTORY_SYNC_DELAY_MS)
+}
 
 function makeGossip(): GossipCore {
 	return new GossipCore({
@@ -121,6 +147,7 @@ async function handle(cmd: WorkerInbound): Promise<void> {
 				history = makeHistory(cmd.payload)
 				await gossip.init(cmd.payload)
 				post({ type: 'ready', reqId: cmd.reqId })
+				scheduleHistorySync()
 			} catch (ex) {
 				post({ type: 'ack', reqId: cmd.reqId, ok: false, error: (ex as Error)?.message ?? String(ex) })
 			}
@@ -184,6 +211,7 @@ async function handle(cmd: WorkerInbound): Promise<void> {
 			gossip?.resume()
 			return
 		case 'destroy':
+			stopHistorySync()
 			gossip?.destroy()
 			history?.destroy()
 			gossip = null

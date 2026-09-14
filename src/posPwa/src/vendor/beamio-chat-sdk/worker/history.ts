@@ -85,6 +85,7 @@ export class HistoryStore {
 	private selfSign = ''
 	/** Lazily-created read-only CoNET provider (RPC-first pointer reads). */
 	private provider: ethers.JsonRpcProvider | null = null
+	private mutationChain: Promise<void> = Promise.resolve()
 
 	constructor(
 		private readonly emit: HistoryEmit,
@@ -181,7 +182,7 @@ export class HistoryStore {
 		}
 	}
 
-	private async loadManifest(localOnly: boolean): Promise<IndexManifest | null> {
+	private async loadLocalManifest(): Promise<IndexManifest | null> {
 		// Local-first (instant open).
 		if (this.opts.persistence) {
 			const cached = (await this.opts.persistence.get(this.localIndexKey())) as string | undefined
@@ -195,40 +196,131 @@ export class HistoryStore {
 				}
 			}
 		}
-		if (localOnly) return this.manifest
-		// Network refresh (trusted-only overwrite): resolve on-chain head pointer → fetch index cipher.
-		const pointer = await this.readOnchainPointer()
-		if (pointer) {
-			const cipher = await this.fetchIndexCipherByHash(pointer.indexHash)
-			if (cipher && this.indexKey) {
-				try {
-					const json = await aesGcmDecryptString(this.indexKey, cipher)
-					const parsed = JSON.parse(json) as IndexManifest
-					if (parsed?.v === 1) {
-						// Only overwrite when network is at least as complete as local (trusted).
-						const netLen = parsed.records?.length ?? 0
-						const localLen = this.manifest?.records?.length ?? 0
-						if (netLen >= localLen) {
-							this.manifest = parsed
-							if (this.opts.persistence) await this.opts.persistence.set(this.localIndexKey(), cipher)
-						}
-					}
-				} catch {
-					/* untrusted parse — keep local */
-				}
-			}
-		}
 		return this.manifest
 	}
 
-	private async persistManifest(): Promise<void> {
-		if (!this.manifest || !this.indexKey) return
-		const json = JSON.stringify(this.manifest)
+	private recordKey(record: IndexRecord): string {
+		return record.sendId ? `send:${record.sendId}` : `cid:${record.cid}`
+	}
+
+	private unionMergeRecords(local: IndexRecord[], remote: IndexRecord[]): IndexRecord[] {
+		const byKey = new Map<string, IndexRecord>()
+		for (const record of [...local, ...remote]) {
+			const key = this.recordKey(record)
+			if (!byKey.has(key)) byKey.set(key, record)
+		}
+		return [...byKey.values()].sort((a, b) => a.seq - b.seq || a.cid.localeCompare(b.cid))
+	}
+
+	private hasChainConflict(local: IndexRecord[], remote: IndexRecord[], merged: IndexRecord[]): boolean {
+		const seqToCid = new Map<number, string>()
+		const prevToCid = new Map<string, string>()
+		for (const record of [...local, ...remote]) {
+			const prior = seqToCid.get(record.seq)
+			if (prior && prior !== record.cid) return true
+			seqToCid.set(record.seq, record.cid)
+			const fork = prevToCid.get(record.prevCid)
+			if (fork && fork !== record.cid) return true
+			prevToCid.set(record.prevCid, record.cid)
+		}
+		const ordered = [...merged].sort((a, b) => a.seq - b.seq)
+		return ordered.some((record, index) => {
+			const previous = index === 0 ? this.genesisCid : ordered[index - 1].cid
+			return record.seq !== index || record.prevCid !== previous
+		})
+	}
+
+	private async relinearizeAndReencrypt(records: IndexRecord[]): Promise<IndexRecord[] | null> {
+		const decrypted = await Promise.all(
+			records.map(async (record) => ({ record, body: await this.decryptRecord(record) })),
+		)
+		if (decrypted.some(({ body }) => !body)) return null
+		const ordered = decrypted
+			.map(({ record, body }) => ({ record, body: body! }))
+			.sort(
+				(a, b) =>
+					a.body.ts - b.body.ts ||
+					String(a.body.sendId || '').localeCompare(String(b.body.sendId || '')) ||
+					a.record.cid.localeCompare(b.record.cid),
+			)
+		const next: IndexRecord[] = []
+		for (const { record, body } of ordered) {
+			const seq = next.length
+			const prevCid = seq ? next[seq - 1].cid : this.genesisCid
+			const cipher = await aesGcmEncryptString(await this.fragmentKey(seq, prevCid), body.body)
+			const cid = keccakUtf8(cipher)
+			if (this.opts.persistence) await this.opts.persistence.set(this.localFragmentKey(cid), cipher)
+			if (!await this.uploadFragment(cipher)) return null
+			next.push({
+				...record,
+				seq,
+				cid,
+				prevCid,
+				peer: body.peer.toLowerCase(),
+				ts: body.ts,
+				dir: body.dir,
+				sendId: body.sendId,
+				preview: body.body.slice(0, 80),
+			})
+		}
+		return next
+	}
+
+	private async syncFromHeadUnlocked(): Promise<boolean> {
+		await this.init()
+		await this.loadLocalManifest()
+		const pointer = await this.readOnchainPointer()
+		if (!pointer || !this.indexKey) return false
+		const cipher = await this.fetchIndexCipherByHash(pointer.indexHash)
+		if (!cipher) return false
+		try {
+			const parsed = JSON.parse(await aesGcmDecryptString(this.indexKey, cipher)) as IndexManifest
+			if (parsed?.v !== 1 || parsed.eoa?.toLowerCase() !== this.eoaLower) return false
+			const local = this.manifest?.records ?? []
+			const remote = Array.isArray(parsed.records) ? parsed.records : []
+			const merged = this.unionMergeRecords(local, remote)
+			const records = this.hasChainConflict(local, remote, merged)
+				? await this.relinearizeAndReencrypt(merged)
+				: merged
+			if (!records) return false
+			const changed =
+				records.length !== local.length || records.some((record, index) => record.cid !== local[index]?.cid)
+			if (!changed) return false
+			const nextManifest = { ...parsed, updatedAt: Date.now(), records }
+			return await this.persistManifest(nextManifest, { requireRemoteCommit: Boolean(this.opts.apiBaseUrl) })
+		} catch {
+			/* Untrusted network data never replaces the local trusted mirror. */
+			return false
+		}
+	}
+
+	async syncFromHead(): Promise<boolean> {
+		let result = false
+		this.mutationChain = this.mutationChain.catch(() => undefined).then(async () => {
+			result = await this.syncFromHeadUnlocked()
+		})
+		await this.mutationChain
+		return result
+	}
+
+	private async persistManifest(
+		nextManifest: IndexManifest = this.manifest!,
+		options?: { requireRemoteCommit?: boolean },
+	): Promise<boolean> {
+		if (!nextManifest || !this.indexKey) return false
+		const json = JSON.stringify(nextManifest)
 		const cipher = await aesGcmEncryptString(this.indexKey, json)
-		if (this.opts.persistence) await this.opts.persistence.set(this.localIndexKey(), cipher)
 		// Upload the fresh index cipher as a content-addressed fragment, then move the on-chain head pointer.
 		const indexHash = await this.uploadFragment(cipher)
-		if (indexHash) await this.updateOnchainPointer(indexHash)
+		const requiresRemoteCommit = Boolean(options?.requireRemoteCommit && this.opts.apiBaseUrl)
+		if (requiresRemoteCommit && (!indexHash || !(await this.updateOnchainPointer(indexHash, nextManifest)))) {
+			return false
+		}
+		// Only publish the local manifest after the remote commit when sync requires one.
+		if (this.opts.persistence) await this.opts.persistence.set(this.localIndexKey(), cipher)
+		this.manifest = nextManifest
+		if (!requiresRemoteCommit && indexHash) await this.updateOnchainPointer(indexHash, nextManifest)
+		return Boolean(indexHash)
 	}
 
 	/**
@@ -236,15 +328,15 @@ export class HistoryStore {
 	 * The EOA signs `SetPointer(owner,indexHash,ts,seq,nonce)` (EIP-712); the API relayer pays gas.
 	 * No-op (with a warning) when `apiBaseUrl` is not configured.
 	 */
-	private async updateOnchainPointer(indexHash: string): Promise<void> {
-		if (!this.wallet) return
+	private async updateOnchainPointer(indexHash: string, manifest: IndexManifest = this.manifest!): Promise<boolean> {
+		if (!this.wallet) return false
 		if (!this.opts.apiBaseUrl) {
 			this.emit.log('warn', 'chat history: apiBaseUrl unset — on-chain head pointer not updated')
-			return
+			return false
 		}
 		if (!ethers.isHexString(indexHash, 32)) {
 			this.emit.log('warn', `chat history: bad indexHash ${indexHash}`)
-			return
+			return false
 		}
 		try {
 			const nonce = await new ethers.Contract(
@@ -254,7 +346,7 @@ export class HistoryStore {
 			).nonceOf!(this.wallet.address)
 			// ts = client monotonic timestamp (ms); seq = monotonic append count. Both non-decreasing.
 			const ts = BigInt(Date.now())
-			const seq = BigInt(this.manifest?.records?.length ?? 0)
+			const seq = BigInt(manifest.records?.length ?? 0)
 			const domain = {
 				name: 'ChatIndexRegistry',
 				version: '1',
@@ -278,9 +370,12 @@ export class HistoryStore {
 			})
 			if (!res.ok) {
 				this.emit.log('warn', `setChatIndexPointer HTTP ${res.status}`)
+				return false
 			}
+			return true
 		} catch (ex) {
 			this.emit.log('warn', `updateOnchainPointer error: ${(ex as Error)?.message ?? String(ex)}`)
+			return false
 		}
 	}
 
@@ -354,7 +449,9 @@ export class HistoryStore {
 		const localOnly = options?.localOnly ?? false
 		const peerFilter = options?.peer ? options.peer.toLowerCase() : undefined
 
-		const manifest = await this.loadManifest(localOnly)
+		await this.loadLocalManifest()
+		if (!localOnly) await this.syncFromHead()
+		const manifest = this.manifest
 		if (!manifest?.records?.length) {
 			this.emit.buffer(peerFilter ?? 'all', [], true)
 			return
@@ -389,35 +486,30 @@ export class HistoryStore {
 	}
 
 	async append(entry: Omit<HistoryEntry, 'seq'>): Promise<void> {
-		await this.init()
-		if (!this.manifest) {
-			await this.loadManifest(false)
-			if (!this.manifest) {
-				this.manifest = { v: 1, eoa: this.eoaLower, updatedAt: Date.now(), records: [] }
-			}
-		}
-		const records = this.manifest.records
-		const seq = records.length ? records[records.length - 1].seq + 1 : 0
-		const prevCid = records.length ? records[records.length - 1].cid : this.genesisCid
-		const key = await this.fragmentKey(seq, prevCid)
-		const cipher = await aesGcmEncryptString(key, entry.body)
-		const cid = keccakUtf8(cipher)
-		// Mirror fragment locally before network (trusted local first).
-		if (this.opts.persistence) await this.opts.persistence.set(this.localFragmentKey(cid), cipher)
-		await this.uploadFragment(cipher)
-		const rec: IndexRecord = {
-			seq,
-			cid,
-			prevCid,
-			ts: entry.ts,
-			peer: entry.peer.toLowerCase(),
-			dir: entry.dir,
-			sendId: entry.sendId,
-			preview: entry.body.slice(0, 80),
-		}
-		records.push(rec)
-		this.manifest.updatedAt = Date.now()
-		await this.persistManifest()
+		this.mutationChain = this.mutationChain.catch(() => undefined).then(async () => {
+			await this.syncFromHeadUnlocked()
+			if (!this.manifest) this.manifest = { v: 1, eoa: this.eoaLower, updatedAt: Date.now(), records: [] }
+			const records = this.manifest.records
+			const seq = records.length ? records[records.length - 1].seq + 1 : 0
+			const prevCid = records.length ? records[records.length - 1].cid : this.genesisCid
+			const cipher = await aesGcmEncryptString(await this.fragmentKey(seq, prevCid), entry.body)
+			const cid = keccakUtf8(cipher)
+			if (this.opts.persistence) await this.opts.persistence.set(this.localFragmentKey(cid), cipher)
+			await this.uploadFragment(cipher)
+			records.push({
+				seq,
+				cid,
+				prevCid,
+				ts: entry.ts,
+				peer: entry.peer.toLowerCase(),
+				dir: entry.dir,
+				sendId: entry.sendId,
+				preview: entry.body.slice(0, 80),
+			})
+			this.manifest.updatedAt = Date.now()
+			await this.persistManifest()
+		})
+		await this.mutationChain
 	}
 
 	destroy(): void {

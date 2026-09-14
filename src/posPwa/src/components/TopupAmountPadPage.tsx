@@ -1,4 +1,5 @@
 import {
+	AlertTriangle,
 	Banknote,
 	CreditCard,
 	Sparkles,
@@ -49,6 +50,9 @@ export function TopupAmountPadPage({
 	policy = POS_TERMINAL_TOPUP_POLICY_ALL,
 	membershipRequired = false,
 	cardCurrencyPrefix = '$',
+	error,
+	initialAmount = '0',
+	initialMethod,
 	onCancel,
 	onContinue,
 }: {
@@ -56,6 +60,9 @@ export function TopupAmountPadPage({
 	/** A confirmed customer without a valid membership — direct staff to Check Balance. */
 	membershipRequired?: boolean
 	cardCurrencyPrefix?: string
+	error?: string
+	initialAmount?: string
+	initialMethod?: TopupPaymentMethodRaw
 	onCancel: () => void
 	onContinue: (input: {
 		method: TopupPaymentMethodRaw
@@ -66,10 +73,11 @@ export function TopupAmountPadPage({
 	const allowed = useMemo(() => allowedTopupMethods(policy), [policy])
 
 	const [method, setMethod] = useState<TopupPaymentMethodRaw>(() => {
+		if (initialMethod && allowed.includes(initialMethod)) return initialMethod
 		const saved = loadPersistedTopupMethod()
 		return allowed.includes(saved) ? saved : (allowed[0] ?? 'creditCard')
 	})
-	const [amount, setAmount] = useState('0')
+	const [amount, setAmount] = useState(initialAmount)
 
 	const nextMethod = useMemo(() => {
 		if (!allowed.length) return method
@@ -98,6 +106,12 @@ export function TopupAmountPadPage({
 							<div className="shrink-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
 								<p className="font-semibold">Membership required</p>
 								<p className="mt-1 leading-snug">{MEMBERSHIP_FEE_CHECK_BALANCE_HINT}</p>
+							</div>
+						) : null}
+						{error ? (
+							<div role="alert" className="flex shrink-0 items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+								<AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+								<p className="leading-snug">{error}</p>
 							</div>
 						) : null}
 
