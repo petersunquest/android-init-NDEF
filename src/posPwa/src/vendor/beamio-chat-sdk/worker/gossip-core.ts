@@ -11,7 +11,7 @@
  *
  * Routing rules preserved (repo `conet-p2p-mailbox-routing-protocol`,
  * `beamio-conet-chat-protocol`, `src/docs/gitbook/l0/si-developer-guide.md`):
- * listen encrypted to mailbox B route key via entry C ≠ B with `listenKind:'chat'`;
+ * listen encrypted to mailbox B route key via entry C ≠ B with `mailbox_listen`;
  * business payload encrypted to recipient EOA user PGP via entry A ≠ B; ACK
  * encrypted to mailbox B route key. Each POST wraps inner armor to **that entry's**
  * route public key. Clients never set `X-CoNET-Hop-Sigs`.
@@ -99,7 +99,6 @@ export class GossipCore {
 	private _lastActivityAt = 0
 	private paused = false
 	/** Listen `Securitykey` (aes-256-cbc). Sent on the command; live SI SSE frames are still plaintext JSON. */
-	private _listenSecurityKey = ''
 	private _ackContext: {
 		routerArmoredPublicKey: string
 		entryNodes: NodeInfo[]
@@ -142,7 +141,6 @@ export class GossipCore {
 
 	pause(): void {
 		this.paused = true
-		this._listenSecurityKey = ''
 		this.clearListen('background_pause')
 		this._lastActivityAt = 0
 		this.emit.status('paused')
@@ -157,7 +155,7 @@ export class GossipCore {
 	destroy(): void {
 		this.emit.log(
 			'info',
-			`destroy routes=${this._routes.length} keyId=${this._userPgpKeyID ? 'yes' : 'no'} lastActivity=${this._lastActivityAt} listenKey=${this._listenSecurityKey ? 'yes' : 'no'} ack=${this._ackContext ? 'yes' : 'no'}`,
+			`destroy routes=${this._routes.length} keyId=${this._userPgpKeyID ? 'yes' : 'no'} lastActivity=${this._lastActivityAt} ack=${this._ackContext ? 'yes' : 'no'}`,
 		)
 		this.clearListen('destroy')
 		this.wallet = null
@@ -165,7 +163,6 @@ export class GossipCore {
 		this.cfg = null
 		this._routes = []
 		this._userPgpKeyID = ''
-		this._listenSecurityKey = ''
 		this._lastActivityAt = 0
 		this._ackContext = null
 	}
@@ -181,7 +178,7 @@ export class GossipCore {
 		}
 	}
 
-	// ---- Listen (mailbox B route key, entry C ≠ B, listenKind:'chat') -----------
+	// ---- Listen (dedicated Mailbox B route, entry C ≠ B) -------------------------
 	private async startListen(): Promise<void> {
 		if (this.paused) return
 		if (!this.cfg || !this.wallet || !this.pgpPrivateKey) return
@@ -211,16 +208,16 @@ export class GossipCore {
 		const rootSignal = controller.signal
 
 		try {
-			const key = utf8ToBase64(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
-			this._listenSecurityKey = key
+			const instanceId =
+				typeof crypto.randomUUID === 'function'
+					? crypto.randomUUID()
+					: utf8ToBase64(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
 			const innerArmor = await encryptRouteCommand(
 				this.wallet,
 				{
-					command: 'mining',
-					listenKind: 'chat',
+					command: 'mailbox_listen',
 					walletAddress: this.wallet.address,
-					algorithm: 'aes-256-cbc',
-					Securitykey: key,
+					instanceId,
 				},
 				ownRouteKey,
 			)
@@ -261,7 +258,9 @@ export class GossipCore {
 		const node = getRandomNode(nodes)!
 		const config: TimeoutConfig = {
 			connectTimeout: 12_000,
-			idleTimeout: 90_000,
+			// Mailbox B keepalives are bounded at 60–180s. Keep enough margin
+			// for transport/proxy jitter before declaring the SSE idle.
+			idleTimeout: 240_000,
 			readOperationTimeout: 20_000,
 			retryDelay: 2_000,
 			...timeoutConfig,
@@ -428,6 +427,11 @@ export class GossipCore {
 			// Refresh internal activity + surface a heartbeat so the host can keep its
 			// own foreground/background staleness timer fresh (parity with the old
 			// main-thread noteGossipActivity() that fired on every frame).
+			this._lastActivityAt = Date.now()
+			this.emit.status('listening', 'heartbeat')
+			return
+		}
+		if (data.type === 'mailbox_keepalive') {
 			this._lastActivityAt = Date.now()
 			this.emit.status('listening', 'heartbeat')
 			return

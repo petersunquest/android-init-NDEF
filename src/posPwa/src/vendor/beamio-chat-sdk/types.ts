@@ -9,8 +9,9 @@
  * `beamio-conet-chat-protocol`, and `src/docs/gitbook/l0/si-developer-guide.md`):
  *  - Send business payloads encrypted to the recipient EOA *user* PGP, POSTed to an
  *    entry node A ≠ mailbox B.
- *  - Listen SSE is encrypted to mailbox B route key, connected via entry C ≠ B, and
- *    MUST carry `listenKind: 'chat'`.
+ *  - New Chat listen SSE is encrypted to mailbox B route key, connected via entry
+ *    C ≠ B, and uses `command: 'mailbox_listen'` with an opaque `instanceId`.
+ *    Legacy clients may use `mining` with `listenKind: 'chat'`.
  *  - Delivery ACK is encrypted to the mailbox B route key.
  *  - Each POST wraps that inner armor to **that entry's** route public key (peel at
  *    the entry). Clients never set `X-CoNET-Hop-Sigs`.
