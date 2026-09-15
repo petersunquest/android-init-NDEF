@@ -12,6 +12,11 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     private var cardAddress = ""
     private var locationId = ""
     private var clientSecret = ""
+    private var buyerEoa = ""
+    private var amountFiat6 = ""
+    private var currency = ""
+    private var kind = "topup"
+    private var businessIdempotencyKey = ""
     private var posAdmin = ""
     private var authorizationSignature = ""
     private var authorizationDeadline = 0
@@ -29,6 +34,11 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         cardAddress = body["cardAddress"] as? String ?? ""
         locationId = body["locationId"] as? String ?? ""
         clientSecret = body["clientSecret"] as? String ?? ""
+        buyerEoa = body["buyerEoa"] as? String ?? ""
+        amountFiat6 = body["amountFiat6"] as? String ?? ""
+        currency = body["currency"] as? String ?? ""
+        kind = body["kind"] as? String ?? "topup"
+        businessIdempotencyKey = body["businessIdempotencyKey"] as? String ?? ""
         posAdmin = body["posAdmin"] as? String ?? ""
         authorizationSignature = body["authorizationSignature"] as? String ?? ""
         if let deadline = body["authorizationDeadline"] as? NSNumber {
@@ -40,6 +50,8 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         }
         authorizationNonce = body["authorizationNonce"] as? String ?? ""
         guard !requestId.isEmpty, !clientSecret.isEmpty, !locationId.isEmpty,
+              !buyerEoa.isEmpty, !amountFiat6.isEmpty, !currency.isEmpty,
+              !businessIdempotencyKey.isEmpty,
               !posAdmin.isEmpty, !authorizationSignature.isEmpty,
               authorizationDeadline > 0, !authorizationNonce.isEmpty else {
             fail(code: "invalid_request", message: "Stripe Terminal payment request is incomplete.")
@@ -66,6 +78,11 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: [
             "cardAddress": cardAddress,
+            "buyerEoa": buyerEoa,
+            "amountFiat6": amountFiat6,
+            "currency": currency,
+            "kind": kind,
+            "businessIdempotencyKey": businessIdempotencyKey,
             "posAdmin": posAdmin,
             "authorizationSignature": authorizationSignature,
             "authorizationDeadline": authorizationDeadline,

@@ -40,6 +40,11 @@ export interface StripePhysicalPaymentRequest {
 	paymentIntentId: string
 	cardAddress: string
 	locationId: string
+	buyerEoa: string
+	amountFiat6: string
+	currency: string
+	kind: 'topup' | 'membership'
+	businessIdempotencyKey: string
 	posAdmin: string
 	authorizationSignature: string
 	authorizationDeadline: number
