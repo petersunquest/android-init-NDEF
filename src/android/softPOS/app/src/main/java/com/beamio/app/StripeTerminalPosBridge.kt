@@ -43,6 +43,10 @@ class StripeTerminalPosBridge(
     private var clientSecret = ""
     private var cardAddress = ""
     private var locationId = ""
+    private var posAdmin = ""
+    private var authorizationSignature = ""
+    private var authorizationDeadline = 0
+    private var authorizationNonce = ""
 
     private val tokenProvider = object : ConnectionTokenProvider {
         override fun fetchConnectionToken(callback: ConnectionTokenCallback) {
@@ -56,7 +60,16 @@ class StripeTerminalPosBridge(
                         setRequestProperty("Content-Type", "application/json")
                     }
                     connection.outputStream.use {
-                        it.write(JSONObject().put("cardAddress", card).toString().toByteArray())
+                        it.write(
+                            JSONObject()
+                                .put("cardAddress", card)
+                                .put("posAdmin", posAdmin)
+                                .put("authorizationSignature", authorizationSignature)
+                                .put("authorizationDeadline", authorizationDeadline)
+                                .put("authorizationNonce", authorizationNonce)
+                                .toString()
+                                .toByteArray(),
+                        )
                     }
                     val text = connection.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(text)
@@ -88,7 +101,20 @@ class StripeTerminalPosBridge(
             clientSecret = request.optString("clientSecret")
             cardAddress = request.optString("cardAddress")
             locationId = request.optString("locationId")
-            if (requestId.isBlank() || clientSecret.isBlank() || cardAddress.isBlank() || locationId.isBlank()) {
+            posAdmin = request.optString("posAdmin")
+            authorizationSignature = request.optString("authorizationSignature")
+            authorizationDeadline = request.optInt("authorizationDeadline", 0)
+            authorizationNonce = request.optString("authorizationNonce")
+            if (
+                requestId.isBlank() ||
+                clientSecret.isBlank() ||
+                cardAddress.isBlank() ||
+                locationId.isBlank() ||
+                posAdmin.isBlank() ||
+                authorizationSignature.isBlank() ||
+                authorizationDeadline <= 0 ||
+                authorizationNonce.isBlank()
+            ) {
                 fail("invalid_request", "Stripe Terminal payment request is incomplete.")
                 return
             }
