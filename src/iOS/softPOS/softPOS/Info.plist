@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Beamio POS uses Bluetooth to connect to supported Stripe card readers.</string>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Beamio POS uses notification badges to show unread chat messages on the app icon.</string>
 	<key>UIBackgroundModes</key>
