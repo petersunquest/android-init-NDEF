@@ -43,6 +43,11 @@ class StripeTerminalPosBridge(
     private var clientSecret = ""
     private var cardAddress = ""
     private var locationId = ""
+    private var buyerEoa = ""
+    private var amountFiat6 = ""
+    private var currency = ""
+    private var kind = "topup"
+    private var businessIdempotencyKey = ""
     private var posAdmin = ""
     private var authorizationSignature = ""
     private var authorizationDeadline = 0
@@ -63,6 +68,11 @@ class StripeTerminalPosBridge(
                         it.write(
                             JSONObject()
                                 .put("cardAddress", card)
+                                .put("buyerEoa", buyerEoa)
+                                .put("amountFiat6", amountFiat6)
+                                .put("currency", currency)
+                                .put("kind", kind)
+                                .put("businessIdempotencyKey", businessIdempotencyKey)
                                 .put("posAdmin", posAdmin)
                                 .put("authorizationSignature", authorizationSignature)
                                 .put("authorizationDeadline", authorizationDeadline)
@@ -101,6 +111,11 @@ class StripeTerminalPosBridge(
             clientSecret = request.optString("clientSecret")
             cardAddress = request.optString("cardAddress")
             locationId = request.optString("locationId")
+            buyerEoa = request.optString("buyerEoa")
+            amountFiat6 = request.optString("amountFiat6")
+            currency = request.optString("currency")
+            kind = request.optString("kind", "topup")
+            businessIdempotencyKey = request.optString("businessIdempotencyKey")
             posAdmin = request.optString("posAdmin")
             authorizationSignature = request.optString("authorizationSignature")
             authorizationDeadline = request.optInt("authorizationDeadline", 0)
@@ -110,6 +125,10 @@ class StripeTerminalPosBridge(
                 clientSecret.isBlank() ||
                 cardAddress.isBlank() ||
                 locationId.isBlank() ||
+                buyerEoa.isBlank() ||
+                amountFiat6.isBlank() ||
+                currency.isBlank() ||
+                businessIdempotencyKey.isBlank() ||
                 posAdmin.isBlank() ||
                 authorizationSignature.isBlank() ||
                 authorizationDeadline <= 0 ||
