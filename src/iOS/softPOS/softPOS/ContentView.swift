@@ -538,6 +538,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 paymentIntentId:payload.paymentIntentId||'',
                 cardAddress:payload.cardAddress||'',
                 locationId:payload.locationId||'',
+                posAdmin:payload.posAdmin||'',
+                authorizationSignature:payload.authorizationSignature||'',
+                authorizationDeadline:payload.authorizationDeadline||0,
+                authorizationNonce:payload.authorizationNonce||'',
                 readerMode:payload.readerMode||'auto'
               });
             },

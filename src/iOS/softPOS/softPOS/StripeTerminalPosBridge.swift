@@ -31,7 +31,13 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         clientSecret = body["clientSecret"] as? String ?? ""
         posAdmin = body["posAdmin"] as? String ?? ""
         authorizationSignature = body["authorizationSignature"] as? String ?? ""
-        authorizationDeadline = body["authorizationDeadline"] as? Int ?? 0
+        if let deadline = body["authorizationDeadline"] as? NSNumber {
+            authorizationDeadline = deadline.intValue
+        } else if let deadline = body["authorizationDeadline"] as? String {
+            authorizationDeadline = Int(deadline) ?? 0
+        } else {
+            authorizationDeadline = 0
+        }
         authorizationNonce = body["authorizationNonce"] as? String ?? ""
         guard !requestId.isEmpty, !clientSecret.isEmpty, !locationId.isEmpty,
               !posAdmin.isEmpty, !authorizationSignature.isEmpty,
