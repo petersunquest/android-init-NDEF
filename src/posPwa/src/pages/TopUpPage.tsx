@@ -52,6 +52,7 @@ type TopUpPhase =
 	| 'amount'
 	| 'scan-customer'
 	| 'membership-required'
+	| 'stripe-tap-to-pay'
 	| 'executing'
 	| 'usdc-qr'
 	| 'scan-nfc-after-usdc'
@@ -333,7 +334,7 @@ export function TopUpPage() {
 					return
 				}
 				setTopupProgress('preparing')
-				setPhase('executing')
+				setPhase('stripe-tap-to-pay')
 				try {
 					const currency = (await fetchCardCurrencyCode(merchantInfraCard?.trim() ?? '')) ?? 'CAD'
 					const result = await collectStripePhysicalTopup({
@@ -488,6 +489,16 @@ export function TopUpPage() {
 				hint={usdcHint}
 				progressLabel={usdcProgress}
 				onCancel={() => goHome()}
+			/>
+		)
+	}
+
+	if (phase === 'stripe-tap-to-pay') {
+		return (
+			<PosFlowLoadingShell
+				title="Top-up"
+				subtitle="Customer verified. Present a card for Tap to Pay…"
+				bg="bg-[#f2f2f7]"
 			/>
 		)
 	}
