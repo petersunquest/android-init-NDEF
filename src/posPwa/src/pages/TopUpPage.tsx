@@ -18,6 +18,7 @@ import { TopupAmountPadPage } from '@/components/TopupAmountPadPage'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
+import { buildTopupSuccessPassHero } from '@/utils/posSuccessHero'
 import {
 	parseRechargeBonusRulesFromMetadata,
 	resolveTopupApiAmountAndSplit,
@@ -27,6 +28,7 @@ import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import {
 	readBalanceCustomerHasValidMembership,
 } from '@/utils/readBalanceMembership'
+import { memberNoFromCard } from '@/utils/readBalanceAssets'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
 import {
 	executeNfcTopup,
@@ -325,9 +327,10 @@ export function TopUpPage() {
 			}
 
 			if (draft?.method === 'stripePhysicalCard') {
-				const physicalAssets = target.wallet
-					? null
-					: await fetchTopupCustomerAssets(target, merchantInfraCard?.trim() ?? '')
+				const physicalAssets = await fetchTopupCustomerAssets(
+					target,
+					merchantInfraCard?.trim() ?? '',
+				)
 				const buyerEoa = target.wallet ?? physicalAssets?.address
 				if (!buyerEoa) {
 					goHome('A customer wallet is required for physical card top-up.')
@@ -344,12 +347,44 @@ export function TopUpPage() {
 						currency,
 						onProgress: () => setTopupProgress('refreshing'),
 					})
+					const infraCard = merchantInfraCard?.trim() ?? ''
+					const preCard = physicalAssets?.cards?.find(
+						(card) => card.cardAddress.trim().toLowerCase() === infraCard.toLowerCase(),
+					)
+					const preBalance = preCard?.points ?? physicalAssets?.points ?? '0'
+					const postAssets = await fetchTopupCustomerAssets(target, infraCard)
+					const postCard = postAssets?.cards?.find(
+						(card) => card.cardAddress.trim().toLowerCase() === infraCard.toLowerCase(),
+					)
+					const postBalance = postAssets?.ok
+						? postCard?.points ?? postAssets.points ?? preBalance
+						: preBalance
+					const cardCurrency =
+						postCard?.cardCurrency ??
+						preCard?.cardCurrency ??
+						currency
 					setSuccess({
 						amount: draft.currencyAmount,
 						txHash: result.txHash,
-						preBalance: '—',
-						postBalance: '—',
-						cardCurrency: currency,
+						preBalance,
+						postBalance,
+						cardCurrency,
+						memberNo: memberNoFromCard(postCard ?? preCard),
+						customerBeamioTag: postAssets?.beamioTag ?? physicalAssets?.beamioTag,
+						address: postAssets?.address ?? physicalAssets?.address ?? buyerEoa,
+						passHero: postAssets?.ok
+							? buildTopupSuccessPassHero({
+									assets: postAssets,
+									cardAddr: infraCard,
+									merchantInfraCard: infraCard,
+									pointSystemEnabled,
+									postBalance,
+									cardCurrency,
+									customerBeamioTag:
+										postAssets.beamioTag ?? physicalAssets?.beamioTag,
+									customerAddress: postAssets.address ?? buyerEoa,
+								})
+							: undefined,
 					})
 					setPhase('success')
 					void refreshHome()
