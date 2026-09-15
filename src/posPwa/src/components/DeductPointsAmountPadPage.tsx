@@ -8,6 +8,7 @@ import {
 	parseDeductKeypadAmount6,
 } from '@/utils/deductPointsExecute'
 import { readBalanceFormatUsdcThousands } from '@/utils/readBalanceDisplay'
+import { displayFiatPrefixFromCode } from '@/utils/display'
 import type { UIDAssetsResult } from '@/types/pos'
 
 const DEDUCT_ORANGE = '#ea580c'
@@ -53,6 +54,8 @@ export function DeductPointsAmountPadPage({
 		}
 	})()
 	const usdcBalance = convertibleTopupAmount ?? 0
+	const merchantCurrency = (assets?.cardCurrency ?? 'CAD').trim().toUpperCase()
+	const merchantCurrencyPrefix = displayFiatPrefixFromCode(merchantCurrency)
 	const effectiveMaxPoints6 = maxPoints6 ?? points6
 	const withinPoints =
 		effectiveMaxPoints6 == null || isDeductKeypadWithinBalance(amount, effectiveMaxPoints6)
@@ -106,10 +109,36 @@ export function DeductPointsAmountPadPage({
 			}
 			aboveAmountDisplay={
 				balanceKnown ? (
-					<div className="space-y-1 text-sm font-medium text-slate-500">
-						<p>Merchant Reward PT: <span className="font-semibold" style={{ color: DEDUCT_ORANGE }}>{formatAvailablePtsLabel(effectiveMaxPoints6)}</span></p>
-						<p>PT convertible for top-up: <span className="font-semibold" style={{ color: USDC_BLUE }}>{readBalanceFormatUsdcThousands(usdcBalance)}</span></p>
-						<p className="text-xs text-slate-400">{mode === 'burn-pt' ? 'Burn merchant Reward PT' : 'Use USDC to top up merchant store credit'}</p>
+					<div className="space-y-2">
+						<div className="grid grid-cols-2 items-end gap-4">
+							<div className="min-w-0 text-left">
+								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+									Available Reward PT
+								</p>
+								<p
+									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
+									style={{ color: DEDUCT_ORANGE }}
+								>
+									{formatAvailablePtsLabel(effectiveMaxPoints6)}
+								</p>
+							</div>
+							<div className="min-w-0 text-right">
+								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+									PT convertible for top-up
+								</p>
+								<p
+									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
+									style={{ color: USDC_BLUE }}
+								>
+									{merchantCurrencyPrefix}{readBalanceFormatUsdcThousands(usdcBalance)}
+								</p>
+							</div>
+						</div>
+						<p className="text-center text-xs text-slate-400">
+							{mode === 'burn-pt'
+								? 'Burn merchant Reward PT'
+								: 'Use convertible USDC to top up merchant store credit'}
+						</p>
 					</div>
 				) : undefined
 			}
