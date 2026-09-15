@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
     private lateinit var jsBridge: CashTreesJsBridge
+    private lateinit var stripeTerminalBridge: StripeTerminalPosBridge
 
     @Volatile
     private var useEmbeddedPwa = false
@@ -541,6 +542,16 @@ class MainActivity : ComponentActivity() {
             disarmNfcReader(true, "cancelled")
         }
 
+        @JavascriptInterface
+        fun startStripePhysicalPayment(json: String) {
+            runOnUiThread { stripeTerminalBridge.start(json) }
+        }
+
+        @JavascriptInterface
+        fun cancelStripePhysicalPayment(@Suppress("UNUSED_PARAMETER") json: String) {
+            runOnUiThread { stripeTerminalBridge.cancel() }
+        }
+
         /** Raw QR payload for global search / deep links — mirrors iOS `CashTreesIOS.scanQr`. */
         @JavascriptInterface
         fun scanQr(requestId: String) {
@@ -732,6 +743,9 @@ class MainActivity : ComponentActivity() {
         )
 
         jsBridge = CashTreesJsBridge()
+        stripeTerminalBridge = StripeTerminalPosBridge(this) { payload ->
+            runOnUiThread { dispatchAndroidBridgeJsonToWeb(payload) }
+        }
         embeddedPwaHost = EmbeddedPwaHost(this)
         rootLayout = FrameLayout(this).apply {
             setBackgroundColor(Color.parseColor("#000414"))

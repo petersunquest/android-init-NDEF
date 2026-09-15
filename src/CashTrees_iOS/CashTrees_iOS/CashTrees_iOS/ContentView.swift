@@ -248,6 +248,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     let webConsoleMessageHandler = CashTreesWebConsoleMessageHandler()
 
     private var nfcSession: NFCTagReaderSession?
+    var stripeTerminalBridge: StripeTerminalPosBridge?
     private var bindSessionActive = false
     private var initialWebRenderReadySignaled = false
     private var webContentProcessNeedsReload = false
@@ -644,6 +645,25 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             cancelPhysicalCardBind:function(){
               window.webkit.messageHandlers[H].postMessage({action:'cancelPhysicalCardBind'});
             },
+            startStripePhysicalPayment:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'startStripePhysicalPayment',
+                requestId:payload.requestId||'',
+                clientSecret:payload.clientSecret||'',
+                paymentIntentId:payload.paymentIntentId||'',
+                cardAddress:payload.cardAddress||'',
+                locationId:payload.locationId||'',
+                readerMode:payload.readerMode||'auto'
+              });
+            },
+            cancelStripePhysicalPayment:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'cancelStripePhysicalPayment',
+                requestId:payload.requestId||''
+              });
+            },
             saveRecoveryQrToPhotos:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
@@ -781,6 +801,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             DispatchQueue.main.async { [weak self] in self?.armNfcPhysicalCardRead() }
         case "cancelPhysicalCardBind":
             DispatchQueue.main.async { [weak self] in self?.disarmNfcReader(notifyWeb: true, error: "cancelled") }
+        case "startStripePhysicalPayment":
+            stripeTerminalBridge?.start(body)
+        case "cancelStripePhysicalPayment":
+            stripeTerminalBridge?.cancel()
         case "saveRecoveryQrToPhotos":
             let dataUrl = body["dataUrl"] as? String
             let filename = body["filename"] as? String
@@ -1367,6 +1391,7 @@ struct CashTreesWebView: UIViewRepresentable {
 
         let webView = CashTreesWKWebView(frame: .zero, configuration: config)
         coord.webView = webView
+        coord.stripeTerminalBridge = StripeTerminalPosBridge(webView: webView)
         webView.navigationDelegate = coord
         webView.uiDelegate = coord
         if #available(iOS 16.4, *) {

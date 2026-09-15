@@ -216,6 +216,8 @@ export type { BeamioUserCardRedeemModuleVNext } from './BeamioUserCard/RedeemMod
 export { BeamioUserCardRedeemModuleVNext__factory } from './factories/BeamioUserCard/RedeemModule.sol/BeamioUserCardRedeemModuleVNext__factory.js';
 export type { ICardPointsBalance } from './BeamioUserCard/RedeemModule.sol/ICardPointsBalance.js';
 export { ICardPointsBalance__factory } from './factories/BeamioUserCard/RedeemModule.sol/ICardPointsBalance__factory.js';
+export type { IERC20GiftBalance } from './BeamioUserCard/RedeemModule.sol/IERC20GiftBalance.js';
+export { IERC20GiftBalance__factory } from './factories/BeamioUserCard/RedeemModule.sol/IERC20GiftBalance__factory.js';
 export type { TopupMintAmountCodec } from './BeamioUserCard/TopupMintAmountCodec.js';
 export { TopupMintAmountCodec__factory } from './factories/BeamioUserCard/TopupMintAmountCodec__factory.js';
 export type { BeamioIndexerDiamond } from './CoNETIndexTaskdiamond/BeamioIndexerDiamond.js';

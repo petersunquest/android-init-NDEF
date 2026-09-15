@@ -118,6 +118,7 @@ getContractFactory(name: 'BeamioUserCardMembershipStatsQueryModuleV1', signerOrO
 getContractFactory(name: 'IBeamioMembershipStatsCardView', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IBeamioMembershipStatsCardView__factory>
 getContractFactory(name: 'BeamioUserCardRedeemModuleVNext', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.BeamioUserCardRedeemModuleVNext__factory>
 getContractFactory(name: 'ICardPointsBalance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.ICardPointsBalance__factory>
+getContractFactory(name: 'IERC20GiftBalance', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IERC20GiftBalance__factory>
 getContractFactory(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardCtx__factory>
 getContractFactory(name: 'IUserCardFactoryProtocolAuth', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.IUserCardFactoryProtocolAuth__factory>
 getContractFactory(name: 'TopupMintAmountCodec', signerOrOptions?: ethers.Signer | FactoryOptions): Promise<Contracts.TopupMintAmountCodec__factory>
@@ -451,6 +452,7 @@ getContractAt(name: 'BeamioUserCardMembershipStatsQueryModuleV1', address: strin
 getContractAt(name: 'IBeamioMembershipStatsCardView', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IBeamioMembershipStatsCardView>
 getContractAt(name: 'BeamioUserCardRedeemModuleVNext', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.BeamioUserCardRedeemModuleVNext>
 getContractAt(name: 'ICardPointsBalance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.ICardPointsBalance>
+getContractAt(name: 'IERC20GiftBalance', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IERC20GiftBalance>
 getContractAt(name: 'IUserCardCtx', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardCtx>
 getContractAt(name: 'IUserCardFactoryProtocolAuth', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.IUserCardFactoryProtocolAuth>
 getContractAt(name: 'TopupMintAmountCodec', address: string | ethers.Addressable, signer?: ethers.Signer): Promise<Contracts.TopupMintAmountCodec>
@@ -784,6 +786,7 @@ deployContract(name: 'BeamioUserCardMembershipStatsQueryModuleV1', signerOrOptio
 deployContract(name: 'IBeamioMembershipStatsCardView', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsCardView>
 deployContract(name: 'BeamioUserCardRedeemModuleVNext', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardRedeemModuleVNext>
 deployContract(name: 'ICardPointsBalance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardPointsBalance>
+deployContract(name: 'IERC20GiftBalance', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20GiftBalance>
 deployContract(name: 'IUserCardCtx', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IUserCardFactoryProtocolAuth', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryProtocolAuth>
 deployContract(name: 'TopupMintAmountCodec', signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TopupMintAmountCodec>
@@ -1117,6 +1120,7 @@ deployContract(name: 'BeamioUserCardMembershipStatsQueryModuleV1', args: any[], 
 deployContract(name: 'IBeamioMembershipStatsCardView', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IBeamioMembershipStatsCardView>
 deployContract(name: 'BeamioUserCardRedeemModuleVNext', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.BeamioUserCardRedeemModuleVNext>
 deployContract(name: 'ICardPointsBalance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.ICardPointsBalance>
+deployContract(name: 'IERC20GiftBalance', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IERC20GiftBalance>
 deployContract(name: 'IUserCardCtx', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardCtx>
 deployContract(name: 'IUserCardFactoryProtocolAuth', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.IUserCardFactoryProtocolAuth>
 deployContract(name: 'TopupMintAmountCodec', args: any[], signerOrOptions?: ethers.Signer | DeployContractOptions): Promise<Contracts.TopupMintAmountCodec>

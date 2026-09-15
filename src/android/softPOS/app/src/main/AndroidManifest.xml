@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- API 34+ / 部分厂商：Foreground dispatch / ReaderMode 需在 manifest 声明，否则 onResume 内 NfcActivityManager 抛 SecurityException -->
     <uses-permission android:name="android.permission.NFC" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <!-- WebView QR / getUserMedia；无相机设备仍可安装 -->
     <uses-feature
         android:name="android.hardware.camera"

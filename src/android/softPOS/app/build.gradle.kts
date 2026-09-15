@@ -23,10 +23,11 @@ android {
 
     defaultConfig {
         applicationId = "com.beamio.pos"
-        minSdk = 24
+        // Stripe Terminal Tap to Pay 5.8.0 requires Android API 26+.
+        minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "1.0.18"
+        versionCode = 19
+        versionName = "1.0.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -70,6 +71,9 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("androidx.webkit:webkit:1.12.1")
+    // Stripe Terminal: Tap to Pay and supported external Bluetooth readers.
+    implementation("com.stripe:stripeterminal-core:5.8.0")
+    implementation("com.stripe:stripeterminal-taptopay:5.8.0")
     // Offline chat → FCM badge (google-services.json includes com.beamio.pos)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

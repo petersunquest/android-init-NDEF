@@ -32,6 +32,7 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
 
     function selectorModuleKind(bytes4 sel) external view returns (uint8) {
         if (_isReferrerRegistryView(sel)) return ROUTE_STATS_QUERY;
+        if (_isGovernance(sel)) return 3;
         // Live V5 may predate Unified #13 / topupActor routes — hardcode here.
         if (_isChargeRewardUnified13(sel)) return ROUTE_CHARGE_REWARD;
         // Live V5 may predate Discover Gift redeem — hardcode ROUTE_REDEEM here.
@@ -39,9 +40,20 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
         return IAdminStatsSelectorRouter(v5).selectorModuleKind(sel);
     }
 
+    function _isGovernance(bytes4 sel) private pure returns (bool) {
+        return sel == bytes4(keccak256("adminManager(address,bool,uint256,string)"))
+            || sel == bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"))
+            || sel == bytes4(keccak256("adminManagerBatch(address[],uint256,string,uint256)"))
+            || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"))
+            || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"))
+            || sel == bytes4(keccak256("setAdminAirdropLimit(address,uint256)"))
+            || sel == bytes4(keccak256("setAdminAirdropLimitByAdmin(address,uint256,address)"));
+    }
+
     function _isGiftRedeem(bytes4 sel) private pure returns (bool) {
         return sel == bytes4(keccak256("createGiftRedeemForPayer(bytes32,uint256,uint256,uint64,uint64)"))
             || sel == bytes4(keccak256("createGiftRedeemWithCreditBurn(bytes32,uint256,uint256,uint256,address,uint64,uint64)"))
+            || sel == bytes4(keccak256("createGiftRedeemWithReward13Payment(bytes32,uint256,uint256,uint256,uint256,address,address,uint64,uint64,uint256,bytes32,bytes32)"))
             || sel == bytes4(keccak256("getGiftRedeemSplit(bytes32)"));
     }
 

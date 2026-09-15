@@ -3,5 +3,6 @@
 /* eslint-disable */
 export type { BeamioUserCardRedeemModuleVNext } from './BeamioUserCardRedeemModuleVNext.js';
 export type { ICardPointsBalance } from './ICardPointsBalance.js';
+export type { IERC20GiftBalance } from './IERC20GiftBalance.js';
 export type { IUserCardCtx } from './IUserCardCtx.js';
 export type { IUserCardFactoryProtocolAuth } from './IUserCardFactoryProtocolAuth.js';

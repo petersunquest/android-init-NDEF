@@ -1,0 +1,16 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-09-10T19:24:36.514Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "factoryOwner": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "previousGovernanceModule": "0x54009f2388F4198C715A6B45BF36754812f90adD",
+  "previousAdminStatsQueryModule": "0xE4e0c4EbaEC2CFB47acADcC558450E5a26E0B71E",
+  "governanceModule": "0x54009f2388F4198C715A6B45BF36754812f90adD",
+  "adminStatsQueryModule": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10",
+  "selector": "0xaf768cd1",
+  "selectorRoute": 3,
+  "deployTx": null,
+  "adminStatsRouterDeployTx": "0xad0347c1bd473f2eff99e71f3b68fd013b57d94ae42393ff7ab9bcd26c313f8e",
+  "adminStatsRouterBindTx": "0x932603b7a41fc4d658600fb14fd395727082da871c958abf73ba780e1e1f150b"
+}

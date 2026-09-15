@@ -191,6 +191,7 @@ interface IBeamioChargeRewardModuleV2SocialExchange {
 interface IBeamioGovernanceModuleV1 {
     function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata) external;
     function adminManager(address to, bool admin, uint256 newThreshold, string calldata metadata, uint256 mintLimit) external;
+    function adminManagerBatch(address[] calldata tos, uint256 newThreshold, string calldata metadata, uint256 mintLimit) external;
     function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer) external;
     function adminManagerByAdmin(address to, bool admin, uint256 newThreshold, string calldata metadata, address authorizer, uint256 mintLimit) external;
     function setAdminAirdropLimit(address adminAddr, uint256 mintLimit) external;

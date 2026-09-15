@@ -8,7 +8,6 @@ import { DeductPointsSuccessView } from '@/components/DeductPointsSuccessView'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
-import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import {
 	executeDeductPoints,
@@ -17,19 +16,14 @@ import {
 	type DeductExecuteProgressPhase,
 	type DeductExecuteSuccess,
 } from '@/utils/deductPointsExecute'
-import { fetchCardCurrencyCode, fetchCardOwner, fetchOracle } from '@/api/beamioApi'
+import {
+	fetchCardCurrencyCode,
+	fetchOracle,
+	relayPosRewardPtTopup,
+} from '@/api/beamioApi'
 import { cancelPosCustomerScan, runPosCustomerScanFlow } from '@/utils/posScanFlow'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import type { PosHomeLocationState } from '@/utils/posHomeLocationState'
-import { executeNfcTopup } from '@/utils/topupExecute'
-import { nfcTopupCurrencySplitFromPosKeypad } from '@/utils/topupCurrencySplit'
-import {
-	buildUsdcTopupQrUrlPhase1,
-	buildUsdcTopupQrUrlWithNfc,
-	newTopupUsdcSessionId,
-	pollUsdcTopupSession,
-	usdcTopupCustomerHint,
-} from '@/utils/topupUsdcSession'
 import type { UIDAssetsResult } from '@/types/pos'
 import {
 	DEFAULT_ORACLE,
@@ -42,7 +36,7 @@ const conetProvider = new JsonRpcProvider(CONET_RPC, 224422, { staticNetwork: tr
 const CONET_USDC =
 	'0x5209865D404aA5646eDe5B91CD4218909eA72eDA'
 
-type DeductPhase = 'amount' | 'scan-customer' | 'executing' | 'usdc-qr' | 'success'
+type DeductPhase = 'amount' | 'scan-customer' | 'executing' | 'success'
 
 async function maxPtConvertibleTopupAmount(
 	assets: UIDAssetsResult,
@@ -166,11 +160,6 @@ export function DeductPointsPage() {
 	const [maxConvertibleTopupAmount, setMaxConvertibleTopupAmount] = useState<number | null>(null)
 	const [success, setSuccess] = useState<DeductExecuteSuccess | null>(null)
 	const [deductProgress, setDeductProgress] = useState<DeductExecuteProgressPhase>('preparing')
-	const [usdcDeepLink, setUsdcDeepLink] = useState('')
-	const [usdcHint, setUsdcHint] = useState('')
-	const [usdcProgress, setUsdcProgress] = useState('')
-	const [usdcSid, setUsdcSid] = useState('')
-	const pollAbortRef = useRef<AbortController | null>(null)
 	const scanStartedRef = useRef(false)
 
 	const goHome = useCallback(
@@ -221,46 +210,95 @@ export function DeductPointsPage() {
 			goHome('Customer or merchant card is unavailable.')
 			return
 		}
-		const owner = await fetchCardOwner(infra, walletAddress ?? '')
-		if (!owner) {
-			goHome('Cannot resolve merchant card owner. Please retry.')
+		const assets = customerAssets
+		if (!assets) {
+			goHome('Customer assets are unavailable. Please retry.')
 			return
 		}
-		const currency = (await fetchCardCurrencyCode(infra)) ?? 'CAD'
-		const sid = newTopupUsdcSessionId()
-		const split = nfcTopupCurrencySplitFromPosKeypad(amount, 'usdc', false, 0)
-		if (!split) {
-			goHome('Enter a valid USDC amount.')
+		const operator = walletAddress?.trim() ?? ''
+		const userEOA = assets.address?.trim() ?? ''
+		if (!ethers.isAddress(operator) || !ethers.isAddress(userEOA)) {
+			goHome('Customer or terminal wallet is unavailable. Please retry.')
 			return
 		}
-		setUsdcSid(sid)
-		setUsdcHint(usdcTopupCustomerHint('usdc', Boolean(customer.beamioTag || customer.wallet)))
-		setUsdcProgress('')
-		setUsdcDeepLink(
-			customer.uid && customer.sun
-				? buildUsdcTopupQrUrlWithNfc({
-						cardAddress: infra,
-						cardOwner: owner,
-						uid: customer.uid,
-						sun: customer.sun,
-						amount: split.currencyAmount,
-						currency,
-						sid,
-						pos: walletAddress ?? '',
-						paymentMethodRaw: 'usdc',
-					})
-				: buildUsdcTopupQrUrlPhase1({
-						cardAddress: infra,
-						cardOwner: owner,
-						amount: split.currencyAmount,
-						currency,
-						sid,
-						pos: walletAddress ?? '',
-						paymentMethodRaw: 'usdc',
-					}),
+		const targetCurrency = (await fetchCardCurrencyCode(infra)) ?? 'CAD'
+		const oracle = await fetchOracle()
+		if (!oracle) {
+			goHome('Exchange rates are unavailable. Please retry.')
+			return
+		}
+		const targetRate = getRateForCurrency(targetCurrency, oracle)
+		const target = new ethers.Contract(
+			infra,
+			new ethers.Interface([
+				'function pointsUnitPriceInCurrencyE6() view returns (uint256)',
+				'function convertReward13ToPointsRatioE6() view returns (uint256)',
+				'function balanceOf(address,uint256) view returns (uint256)',
+			]),
+			conetProvider,
 		)
-		setPhase('usdc-qr')
-	}, [customer, goHome, merchantInfraCard, walletAddress])
+		const targetPrice = BigInt(await target.pointsUnitPriceInCurrencyE6())
+		const targetPoints = (ethers.parseUnits(amount, 6) * 1_000_000n + targetPrice - 1n) / targetPrice
+		const targetPt = BigInt(await target.balanceOf(userEOA, 13n))
+		const sameRatio = BigInt(await target.convertReward13ToPointsRatioE6())
+		const sameStoreBurn13 =
+			sameRatio > 0n
+				? (targetPoints * 1_000_000n + sameRatio - 1n) / sameRatio > targetPt
+					? targetPt
+					: (targetPoints * 1_000_000n + sameRatio - 1n) / sameRatio
+				: 0n
+		let remainingPoints = targetPoints - (sameStoreBurn13 * sameRatio) / 1_000_000n
+		const peers: Array<{ cardAddress: string; burn13: string; usdcOut6: string }> = []
+		let peerUsdc = 0n
+		for (const card of assets.cards ?? []) {
+			const cardAddress = card.cardAddress?.trim() ?? ''
+			if (!ethers.isAddress(cardAddress) || cardAddress.toLowerCase() === infra.toLowerCase() || remainingPoints <= 0n) continue
+			try {
+				const source = new ethers.Contract(
+					cardAddress,
+					new ethers.Interface([
+						'function balanceOf(address,uint256) view returns (uint256)',
+						'function quoteUsdcWithdrawForFiat6(uint256) view returns (uint256)',
+					]),
+					conetProvider,
+				)
+				const balance = BigInt(await source.balanceOf(userEOA, 13n))
+				const burn = balance > remainingPoints ? remainingPoints : balance
+				if (burn <= 0n) continue
+				const usdcOut = BigInt(await source.quoteUsdcWithdrawForFiat6(burn))
+				if (usdcOut <= 0n) continue
+				peers.push({ cardAddress, burn13: burn.toString(), usdcOut6: usdcOut.toString() })
+				peerUsdc += usdcOut
+				// The target card's oracle is applied again by the server/contract.
+				const estimatedPoints = BigInt(Math.max(1, Math.floor(Number(usdcOut) * targetRate)))
+				remainingPoints = estimatedPoints >= remainingPoints ? 0n : remainingPoints - estimatedPoints
+			} catch {
+				// Ignore an untrusted source-card read; the server performs final checks.
+			}
+		}
+		if (sameStoreBurn13 <= 0n && peers.length === 0) {
+			goHome('Insufficient Reward PT for this top-up.')
+			return
+		}
+		setPhase('executing')
+		const deadline = Math.floor(Date.now() / 1000) + 300
+		const nonce = ethers.hexlify(ethers.randomBytes(32))
+		await relayPosRewardPtTopup({
+			targetCard: infra,
+			userEOA,
+			terminalOperator: operator,
+			terminalCard: infra,
+			sameStoreBurn13: sameStoreBurn13.toString(),
+			peerUsdcCredited6: peerUsdc.toString(),
+			pointsFromPeerUsdc6: '0',
+			minTotalPointsOut0: targetPoints.toString(),
+			deadline,
+			nonce,
+			peers,
+		})
+		await refreshHome()
+		goHome()
+	}, [customer, customerAssets, goHome, merchantInfraCard, refreshHome, walletAddress])
 
 	useEffect(() => {
 		if (phase !== 'scan-customer') return
@@ -324,48 +362,6 @@ export function DeductPointsPage() {
 	}, [phase, goHome, merchantInfraCard, pointSystemEnabled])
 
 	useEffect(() => {
-		if (phase !== 'usdc-qr' || !usdcSid) return
-		pollAbortRef.current?.abort()
-		const controller = new AbortController()
-		pollAbortRef.current = controller
-		void (async () => {
-			const outcome = await pollUsdcTopupSession({
-				sid: usdcSid,
-				signal: controller.signal,
-				onProgress: setUsdcProgress,
-			})
-			if (controller.signal.aborted) return
-			if (outcome.status === 'success') {
-				void refreshHome()
-				goHome()
-			} else if (outcome.status === 'timeout' || outcome.status === 'error') {
-				goHome(outcome.status === 'timeout' ? 'USDC top-up timed out.' : outcome.message)
-			} else if (outcome.status === 'awaiting_beneficiary' && customer) {
-				const split = nfcTopupCurrencySplitFromPosKeypad(keypadAmount, 'usdc', false, 0)
-				if (!split) return
-				setDeductProgress('preparing')
-				setPhase('executing')
-				const result = await executeNfcTopup({
-					target: customer,
-					apiAmount: split.currencyAmount,
-					currencySplit: split,
-					merchantInfraCard: merchantInfraCard?.trim() ?? '',
-					posWallet: walletAddress ?? '',
-					usdcTopupSessionId: usdcSid,
-					onProgress: (progress) =>
-						setDeductProgress(progress === 'refreshing' ? 'preparing' : progress),
-				})
-				if (result.status === 'error') goHome(result.message)
-				else {
-					void refreshHome()
-					goHome()
-				}
-			}
-		})()
-		return () => controller.abort()
-	}, [customer, goHome, keypadAmount, merchantInfraCard, phase, refreshHome, usdcSid, walletAddress])
-
-	useEffect(() => {
 		return () => cancelPosCustomerScan()
 	}, [])
 
@@ -373,6 +369,7 @@ export function DeductPointsPage() {
 		return (
 			<DeductPointsAmountPadPage
 				assets={customerAssets}
+				merchantInfraCard={merchantInfraCard}
 				convertibleTopupAmount={maxConvertibleTopupAmount}
 				onCancel={() => goHome()}
 				onContinue={({ mode, keypadAmount: nextAmount }) => {
@@ -409,17 +406,6 @@ export function DeductPointsPage() {
 				}
 				bottomAmount={pts > 0 ? pts : undefined}
 				bottomTone="deduct"
-			/>
-		)
-	}
-
-	if (phase === 'usdc-qr' && usdcDeepLink) {
-		return (
-			<TopupUsdcQrPanel
-				deepLink={usdcDeepLink}
-				hint={usdcHint}
-				progressLabel={usdcProgress}
-				onCancel={() => goHome()}
 			/>
 		)
 	}

@@ -6,12 +6,13 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface IBeamioGovernanceModuleV1Interface extends Interface {
-    getFunction(nameOrSignature: "adminManager(address,bool,uint256,string)" | "adminManager(address,bool,uint256,string,uint256)" | "adminManagerByAdmin(address,bool,uint256,string,address)" | "adminManagerByAdmin(address,bool,uint256,string,address,uint256)" | "approveProposal" | "approveProposalByGateway" | "clearAdminStatsAndAirdropUsageForSubordinate" | "createProposal" | "enforceAndRecordAdminAirdropLimit" | "executeProposal" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "setAdminAirdropLimit" | "setAdminAirdropLimitByAdmin"): FunctionFragment;
+    getFunction(nameOrSignature: "adminManager(address,bool,uint256,string)" | "adminManager(address,bool,uint256,string,uint256)" | "adminManagerBatch" | "adminManagerByAdmin(address,bool,uint256,string,address)" | "adminManagerByAdmin(address,bool,uint256,string,address,uint256)" | "approveProposal" | "approveProposalByGateway" | "clearAdminStatsAndAirdropUsageForSubordinate" | "createProposal" | "enforceAndRecordAdminAirdropLimit" | "executeProposal" | "resetAdminLimit" | "resetAdminLimitByAdmin" | "setAdminAirdropLimit" | "setAdminAirdropLimitByAdmin"): FunctionFragment;
 
     
 
     encodeFunctionData(functionFragment: 'adminManager(address,bool,uint256,string)', values: [AddressLike, boolean, BigNumberish, string]): string;
 encodeFunctionData(functionFragment: 'adminManager(address,bool,uint256,string,uint256)', values: [AddressLike, boolean, BigNumberish, string, BigNumberish]): string;
+encodeFunctionData(functionFragment: 'adminManagerBatch', values: [AddressLike[], BigNumberish, string, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address)', values: [AddressLike, boolean, BigNumberish, string, AddressLike]): string;
 encodeFunctionData(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address,uint256)', values: [AddressLike, boolean, BigNumberish, string, AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'approveProposal', values: [BigNumberish]): string;
@@ -27,6 +28,7 @@ encodeFunctionData(functionFragment: 'setAdminAirdropLimitByAdmin', values: [Add
 
     decodeFunctionResult(functionFragment: 'adminManager(address,bool,uint256,string)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'adminManager(address,bool,uint256,string,uint256)', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'adminManagerBatch', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'adminManagerByAdmin(address,bool,uint256,string,address,uint256)', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'approveProposal', data: BytesLike): Result;
@@ -87,6 +89,14 @@ decodeFunctionResult(functionFragment: 'setAdminAirdropLimitByAdmin', data: Byte
     
     "adminManager(address,bool,uint256,string,uint256)": TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    adminManagerBatch: TypedContractMethod<
+      [tos: AddressLike[], newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
       [void],
       'nonpayable'
     >
@@ -198,6 +208,11 @@ decodeFunctionResult(functionFragment: 'setAdminAirdropLimitByAdmin', data: Byte
     >;
 getFunction(nameOrSignature: 'adminManager(address,bool,uint256,string,uint256)'): TypedContractMethod<
       [to: AddressLike, admin: boolean, newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'adminManagerBatch'): TypedContractMethod<
+      [tos: AddressLike[], newThreshold: BigNumberish, metadata: string, mintLimit: BigNumberish, ],
       [void],
       'nonpayable'
     >;

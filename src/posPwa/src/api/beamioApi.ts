@@ -27,6 +27,40 @@ export type MerchantCardStripeTerminalIntent = {
 	locationId: string
 }
 
+export type PosRewardPtTopupResult = {
+	success: boolean
+	hash?: string
+	targetCard?: string
+	userEOA?: string
+	pointsOut0?: string
+	error?: string
+}
+
+export async function relayPosRewardPtTopup(body: {
+	targetCard: string
+	userEOA: string
+	terminalOperator: string
+	terminalCard: string
+	sameStoreBurn13: string
+	peerUsdcCredited6: string
+	pointsFromPeerUsdc6: string
+	minTotalPointsOut0: string
+	deadline: number
+	nonce: string
+	peers: Array<{ cardAddress: string; burn13: string; usdcOut6: string }>
+}): Promise<PosRewardPtTopupResult> {
+	const res = await fetch(`${BEAMIO_API}/api/posRewardPtTopup`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body),
+	})
+	const json = (await res.json().catch(() => ({}))) as PosRewardPtTopupResult
+	if (!res.ok || json.success !== true) {
+		throw new Error(String(json.error ?? `Reward PT top-up failed (HTTP ${res.status})`))
+	}
+	return json
+}
+
 export async function createMerchantCardStripeTerminalPaymentIntent(body: {
 	cardAddress: string
 	buyerEoa: string

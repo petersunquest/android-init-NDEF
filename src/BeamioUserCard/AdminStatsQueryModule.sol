@@ -175,6 +175,7 @@ contract BeamioUserCardAdminStatsQueryModuleV1 {
         if (
             sel == bytes4(keccak256("adminManager(address,bool,uint256,string)"))
                 || sel == bytes4(keccak256("adminManager(address,bool,uint256,string,uint256)"))
+                || sel == bytes4(keccak256("adminManagerBatch(address[],uint256,string,uint256)"))
                 || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address)"))
                 || sel == bytes4(keccak256("adminManagerByAdmin(address,bool,uint256,string,address,uint256)"))
                 || sel == bytes4(keccak256("setAdminAirdropLimit(address,uint256)"))

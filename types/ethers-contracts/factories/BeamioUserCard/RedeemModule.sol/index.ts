@@ -3,5 +3,6 @@
 /* eslint-disable */
 export { BeamioUserCardRedeemModuleVNext__factory } from './BeamioUserCardRedeemModuleVNext__factory.js';
 export { ICardPointsBalance__factory } from './ICardPointsBalance__factory.js';
+export { IERC20GiftBalance__factory } from './IERC20GiftBalance__factory.js';
 export { IUserCardCtx__factory } from './IUserCardCtx__factory.js';
 export { IUserCardFactoryProtocolAuth__factory } from './IUserCardFactoryProtocolAuth__factory.js';

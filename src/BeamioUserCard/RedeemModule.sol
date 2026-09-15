@@ -5,6 +5,7 @@ import "./Errors.sol";
 import "./BeamioERC1155Logic.sol";
 import "./GovernanceStorage.sol";
 import "./RedeemStorage.sol";
+import "./RewardPoolStorage.sol";
 import "./BeamioUserCardModuleMintLib.sol";
 
 /* =========================
@@ -26,6 +27,10 @@ interface ICardPointsBalance {
     function balanceOf(address account, uint256 id) external view returns (uint256);
 }
 
+interface IERC20GiftBalance {
+    function balanceOf(address account) external view returns (uint256);
+}
+
 /**
  * @title BeamioUserCardRedeemModuleVNext
  * @notice Delegatecall module. Storage lives in the UserCard (via SLOT).
@@ -35,6 +40,8 @@ contract BeamioUserCardRedeemModuleVNext {
     uint256 private constant POINTS_ID = BeamioERC1155Logic.POINTS_ID;
     uint256 private constant _MAX_BUNDLE_LEN = 64;
     uint256 private constant _MAX_POOL_CONTAINERS = 32;
+    /// @dev Canonical CoNET USDC used by peer Reward PT legs.
+    address private constant _CONET_USDC_TOKEN = 0x5209865D404aA5646eDe5B91CD4218909eA72eDA;
 
     // ===== events =====
     event RedeemCreated(bytes32 indexed hash, uint256 points6, uint256 attr, uint64 validAfter, uint64 validBefore, uint256 bundleLen);
@@ -54,6 +61,13 @@ contract BeamioUserCardRedeemModuleVNext {
         uint256 topupCreditE6,
         uint64 validAfter,
         uint64 validBefore
+    );
+    event GiftReward13PaymentApplied(
+        bytes32 indexed hash,
+        address indexed userEOA,
+        uint256 sameStoreBurn13,
+        uint256 peerUsdcCredited6,
+        bytes32 legsHash
     );
 
     // ==========================================================
@@ -334,6 +348,84 @@ contract BeamioUserCardRedeemModuleVNext {
 
         emit RedeemCreated(hash, giftFaceE6, 0, validAfter, validBefore, 0);
         emit GiftRedeemCreated(hash, membershipFeeE6, topupCreditE6, validAfter, validBefore);
+    }
+
+    /// @notice Discover Gift mixed payment: burn this merchant's #13 and
+    /// consume USDC already delivered by cross-store #13 legs, then create
+    /// the Gift redeem in the same relayed AA batch.
+    /// @dev Peer cards must be called first in the same executeBatch via
+    /// `peerRedeem13ForContainerTopup`. The peer function validates its own
+    /// oracle quote and burns the source card's #13 atomically with its USDC
+    /// transfer. This function only accepts the resulting USDC balance and
+    /// burns the target card's #13; the Gift redeem is created last.
+    /// `nonce` is user-scoped and prevents replay across relay retries.
+    function createGiftRedeemWithReward13Payment(
+        bytes32 hash,
+        uint256 membershipFeeE6,
+        uint256 topupCreditE6,
+        uint256 sameStoreBurn13,
+        uint256 peerUsdcCredited6,
+        address payerAccount,
+        address userEOA,
+        uint64 validAfter,
+        uint64 validBefore,
+        uint256 deadline,
+        bytes32 nonce,
+        bytes32 legsHash
+    ) external {
+        _requireFactoryOwnerOrPaymaster();
+        if (payerAccount == address(0) || userEOA == address(0)) revert UC_NoBeamioAccount();
+        if (hash == bytes32(0) || nonce == bytes32(0) || legsHash == bytes32(0)) revert BM_InvalidSecret();
+        if (block.timestamp > deadline) revert UC_InvalidTimeWindow(block.timestamp, 0, deadline);
+        if (sameStoreBurn13 == 0 && peerUsdcCredited6 == 0) revert UC_AmountZero();
+
+        uint256 giftFaceE6 = membershipFeeE6 + topupCreditE6;
+        if (giftFaceE6 == 0 || giftFaceE6 > type(uint128).max) revert UC_InvalidProposal();
+        if (membershipFeeE6 > type(uint128).max || topupCreditE6 > type(uint128).max) {
+            revert UC_InvalidProposal();
+        }
+
+        bytes32 nonceKey = keccak256(abi.encode(userEOA, nonce));
+        RewardPoolStorage.Layout storage reward = RewardPoolStorage.layout();
+        if (reward.usedContainerTopupNonces[nonceKey]) revert UC_NonceUsed();
+        reward.usedContainerTopupNonces[nonceKey] = true;
+
+        if (sameStoreBurn13 > 0) {
+            uint256 have = ICardPointsBalance(address(this)).balanceOf(payerAccount, 13);
+            if (have < sameStoreBurn13) {
+                revert UC_InsufficientBalance(payerAccount, 13, have, sameStoreBurn13);
+            }
+            BeamioUserCardModuleMintLib.cardBurn(payerAccount, 13, sameStoreBurn13);
+        }
+
+        if (peerUsdcCredited6 > 0) {
+            uint256 haveUsdc = IERC20GiftBalance(_CONET_USDC_TOKEN).balanceOf(address(this));
+            if (haveUsdc < peerUsdcCredited6) {
+                revert UC_RewardBudgetInsufficient(peerUsdcCredited6, haveUsdc);
+            }
+        }
+
+        RedeemStorage.Layout storage l = RedeemStorage.layout();
+        RedeemStorage.Redeem storage r = l.redeems[hash];
+        if (r.active) revert UC_InvalidProposal();
+        _wipeRedeemArrays(r);
+
+        r.points6 = uint128(giftFaceE6);
+        r.attr = 0;
+        r.validAfter = validAfter;
+        r.validBefore = validBefore;
+        r.creator = IUserCardCtx(address(this)).owner();
+        r.recommender = address(0);
+        r.active = true;
+
+        RedeemStorage.GiftRedeemSplit storage g = l.giftSplits[hash];
+        g.isGift = true;
+        g.membershipFeeE6 = uint128(membershipFeeE6);
+        g.topupCreditE6 = uint128(topupCreditE6);
+
+        emit RedeemCreated(hash, giftFaceE6, 0, validAfter, validBefore, 0);
+        emit GiftRedeemCreated(hash, membershipFeeE6, topupCreditE6, validAfter, validBefore);
+        emit GiftReward13PaymentApplied(hash, userEOA, sameStoreBurn13, peerUsdcCredited6, legsHash);
     }
 
     /// @notice Peek Discover Gift fee/topup split (cleared on consume/cancel).

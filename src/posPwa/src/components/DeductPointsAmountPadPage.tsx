@@ -18,7 +18,7 @@ export type PointsPaymentMode = 'burn-pt' | 'usdc-topup'
 
 const MODE_LABEL: Record<PointsPaymentMode, string> = {
 	'burn-pt': 'Reward PT',
-	'usdc-topup': 'USDC',
+	'usdc-topup': 'Top Up',
 }
 
 function formatAvailablePtsLabel(maxPoints6: bigint): string {
@@ -30,6 +30,7 @@ export function DeductPointsAmountPadPage({
 	onCancel,
 	onContinue,
 	assets,
+	merchantInfraCard,
 	allowUsdcTopup = true,
 	convertibleTopupAmount,
 	maxPoints6,
@@ -37,6 +38,7 @@ export function DeductPointsAmountPadPage({
 	onCancel: () => void
 	onContinue: (input: { mode: PointsPaymentMode; keypadAmount: string }) => void
 	assets?: UIDAssetsResult | null
+	merchantInfraCard?: string | null
 		allowUsdcTopup?: boolean
 		/** Maximum amount payable with cross-store convertible PT, in merchant currency. */
 		convertibleTopupAmount?: number | null
@@ -48,7 +50,20 @@ export function DeductPointsAmountPadPage({
 	const hasPositiveAmount = Number.isFinite(parsed) && parsed > 0
 	const points6 = (() => {
 		try {
-			return BigInt(String(assets?.chargeRewardPoints6 ?? assets?.points6 ?? '0'))
+			const infra = merchantInfraCard?.trim().toLowerCase()
+			const merchantCard = infra
+				? assets?.cards?.find(
+						(card) => card.cardAddress.trim().toLowerCase() === infra,
+					)
+				: undefined
+			return BigInt(
+				String(
+					merchantCard?.chargeRewardPoints6 ??
+						assets?.chargeRewardPoints6 ??
+						assets?.points6 ??
+						'0',
+				),
+			)
 		} catch {
 			return 0n
 		}
@@ -110,29 +125,23 @@ export function DeductPointsAmountPadPage({
 			aboveAmountDisplay={
 				balanceKnown ? (
 					<div className="space-y-2">
-						<div className="grid grid-cols-2 items-end gap-4">
-							<div className="min-w-0 text-left">
+						<div className="text-center">
+							{mode === 'burn-pt' ? (
 								<p
 									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
 									style={{ color: DEDUCT_ORANGE }}
 								>
 									{formatAvailablePtsLabel(effectiveMaxPoints6)}
 								</p>
-							</div>
-							<div className="min-w-0 text-right">
+							) : (
 								<p
 									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
 									style={{ color: USDC_BLUE }}
 								>
 									{merchantCurrencyPrefix}{readBalanceFormatUsdcThousands(usdcBalance)}
 								</p>
-							</div>
+							)}
 						</div>
-						{mode === 'usdc-topup' ? (
-							<p className="text-center text-xs text-slate-400">
-								Use convertible USDC to top up merchant store credit
-							</p>
-						) : undefined}
 					</div>
 				) : undefined
 			}
