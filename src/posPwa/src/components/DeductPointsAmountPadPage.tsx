@@ -112,9 +112,6 @@ export function DeductPointsAmountPadPage({
 					<div className="space-y-2">
 						<div className="grid grid-cols-2 items-end gap-4">
 							<div className="min-w-0 text-left">
-								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-									Available Reward PT
-								</p>
 								<p
 									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
 									style={{ color: DEDUCT_ORANGE }}
@@ -123,9 +120,6 @@ export function DeductPointsAmountPadPage({
 								</p>
 							</div>
 							<div className="min-w-0 text-right">
-								<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-									PT convertible for top-up
-								</p>
 								<p
 									className="truncate text-2xl font-black leading-tight tabular-nums sm:text-3xl"
 									style={{ color: USDC_BLUE }}
@@ -134,11 +128,11 @@ export function DeductPointsAmountPadPage({
 								</p>
 							</div>
 						</div>
-						<p className="text-center text-xs text-slate-400">
-							{mode === 'burn-pt'
-								? 'Burn merchant Reward PT'
-								: 'Use convertible USDC to top up merchant store credit'}
-						</p>
+						{mode === 'usdc-topup' ? (
+							<p className="text-center text-xs text-slate-400">
+								Use convertible USDC to top up merchant store credit
+							</p>
+						) : undefined}
 					</div>
 				) : undefined
 			}
