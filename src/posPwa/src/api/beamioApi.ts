@@ -68,6 +68,10 @@ export async function createMerchantCardStripeTerminalPaymentIntent(body: {
 	currency: string
 	kind?: 'topup' | 'membership'
 	businessIdempotencyKey: string
+	posAdmin: string
+	authorizationSignature: string
+	authorizationDeadline: number
+	authorizationNonce: string
 }): Promise<MerchantCardStripeTerminalIntent> {
 	const res = await fetch(`${BEAMIO_API}/api/merchantCardStripe/createTerminalPaymentIntent`, {
 		method: 'POST',

@@ -10,6 +10,11 @@ import {
 	cancelStripePhysicalPayment,
 	type StripePhysicalReaderMode,
 } from '@/bridge/cashTreesScanBridge'
+import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
+import {
+	signStripeTerminalAuthorization,
+	type StripeTerminalAuthorization,
+} from '@/utils/stripeTerminalAuthorization'
 
 export type StripePhysicalPaymentResult = {
 	paymentIntentId: string
@@ -50,12 +55,32 @@ export async function collectStripePhysicalTopup(params: {
 	}
 	params.onProgress?.('Preparing secure card payment...')
 	const requestId = newCashTreesScanRequestId()
+	const privateKeyHex = await getPosPrivateKeyHex()
+	const posAdmin = await getPosSigningWalletAddress()
+	if (!privateKeyHex || !posAdmin) {
+		throw new Error('POS admin wallet is not initialized.')
+	}
+	const authorization: StripeTerminalAuthorization = {
+		cardAddress: params.cardAddress,
+		buyerEoa: params.buyerEoa,
+		amountFiat6: params.amountFiat6,
+		currency: params.currency,
+		kind: 'topup',
+		businessIdempotencyKey: `pos-terminal:${requestId}`,
+		deadline: Math.floor(Date.now() / 1000) + 300,
+		nonce: `0x${Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')}`,
+	}
+	const authorizationSignature = await signStripeTerminalAuthorization(privateKeyHex, authorization)
 	const intent = await createMerchantCardStripeTerminalPaymentIntent({
 		cardAddress: params.cardAddress,
 		buyerEoa: params.buyerEoa,
 		amountFiat6: params.amountFiat6,
 		currency: params.currency,
-		businessIdempotencyKey: `pos-terminal:${requestId}`,
+		businessIdempotencyKey: authorization.businessIdempotencyKey,
+		posAdmin,
+		authorizationSignature,
+		authorizationDeadline: authorization.deadline,
+		authorizationNonce: authorization.nonce,
 	})
 	if (!intent.locationId) throw new Error('Stripe Terminal location is not configured for this merchant.')
 	const detailPromise = new Promise<void>((resolve, reject) => {
@@ -76,6 +101,10 @@ export async function collectStripePhysicalTopup(params: {
 		paymentIntentId: intent.paymentIntentId,
 		cardAddress: params.cardAddress,
 		locationId: intent.locationId,
+		posAdmin,
+		authorizationSignature,
+		authorizationDeadline: authorization.deadline,
+		authorizationNonce: authorization.nonce,
 		readerMode: params.readerMode ?? 'auto',
 	})
 	try {

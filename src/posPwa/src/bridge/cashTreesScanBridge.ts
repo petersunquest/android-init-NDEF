@@ -40,6 +40,10 @@ export interface StripePhysicalPaymentRequest {
 	paymentIntentId: string
 	cardAddress: string
 	locationId: string
+	posAdmin: string
+	authorizationSignature: string
+	authorizationDeadline: number
+	authorizationNonce: string
 	readerMode?: StripePhysicalReaderMode
 }
 

@@ -12,6 +12,10 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     private var cardAddress = ""
     private var locationId = ""
     private var clientSecret = ""
+    private var posAdmin = ""
+    private var authorizationSignature = ""
+    private var authorizationDeadline = 0
+    private var authorizationNonce = ""
     private var readerMode = "auto"
 
     init(webView: WKWebView) {
@@ -25,7 +29,13 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         cardAddress = body["cardAddress"] as? String ?? ""
         locationId = body["locationId"] as? String ?? ""
         clientSecret = body["clientSecret"] as? String ?? ""
-        guard !requestId.isEmpty, !clientSecret.isEmpty, !locationId.isEmpty else {
+        posAdmin = body["posAdmin"] as? String ?? ""
+        authorizationSignature = body["authorizationSignature"] as? String ?? ""
+        authorizationDeadline = body["authorizationDeadline"] as? Int ?? 0
+        authorizationNonce = body["authorizationNonce"] as? String ?? ""
+        guard !requestId.isEmpty, !clientSecret.isEmpty, !locationId.isEmpty,
+              !posAdmin.isEmpty, !authorizationSignature.isEmpty,
+              authorizationDeadline > 0, !authorizationNonce.isEmpty else {
             fail(code: "invalid_request", message: "Stripe Terminal payment request is incomplete.")
             return
         }
@@ -48,7 +58,13 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         var request = URLRequest(url: URL(string: "https://beamio.app/api/merchantCardStripe/connectionToken")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["cardAddress": cardAddress])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "cardAddress": cardAddress,
+            "posAdmin": posAdmin,
+            "authorizationSignature": authorizationSignature,
+            "authorizationDeadline": authorizationDeadline,
+            "authorizationNonce": authorizationNonce,
+        ])
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error {
                 completion(nil, error)
