@@ -69,7 +69,7 @@ export function BeamioCompactAmountPadShell({
 	onContinue: () => void
 	keypad: ReactNode
 }) {
-	const { ref, sidePad, gap, amountPx, bottomPad } = useAmountPadLayoutMetrics()
+	const { ref, compact, sidePad, gap, amountPx, bottomPad } = useAmountPadLayoutMetrics()
 
 	return (
 		<PosScreenShell bg="bg-[#EEF5FF]" className="text-slate-900">
@@ -128,7 +128,11 @@ export function BeamioCompactAmountPadShell({
 
 				<div
 					className="flex min-h-0 flex-1 flex-col"
-					style={{ paddingLeft: sidePad, paddingRight: sidePad }}
+					style={{
+						paddingLeft: sidePad,
+						paddingRight: sidePad,
+						paddingTop: compact ? 14 : 18,
+					}}
 				>
 					{keypad}
 				</div>
