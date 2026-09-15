@@ -74,9 +74,9 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         do {
             let configuration = try TapToPayDiscoveryConfigurationBuilder().build()
             Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
-            if let error {
-                self?.fail(code: "reader_unavailable", message: error.localizedDescription)
-            }
+                if let error {
+                    self?.fail(code: "reader_unavailable", message: error.localizedDescription)
+                }
             }
         } catch {
             fail(code: "reader_unavailable", message: error.localizedDescription)
@@ -87,9 +87,9 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
         do {
             let configuration = try BluetoothScanDiscoveryConfigurationBuilder().build()
             Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
-            if let error {
-                self?.fail(code: "reader_unavailable", message: error.localizedDescription)
-            }
+                if let error {
+                    self?.fail(code: "reader_unavailable", message: error.localizedDescription)
+                }
             }
         } catch {
             fail(code: "reader_unavailable", message: error.localizedDescription)

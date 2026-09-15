@@ -5,6 +5,7 @@ import {
 	DeductPointsAmountPadPage,
 } from '@/components/DeductPointsAmountPadPage'
 import { DeductPointsSuccessView } from '@/components/DeductPointsSuccessView'
+import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
@@ -16,6 +17,7 @@ import {
 	type DeductExecuteProgressPhase,
 	type DeductExecuteSuccess,
 } from '@/utils/deductPointsExecute'
+import type { TopupExecuteSuccess } from '@/utils/topupExecute'
 import {
 	fetchCardCurrencyCode,
 	fetchOracle,
@@ -31,6 +33,8 @@ import {
 	type OracleRates,
 } from '@/utils/beamioPaymentRouting'
 import { CONET_RPC } from '@/constants'
+import { buildTopupSuccessPassHero } from '@/utils/posSuccessHero'
+import { memberNoFromCard } from '@/utils/readBalanceAssets'
 
 const conetProvider = new JsonRpcProvider(CONET_RPC, 224422, { staticNetwork: true })
 const CONET_USDC =
@@ -158,7 +162,8 @@ export function DeductPointsPage() {
 	const [customer, setCustomer] = useState<DeductCustomerTarget | null>(null)
 	const [customerAssets, setCustomerAssets] = useState<UIDAssetsResult | null>(null)
 	const [maxConvertibleTopupAmount, setMaxConvertibleTopupAmount] = useState<number | null>(null)
-	const [success, setSuccess] = useState<DeductExecuteSuccess | null>(null)
+	const [success, setSuccess] = useState<DeductExecuteSuccess | TopupExecuteSuccess | null>(null)
+	const [relayTopupSuccess, setRelayTopupSuccess] = useState(false)
 	const [deductProgress, setDeductProgress] = useState<DeductExecuteProgressPhase>('preparing')
 	const scanStartedRef = useRef(false)
 
@@ -194,6 +199,7 @@ export function DeductPointsPage() {
 				onProgress: setDeductProgress,
 			})
 			if (outcome.status === 'success') {
+				setRelayTopupSuccess(false)
 				setSuccess(outcome.result)
 				setPhase('success')
 				void refreshHome()
@@ -288,7 +294,7 @@ export function DeductPointsPage() {
 		setPhase('executing')
 		const deadline = Math.floor(Date.now() / 1000) + 300
 		const nonce = ethers.hexlify(ethers.randomBytes(32))
-		await relayPosRewardPtTopup({
+		const relayResult = await relayPosRewardPtTopup({
 			targetCard: infra,
 			userEOA,
 			terminalOperator: operator,
@@ -302,7 +308,43 @@ export function DeductPointsPage() {
 			peers,
 		})
 		await refreshHome()
-		goHome()
+		const postAssets = await loadCustomerAssets(customer, infra)
+		const postCard = postAssets?.cards?.find(
+			(card) => card.cardAddress.trim().toLowerCase() === infra.toLowerCase(),
+		)
+		const preCard = assets.cards?.find(
+			(card) => card.cardAddress.trim().toLowerCase() === infra.toLowerCase(),
+		)
+		const preBalance = preCard?.points ?? assets.points ?? '—'
+		const postBalance = postAssets?.ok
+			? postCard?.points ?? postAssets.points ?? '—'
+			: '—'
+		const cardCurrency = postCard?.cardCurrency ?? assets.cardCurrency ?? targetCurrency
+		const relaySuccess: TopupExecuteSuccess = {
+			amount,
+			txHash: relayResult.hash,
+			preBalance,
+			postBalance,
+			cardCurrency,
+			memberNo: memberNoFromCard(postCard ?? preCard),
+			customerBeamioTag: customer.beamioTag ?? postAssets?.beamioTag,
+			address: postAssets?.address ?? assets.address ?? userEOA,
+			passHero: postAssets?.ok
+				? buildTopupSuccessPassHero({
+						assets: postAssets,
+						cardAddr: infra,
+						merchantInfraCard: infra,
+						pointSystemEnabled,
+						postBalance,
+						cardCurrency,
+						customerBeamioTag: customer.beamioTag ?? postAssets.beamioTag,
+						customerAddress: postAssets.address ?? userEOA,
+					})
+				: undefined,
+		}
+		setRelayTopupSuccess(true)
+		setSuccess(relaySuccess)
+		setPhase('success')
 	}, [customer, customerAssets, goHome, merchantInfraCard, refreshHome, walletAddress])
 
 	useEffect(() => {
@@ -392,9 +434,18 @@ export function DeductPointsPage() {
 	}
 
 	if (phase === 'success' && success) {
+		if (relayTopupSuccess) {
+			return (
+				<TopupSuccessView
+					result={success as TopupExecuteSuccess}
+					pointSystemEnabled={pointSystemEnabled}
+					onDone={() => navigate(POS_HOME_ROUTES.home, { replace: true })}
+				/>
+			)
+		}
 		return (
 			<DeductPointsSuccessView
-				result={success}
+				result={success as DeductExecuteSuccess}
 				pointSystemEnabled={pointSystemEnabled}
 				onDone={() => navigate(POS_HOME_ROUTES.home, { replace: true })}
 			/>

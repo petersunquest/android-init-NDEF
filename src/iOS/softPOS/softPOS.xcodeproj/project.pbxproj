@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		D0POSZIP0030000000000003 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D0POSZIP0020000000000002 /* ZIPFoundation */; };
+		D0POSSTRIPE0030000000000003 /* StripeTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = D0POSSTRIPE0020000000000002 /* StripeTerminal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0POSZIP0030000000000003 /* ZIPFoundation in Frameworks */,
+				D0POSSTRIPE0030000000000003 /* StripeTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -131,6 +133,7 @@
 			name = softPOS;
 			packageProductDependencies = (
 				D0POSZIP0020000000000002 /* ZIPFoundation */,
+				D0POSSTRIPE0020000000000002 /* StripeTerminal */,
 			);
 			productName = CashTrees_iOS;
 			productReference = D00281D32F767F0500C91DCF /* softPOS.app */;
@@ -216,6 +219,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D0POSZIP0010000000000001 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+				D0POSSTRIPE0010000000000001 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00281D42F767F0500C91DCF /* Products */;
@@ -441,7 +445,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.4;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.beamio.app.pos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -481,7 +485,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1.4;
+				MARKETING_VERSION = 1.1.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.beamio.app.pos;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -628,6 +632,14 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		D0POSSTRIPE0010000000000001 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stripe/stripe-terminal-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -635,6 +647,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D0POSZIP0010000000000001 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
+		};
+		D0POSSTRIPE0020000000000002 /* StripeTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D0POSSTRIPE0010000000000001 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */;
+			productName = StripeTerminal;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

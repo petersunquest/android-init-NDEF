@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		D0855E0A2FCD4EAC0049BD4C /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = D0ZP0012FC10000100000002 /* ZIPFoundation */; };
-		D0855E0B2FCD4EAC0049BD4C /* StripeTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = D0ZP0013FC10000100000003 /* StripeTerminal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,7 +70,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D0855E0A2FCD4EAC0049BD4C /* ZIPFoundation in Frameworks */,
-				D0855E0B2FCD4EAC0049BD4C /* StripeTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -133,7 +131,6 @@
 			name = CashTrees_iOS;
 			packageProductDependencies = (
 				D0ZP0012FC10000100000002 /* ZIPFoundation */,
-				D0ZP0013FC10000100000003 /* StripeTerminal */,
 			);
 			productName = CashTrees_iOS;
 			productReference = D00281D32F767F0500C91DCF /* CashTrees_iOS.app */;
@@ -219,7 +216,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
-				D0ZP0003FC10000100000003 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D00281D42F767F0500C91DCF /* Products */;
@@ -433,7 +429,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Beamio;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
-				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to securely accept contactless payments via Tap to Pay.";
+				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to read supported physical cards.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio uses Bluetooth to connect to supported Stripe card readers.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
@@ -474,7 +470,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Beamio;
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
-				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to securely accept contactless payments via Tap to Pay.";
+				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to read supported physical cards.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio uses Bluetooth to connect to supported Stripe card readers.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
@@ -634,14 +630,6 @@
 				minimumVersion = 0.9.0;
 			};
 		};
-		D0ZP0003FC10000100000003 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stripe/stripe-terminal-ios";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 4.0.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -649,11 +637,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
 			productName = ZIPFoundation;
-		};
-		D0ZP0013FC10000100000003 /* StripeTerminal */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = D0ZP0003FC10000100000003 /* XCRemoteSwiftPackageReference "stripe-terminal-ios" */;
-			productName = StripeTerminal;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
