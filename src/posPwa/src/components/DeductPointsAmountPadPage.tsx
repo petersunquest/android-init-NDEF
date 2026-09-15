@@ -1,7 +1,8 @@
-import { useState } from 'react'
-import { CreditCard, WalletCards } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { WalletCards } from 'lucide-react'
 import { BeamioAmountPad, formatAmountPadDisplay } from '@/components/BeamioAmountPad'
 import { BeamioCompactAmountPadShell } from '@/components/BeamioCompactAmountPadShell'
+import { UsdcBaseCompositeIcon } from '@/components/ChainTokenCompositeIcon'
 import {
 	isDeductKeypadWithinBalance,
 	parseDeductKeypadAmount6,
@@ -12,11 +13,16 @@ import type { UIDAssetsResult } from '@/types/pos'
 const DEDUCT_ORANGE = '#ea580c'
 const USDC_BLUE = '#2563eb'
 
-function formatAvailablePtsLabel(maxPoints6: bigint): string {
-	return `${readBalanceFormatUsdcThousands(Number(maxPoints6) / 1_000_000)} pts`
+export type PointsPaymentMode = 'burn-pt' | 'usdc-topup'
+
+const MODE_LABEL: Record<PointsPaymentMode, string> = {
+	'burn-pt': 'Reward PT',
+	'usdc-topup': 'USDC',
 }
 
-export type PointsPaymentMode = 'burn-pt' | 'usdc-topup'
+function formatAvailablePtsLabel(maxPoints6: bigint): string {
+	return `${readBalanceFormatUsdcThousands(Number(maxPoints6) / 1_000_000)} PT`
+}
 
 /** iOS `DeductPointsAmountPadFullPage` / `BoxWithConstraintsLikeChargeAmountPad`. */
 export function DeductPointsAmountPadPage({
@@ -55,6 +61,11 @@ export function DeductPointsAmountPadPage({
 	const canContinue = hasPositiveAmount && withinBalance
 	const exceedsBalance = hasPositiveAmount && !withinBalance
 	const balanceKnown = maxPoints6 != null || assets != null
+	const nextMode = useMemo<PointsPaymentMode>(
+		() => (mode === 'burn-pt' && allowUsdcTopup ? 'usdc-topup' : 'burn-pt'),
+		[allowUsdcTopup, mode],
+	)
+	const modeAccent = mode === 'burn-pt' ? DEDUCT_ORANGE : USDC_BLUE
 
 	return (
 		<BeamioCompactAmountPadShell
@@ -63,34 +74,35 @@ export function DeductPointsAmountPadPage({
 			continueTitle="Continue"
 			amountDisplay={formatAmountPadDisplay(amount)}
 			amountTrailing={
-				<div className="flex flex-col gap-1">
-					{allowUsdcTopup ? <button
-						type="button"
-						aria-pressed={mode === 'burn-pt'}
-						onClick={() => setMode('burn-pt')}
-						className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-							mode === 'burn-pt'
-								? 'border-orange-500 bg-orange-50 text-orange-600'
-								: 'border-slate-200 bg-white text-slate-400'
-						}`}
-						aria-label="Burn merchant Reward PT"
+				<button
+					type="button"
+					disabled={!allowUsdcTopup}
+					aria-pressed={mode === 'usdc-topup'}
+					onClick={() => {
+						if (!allowUsdcTopup) return
+						setMode(nextMode)
+					}}
+					className="flex shrink-0 flex-col items-center gap-2 disabled:opacity-45"
+					aria-label={`Payment method ${MODE_LABEL[mode]}. Tap to switch`}
+				>
+					<span className="text-xs font-semibold" style={{ color: modeAccent }}>
+						{MODE_LABEL[mode]}
+					</span>
+					<span
+						className="flex h-11 w-11 items-center justify-center rounded-full"
+						style={{ backgroundColor: `${modeAccent}24` }}
 					>
-						<WalletCards className="h-5 w-5" aria-hidden />
-					</button> : null}
-					<button
-						type="button"
-						aria-pressed={mode === 'usdc-topup'}
-						onClick={() => setMode('usdc-topup')}
-						className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-							mode === 'usdc-topup'
-								? 'border-blue-500 bg-blue-50 text-blue-600'
-								: 'border-slate-200 bg-white text-slate-400'
-						}`}
-						aria-label="Use convertible USDC for merchant store credit"
-					>
-						<CreditCard className="h-5 w-5" aria-hidden />
-					</button>
-				</div>
+						{mode === 'usdc-topup' ? (
+							<UsdcBaseCompositeIcon size={22} />
+						) : (
+							<WalletCards
+								className="h-5 w-5"
+								style={{ color: modeAccent }}
+								aria-hidden
+							/>
+						)}
+					</span>
+				</button>
 			}
 			aboveAmountDisplay={
 				balanceKnown ? (
