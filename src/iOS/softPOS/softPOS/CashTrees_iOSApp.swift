@@ -14,6 +14,7 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        StripeTerminalPosBridge.initializeAtLaunch()
         UNUserNotificationCenter.current().delegate = self
         CashTreesNativeAppStateBridge.requestBadgeAuthorizationIfNeeded()
         // Re-register if PWA already bound an EOA (cold start after prior grant).

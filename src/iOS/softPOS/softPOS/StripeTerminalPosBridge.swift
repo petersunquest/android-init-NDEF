@@ -6,6 +6,16 @@ import StripeTerminal
 /// It receives only a PaymentIntent client secret and a scoped Terminal
 /// location; platform secrets and wallet signing material never enter native.
 final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, DiscoveryDelegate, TapToPayReaderDelegate, MobileReaderDelegate {
+    private static let sharedBridge = StripeTerminalPosBridge(webView: nil)
+
+    static func initializeAtLaunch() {
+        Terminal.setTokenProvider(sharedBridge)
+    }
+
+    static func shared() -> StripeTerminalPosBridge {
+        sharedBridge
+    }
+
     private weak var webView: WKWebView?
     private var requestId = ""
     private var paymentIntentId = ""
@@ -23,9 +33,13 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     private var authorizationNonce = ""
     private var readerMode = "auto"
 
-    init(webView: WKWebView) {
+    init(webView: WKWebView?) {
         self.webView = webView
         super.init()
+    }
+
+    func attach(webView: WKWebView) {
+        self.webView = webView
     }
 
     func start(_ body: [String: Any]) {
@@ -57,7 +71,6 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
             fail(code: "invalid_request", message: "Stripe Terminal payment request is incomplete.")
             return
         }
-        Terminal.setTokenProvider(self)
         readerMode = body["readerMode"] as? String ?? "auto"
         if readerMode == "external_reader" {
             discoverExternalReader()

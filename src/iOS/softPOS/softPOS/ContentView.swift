@@ -1192,7 +1192,9 @@ struct CashTreesWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         coord.webView = webView
-        coord.stripeTerminalBridge = StripeTerminalPosBridge(webView: webView)
+        let stripeBridge = StripeTerminalPosBridge.shared()
+        stripeBridge.attach(webView: webView)
+        coord.stripeTerminalBridge = stripeBridge
         webView.navigationDelegate = coord
         webView.uiDelegate = coord
         webView.isOpaque = true
