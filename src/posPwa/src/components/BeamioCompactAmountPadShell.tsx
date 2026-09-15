@@ -99,15 +99,21 @@ export function BeamioCompactAmountPadShell({
 				) : null}
 
 				<div
-					className="flex shrink-0 items-center justify-center gap-3 font-black tabular-nums leading-none"
+					className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-white px-4 shadow-sm"
 					style={{
+						marginLeft: sidePad,
+						marginRight: sidePad,
 						color: accent,
-						fontSize: amountPx,
 						paddingTop: gap,
 						paddingBottom: gap,
 					}}
 				>
-					<span>{amountDisplay}</span>
+					<span
+						className="min-w-0 flex-1 truncate text-left font-black tabular-nums leading-none"
+						style={{ fontSize: amountPx }}
+					>
+						{amountDisplay}
+					</span>
 					{amountTrailing ? <span className="shrink-0">{amountTrailing}</span> : null}
 				</div>
 
