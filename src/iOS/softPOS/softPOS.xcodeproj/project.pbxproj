@@ -436,6 +436,7 @@
 				INFOPLIST_KEY_NFCReaderUsageDescription = "CashTrees uses NFC to read your physical card and link it securely to your wallet.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio POS uses Bluetooth to connect to supported Stripe card readers.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Beamio POS uses your location while in use to verify the Stripe Terminal reader connection.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -477,6 +478,7 @@
 				INFOPLIST_KEY_NFCReaderUsageDescription = "CashTrees uses NFC to read your physical card and link it securely to your wallet.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio POS uses Bluetooth to connect to supported Stripe card readers.";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Beamio POS uses your location while in use to verify the Stripe Terminal reader connection.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
