@@ -217,8 +217,13 @@ export function DeductPointsPage() {
 		}
 		const operator = walletAddress?.trim() ?? ''
 		const userEOA = assets.address?.trim() ?? ''
+		const ptHolder = assets.aaAddress?.trim() ?? ''
 		if (!ethers.isAddress(operator) || !ethers.isAddress(userEOA)) {
 			goHome('Customer or terminal wallet is unavailable. Please retry.')
+			return
+		}
+		if (!ethers.isAddress(ptHolder)) {
+			goHome('Smart Wallet is required for Reward PT top-up.')
 			return
 		}
 		const targetCurrency = (await fetchCardCurrencyCode(infra)) ?? 'CAD'
@@ -239,7 +244,7 @@ export function DeductPointsPage() {
 		)
 		const targetPrice = BigInt(await target.pointsUnitPriceInCurrencyE6())
 		const targetPoints = (ethers.parseUnits(amount, 6) * 1_000_000n + targetPrice - 1n) / targetPrice
-		const targetPt = BigInt(await target.balanceOf(userEOA, 13n))
+		const targetPt = BigInt(await target.balanceOf(ptHolder, 13n))
 		const sameRatio = BigInt(await target.convertReward13ToPointsRatioE6())
 		const sameStoreBurn13 =
 			sameRatio > 0n
@@ -262,7 +267,7 @@ export function DeductPointsPage() {
 					]),
 					conetProvider,
 				)
-				const balance = BigInt(await source.balanceOf(userEOA, 13n))
+				const balance = BigInt(await source.balanceOf(ptHolder, 13n))
 				const burn = balance > remainingPoints ? remainingPoints : balance
 				if (burn <= 0n) continue
 				const usdcOut = BigInt(await source.quoteUsdcWithdrawForFiat6(burn))
