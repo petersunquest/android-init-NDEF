@@ -2,6 +2,9 @@ package com.beamio.app
 
 import android.os.Handler
 import android.os.Looper
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.Callback
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback
@@ -52,6 +55,7 @@ class StripeTerminalPosBridge(
     private var authorizationSignature = ""
     private var authorizationDeadline = 0
     private var authorizationNonce = ""
+    private var pendingStartRaw: String? = null
 
     private val tokenProvider = object : ConnectionTokenProvider {
         override fun fetchConnectionToken(callback: ConnectionTokenCallback) {
@@ -137,6 +141,20 @@ class StripeTerminalPosBridge(
                 fail("invalid_request", "Stripe Terminal payment request is incomplete.")
                 return
             }
+            val hasLocationPermission =
+                ContextCompat.checkSelfPermission(
+                    activity,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                ) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(
+                        activity,
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                    ) == PackageManager.PERMISSION_GRANTED
+            if (!hasLocationPermission) {
+                pendingStartRaw = raw
+                activity.requestStripeLocationPermission()
+                return
+            }
             if (!Terminal.isInitialized()) {
                 Terminal.init(activity, LogLevel.NONE, tokenProvider, terminalListener, null)
             }
@@ -149,6 +167,16 @@ class StripeTerminalPosBridge(
         } catch (error: Exception) {
             fail("terminal_initialization_failed", error.message ?: "Stripe Terminal could not start.")
         }
+    }
+
+    fun onLocationPermissionResult(granted: Boolean) {
+        val pending = pendingStartRaw
+        pendingStartRaw = null
+        if (!granted) {
+            fail("location_permission_denied", "Location permission is required for Tap to Pay.")
+            return
+        }
+        if (pending != null) start(pending)
     }
 
     private fun connectTapToPay() {

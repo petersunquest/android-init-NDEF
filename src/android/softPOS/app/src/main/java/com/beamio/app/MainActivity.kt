@@ -73,6 +73,14 @@ class MainActivity : ComponentActivity() {
     private lateinit var jsBridge: CashTreesJsBridge
     private lateinit var stripeTerminalBridge: StripeTerminalPosBridge
 
+    private val stripeLocationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            val granted =
+                result[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    result[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            stripeTerminalBridge.onLocationPermissionResult(granted)
+        }
+
     @Volatile
     private var useEmbeddedPwa = false
 
@@ -511,6 +519,15 @@ class MainActivity : ComponentActivity() {
         pendingQrScanRequestId = null
         pendingQrScanAction = "scanQr"
         dispatchAndroidBridgeScanError(requestId, bridgeAction, error)
+    }
+
+    fun requestStripeLocationPermission() {
+        stripeLocationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ),
+        )
     }
 
     /** Photo / file picker entry from [QrScanOverlayView]. */
