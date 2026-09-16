@@ -15,6 +15,7 @@ import { PosFlowLoadingShell } from '@/components/PosFlowLoadingShell'
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { PosTopupExecutingCard } from '@/components/PosTopupExecutingCard'
 import { TopupAmountPadPage } from '@/components/TopupAmountPadPage'
+import { TopupPaymentMethodPage } from '@/components/TopupPaymentMethodPage'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
@@ -38,6 +39,7 @@ import {
 } from '@/utils/topupExecute'
 import {
 	isExternalWalletStablecoinMethod,
+	POS_TERMINAL_TOPUP_POLICY_ALL,
 	type TopupPaymentMethodRaw,
 } from '@/utils/topupPaymentMethod'
 import type { NfcTopupCurrencySplit } from '@/utils/topupCurrencySplit'
@@ -52,6 +54,7 @@ import { collectStripePhysicalTopup } from '@/utils/stripePhysicalPayment'
 
 type TopUpPhase =
 	| 'amount'
+	| 'method'
 	| 'scan-customer'
 	| 'membership-required'
 	| 'stripe-tap-to-pay'
@@ -112,8 +115,9 @@ export function TopUpPage() {
 	const navigate = useNavigate()
 	const { merchantInfraCard, walletAddress, refreshHome, pointSystemEnabled } = usePosSession()
 
-	const [phase, setPhase] = useState<TopUpPhase>('amount')
+	const [phase, setPhase] = useState<TopUpPhase>('method')
 	const [draft, setDraft] = useState<TopupDraft | null>(null)
+	const [selectedMethod, setSelectedMethod] = useState<TopupPaymentMethodRaw | null>(null)
 	const [customer, setCustomer] = useState<TopupCustomerTarget | null>(null)
 	const [success, setSuccess] = useState<TopupExecuteSuccess | null>(null)
 	const [usdcDeepLink, setUsdcDeepLink] = useState('')
@@ -488,9 +492,23 @@ export function TopUpPage() {
 				cardCurrencyPrefix={cardCurrencyPrefix}
 				error={terminalError}
 				initialAmount={draft?.keypadAmount ?? '0'}
-				initialMethod={draft?.method}
+				initialMethod={selectedMethod ?? draft?.method}
+				showPaymentMethodSelector={false}
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}
+			/>
+		)
+	}
+
+	if (phase === 'method') {
+		return (
+			<TopupPaymentMethodPage
+				policy={POS_TERMINAL_TOPUP_POLICY_ALL}
+				onCancel={() => goHome()}
+				onSelect={(method) => {
+					setSelectedMethod(method)
+					setPhase('amount')
+				}}
 			/>
 		)
 	}

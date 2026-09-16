@@ -53,6 +53,7 @@ export function TopupAmountPadPage({
 	error,
 	initialAmount = '0',
 	initialMethod,
+	showPaymentMethodSelector = true,
 	onCancel,
 	onContinue,
 }: {
@@ -63,6 +64,7 @@ export function TopupAmountPadPage({
 	error?: string
 	initialAmount?: string
 	initialMethod?: TopupPaymentMethodRaw
+	showPaymentMethodSelector?: boolean
 	onCancel: () => void
 	onContinue: (input: {
 		method: TopupPaymentMethodRaw
@@ -133,7 +135,7 @@ export function TopupAmountPadPage({
 										</span>
 									</div>
 								</div>
-								<button
+								{showPaymentMethodSelector ? <button
 									type="button"
 									disabled={membershipRequired}
 									onClick={() => {
@@ -170,7 +172,7 @@ export function TopupAmountPadPage({
 											})()
 										)}
 									</span>
-								</button>
+								</button> : null}
 							</div>
 						</div>
 
