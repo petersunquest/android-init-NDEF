@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchWalletAssets } from '@/api/beamioApi'
 import { ChargeAmountPadPage } from '@/components/ChargeAmountPadPage'
+import { ChargePaymentMethodPage } from '@/components/ChargePaymentMethodPage'
 import { ChargeSelectProgramCardPage } from '@/components/ChargeSelectProgramCardPage'
 import {
 	ChargeInsufficientFundsView,
@@ -13,7 +14,10 @@ import { PosPaymentRoutingMonitorCard } from '@/components/PosPaymentRoutingMoni
 import { PosScanExecutingShell } from '@/components/PosScanExecutingShell'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
-import type { ChargePaymentMethodRaw } from '@/utils/chargePaymentMethod'
+import type {
+	ChargePaymentMethodOption,
+	ChargePaymentMethodRaw,
+} from '@/utils/chargePaymentMethod'
 import { POS_TERMINAL_CHARGE_POLICY_ALL } from '@/utils/chargePaymentMethod'
 import {
 	executeNfcCharge,
@@ -45,6 +49,7 @@ import {
 
 type ChargePhase =
 	| 'amount'
+	| 'method'
 	| 'tip'
 	| 'scan-customer'
 	| 'resolving-customer'
@@ -74,8 +79,10 @@ export function ChargePage() {
 		workspaceBindings,
 	} = usePosSession()
 
-	const [phase, setPhase] = useState<ChargePhase>('amount')
+	const [phase, setPhase] = useState<ChargePhase>('method')
 	const [draft, setDraft] = useState<ChargeDraft | null>(null)
+	const [selectedMethodOption, setSelectedMethodOption] =
+		useState<ChargePaymentMethodOption | null>(null)
 	const [success, setSuccess] = useState<ChargeExecuteSuccess | null>(null)
 	const [insufficient, setInsufficient] = useState<{
 		message: string
@@ -485,8 +492,23 @@ export function ChargePage() {
 			<ChargeAmountPadPage
 				programCardDisplayName={programCardName}
 				currency={currency}
+				initialMethodOption={selectedMethodOption ?? undefined}
+				showPaymentMethodSelector={false}
 				onCancel={() => goHome()}
 				onContinue={onAmountContinue}
+			/>
+		)
+	}
+
+	if (phase === 'method') {
+		return (
+			<ChargePaymentMethodPage
+				policy={POS_TERMINAL_CHARGE_POLICY_ALL}
+				onCancel={() => goHome()}
+				onSelect={(method) => {
+					setSelectedMethodOption(method)
+					setPhase('amount')
+				}}
 			/>
 		)
 	}

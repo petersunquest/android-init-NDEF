@@ -27,6 +27,8 @@ export function ChargeAmountPadPage({
 	policy = POS_TERMINAL_CHARGE_POLICY_ALL,
 	programCardDisplayName = '',
 	currency = 'CAD',
+	initialMethodOption,
+	showPaymentMethodSelector = true,
 	onCancel,
 	onContinue,
 }: {
@@ -34,11 +36,14 @@ export function ChargeAmountPadPage({
 	programCardDisplayName?: string
 	/** Merchant program card on-chain currency — amount is entered in this currency. */
 	currency?: string
+	initialMethodOption?: ChargePaymentMethodOption
+	showPaymentMethodSelector?: boolean
 	onCancel: () => void
 	onContinue: (input: { subtotal: string; methodRaw: ChargePaymentMethodRaw }) => void
 }) {
 	const allowed = useMemo(() => allowedChargeMethods(policy), [policy])
 	const [methodOption, setMethodOption] = useState<ChargePaymentMethodOption>(() => {
+		if (initialMethodOption && allowed.includes(initialMethodOption)) return initialMethodOption
 		const saved = loadPersistedChargeMethod()
 		return allowed.includes(saved) ? saved : (allowed[0] ?? 'credit')
 	})
@@ -90,7 +95,7 @@ export function ChargeAmountPadPage({
 										</span>
 									</div>
 								</div>
-								<button
+								{showPaymentMethodSelector ? <button
 									type="button"
 									onClick={() => {
 										if (allowed.length <= 1) return
@@ -118,7 +123,7 @@ export function ChargeAmountPadPage({
 											<CreditCard className="h-5 w-5" style={{ color: accent }} />
 										)}
 									</span>
-								</button>
+								</button> : null}
 							</div>
 						</div>
 
