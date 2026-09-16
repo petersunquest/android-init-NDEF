@@ -12,6 +12,7 @@ import { PosScreenFooter, PosScreenMain, PosScreenShell } from '@/components/Pos
 import { usePosSession } from '@/providers/PosSessionProvider'
 import { localValidateBeamioTag, normalizeBeamioTagInput, passwordRules } from '@/utils/beamioTagRules'
 import { resolveFirstAvailablePosTerminalTag } from '@/utils/posTerminalTag'
+import { APP_VERSION } from '@/version'
 
 const ONBOARDING_FIELD_CLASS =
 	'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-mkt-onSurface outline-none focus:border-brand-blue'
@@ -232,9 +233,13 @@ export function OnboardingPage() {
 						/>
 						{nativeShellVersion ? (
 							<span className="absolute right-0 top-2 text-[11px] font-semibold tabular-nums text-slate-400">
-								Shell v{nativeShellVersion}
+								Shell v{nativeShellVersion} · PWA v{APP_VERSION}
 							</span>
-						) : null}
+						) : (
+							<span className="absolute right-0 top-2 text-[11px] font-semibold tabular-nums text-slate-400">
+								PWA v{APP_VERSION}
+							</span>
+						)}
 					</div>
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
 				<p className="text-xs font-bold uppercase tracking-widest text-brand-blue">Step 1 of 2</p>
