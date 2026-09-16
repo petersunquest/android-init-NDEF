@@ -32,6 +32,7 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     private var authorizationDeadline = 0
     private var authorizationNonce = ""
     private var readerMode = "auto"
+    private var pendingStartBody: [String: Any]?
 
     init(webView: WKWebView?) {
         self.webView = webView
@@ -69,6 +70,25 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
               !posAdmin.isEmpty, !authorizationSignature.isEmpty,
               authorizationDeadline > 0, !authorizationNonce.isEmpty else {
             fail(code: "invalid_request", message: "Stripe Terminal payment request is incomplete.")
+            return
+        }
+        if Terminal.shared.connectedReader != nil {
+            pendingStartBody = body
+            Terminal.shared.disconnectReader { [weak self] error in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if let error {
+                        self.pendingStartBody = nil
+                        self.fail(code: "reader_disconnect_failed", message: error.localizedDescription)
+                        return
+                    }
+                    let pending = self.pendingStartBody
+                    self.pendingStartBody = nil
+                    if let pending {
+                        self.start(pending)
+                    }
+                }
+            }
             return
         }
         readerMode = body["readerMode"] as? String ?? "auto"

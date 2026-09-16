@@ -158,7 +158,31 @@ class StripeTerminalPosBridge(
             if (!Terminal.isInitialized()) {
                 Terminal.init(activity, LogLevel.NONE, tokenProvider, terminalListener, null)
             }
-            val mode = request.optString("readerMode", "auto")
+            val connectedReader = Terminal.getInstance().connectedReader
+            if (connectedReader != null) {
+                pendingStartRaw = raw
+                Terminal.getInstance().disconnectReader(object : Callback {
+                    override fun onSuccess() {
+                        val pending = pendingStartRaw
+                        pendingStartRaw = null
+                        if (pending != null) start(pending)
+                    }
+
+                    override fun onFailure(e: TerminalException) {
+                        pendingStartRaw = null
+                        fail("reader_disconnect_failed", e.errorMessage)
+                    }
+                })
+                return
+            }
+            startReaderDiscovery(request.optString("readerMode", "auto"))
+        } catch (error: Exception) {
+            fail("terminal_initialization_failed", error.message ?: "Stripe Terminal could not start.")
+        }
+    }
+
+    private fun startReaderDiscovery(mode: String) {
+        try {
             if (mode == "external_reader") {
                 discoverBluetooth()
             } else {
