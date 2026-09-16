@@ -393,7 +393,13 @@ export function TopUpPage() {
 					setPhase('success')
 					void refreshHome()
 				} catch (error) {
-					setTerminalError(error instanceof Error ? error.message : 'Physical card top-up failed.')
+					const message =
+						error instanceof Error ? error.message : 'Physical card top-up failed.'
+					if (/cancel/i.test(message)) {
+						goHome()
+						return
+					}
+					setTerminalError(message)
 					setPhase('amount')
 				}
 				return
