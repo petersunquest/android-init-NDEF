@@ -3,12 +3,14 @@ import { ChevronRight, Search, Store, Terminal, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchUsersByCardOwnerOrAdmin } from '@/api/beamioApi'
+import { readNativeShellVersion } from '@/bridge/cashTreesScanBridge'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { PosScreenFooter, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { TERMINAL_HERO_IMAGE_URL } from '@/constants'
 import { usePosSession } from '@/providers/PosSessionProvider'
 import type { TerminalProfile } from '@/types/pos'
 import { normalizeBeamioTagInput } from '@/utils/beamioTagRules'
+import { APP_VERSION } from '@/version'
 
 function WelcomeSearchResultRow({
 	profile,
@@ -51,6 +53,7 @@ export function WelcomePage() {
 	const [loading, setLoading] = useState(false)
 	const [selected, setSelected] = useState<TerminalProfile | null>(null)
 	const requestId = useRef(0)
+	const nativeShellVersion = readNativeShellVersion()
 
 	const keyword = useMemo(
 		() => normalizeBeamioTagInput(tagQuery).toLowerCase(),
@@ -87,7 +90,12 @@ export function WelcomePage() {
 	return (
 		<PosScreenShell bg="bg-mkt-bg">
 			<PosScreenMain className="mx-auto w-full max-w-xl">
-				<div className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 pt-[max(1rem,env(safe-area-inset-top))]">
+				<div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-6 pt-[max(1rem,env(safe-area-inset-top))]">
+					<p className="absolute right-6 top-[max(1rem,env(safe-area-inset-top))] text-[11px] font-semibold tabular-nums text-slate-400">
+						{nativeShellVersion
+							? `Shell v${nativeShellVersion} · PWA v${APP_VERSION}`
+							: `PWA v${APP_VERSION}`}
+					</p>
 					<div className="relative mb-4 shrink-0 overflow-hidden rounded-[14px] shadow-lg max-h-[38vh] min-h-[9rem]">
 						<div className="absolute inset-0 bg-gradient-to-br from-mkt-surfaceLow to-brand-blue/15" />
 						<IpfsImg
