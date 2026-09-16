@@ -2,6 +2,7 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isBeamioAccountNameAvailable } from '@/api/beamioApi'
+import { readNativeShellVersion } from '@/bridge/cashTreesScanBridge'
 import { posNativeBridge } from '@/bridge/nativeBridge'
 import {
 	BEAMIO_CIRCULAR_BACK_ROW_CLASS,
@@ -36,6 +37,7 @@ export function OnboardingPage() {
 	const lastChecked = useRef('')
 	const debounceRef = useRef<number | null>(null)
 	const accessPasswordRef = useRef<HTMLInputElement>(null)
+	const nativeShellVersion = readNativeShellVersion()
 
 	useEffect(() => {
 		if (!parentBeamioTag) {
@@ -228,6 +230,11 @@ export function OnboardingPage() {
 							onClick={() => navigate('/')}
 							className="absolute left-0 top-0"
 						/>
+						{nativeShellVersion ? (
+							<span className="absolute right-0 top-2 text-[11px] font-semibold tabular-nums text-slate-400">
+								Shell v{nativeShellVersion}
+							</span>
+						) : null}
 					</div>
 					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
 				<p className="text-xs font-bold uppercase tracking-widest text-brand-blue">Step 1 of 2</p>
