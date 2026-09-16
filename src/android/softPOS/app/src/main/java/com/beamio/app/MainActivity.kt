@@ -583,7 +583,8 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
-        fun getNativeShellVersion(): String = BuildConfig.VERSION_NAME
+        fun getNativeShellVersion(): String =
+            packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
         @JavascriptInterface
         fun getEmbeddedPwaVersion(): String {
