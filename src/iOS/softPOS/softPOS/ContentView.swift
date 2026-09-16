@@ -509,6 +509,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         let nfcEsc = esc(nfcStatus)
         let verEsc = esc(embeddedVer)
         let pendingEsc = esc(pendingVer)
+        let shellVerEsc = esc(
+            Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
+        )
         return """
         window.__CT_IOS_NFC_STATUS__='\(nfcEsc)';
         window.__CT_EMBEDDED_PWA_VER__='\(verEsc)';
@@ -518,6 +521,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
           if(!window.webkit||!window.webkit.messageHandlers||!window.webkit.messageHandlers[H])return;
           window.CashTreesIOS={
             getNfcStatus:function(){return window.__CT_IOS_NFC_STATUS__||'no_bridge';},
+            getNativeShellVersion:function(){return '\(shellVerEsc)';},
             getEmbeddedPwaVersion:function(){return window.__CT_EMBEDDED_PWA_VER__||'';},
             getEmbeddedPwaPendingVersion:function(){return window.__CT_EMBEDDED_PWA_PENDING_VER__||'';},
             applyEmbeddedPwaUpdate:function(){

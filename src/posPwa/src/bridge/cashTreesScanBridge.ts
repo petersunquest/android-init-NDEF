@@ -66,6 +66,7 @@ declare global {
 	interface Window {
 		CashTreesIOS?: {
 			getNfcStatus?: () => string
+			getNativeShellVersion?: () => string
 			getEmbeddedPwaVersion?: () => string
 			getEmbeddedPwaPendingVersion?: () => string
 			applyEmbeddedPwaUpdate?: () => void
@@ -82,6 +83,7 @@ declare global {
 		}
 		CashTreesAndroid?: {
 			getNfcStatus?: () => string
+			getNativeShellVersion?: () => string
 			getEmbeddedPwaVersion?: () => string
 			getEmbeddedPwaPendingVersion?: () => string
 			applyEmbeddedPwaUpdate?: () => void
@@ -123,6 +125,14 @@ export function getCashTreesNfcStatus(): CashTreesNfcStatus {
 		return v
 	}
 	return hasCashTreesScanBridge() ? 'ready' : 'no_bridge'
+}
+
+export function readNativeShellVersion(): string {
+	return (
+		iosBridge()?.getNativeShellVersion?.() ??
+		androidBridge()?.getNativeShellVersion?.() ??
+		''
+	).trim()
 }
 
 export function startCashTreesPhysicalCardBind(): void {

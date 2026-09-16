@@ -2,7 +2,7 @@ import { Check, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { searchUsers, searchUsersByCardOwnerOrAdmin } from '@/api/beamioApi'
-import { openExternalUrl } from '@/bridge/cashTreesScanBridge'
+import { openExternalUrl, readNativeShellVersion } from '@/bridge/cashTreesScanBridge'
 import { BeamioCapsule } from '@/components/BeamioCapsule'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosScreenHeader, PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
@@ -297,6 +297,7 @@ export function WorkspaceMerchantsPage() {
 
 	const resendBusy = resending || joinSending
 	const selfTerminalAddress = (walletAddress || terminalProfile?.address || '').trim()
+	const nativeShellVersion = readNativeShellVersion()
 
 	/** Pending join rows not yet present as Linked workspace uppers. */
 	const visibleOutboundPending = useMemo(() => {
@@ -701,6 +702,7 @@ export function WorkspaceMerchantsPage() {
 				aria-label={`Version ${APP_VERSION}`}
 			>
 				v{APP_VERSION}
+				{nativeShellVersion ? ` · Shell v${nativeShellVersion}` : ''}
 			</p>
 		</PosScreenShell>
 	)

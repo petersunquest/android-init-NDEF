@@ -583,6 +583,9 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
+        fun getNativeShellVersion(): String = BuildConfig.VERSION_NAME
+
+        @JavascriptInterface
         fun getEmbeddedPwaVersion(): String {
             if (!::embeddedPwaHost.isInitialized) return ""
             return embeddedPwaHost.bundleStore.activeVersion()
