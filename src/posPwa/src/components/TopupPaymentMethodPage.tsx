@@ -52,6 +52,9 @@ export function TopupPaymentMethodPage({
 }) {
 	const methods = allowedTopupMethods(policy)
 	const lastMethod = loadPersistedTopupMethod()
+	const orderedMethods = methods.includes(lastMethod)
+		? [lastMethod, ...methods.filter((method) => method !== lastMethod)]
+		: methods
 
 	return (
 		<PosScreenShell bg="bg-[#F9F9FE]">
@@ -74,7 +77,7 @@ export function TopupPaymentMethodPage({
 							</p>
 						</div>
 						<div className="grid grid-cols-2 gap-3">
-							{methods.map((method) => {
+							{orderedMethods.map((method) => {
 								const selected = method === lastMethod
 								const accent = METHOD_ACCENT[method]
 								return (
