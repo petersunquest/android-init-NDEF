@@ -1,0 +1,38 @@
+---
+description: Close popup controls when an action occurs outside the popup
+alwaysApply: true
+---
+
+# Popup Outside-Action Dismissal
+
+Any popup menu, picker, tooltip-like action panel, or floating control sheet must
+close when the user performs a pointer action outside its owning control and
+popup. This applies to Web and PWA UI, including audio volume and playback-speed
+menus.
+
+Requirements:
+
+- Register a document-level `pointerdown` or equivalent outside-action listener
+  only while the popup is open.
+- Keep the listener in capture mode when needed so the popup closes before
+  unrelated underlying controls process the action.
+- Do not close when the event target is inside the popup/trigger wrapper.
+- Always remove the listener on close and component unmount.
+- Preserve existing timeout dismissal, if any; outside action is an additional
+  dismissal path.
+
+```tsx
+useEffect(() => {
+  if (!open) return
+  const closeOutside = (event: PointerEvent) => {
+    const target = event.target
+    if (target instanceof Node && ownerRef.current?.contains(target)) return
+    setOpen(false)
+  }
+  document.addEventListener('pointerdown', closeOutside, true)
+  return () => document.removeEventListener('pointerdown', closeOutside, true)
+}, [open])
+```
+
+Do not use a permanent document listener, and do not close a popup for actions
+inside its own slider, buttons, or menu items.
