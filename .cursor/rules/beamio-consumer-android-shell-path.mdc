@@ -1,0 +1,45 @@
+---
+description: Canonical Android Consumer WebView shell path and POS shell separation
+alwaysApply: true
+---
+
+# Consumer Android WebView Shell — Canonical Path
+
+The active Android shell for the Consumer PWA (`https://beamio.app/app/`) is:
+
+```text
+src/CaehTrees/
+```
+
+This project loads SilentPassUI Consumer PWA content and owns Consumer-native
+WebView bridges such as `CashTreesAndroid.saveFile`, camera, external URL, push,
+and embedded PWA update behavior.
+
+## Product separation
+
+| Product | Android source | PWA |
+|---|---|---|
+| Consumer app | `src/CaehTrees/` | `src/SilentPassUI/` → `/app/` |
+| POS terminal shell | `src/android/softPOS/` | `src/posPwa/` → `/pos/` |
+
+`src/android/softPOS/` is the POS shell, not the Consumer app shell. Do not
+implement Consumer `/app/` bridge, download, camera, OTA, or wallet behavior
+there.
+
+## Required checks
+
+- Consumer Android shell changes must be made under `src/CaehTrees/`.
+- Consumer PWA bridge calls must be mirrored by `CaehTrees` native handlers
+  when native behavior is required.
+- Validate with the Gradle project under `src/CaehTrees/`; do not use the
+  `src/android/softPOS/` build as Consumer validation.
+- New Consumer PWA features may retain browser fallbacks, but native-shell
+  behavior must use the `CaehTrees` bridge.
+- Do not modify abandoned `src/android-NDEF/` for either product.
+
+## Common mistake
+
+```text
+Wrong Consumer target: src/android/softPOS/
+Correct Consumer target: src/CaehTrees/
+```
