@@ -3,6 +3,7 @@ package com.beamio.app
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.util.Base64
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -91,6 +92,26 @@ class MainActivity : ComponentActivity() {
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA 授权 */
     private var pendingWebPermissionRequest: PermissionRequest? = null
+    private var pendingFileBytes: ByteArray? = null
+    private var pendingFileRequestId: String = ""
+
+    private val createFileDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        val bytes = pendingFileBytes
+        pendingFileBytes = null
+        if (uri != null && bytes != null) {
+            try {
+                contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", true).put("requestId", pendingFileRequestId))
+            } catch (_: Exception) {
+                dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", false).put("requestId", pendingFileRequestId).put("error", "file_write_failed"))
+            }
+        } else {
+            dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", false).put("requestId", pendingFileRequestId).put("error", "cancelled"))
+        }
+        pendingFileRequestId = ""
+    }
 
     private var nfcAdapter: NfcAdapter? = null
 
@@ -593,6 +614,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /** Save a PWA blob through Android's system document picker. */
+        @JavascriptInterface
+        fun saveFile(json: String) {
+            runOnUiThread { saveFileFromBridge(json) }
+        }
+
         /** Open http(s)/mailto/tel/EIP-681/wallet schemes externally — mirrors iOS `CashTreesIOS.openURL({ url })`. */
         @JavascriptInterface
         fun openURL(url: String) {
@@ -662,6 +689,25 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 CashTreesPushRegistration.bindIdentityFromJson(this@MainActivity, json)
             }
+        }
+    }
+
+    private fun saveFileFromBridge(raw: String) {
+        try {
+            val body = JSONObject(raw)
+            val dataUrl = body.optString("dataUrl", "")
+            val comma = dataUrl.indexOf(',')
+            val encoded = if (comma >= 0) dataUrl.substring(comma + 1) else dataUrl
+            val bytes = Base64.decode(encoded, Base64.DEFAULT)
+            if (bytes.isEmpty()) return
+            pendingFileBytes = bytes
+            pendingFileRequestId = body.optString("requestId", "")
+            val filename = body.optString("filename", "download").substringAfterLast('/').substringAfterLast('\\')
+            createFileDocumentLauncher.launch(filename.ifBlank { "download" })
+        } catch (_: Exception) {
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject().put("action", "saveFile").put("ok", false).put("error", "invalid_file_data"),
+            )
         }
     }
 
