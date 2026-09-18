@@ -15,6 +15,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.graphics.Color
+import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
 import android.webkit.PermissionRequest
@@ -89,6 +90,8 @@ class MainActivity : ComponentActivity() {
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA 授权 */
     private var pendingWebPermissionRequest: PermissionRequest? = null
+    private var pendingFileBytes: ByteArray? = null
+    private var pendingFileRequestId: String = ""
 
     private var nfcAdapter: NfcAdapter? = null
 
@@ -175,6 +178,25 @@ class MainActivity : ComponentActivity() {
                 pendingQrScanTransientRetryCount = 0
                 dispatchAndroidBridgeScanError(requestId, bridgeAction, explicitError ?: "cancelled")
             }
+        }
+    }
+
+    private val createFileDocumentLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        val bytes = pendingFileBytes
+        pendingFileBytes = null
+        val requestId = pendingFileRequestId
+        pendingFileRequestId = ""
+        if (uri != null && bytes != null) {
+            try {
+                contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", true).put("requestId", requestId))
+            } catch (_: Exception) {
+                dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", false).put("requestId", requestId).put("error", "file_write_failed"))
+            }
+        } else {
+            dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", false).put("requestId", requestId).put("error", "cancelled"))
         }
     }
 
@@ -516,6 +538,12 @@ class MainActivity : ComponentActivity() {
             runOnUiThread { openExternalUrlFromBridge(url) }
         }
 
+        /** Save a PWA blob through Android's system document picker. */
+        @JavascriptInterface
+        fun saveFile(json: String) {
+            runOnUiThread { saveFileFromBridge(json) }
+        }
+
         /**
          * PWA catalog install probe. JSON `{ requestId, queries:[{ id, schemes[], packages[] }] }`.
          * Returns a JSON array of installed `id`s. Empty / bad JSON → MetaMask / Coinbase Wallet.
@@ -653,6 +681,26 @@ class MainActivity : ComponentActivity() {
             ids.put("base")
         }
         return ids
+    }
+
+    private fun saveFileFromBridge(raw: String) {
+        try {
+            val body = JSONObject(raw)
+            val dataUrl = body.optString("dataUrl", "")
+            val comma = dataUrl.indexOf(',')
+            val encoded = if (comma >= 0) dataUrl.substring(comma + 1) else dataUrl
+            val bytes = Base64.decode(encoded, Base64.DEFAULT)
+            if (bytes.isEmpty()) return
+            pendingFileBytes = bytes
+            pendingFileRequestId = body.optString("requestId", "")
+            val filename = body.optString("filename", "download")
+                .substringAfterLast('/')
+                .substringAfterLast('\\')
+                .ifBlank { "download" }
+            createFileDocumentLauncher.launch(filename)
+        } catch (_: Exception) {
+            dispatchAndroidBridgeJsonToWeb(JSONObject().put("action", "saveFile").put("ok", false).put("error", "invalid_file_data"))
+        }
     }
 
     private fun openExternalUrlFromBridge(raw: String) {
