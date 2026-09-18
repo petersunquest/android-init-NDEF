@@ -1,0 +1,36 @@
+---
+description: Canonical iOS WebView shell paths and repository boundaries
+alwaysApply: true
+---
+
+# iOS WebView Shell Source of Truth
+
+Use these paths as the only active iOS shell sources:
+
+- Consumer PWA (`https://beamio.app/app/`): `src/CashTrees_iOS/CashTrees_iOS`
+  - Xcode project: `src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS.xcodeproj`
+  - WebView bridge: `CashTreesIOS`
+  - Push/badge bridge: `CashTreesPushRegistration.swift` and
+    `CashTreesNativeAppStateBridge.swift`
+- POS PWA (`https://pos.conet.network/` or `/pos/`):
+  `src/iOS/softPOS`
+
+The obsolete `src/iOS/SilentPass-iOS-main` tree is removed and must not be
+recreated or used as an iOS Consumer shell source. It was a legacy VPN/network
+client, not the `beamio.app/app/` WebView shell.
+
+Do not edit the abandoned native POS business UI in
+`src/CashTrees_iOS/iOS_NDEF` or `src/android-NDEF`; active POS business code is
+`src/posPwa`, with `src/iOS/softPOS` and `src/android/softPOS` acting as WebView
+shells.
+
+Repository/version checks:
+
+- The active iOS shell source is tracked in the `petersunquest/android-init-NDEF`
+  GitHub repository used by this workspace.
+- The Consumer PWA source and OTA are tracked separately in
+  `CoNET-project/SilentPassUI` (`cashtree`).
+- Before changing an iOS shell version, inspect the target's
+  `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, bundle identifier, and the
+  App Store Connect build number. Do not infer the active shell from a legacy
+  folder or blindly overwrite the Marketing Version.
