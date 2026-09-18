@@ -653,6 +653,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 requestId:payload.requestId||''
               });
             },
+            saveFile:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'saveFile',
+                dataUrl:payload.dataUrl||'',
+                filename:payload.filename||'',
+                mimeType:payload.mimeType||'application/octet-stream',
+                requestId:payload.requestId||''
+              });
+            },
             scanRecoveryQr:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
@@ -786,6 +796,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let filename = body["filename"] as? String
             let requestId = body["requestId"] as? String
             saveRecoveryQrToPhotos(dataUrl: dataUrl, filename: filename, requestId: requestId)
+        case "saveFile":
+            let dataUrl = body["dataUrl"] as? String
+            let filename = body["filename"] as? String
+            let mimeType = body["mimeType"] as? String
+            let requestId = body["requestId"] as? String
+            saveFile(dataUrl: dataUrl, filename: filename, mimeType: mimeType, requestId: requestId)
         case "scanRecoveryQr":
             let requestId = body["requestId"] as? String
             DispatchQueue.main.async { [weak self] in
@@ -1028,6 +1044,57 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             )
         }
         presenter.present(scanner, animated: true)
+    }
+
+    private func saveFile(dataUrl: String?, filename: String?, mimeType: String?, requestId: String?) {
+        let rid = requestId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let raw = dataUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let comma = raw.firstIndex(of: ",")
+        let encoded = comma.map { String(raw[raw.index(after: $0)...]) } ?? raw
+        guard !encoded.isEmpty,
+              let data = Data(base64Encoded: encoded, options: [.ignoreUnknownCharacters])
+        else {
+            dispatchIOSBridgeJsonToWeb(["action": "saveFile", "ok": false, "requestId": rid, "error": "invalid_file_data"])
+            return
+        }
+        let safeName = (filename ?? "download")
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:"))
+            .last?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalName = (safeName?.isEmpty == false ? safeName! : "download")
+        let fileURL = FileManager.default.temporaryDirectory.appendingPathComponent(finalName)
+        do {
+            try data.write(to: fileURL, options: [.atomic])
+        } catch {
+            dispatchIOSBridgeJsonToWeb(["action": "saveFile", "ok": false, "requestId": rid, "error": "file_write_failed"])
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            guard let presenter = self.topViewController() else {
+                self.dispatchIOSBridgeJsonToWeb(["action": "saveFile", "ok": false, "requestId": rid, "error": "no_presenter"])
+                return
+            }
+            let activity = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = self.webView ?? presenter.view
+                popover.sourceRect = CGRect(
+                    x: (self.webView?.bounds.midX ?? presenter.view.bounds.midX),
+                    y: (self.webView?.bounds.midY ?? presenter.view.bounds.midY),
+                    width: 1,
+                    height: 1
+                )
+            }
+            activity.completionWithItemsHandler = { _, completed, _, _ in
+                try? FileManager.default.removeItem(at: fileURL)
+                self.dispatchIOSBridgeJsonToWeb([
+                    "action": "saveFile",
+                    "ok": completed,
+                    "requestId": rid,
+                ])
+            }
+            presenter.present(activity, animated: true)
+        }
     }
 
     private func saveRecoveryQrToPhotos(dataUrl: String?, filename: String?, requestId: String?) {
