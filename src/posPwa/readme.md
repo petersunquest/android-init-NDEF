@@ -150,6 +150,13 @@ Chat list / compose / thread (SilentPassUI-style CoNET gossip):
 
 Implementation: `src/chat/` + `src/providers/PosChatProvider.tsx`.
 
+The experimental real-time voice MVP is separate from the normal Chat SSE:
+each participant opens a random temporary `voice_listen` mailbox session and
+uses signed `voice_uplink` / `voice_downlink` commands for opaque AES-GCM
+frames. Voice frames do not enter Messages, unread counts, offline storage,
+APNs, or encrypted Chat history. The SDK bridge exposes the temporary voice
+session methods for a future call UI.
+
 ### Terminal permission (join Staff)
 
 Primary path after onboarding: **Workspaces** calls `requestJoinWorkspace` (registers CoNET chat keys, exact `@tag` → parent EOA, sends `beamio_pos_terminal_permission_v1`, appends Pending).

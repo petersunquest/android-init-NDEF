@@ -49,6 +49,7 @@ import { buildPostBody, encryptRouteCommand, wrapArmorToEntryRoute, wrapArmorToM
 /** Callbacks the worker entry wires to `postMessage`. */
 export interface GossipEmit {
 	message(line: string, armorHash: string | undefined, plain: boolean, viaDomain?: string): void
+	voiceFrame(payload: Record<string, unknown>): void
 	status(status: StatusEvent['status'], detail?: string): void
 	log(level: 'info' | 'warn' | 'error', message: string): void
 	presence(payload: PresenceEvent): void
@@ -96,6 +97,7 @@ export class GossipCore {
 	private pgpPrivateKey: PrivateKey | null = null
 	private _userPgpKeyID = ''
 	private listenController: AbortController | null = null
+	private voiceListenController: AbortController | null = null
 	private _lastActivityAt = 0
 	private paused = false
 	/** Listen `Securitykey` (aes-256-cbc). Sent on the command; live SI SSE frames are still plaintext JSON. */
@@ -142,6 +144,7 @@ export class GossipCore {
 	pause(): void {
 		this.paused = true
 		this.clearListen('background_pause')
+		this.clearVoiceListen()
 		this._lastActivityAt = 0
 		this.emit.status('paused')
 	}
@@ -158,6 +161,7 @@ export class GossipCore {
 			`destroy routes=${this._routes.length} keyId=${this._userPgpKeyID ? 'yes' : 'no'} lastActivity=${this._lastActivityAt} ack=${this._ackContext ? 'yes' : 'no'}`,
 		)
 		this.clearListen('destroy')
+		this.clearVoiceListen()
 		this.wallet = null
 		this.pgpPrivateKey = null
 		this.cfg = null
@@ -176,6 +180,124 @@ export class GossipCore {
 			}
 			this.listenController = null
 		}
+	}
+
+	private clearVoiceListen(): void {
+		if (this.voiceListenController) {
+			try {
+				this.voiceListenController.abort('voice_stop')
+			} catch {
+				/* ignore */
+			}
+			this.voiceListenController = null
+		}
+	}
+
+	async startVoiceListen(sessionId: string): Promise<boolean> {
+		if (this.paused || !this.cfg || !this.wallet) return false
+		const ownRouteKey = this.cfg.identity.ownRouteArmoredPublicKey || ''
+		if (!ownRouteKey || !sessionId) return false
+		this.clearVoiceListen()
+		const routeNodes = pickRouteNodesByArmoredKey(this.nodes, ownRouteKey)
+		const mailboxDomains = new Set(routeNodes.map((n) => n.domain))
+		const entries = pickListenEntryNodes(this.nodes, mailboxDomains)
+		if (!entries.length) return false
+		try {
+			const innerArmor = await encryptRouteCommand(
+				this.wallet,
+				{
+					command: 'voice_listen',
+					walletAddress: this.wallet.address,
+					sessionId,
+					timestamp: Math.floor(Date.now() / 1000),
+				},
+				ownRouteKey,
+			)
+			const controller = new AbortController()
+			this.voiceListenController = controller
+			this.spawnVoiceListen(entries, innerArmor, controller.signal)
+			return true
+		} catch (ex) {
+			this.emit.log('warn', `voice listen setup failed: ${(ex as Error)?.message ?? String(ex)}`)
+			return false
+		}
+	}
+
+	async stopVoiceListen(sessionId: string): Promise<boolean> {
+		const route = this.cfg?.identity.ownRouteArmoredPublicKey || ''
+		const wallet = this.wallet
+		this.clearVoiceListen()
+		if (!route || !wallet || !sessionId) return true
+		return this.postMailboxCommand(route, {
+			command: 'voice_unlisten',
+			walletAddress: wallet.address,
+			sessionId,
+			timestamp: Math.floor(Date.now() / 1000),
+		})
+	}
+
+	private spawnVoiceListen(nodes: NodeInfo[], innerArmor: string, rootSignal: AbortSignal, attempt = 0): void {
+		if (rootSignal.aborted || !nodes.length) return
+		const node = getRandomNode(nodes)!
+		const controller = new AbortController()
+		const abort = () => controller.abort('voice_stop')
+		rootSignal.addEventListener('abort', abort, { once: true })
+		void (async () => {
+			let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
+			try {
+				const armored = this.cfg?.runtime.outerWrap === false
+					? innerArmor
+					: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+				const res = await fetch(postUrl(node.domain), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', Connection: 'keep-alive' },
+					body: JSON.stringify(buildPostBody(armored)),
+					signal: controller.signal,
+					cache: 'no-store',
+				})
+				if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
+				reader = res.body.getReader()
+				const decoder = new TextDecoder()
+				let buffer = ''
+				while (!rootSignal.aborted) {
+					const { value, done } = await reader.read()
+					if (done) break
+					buffer += decoder.decode(value, { stream: true })
+					let idx: number
+					while ((idx = buffer.indexOf('\n\n')) >= 0) {
+						const block = buffer.slice(0, idx)
+						buffer = buffer.slice(idx + 2)
+						const payload = block
+							.split('\n')
+							.filter((line) => line.startsWith('data:'))
+							.map((line) => line.slice(5).trimStart())
+							.join('\n')
+							.trim()
+						if (!payload) continue
+						try {
+							const data = JSON.parse(payload) as Record<string, unknown>
+							if (data.type === 'voice_frame_v1') this.emit.voiceFrame(data)
+						} catch {
+							/* ignore malformed voice frames */
+						}
+					}
+				}
+			} catch (ex) {
+				if (!rootSignal.aborted && (ex as Error)?.name !== 'AbortError') {
+					this.emit.log('warn', `voice SSE failed (${node.domain}): ${(ex as Error)?.message ?? String(ex)}`)
+					const remaining = nodes.filter((n) => n.domain !== node.domain)
+					setTimeout(() => this.spawnVoiceListen(remaining.length ? remaining : nodes, innerArmor, rootSignal, attempt + 1), Math.min(30_000, 2_000 * (attempt + 1)))
+				}
+			} finally {
+				rootSignal.removeEventListener('abort', abort)
+				try {
+					await reader?.cancel()
+					reader?.releaseLock()
+				} catch {
+					/* ignore */
+				}
+			}
+		})()
 	}
 
 	// ---- Listen (dedicated Mailbox B route, entry C ≠ B) -------------------------
@@ -437,6 +559,10 @@ export class GossipCore {
 			return
 		}
 		try {
+			if (data.type === 'voice_frame_v1') {
+				this.emit.voiceFrame(data)
+				return
+			}
 			const armored = typeof data.data === 'string' ? data.data : ''
 			if (armored && /^-----BEGIN PGP MESSAGE-----/i.test(armored)) {
 				const msg = await readMessage({ armoredMessage: armored })
@@ -642,6 +768,30 @@ export class GossipCore {
 			return this.postToEntries(innerArmor, mailboxDomains)
 		} catch (ex) {
 			this.emit.log('warn', `postMailboxCommand error: ${(ex as Error)?.message ?? String(ex)}`)
+			return false
+		}
+	}
+
+	/** Send an encrypted voice frame to the recipient mailbox via an entry. */
+	async sendVoiceFrame(
+		routerArmoredPublicKey: string,
+		frame: Record<string, unknown>,
+	): Promise<boolean> {
+		if (!this.wallet) return false
+		try {
+			const command = {
+				command: 'voice_uplink',
+				walletAddress: this.wallet.address,
+				...frame,
+				timestamp: Math.floor(Date.now() / 1000),
+			}
+			const innerArmor = await encryptRouteCommand(this.wallet, command, routerArmoredPublicKey)
+			const mailboxDomains = new Set(
+				pickRouteNodesByArmoredKey(this.nodes, routerArmoredPublicKey).map((n) => n.domain),
+			)
+			return this.postToEntries(innerArmor, mailboxDomains)
+		} catch (ex) {
+			this.emit.log('warn', `send voice frame error: ${(ex as Error)?.message ?? String(ex)}`)
 			return false
 		}
 	}

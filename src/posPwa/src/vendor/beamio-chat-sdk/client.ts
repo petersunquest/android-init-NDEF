@@ -83,6 +83,7 @@ class BeamioChatClientImpl implements BeamioChatClient {
 		status: new Set(),
 		log: new Set(),
 		historyBuffer: new Set(),
+		voiceFrame: new Set(),
 	}
 	private historyBridge: ChatHistoryBridge
 	private routes: ChatRoute[] = []
@@ -170,6 +171,29 @@ class BeamioChatClientImpl implements BeamioChatClient {
 		return !!r?.sent
 	}
 
+	async sendVoiceFrame(
+		routerArmoredPublicKey: string,
+		frame: Record<string, unknown>,
+	): Promise<boolean> {
+		const r = await this.request<{ sent: boolean }>({
+			type: 'voiceFrame',
+			reqId: 0,
+			routerArmoredPublicKey,
+			frame,
+		})
+		return !!r?.sent
+	}
+
+	async startVoiceListen(sessionId: string): Promise<boolean> {
+		const r = await this.request<{ started: boolean }>({ type: 'voiceListen', reqId: 0, sessionId })
+		return !!r?.started
+	}
+
+	async stopVoiceListen(sessionId: string): Promise<boolean> {
+		const r = await this.request<{ stopped: boolean }>({ type: 'voiceUnlisten', reqId: 0, sessionId })
+		return !!r?.stopped
+	}
+
 	on<K extends ChatEventName>(event: K, cb: ChatEventListener<K>): Unsubscribe {
 		this.listeners[event].add(cb as never)
 		return () => this.listeners[event].delete(cb as never)
@@ -254,6 +278,9 @@ class BeamioChatClientImpl implements BeamioChatClient {
 			case 'event:historyBuffer':
 				this.emit('historyBuffer', msg.payload)
 				this.historyBridge._emit(msg.payload)
+				return
+			case 'event:voiceFrame':
+				this.emit('voiceFrame', msg.payload)
 				return
 			case 'event:log':
 				this.emit('log', { level: msg.level, message: msg.message })

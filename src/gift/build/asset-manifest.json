@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/gift/static/css/main.81840d11.css",
+    "main.js": "/gift/static/js/main.ec939f3d.js",
+    "index.html": "/gift/index.html",
+    "main.81840d11.css.map": "/gift/static/css/main.81840d11.css.map",
+    "main.ec939f3d.js.map": "/gift/static/js/main.ec939f3d.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.81840d11.css",
+    "static/js/main.ec939f3d.js"
+  ]
+}

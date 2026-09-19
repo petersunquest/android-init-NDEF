@@ -54,6 +54,14 @@ export type WorkerCommand =
 			routerArmoredPublicKey: string
 			command: Record<string, unknown>
 	  }
+	| {
+			type: 'voiceFrame'
+			reqId: number
+			routerArmoredPublicKey: string
+			frame: Record<string, unknown>
+	  }
+	| { type: 'voiceListen'; reqId: number; sessionId: string }
+	| { type: 'voiceUnlisten'; reqId: number; sessionId: string }
 	| { type: 'pause' }
 	| { type: 'resume' }
 	| { type: 'destroy' }
@@ -68,6 +76,7 @@ export type WorkerOutbound =
 	| { type: 'event:presence'; payload: PresenceEvent }
 	| { type: 'event:status'; payload: StatusEvent }
 	| { type: 'event:historyBuffer'; payload: HistoryBufferEvent }
+	| { type: 'event:voiceFrame'; payload: Record<string, unknown> }
 	| { type: 'event:log'; level: 'info' | 'warn' | 'error'; message: string }
 	/** Worker asks host (main thread) to refresh node list (host owns discovery). */
 	| { type: 'nodesRequest'; reqId: number }

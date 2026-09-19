@@ -53,4 +53,12 @@ export type {
 	SendMessageOptions,
 	StatusEvent,
 	Unsubscribe,
+	VoiceCallSignal,
+	VoiceCallSignalType,
+	VoiceFrame,
+} from './types'
+export {
+	VOICE_MAX_FRAME_B64,
+	VOICE_FRAME_TIMESTAMP_SKEW_SEC,
+	VOICE_CALL_MAX_DURATION_MS,
 } from './types'

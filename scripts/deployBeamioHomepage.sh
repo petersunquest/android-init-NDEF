@@ -51,6 +51,7 @@ RSYNC_EXCLUDES=(
 	--exclude 'appTemp/'
 	--exclude 'pos/'
 	--exclude 'posTemp/'
+	--exclude 'gift/'
 	--exclude 'homepage/'
 	--exclude 'SilentPassUI/'
 	--exclude '.well-known/'

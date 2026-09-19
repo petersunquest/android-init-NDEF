@@ -100,6 +100,7 @@ export interface StartWorkerGossipParams {
 	nodes: NodeInfo[]
 	rootSignal: AbortSignal
 	onLine: (line: string) => void
+	onVoiceFrame?: (frame: Record<string, unknown>) => void
 	onActivity: () => void
 	onLog?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
@@ -141,6 +142,36 @@ export async function postWorkerMailboxCommand(
 	if (!activeClient) return false
 	try {
 		return await activeClient.postMailboxCommand(routerArmoredPublicKey, command)
+	} catch {
+		return false
+	}
+}
+
+export async function startWorkerVoiceListen(sessionId: string): Promise<boolean> {
+	if (!activeClient) return false
+	try {
+		return await activeClient.startVoiceListen(sessionId)
+	} catch {
+		return false
+	}
+}
+
+export async function stopWorkerVoiceListen(sessionId: string): Promise<boolean> {
+	if (!activeClient) return false
+	try {
+		return await activeClient.stopVoiceListen(sessionId)
+	} catch {
+		return false
+	}
+}
+
+export async function sendWorkerVoiceFrame(
+	routerArmoredPublicKey: string,
+	frame: Record<string, unknown>,
+): Promise<boolean> {
+	if (!activeClient) return false
+	try {
+		return await activeClient.sendVoiceFrame(routerArmoredPublicKey, frame)
 	} catch {
 		return false
 	}
@@ -204,6 +235,7 @@ export const startWorkerGossipListen = async (p: StartWorkerGossipParams): Promi
 			p.onLog?.(l.level, l.message)
 		}),
 	)
+	if (p.onVoiceFrame) unsubs.push(client.on('voiceFrame', p.onVoiceFrame))
 	unsubs.push(
 		client.history.onBuffer((batch) => {
 			if (p.rootSignal.aborted) return
