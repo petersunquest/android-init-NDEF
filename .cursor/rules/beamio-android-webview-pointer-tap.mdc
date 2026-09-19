@@ -1,0 +1,25 @@
+# Android WebView Pointer Tap Protocol
+
+All active SilentPassUI touch controls must remain reliable in Android WebView,
+including WebViews that report a finger as a `mouse` pointer.
+
+## Required
+
+- For tap-capable buttons, use `pointerup` through the shared
+  `useReliableTapHandler` (not only `click`).
+- Capture the pointer on `pointerdown`; accept `pointerup` only when movement
+  stays within the shared tolerance, and suppress the browser's duplicate
+  synthesized `click`.
+- Mark priority controls with `data-touch-priority="1"` so AppShell's global
+  touch guards do not call `preventDefault()` for their gesture.
+- Apply `touchAction: manipulation` and the shared
+  `RELIABLE_TAP_BUTTON_CLASS` to tap controls.
+- Keep the global touch guards narrowly scoped to the active gesture. Every
+  listener and temporary marker must be removed in cleanup; never add a
+  permanent document-level tap side effect or a second parallel tap system.
+
+## Audit boundary
+
+This protocol applies to active `src/SilentPassUI` PWA/client UI only.
+Abandoned native POS directories are not implementation targets.
+
