@@ -431,18 +431,20 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to read supported physical cards.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio uses Bluetooth to connect to supported Stripe card readers.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to record videos and scan QR codes in Chat.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Beamio uses the microphone to record voice messages and voice calls in Chat.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.6;
+				MARKETING_VERSION = 1.5.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.beamio.beamio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -472,18 +474,20 @@
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				INFOPLIST_KEY_NFCReaderUsageDescription = "Beamio uses NFC to read supported physical cards.";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Beamio uses Bluetooth to connect to supported Stripe card readers.";
-				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to scan QR codes and recovery codes when you choose Scan.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Beamio uses the camera to record videos and scan QR codes in Chat.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Beamio uses the microphone to record voice messages and voice calls in Chat.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Beamio saves your recovery QR code to Photos when you choose Save to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.6;
+				MARKETING_VERSION = 1.5.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.beamio.beamio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

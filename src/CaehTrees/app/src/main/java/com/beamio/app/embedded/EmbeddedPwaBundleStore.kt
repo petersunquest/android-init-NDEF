@@ -20,6 +20,7 @@ class EmbeddedPwaBundleStore(context: Context) {
     fun bootstrapIfNeeded() {
         synchronized(lock) {
             rootDir.mkdirs()
+            promoteStagingIfNewerLocked()
             val bundledDir = File(rootDir, "bundled")
             if (bundledDir.exists()) {
                 bundledDir.deleteRecursively()
@@ -55,6 +56,31 @@ class EmbeddedPwaBundleStore(context: Context) {
                 throw IllegalStateException("Failed to activate bundled SilentPassUI.zip")
             }
         }
+    }
+
+    /**
+     * Activate an OTA bundle that was downloaded before the process was
+     * stopped. This keeps a staged update from waiting for an APK restart.
+     */
+    private fun promoteStagingIfNewerLocked(): Boolean {
+        if (!hasValidBundle(stagingDir)) return false
+        val stagedVersion = readUpdateInfo(stagingDir)?.ver ?: return false
+        val activeVersion = readUpdateInfo(activeDir)?.ver
+        if (activeVersion != null && !isSemverNewer(activeVersion, stagedVersion)) {
+            return false
+        }
+        if (backupDir.exists()) backupDir.deleteRecursively()
+        if (activeDir.exists() && !activeDir.renameTo(backupDir)) {
+            return false
+        }
+        if (!stagingDir.renameTo(activeDir)) {
+            if (backupDir.exists() && !activeDir.exists()) {
+                backupDir.renameTo(activeDir)
+            }
+            return false
+        }
+        pendingVersion = null
+        return true
     }
 
     fun activeVersion(): String = readUpdateInfo(activeDir)?.ver ?: "0.0.0"

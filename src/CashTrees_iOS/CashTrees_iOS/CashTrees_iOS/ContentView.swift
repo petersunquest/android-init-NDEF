@@ -9,9 +9,12 @@ import Combine
 import AVFoundation
 import CoreImage
 import CoreNFC
+import CallKit
 import Photos
+import PushKit
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import WebKit
 
 /// Consumer shell loads embedded SilentPassUI via `cashtrees-local://` scheme handler.
@@ -33,6 +36,85 @@ private enum NfcStatusString {
     static let noHardware = "no_hardware"
     static let disabled = "disabled"
     static let permissionDenied = "nfc_permission_denied"
+}
+
+final class BeamioCallKitManager: NSObject, CXProviderDelegate {
+    private let provider: CXProvider
+    private let controller = CXCallController()
+    private var callIds: [UUID: String] = [:]
+    var onAction: ((String, String) -> Void)?
+
+    override init() {
+        let configuration = CXProviderConfiguration(localizedName: "Beamio")
+        configuration.supportsVideo = false
+        configuration.maximumCallsPerCallGroup = 1
+        configuration.maximumCallGroups = 1
+        configuration.supportedHandleTypes = [.generic]
+        provider = CXProvider(configuration: configuration)
+        super.init()
+        provider.setDelegate(self, queue: .main)
+    }
+
+    func reportIncoming(callId: String, handle: String) {
+        let uuid = UUID()
+        callIds[uuid] = callId
+        let update = CXCallUpdate()
+        update.remoteHandle = CXHandle(type: .generic, value: handle)
+        update.localizedCallerName = handle
+        provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+            if error != nil { self?.callIds.removeValue(forKey: uuid) }
+        }
+    }
+
+    func startOutgoing(callId: String, handle: String) {
+        let uuid = UUID()
+        callIds[uuid] = callId
+        let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: handle))
+        controller.request(CXTransaction(action: action)) { [weak self] error in
+            if error != nil {
+                self?.callIds.removeValue(forKey: uuid)
+            }
+        }
+    }
+
+    func end(callId: String) {
+        guard let uuid = callIds.first(where: { $0.value == callId })?.key else { return }
+        controller.request(CXTransaction(action: CXEndCallAction(call: uuid))) { _ in }
+    }
+
+    func providerDidReset(_ provider: CXProvider) {
+        callIds.removeAll()
+    }
+
+    func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
+        emit("callAnswered", action.callUUID)
+        action.fulfill()
+    }
+
+    func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
+        emit("callEnded", action.callUUID)
+        action.fulfill()
+    }
+
+    func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+        provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
+        emit("callStarted", action.callUUID)
+        action.fulfill()
+    }
+
+    func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        try? audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .defaultToSpeaker])
+        try? audioSession.setActive(true)
+    }
+
+    func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+        try? audioSession.setActive(false)
+    }
+
+    private func emit(_ action: String, _ uuid: UUID) {
+        guard let callId = callIds[uuid] else { return }
+        onAction?(action, callId)
+    }
 }
 
 /// SUN query（与 MainActivity.parseSunParamsFromNdefUrl 一致；模板 e/c/m 全 0 为 nil）
@@ -241,7 +323,7 @@ final class CashTreesWebLoadState: ObservableObject {
 
 // MARK: - WK Coordinator
 
-final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate {
+final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, PKPushRegistryDelegate {
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
 
@@ -257,6 +339,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var embeddedPwaUpdateObserver: NSObjectProtocol?
     private var pushTokenObserver: NSObjectProtocol?
     private var appLifecycleObserver: NSObjectProtocol?
+    private var pendingCameraCaptureRequestId = ""
+    private var pendingFilePickerCompletion: (([URL]?) -> Void)?
+    private let callKit = BeamioCallKitManager()
+    private let voipRegistry = PKPushRegistry(queue: .main)
     /// Set when the app actually enters background (not Control Center / lock peek).
     private var backgroundedAt: Date?
     private var webContentLivenessProbeGeneration = 0
@@ -272,6 +358,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     override init() {
         super.init()
+        callKit.onAction = { [weak self] action, callId in
+            self?.dispatchIOSBridgeJsonToWeb([
+                "action": action,
+                "callId": callId,
+            ])
+        }
+        voipRegistry.delegate = self
+        voipRegistry.desiredPushTypes = [.voIP]
         becameActiveObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -350,6 +444,41 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         if let appLifecycleObserver {
             NotificationCenter.default.removeObserver(appLifecycleObserver)
         }
+    }
+
+    func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for type: PKPushType) {
+        let token = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
+        dispatchIOSBridgeJsonToWeb([
+            "action": "pushDeviceToken",
+            "token": token,
+            "deviceToken": token,
+            "platform": "ios_voip",
+            "bundleId": Bundle.main.bundleIdentifier ?? "com.beamio.beamio",
+        ])
+    }
+
+    func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
+        dispatchIOSBridgeJsonToWeb([
+            "action": "pushDeviceToken",
+            "token": "",
+            "deviceToken": "",
+            "platform": "ios_voip",
+        ])
+    }
+
+    func pushRegistry(
+        _ registry: PKPushRegistry,
+        didReceiveIncomingPushWith payload: PKPushPayload,
+        for type: PKPushType,
+        completion: @escaping () -> Void
+    ) {
+        let body = payload.dictionaryPayload
+        let callId = (body["callId"] as? String) ?? (body["call_id"] as? String) ?? ""
+        let displayName = (body["displayName"] as? String) ?? (body["peerAddress"] as? String) ?? "Beamio call"
+        if !callId.isEmpty {
+            callKit.reportIncoming(callId: callId, handle: displayName)
+        }
+        completion()
     }
 
     func loadWebAppURL(_ url: URL, in webView: WKWebView, bypassDedup: Bool = false) {
@@ -610,6 +739,45 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
     }
 
+    // WKWebView does not open <input type="file"> on its own. Without this
+    // callback the PWA returns from the native shell with no FileList, which
+    // makes Attach files appear to fail only inside iOS.
+    func webView(
+        _ webView: WKWebView,
+        runOpenPanelWith parameters: WKOpenPanelParameters,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping ([URL]?) -> Void
+    ) {
+        pendingFilePickerCompletion?([])
+        pendingFilePickerCompletion = completionHandler
+
+        guard let presenter = topViewController() else {
+            pendingFilePickerCompletion = nil
+            completionHandler(nil)
+            return
+        }
+
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [UTType.item],
+            asCopy: true
+        )
+        picker.allowsMultipleSelection = parameters.allowsMultipleSelection
+        picker.delegate = self
+        presenter.present(picker, animated: true)
+    }
+
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        let completion = pendingFilePickerCompletion
+        pendingFilePickerCompletion = nil
+        completion?(urls)
+    }
+
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        let completion = pendingFilePickerCompletion
+        pendingFilePickerCompletion = nil
+        completion?(nil)
+    }
+
     /// document start 注入用：与 Android `CashTreesAndroid.getNfcStatus()` 字符串一致
     static func bridgeInjectionScript(
         nfcStatus: String,
@@ -675,6 +843,39 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               window.webkit.messageHandlers[H].postMessage({
                 action:'scanQr',
                 requestId:payload.requestId||''
+              });
+            },
+            requestCameraCapture:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'requestCameraCapture',
+                requestId:payload.requestId||'',
+                mediaType:payload.mediaType||'video'
+              });
+            },
+            startSystemCall:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'startSystemCall',
+                callId:payload.callId||'',
+                peerAddress:payload.peerAddress||'',
+                displayName:payload.displayName||''
+              });
+            },
+            reportIncomingSystemCall:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'reportIncomingSystemCall',
+                callId:payload.callId||'',
+                peerAddress:payload.peerAddress||'',
+                displayName:payload.displayName||''
+              });
+            },
+            endSystemCall:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'endSystemCall',
+                callId:payload.callId||''
               });
             },
             openURL:function(payload){
@@ -811,6 +1012,28 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let requestId = body["requestId"] as? String
             DispatchQueue.main.async { [weak self] in
                 self?.presentGeneralQRScanner(requestId: requestId, filter: .anyText, bridgeAction: "scanQr")
+            }
+        case "requestCameraCapture":
+            let requestId = body["requestId"] as? String ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.presentCameraCapture(requestId: requestId)
+            }
+        case "startSystemCall":
+            let callId = body["callId"] as? String ?? ""
+            let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.callKit.startOutgoing(callId: callId, handle: peer)
+            }
+        case "reportIncomingSystemCall":
+            let callId = body["callId"] as? String ?? ""
+            let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.callKit.reportIncoming(callId: callId, handle: peer)
+            }
+        case "endSystemCall":
+            let callId = body["callId"] as? String ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.callKit.end(callId: callId)
             }
         case "webContentReady":
             DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }
@@ -1046,6 +1269,102 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         presenter.present(scanner, animated: true)
     }
 
+    private func presentCameraCapture(requestId: String) {
+        pendingCameraCaptureRequestId = requestId
+        guard UIImagePickerController.isSourceTypeAvailable(.camera),
+              let presenter = topViewController()
+        else {
+            pendingCameraCaptureRequestId = ""
+            dispatchIOSBridgeJsonToWeb([
+                "action": "cameraCapture",
+                "ok": false,
+                "requestId": requestId,
+                "error": "camera_unavailable",
+            ])
+            return
+        }
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.mediaTypes = ["public.movie"]
+        picker.videoQuality = .typeHigh
+        picker.videoMaximumDuration = 120
+        picker.delegate = self
+        picker.modalPresentationStyle = .fullScreen
+        presenter.present(picker, animated: true)
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        let requestId = pendingCameraCaptureRequestId
+        pendingCameraCaptureRequestId = ""
+        picker.dismiss(animated: true) { [weak self] in
+            self?.dispatchIOSBridgeJsonToWeb([
+                "action": "cameraCapture",
+                "ok": false,
+                "requestId": requestId,
+                "error": "cancelled",
+            ])
+        }
+    }
+
+    func imagePickerController(
+        _ picker: UIImagePickerController,
+        didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any],
+    ) {
+        let requestId = pendingCameraCaptureRequestId
+        pendingCameraCaptureRequestId = ""
+        let movieURL = info[.mediaURL] as? URL
+        let data = movieURL.flatMap { try? Data(contentsOf: $0) }
+        picker.dismiss(animated: true) { [weak self] in
+            guard let self else { return }
+            guard let data else {
+                self.dispatchIOSBridgeJsonToWeb([
+                    "action": "cameraCapture",
+                    "ok": false,
+                    "requestId": requestId,
+                    "error": "video_read_failed",
+                ])
+                if let movieURL {
+                    try? FileManager.default.removeItem(at: movieURL)
+                }
+                return
+            }
+            // Do not inject the entire video as one JavaScript string. A short
+            // recording can exceed WKWebView's evaluateJavaScript payload
+            // limit, which used to make the PWA receive no usable result and
+            // show a generic camera error. Transfer the base64 body in small
+            // ASCII-only chunks instead.
+            var payloads: [[String: Any]] = [[
+                "action": "cameraCaptureStart",
+                "ok": true,
+                "requestId": requestId,
+                "mimeType": "video/mp4",
+            ]]
+            let encoded = data.base64EncodedString()
+            let chunkSize = 64 * 1024
+            var index = 0
+            while index < encoded.count {
+                let start = encoded.index(encoded.startIndex, offsetBy: index)
+                let end = encoded.index(start, offsetBy: min(chunkSize, encoded.count - index))
+                payloads.append([
+                    "action": "cameraCaptureChunk",
+                    "requestId": requestId,
+                    "index": index / chunkSize,
+                    "data": String(encoded[start..<end]),
+                ])
+                index += encoded.distance(from: start, to: end)
+            }
+            payloads.append([
+                "action": "cameraCaptureEnd",
+                "ok": true,
+                "requestId": requestId,
+            ])
+            self.dispatchIOSBridgeJsonSequenceToWeb(payloads)
+            if let movieURL {
+                try? FileManager.default.removeItem(at: movieURL)
+            }
+        }
+    }
+
     private func saveFile(dataUrl: String?, filename: String?, mimeType: String?, requestId: String?) {
         let rid = requestId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let raw = dataUrl?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -1224,7 +1543,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
     }
 
-    private func dispatchIOSBridgeJsonToWeb(_ dict: [String: Any]) {
+    private func dispatchIOSBridgeJsonToWeb(_ dict: [String: Any], completion: (() -> Void)? = nil) {
         guard let webView = webView else { return }
         guard JSONSerialization.isValidJSONObject(dict),
               let data = try? JSONSerialization.data(withJSONObject: dict, options: []),
@@ -1237,8 +1556,24 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }catch(e){}})();
         """
         DispatchQueue.main.async {
-            webView.evaluateJavaScript(js, completionHandler: nil)
+            webView.evaluateJavaScript(js) { _, _ in
+                completion?()
+            }
         }
+    }
+
+    private func dispatchIOSBridgeJsonSequenceToWeb(_ payloads: [[String: Any]]) {
+        guard !payloads.isEmpty else { return }
+        var index = 0
+        func sendNext() {
+            guard index < payloads.count else { return }
+            let payload = payloads[index]
+            index += 1
+            self.dispatchIOSBridgeJsonToWeb(payload) {
+                sendNext()
+            }
+        }
+        sendNext()
     }
 
     /// Core NFC：系统会强制展示扫描界面（含 `alertMessage`），无公开 API 可隐藏；仅可改提示文案。
@@ -1386,7 +1721,9 @@ struct CashTreesWebView: UIViewRepresentable {
             }
           }
           var s = document.createElement('style');
-          s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:pan-y;}';
+          // Keep the page itself horizontally clipped, but do not block
+          // horizontal gestures on nested overflow-x-auto rails.
+          s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:auto;}';
           (document.head || document.documentElement).appendChild(s);
         })();
         """

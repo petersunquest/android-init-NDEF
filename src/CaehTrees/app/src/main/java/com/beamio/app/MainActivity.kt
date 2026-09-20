@@ -9,6 +9,7 @@ import android.net.Uri
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
+import android.os.Environment
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -21,6 +22,7 @@ import android.widget.FrameLayout
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
+import android.webkit.ValueCallback
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -30,6 +32,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -38,6 +41,7 @@ import android.view.ViewGroup
 import com.beamio.app.embedded.EmbeddedPwaConstants
 import com.beamio.app.embedded.EmbeddedPwaHost
 import java.util.concurrent.Executors
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -68,6 +72,19 @@ private object NfcStatusStrings {
 class MainActivity : ComponentActivity() {
 
     companion object {
+        @Volatile
+        private var activeInstance: MainActivity? = null
+
+        fun dispatchSystemCallAction(action: String, callId: String) {
+            activeInstance?.let { activity ->
+                activity.runOnUiThread {
+                    activity.dispatchAndroidBridgeJsonToWeb(
+                        JSONObject().put("action", action).put("callId", callId),
+                    )
+                }
+            }
+        }
+
         private val ALLOWED_EXTERNAL_URL_SCHEMES = setOf(
             "http", "https", "mailto", "tel",
             "metamask", "cbwallet", "coinbase", "base",
@@ -88,10 +105,14 @@ class MainActivity : ComponentActivity() {
 
     private val bootstrapExecutor = Executors.newSingleThreadExecutor()
 
-    /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA 授权 */
+    /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA / RECORD_AUDIO */
     private var pendingWebPermissionRequest: PermissionRequest? = null
     private var pendingFileBytes: ByteArray? = null
     private var pendingFileRequestId: String = ""
+    private var pendingFileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingFileChooserCameraUri: Uri? = null
+    private var pendingCameraRequestId: String = ""
+    private var pendingCameraOutputUri: Uri? = null
 
     private var nfcAdapter: NfcAdapter? = null
 
@@ -117,17 +138,60 @@ class MainActivity : ComponentActivity() {
 
     private val enableNfcForegroundDispatchRunnable = Runnable { maybeEnableNfcForegroundDispatch() }
 
-    private val requestCameraPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
+    private val requestWebViewMediaPermissions = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { _ ->
         val req = pendingWebPermissionRequest
         pendingWebPermissionRequest = null
         if (req == null) return@registerForActivityResult
+        grantWebViewMediaRequest(req)
+    }
+
+    private val requestNativeCameraPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val requestId = pendingCameraRequestId
+        pendingCameraRequestId = ""
         if (granted) {
-            grantWebViewMediaRequest(req)
+            launchNativeVideoCapture(requestId)
         } else {
-            req.deny()
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject().put("action", "cameraCapture").put("ok", false)
+                    .put("requestId", requestId).put("error", "camera_permission_denied"),
+            )
         }
+    }
+
+    private val nativeCameraLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val requestId = pendingCameraRequestId
+        val outputUri = pendingCameraOutputUri
+        pendingCameraRequestId = ""
+        pendingCameraOutputUri = null
+        if (result.resultCode != RESULT_OK || outputUri == null) {
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject().put("action", "cameraCapture").put("ok", false)
+                    .put("requestId", requestId).put("error", "cancelled"),
+            )
+            return@registerForActivityResult
+        }
+        dispatchVideoUriToWeb(outputUri, requestId)
+    }
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val callback = pendingFileChooserCallback
+        pendingFileChooserCallback = null
+        val cameraUri = pendingFileChooserCameraUri
+        pendingFileChooserCameraUri = null
+        if (result.resultCode != RESULT_OK) {
+            callback?.onReceiveValue(null)
+            return@registerForActivityResult
+        }
+        val uri = cameraUri ?: result.data?.data
+        callback?.onReceiveValue(uri?.let { arrayOf(it) })
     }
 
     private val generalQrScannerLauncher = registerForActivityResult(
@@ -200,10 +264,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun androidPermissionsForWebMedia(request: PermissionRequest): List<String> {
+        val perms = linkedSetOf<String>()
+        for (res in request.resources) {
+            when (res) {
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> perms.add(Manifest.permission.CAMERA)
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> perms.add(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+        return perms.toList()
+    }
+
+    private fun hasOsPermission(permission: String): Boolean {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun grantWebViewMediaRequest(request: PermissionRequest) {
         val allow = request.resources.filter { res ->
-            res == PermissionRequest.RESOURCE_VIDEO_CAPTURE ||
-                res == PermissionRequest.RESOURCE_AUDIO_CAPTURE
+            when (res) {
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE -> hasOsPermission(Manifest.permission.CAMERA)
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE -> hasOsPermission(Manifest.permission.RECORD_AUDIO)
+                else -> false
+            }
         }.toTypedArray()
         if (allow.isEmpty()) {
             request.deny()
@@ -213,19 +295,49 @@ class MainActivity : ComponentActivity() {
     }
 
     private val webChromeClient: WebChromeClient = object : WebChromeClient() {
+        override fun onShowFileChooser(
+            webView: WebView?,
+            filePathCallback: ValueCallback<Array<Uri>>?,
+            fileChooserParams: FileChooserParams?,
+        ): Boolean {
+            pendingFileChooserCallback?.onReceiveValue(null)
+            pendingFileChooserCallback = filePathCallback
+            pendingFileChooserCameraUri = null
+            if (filePathCallback == null || fileChooserParams == null) {
+                pendingFileChooserCallback = null
+                return false
+            }
+            return try {
+                val acceptsVideo = fileChooserParams.acceptTypes.any {
+                    it.lowercase().contains("video")
+                }
+                val intent = if (fileChooserParams.isCaptureEnabled && acceptsVideo) {
+                    createVideoCaptureIntent().also { pendingFileChooserCameraUri = pendingCameraOutputUri }
+                } else {
+                    fileChooserParams.createIntent()
+                }
+                fileChooserLauncher.launch(intent)
+                true
+            } catch (_: Exception) {
+                pendingFileChooserCallback = null
+                pendingFileChooserCameraUri = null
+                false
+            }
+        }
+
         override fun onPermissionRequest(request: PermissionRequest) {
             runOnUiThread {
-                when {
-                    ContextCompat.checkSelfPermission(
-                        this@MainActivity,
-                        Manifest.permission.CAMERA,
-                    ) == PackageManager.PERMISSION_GRANTED -> {
-                        grantWebViewMediaRequest(request)
-                    }
-                    else -> {
-                        pendingWebPermissionRequest = request
-                        requestCameraPermission.launch(Manifest.permission.CAMERA)
-                    }
+                val needed = androidPermissionsForWebMedia(request)
+                if (needed.isEmpty()) {
+                    request.deny()
+                    return@runOnUiThread
+                }
+                val missing = needed.filterNot(::hasOsPermission)
+                if (missing.isEmpty()) {
+                    grantWebViewMediaRequest(request)
+                } else {
+                    pendingWebPermissionRequest = request
+                    requestWebViewMediaPermissions.launch(missing.toTypedArray())
                 }
             }
         }
@@ -241,6 +353,91 @@ class MainActivity : ComponentActivity() {
             )
             return false
         }
+    }
+
+    private fun createVideoCaptureIntent(): Intent {
+        val directory = getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: filesDir
+        val outputFile = File.createTempFile("beamio-camera-", ".mp4", directory)
+        val outputUri = FileProvider.getUriForFile(
+            this,
+            "${applicationContext.packageName}.fileprovider",
+            outputFile,
+        )
+        pendingCameraOutputUri = outputUri
+        return Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE).apply {
+            putExtra(android.provider.MediaStore.EXTRA_OUTPUT, outputUri)
+            putExtra(android.provider.MediaStore.EXTRA_VIDEO_QUALITY, 1)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    private fun launchNativeVideoCapture(requestId: String) {
+        try {
+            val intent = createVideoCaptureIntent().apply {
+                putExtra("android.intent.extra.durationLimit", 120)
+            }
+            pendingCameraRequestId = requestId
+            nativeCameraLauncher.launch(intent)
+        } catch (_: Exception) {
+            pendingCameraRequestId = ""
+            pendingCameraOutputUri = null
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject().put("action", "cameraCapture").put("ok", false)
+                    .put("requestId", requestId).put("error", "camera_unavailable"),
+            )
+        }
+    }
+
+    private fun dispatchVideoUriToWeb(uri: Uri, requestId: String) {
+        // Do not inject the complete video data URL into WebView. Large
+        // evaluateJavascript payloads can be rejected after recording, leaving
+        // the PWA with a generic camera error. Read off the UI thread, then
+        // deliver the base64 body using the same chunk protocol as iOS.
+        Thread {
+            try {
+                val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                if (bytes == null || bytes.isEmpty()) throw IllegalStateException("empty_video")
+                val mime = contentResolver.getType(uri) ?: "video/mp4"
+                val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                val chunkSize = 64 * 1024
+
+                val payloads = mutableListOf<JSONObject>()
+                payloads += JSONObject()
+                    .put("action", "cameraCaptureStart")
+                    .put("ok", true)
+                    .put("requestId", requestId)
+                    .put("mimeType", mime)
+                    var offset = 0
+                    var chunkIndex = 0
+                    while (offset < encoded.length) {
+                        val end = minOf(offset + chunkSize, encoded.length)
+                        payloads += JSONObject()
+                            .put("action", "cameraCaptureChunk")
+                            .put("requestId", requestId)
+                            .put("index", chunkIndex)
+                            .put("data", encoded.substring(offset, end))
+                        offset = end
+                        chunkIndex += 1
+                    }
+                    payloads += JSONObject()
+                        .put("action", "cameraCaptureEnd")
+                        .put("ok", true)
+                        .put("requestId", requestId)
+                    runOnUiThread { dispatchAndroidBridgeJsonSequenceToWeb(payloads) }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    dispatchAndroidBridgeJsonToWeb(
+                        JSONObject().put("action", "cameraCapture").put("ok", false)
+                            .put("requestId", requestId).put("error", "video_read_failed"),
+                    )
+                }
+            } finally {
+                try {
+                    contentResolver.delete(uri, null, null)
+                } catch (_: Exception) {
+                }
+            }
+        }.start()
     }
 
     private fun hasNfcPermission(): Boolean =
@@ -473,7 +670,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** PWA bridge results — same shape as iOS `cashtreesios` CustomEvent detail. */
-    private fun dispatchAndroidBridgeJsonToWeb(json: JSONObject) {
+    private fun dispatchAndroidBridgeJsonToWeb(json: JSONObject, completion: (() -> Unit)? = null) {
         if (!::webView.isInitialized) return
         val payload = json.toString()
         val js =
@@ -481,7 +678,18 @@ class MainActivity : ComponentActivity() {
                 "window.dispatchEvent(new CustomEvent('cashtreesandroid',{detail:d}));" +
                 "if(d&&d.ok&&(d.action==='scanQr'||d.action==='scanRecoveryQr')){try{window.focus&&window.focus();}catch(e){}}" +
                 "}catch(e){}})();"
-        webView.evaluateJavascript(js, null)
+        webView.evaluateJavascript(js) { completion?.invoke() }
+    }
+
+    private fun dispatchAndroidBridgeJsonSequenceToWeb(payloads: List<JSONObject>) {
+        if (payloads.isEmpty() || !::webView.isInitialized) return
+        var index = 0
+        fun sendNext() {
+            if (index >= payloads.size) return
+            val payload = payloads[index++]
+            dispatchAndroidBridgeJsonToWeb(payload) { sendNext() }
+        }
+        sendNext()
     }
 
     private fun launchGeneralQrScanner(requestId: String, bridgeAction: String, filter: String) {
@@ -542,6 +750,56 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun saveFile(json: String) {
             runOnUiThread { saveFileFromBridge(json) }
+        }
+
+        @JavascriptInterface
+        fun startSystemCall(json: String) {
+            runOnUiThread {
+                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                BeamioTelecomService.startOutgoing(
+                    this@MainActivity,
+                    body.optString("callId"),
+                    body.optString("displayName").ifBlank { body.optString("peerAddress") },
+                )
+            }
+        }
+
+        @JavascriptInterface
+        fun reportIncomingSystemCall(json: String) {
+            runOnUiThread {
+                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                BeamioTelecomService.reportIncoming(
+                    this@MainActivity,
+                    body.optString("callId"),
+                    body.optString("displayName").ifBlank { body.optString("peerAddress") },
+                )
+            }
+        }
+
+        @JavascriptInterface
+        fun endSystemCall(json: String) {
+            runOnUiThread {
+                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                BeamioTelecomService.end(this@MainActivity, body.optString("callId"))
+            }
+        }
+
+        /** Native video capture for the Chat Camera action. Android JS interfaces receive strings only. */
+        @JavascriptInterface
+        fun requestCameraCapture(json: String) {
+            runOnUiThread {
+                val requestId = try {
+                    JSONObject(json).optString("requestId", "")
+                } catch (_: Exception) {
+                    ""
+                }
+                if (!hasOsPermission(Manifest.permission.CAMERA)) {
+                    pendingCameraRequestId = requestId
+                    requestNativeCameraPermission.launch(Manifest.permission.CAMERA)
+                } else {
+                    launchNativeVideoCapture(requestId)
+                }
+            }
         }
 
         /**
@@ -763,6 +1021,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        activeInstance = this
+        BeamioTelecomService.ensurePhoneAccount(this)
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
         onBackPressedDispatcher.addCallback(
@@ -1074,6 +1335,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (activeInstance === this) activeInstance = null
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
         CashTreesPushRegistration.onTokenForWeb = null
         if (::embeddedPwaHost.isInitialized) {

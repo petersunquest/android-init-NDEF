@@ -17,6 +17,17 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val type = data["type"]?.trim().orEmpty()
+        if (type == "voiceCall" || type == "beamioVoiceCall") {
+            val callId = data["callId"]?.trim().orEmpty()
+            if (callId.isNotEmpty()) {
+                BeamioTelecomService.reportIncoming(
+                    applicationContext,
+                    callId,
+                    data["displayName"]?.trim().orEmpty().ifBlank { data["peerAddress"].orEmpty() },
+                )
+            }
+            return
+        }
         if (type != "chatBadge" && type != "syncChatBadge") return
         val badgeRaw = data["badge"] ?: data["unread"] ?: return
         val badge = badgeRaw.toIntOrNull()?.coerceIn(0, 999) ?: return
