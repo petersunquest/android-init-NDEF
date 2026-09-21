@@ -85,12 +85,13 @@ class BeamioTelecomService : ConnectionService() {
             val telecom = context.getSystemService(TelecomManager::class.java) ?: return
             val handle = phoneAccountHandle(context)
             // On some Android/Samsung builds, even reading a self-managed
-            // PhoneAccount requires READ_PHONE_NUMBERS. Telecom is optional
-            // for the app shell, so never let this capability crash startup.
+            // PhoneAccount can throw even when the self-managed account is
+            // usable. A failed read must not suppress registration of a new
+            // incoming call account.
             try {
                 if (telecom.getPhoneAccount(handle) != null) return
             } catch (_: SecurityException) {
-                return
+                // Register below; registerPhoneAccount is idempotent.
             }
             val account = PhoneAccount.builder(handle, "Beamio Phone")
                 .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
