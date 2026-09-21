@@ -84,7 +84,11 @@ class BeamioTelecomService : ConnectionService() {
         const val EXTRA_SESSION_ID = "beamio.session_id"
         const val EXTRA_DISPLAY_NAME = "beamio.display_name"
         const val EXTRA_PEER_ADDRESS = "beamio.peer_address"
-        private const val ACCOUNT_ID = "beamio_system_phone"
+        // PhoneAccount capability is immutable on Android/Samsung once the
+        // previous self-managed account has been registered. Use a new handle
+        // ID for the managed Telecom account instead of trying to mutate the
+        // legacy self-managed handle during app startup.
+        private const val ACCOUNT_ID = "beamio_system_phone_v2"
         private const val PHONE_SCHEME = "beamio-call"
         private const val ACTION_PREFS = "beamio_telecom_pending_action"
         private const val ACTION_KEY = "action"
@@ -152,6 +156,11 @@ class BeamioTelecomService : ConnectionService() {
             try {
                 telecom.registerPhoneAccount(account)
             } catch (_: SecurityException) {
+            } catch (_: IllegalArgumentException) {
+                // Some OEM Telecom implementations reject a stale account
+                // capability transition. Keep app startup alive; incoming
+                // calls can use the full-screen fallback until the account is
+                // enabled or repaired.
             }
         }
 
