@@ -6,6 +6,7 @@ import android.content.Intent
 import android.app.PendingIntent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.telecom.Connection
 import android.telecom.ConnectionRequest
 import android.telecom.ConnectionService
@@ -84,11 +85,13 @@ class BeamioTelecomService : ConnectionService() {
         const val EXTRA_SESSION_ID = "beamio.session_id"
         const val EXTRA_DISPLAY_NAME = "beamio.display_name"
         const val EXTRA_PEER_ADDRESS = "beamio.peer_address"
-        // PhoneAccount capability is immutable on Android/Samsung once the
-        // previous self-managed account has been registered. Use a new handle
-        // ID for the managed Telecom account instead of trying to mutate the
-        // legacy self-managed handle during app startup.
-        private const val ACCOUNT_ID = "beamio_system_phone_v2"
+        // A third-party app cannot become the device's managed dialer by
+        // registering CAPABILITY_CALL_PROVIDER. Samsung silently filters that
+        // account from Phone Accounts unless the app has the dialer role.
+        // Self-managed is the supported VoIP account type; the native
+        // full-screen notification below provides the system-level incoming
+        // call surface.
+        private const val ACCOUNT_ID = "beamio_system_phone_v3"
         private const val PHONE_SCHEME = "beamio-call"
         private const val ACTION_PREFS = "beamio_telecom_pending_action"
         private const val ACTION_KEY = "action"
@@ -140,27 +143,29 @@ class BeamioTelecomService : ConnectionService() {
                 ) {
                     return
                 }
-                // Upgrade an account created by the previous self-managed
-                // implementation so Telecom can own the system call UI.
+            // Re-register an account created by an older build if needed.
                 if (existing != null) telecom.unregisterPhoneAccount(handle)
             } catch (_: SecurityException) {
                 // Register below; registerPhoneAccount is idempotent.
             }
-            // Use a managed Telecom account so Android's system In-Call UI owns
-            // the incoming-call surface. CAPABILITY_SELF_MANAGED deliberately
-            // opts out of that UI and requires the app to render its own screen.
+            // Use the supported third-party VoIP account type. Android's
+            // standard dialer UI is reserved for the default dialer; incoming
+            // calls are surfaced through our native full-screen notification.
             val account = PhoneAccount.builder(handle, "Beamio Phone")
-                .setCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER)
+                .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
                 .setSupportedUriSchemes(listOf(PHONE_SCHEME))
                 .build()
             try {
                 telecom.registerPhoneAccount(account)
-            } catch (_: SecurityException) {
-            } catch (_: IllegalArgumentException) {
+                Log.i(TAG, "PhoneAccount registered self-managed")
+            } catch (error: SecurityException) {
+                Log.w(TAG, "PhoneAccount registration denied by Telecom", error)
+            } catch (error: IllegalArgumentException) {
                 // Some OEM Telecom implementations reject a stale account
                 // capability transition. Keep app startup alive; incoming
                 // calls can use the full-screen fallback until the account is
                 // enabled or repaired.
+                Log.w(TAG, "PhoneAccount registration rejected by OEM Telecom", error)
             }
         }
 
@@ -172,13 +177,18 @@ class BeamioTelecomService : ConnectionService() {
             sessionId: String = "",
         ) {
             val nativeCallId = sessionId.ifBlank { callId }
+            Log.i(
+                TAG,
+                "reportIncoming called callIdPresent=${callId.isNotBlank()} " +
+                    "sessionIdPresent=${sessionId.isNotBlank()}",
+            )
             ensurePhoneAccount(context)
             val telecom = context.getSystemService(TelecomManager::class.java) ?: return
             val handle = phoneAccountHandle(context)
-            if (!isPhoneAccountEnabled(context)) {
-                showIncomingCallFallback(context, nativeCallId, peerAddress, displayName, sessionId)
-                return
-            }
+            // Always post the native OS-level surface. A self-managed
+            // PhoneAccount does not grant a third-party app the stock dialer
+            // screen, and some OEMs do not report it as user-enabled.
+            showIncomingCallFallback(context, nativeCallId, peerAddress, displayName, sessionId)
             val extras = Bundle().apply {
                 putString(EXTRA_CALL_ID, nativeCallId)
                 putString(EXTRA_SESSION_ID, sessionId)
@@ -191,8 +201,10 @@ class BeamioTelecomService : ConnectionService() {
             }
             try {
                 telecom.addNewIncomingCall(handle, extras)
-            } catch (_: Exception) {
-                showIncomingCallFallback(context, nativeCallId, peerAddress, displayName, sessionId)
+                Log.i(TAG, "Telecom addNewIncomingCall submitted")
+            } catch (error: Exception) {
+                // The notification above remains the reliable native surface.
+                Log.w(TAG, "Telecom addNewIncomingCall failed; notification remains", error)
             }
         }
 
@@ -205,29 +217,25 @@ class BeamioTelecomService : ConnectionService() {
             }
         }
 
-        /**
-         * Android requires the user to enable a Telecom account once; apps
-         * cannot enable it programmatically.
-         */
-        fun openPhoneAccountSettings(context: Context) {
-            val intent = Intent("android.telecom.action.CHANGE_PHONE_ACCOUNT_SETTINGS").apply {
-                putExtra(
-                    TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE,
-                    phoneAccountHandle(context),
-                )
-                if (context !is android.app.Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
+        /** Open the settings that control the native incoming-call surface. */
+        fun openIncomingCallSettings(context: Context) {
+            val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                if (context !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             try {
                 context.startActivity(intent)
             } catch (_: Exception) {
-                val fallback = Intent(android.provider.Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                val fallback = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:${context.packageName}")
                     if (context !is android.app.Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 runCatching { context.startActivity(fallback) }
             }
         }
+
+        @Deprecated("Use openIncomingCallSettings")
+        fun openPhoneAccountSettings(context: Context) = openIncomingCallSettings(context)
 
         fun startOutgoing(context: Context, callId: String, handle: String) {
             ensurePhoneAccount(context)
@@ -255,11 +263,11 @@ class BeamioTelecomService : ConnectionService() {
             }
         }
 
-        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls"
+        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls_v2"
         private val notificationIds = AtomicInteger(40_000)
         private val notificationIdByCall = ConcurrentHashMap<String, Int>()
 
-        /** Fallback only when Telecom is unavailable or the account is disabled. */
+        /** Native OS-level full-screen incoming-call notification. */
         private fun showIncomingCallFallback(
             context: Context,
             callId: String,
@@ -313,8 +321,10 @@ class BeamioTelecomService : ConnectionService() {
                 .build()
             try {
                 NotificationManagerCompat.from(context).notify(notificationId(callId), notification)
-            } catch (_: SecurityException) {
+                Log.i(TAG, "Incoming-call notification posted")
+            } catch (error: SecurityException) {
                 // POST_NOTIFICATIONS can be denied; the in-app offer remains available.
+                Log.e(TAG, "Incoming-call notification denied", error)
             }
         }
 
@@ -326,5 +336,7 @@ class BeamioTelecomService : ConnectionService() {
 
         private fun notificationId(callId: String): Int =
             notificationIdByCall.getOrPut(callId) { notificationIds.incrementAndGet() }
+
+        private const val TAG = "BeamioVoiceCall"
     }
 }

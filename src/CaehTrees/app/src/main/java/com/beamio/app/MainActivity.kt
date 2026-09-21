@@ -13,6 +13,7 @@ import android.nfc.tech.Ndef
 import android.os.Environment
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -148,8 +149,6 @@ class MainActivity : ComponentActivity() {
 
     private var pendingQrScanStartedAtMs: Long = 0L
     private var pendingQrScanTransientRetryCount: Int = 0
-    private var phoneAccountPromptShown = false
-
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val enableNfcForegroundDispatchRunnable = Runnable { maybeEnableNfcForegroundDispatch() }
@@ -798,8 +797,18 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun reportIncomingSystemCall(json: String) {
+            Log.i("BeamioVoiceCall", "WebView reportIncomingSystemCall received")
             runOnUiThread {
-                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                val body = runCatching { JSONObject(json) }.getOrElse {
+                    Log.e("BeamioVoiceCall", "Invalid reportIncomingSystemCall JSON", it)
+                    return@runOnUiThread
+                }
+                Log.i(
+                    "BeamioVoiceCall",
+                    "WebView incoming call payload parsed callIdPresent=" +
+                        body.optString("callId").isNotBlank() +
+                        " sessionIdPresent=" + body.optString("sessionId").isNotBlank(),
+                )
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,
                     body.optString("callId"),
@@ -1317,7 +1326,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        promptToEnableSystemCallAccountIfNeeded()
         maybeEnableNfcForegroundDispatch()
         // Launcher badge follows active notifications: drop stale offline alerts so the
         // PWA unread count (publishAppState) is the only badge source once we are visible.
@@ -1328,26 +1336,6 @@ class MainActivity : ComponentActivity() {
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "active"),
         )
-    }
-
-    private fun promptToEnableSystemCallAccountIfNeeded() {
-        if (phoneAccountPromptShown ||
-            BeamioTelecomService.isPhoneAccountEnabled(this)
-        ) {
-            return
-        }
-        phoneAccountPromptShown = true
-        android.app.AlertDialog.Builder(this)
-            .setTitle("Enable system call pop-ups")
-            .setMessage(
-                "Enable Beamio Phone in Android Phone Accounts so incoming Beamio calls " +
-                    "can appear in the system phone window.",
-            )
-            .setNegativeButton("Not now", null)
-            .setPositiveButton("Open settings") { _, _ ->
-                BeamioTelecomService.openPhoneAccountSettings(this)
-            }
-            .show()
     }
 
     override fun onRequestPermissionsResult(

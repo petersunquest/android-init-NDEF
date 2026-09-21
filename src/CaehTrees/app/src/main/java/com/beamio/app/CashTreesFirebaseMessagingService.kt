@@ -2,6 +2,7 @@ package com.beamio.app
 
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import android.util.Log
 
 /**
  * Offline chat badge via FCM.
@@ -17,8 +18,17 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         val data = message.data
         val type = data["type"]?.trim().orEmpty()
+        Log.i(
+            TAG,
+            "FCM received type=${type.ifBlank { "<empty>" }} keys=${data.keys.sorted()}",
+        )
         if (type == "voiceCall" || type == "beamioVoiceCall") {
             val callId = data["callId"]?.trim().orEmpty()
+            Log.i(
+                TAG,
+                "FCM voice call received callIdPresent=${callId.isNotBlank()} " +
+                    "sessionIdPresent=${data["sessionId"]?.isNullOrBlank() == false}",
+            )
             if (callId.isNotEmpty()) {
                 BeamioTelecomService.reportIncoming(
                     applicationContext,
@@ -32,6 +42,8 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
                     },
                     data["sessionId"]?.trim().orEmpty(),
                 )
+            } else {
+                Log.w(TAG, "FCM voice call ignored: missing callId")
             }
             return
         }
@@ -39,5 +51,9 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
         val badgeRaw = data["badge"] ?: data["unread"] ?: return
         val badge = badgeRaw.toIntOrNull()?.coerceIn(0, 999) ?: return
         CashTreesNativeAppStateBridge.applyAppIconBadge(applicationContext, badge)
+    }
+
+    private companion object {
+        const val TAG = "BeamioVoiceCall"
     }
 }
