@@ -54,7 +54,7 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
     ) -> UIInterfaceOrientationMask {
-        .portrait
+        UIDevice.current.userInterfaceIdiom == .pad ? .all : .portrait
     }
 
     func application(

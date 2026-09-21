@@ -190,8 +190,22 @@ class MainActivity : ComponentActivity() {
             callback?.onReceiveValue(null)
             return@registerForActivityResult
         }
-        val uri = cameraUri ?: result.data?.data
-        callback?.onReceiveValue(uri?.let { arrayOf(it) })
+        if (cameraUri != null) {
+            callback?.onReceiveValue(arrayOf(cameraUri))
+            return@registerForActivityResult
+        }
+        val data = result.data
+        val selectedUris = buildList {
+            val clipData = data?.clipData
+            if (clipData != null) {
+                for (index in 0 until clipData.itemCount) {
+                    clipData.getItemAt(index).uri?.let(::add)
+                }
+            } else {
+                data?.data?.let(::add)
+            }
+        }
+        callback?.onReceiveValue(selectedUris.takeIf { it.isNotEmpty() }?.toTypedArray())
     }
 
     private val generalQrScannerLauncher = registerForActivityResult(
@@ -314,7 +328,9 @@ class MainActivity : ComponentActivity() {
                 val intent = if (fileChooserParams.isCaptureEnabled && acceptsVideo) {
                     createVideoCaptureIntent().also { pendingFileChooserCameraUri = pendingCameraOutputUri }
                 } else {
-                    fileChooserParams.createIntent()
+                    fileChooserParams.createIntent().apply {
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
                 }
                 fileChooserLauncher.launch(intent)
                 true

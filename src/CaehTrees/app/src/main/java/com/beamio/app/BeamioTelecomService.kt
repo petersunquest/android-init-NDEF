@@ -11,6 +11,7 @@ import android.telecom.DisconnectCause
 import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
+import java.util.concurrent.ConcurrentHashMap
 
 class BeamioTelecomService : ConnectionService() {
     override fun onCreateIncomingConnection(
@@ -34,6 +35,7 @@ class BeamioTelecomService : ConnectionService() {
         private val incoming: Boolean,
     ) : Connection() {
         init {
+            if (callId.isNotBlank()) activeConnections[callId] = this
             connectionProperties = PROPERTY_SELF_MANAGED
             if (incoming) setRinging() else setDialing()
         }
@@ -46,13 +48,19 @@ class BeamioTelecomService : ConnectionService() {
         override fun onReject() {
             setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
             destroy()
+            removeFromActiveConnections()
             MainActivity.dispatchSystemCallAction("callRejected", callId)
         }
 
         override fun onDisconnect() {
             setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
             destroy()
+            removeFromActiveConnections()
             MainActivity.dispatchSystemCallAction("callEnded", callId)
+        }
+
+        private fun removeFromActiveConnections() {
+            if (callId.isNotBlank()) activeConnections.remove(callId, this)
         }
     }
 
@@ -60,6 +68,7 @@ class BeamioTelecomService : ConnectionService() {
         const val EXTRA_CALL_ID = "beamio.call_id"
         private const val ACCOUNT_ID = "beamio_system_phone"
         private const val PHONE_SCHEME = "beamio-call"
+        private val activeConnections = ConcurrentHashMap<String, BeamioConnection>()
 
         fun phoneAccountHandle(context: Context): PhoneAccountHandle =
             PhoneAccountHandle(
@@ -116,9 +125,14 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         fun end(context: Context, callId: String) {
-            // The Telecom framework owns the live Connection; the PWA end action is
-            // forwarded through the active service connection when it disconnects.
-            MainActivity.dispatchSystemCallAction("callEnded", callId)
+            val connection = activeConnections[callId]
+            if (connection != null) {
+                connection.setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
+                connection.destroy()
+            } else {
+                // Keep the PWA state consistent if Telecom already released it.
+                MainActivity.dispatchSystemCallAction("callEnded", callId)
+            }
         }
     }
 }

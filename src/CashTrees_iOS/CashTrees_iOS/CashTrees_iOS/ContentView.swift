@@ -11,6 +11,7 @@ import CoreImage
 import CoreNFC
 import CallKit
 import Photos
+import PhotosUI
 import PushKit
 import SwiftUI
 import UIKit
@@ -39,13 +40,20 @@ private enum NfcStatusString {
 }
 
 final class BeamioCallKitManager: NSObject, CXProviderDelegate {
+    private struct AudioSessionSnapshot {
+        let category: AVAudioSession.Category
+        let mode: AVAudioSession.Mode
+        let options: AVAudioSession.CategoryOptions
+    }
+
     private let provider: CXProvider
     private let controller = CXCallController()
     private var callIds: [UUID: String] = [:]
+    private var audioSessionBeforeCall: AudioSessionSnapshot?
     var onAction: ((String, String) -> Void)?
 
     override init() {
-        let configuration = CXProviderConfiguration(localizedName: "Beamio")
+        let configuration = CXProviderConfiguration()
         configuration.supportsVideo = false
         configuration.maximumCallsPerCallGroup = 1
         configuration.maximumCallGroups = 1
@@ -84,6 +92,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
 
     func providerDidReset(_ provider: CXProvider) {
         callIds.removeAll()
+        restoreAudioSession()
     }
 
     func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
@@ -103,12 +112,32 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
     }
 
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
-        try? audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth, .defaultToSpeaker])
+        if audioSessionBeforeCall == nil {
+            audioSessionBeforeCall = AudioSessionSnapshot(
+                category: audioSession.category,
+                mode: audioSession.mode,
+                options: audioSession.categoryOptions,
+            )
+        }
+        try? audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
         try? audioSession.setActive(true)
     }
 
     func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
-        try? audioSession.setActive(false)
+        restoreAudioSession()
+    }
+
+    private func restoreAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        let snapshot = audioSessionBeforeCall
+        audioSessionBeforeCall = nil
+
+        // Leave the Bluetooth HFP route and let the previous music/audio owner
+        // resume. The voiceChat mode otherwise keeps Bluetooth in mono call mode.
+        try? audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
+
+        guard let snapshot else { return }
+        try? audioSession.setCategory(snapshot.category, mode: snapshot.mode, options: snapshot.options)
     }
 
     private func emit(_ action: String, _ uuid: UUID) {
@@ -323,7 +352,7 @@ final class CashTreesWebLoadState: ObservableObject {
 
 // MARK: - WK Coordinator
 
-final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, PKPushRegistryDelegate {
+final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate, PKPushRegistryDelegate {
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
 
@@ -340,7 +369,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var pushTokenObserver: NSObjectProtocol?
     private var appLifecycleObserver: NSObjectProtocol?
     private var pendingCameraCaptureRequestId = ""
+    private var pendingPhotoPickerRequestId = ""
     private var pendingFilePickerCompletion: (([URL]?) -> Void)?
+    private var activeFilePickerSecurityScopedURLs: [URL] = []
     private let callKit = BeamioCallKitManager()
     private let voipRegistry = PKPushRegistry(queue: .main)
     /// Set when the app actually enters background (not Control Center / lock peek).
@@ -748,6 +779,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping ([URL]?) -> Void
     ) {
+        for url in activeFilePickerSecurityScopedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        activeFilePickerSecurityScopedURLs.removeAll()
         pendingFilePickerCompletion?([])
         pendingFilePickerCompletion = completionHandler
 
@@ -769,12 +804,24 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
         let completion = pendingFilePickerCompletion
         pendingFilePickerCompletion = nil
-        completion?(urls)
+        // Cloud/File Provider URLs may require a security-scoped access
+        // assertion even when the picker was opened with `asCopy: true`.
+        // Keep the assertion alive while WKWebView consumes the URLs.
+        activeFilePickerSecurityScopedURLs = urls.filter {
+            $0.startAccessingSecurityScopedResource()
+        }
+        DispatchQueue.main.async {
+            completion?(urls)
+        }
     }
 
     func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
         let completion = pendingFilePickerCompletion
         pendingFilePickerCompletion = nil
+        for url in activeFilePickerSecurityScopedURLs {
+            url.stopAccessingSecurityScopedResource()
+        }
+        activeFilePickerSecurityScopedURLs.removeAll()
         completion?(nil)
     }
 
@@ -851,6 +898,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 action:'requestCameraCapture',
                 requestId:payload.requestId||'',
                 mediaType:payload.mediaType||'video'
+              });
+            },
+            requestPhotoPicker:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'requestPhotoPicker',
+                requestId:payload.requestId||''
               });
             },
             startSystemCall:function(payload){
@@ -1017,6 +1071,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let requestId = body["requestId"] as? String ?? ""
             DispatchQueue.main.async { [weak self] in
                 self?.presentCameraCapture(requestId: requestId)
+            }
+        case "requestPhotoPicker":
+            let requestId = body["requestId"] as? String ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.presentPhotoPicker(requestId: requestId)
             }
         case "startSystemCall":
             let callId = body["callId"] as? String ?? ""
@@ -1293,6 +1352,126 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         presenter.present(picker, animated: true)
     }
 
+    private func presentPhotoPicker(requestId: String) {
+        guard let presenter = topViewController() else {
+            dispatchIOSBridgeJsonToWeb([
+                "action": "photoPicker",
+                "ok": false,
+                "requestId": requestId,
+                "error": "no_presenter",
+            ])
+            return
+        }
+        pendingPhotoPickerRequestId = requestId
+        var configuration = PHPickerConfiguration(photoLibrary: .shared())
+        configuration.filter = .any(of: [.images, .videos])
+        configuration.selectionLimit = 0
+        let picker = PHPickerViewController(configuration: configuration)
+        picker.delegate = self
+        presenter.present(picker, animated: true)
+    }
+
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        let requestId = pendingPhotoPickerRequestId
+        pendingPhotoPickerRequestId = ""
+        picker.dismiss(animated: true) { [weak self] in
+            guard let self else { return }
+            guard !results.isEmpty else {
+                self.dispatchIOSBridgeJsonToWeb([
+                    "action": "photoPicker",
+                    "ok": false,
+                    "requestId": requestId,
+                    "error": "cancelled",
+                ])
+                return
+            }
+            // Never wait synchronously here. `didFinishPicking` is called on the
+            // main thread, and blocking it with a semaphore prevents the file
+            // provider and WKWebView from completing the hand-off. This was
+            // especially visible when returning from iCloud with a large video.
+            var sentAnyFile = false
+
+            func reportReadFailure() {
+                self.dispatchIOSBridgeJsonToWeb([
+                    "action": "photoPicker",
+                    "ok": false,
+                    "requestId": requestId,
+                    "error": "file_read_failed",
+                ])
+            }
+
+            func sendResult(at index: Int) {
+                guard index < results.count else {
+                    if !sentAnyFile {
+                        reportReadFailure()
+                    }
+                    return
+                }
+
+                let provider = results[index].itemProvider
+                guard let typeIdentifier = provider.registeredTypeIdentifiers.first else {
+                    sendResult(at: index + 1)
+                    return
+                }
+
+                provider.loadFileRepresentation(forTypeIdentifier: typeIdentifier) { url, _ in
+                    guard let url, let data = try? Data(contentsOf: url), !data.isEmpty else {
+                        DispatchQueue.main.async {
+                            sendResult(at: index + 1)
+                        }
+                        return
+                    }
+
+                    let mimeType = UTType(typeIdentifier)?.preferredMIMEType ?? "application/octet-stream"
+                    let filename = url.lastPathComponent.isEmpty
+                        ? "photo-\(UUID().uuidString)"
+                        : url.lastPathComponent
+                    sentAnyFile = true
+                    let startPayload: [String: Any] = [
+                        "action": "photoPickerStart",
+                        "ok": true,
+                        "requestId": requestId,
+                        "mimeType": mimeType,
+                        "filename": filename,
+                    ]
+                    // 48 KiB is divisible by three, so each independently
+                    // encoded slice can be concatenated into the original
+                    // Base64 stream. Keeping the encoded slices short avoids
+                    // building a second full-size copy of a large video.
+                    let dataChunkSize = 48 * 1024
+                    let fileIndex = index
+                    func sendChunk(at offset: Int, chunkIndex: Int) {
+                        guard offset < data.count else {
+                            self.dispatchIOSBridgeJsonToWeb([
+                                "action": "photoPickerEnd",
+                                "ok": true,
+                                "requestId": requestId,
+                            ]) {
+                                sendResult(at: fileIndex + 1)
+                            }
+                            return
+                        }
+                        let length = min(dataChunkSize, data.count - offset)
+                        let encodedChunk = data.subdata(in: offset..<(offset + length)).base64EncodedString()
+                        self.dispatchIOSBridgeJsonToWeb([
+                            "action": "photoPickerChunk",
+                            "requestId": requestId,
+                            "index": chunkIndex,
+                            "data": encodedChunk,
+                        ]) {
+                            sendChunk(at: offset + length, chunkIndex: chunkIndex + 1)
+                        }
+                    }
+                    self.dispatchIOSBridgeJsonToWeb(startPayload) {
+                        sendChunk(at: 0, chunkIndex: 0)
+                    }
+                }
+            }
+
+            sendResult(at: 0)
+        }
+    }
+
     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
         let requestId = pendingCameraCaptureRequestId
         pendingCameraCaptureRequestId = ""
@@ -1562,11 +1741,20 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
     }
 
-    private func dispatchIOSBridgeJsonSequenceToWeb(_ payloads: [[String: Any]]) {
-        guard !payloads.isEmpty else { return }
+    private func dispatchIOSBridgeJsonSequenceToWeb(
+        _ payloads: [[String: Any]],
+        completion: (() -> Void)? = nil
+    ) {
+        guard !payloads.isEmpty else {
+            completion?()
+            return
+        }
         var index = 0
         func sendNext() {
-            guard index < payloads.count else { return }
+            guard index < payloads.count else {
+                completion?()
+                return
+            }
             let payload = payloads[index]
             index += 1
             self.dispatchIOSBridgeJsonToWeb(payload) {

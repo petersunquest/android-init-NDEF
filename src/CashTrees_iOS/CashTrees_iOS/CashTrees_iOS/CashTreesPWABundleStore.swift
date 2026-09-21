@@ -138,7 +138,12 @@ final class CashTreesPWABundleStore {
     func promoteStagingToActive() throws {
         lock.lock()
         defer { lock.unlock() }
+        // `pendingVersion` is an in-memory hint and can be lost when the
+        // WebView/app lifecycle recreates the store. The staging directory is
+        // the durable source of truth for an OTA update.
+        pendingVersion = Self.readPendingVersion(from: stagingDir)
         guard hasValidBundle(at: stagingDir) else {
+            pendingVersion = nil
             throw NSError(
                 domain: "CashTreesPWABundleStore",
                 code: 404,
@@ -165,12 +170,18 @@ final class CashTreesPWABundleStore {
     func hasPendingUpdate() -> Bool {
         lock.lock()
         defer { lock.unlock() }
+        if let diskVersion = Self.readPendingVersion(from: stagingDir) {
+            pendingVersion = diskVersion
+        } else {
+            pendingVersion = nil
+        }
         return pendingVersion != nil && hasValidBundle(at: stagingDir)
     }
 
     func pendingUpdateVersion() -> String? {
         lock.lock()
         defer { lock.unlock() }
+        pendingVersion = Self.readPendingVersion(from: stagingDir)
         guard pendingVersion != nil, hasValidBundle(at: stagingDir) else { return nil }
         return pendingVersion
     }
