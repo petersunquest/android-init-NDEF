@@ -148,6 +148,7 @@ class MainActivity : ComponentActivity() {
 
     private var pendingQrScanStartedAtMs: Long = 0L
     private var pendingQrScanTransientRetryCount: Int = 0
+    private var phoneAccountPromptShown = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -1316,6 +1317,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        promptToEnableSystemCallAccountIfNeeded()
         maybeEnableNfcForegroundDispatch()
         // Launcher badge follows active notifications: drop stale offline alerts so the
         // PWA unread count (publishAppState) is the only badge source once we are visible.
@@ -1326,6 +1328,26 @@ class MainActivity : ComponentActivity() {
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "active"),
         )
+    }
+
+    private fun promptToEnableSystemCallAccountIfNeeded() {
+        if (phoneAccountPromptShown ||
+            BeamioTelecomService.isPhoneAccountEnabled(this)
+        ) {
+            return
+        }
+        phoneAccountPromptShown = true
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Enable system call pop-ups")
+            .setMessage(
+                "Enable Beamio Phone in Android Phone Accounts so incoming Beamio calls " +
+                    "can appear in the system phone window.",
+            )
+            .setNegativeButton("Not now", null)
+            .setPositiveButton("Open settings") { _, _ ->
+                BeamioTelecomService.openPhoneAccountSettings(this)
+            }
+            .show()
     }
 
     override fun onRequestPermissionsResult(
