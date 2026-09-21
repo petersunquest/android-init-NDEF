@@ -48,9 +48,13 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
 
     private let provider: CXProvider
     private let controller = CXCallController()
-    private var callIds: [UUID: String] = [:]
+    private struct CallIdentity {
+        let callId: String
+        let sessionId: String
+    }
+    private var callIds: [UUID: CallIdentity] = [:]
     private var audioSessionBeforeCall: AudioSessionSnapshot?
-    var onAction: ((String, String) -> Void)?
+    var onAction: ((String, String, String) -> Void)?
 
     override init() {
         let configuration = CXProviderConfiguration()
@@ -63,9 +67,9 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
         provider.setDelegate(self, queue: .main)
     }
 
-    func reportIncoming(callId: String, handle: String) {
+    func reportIncoming(callId: String, handle: String, sessionId: String = "") {
         let uuid = UUID()
-        callIds[uuid] = callId
+        callIds[uuid] = CallIdentity(callId: callId, sessionId: sessionId)
         let update = CXCallUpdate()
         update.remoteHandle = CXHandle(type: .generic, value: handle)
         update.localizedCallerName = handle
@@ -74,9 +78,9 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
         }
     }
 
-    func startOutgoing(callId: String, handle: String) {
+    func startOutgoing(callId: String, handle: String, sessionId: String = "") {
         let uuid = UUID()
-        callIds[uuid] = callId
+        callIds[uuid] = CallIdentity(callId: callId, sessionId: sessionId)
         let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: handle))
         controller.request(CXTransaction(action: action)) { [weak self] error in
             if error != nil {
@@ -85,8 +89,13 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
         }
     }
 
-    func end(callId: String) {
-        guard let uuid = callIds.first(where: { $0.value == callId })?.key else { return }
+    func end(callId: String, sessionId: String = "") {
+        guard let uuid = callIds.first(where: {
+            let identity = $0.value
+            return sessionId.isEmpty
+                ? identity.callId == callId
+                : identity.sessionId == sessionId
+        })?.key else { return }
         controller.request(CXTransaction(action: CXEndCallAction(call: uuid))) { _ in }
     }
 
@@ -141,8 +150,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate {
     }
 
     private func emit(_ action: String, _ uuid: UUID) {
-        guard let callId = callIds[uuid] else { return }
-        onAction?(action, callId)
+        guard let identity = callIds[uuid] else { return }
+        onAction?(action, identity.callId, identity.sessionId)
     }
 }
 
@@ -389,10 +398,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     override init() {
         super.init()
-        callKit.onAction = { [weak self] action, callId in
+        callKit.onAction = { [weak self] action, callId, sessionId in
             self?.dispatchIOSBridgeJsonToWeb([
                 "action": action,
                 "callId": callId,
+                "sessionId": sessionId,
             ])
         }
         voipRegistry.delegate = self
@@ -912,6 +922,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               window.webkit.messageHandlers[H].postMessage({
                 action:'startSystemCall',
                 callId:payload.callId||'',
+                sessionId:payload.sessionId||'',
                 peerAddress:payload.peerAddress||'',
                 displayName:payload.displayName||''
               });
@@ -921,6 +932,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               window.webkit.messageHandlers[H].postMessage({
                 action:'reportIncomingSystemCall',
                 callId:payload.callId||'',
+                sessionId:payload.sessionId||'',
                 peerAddress:payload.peerAddress||'',
                 displayName:payload.displayName||''
               });
@@ -929,7 +941,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
                 action:'endSystemCall',
-                callId:payload.callId||''
+                callId:payload.callId||'',
+                sessionId:payload.sessionId||''
               });
             },
             openURL:function(payload){
@@ -1079,20 +1092,23 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             }
         case "startSystemCall":
             let callId = body["callId"] as? String ?? ""
+            let sessionId = body["sessionId"] as? String ?? ""
             let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
             DispatchQueue.main.async { [weak self] in
-                self?.callKit.startOutgoing(callId: callId, handle: peer)
+                self?.callKit.startOutgoing(callId: callId, handle: peer, sessionId: sessionId)
             }
         case "reportIncomingSystemCall":
             let callId = body["callId"] as? String ?? ""
+            let sessionId = body["sessionId"] as? String ?? ""
             let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
             DispatchQueue.main.async { [weak self] in
-                self?.callKit.reportIncoming(callId: callId, handle: peer)
+                self?.callKit.reportIncoming(callId: callId, handle: peer, sessionId: sessionId)
             }
         case "endSystemCall":
             let callId = body["callId"] as? String ?? ""
+            let sessionId = body["sessionId"] as? String ?? ""
             DispatchQueue.main.async { [weak self] in
-                self?.callKit.end(callId: callId)
+                self?.callKit.end(callId: callId, sessionId: sessionId)
             }
         case "webContentReady":
             DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }

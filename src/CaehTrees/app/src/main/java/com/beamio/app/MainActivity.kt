@@ -3,6 +3,7 @@ package com.beamio.app
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -75,11 +76,25 @@ class MainActivity : ComponentActivity() {
         @Volatile
         private var activeInstance: MainActivity? = null
 
-        fun dispatchSystemCallAction(action: String, callId: String) {
-            activeInstance?.let { activity ->
-                activity.runOnUiThread {
-                    activity.dispatchAndroidBridgeJsonToWeb(
-                        JSONObject().put("action", action).put("callId", callId),
+        fun dispatchSystemCallAction(
+            action: String,
+            callId: String,
+            sessionId: String = "",
+            context: Context? = null,
+        ) {
+            val activity = activeInstance
+            if (activity == null && context != null) {
+                BeamioTelecomService.savePendingSystemCallAction(context, action, callId, sessionId)
+                return
+            }
+            activity?.let {
+                context?.let { BeamioTelecomService.clearPendingSystemCallAction(it) }
+                it.runOnUiThread {
+                    it.dispatchAndroidBridgeJsonToWeb(
+                        JSONObject()
+                            .put("action", action)
+                            .put("callId", callId)
+                            .put("sessionId", sessionId),
                     )
                 }
             }
@@ -787,7 +802,9 @@ class MainActivity : ComponentActivity() {
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,
                     body.optString("callId"),
+                    body.optString("peerAddress"),
                     body.optString("displayName").ifBlank { body.optString("peerAddress") },
+                    body.optString("sessionId"),
                 )
             }
         }
@@ -1201,6 +1218,7 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     host.injectVersionGlobals(view)
                     injectWebBridgeScripts(view, "onPageFinished")
+                    dispatchPendingSystemCallAction()
                 }
 
                 override fun onReceivedError(
@@ -1284,6 +1302,16 @@ class MainActivity : ComponentActivity() {
 
     private fun injectWebBridgeScripts(webView: WebView, reason: String) {
         CashTreesWebConsoleRelay.reinject(webView, reason)
+    }
+
+    private fun dispatchPendingSystemCallAction() {
+        val pending = BeamioTelecomService.takePendingSystemCallAction(this) ?: return
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject()
+                .put("action", pending.getString("action").orEmpty())
+                .put("callId", pending.getString("callId").orEmpty())
+                .put("sessionId", pending.getString("sessionId").orEmpty()),
+        )
     }
 
     override fun onResume() {

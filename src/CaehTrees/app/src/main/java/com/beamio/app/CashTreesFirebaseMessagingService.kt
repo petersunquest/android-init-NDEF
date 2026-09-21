@@ -23,7 +23,14 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
                 BeamioTelecomService.reportIncoming(
                     applicationContext,
                     callId,
-                    data["displayName"]?.trim().orEmpty().ifBlank { data["peerAddress"].orEmpty() },
+                    data["peerAddress"]?.trim().orEmpty().ifBlank {
+                        data["callerEoa"]?.trim().orEmpty()
+                    },
+                    data["displayName"]?.trim().orEmpty().ifBlank {
+                        callId.takeIf { it.isNotBlank() }?.let { "@$it" }
+                            ?: data["callerEoa"].orEmpty()
+                    },
+                    data["sessionId"]?.trim().orEmpty(),
                 )
             }
             return

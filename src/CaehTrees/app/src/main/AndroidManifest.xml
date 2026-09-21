@@ -74,6 +74,15 @@
             android:resizeableActivity="true"
             android:theme="@style/Theme.CaehTrees" />
 
+        <activity
+            android:name="com.beamio.app.IncomingCallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.CaehTrees" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

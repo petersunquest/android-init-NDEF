@@ -24,7 +24,7 @@ class BeamioTelecomService : ConnectionService() {
         request: ConnectionRequest,
     ): Connection {
         val callId = request.extras?.getString(EXTRA_CALL_ID).orEmpty()
-        return BeamioConnection(callId, incoming = true)
+        return BeamioConnection(this, callId, incoming = true)
     }
 
     override fun onCreateOutgoingConnection(
@@ -32,10 +32,11 @@ class BeamioTelecomService : ConnectionService() {
         request: ConnectionRequest,
     ): Connection {
         val callId = request.address?.schemeSpecificPart.orEmpty()
-        return BeamioConnection(callId, incoming = false)
+        return BeamioConnection(this, callId, incoming = false)
     }
 
     private class BeamioConnection(
+        private val context: Context,
         private val callId: String,
         private val incoming: Boolean,
     ) : Connection() {
@@ -47,21 +48,21 @@ class BeamioTelecomService : ConnectionService() {
 
         override fun onAnswer() {
             setActive()
-            MainActivity.dispatchSystemCallAction("callAnswered", callId)
+            MainActivity.dispatchSystemCallAction("callAnswered", callId, context = context)
         }
 
         override fun onReject() {
             setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
             destroy()
             removeFromActiveConnections()
-            MainActivity.dispatchSystemCallAction("callRejected", callId)
+            MainActivity.dispatchSystemCallAction("callRejected", callId, context = context)
         }
 
         override fun onDisconnect() {
             setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
             destroy()
             removeFromActiveConnections()
-            MainActivity.dispatchSystemCallAction("callEnded", callId)
+            MainActivity.dispatchSystemCallAction("callEnded", callId, context = context)
         }
 
         private fun removeFromActiveConnections() {
@@ -71,9 +72,40 @@ class BeamioTelecomService : ConnectionService() {
 
     companion object {
         const val EXTRA_CALL_ID = "beamio.call_id"
+        const val EXTRA_SESSION_ID = "beamio.session_id"
+        const val EXTRA_DISPLAY_NAME = "beamio.display_name"
+        const val EXTRA_PEER_ADDRESS = "beamio.peer_address"
         private const val ACCOUNT_ID = "beamio_system_phone"
         private const val PHONE_SCHEME = "beamio-call"
+        private const val ACTION_PREFS = "beamio_telecom_pending_action"
+        private const val ACTION_KEY = "action"
+        private const val CALL_ID_KEY = "call_id"
+        private const val SESSION_ID_KEY = "session_id"
         private val activeConnections = ConcurrentHashMap<String, BeamioConnection>()
+
+        fun savePendingSystemCallAction(context: Context, action: String, callId: String, sessionId: String) {
+            context.getSharedPreferences(ACTION_PREFS, Context.MODE_PRIVATE).edit()
+                .putString(ACTION_KEY, action)
+                .putString(CALL_ID_KEY, callId)
+                .putString(SESSION_ID_KEY, sessionId)
+                .apply()
+        }
+
+        fun takePendingSystemCallAction(context: Context): Bundle? {
+            val prefs = context.getSharedPreferences(ACTION_PREFS, Context.MODE_PRIVATE)
+            val action = prefs.getString(ACTION_KEY, null) ?: return null
+            val result = Bundle().apply {
+                putString("action", action)
+                putString("callId", prefs.getString(CALL_ID_KEY, "").orEmpty())
+                putString("sessionId", prefs.getString(SESSION_ID_KEY, "").orEmpty())
+            }
+            prefs.edit().clear().apply()
+            return result
+        }
+
+        fun clearPendingSystemCallAction(context: Context) {
+            context.getSharedPreferences(ACTION_PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        }
 
         fun phoneAccountHandle(context: Context): PhoneAccountHandle =
             PhoneAccountHandle(
@@ -103,13 +135,24 @@ class BeamioTelecomService : ConnectionService() {
             }
         }
 
-        fun reportIncoming(context: Context, callId: String, handle: String) {
+        fun reportIncoming(
+            context: Context,
+            callId: String,
+            peerAddress: String,
+            displayName: String,
+            sessionId: String = "",
+        ) {
+            val nativeCallId = sessionId.ifBlank { callId }
             ensurePhoneAccount(context)
-            showIncomingCallFallback(context, callId, handle)
+            showIncomingCallFallback(context, nativeCallId, peerAddress, displayName, sessionId)
             val telecom = context.getSystemService(TelecomManager::class.java) ?: return
             val extras = Bundle().apply {
-                putString(EXTRA_CALL_ID, callId)
-                putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, Uri.parse("$PHONE_SCHEME:$handle"))
+                putString(EXTRA_CALL_ID, nativeCallId)
+                putString(EXTRA_SESSION_ID, sessionId)
+                putParcelable(
+                    TelecomManager.EXTRA_INCOMING_CALL_ADDRESS,
+                    Uri.parse("$PHONE_SCHEME:$nativeCallId"),
+                )
             }
             try {
                 telecom.addNewIncomingCall(phoneAccountHandle(context), extras)
@@ -153,7 +196,13 @@ class BeamioTelecomService : ConnectionService() {
          * notification so an incoming offer cannot degrade into a chat JSON
          * bubble when Telecom UI is unavailable or the account is disabled.
          */
-        private fun showIncomingCallFallback(context: Context, callId: String, handle: String) {
+        private fun showIncomingCallFallback(
+            context: Context,
+            callId: String,
+            peerAddress: String,
+            displayName: String,
+            sessionId: String,
+        ) {
             if (callId.isBlank()) return
             val manager = context.getSystemService(android.app.NotificationManager::class.java)
                 ?: return
@@ -168,10 +217,13 @@ class BeamioTelecomService : ConnectionService() {
                 }
                 manager.createNotificationChannel(channel)
             }
-            val openIntent = Intent(context, MainActivity::class.java).apply {
+            val openIntent = Intent(context, IncomingCallActivity::class.java).apply {
                 action = "com.beamio.app.INCOMING_CALL"
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(EXTRA_CALL_ID, callId)
+                putExtra(EXTRA_SESSION_ID, sessionId)
+                putExtra(EXTRA_DISPLAY_NAME, displayName)
+                putExtra(EXTRA_PEER_ADDRESS, peerAddress)
             }
             val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -186,7 +238,7 @@ class BeamioTelecomService : ConnectionService() {
             val notification = NotificationCompat.Builder(context, INCOMING_CALL_CHANNEL_ID)
                 .setSmallIcon(context.applicationInfo.icon)
                 .setContentTitle("Incoming Beamio voice call")
-                .setContentText(handle.ifBlank { "Beamio contact" })
+                .setContentText(displayName.ifBlank { peerAddress.ifBlank { "Beamio contact" } })
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -200,6 +252,12 @@ class BeamioTelecomService : ConnectionService() {
             } catch (_: SecurityException) {
                 // POST_NOTIFICATIONS can be denied; the in-app offer remains available.
             }
+        }
+
+        fun finishIncomingCall(context: Context, action: String, callId: String, sessionId: String) {
+            NotificationManagerCompat.from(context).cancel(notificationId(callId))
+            savePendingSystemCallAction(context, action, callId, sessionId)
+            MainActivity.dispatchSystemCallAction(action, callId, sessionId, context)
         }
 
         private fun notificationId(callId: String): Int =
