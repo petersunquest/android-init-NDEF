@@ -442,7 +442,11 @@ export function DeductPointsPage() {
 			}
 			setCustomer(target)
 			setCustomerAssets(assets)
-			const resolvedCurrency = currency ?? assets.cardCurrency ?? 'CAD'
+			const currentCard = assets.cards?.find(
+				(card) => card.cardAddress.trim().toLowerCase() === infra.toLowerCase(),
+			)
+			const resolvedCurrency =
+				currency ?? currentCard?.cardCurrency?.trim() ?? 'CAD'
 			const oracle = oracleResponse ?? DEFAULT_ORACLE
 			setMaxConvertibleTopupAmount(
 				await maxPtConvertibleTopupAmount(

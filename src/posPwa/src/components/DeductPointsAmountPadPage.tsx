@@ -4,6 +4,7 @@ import { BeamioAmountPad, formatAmountPadDisplay } from '@/components/BeamioAmou
 import { BeamioCompactAmountPadShell } from '@/components/BeamioCompactAmountPadShell'
 import { UsdcBaseCompositeIcon } from '@/components/ChainTokenCompositeIcon'
 import {
+	deductChargeRewardPoints6,
 	isDeductKeypadWithinBalance,
 	parseDeductKeypadAmount6,
 } from '@/utils/deductPointsExecute'
@@ -48,28 +49,22 @@ export function DeductPointsAmountPadPage({
 	const [mode, setMode] = useState<PointsPaymentMode>('burn-pt')
 	const parsed = Number(amount.replace(/,/g, ''))
 	const hasPositiveAmount = Number.isFinite(parsed) && parsed > 0
-	const points6 = (() => {
-		try {
-			const infra = merchantInfraCard?.trim().toLowerCase()
-			const merchantCard = infra
-				? assets?.cards?.find(
-						(card) => card.cardAddress.trim().toLowerCase() === infra,
-					)
-				: undefined
-			return BigInt(
-				String(
-					merchantCard?.chargeRewardPoints6 ??
-						assets?.chargeRewardPoints6 ??
-						assets?.points6 ??
-						'0',
-				),
-			)
-		} catch {
-			return 0n
-		}
-	})()
+	const infra = merchantInfraCard?.trim().toLowerCase() ?? ''
+	const merchantCard = infra
+		? assets?.cards?.find((card) => card.cardAddress.trim().toLowerCase() === infra)
+		: undefined
+	/*
+	 * Burnable Reward PT is only the Workspaces current merchant card.
+	 * Wallet assets copy another store's #13 onto the top-level field (cards[0]).
+	 */
+	const points6 =
+		assets && infra ? deductChargeRewardPoints6(assets, infra) : 0n
 	const usdcBalance = convertibleTopupAmount ?? 0
-	const merchantCurrency = (assets?.cardCurrency ?? 'CAD').trim().toUpperCase()
+	const merchantCurrency = (
+		merchantCard?.cardCurrency?.trim() ||
+		(assets?.cards && assets.cards.length > 0 ? '' : assets?.cardCurrency) ||
+		'CAD'
+	).toUpperCase()
 	const merchantCurrencyPrefix = displayFiatPrefixFromCode(merchantCurrency)
 	const effectiveMaxPoints6 = maxPoints6 ?? points6
 	const withinPoints =
