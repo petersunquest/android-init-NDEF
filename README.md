@@ -12,6 +12,28 @@ This repository also contains:
 
 - `src/x402sdk` - the Beamio API / cluster server, including the `/api/sun` endpoint used to verify NTAG 424 DNA SUN taps.
 - `src/Android-init-NDEF` - the Android app used to initialize cards, read SUN URLs, decode local payloads, and compare local results with server-side verification.
+- `src/SilentPassUI` and `src/CoNET-SI` - the Consumer Chat client and CoNET mailbox implementation. Voice calls use a dedicated encrypted `voice_listen` SSE. The caller's mailbox invokes `/api/voiceCallPush` after the voice SSE is accepted; the PWA never calls that endpoint directly, so caller IP information is not sent to the push API. Only signed call metadata is forwarded; the offer and audio remain on the encrypted mailbox path.
+
+## Server Development and Deployment Boundary
+
+Cluster/Master server changes are developed and merged in a local checkout:
+
+```text
+fetch/merge locally → test/build → commit → push
+→ remote pull exact commit → build → restart app service → smoke test
+```
+
+Remote production checkouts are deployment targets only. Do not edit source or
+`dist/` over SSH, and do not pull, reset, stash, or overwrite a dirty remote
+checkout. If the remote tree has uncommitted work, preserve it and first merge
+that work locally into a reviewed commit. Secrets such as Telegram, FCM/APNs,
+and master credentials must already be provisioned on the target host and must
+never be copied into Git or printed in deployment logs.
+
+Cluster performs validation and forwarding; Master performs queued writes using
+validated input. Application deployment must not restart or reinitialize chain
+EL/CL/validator infrastructure. The full procedure is documented in
+[`.cursor/rules/beamio-server-local-dev-cluster-master.mdc`](.cursor/rules/beamio-server-local-dev-cluster-master.mdc).
 
 ---
 

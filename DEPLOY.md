@@ -2,6 +2,25 @@
 
 本指南说明如何使用 Hardhat 将 BeamioAccount 智能合约部署到 Base 链。
 
+## Cluster/Master 服务器发布原则
+
+服务器代码必须遵守“本地开发、推送后远程部署”：
+
+1. 在本地 checkout 拉取并合并远程提交。
+2. 本地完成冲突处理、测试和构建。
+3. 提交并 push 到权威 Git 仓库，记录待部署 commit SHA。
+4. 远程服务器只拉取该已发布 commit，然后构建、重启应用服务并做 smoke test。
+
+禁止通过 SSH 直接修改源码或 `dist/`，禁止在远程脏工作树上执行强制
+`reset`、覆盖、清理或盲目 `pull`。远程工作树存在未提交修改时，部署必须
+停止；应先由维护者将其保留并提交，或在本地 checkout 中形成可审查的合并
+提交。Telegram、FCM/APNs、Master 等密钥必须在目标主机本地配置，不能复制、
+打印或提交。
+
+Cluster 只负责完整预检与转发，Master 只消费已验证任务并执行排队写操作。
+发布 API 不得重启或重初始化 Geth、Beacon、Validator 等链基础设施。详细
+约束见 [Beamio Server Development and Deployment Boundary](.cursor/rules/beamio-server-local-dev-cluster-master.mdc)。
+
 ## 前置准备
 
 1. **安装依赖**

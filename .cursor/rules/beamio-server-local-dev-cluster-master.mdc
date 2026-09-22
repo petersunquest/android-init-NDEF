@@ -1,0 +1,57 @@
+---
+description: Cluster/Master services are developed locally, pushed to Git, then pulled and deployed remotely
+alwaysApply: true
+---
+
+# Beamio Server Development and Deployment Boundary
+
+All Cluster/Master server code, including `x402sdk`, CoNET-SI mailbox services,
+voice push, API routes, and deployment scripts, follows this order:
+
+```text
+local checkout → fetch/merge → test/build → commit → push
+→ remote pull the exact commit → build → restart application service → smoke test
+```
+
+## Mandatory rules
+
+1. Develop and modify source only in a local Git checkout. Do not edit source
+   files, `dist/`, or generated JavaScript directly over SSH.
+2. Before changing code, fetch the authoritative remote and inspect both local
+   and remote branches. Preserve unrelated work; never use `reset --hard`,
+   `checkout --`, force-push, or `git clean` to erase changes.
+3. Merge remote work into the local checkout explicitly. Resolve conflicts,
+   run the affected project's tests/build, and commit the complete result.
+4. Push the reviewed commit to the repository before deployment. The remote
+   server may deploy only a known commit SHA from Git.
+5. On the server, deployment is pull-only: `git fetch` followed by
+   fast-forward/reset to the already-published commit is allowed only after
+   confirming the working tree is clean. A dirty server checkout is a
+   deployment blocker, not permission to overwrite local changes.
+6. Cluster and Master remain separate runtime responsibilities. Cluster does
+   validation and forwarding; Master consumes validated jobs and performs
+   queued writes. Do not move business validation to Master while deploying.
+7. Build and restart only application services after the commit is installed.
+   Do not restart or reinitialize chain EL/CL/validator infrastructure as part
+   of an API deployment.
+8. Secrets (`~/.master.json`, Telegram tokens, private keys, FCM/APNs
+   credentials) must already exist on the target host. Never copy, print,
+   guess, or commit them.
+9. Deployment is complete only after health checks and endpoint smoke tests
+   pass, including the changed Cluster/Master path. Report the exact commit,
+   service state, and any blocked step.
+
+## Dirty remote checkout procedure
+
+If the target checkout contains uncommitted changes:
+
+1. Stop deployment and record branch, commit, and `git status`.
+2. Do not pull, reset, stash, or overwrite it automatically.
+3. Have the operator commit the changes to the authoritative repository, or
+   explicitly preserve them as a reviewed patch in a local checkout.
+4. Merge and test locally, push one resulting commit, then retry pull-only
+   deployment.
+
+A missing runtime secret or a crashing service is also a blocker. Restore the
+secret on the target host through the approved operator process, or make and
+deploy a reviewed code change that makes the optional integration non-fatal.
