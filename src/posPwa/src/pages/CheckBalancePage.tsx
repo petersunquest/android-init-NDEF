@@ -158,9 +158,8 @@ export function CheckBalancePage() {
 	const pollAbortRef = useRef<AbortController | null>(null)
 
 	useEffect(() => {
-		if (!couponToast) return
-		const ms = couponToast.kind === 'error' ? 8000 : 3500
-		const t = setTimeout(() => setCouponToast(null), ms)
+		if (!couponToast || couponToast.kind !== 'success') return
+		const t = setTimeout(() => setCouponToast(null), 3500)
 		return () => clearTimeout(t)
 	}, [couponToast])
 
@@ -261,11 +260,13 @@ export function CheckBalancePage() {
 			const rowId = merchantCouponRowId(coupon.cardAddress, coupon.tokenId)
 			setClaimInFlightId(rowId)
 			setClaimSucceededId(null)
+			setCouponToast(null)
 
 			const result = await claimMerchantCouponFromRead({
 				assets,
 				coupon,
 				signerEOA,
+				openContainerPayload,
 			})
 
 			setClaimInFlightId(null)
@@ -279,7 +280,7 @@ export function CheckBalancePage() {
 			setClaimSucceededId(rowId)
 			setCouponToast({ kind: 'success', text: 'Coupon claimed.' })
 		},
-		[assets, claimInFlightId, syncAssets, walletAddress],
+		[assets, claimInFlightId, openContainerPayload, syncAssets, walletAddress],
 	)
 
 	const handleConsumeCoupon = useCallback(

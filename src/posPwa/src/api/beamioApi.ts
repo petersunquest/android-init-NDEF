@@ -1137,6 +1137,7 @@ export async function fetchWalletAssetsForRead(params: {
 export interface CardCouponPosClaimResult {
 	success: boolean
 	txHash?: string
+	rewardPtAmount?: string
 	error?: string
 }
 
@@ -1150,6 +1151,8 @@ export interface CardCouponPosClaimPrepareResult {
 	deadline?: number
 	nonce?: string
 	factoryGateway?: string
+	rewardPtAmount?: string
+	rewardPtTokenId?: string
 	error?: string
 }
 
@@ -1364,11 +1367,12 @@ export async function cardCouponPosClaim(params: {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
 		})
-		const json = (await res.json()) as { success?: boolean; tx?: string; error?: string }
+		const json = (await res.json()) as { success?: boolean; tx?: string; error?: string; rewardPtAmount?: string }
 		const ok = res.ok && (json.success ?? true)
 		return {
 			success: ok,
 			txHash: json.tx?.trim() || undefined,
+			rewardPtAmount: json.rewardPtAmount?.trim() || undefined,
 			error: json.error?.trim() || (!ok ? `HTTP ${res.status}` : undefined),
 		}
 	} catch {
@@ -1418,11 +1422,13 @@ export async function cardCouponPosClaimPrepare(params: {
 /** Submit admin-signed ExecuteForAdmin for open-coupon claim. */
 export async function cardCouponPosClaimSubmit(params: {
 	cardAddress: string
+	couponId?: string
 	data: string
 	deadline: number
 	nonce: string
 	adminSignature: string
 	signerEOA?: string
+	rewardPtOpenContainer?: Record<string, unknown>
 }): Promise<CardCouponPosClaimSubmitResult | null> {
 	const cardAddress = params.cardAddress.trim()
 	const data = params.data.trim()
@@ -1431,7 +1437,7 @@ export async function cardCouponPosClaimSubmit(params: {
 	if (!isPlausibleEvmAddress(cardAddress) || !data || !nonce || !adminSignature) {
 		return { success: false, error: 'Invalid claim submit payload.' }
 	}
-	const body: Record<string, string | number> = {
+	const body: Record<string, string | number | Record<string, unknown>> = {
 		cardAddress,
 		data,
 		deadline: params.deadline,
@@ -1439,7 +1445,10 @@ export async function cardCouponPosClaimSubmit(params: {
 		adminSignature,
 	}
 	const signerEOA = params.signerEOA?.trim()
+	const couponId = params.couponId?.trim()
 	if (isPlausibleEvmAddress(signerEOA)) body.signerEOA = signerEOA!
+	if (couponId) body.couponId = couponId
+	if (params.rewardPtOpenContainer) body.rewardPtOpenContainer = params.rewardPtOpenContainer
 	try {
 		const res = await fetch(`${BEAMIO_API}/api/cardCouponPosClaimSubmit`, {
 			method: 'POST',
