@@ -77,10 +77,17 @@ function infraCardChargeRewardPoints6(
 ): bigint {
 	const infra = merchantInfraCard.trim().toLowerCase()
 	if (!infra) return 0n
-	const card = assets.cards?.find(
+	const cards = assets.cards
+	const card = cards?.find(
 		(c) => c.cardAddress.trim().toLowerCase() === infra,
 	)
-	const raw = card?.chargeRewardPoints6?.trim() ?? assets.chargeRewardPoints6?.trim() ?? '0'
+	// All-cards Points fetch puts another store's #13 on the top-level field.
+	// Only the merchant card itself can be burned here.
+	const raw = card
+		? card.chargeRewardPoints6?.trim() ?? '0'
+		: cards && cards.length > 0
+			? '0'
+			: assets.chargeRewardPoints6?.trim() ?? '0'
 	try {
 		return BigInt(raw)
 	} catch {
@@ -114,10 +121,13 @@ export async function loadCustomerAssets(
 	target: DeductCustomerTarget,
 	merchantInfraCard: string,
 ): Promise<UIDAssetsResult | null> {
+	// Points top-up spends Reward PT on every holder card, not only the terminal card.
+	// Check Balance and Charge keep the default merchantInfraOnly scope.
 	if (target.beamioTag?.trim()) {
 		return fetchUIDAssets({
 			uid: target.beamioTag.trim(),
 			merchantInfraCard,
+			cardsScope: 'all',
 		})
 	}
 	if (target.uid?.trim()) {
@@ -125,12 +135,14 @@ export async function loadCustomerAssets(
 			uid: target.uid.trim(),
 			merchantInfraCard,
 			sun: target.sun,
+			cardsScope: 'all',
 		})
 	}
 	if (target.wallet?.trim()) {
 		return fetchWalletAssetsForRead({
 			wallet: target.wallet.trim(),
 			merchantInfraCard,
+			cardsScope: 'all',
 		})
 	}
 	return null

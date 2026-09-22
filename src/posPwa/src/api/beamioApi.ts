@@ -1043,12 +1043,18 @@ export async function fetchUIDAssets(params: {
 	uid: string
 	merchantInfraCard: string
 	sun?: { e: string; c: string; m: string }
+	/**
+	 * Omit to keep the POS default (`merchantInfraOnly` when `merchantInfraCard` is set).
+	 * Points top-up must pass `all` so peer-card Reward PT is visible.
+	 */
+	cardsScope?: 'all'
 }): Promise<UIDAssetsResult | null> {
 	const uid = params.uid.trim()
 	const merchantInfraCard = params.merchantInfraCard.trim()
 	if (!uid || !merchantInfraCard) return null
 	try {
 		const body: Record<string, string> = { uid, merchantInfraCard }
+		if (params.cardsScope === 'all') body.cardsScope = 'all'
 		if (params.sun) {
 			body.e = params.sun.e
 			body.c = params.sun.c
@@ -1087,12 +1093,18 @@ export async function fetchWalletAssetsForRead(params: {
 	merchantInfraCard: string
 	/** iOS `getWalletAssets(..., forPostPayment: true)` after QR charge. */
 	forPostPayment?: boolean
+	/**
+	 * Omit to keep the POS default (`merchantInfraOnly` when `merchantInfraCard` is set).
+	 * Points top-up must pass `all` so peer-card Reward PT is visible.
+	 */
+	cardsScope?: 'all'
 }): Promise<UIDAssetsResult | null> {
 	const wallet = params.wallet.trim()
 	const merchantInfraCard = params.merchantInfraCard.trim()
 	if (!wallet || !merchantInfraCard) return null
 	try {
 		const body: Record<string, string> = { wallet, merchantInfraCard }
+		if (params.cardsScope === 'all') body.cardsScope = 'all'
 		if (params.forPostPayment) body.for = 'postPaymentBalance'
 		const res = await fetch(`${BEAMIO_API}/api/getWalletAssets`, {
 			method: 'POST',

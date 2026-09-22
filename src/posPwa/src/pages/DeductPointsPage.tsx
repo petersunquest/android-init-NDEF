@@ -40,6 +40,58 @@ const conetProvider = new JsonRpcProvider(CONET_RPC, 224422, { staticNetwork: tr
 const CONET_USDC =
 	'0x5209865D404aA5646eDe5B91CD4218909eA72eDA'
 
+const peerCardInterface = new ethers.Interface([
+	'function balanceOf(address,uint256) view returns (uint256)',
+	'function pointsUnitPriceInCurrencyE6() view returns (uint256)',
+	'function convertReward13ToPointsRatioE6() view returns (uint256)',
+	'function quoteUsdcWithdrawForFiat6(uint256) view returns (uint256)',
+	'function quoteUsdcDepositForFiat6(uint256) view returns (uint256)',
+	'function rewardEscrowUsdc6() view returns (uint256)',
+])
+const usdcBalanceInterface = new ethers.Interface([
+	'function balanceOf(address) view returns (uint256)',
+])
+
+/** USDC the destination card charges for `fiat6` of its own currency, including deposit spread. */
+async function quoteMerchantDepositUsdc6(merchantCard: string, fiat6: bigint): Promise<bigint> {
+	if (fiat6 <= 0n || !ethers.isAddress(merchantCard)) return 0n
+	const card = new ethers.Contract(merchantCard, peerCardInterface, conetProvider)
+	const quoted = (await card.quoteUsdcDepositForFiat6(fiat6)) as bigint
+	return quoted > 0n ? quoted : 0n
+}
+
+/**
+ * Largest source PT burn whose withdraw quote fits the card's escrow and USDC.
+ * Quote is linear, so one proportional step is enough after the full-balance quote.
+ */
+async function cappedPeerRewardPt(
+	cardAddress: string,
+	pt6: bigint,
+): Promise<{ burn13: bigint; usdc6: bigint }> {
+	if (pt6 <= 0n) return { burn13: 0n, usdc6: 0n }
+	const card = new ethers.Contract(cardAddress, peerCardInterface, conetProvider)
+	const quoted = (await card.quoteUsdcWithdrawForFiat6(pt6)) as bigint
+	const escrow = (await card.rewardEscrowUsdc6()) as bigint
+	const available = (await new ethers.Contract(
+		CONET_USDC,
+		usdcBalanceInterface,
+		conetProvider,
+	).balanceOf(cardAddress)) as bigint
+	const cap = quoted < escrow ? (quoted < available ? quoted : available) : escrow < available ? escrow : available
+	if (cap <= 0n || quoted <= 0n) return { burn13: 0n, usdc6: 0n }
+	if (quoted <= cap) return { burn13: pt6, usdc6: quoted }
+	let burn = (pt6 * cap) / quoted
+	if (burn <= 0n) return { burn13: 0n, usdc6: 0n }
+	let usdc = (await card.quoteUsdcWithdrawForFiat6(burn)) as bigint
+	if (usdc > cap && usdc > 0n) {
+		burn = (burn * cap) / usdc
+		if (burn <= 0n) return { burn13: 0n, usdc6: 0n }
+		usdc = (await card.quoteUsdcWithdrawForFiat6(burn)) as bigint
+	}
+	if (usdc <= 0n || usdc > cap) return { burn13: 0n, usdc6: 0n }
+	return { burn13: burn, usdc6: usdc }
+}
+
 type DeductPhase = 'amount' | 'scan-customer' | 'executing' | 'success'
 
 async function maxPtConvertibleTopupAmount(
@@ -51,19 +103,13 @@ async function maxPtConvertibleTopupAmount(
 ): Promise<number> {
 	const merchantKey = merchantCard.trim().toLowerCase()
 	const targetRate = getRateForCurrency(merchantCurrency, oracle)
-	if (targetRate <= 0) return 0
-
-	const cardInterface = new ethers.Interface([
-		'function balanceOf(address,uint256) view returns (uint256)',
-		'function currency() view returns (uint8)',
-		'function pointsUnitPriceInCurrencyE6() view returns (uint256)',
-		'function convertReward13ToPointsRatioE6() view returns (uint256)',
-		'function quoteUsdcWithdrawForFiat6(uint256) view returns (uint256)',
-		'function rewardEscrowUsdc6() view returns (uint256)',
-	])
-	const erc20Interface = new ethers.Interface([
-		'function balanceOf(address) view returns (uint256)',
-	])
+	let usdcPerFiatUnit = 0n
+	try {
+		usdcPerFiatUnit = await quoteMerchantDepositUsdc6(merchantCard, 1_000_000n)
+	} catch {
+		usdcPerFiatUnit = 0n
+	}
+	if (usdcPerFiatUnit <= 0n && targetRate <= 0) return 0
 	const cards = assets.cards?.length
 		? assets.cards
 		: ethers.isAddress(assets.cardAddress ?? merchantCard)
@@ -86,14 +132,14 @@ async function maxPtConvertibleTopupAmount(
 		const cardKey = cardAddress.toLowerCase()
 		let rewardPt6 = 0n
 		try {
-			const contract = new ethers.Contract(cardAddress, cardInterface, conetProvider)
+			const contract = new ethers.Contract(cardAddress, peerCardInterface, conetProvider)
 			rewardPt6 = (await contract.balanceOf(aaAddress, 13n)) as bigint
 		} catch {
 			continue
 		}
 		if (rewardPt6 <= 0n) continue
 
-		const contract = new ethers.Contract(cardAddress, cardInterface, conetProvider)
+		const contract = new ethers.Contract(cardAddress, peerCardInterface, conetProvider)
 		if (cardKey === merchantKey) {
 			if (!includeMerchantRewardPt) continue
 			try {
@@ -108,20 +154,15 @@ async function maxPtConvertibleTopupAmount(
 			continue
 		}
 
-		// Cross-store #13: mirror the client plan. PT first quotes to USDC,
-		// then is capped by the source card's escrow and actual USDC balance.
+		// Cross-store #13: quote to USDC, cap by escrow and the card's USDC,
+		// then convert with the destination deposit quote (same as Smart Checkout).
 		try {
-			const quotedUsdc6 = (await contract.quoteUsdcWithdrawForFiat6(rewardPt6)) as bigint
-			const escrowUsdc6 = (await contract.rewardEscrowUsdc6()) as bigint
-			const availableUsdc6 = await new ethers.Contract(
-				CONET_USDC,
-				erc20Interface,
-				conetProvider,
-			).balanceOf(cardAddress) as bigint
-			const redeemableUsdc6 = [quotedUsdc6, escrowUsdc6, availableUsdc6]
-				.reduce((min, value) => (value < min ? value : min))
-			if (redeemableUsdc6 > 0n) {
-				targetFiat6 += BigInt(Math.floor(Number(redeemableUsdc6) * targetRate))
+			const { usdc6 } = await cappedPeerRewardPt(cardAddress, rewardPt6)
+			if (usdc6 <= 0n) continue
+			if (usdcPerFiatUnit > 0n) {
+				targetFiat6 += (usdc6 * 1_000_000n) / usdcPerFiatUnit
+			} else if (targetRate > 0) {
+				targetFiat6 += BigInt(Math.floor(Number(usdc6) * targetRate))
 			}
 		} catch {
 			// Untrusted peer read: preserve the trusted zero contribution.
@@ -233,23 +274,12 @@ export function DeductPointsPage() {
 			return
 		}
 		const targetCurrency = (await fetchCardCurrencyCode(infra)) ?? 'CAD'
-		const oracle = await fetchOracle()
-		if (!oracle) {
-			goHome('Exchange rates are unavailable. Please retry.')
-			return
-		}
+		const oracle = (await fetchOracle()) ?? DEFAULT_ORACLE
 		const targetRate = getRateForCurrency(targetCurrency, oracle)
-		const target = new ethers.Contract(
-			infra,
-			new ethers.Interface([
-				'function pointsUnitPriceInCurrencyE6() view returns (uint256)',
-				'function convertReward13ToPointsRatioE6() view returns (uint256)',
-				'function balanceOf(address,uint256) view returns (uint256)',
-			]),
-			conetProvider,
-		)
+		const target = new ethers.Contract(infra, peerCardInterface, conetProvider)
 		const targetPrice = BigInt(await target.pointsUnitPriceInCurrencyE6())
-		const targetPoints = (ethers.parseUnits(amount, 6) * 1_000_000n + targetPrice - 1n) / targetPrice
+		const orderFiat6 = ethers.parseUnits(amount, 6)
+		const targetPoints = (orderFiat6 * 1_000_000n + targetPrice - 1n) / targetPrice
 		const targetPt = BigInt(await target.balanceOf(ptHolder, 13n))
 		const sameRatio = BigInt(await target.convertReward13ToPointsRatioE6())
 		const sameStoreBurn13 =
@@ -258,31 +288,55 @@ export function DeductPointsPage() {
 					? targetPt
 					: (targetPoints * 1_000_000n + sameRatio - 1n) / sameRatio
 				: 0n
-		let remainingPoints = targetPoints - (sameStoreBurn13 * sameRatio) / 1_000_000n
+		const sameStorePointsOut = (sameStoreBurn13 * sameRatio) / 1_000_000n
+		const sameStoreFiat6 =
+			targetPrice > 0n ? (sameStorePointsOut * targetPrice) / 1_000_000n : 0n
+		const remainingFiat6 = orderFiat6 > sameStoreFiat6 ? orderFiat6 - sameStoreFiat6 : 0n
+		let needUsdc = 0n
+		try {
+			needUsdc = await quoteMerchantDepositUsdc6(infra, remainingFiat6)
+		} catch {
+			needUsdc = 0n
+		}
+		if (needUsdc <= 0n && remainingFiat6 > 0n && targetRate > 0) {
+			needUsdc = BigInt(Math.ceil(Number(remainingFiat6) / targetRate))
+		}
 		const peers: Array<{ cardAddress: string; burn13: string; usdcOut6: string }> = []
 		let peerUsdc = 0n
 		for (const card of assets.cards ?? []) {
 			const cardAddress = card.cardAddress?.trim() ?? ''
-			if (!ethers.isAddress(cardAddress) || cardAddress.toLowerCase() === infra.toLowerCase() || remainingPoints <= 0n) continue
+			if (
+				!ethers.isAddress(cardAddress) ||
+				cardAddress.toLowerCase() === infra.toLowerCase() ||
+				needUsdc <= 0n
+			) {
+				continue
+			}
 			try {
-				const source = new ethers.Contract(
-					cardAddress,
-					new ethers.Interface([
-						'function balanceOf(address,uint256) view returns (uint256)',
-						'function quoteUsdcWithdrawForFiat6(uint256) view returns (uint256)',
-					]),
-					conetProvider,
-				)
+				const source = new ethers.Contract(cardAddress, peerCardInterface, conetProvider)
 				const balance = BigInt(await source.balanceOf(ptHolder, 13n))
-				const burn = balance > remainingPoints ? remainingPoints : balance
-				if (burn <= 0n) continue
-				const usdcOut = BigInt(await source.quoteUsdcWithdrawForFiat6(burn))
-				if (usdcOut <= 0n) continue
-				peers.push({ cardAddress, burn13: burn.toString(), usdcOut6: usdcOut.toString() })
-				peerUsdc += usdcOut
-				// The target card's oracle is applied again by the server/contract.
-				const estimatedPoints = BigInt(Math.max(1, Math.floor(Number(usdcOut) * targetRate)))
-				remainingPoints = estimatedPoints >= remainingPoints ? 0n : remainingPoints - estimatedPoints
+				const capped = await cappedPeerRewardPt(cardAddress, balance)
+				if (capped.usdc6 <= 0n || capped.burn13 <= 0n) continue
+				let useBurn = capped.burn13
+				let useUsdc = capped.usdc6
+				if (useUsdc > needUsdc) {
+					useBurn = (capped.burn13 * needUsdc) / capped.usdc6
+					if (useBurn <= 0n) continue
+					useUsdc = BigInt(await source.quoteUsdcWithdrawForFiat6(useBurn))
+					if (useUsdc > needUsdc && useUsdc > 0n) {
+						useBurn = (useBurn * needUsdc) / useUsdc
+						if (useBurn <= 0n) continue
+						useUsdc = BigInt(await source.quoteUsdcWithdrawForFiat6(useBurn))
+					}
+				}
+				if (useBurn <= 0n || useUsdc <= 0n) continue
+				peers.push({
+					cardAddress,
+					burn13: useBurn.toString(),
+					usdcOut6: useUsdc.toString(),
+				})
+				peerUsdc += useUsdc
+				needUsdc = useUsdc >= needUsdc ? 0n : needUsdc - useUsdc
 			} catch {
 				// Ignore an untrusted source-card read; the server performs final checks.
 			}
