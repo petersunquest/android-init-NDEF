@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchMerchantCardStripeStatus, fetchWalletAssets } from '@/api/beamioApi'
+import { fetchWalletAssets } from '@/api/beamioApi'
 import { ChargeAmountPadPage } from '@/components/ChargeAmountPadPage'
 import { ChargePaymentMethodPage } from '@/components/ChargePaymentMethodPage'
 import { ChargeSelectProgramCardPage } from '@/components/ChargeSelectProgramCardPage'
@@ -78,13 +78,13 @@ export function ChargePage() {
 		pointSystemEnabled,
 		currency,
 		workspaceBindings,
+		stripeTapToPayAvailable,
 	} = usePosSession()
 
 	const [phase, setPhase] = useState<ChargePhase>('method')
 	const [draft, setDraft] = useState<ChargeDraft | null>(null)
 	const [selectedMethodOption, setSelectedMethodOption] =
 		useState<ChargePaymentMethodOption | null>(null)
-	const [stripeTapToPayAvailable, setStripeTapToPayAvailable] = useState(false)
 	const [success, setSuccess] = useState<ChargeExecuteSuccess | null>(null)
 	const [insufficient, setInsufficient] = useState<{
 		message: string
@@ -135,29 +135,6 @@ export function ChargePage() {
 			cancelled = true
 		}
 	}, [merchantInfraCard, walletAddress])
-
-	useEffect(() => {
-		const card = merchantInfraCard?.trim()
-		if (!card) {
-			setStripeTapToPayAvailable(false)
-			return
-		}
-		let cancelled = false
-		void fetchMerchantCardStripeStatus(card)
-			.then((status) => {
-				if (!cancelled) {
-					setStripeTapToPayAvailable(
-						status.connected && status.chargesEnabled === true && status.detailsSubmitted === true,
-					)
-				}
-			})
-			.catch(() => {
-				if (!cancelled) setStripeTapToPayAvailable(false)
-			})
-		return () => {
-			cancelled = true
-		}
-	}, [merchantInfraCard])
 
 	const goHome = useCallback(
 		(error?: string) => {

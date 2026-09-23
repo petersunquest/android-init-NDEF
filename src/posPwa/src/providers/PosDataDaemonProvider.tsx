@@ -28,7 +28,13 @@ const PosDataDaemonContext = createContext<PosDataDaemonContextValue | null>(nul
  * Pages must not start their own interval/setTimeout polling loops.
  */
 export function PosDataDaemonProvider({ children }: { children: ReactNode }) {
-	const { walletAddress, refreshHome, isBootLoading } = usePosSession()
+	const {
+		walletAddress,
+		merchantInfraCard,
+		refreshHome,
+		refreshStripeTapToPayStatus,
+		isBootLoading,
+	} = usePosSession()
 	const [tickInFlight, setTickInFlight] = useState(false)
 	const [lastSuccessfulTickAt, setLastSuccessfulTickAt] = useState<number | null>(null)
 	const [skippedTickCount, setSkippedTickCount] = useState(0)
@@ -40,12 +46,13 @@ export function PosDataDaemonProvider({ children }: { children: ReactNode }) {
 		setTickInFlight(true)
 		try {
 			await refreshHome()
+			await refreshStripeTapToPayStatus(merchantInfraCard)
 			setLastSuccessfulTickAt(Date.now())
 		} finally {
 			inFlightRef.current = false
 			setTickInFlight(false)
 		}
-	}, [refreshHome])
+	}, [merchantInfraCard, refreshHome, refreshStripeTapToPayStatus])
 
 	const requestImmediateRefresh = useCallback(async (): Promise<void> => {
 		if (inFlightRef.current) return

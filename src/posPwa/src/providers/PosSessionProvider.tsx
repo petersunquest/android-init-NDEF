@@ -13,6 +13,7 @@ import {
 	fetchBUnitBalance,
 	fetchCardAdminInfo,
 	fetchCardMetadataPointSystem,
+	fetchMerchantCardStripeStatus,
 	fetchMyPosAddress,
 	fetchMyPosAddresses,
 	fetchPosLedger,
@@ -91,6 +92,7 @@ interface PosContextValue {
 	hasAAAccount: boolean | null
 	homeStatsLoaded: boolean
 	pointSystemEnabled: boolean
+	stripeTapToPayAvailable: boolean
 	/** `null` = never loaded / last fetch untrusted; `[]` = trusted empty. */
 	activeCoupons: MerchantActiveIssuedCoupon[] | null
 	activeCouponsLoaded: boolean
@@ -99,6 +101,7 @@ interface PosContextValue {
 	isBootLoading: boolean
 	bootPhase: PosBootPhase | null
 	refreshHome: () => Promise<void>
+	refreshStripeTapToPayStatus: (cardAddress?: string | null) => Promise<void>
 	admitProgramCardAccess: () => void
 	/** Local mnemonic unlocked — leave setup splash and resume home/permission boot. */
 	resumeBootAfterLocalWalletReady: () => Promise<boolean>
@@ -200,6 +203,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [hasAAAccount, setHasAAAccount] = useState<boolean | null>(null)
 	const [homeStatsLoaded, setHomeStatsLoaded] = useState(false)
 	const [pointSystemEnabled, setPointSystemEnabled] = useState(true)
+	const [stripeTapToPayAvailable, setStripeTapToPayAvailable] = useState(false)
 	const [activeCoupons, setActiveCoupons] = useState<MerchantActiveIssuedCoupon[] | null>(null)
 	const [showPermissionGate, setShowPermissionGate] = useState(false)
 	const [isBootLoading, setIsBootLoading] = useState(true)
@@ -547,6 +551,27 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		forceWalletGateForMissingSigningKey,
 	])
 
+	const refreshStripeTapToPayStatus = useCallback(
+		async (cardAddress?: string | null): Promise<void> => {
+			const card = (cardAddress ?? merchantInfraCard)?.trim()
+			if (!card) {
+				setStripeTapToPayAvailable(false)
+				return
+			}
+			try {
+				const status = await fetchMerchantCardStripeStatus(card)
+				setStripeTapToPayAvailable(
+					status.connected &&
+						status.chargesEnabled === true &&
+						status.detailsSubmitted === true,
+				)
+			} catch {
+				/* Keep the last trusted status on transient API failure. */
+			}
+		},
+		[merchantInfraCard],
+	)
+
 	refreshHomeRef.current = refreshHome
 
 	const switchWorkspace = useCallback(
@@ -586,6 +611,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				setHomeStatsLoaded,
 			})
 			setMerchantInfraCard(setRes.cardAddress)
+			setStripeTapToPayAvailable(false)
 			await refreshHomeRef.current()
 			await refreshWorkspaceBindings()
 			return { ok: true as const }
@@ -802,12 +828,14 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			hasAAAccount,
 			homeStatsLoaded,
 			pointSystemEnabled,
+			stripeTapToPayAvailable,
 			activeCoupons,
 			activeCouponsLoaded: activeCoupons !== null,
 			showPermissionGate,
 			isBootLoading,
 			bootPhase,
 			refreshHome,
+			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
 			resumeBootAfterLocalWalletReady,
 			markOnboardingComplete,
@@ -835,11 +863,13 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			hasAAAccount,
 			homeStatsLoaded,
 			pointSystemEnabled,
+			stripeTapToPayAvailable,
 			activeCoupons,
 			showPermissionGate,
 			isBootLoading,
 			bootPhase,
 			refreshHome,
+			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
 			resumeBootAfterLocalWalletReady,
 			markOnboardingComplete,
