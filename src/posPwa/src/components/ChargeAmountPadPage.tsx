@@ -1,4 +1,4 @@
-import { CreditCard, Wallet } from 'lucide-react'
+import { CreditCard, Smartphone, Wallet } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { BeamioAmountPad, formatAmountPadDisplay } from '@/components/BeamioAmountPad'
@@ -21,6 +21,7 @@ const METHOD_ACCENT: Record<ChargePaymentMethodOption, string> = {
 	credit: '#1562f0',
 	usdc: '#2775CA',
 	cadd: '#E53A2F',
+	tapToPay: '#635BFF',
 }
 
 export function ChargeAmountPadPage({
@@ -69,7 +70,9 @@ export function ChargeAmountPadPage({
 			? programCardDisplayName.trim() || 'Beamio'
 			: methodOption === 'usdc'
 				? 'USDC'
-				: 'CADD'
+				: methodOption === 'cadd'
+					? 'CADD'
+					: 'Tap to Pay'
 
 	return (
 		<PosScreenShell bg="bg-[#EEF5FF]">
@@ -119,6 +122,8 @@ export function ChargeAmountPadPage({
 											<UsdcBaseCompositeIcon size={22} />
 										) : methodOption === 'cadd' ? (
 											<Wallet className="h-5 w-5" style={{ color: METHOD_ACCENT.cadd }} />
+										) : methodOption === 'tapToPay' ? (
+											<Smartphone className="h-5 w-5" style={{ color: METHOD_ACCENT.tapToPay }} />
 										) : (
 											<CreditCard className="h-5 w-5" style={{ color: accent }} />
 										)}

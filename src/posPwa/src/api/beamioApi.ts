@@ -27,6 +27,27 @@ export type MerchantCardStripeTerminalIntent = {
 	locationId: string
 }
 
+export async function fetchMerchantCardStripeStatus(cardAddress: string): Promise<{
+	connected: boolean
+	linked: boolean
+	chargesEnabled?: boolean
+	detailsSubmitted?: boolean
+}> {
+	const res = await fetch(`${BEAMIO_API}/api/merchantCardStripe/status`, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ cardAddress }),
+	})
+	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>
+	if (!res.ok) throw new Error(String(json.error ?? `Stripe status failed (HTTP ${res.status})`))
+	return {
+		connected: json.connected === true,
+		linked: json.linked === true,
+		chargesEnabled: json.chargesEnabled === true,
+		detailsSubmitted: json.detailsSubmitted === true,
+	}
+}
+
 export type PosRewardPtTopupResult = {
 	success: boolean
 	hash?: string
@@ -66,7 +87,7 @@ export async function createMerchantCardStripeTerminalPaymentIntent(body: {
 	buyerEoa: string
 	amountFiat6: string
 	currency: string
-	kind?: 'topup' | 'membership'
+	kind?: 'topup' | 'membership' | 'charge'
 	businessIdempotencyKey: string
 	posAdmin: string
 	authorizationSignature: string

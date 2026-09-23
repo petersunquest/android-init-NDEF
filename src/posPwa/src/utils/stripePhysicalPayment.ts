@@ -21,6 +21,8 @@ export type StripePhysicalPaymentResult = {
 	txHash?: string
 }
 
+type StripePhysicalPaymentKind = 'topup' | 'charge'
+
 function wait(ms: number): Promise<void> {
 	return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -42,11 +44,12 @@ async function waitForFulfillment(paymentIntentId: string): Promise<StripePhysic
 	throw new Error(lastError || 'Stripe payment was received, but top-up confirmation timed out.')
 }
 
-export async function collectStripePhysicalTopup(params: {
+async function collectStripePhysicalPayment(params: {
 	cardAddress: string
 	buyerEoa: string
 	amountFiat6: string
 	currency: string
+	kind: StripePhysicalPaymentKind
 	readerMode?: StripePhysicalReaderMode
 	onProgress?: (message: string) => void
 }): Promise<StripePhysicalPaymentResult> {
@@ -65,7 +68,7 @@ export async function collectStripePhysicalTopup(params: {
 		buyerEoa: params.buyerEoa,
 		amountFiat6: params.amountFiat6,
 		currency: params.currency,
-		kind: 'topup',
+		kind: params.kind,
 		businessIdempotencyKey: `pos-terminal:${requestId}`,
 		deadline: Math.floor(Date.now() / 1000) + 300,
 		nonce: `0x${Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, '0')).join('')}`,
@@ -104,7 +107,7 @@ export async function collectStripePhysicalTopup(params: {
 		buyerEoa: params.buyerEoa,
 		amountFiat6: params.amountFiat6,
 		currency: params.currency,
-		kind: 'topup',
+		kind: params.kind,
 		businessIdempotencyKey: authorization.businessIdempotencyKey,
 		posAdmin,
 		authorizationSignature,
@@ -114,10 +117,18 @@ export async function collectStripePhysicalTopup(params: {
 	})
 	try {
 		await detailPromise
-		params.onProgress?.('Confirming top-up...')
+		params.onProgress?.(params.kind === 'charge' ? 'Confirming card payment...' : 'Confirming top-up...')
 		return await waitForFulfillment(intent.paymentIntentId)
 	} catch (error) {
 		cancelStripePhysicalPayment(requestId)
 		throw error
 	}
+}
+
+export function collectStripePhysicalTopup(params: Omit<Parameters<typeof collectStripePhysicalPayment>[0], 'kind'>) {
+	return collectStripePhysicalPayment({ ...params, kind: 'topup' })
+}
+
+export function collectStripePhysicalCharge(params: Omit<Parameters<typeof collectStripePhysicalPayment>[0], 'kind'>) {
+	return collectStripePhysicalPayment({ ...params, kind: 'charge' })
 }

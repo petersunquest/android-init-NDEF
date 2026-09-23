@@ -1,4 +1,4 @@
-import { Check, CreditCard, Wallet } from 'lucide-react'
+import { Check, CreditCard, Smartphone, Wallet } from 'lucide-react'
 import { BeamioCircularBackButton } from '@/components/BeamioCircularBackButton'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { UsdcBaseCompositeIcon } from '@/components/ChainTokenCompositeIcon'
@@ -15,12 +15,16 @@ const METHOD_ACCENT: Record<ChargePaymentMethodOption, string> = {
 	credit: '#1562F0',
 	usdc: '#2775CA',
 	cadd: '#E53A2F',
+	tapToPay: '#635BFF',
 }
 
 function MethodIcon({ method }: { method: ChargePaymentMethodOption }) {
 	if (method === 'usdc') return <UsdcBaseCompositeIcon size={30} />
 	if (method === 'cadd') {
 		return <Wallet className="h-7 w-7" style={{ color: METHOD_ACCENT.cadd }} aria-hidden />
+	}
+	if (method === 'tapToPay') {
+		return <Smartphone className="h-7 w-7" style={{ color: METHOD_ACCENT.tapToPay }} aria-hidden />
 	}
 	return <CreditCard className="h-7 w-7" style={{ color: METHOD_ACCENT.credit }} aria-hidden />
 }

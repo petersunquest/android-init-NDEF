@@ -1,24 +1,27 @@
-export type ChargePaymentMethodRaw = 'nfcCard' | 'usdc' | 'cadd'
+export type ChargePaymentMethodRaw = 'nfcCard' | 'usdc' | 'cadd' | 'stripeTapToPay'
 
 /** Persisted UI option key (iOS `ChargePaymentMethodOption`). */
-export type ChargePaymentMethodOption = 'credit' | 'usdc' | 'cadd'
+export type ChargePaymentMethodOption = 'credit' | 'usdc' | 'cadd' | 'tapToPay'
 
 export interface PosTerminalChargePolicy {
 	allowPayerUsdcInCharge: boolean
 	allowPayerCaddInCharge: boolean
+	allowStripeTapToPayInCharge?: boolean
 }
 
 export const POS_TERMINAL_CHARGE_POLICY_ALL: PosTerminalChargePolicy = {
 	allowPayerUsdcInCharge: true,
 	allowPayerCaddInCharge: true,
+	allowStripeTapToPayInCharge: true,
 }
 
-export const CHARGE_METHOD_CYCLE_ORDER: ChargePaymentMethodOption[] = ['credit', 'usdc', 'cadd']
+export const CHARGE_METHOD_CYCLE_ORDER: ChargePaymentMethodOption[] = ['credit', 'usdc', 'cadd', 'tapToPay']
 
 export const CHARGE_METHOD_LABEL: Record<ChargePaymentMethodOption, string> = {
 	credit: 'Program Card',
 	usdc: 'USDC',
 	cadd: 'CADD',
+	tapToPay: 'Tap to Pay',
 }
 
 export const CHARGE_LAST_METHOD_STORAGE_KEY = 'pos.charge.lastPaymentMethod'
@@ -34,6 +37,8 @@ export function chargeMethodAllowed(
 			return policy.allowPayerUsdcInCharge
 		case 'cadd':
 			return policy.allowPayerCaddInCharge
+		case 'tapToPay':
+			return policy.allowStripeTapToPayInCharge === true
 		default:
 			return false
 	}
@@ -49,6 +54,8 @@ export function chargeOptionToMethodRaw(option: ChargePaymentMethodOption): Char
 			return 'usdc'
 		case 'cadd':
 			return 'cadd'
+		case 'tapToPay':
+			return 'stripeTapToPay'
 		case 'credit':
 		default:
 			return 'nfcCard'
@@ -61,6 +68,8 @@ export function chargeMethodRawToOption(raw: ChargePaymentMethodRaw): ChargePaym
 			return 'usdc'
 		case 'cadd':
 			return 'cadd'
+		case 'stripeTapToPay':
+			return 'tapToPay'
 		case 'nfcCard':
 		default:
 			return 'credit'

@@ -25,7 +25,7 @@ export type StripeTerminalAuthorization = {
 	buyerEoa: string
 	amountFiat6: string
 	currency: string
-	kind: 'topup' | 'membership'
+	kind: 'topup' | 'membership' | 'charge'
 	businessIdempotencyKey: string
 	deadline: number
 	nonce: string

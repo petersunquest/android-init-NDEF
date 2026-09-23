@@ -43,7 +43,7 @@ export interface StripePhysicalPaymentRequest {
 	buyerEoa: string
 	amountFiat6: string
 	currency: string
-	kind: 'topup' | 'membership'
+	kind: 'topup' | 'membership' | 'charge'
 	businessIdempotencyKey: string
 	posAdmin: string
 	authorizationSignature: string

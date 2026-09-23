@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchWalletAssets } from '@/api/beamioApi'
+import { fetchMerchantCardStripeStatus, fetchWalletAssets } from '@/api/beamioApi'
 import { ChargeAmountPadPage } from '@/components/ChargeAmountPadPage'
 import { ChargePaymentMethodPage } from '@/components/ChargePaymentMethodPage'
 import { ChargeSelectProgramCardPage } from '@/components/ChargeSelectProgramCardPage'
@@ -46,6 +46,7 @@ import {
 	type ChargeAdminCardBalanceRow,
 	type ChargePendingCustomer,
 } from '@/utils/chargeAdminCardBalances'
+import { collectStripePhysicalCharge } from '@/utils/stripePhysicalPayment'
 
 type ChargePhase =
 	| 'amount'
@@ -83,6 +84,7 @@ export function ChargePage() {
 	const [draft, setDraft] = useState<ChargeDraft | null>(null)
 	const [selectedMethodOption, setSelectedMethodOption] =
 		useState<ChargePaymentMethodOption | null>(null)
+	const [stripeTapToPayAvailable, setStripeTapToPayAvailable] = useState(false)
 	const [success, setSuccess] = useState<ChargeExecuteSuccess | null>(null)
 	const [insufficient, setInsufficient] = useState<{
 		message: string
@@ -133,6 +135,29 @@ export function ChargePage() {
 			cancelled = true
 		}
 	}, [merchantInfraCard, walletAddress])
+
+	useEffect(() => {
+		const card = merchantInfraCard?.trim()
+		if (!card) {
+			setStripeTapToPayAvailable(false)
+			return
+		}
+		let cancelled = false
+		void fetchMerchantCardStripeStatus(card)
+			.then((status) => {
+				if (!cancelled) {
+					setStripeTapToPayAvailable(
+						status.connected && status.chargesEnabled === true && status.detailsSubmitted === true,
+					)
+				}
+			})
+			.catch(() => {
+				if (!cancelled) setStripeTapToPayAvailable(false)
+			})
+		return () => {
+			cancelled = true
+		}
+	}, [merchantInfraCard])
 
 	const goHome = useCallback(
 		(error?: string) => {
@@ -187,11 +212,57 @@ export function ChargePage() {
 		[walletAddress, merchantInfraCard, goHome],
 	)
 
+	const startStripeChargeFlow = useCallback(
+		async (chargeDraft: ChargeDraft) => {
+			if (!walletAddress || !merchantInfraCard?.trim()) {
+				goHome('Wallet or merchant program card is not configured.')
+				return
+			}
+			setPhase('executing')
+			try {
+				const subtotalValue = Number(chargeDraft.subtotal) || 0
+				const tipValue = chargeTipFromRequestAndBps(subtotalValue, chargeDraft.tipBps)
+				const totalValue = subtotalValue + tipValue
+				const totalFiat6 = String(Math.round(totalValue * 1_000_000))
+				const outcome = await collectStripePhysicalCharge({
+					cardAddress: merchantInfraCard.trim(),
+					buyerEoa: walletAddress,
+					amountFiat6: totalFiat6,
+					currency,
+					onProgress: () => undefined,
+				})
+				setSuccess({
+					amount: totalValue.toFixed(2),
+					subtotal: chargeDraft.subtotal,
+					tip: tipValue > 0
+						? tipValue.toFixed(2)
+						: undefined,
+					txHash: outcome.txHash,
+					postBalance: '—',
+					cardCurrency: currency,
+					payee: walletAddress,
+					chargeTaxPercent: 0,
+					chargeTierDiscountPercent: 0,
+					settlementViaQr: true,
+					cardName: programCardName || undefined,
+				})
+				setPhase('success')
+			} catch (error) {
+				goHome(error instanceof Error ? error.message : String(error))
+			}
+		},
+		[walletAddress, merchantInfraCard, currency, programCardName, goHome],
+	)
+
 	const onTipConfirm = useCallback(
 		(tipBps: number) => {
 			if (!draft) return
 			const next = { ...draft, tipBps }
 			setDraft(next)
+			if (next.methodRaw === 'stripeTapToPay') {
+				void startStripeChargeFlow(next)
+				return
+			}
 			if (isExternalWalletStablecoinMethod(next.methodRaw)) {
 				void startUsdcChargeFlow(next)
 				return
@@ -199,7 +270,7 @@ export function ChargePage() {
 			scanStartedRef.current = false
 			setPhase('scan-customer')
 		},
-		[draft, startUsdcChargeFlow],
+		[draft, startStripeChargeFlow, startUsdcChargeFlow],
 	)
 
 	const resetCardSelection = useCallback(() => {
@@ -503,7 +574,10 @@ export function ChargePage() {
 	if (phase === 'method') {
 		return (
 			<ChargePaymentMethodPage
-				policy={POS_TERMINAL_CHARGE_POLICY_ALL}
+				policy={{
+					...POS_TERMINAL_CHARGE_POLICY_ALL,
+					allowStripeTapToPayInCharge: stripeTapToPayAvailable,
+				}}
 				onCancel={() => goHome()}
 				onSelect={(method) => {
 					setSelectedMethodOption(method)
