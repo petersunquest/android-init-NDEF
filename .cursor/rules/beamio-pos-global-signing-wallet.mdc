@@ -1,0 +1,40 @@
+---
+description: POS 全局签名钱包水合与 signer EOA 一致性守则
+alwaysApply: true
+---
+
+# POS 全局签名钱包守则
+
+适用于 `src/posPwa` 的全部 Charge、Top-up、Claim、Consume、Stripe Terminal、EIP-712、ExecuteForAdmin 和 CoNET Chat 签名路径。
+
+## 唯一签名来源
+
+POS 的签名私钥唯一来源是本地 IndexedDB 中保存的 mnemonic：
+
+1. 每个需要签名的流程开始前，必须先调用 `unlockPosWalletFromIndexedDbMnemonic()`；
+2. 再调用 `getPosPrivateKeyHex()` 获取已水合的 session 私钥；
+3. signer EOA 必须从**同一把私钥**派生，不能使用可能过期的 `walletAddress`、React state、native bridge 地址或旧 session address；
+4. 请求中的 `signerEOA` / `posAdmin` 只能填写该私钥派生出的地址。
+
+```ts
+await unlockPosWalletFromIndexedDbMnemonic()
+const privateKeyHex = await getPosPrivateKeyHex()
+if (!privateKeyHex) throw new Error('POS wallet is not initialized')
+const signerEOA = new Wallet(`0x${privateKeyHex.replace(/^0x/i, '')}`).address
+const signature = await signWith(privateKeyHex, payload)
+```
+
+## 严禁
+
+- ❌ 只读取 `getSessionWalletAddress()` 就签名；
+- ❌ 私钥水合前调用 `getPosSigningWalletAddress()`；
+- ❌ 在同一请求中让 `posAdmin` 来自另一套 state，而签名来自 session 私钥；
+- ❌ 将 merchant card / workspace owner / `walletAddress` 自动冒充 signer；
+- ❌ 为绕过链上 `isAdmin` 失败而放宽 API 校验。
+
+## 验收
+
+- API 恢复出的 EIP-712 signer 必须等于 POS 实际签名 EOA；
+- 该 signer 必须在目标 merchant card 上通过链上 `isAdmin(signer)`；
+- 切换 workspace 不得更换全局 POS 私钥；切换钱包或恢复钱包后必须重新水合；
+- 新增签名流程必须复用上述水合路径，并在 POS PWA 独立构建中验证。
