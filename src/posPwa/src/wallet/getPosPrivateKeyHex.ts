@@ -36,7 +36,7 @@ export async function getPosSigningWalletAddress(): Promise<string | null> {
 	const pk = await getPosPrivateKeyHex()
 	if (!pk) return getSessionWalletAddress()
 	try {
-		return new Wallet(`0x${pk}`).address
+		return new Wallet(`0x${pk.replace(/^0x/i, '')}`).address
 	} catch {
 		return getSessionWalletAddress()
 	}
