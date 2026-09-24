@@ -15,7 +15,6 @@ import {
 	type PosSuccessPassHeroProps,
 } from '@/utils/posSuccessHero'
 import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
-import { unlockPosWalletFromIndexedDbMnemonic } from '@/wallet/posWalletService'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
 export type TopupExecuteProgressPhase = 'preparing' | 'signing' | 'refreshing'
@@ -86,8 +85,7 @@ async function submitPreparedTopup(params: {
 	onProgress?: TopupExecuteProgress
 }): Promise<TopupExecuteResult> {
 	const onProgress = params.onProgress
-	/* Prefer IndexedDB mnemonic → posWalletSession (not native Keychain). */
-	await unlockPosWalletFromIndexedDbMnemonic().catch(() => ({ ok: false as const }))
+	/* Reuse the global session signer hydrated during startup/Restore. */
 	const pk = await getPosPrivateKeyHex()
 	if (!pk) {
 		return { status: 'error', message: 'Wallet not initialized' }

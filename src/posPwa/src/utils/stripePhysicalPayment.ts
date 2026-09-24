@@ -15,7 +15,6 @@ import {
 	signStripeTerminalAuthorization,
 	type StripeTerminalAuthorization,
 } from '@/utils/stripeTerminalAuthorization'
-import { unlockPosWalletFromIndexedDbMnemonic } from '@/wallet/posWalletService'
 
 export type StripePhysicalPaymentResult = {
 	paymentIntentId: string
@@ -59,9 +58,9 @@ async function collectStripePhysicalPayment(params: {
 	}
 	params.onProgress?.('Preparing secure card payment...')
 	const requestId = newCashTreesScanRequestId()
-	/* Match the working NFC Top-up path: hydrate the canonical POS wallet
-	 * from the IndexedDB mnemonic before resolving/signing the admin EOA. */
-	await unlockPosWalletFromIndexedDbMnemonic().catch(() => ({ ok: false as const }))
+	/* Reuse the same hydrated session signer as Program Card Charge. Never
+	 * rehydrate from IndexedDB mid-flow: that can overwrite the active session
+	 * with a stale wallet and produce a different POS admin EOA. */
 	const privateKeyHex = await getPosPrivateKeyHex()
 	const posAdmin = await getPosSigningWalletAddress()
 	if (!privateKeyHex || !posAdmin) {

@@ -9,14 +9,15 @@ alwaysApply: true
 
 ## 唯一签名来源
 
-POS 的签名私钥唯一来源是本地 IndexedDB 中保存的 mnemonic：
+POS 的持久化钱包真相是 IndexedDB 中的 mnemonic；启动、注册或 Restore 时只水合一次到 `posWalletSession`。进入具体业务流程后，Program Card Charge、Stripe Tap to Pay、Top-up、Claim、Consume 等路径必须复用当前 session 私钥，**不得在按钮点击后再次从 IndexedDB 覆盖 session**。
 
-1. 每个需要签名的流程开始前，必须先调用 `unlockPosWalletFromIndexedDbMnemonic()`；
-2. 再调用 `getPosPrivateKeyHex()` 获取已水合的 session 私钥；
+1. 启动/Restore 阶段调用 `unlockPosWalletFromIndexedDbMnemonic()`；
+2. 业务签名阶段调用 `getPosPrivateKeyHex()` 获取当前 session 私钥；
 3. signer EOA 必须从**同一把私钥**派生，不能使用可能过期的 `walletAddress`、React state、native bridge 地址或旧 session address；
 4. 请求中的 `signerEOA` / `posAdmin` 只能填写该私钥派生出的地址。
 
 ```ts
+// Startup / Restore only — never repeat inside a payment button handler.
 await unlockPosWalletFromIndexedDbMnemonic()
 const privateKeyHex = await getPosPrivateKeyHex()
 if (!privateKeyHex) throw new Error('POS wallet is not initialized')
@@ -27,7 +28,8 @@ const signature = await signWith(privateKeyHex, payload)
 ## 严禁
 
 - ❌ 只读取 `getSessionWalletAddress()` 就签名；
-- ❌ 私钥水合前调用 `getPosSigningWalletAddress()`；
+- ❌ 在 Charge / Stripe / Top-up 按钮 handler 内再次调用 mnemonic 水合；
+- ❌ 私钥水合完成前调用 `getPosSigningWalletAddress()`；
 - ❌ 在同一请求中让 `posAdmin` 来自另一套 state，而签名来自 session 私钥；
 - ❌ 将 merchant card / workspace owner / `walletAddress` 自动冒充 signer；
 - ❌ 为绕过链上 `isAdmin` 失败而放宽 API 校验。
@@ -37,4 +39,4 @@ const signature = await signWith(privateKeyHex, payload)
 - API 恢复出的 EIP-712 signer 必须等于 POS 实际签名 EOA；
 - 该 signer 必须在目标 merchant card 上通过链上 `isAdmin(signer)`；
 - 切换 workspace 不得更换全局 POS 私钥；切换钱包或恢复钱包后必须重新水合；
-- 新增签名流程必须复用上述水合路径，并在 POS PWA 独立构建中验证。
+- 新增签名流程必须复用 Program Card Charge 的 session signer 路径，并在 POS PWA 独立构建中验证。
