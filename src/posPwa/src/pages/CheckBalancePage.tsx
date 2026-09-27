@@ -14,7 +14,7 @@ import { ReadBalancePassHeroCard } from '@/components/ReadBalancePassHeroCard'
 import { ReadBalanceStatsCard } from '@/components/ReadBalanceStatsCard'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
-import { usePosSession } from '@/providers/PosSessionProvider'
+import { usePosMembershipKyc } from '@/hooks/usePosMembershipKyc'
 import type { MerchantClaimableCouponItem, MerchantCouponBalanceItem, UIDAssetsResult } from '@/types/pos'
 import {
 	fetchCardCurrencyCode,
@@ -116,6 +116,7 @@ export function CheckBalancePage() {
 	const { merchantInfraCard, pointSystemEnabled, activeCoupons, walletAddress, refreshHome } =
 		usePosSession()
 	const infraCard = merchantInfraCard?.trim() ?? ''
+	const membershipKyc = usePosMembershipKyc()
 
 	const navState = location.state as CheckBalanceLocationState | null
 	const navAssets = navState?.assets
@@ -379,6 +380,12 @@ export function CheckBalancePage() {
 				setPhase('result')
 				return
 			}
+			const linked = await membershipKyc.ensure(infraCard, target.wallet)
+			if (!linked) {
+				setCouponToast({ kind: 'error', text: 'Add membership details before this membership can be issued.' })
+				setPhase('result')
+				return
+			}
 			setMembershipProgress('preparing')
 			setPhase('membership-executing')
 			const outcome = await executeNfcTopup({
@@ -429,7 +436,7 @@ export function CheckBalancePage() {
 			setPhase('membership-success')
 			void refreshHome()
 		},
-		[infraCard, pointSystemEnabled, refreshHome, syncAssets, walletAddress],
+		[infraCard, membershipKyc, pointSystemEnabled, refreshHome, syncAssets, walletAddress],
 	)
 
 	const startMembershipUsdcQrFlow = useCallback(
@@ -739,6 +746,7 @@ export function CheckBalancePage() {
 	}
 
 	return (
+		<>
 		<PosScreenShell bg="bg-[#F9F9FE]">
 			<div className="relative flex min-h-0 flex-1 flex-col">
 				<BeamioCircularBackButton
@@ -810,5 +818,7 @@ export function CheckBalancePage() {
 				</PosScreenMain>
 			</div>
 		</PosScreenShell>
+		{membershipKyc.node}
+		</>
 	)
 }

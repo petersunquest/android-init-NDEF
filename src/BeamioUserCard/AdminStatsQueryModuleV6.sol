@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./KycLinkOps.sol";
+
 interface IAdminStatsSelectorRouter {
     function selectorModuleKind(bytes4 sel) external view returns (uint8);
 }
@@ -37,7 +39,48 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
         if (_isChargeRewardUnified13(sel)) return ROUTE_CHARGE_REWARD;
         // Live V5 may predate Discover Gift redeem — hardcode ROUTE_REDEEM here.
         if (_isGiftRedeem(sel)) return ROUTE_REDEEM;
+        if (_isKycLink(sel)) return ROUTE_STATS_QUERY;
         return IAdminStatsSelectorRouter(v5).selectorModuleKind(sel);
+    }
+
+    function kycIpfsHashOf(address wallet) external view returns (bytes32) {
+        return KycLinkOps.kycIpfsHashOf(wallet);
+    }
+
+    function kycPolicy() external view returns (bool required, uint8 nameMode, uint8 phoneMode, uint8 emailMode) {
+        return KycLinkOps.kycPolicy();
+    }
+
+    function setKycPolicy(bool required, uint8 nameMode, uint8 phoneMode, uint8 emailMode) external {
+        KycLinkOps.setKycPolicy(required, nameMode, phoneMode, emailMode);
+    }
+
+    function linkKycIpfsHashWithSignature(
+        address wallet,
+        bytes32 ipfsHash,
+        uint256 deadline,
+        uint256 nonce,
+        bytes calldata signature
+    ) external {
+        KycLinkOps.linkKycIpfsHashWithSignature(wallet, ipfsHash, deadline, nonce, signature);
+    }
+
+    function linkKycIpfsHashByAdmin(
+        address wallet,
+        bytes32 ipfsHash,
+        uint256 deadline,
+        uint256 nonce,
+        bytes calldata adminSignature
+    ) external {
+        KycLinkOps.linkKycIpfsHashByAdmin(wallet, ipfsHash, deadline, nonce, adminSignature);
+    }
+
+    function _isKycLink(bytes4 sel) private pure returns (bool) {
+        return sel == 0x032a78db
+            || sel == 0x85ca2bb9
+            || sel == 0x60ad4139
+            || sel == 0xd1d93203
+            || sel == bytes4(keccak256("linkKycIpfsHashByAdmin(address,bytes32,uint256,uint256,bytes)"));
     }
 
     function _isGovernance(bytes4 sel) private pure returns (bool) {

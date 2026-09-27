@@ -19,6 +19,7 @@ import { TopupPaymentMethodPage } from '@/components/TopupPaymentMethodPage'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { TopupUsdcQrPanel } from '@/components/TopupUsdcQrPanel'
 import { usePosSession } from '@/providers/PosSessionProvider'
+import { usePosMembershipKyc } from '@/hooks/usePosMembershipKyc'
 import { buildTopupSuccessPassHero } from '@/utils/posSuccessHero'
 import {
 	parseRechargeBonusRulesFromMetadata,
@@ -114,6 +115,7 @@ async function fetchTopupCustomerAssets(
 export function TopUpPage() {
 	const navigate = useNavigate()
 	const { merchantInfraCard, walletAddress, refreshHome, pointSystemEnabled } = usePosSession()
+	const membershipKyc = usePosMembershipKyc()
 
 	const [phase, setPhase] = useState<TopUpPhase>('method')
 	const [draft, setDraft] = useState<TopupDraft | null>(null)
@@ -203,6 +205,12 @@ export function TopUpPage() {
 				goHome('Wallet not initialized')
 				return
 			}
+			const card = merchantInfraCard?.trim() ?? ''
+			const linked = await membershipKyc.ensure(card, target.wallet)
+			if (!linked) {
+				goHome('Add membership details before this membership can be issued.')
+				return
+			}
 			setTopupProgress('preparing')
 			setPhase('executing')
 			const outcome = await executeNfcTopup({
@@ -227,7 +235,7 @@ export function TopUpPage() {
 			}
 			goHome(outcome.message)
 		},
-		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled],
+		[draft, walletAddress, merchantInfraCard, goHome, refreshHome, pointSystemEnabled, membershipKyc],
 	)
 
 	const startUsdcQrFlow = useCallback(
@@ -493,6 +501,7 @@ export function TopUpPage() {
 
 	if (phase === 'amount') {
 		return (
+			<>
 			<TopupAmountPadPage
 				membershipRequired={false}
 				cardCurrencyPrefix={cardCurrencyPrefix}
@@ -503,11 +512,14 @@ export function TopUpPage() {
 				onCancel={() => goHome()}
 				onContinue={(input) => void onAmountContinue(input)}
 			/>
+			{membershipKyc.node}
+			</>
 		)
 	}
 
 	if (phase === 'method') {
 		return (
+			<>
 			<TopupPaymentMethodPage
 				policy={POS_TERMINAL_TOPUP_POLICY_ALL}
 				onCancel={() => goHome()}
@@ -516,6 +528,8 @@ export function TopUpPage() {
 					setPhase('amount')
 				}}
 			/>
+			{membershipKyc.node}
+			</>
 		)
 	}
 
@@ -543,12 +557,15 @@ export function TopUpPage() {
 
 	if (phase === 'usdc-qr' && usdcDeepLink) {
 		return (
+			<>
 			<TopupUsdcQrPanel
 				deepLink={usdcDeepLink}
 				hint={usdcHint}
 				progressLabel={usdcProgress}
 				onCancel={() => goHome()}
 			/>
+			{membershipKyc.node}
+			</>
 		)
 	}
 
@@ -585,6 +602,7 @@ export function TopUpPage() {
 
 	if (phase === 'scan-customer' || phase === 'scan-nfc-after-usdc') {
 		return (
+			<>
 			<PosFlowLoadingShell
 				title="Top-up"
 				subtitle={
@@ -594,10 +612,15 @@ export function TopUpPage() {
 				}
 				bg="bg-[#f2f2f7]"
 			/>
+			{membershipKyc.node}
+			</>
 		)
 	}
 
 	return (
+		<>
 		<PosFlowLoadingShell title="Top-up" subtitle="Loading…" bg="bg-[#f2f2f7]" />
+		{membershipKyc.node}
+		</>
 	)
 }
