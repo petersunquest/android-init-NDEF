@@ -289,7 +289,8 @@ export async function executeNfcTopup(params: {
 		params.membershipFeeFiat6 != null &&
 		(() => {
 			try {
-				return BigInt(String(params.membershipFeeFiat6).replace(/,/g, '').trim() || '0') > 0n
+				const fee = BigInt(String(params.membershipFeeFiat6).replace(/,/g, '').trim() || '0')
+				return fee >= 0n && String(params.membershipFeeFiat6).trim() !== ''
 			} catch {
 				return false
 			}

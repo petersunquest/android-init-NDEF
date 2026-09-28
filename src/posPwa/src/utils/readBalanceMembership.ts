@@ -42,7 +42,10 @@ export function readBalanceMembershipFeeTiers(
 	const out: ReadBalanceMembershipTierChoice[] = []
 	rows.forEach((row, i) => {
 		const feeFiat6 = metadataTierMembershipFeeE6(row)
-		if (BigInt(feeFiat6) <= 0n) return
+		const fee = BigInt(feeFiat6)
+		const durationKind = Number(row.membershipDurationKind ?? 0)
+		const freeClaim = fee === 0n && Number.isInteger(durationKind) && durationKind >= 1 && durationKind <= 6
+		if (fee < 0n || (fee === 0n && !freeClaim)) return
 		const tierIndex = metadataTierOnChainIndex(row, i)
 		const defaultName = tierIndex === 0 ? 'Membership' : `Tier ${tierIndex}`
 		out.push({
@@ -98,7 +101,7 @@ function resolveHeldPaidMembership(
 	const feeByIndex = new Map<number, bigint>()
 	for (const t of feeTiers) {
 		const fee = membershipFeeChoiceE6(t)
-		if (fee > 0n) feeByIndex.set(t.tierIndex, fee)
+		feeByIndex.set(t.tierIndex, fee)
 	}
 	const primary = readBalancePrimaryCard(assets, merchantInfraCard)
 	const nfts = [...(primary?.nfts ?? []), ...(assets.nfts ?? [])]
@@ -139,8 +142,7 @@ export function readBalanceMembershipUpgradeTiers(
 	if (feeTiers.length === 0) return []
 	if (!readBalanceCustomerHasValidMembership(assets, merchantInfraCard)) return []
 	const held = resolveHeldPaidMembership(feeTiers, assets, merchantInfraCard)
-	const floorFee =
-		held.feeE6 != null && held.feeE6 > 0n ? held.feeE6 : lowestMembershipFeeE6(feeTiers)
+	const floorFee = held.feeE6 != null ? held.feeE6 : lowestMembershipFeeE6(feeTiers)
 	if (floorFee == null) return []
 	return feeTiers.filter((t) => {
 		if (held.tierIndex != null && t.tierIndex === held.tierIndex) return false
