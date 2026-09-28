@@ -60,7 +60,7 @@ fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。
 也不改变 Shadow 的接受路径。`conet-consensus` 从 head 状态读取分叉选择上的已最终化检查点。已经最终化的状态里保存的检查点大约落后两个 epoch，不作为比较对象。它只把 geth `finalized` 与这份 head 检查点的执行负载比较；Prysm `blocks/finalized` 别名即使与 geth 相同，检查点负载不同时仍报告 `beacon-agreed no`。它再用 FastAggregateVerify 核对检查点区块里的
 同步委员会聚合与父槽委员会。聚合与父槽委员会一致时报告 `aggregate-verify yes`、
 `committee-state parent-slot` 与 `signature-check yes`。`sync-quorum yes` 表示参与位至少达到三分之二。
-报告仍固定 `trusted-committee no` 与 `custody-gate no`。父槽状态的哈希等于被签区块头的 `state_root`，且其中的同步委员会能验过聚合时，报告 `state-root-binding yes`；这份状态仍来自同一台 beacon。上一周期轮换前最后一个区块的聚合，若能认证其状态中的 `next_sync_committee` 等于当前委员会，报告 `committee-handoff yes`。上一组委员仍由同一台 beacon 提供。
+报告仍固定 `trusted-committee no` 与 `custody-gate no`。父槽状态的哈希等于被签区块头的 `state_root`，且其中的同步委员会能验过聚合时，报告 `state-root-binding yes`；这份状态仍来自同一台 beacon。上一周期轮换前最后一个区块的聚合，若能认证其状态中的 `next_sync_committee` 等于当前委员会，报告 `committee-handoff yes`。`handoff-periods` 是这样接上的周期数。两跳仍由同一台 beacon 提供。
 它不把该标签写入 Shadow。
 `destination-consumer` 只记录 `aacConsumeMint`、`aacConsumeRelease`、`aacConsumeMintPaid`、`aacConsumeMintDeveloper` 的 Solidity `PUSH4` 选择器。`selector-observation present` 仍报告 `semantic-proof no`、`consume-once no`、`consumer observation-only` 与 `custody-gate no`；裸 4 字节碰撞不算入口。它不部署、不调用消费函数。
 `gb-mint-authority` 只读 GBToken `0xC3EF02DaE632b4C10abB66e07d92a387c10838D8` 的运行时代码：
