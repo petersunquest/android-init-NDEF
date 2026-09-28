@@ -54,13 +54,23 @@ consume denied
 ```
 
 它只证明生产观察器达到了持续运行门槛，不证明 Base 的 Ethereum L1 output /
-fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。它不会 reserve、
+fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。
+`base-l1-output` 只读核对 OptimismPortal 锚点游戏的 `isGameClaimValid`，
+并在执行层 `finalized` 仍超前于该锚点时报告 `covered no`；它不回放故障证明，
+也不改变 Shadow 的接受路径。`conet-consensus` 只比较 beacon 已最终化执行负载
+与执行层 `finalized` 标签是否同一区块，并固定报告 `signature-check no`；
+它不核验 Casper FFG 或同步委员会的 BLS 签名，也不把该标签写入 Shadow。
+`destination-consumer` 只记录 `aacConsumeMint`、`aacConsumeRelease`、`aacConsumeMintPaid`、`aacConsumeMintDeveloper` 的 Solidity `PUSH4` 选择器。`selector-observation present` 仍报告 `semantic-proof no`、`consume-once no`、`consumer observation-only` 与 `custody-gate no`；裸 4 字节碰撞不算入口。它不部署、不调用消费函数。
+`gb-mint-authority` 只读 GBToken `0xC3EF02DaE632b4C10abB66e07d92a387c10838D8` 的运行时代码：
+`mint`、`mintPaid` 与 `voteBridgeMint` 在这枚代币上，不在 TreasuryBridgeV3。
+选择器仍在时报告 `admin-mint open`；选择器消失时报告 `selectors-absent yes`、`upgrade-authority unread` 与 `mint-closed no`。它不调用 mint、不投票，托管仍关闭。
+它不会 reserve、
 mint、release 或广播结算交易。生产资产路径仍由
 `TreasuryBridgeV3.voteBridgeOperation` 与 paid-GB `voteBridgeMint` 承担，
 不得因 Shadow 获批而停用矿工投票。
 
 托管切换仍需：可验证的 Base L1 最终性、CONET 共识最终性、经审计且一次性消费
-AAC 的目标链合约、关闭 paid-GB 裸 admin mint、真实目标链 consumer、端到端对抗
+AAC 的目标链合约（选择器存在不等于通过）、关闭 paid-GB 裸 admin mint 及其升级权限、真实目标链 consumer、端到端对抗
 测试及独立安全审计。上述条件完成后必须另行评估，不能从本次只读批准自动推导。
 
 ## 1. 背景与问题
