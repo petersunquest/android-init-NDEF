@@ -57,21 +57,26 @@ library MembershipFeeStorage {
         return kind >= DURATION_DAY && kind <= DURATION_FOREVER;
     }
 
-    /// @dev Fee mode is diamond `feeE6` only. Never infer from misaligned `tiers.length`.
+    /// @dev A slot is a membership when it has a price or a free-claim duration (1–6).
+    function slotIsMembership(uint256 feeE6, uint8 durationKind_) internal pure returns (bool) {
+        return feeE6 > 0 || isValidDurationKind(durationKind_);
+    }
+
+    /// @dev Fee mode includes a free claim (fee 0 + duration 1–6). Never infer from `tiers.length`.
     function isFeeMode() internal view returns (bool) {
         Layout storage l = layout();
         for (uint256 i = 0; i < MAX_FEE_TIERS; i++) {
-            if (l.feeE6[i] > 0) return true;
+            if (slotIsMembership(l.feeE6[i], l.durationKind[i])) return true;
         }
         return false;
     }
 
-    /// @dev Highest index with feeE6 > 0, or `type(uint256).max` if none.
+    /// @dev Highest membership slot, or `type(uint256).max` if none.
     function highestFeeTierIndex() internal view returns (uint256 highest) {
         Layout storage l = layout();
         highest = type(uint256).max;
         for (uint256 i = 0; i < MAX_FEE_TIERS; i++) {
-            if (l.feeE6[i] > 0) highest = i;
+            if (slotIsMembership(l.feeE6[i], l.durationKind[i])) highest = i;
         }
     }
 

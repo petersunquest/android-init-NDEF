@@ -6,17 +6,19 @@ import type { TypedContractEvent, TypedDeferredTopicFilter, TypedEventLog, Typed
   
 
   export interface MembershipFeeOpsLibInterface extends Interface {
-    getFunction(nameOrSignature: "membershipFeeMode" | "membershipFees" | "requireGatewayOrPaymaster" | "requireOwnerOrGateway" | "resolveAcct"): FunctionFragment;
+    getFunction(nameOrSignature: "isChargeRewardExtendedSelector" | "membershipFeeMode" | "membershipFees" | "requireGatewayOrPaymaster" | "requireOwnerOrGateway" | "resolveAcct"): FunctionFragment;
 
     getEvent(nameOrSignatureOrTopic: "MembershipFeePurchaseCleared" | "MembershipFeePurchaseStaged" | "MembershipFeesUpdated"): EventFragment;
 
-    encodeFunctionData(functionFragment: 'membershipFeeMode', values?: undefined): string;
+    encodeFunctionData(functionFragment: 'isChargeRewardExtendedSelector', values: [BytesLike]): string;
+encodeFunctionData(functionFragment: 'membershipFeeMode', values?: undefined): string;
 encodeFunctionData(functionFragment: 'membershipFees', values?: undefined): string;
 encodeFunctionData(functionFragment: 'requireGatewayOrPaymaster', values?: undefined): string;
 encodeFunctionData(functionFragment: 'requireOwnerOrGateway', values?: undefined): string;
 encodeFunctionData(functionFragment: 'resolveAcct', values: [AddressLike]): string;
 
-    decodeFunctionResult(functionFragment: 'membershipFeeMode', data: BytesLike): Result;
+    decodeFunctionResult(functionFragment: 'isChargeRewardExtendedSelector', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'membershipFeeMode', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'membershipFees', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requireGatewayOrPaymaster', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requireOwnerOrGateway', data: BytesLike): Result;
@@ -94,6 +96,14 @@ decodeFunctionResult(functionFragment: 'resolveAcct', data: BytesLike): Result;
 
     
     
+    isChargeRewardExtendedSelector: TypedContractMethod<
+      [sel: BytesLike, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
     membershipFeeMode: TypedContractMethod<
       [],
       [boolean],
@@ -136,7 +146,12 @@ decodeFunctionResult(functionFragment: 'resolveAcct', data: BytesLike): Result;
 
     getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
 
-    getFunction(nameOrSignature: 'membershipFeeMode'): TypedContractMethod<
+    getFunction(nameOrSignature: 'isChargeRewardExtendedSelector'): TypedContractMethod<
+      [sel: BytesLike, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'membershipFeeMode'): TypedContractMethod<
       [],
       [boolean],
       'view'

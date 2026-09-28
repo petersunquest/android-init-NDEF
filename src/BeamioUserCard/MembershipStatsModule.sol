@@ -29,7 +29,10 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
         uint256 tierIndex = p.tierIndex;
         if (tierIndex >= MembershipFeeStorage.MAX_FEE_TIERS) revert UC_MustGrow();
         uint256 expectedFee = l.feeE6[tierIndex];
-        if (expectedFee == 0 || p.feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
+        if (p.feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
+        if (expectedFee == 0 && !MembershipFeeStorage.isValidDurationKind(l.durationKind[tierIndex])) {
+            revert UC_MembershipFeeInvalidDuration();
+        }
         if (p.pointsCredit6 != pointsDelta6) revert UC_MembershipFeeMismatch();
 
         uint256 attr = defaultAttrWhenNoTiers;
@@ -48,7 +51,8 @@ contract BeamioUserCardMembershipStatsModuleV1 is BeamioUserCardBase {
 
     function mintMemberCardInternal(address user, uint256 tierIndex) external {
         if (user == address(0)) revert BM_ZeroAddress();
-        bool feeOk = MembershipFeeStorage.layout().feeE6[tierIndex] > 0;
+        MembershipFeeStorage.Layout storage fees = MembershipFeeStorage.layout();
+        bool feeOk = MembershipFeeStorage.slotIsMembership(fees.feeE6[tierIndex], fees.durationKind[tierIndex]);
         if (!feeOk && (tiers.length == 0 || tierIndex >= tiers.length)) revert UC_MustGrow();
         address acct = _toAccount(user);
         _syncActiveToBestValidInternal(acct);

@@ -89,11 +89,17 @@ library MembershipFeeOpsLib {
             revert UC_MembershipFeeLenMismatch();
         }
         MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
+        uint256 priorFee;
+        bool hasPrior;
         for (uint256 i = 0; i < n; i++) {
-            if (feeE6[i] > 0) {
+            bool active = MembershipFeeStorage.slotIsMembership(feeE6[i], durationKind[i]);
+            if (active) {
                 if (!MembershipFeeStorage.isValidDurationKind(durationKind[i])) revert UC_MembershipFeeInvalidDuration();
+                if (hasPrior && feeE6[i] <= priorFee) revert UC_TiersNotIncreasing();
                 l.feeE6[i] = feeE6[i];
                 l.durationKind[i] = durationKind[i];
+                priorFee = feeE6[i];
+                hasPrior = true;
             } else {
                 l.feeE6[i] = 0;
                 l.durationKind[i] = MembershipFeeStorage.DURATION_NONE;
@@ -117,7 +123,7 @@ library MembershipFeeOpsLib {
         uint256 prior;
         for (uint256 i = 0; i < n; i++) {
             uint256 fee = feeE6[i];
-            if (fee == 0 || !MembershipFeeStorage.isValidDurationKind(durationKind[i])) {
+            if (!MembershipFeeStorage.isValidDurationKind(durationKind[i])) {
                 revert UC_MembershipFeeInvalidDuration();
             }
             if (i > 0 && fee <= prior) revert UC_TiersNotIncreasing();
@@ -178,12 +184,15 @@ library MembershipFeeOpsLib {
         MembershipFeeStorage.Layout storage l = MembershipFeeStorage.layout();
         uint256 expectedFee = l.feeE6[tierIndex];
         if (expectedFee == 0) {
-            if (!allowBootstrap) revert UC_MembershipFeeMismatch();
-            if (feePaid6 == 0) revert UC_MembershipFeeMismatch();
-            if (!MembershipFeeStorage.isValidDurationKind(bootstrapDurationKind)) revert UC_MembershipFeeInvalidDuration();
-            l.feeE6[tierIndex] = feePaid6;
-            l.durationKind[tierIndex] = bootstrapDurationKind;
-            expectedFee = feePaid6;
+            bool freeClaim =
+                feePaid6 == 0 && MembershipFeeStorage.isValidDurationKind(l.durationKind[tierIndex]);
+            if (!freeClaim) {
+                if (!allowBootstrap || feePaid6 == 0) revert UC_MembershipFeeMismatch();
+                if (!MembershipFeeStorage.isValidDurationKind(bootstrapDurationKind)) revert UC_MembershipFeeInvalidDuration();
+                l.feeE6[tierIndex] = feePaid6;
+                l.durationKind[tierIndex] = bootstrapDurationKind;
+                expectedFee = feePaid6;
+            }
         } else {
             if (feePaid6 != expectedFee) revert UC_MembershipFeeMismatch();
             if (!MembershipFeeStorage.isValidDurationKind(l.durationKind[tierIndex])) revert UC_MembershipFeeInvalidDuration();
@@ -205,5 +214,35 @@ library MembershipFeeOpsLib {
         address acct = _resolveAcct(user);
         delete MembershipFeeStorage.layout().pendingByAcct[acct];
         emit MembershipFeePurchaseCleared(acct);
+    }
+
+    /// @dev Kept external so AdminStats V5 does not inline the ChargeReward selector list (EIP-170).
+    function isChargeRewardExtendedSelector(bytes4 sel) external pure returns (bool) {
+        return sel == bytes4(keccak256("topupPromotionBonusRatioE6()"))
+            || sel == bytes4(keccak256("setTopupPromotionBonusRatio(uint256)"))
+            || sel == bytes4(keccak256("setTopupPromotionBonusRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("topupReward(uint256,uint256)"))
+            || sel == bytes4(keccak256("topupReward(uint256,uint256,uint256)"))
+            || sel == bytes4(keccak256("chargeReward(uint256,uint256)"))
+            || sel == bytes4(keccak256("setBunitAirdropCaller(address)"))
+            || sel == bytes4(keccak256("bunitAirdropCaller()"))
+            || sel == bytes4(keccak256("recordBUnitInstallAttribution(address,address,uint8,uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToPointsRatioE6()"))
+            || sel == bytes4(keccak256("convertReward13ToUsdcRatioE6()"))
+            || sel == bytes4(keccak256("merchantOracleSpreadBps()"))
+            || sel == bytes4(keccak256("quoteUsdcDepositForFiat6(uint256)"))
+            || sel == bytes4(keccak256("quoteUsdcWithdrawForFiat6(uint256)"))
+            || sel == bytes4(keccak256("applyDepositSpreadUsdc6(uint256)"))
+            || sel == bytes4(keccak256("applyWithdrawSpreadUsdc6(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToPointsRatio(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToPointsRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToUsdcRatio(uint256)"))
+            || sel == bytes4(keccak256("setConvertReward13ToUsdcRatioByAdmin(uint256)"))
+            || sel == bytes4(keccak256("setMerchantOracleSpreadBps(uint256)"))
+            || sel == bytes4(keccak256("setMerchantOracleSpreadBpsByAdmin(uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToProgramPoints(address,uint256)"))
+            || sel == bytes4(keccak256("convertReward13ToUsdcToAa(address,uint256)"))
+            || sel == bytes4(keccak256("peerRedeem13ForContainerTopup(address,uint256,uint256,address)"))
+            || sel == bytes4(keccak256("topupWithReward13Container(address,uint256,uint256,uint256,uint256,uint256,bytes32)"));
     }
 }

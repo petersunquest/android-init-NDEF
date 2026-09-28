@@ -15,7 +15,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { spawnSync } from 'child_process'
-import { FormData, File } from 'undici'
+import { File } from 'node:buffer'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const root = path.join(__dirname, '..')
@@ -255,7 +255,7 @@ async function verifyOne(t: Target): Promise<void> {
 		console.log('local bytecode matches chain ✅')
 	}
 
-	const form = new FormData()
+	const form = new globalThis.FormData()
 	form.set('compiler_version', COMPILER)
 	form.set('contract_name', t.contractName)
 	if (t.key === 'AdminStatsQueryModuleV6') {

@@ -1,34 +1,28 @@
 {
   "network": "conet",
   "chainId": 224422,
-  "timestamp": "2026-08-23T23:16:15.258Z",
+  "timestamp": "2026-09-28T06:18:14.576Z",
   "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
-  "membershipFeeOpsLib": "0xF3Ce015B43012E03706b5d1f57970ebCbB01D5a2",
-  "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
-  "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
-  "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
+  "membershipFeeOpsLib": "0x83Ce2764646238251196b60Bbf760cba15430A4A",
+  "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
+  "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
+  "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
   "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
-  "replacedAdminStatsQueryModule": "0xa8F82672e2D37FC013A117d708E875bf39877FdA",
+  "replacedAdminStatsQueryModule": "0x003620F06B8a306b70eb6d90fd5097AeDE9947FA",
   "stageSelector": "0xca5cc792",
   "bootstrapStageSelector": "0xf6614a5f",
   "setFeesSelector": "0xf5f88bcc",
   "constructorArgs": {
-    "v5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "v5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
     "referrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
   "libraryLinks": {
-    "project/src/BeamioUserCard/MembershipFeeOpsLib.sol:MembershipFeeOpsLib": "0xF3Ce015B43012E03706b5d1f57970ebCbB01D5a2"
+    "project/src/BeamioUserCard/MembershipFeeOpsLib.sol:MembershipFeeOpsLib": "0x83Ce2764646238251196b60Bbf760cba15430A4A"
   },
   "note": "Membership fee diamond + stage via AdminStats V5; Factory binds V6 router(newV5, existing referrerViews); issue via MembershipStats",
   "bound": {
-    "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
-    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
-    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e"
-  },
-  "combinedRewardSettersUpgrade": {
-    "timestamp": "2026-08-30T12:03:00.030Z",
-    "adminStatsQueryModule": "0xDb84B8c45119ab09F4fda33461B8052C0D55a3bf",
-    "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
-    "note": "V6 routes convertReward13* / peerRedeem13ForContainerTopup / topupWithReward13Container → ChargeReward; V5 + referrerViews unchanged; Blockscout verified 2026-08-30"
+    "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
+    "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
+    "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8"
   }
 }

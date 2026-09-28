@@ -8,11 +8,11 @@
     "issuedNftModule": "0x54AF35E4e34c3d3bF237e9773Bc0A954BC983e58",
     "faucetModule": "0x295Dc19B588b2886b1b950419712c054d02Ecd68",
     "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
-    "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
+    "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
     "membershipStatsQueryModule": "0x0501f432637C2c5Ca10E8789a8644C31A0179953",
     "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
-    "adminStatsQueryModule": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10",
-    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
+    "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
   },
   "chargeReferrerRewardGatewayUpgrade": {
@@ -39,7 +39,7 @@
     "governanceModule": "0xe2375A9976a06B749ED2a2107C79a42CD0161DA1",
     "membershipStatsModule": "0x53DDb53B2F0B015EB497E9687010d2A93191b711",
     "chargeRewardModule": "0x65a59e8075837E30CbB84ab06C4aa5D8B547fee4",
-    "adminStatsQueryModule": "0x76A9Ae80f7983D7eac11105aD7A0E77f7Bd82D10"
+    "adminStatsQueryModule": "0x003620F06B8a306b70eb6d90fd5097AeDE9947FA"
   },
   "referrerRewardRatiosUpgrade": {
     "referrerLib": "0xCe84D26C8C9c81cF401532c776e2a986042F36E6",
@@ -57,11 +57,11 @@
     "note": "mintPointsForProtocolUsdcSettlement gateway mint"
   },
   "membershipFeeUpgrade": {
-    "timestamp": "2026-08-23T23:16:32.903Z",
-    "membershipFeeOpsLib": "0xF3Ce015B43012E03706b5d1f57970ebCbB01D5a2",
-    "membershipStatsModule": "0x5E0787C8562038F8BA0623274b5bFE68AF5a70E5",
-    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
-    "adminStatsQueryModule": "0xF0d2E8BB78101B7a1dF44B3e8307E8124404419e",
+    "timestamp": "2026-09-28T06:18:32.065Z",
+    "membershipFeeOpsLib": "0x83Ce2764646238251196b60Bbf760cba15430A4A",
+    "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
+    "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
+    "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
     "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
     "note": "Membership fee mode: V6 router + fee-aware MembershipStats (issue #100+)"
   },
@@ -165,7 +165,7 @@
     "note": "Governance onlyGateway accepts Factory gateway or card-internal self-call; AdminStats untouched."
   },
   "redeemModule": "0xb224B24c9167355ac53B110b7B1b0382cecEB03F",
-  "adminStatsQueryModule": "0xAa8D88b078572555044C12f42E288980B42CfB4E",
+  "adminStatsQueryModule": "0x003620F06B8a306b70eb6d90fd5097AeDE9947FA",
   "adminStatsQueryModuleV6": "0xAa8D88b078572555044C12f42E288980B42CfB4E",
   "updatedAt": "2026-09-12T10:13:32.145Z",
   "merchantGiftRedeem": {
@@ -188,5 +188,13 @@
       "adminStatsV6": "0x7eebfe29de510d5688b2f144fef9113da9f9551bf77df66579d391ef134aa4a6"
     },
     "dryRun": false
+  },
+  "replacedAdminStatsQueryModule": "0xAa8D88b078572555044C12f42E288980B42CfB4E",
+  "kycLinkUpgrade": {
+    "timestamp": "2026-09-27T09:14:41.504Z",
+    "adminStatsQueryModule": "0x003620F06B8a306b70eb6d90fd5097AeDE9947FA",
+    "adminStatsQueryModuleV5": "0xA439F4E513A241D62687abdBaF37e5Ba61D9889e",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "setAdminStatsQueryModuleTx": "0xfa79a89d6910fdb1e1d753075011bb4e0c65239591b330d0bdd01f00fc38405f"
   }
 }
