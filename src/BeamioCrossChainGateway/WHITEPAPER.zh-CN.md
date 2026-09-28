@@ -57,9 +57,11 @@ consume denied
 fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。
 `base-l1-output` 只读核对 OptimismPortal 锚点游戏的 `isGameClaimValid`，
 并在执行层 `finalized` 仍超前于该锚点时报告 `covered no`；它不回放故障证明，
-也不改变 Shadow 的接受路径。`conet-consensus` 只比较 beacon 已最终化执行负载
-与执行层 `finalized` 标签是否同一区块，并固定报告 `signature-check no`；
-它不核验 Casper FFG 或同步委员会的 BLS 签名，也不把该标签写入 Shadow。
+也不改变 Shadow 的接受路径。`conet-consensus` 比较 beacon 已最终化执行负载
+与执行层 `finalized` 标签是否同一区块，并用 FastAggregateVerify 核对该区块的
+同步委员会聚合。聚合与同一 beacon 报告的委员会一致时报告 `aggregate-verify yes`
+与 `signature-check yes`，同时固定报告 `trusted-committee no` 与 `custody-gate no`；
+它不把该标签写入 Shadow。
 `destination-consumer` 只记录 `aacConsumeMint`、`aacConsumeRelease`、`aacConsumeMintPaid`、`aacConsumeMintDeveloper` 的 Solidity `PUSH4` 选择器。`selector-observation present` 仍报告 `semantic-proof no`、`consume-once no`、`consumer observation-only` 与 `custody-gate no`；裸 4 字节碰撞不算入口。它不部署、不调用消费函数。
 `gb-mint-authority` 只读 GBToken `0xC3EF02DaE632b4C10abB66e07d92a387c10838D8` 的运行时代码：
 `mint`、`mintPaid` 与 `voteBridgeMint` 在这枚代币上，不在 TreasuryBridgeV3。
