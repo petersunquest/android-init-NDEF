@@ -57,7 +57,7 @@ consume denied
 fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。
 `base-l1-output` 只读核对 OptimismPortal 锚点游戏的 `isGameClaimValid`，
 并在执行层 `finalized` 仍超前于该锚点时报告 `covered no`；它不回放故障证明，
-也不改变 Shadow 的接受路径。`conet-consensus` 只把 geth `finalized` 与 FFG 检查点的执行负载比较；Prysm `blocks/finalized` 别名即使与 geth 相同，检查点负载不同时仍报告 `beacon-agreed no`。它再用 FastAggregateVerify 核对检查点区块里的
+也不改变 Shadow 的接受路径。`conet-consensus` 从 head 状态读取分叉选择上的已最终化检查点。已经最终化的状态里保存的检查点大约落后两个 epoch，不作为比较对象。它只把 geth `finalized` 与这份 head 检查点的执行负载比较；Prysm `blocks/finalized` 别名即使与 geth 相同，检查点负载不同时仍报告 `beacon-agreed no`。它再用 FastAggregateVerify 核对检查点区块里的
 同步委员会聚合与父槽委员会。聚合与父槽委员会一致时报告 `aggregate-verify yes`、
 `committee-state parent-slot` 与 `signature-check yes`。`sync-quorum yes` 表示参与位至少达到三分之二。
 报告仍固定 `trusted-committee no`、`state-root-binding unread` 与 `custody-gate no`；
