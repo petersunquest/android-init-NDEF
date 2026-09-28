@@ -1,8 +1,8 @@
 # Beamio AAC 跨链资产确权与 M2M 流动性网关白皮书
 
-**版本：** 0.1.0-draft  
-**日期：** 2026-09-14  
-**状态：** 设计草案，未代表主网部署或安全审计完成
+**版本：** 0.2.0  
+**日期：** 2026-09-28  
+**状态：** AAC 协议仍为设计；生产只读 Shadow 已获批运行；托管、mint/release 与矿工投票切换均未获批
 
 ## 摘要
 
@@ -22,6 +22,46 @@ Beamio Cross-Chain Gateway（BCG）提出一种以 **Atomic Asset Container（AA
 BCG 面向机器到机器（M2M）付款、跨链清算、AA 资金池和 x402 类资源请求。协议
 可接入 LayerZero 等消息传输网络，但消息传输不等于状态确权；最终安全边界
 仍由来源链最终性验证、状态证明验证器和目标链确定性状态机共同构成。
+
+## 0. 生产只读 Shadow 状态
+
+`bridge-aac-v0.16.0` 已在 `38.102.126.30` 以
+`bridge-aac-shadow-prod.service` 运行生产只读观察。它用于验证双链扫描、
+双 reader 一致性、receipt 包含性、持久游标、恢复和告警，不控制任何资产。
+
+- Base reader：`.30:8547` 与独立的 `.58:8547`；
+- CONET reader：`.30:8889` 本地 archive 与 `publicrpc.conet.network`
+  archive cluster；
+- 每个扫描高度都要求两方的 block hash、state root 与 receipts root 一致；
+- 扫描边界取两方较低的 finalized 高度，快速 reader 不能单独推进判断；
+- 部署 floor 防止新服务从区块 0 回扫或已有游标倒退；
+- 两条链均完成以较低链头为基准的 256-block 稳定观察，最终样本
+  `cursor-lag=0`、`stable=yes`；
+- reader 分叉告警独立保留。最终样本中 Base `reader-lag=177`，服务仍保持
+  `page open` / `alert reader-lag`，没有将差异静默为共识。
+
+该批准的准确含义是 **production-approved read-only Shadow**。运行报告必须继续
+显示：
+
+```text
+shadow yes
+broadcast no
+settled no
+custody closed
+light-client no
+registry paused
+consume denied
+```
+
+它只证明生产观察器达到了持续运行门槛，不证明 Base 的 Ethereum L1 output /
+fault-proof 最终性，不验证 CONET 共识签名，也不是 light client。它不会 reserve、
+mint、release 或广播结算交易。生产资产路径仍由
+`TreasuryBridgeV3.voteBridgeOperation` 与 paid-GB `voteBridgeMint` 承担，
+不得因 Shadow 获批而停用矿工投票。
+
+托管切换仍需：可验证的 Base L1 最终性、CONET 共识最终性、经审计且一次性消费
+AAC 的目标链合约、关闭 paid-GB 裸 admin mint、真实目标链 consumer、端到端对抗
+测试及独立安全审计。上述条件完成后必须另行评估，不能从本次只读批准自动推导。
 
 ## 1. 背景与问题
 
