@@ -457,17 +457,17 @@ export function metadataTiersHaveMembershipFee(tiers: MetadataTierRow[]): boolea
 export function membershipDurationLabel(kind: number | undefined): string {
 	switch (kind) {
 		case 1:
-			return 'Day'
+			return 'Daily'
 		case 2:
-			return 'Week'
+			return 'Weekly'
 		case 3:
-			return 'Month'
+			return 'Monthly'
 		case 4:
-			return 'Quarter'
+			return 'Quarterly'
 		case 5:
-			return 'Year'
+			return 'Annually'
 		case 6:
-			return 'Forever'
+			return 'Lifetime'
 		default:
 			return ''
 	}
