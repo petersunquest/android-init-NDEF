@@ -15,6 +15,7 @@ import { ReadBalanceStatsCard } from '@/components/ReadBalanceStatsCard'
 import { TopupSuccessView } from '@/components/TopupSuccessView'
 import { PosScreenMain, PosScreenShell } from '@/components/PosScreenShell'
 import { usePosMembershipKyc } from '@/hooks/usePosMembershipKyc'
+import { usePosSession } from '@/providers/PosSessionProvider'
 import type { MerchantClaimableCouponItem, MerchantCouponBalanceItem, UIDAssetsResult } from '@/types/pos'
 import {
 	fetchCardCurrencyCode,
