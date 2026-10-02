@@ -103,6 +103,8 @@ enum CashTreesPushRegistration {
 			"deviceToken": hex,
 			"platform": "ios",
 			"bundleId": Bundle.main.bundleIdentifier ?? "com.beamio.beamio",
+			"fullScreenIntent": true,
+			"callKit": true,
 		]
 		if let eoa = boundEoa { payload["eoa"] = eoa }
 		if let pgp = boundPgpKeyId { payload["pgpKeyId"] = pgp }

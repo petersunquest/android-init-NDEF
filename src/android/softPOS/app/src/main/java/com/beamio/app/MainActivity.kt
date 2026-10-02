@@ -586,8 +586,8 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
-        fun cancelStripePhysicalPayment(@Suppress("UNUSED_PARAMETER") json: String) {
-            runOnUiThread { stripeTerminalBridge.cancel() }
+        fun cancelStripePhysicalPayment(json: String) {
+            runOnUiThread { stripeTerminalBridge.cancel(json) }
         }
 
         /** Raw QR payload for global search / deep links — mirrors iOS `CashTreesIOS.scanQr`. */

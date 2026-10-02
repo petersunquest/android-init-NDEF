@@ -691,7 +691,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "startStripePhysicalPayment":
             stripeTerminalBridge?.start(body)
         case "cancelStripePhysicalPayment":
-            stripeTerminalBridge?.cancel()
+            stripeTerminalBridge?.cancel(requestId: body["requestId"] as? String)
         case "saveRecoveryQrToPhotos":
             let dataUrl = body["dataUrl"] as? String
             let filename = body["filename"] as? String

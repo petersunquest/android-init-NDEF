@@ -32,7 +32,11 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     private var authorizationDeadline = 0
     private var authorizationNonce = ""
     private var readerMode = "auto"
-    private var pendingStartBody: [String: Any]?
+    private var operationGeneration = 0
+    private var discoverCancelable: Cancelable?
+    private var paymentCancelable: Cancelable?
+    private var readerConnectStarted = false
+    private var timeoutWork: DispatchWorkItem?
 
     init(webView: WKWebView?) {
         self.webView = webView
@@ -44,6 +48,32 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     }
 
     func start(_ body: [String: Any]) {
+        if Thread.isMainThread {
+            startOnMain(body)
+        } else {
+            DispatchQueue.main.async { [weak self] in self?.startOnMain(body) }
+        }
+    }
+
+    private func startOnMain(_ body: [String: Any]) {
+        /* A previous discover/collect that never called back must be cancelled
+         * before the next PaymentIntent, or Stripe keeps the first command and
+         * the new attempt fetches one token then goes silent. */
+        let previousRequestId = requestId
+        cancelStripeWork()
+        if !previousRequestId.isEmpty {
+            emit([
+                "action": "stripePhysicalPaymentResult",
+                "requestId": previousRequestId,
+                "paymentIntentId": paymentIntentId,
+                "errorCode": "superseded",
+                "error": "Physical card payment was replaced by a new attempt.",
+                "ok": false,
+            ])
+        }
+        operationGeneration += 1
+        let generation = operationGeneration
+        readerConnectStarted = false
         requestId = body["requestId"] as? String ?? ""
         paymentIntentId = body["paymentIntentId"] as? String ?? ""
         cardAddress = body["cardAddress"] as? String ?? ""
@@ -72,35 +102,71 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
             fail(code: "invalid_request", message: "Stripe Terminal payment request is incomplete.")
             return
         }
+        readerMode = body["readerMode"] as? String ?? "auto"
+        armTimeout(generation)
         if Terminal.shared.connectedReader != nil {
-            pendingStartBody = body
             Terminal.shared.disconnectReader { [weak self] error in
                 DispatchQueue.main.async {
-                    guard let self else { return }
+                    guard let self, self.isCurrent(generation) else { return }
                     if let error {
-                        self.pendingStartBody = nil
                         self.fail(code: "reader_disconnect_failed", message: error.localizedDescription)
+                        self.operationGeneration += 1
                         return
                     }
-                    let pending = self.pendingStartBody
-                    self.pendingStartBody = nil
-                    if let pending {
-                        self.start(pending)
-                    }
+                    self.discover(generation)
                 }
             }
             return
         }
-        readerMode = body["readerMode"] as? String ?? "auto"
-        if readerMode == "external_reader" {
-            discoverExternalReader()
+        discover(generation)
+    }
+
+    func cancel(requestId expected: String? = nil) {
+        let run = { [weak self] in
+            guard let self else { return }
+            if let expected, !expected.isEmpty, expected != self.requestId { return }
+            self.cancelStripeWork()
+            self.fail(code: "cancelled", message: "Physical card payment was cancelled.")
+            self.operationGeneration += 1
+        }
+        if Thread.isMainThread {
+            run()
         } else {
-            discoverTapToPay()
+            DispatchQueue.main.async(execute: run)
         }
     }
 
-    func cancel() {
-        fail(code: "cancelled", message: "Physical card payment was cancelled.")
+    private func isCurrent(_ generation: Int) -> Bool {
+        operationGeneration == generation
+    }
+
+    private func armTimeout(_ generation: Int) {
+        timeoutWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.isCurrent(generation) else { return }
+            self.cancelStripeWork()
+            self.fail(code: "timed_out", message: "Physical card payment timed out. Tap to Pay did not finish. Please try again.")
+            self.operationGeneration += 1
+        }
+        timeoutWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 90, execute: work)
+    }
+
+    private func cancelStripeWork() {
+        timeoutWork?.cancel()
+        timeoutWork = nil
+        discoverCancelable?.cancel { _ in }
+        discoverCancelable = nil
+        paymentCancelable?.cancel { _ in }
+        paymentCancelable = nil
+    }
+
+    private func discover(_ generation: Int) {
+        if readerMode == "external_reader" {
+            discoverExternalReader(generation)
+        } else {
+            discoverTapToPay(generation)
+        }
     }
 
     // MARK: SCPConnectionTokenProvider
@@ -142,34 +208,48 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
 
     // MARK: Discovery / connection
 
-    private func discoverTapToPay() {
+    private func discoverTapToPay(_ generation: Int) {
         do {
             let configuration = try TapToPayDiscoveryConfigurationBuilder().build()
-            Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
-                if let error {
-                    self?.fail(code: "reader_unavailable", message: error.localizedDescription)
+            discoverCancelable = Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
+                DispatchQueue.main.async {
+                    guard let self, self.isCurrent(generation), !self.readerConnectStarted else { return }
+                    if let error {
+                        self.fail(code: "reader_unavailable", message: error.localizedDescription)
+                        self.operationGeneration += 1
+                    }
                 }
             }
         } catch {
             fail(code: "reader_unavailable", message: error.localizedDescription)
+            operationGeneration += 1
         }
     }
 
-    private func discoverExternalReader() {
+    private func discoverExternalReader(_ generation: Int) {
         do {
             let configuration = try BluetoothScanDiscoveryConfigurationBuilder().build()
-            Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
-                if let error {
-                    self?.fail(code: "reader_unavailable", message: error.localizedDescription)
+            discoverCancelable = Terminal.shared.discoverReaders(configuration, delegate: self) { [weak self] error in
+                DispatchQueue.main.async {
+                    guard let self, self.isCurrent(generation), !self.readerConnectStarted else { return }
+                    if let error {
+                        self.fail(code: "reader_unavailable", message: error.localizedDescription)
+                        self.operationGeneration += 1
+                    }
                 }
             }
         } catch {
             fail(code: "reader_unavailable", message: error.localizedDescription)
+            operationGeneration += 1
         }
     }
 
     func terminal(_ terminal: Terminal, didUpdateDiscoveredReaders readers: [Reader]) {
-        guard let reader = readers.first else { return }
+        let generation = operationGeneration
+        guard isCurrent(generation), !readerConnectStarted, let reader = readers.first else { return }
+        readerConnectStarted = true
+        discoverCancelable?.cancel { _ in }
+        discoverCancelable = nil
         do {
             let configuration: ConnectionConfiguration
             if readerMode == "external_reader" {
@@ -178,41 +258,63 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
                 configuration = try TapToPayConnectionConfigurationBuilder(delegate: self, locationId: locationId).build()
             }
             Terminal.shared.connectReader(reader, connectionConfig: configuration) { [weak self] _, error in
-                if let error {
-                    self?.fail(code: "reader_unavailable", message: error.localizedDescription)
-                } else {
-                    self?.processPayment()
+                DispatchQueue.main.async {
+                    guard let self, self.isCurrent(generation) else { return }
+                    if let error {
+                        self.fail(code: "reader_unavailable", message: error.localizedDescription)
+                        self.operationGeneration += 1
+                    } else {
+                        self.processPayment(generation)
+                    }
                 }
             }
         } catch {
             fail(code: "reader_unavailable", message: error.localizedDescription)
+            operationGeneration += 1
         }
     }
 
-    private func processPayment() {
+    private func processPayment(_ generation: Int) {
+        guard isCurrent(generation) else { return }
         Terminal.shared.retrievePaymentIntent(clientSecret: clientSecret) { [weak self] intent, error in
-            if let error {
-                self?.fail(code: "payment_intent_unavailable", message: error.localizedDescription)
-                return
-            }
-            guard let intent else {
-                self?.fail(code: "payment_intent_unavailable", message: "Stripe PaymentIntent was unavailable.")
-                return
-            }
-            Terminal.shared.collectPaymentMethod(intent) { [weak self] collected, error in
+            DispatchQueue.main.async {
+                guard let self, self.isCurrent(generation) else { return }
                 if let error {
-                    self?.fail(code: "payment_failed", message: error.localizedDescription)
+                    self.fail(code: "payment_intent_unavailable", message: error.localizedDescription)
+                    self.operationGeneration += 1
                     return
                 }
-                guard let collected else {
-                    self?.fail(code: "payment_failed", message: "Stripe did not collect a payment method.")
+                guard let intent else {
+                    self.fail(code: "payment_intent_unavailable", message: "Stripe PaymentIntent was unavailable.")
+                    self.operationGeneration += 1
                     return
                 }
-                Terminal.shared.confirmPaymentIntent(collected) { result, confirmError in
-                    if let confirmError {
-                        self?.fail(code: "payment_failed", message: confirmError.localizedDescription)
-                    } else {
-                        self?.succeed(status: result.map { String($0.status.rawValue) } ?? "succeeded")
+                self.paymentCancelable = Terminal.shared.collectPaymentMethod(intent) { [weak self] collected, error in
+                    DispatchQueue.main.async {
+                        guard let self, self.isCurrent(generation) else { return }
+                        if let error {
+                            self.fail(code: "payment_failed", message: error.localizedDescription)
+                            self.operationGeneration += 1
+                            return
+                        }
+                        guard let collected else {
+                            self.fail(code: "payment_failed", message: "Stripe did not collect a payment method.")
+                            self.operationGeneration += 1
+                            return
+                        }
+                        Terminal.shared.confirmPaymentIntent(collected) { [weak self] result, confirmError in
+                            DispatchQueue.main.async {
+                                guard let self, self.isCurrent(generation) else { return }
+                                self.timeoutWork?.cancel()
+                                self.timeoutWork = nil
+                                if let confirmError {
+                                    self.fail(code: "payment_failed", message: confirmError.localizedDescription)
+                                } else {
+                                    self.succeed(status: result.map { String($0.status.rawValue) } ?? "succeeded")
+                                }
+                                self.operationGeneration += 1
+                            }
+                        }
                     }
                 }
             }

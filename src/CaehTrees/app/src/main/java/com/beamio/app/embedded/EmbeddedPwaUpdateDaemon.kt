@@ -1,5 +1,6 @@
 package com.beamio.app.embedded
 
+import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import org.json.JSONObject
@@ -23,11 +24,13 @@ class EmbeddedPwaUpdateDaemon(
 
     fun start() {
         stopped = false
+        Log.i(TAG, "OTA daemon started manifest=${EmbeddedPwaConstants.REMOTE_UPDATE_MANIFEST}")
         scheduleNext(0L)
     }
 
     fun stop() {
         stopped = true
+        Log.i(TAG, "OTA daemon stopped")
         mainHandler.removeCallbacksAndMessages(null)
     }
 
@@ -54,18 +57,30 @@ class EmbeddedPwaUpdateDaemon(
     private fun performCheck() {
         if (!checkInFlight.compareAndSet(false, true)) return
         try {
-            val remote = fetchRemoteUpdateInfo() ?: return
+            Log.i(TAG, "OTA check begin active=${bundleStore.activeVersion()} pending=${bundleStore.pendingUpdateVersion() ?: ""}")
+            val remote = fetchRemoteUpdateInfo() ?: run {
+                Log.w(TAG, "OTA manifest unavailable")
+                return
+            }
             val current = bundleStore.activeVersion()
-            if (!EmbeddedPwaBundleStore.isSemverNewer(current, remote.ver)) return
+            Log.i(TAG, "OTA manifest ver=${remote.ver} filename=${remote.filename} active=$current")
+            if (!EmbeddedPwaBundleStore.isSemverNewer(current, remote.ver)) {
+                Log.i(TAG, "OTA no newer version")
+                return
+            }
             val pending = bundleStore.pendingUpdateVersion()
             if (pending == remote.ver) {
+                Log.i(TAG, "OTA staged version still pending=$pending")
                 postUpdateAvailable(current, remote.ver)
                 return
             }
+            Log.i(TAG, "OTA downloading version=${remote.ver}")
             downloadAndStage(remote)
+            Log.i(TAG, "OTA staged version=${remote.ver}")
             postUpdateAvailable(current, remote.ver)
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             // Untrusted fetch — keep last trusted bundle; no UI wipe.
+            Log.e(TAG, "OTA check failed type=${error.javaClass.simpleName} message=${error.message}", error)
         } finally {
             checkInFlight.set(false)
         }
@@ -80,7 +95,9 @@ class EmbeddedPwaUpdateDaemon(
             setRequestProperty("Cache-Control", "no-cache")
         }
         return try {
-            if (conn.responseCode !in 200..299) return null
+            val responseCode = conn.responseCode
+            Log.i(TAG, "OTA manifest response=$responseCode")
+            if (responseCode !in 200..299) return null
             val body = conn.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(body)
             EmbeddedPwaUpdateInfo(
@@ -102,8 +119,10 @@ class EmbeddedPwaUpdateDaemon(
             setRequestProperty("Cache-Control", "no-cache")
         }
         try {
-            if (conn.responseCode !in 200..299) {
-                throw IllegalStateException("Download failed: HTTP ${conn.responseCode}")
+            val responseCode = conn.responseCode
+            Log.i(TAG, "OTA download response=$responseCode url=$downloadUrl")
+            if (responseCode !in 200..299) {
+                throw IllegalStateException("Download failed: HTTP $responseCode")
             }
             val tempZip = File.createTempFile("silentpass_staging_", ".zip")
             try {
@@ -124,6 +143,7 @@ class EmbeddedPwaUpdateDaemon(
     }
 
     companion object {
+        private const val TAG = "BeamioEmbeddedPwa"
         private const val CHECK_INTERVAL_MS = 15L * 60L * 1000L
     }
 }

@@ -1,8 +1,8 @@
 package com.beamio.app
 
+import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import android.util.Log
 
 /**
  * Offline chat badge via FCM.
@@ -26,25 +26,21 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
             val callId = data["callId"]?.trim().orEmpty()
             Log.i(
                 TAG,
-                "FCM voice call received callIdPresent=${callId.isNotBlank()} " +
+                "FCM voice wake received callIdPresent=${callId.isNotBlank()} " +
                     "sessionIdPresent=${data["sessionId"]?.isNullOrBlank() == false}",
             )
-            if (callId.isNotEmpty()) {
-                BeamioTelecomService.reportIncoming(
-                    applicationContext,
-                    callId,
-                    data["peerAddress"]?.trim().orEmpty().ifBlank {
-                        data["callerEoa"]?.trim().orEmpty()
-                    },
-                    data["displayName"]?.trim().orEmpty().ifBlank {
-                        callId.takeIf { it.isNotBlank() }?.let { "@$it" }
-                            ?: data["callerEoa"].orEmpty()
-                    },
-                    data["sessionId"]?.trim().orEmpty(),
-                )
-            } else {
-                Log.w(TAG, "FCM voice call ignored: missing callId")
-            }
+            val sessionId = data["sessionId"]?.trim().orEmpty()
+            // Mailbox is the wake source. Post a native full-screen call surface
+            // immediately, even when the Consumer process/activity was killed.
+            // Only opaque call/session handles cross this boundary; caller
+            // identity must come from the PWA's verified mailbox message.
+            BeamioTelecomService.showIncomingCallWakeNotification(
+                applicationContext,
+                callId,
+                sessionId,
+            )
+            // FCM is only a wake signal. It does not contain caller identity
+            // and must never make the native side pull/decrypt a voice offer.
             return
         }
         if (type != "chatBadge" && type != "syncChatBadge") return

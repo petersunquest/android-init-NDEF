@@ -7,6 +7,15 @@ interface IAdminStatsSelectorRouter {
     function selectorModuleKind(bytes4 sel) external view returns (uint8);
 }
 
+interface ICardFactoryGatewayView {
+    function factoryGateway() external view returns (address);
+}
+
+interface IPaymasterFactoryView {
+    function isPaymaster(address account) external view returns (bool);
+    function defaultMembershipStatsModule() external view returns (address);
+}
+
 /**
  * @title BeamioUserCardAdminStatsQueryModuleV6
  * @notice EIP-170-safe **router**: Referrer Registry reads → `referrerViews`;
@@ -40,6 +49,9 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
         // Live V5 may predate Discover Gift redeem — hardcode ROUTE_REDEEM here.
         if (_isGiftRedeem(sel)) return ROUTE_REDEEM;
         if (_isKycLink(sel)) return ROUTE_STATS_QUERY;
+        // Zero-fee membership completion. Live cards only fallback-route
+        // ROUTE_STATS_QUERY, and mintPointsByAdmin rejects a paymaster caller.
+        if (sel == bytes4(keccak256("finishFreeMembershipClaim(address)"))) return ROUTE_STATS_QUERY;
         return IAdminStatsSelectorRouter(v5).selectorModuleKind(sel);
     }
 
@@ -73,6 +85,29 @@ contract BeamioUserCardAdminStatsQueryModuleV6 {
         bytes calldata adminSignature
     ) external {
         KycLinkOps.linkKycIpfsHashByAdmin(wallet, ipfsHash, deadline, nonce, adminSignature);
+    }
+
+    /// @notice Paymaster finishes a staged zero-fee membership. The card routes
+    ///         this selector here; we delegatecall the membership module, which
+    ///         mints from the pending purchase `stageMembershipFeePurchase` wrote.
+    function finishFreeMembershipClaim(address user) external {
+        address gw = ICardFactoryGatewayView(address(this)).factoryGateway();
+        if (msg.sender != gw && !IPaymasterFactoryView(gw).isPaymaster(msg.sender)) {
+            revert BM_NotAuthorized();
+        }
+        address stats = IPaymasterFactoryView(gw).defaultMembershipStatsModule();
+        (bool ok, bytes memory ret) = stats.delegatecall(
+            abi.encodeWithSelector(
+                bytes4(keccak256("maybeIssueOnlyIfNoneOrExpiredByPointsDelta(address,uint256)")),
+                user,
+                uint256(0)
+            )
+        );
+        if (!ok) {
+            assembly {
+                revert(add(ret, 0x20), mload(ret))
+            }
+        }
     }
 
     function _isKycLink(bytes4 sel) private pure returns (bool) {

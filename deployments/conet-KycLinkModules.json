@@ -1,0 +1,38 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-09-28T22:38:32.933Z",
+  "signer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "modules": {
+    "adminStatsQueryModule": "0x29511a0A2A1e998bB06E82e25fD15F7583401b0A",
+    "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
+  },
+  "constructorArgs": {
+    "v5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
+    "referrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C"
+  },
+  "replaced": {
+    "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891"
+  },
+  "txs": {
+    "adminStatsQueryModule": "0xbed03c11e32b4e0cead7c1b19fa7025414c58c483e19a47d2e307d5547356d66",
+    "setAdminStatsQueryModule": "0xb74e361777213f581a58572d6368a93814e1dbf878877e6a5cfc677a273e2c3e"
+  },
+  "note": "AdminStats V6 routes KYC link selectors to STATS_QUERY; reuses live V5 + referrerViews; never bind bare V5",
+  "bound": {
+    "adminStatsQueryModule": "0x29511a0A2A1e998bB06E82e25fD15F7583401b0A",
+    "setAdminStatsQueryModuleTx": "0xb74e361777213f581a58572d6368a93814e1dbf878877e6a5cfc677a273e2c3e"
+  },
+  "smoke": {
+    "card": "0x086bdCC6840f2C65f4e6F100c507266339990112",
+    "kycPolicy": [
+      "false",
+      "0",
+      "0",
+      "0"
+    ],
+    "kycIpfsHashOf": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

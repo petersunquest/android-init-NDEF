@@ -3,3 +3,5 @@
 /* eslint-disable */
 export { BeamioUserCardAdminStatsQueryModuleV6__factory } from './BeamioUserCardAdminStatsQueryModuleV6__factory.js';
 export { IAdminStatsSelectorRouter__factory } from './IAdminStatsSelectorRouter__factory.js';
+export { ICardFactoryGatewayView__factory } from './ICardFactoryGatewayView__factory.js';
+export { IPaymasterFactoryView__factory } from './IPaymasterFactoryView__factory.js';

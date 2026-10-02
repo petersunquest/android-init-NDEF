@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/incoming_call_glass_bg"
+    android:orientation="vertical"
+    android:paddingStart="18dp"
+    android:paddingTop="14dp"
+    android:paddingEnd="18dp"
+    android:paddingBottom="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="56dp"
+            android:layout_height="56dp">
+
+            <ImageView
+                android:id="@+id/incoming_call_avatar_fallback"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/incoming_call_avatar_fallback"
+                android:contentDescription="@string/incoming_call_body"
+                android:padding="12dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_person" />
+
+            <ImageView
+                android:id="@+id/incoming_call_avatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/incoming_call_body"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/incoming_call_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="#111111"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/incoming_call_body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/incoming_call_glass_subtitle"
+                android:textColor="#5C6370"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/incoming_call_decline"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/incoming_call_decline_circle"
+            android:contentDescription="@string/incoming_call_decline"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:importantForAccessibility="no"
+                android:padding="13dp"
+                android:rotation="135"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_call_handset" />
+        </FrameLayout>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <FrameLayout
+            android:id="@+id/incoming_call_answer"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/incoming_call_answer_circle"
+            android:clickable="true"
+            android:contentDescription="@string/incoming_call_answer"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@null"
+                android:importantForAccessibility="no"
+                android:padding="13dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_call_handset" />
+        </FrameLayout>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <ImageView
+            android:id="@+id/incoming_call_mute"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/incoming_call_mute_glass"
+            android:clickable="true"
+            android:contentDescription="@string/incoming_call_mute"
+            android:focusable="true"
+            android:padding="13dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_mic_off" />
+    </LinearLayout>
+</LinearLayout>

@@ -23,6 +23,18 @@
 -keep class com.beamio.app.CashTreesFirebaseMessagingService {
     *;
 }
+-keep class com.beamio.app.BeamioTelecomService {
+    *;
+}
+-keep class com.beamio.app.IncomingCallActionReceiver {
+    *;
+}
+-keep class com.beamio.app.BeamioCallForegroundService {
+    *;
+}
+-keep class com.beamio.app.IncomingCallActivity {
+    *;
+}
 -keep class com.beamio.app.embedded.** {
     *;
 }

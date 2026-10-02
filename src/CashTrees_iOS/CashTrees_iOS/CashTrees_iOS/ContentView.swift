@@ -1927,7 +1927,7 @@ struct CashTreesWebView: UIViewRepresentable {
           var s = document.createElement('style');
           // Keep the page itself horizontally clipped, but do not block
           // horizontal gestures on nested overflow-x-auto rails.
-          s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:auto;}';
+          s.textContent = 'html,body{overflow-x:hidden!important;max-width:100%;touch-action:pan-x pan-y!important;}';
           (document.head || document.documentElement).appendChild(s);
         })();
         """

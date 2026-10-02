@@ -83,6 +83,27 @@ class EmbeddedPwaHost(context: Context) {
     }
 
     /**
+     * The embedded bundle may have been built with PUBLIC_URL=/app.  Once
+     * index.html is served from appassets.androidplatform.net, absolute
+     * subresource URLs such as /app/beamio-launch.png no longer pass through
+     * mapBeamioAppUrlToLocal and would otherwise be looked up verbatim.
+     */
+    fun mapEmbeddedAssetUrlToLocal(uri: Uri): Uri {
+        val path = uri.path ?: "/"
+        val normalizedPath = when {
+            path == "/app" || path == "/app/" -> "/index.html"
+            path.startsWith("/app/") -> path.removePrefix("/app")
+            path.isEmpty() || path == "/" -> "/index.html"
+            else -> path
+        }
+        return Uri.parse(EmbeddedPwaConstants.ASSET_LOADER_ORIGIN + normalizedPath)
+            .buildUpon()
+            .encodedQuery(uri.encodedQuery)
+            .fragment(uri.fragment)
+            .build()
+    }
+
+    /**
      * Network-only beamio.app paths (API, OG, metadata). Must not be served from
      * `silentpass_pwa/active/` — otherwise onboarding hangs waiting on fetch.
      */

@@ -23,6 +23,7 @@ export * as faucetModuleSol from './FaucetModule.sol/index.js';
 export * as governanceModuleSol from './GovernanceModule.sol/index.js';
 export * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export * as issuedNftModuleV2Sol from './IssuedNftModuleV2.sol/index.js';
+export * as kycLinkOpsSol from './KycLinkOps.sol/index.js';
 export * as membershipFeeOpsLibSol from './MembershipFeeOpsLib.sol/index.js';
 export * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js';
 export * as membershipStatsQueryModuleSol from './MembershipStatsQueryModule.sol/index.js';

@@ -45,6 +45,8 @@ import type * as issuedNftModuleSol from './IssuedNftModule.sol/index.js';
 export type { issuedNftModuleSol };
 import type * as issuedNftModuleV2Sol from './IssuedNftModuleV2.sol/index.js';
 export type { issuedNftModuleV2Sol };
+import type * as kycLinkOpsSol from './KycLinkOps.sol/index.js';
+export type { kycLinkOpsSol };
 import type * as membershipFeeOpsLibSol from './MembershipFeeOpsLib.sol/index.js';
 export type { membershipFeeOpsLibSol };
 import type * as membershipStatsModuleSol from './MembershipStatsModule.sol/index.js';

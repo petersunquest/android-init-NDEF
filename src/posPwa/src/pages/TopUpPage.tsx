@@ -118,6 +118,7 @@ export function TopUpPage() {
 	const membershipKyc = usePosMembershipKyc()
 
 	const [phase, setPhase] = useState<TopUpPhase>('method')
+	const [scanCompleted, setScanCompleted] = useState(false)
 	const [draft, setDraft] = useState<TopupDraft | null>(null)
 	const [selectedMethod, setSelectedMethod] = useState<TopupPaymentMethodRaw | null>(null)
 	const [customer, setCustomer] = useState<TopupCustomerTarget | null>(null)
@@ -194,6 +195,7 @@ export function TopUpPage() {
 				split: resolved.split,
 			})
 			scanStartedRef.current = false
+			setScanCompleted(false)
 			setPhase('scan-customer')
 		},
 		[merchantInfraCard, goHome],
@@ -286,6 +288,7 @@ export function TopUpPage() {
 			)
 			setUsdcProgress('')
 			setCustomer(target)
+			setScanCompleted(false)
 			setPhase('usdc-qr')
 		},
 		[draft, walletAddress, merchantInfraCard, goHome],
@@ -319,6 +322,10 @@ export function TopUpPage() {
 				)
 				return
 			}
+			// The native scan has already completed. Keep the scan screen
+			// visible while the following balance/KYC/top-up work runs, but
+			// do not tell the operator that the app is still waiting to scan.
+			setScanCompleted(true)
 			setCustomer(target)
 
 			if (membershipFeeMode) {
@@ -429,18 +436,14 @@ export function TopUpPage() {
 		return () => {
 			cancelled = true
 			cancelPosCustomerScan()
+			// Allow a fresh scan if this phase is mounted again after a
+			// cancellation or navigation.
+			scanStartedRef.current = false
 		}
-	}, [
-		phase,
-		draft,
-		goHome,
-		merchantInfraCard,
-		membershipFeeMode,
-		humanAmountToFiat6,
-		runCardTopup,
-		startUsdcQrFlow,
-		usdcSid,
-	])
+		// Keep the scan wait stable. Callback identities used after the scan
+		// may change during a render; including them here would run cleanup,
+		// cancel the native scanner, and leave Top-up permanently loading.
+	}, [phase])
 
 	useEffect(() => {
 		if (phase !== 'usdc-qr' || !usdcSid) return
@@ -483,6 +486,7 @@ export function TopUpPage() {
 					return
 				}
 				scanStartedRef.current = false
+				setScanCompleted(false)
 				setPhase('scan-nfc-after-usdc')
 			}
 		})()
@@ -606,9 +610,11 @@ export function TopUpPage() {
 			<PosFlowLoadingShell
 				title="Top-up"
 				subtitle={
-					phase === 'scan-nfc-after-usdc'
-						? 'USDC paid. Tap customer NFC card…'
-						: 'Waiting for NFC or QR scan…'
+					scanCompleted
+						? 'Scan complete. Processing top-up…'
+						: phase === 'scan-nfc-after-usdc'
+							? 'USDC paid. Scan the customer NFC card…'
+							: 'Scan the customer NFC card or QR code to continue…'
 				}
 				bg="bg-[#f2f2f7]"
 			/>

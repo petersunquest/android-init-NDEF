@@ -15,3 +15,5 @@
 local.properties
 keystore.properties
 *.jks
+.jdk-17/
+.android-sdk/

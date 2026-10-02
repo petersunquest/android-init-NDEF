@@ -12,6 +12,7 @@ export type KycFieldMode = 'off' | 'optional' | 'required'
 export type MembershipKycFormPolicy = {
 	enabled: boolean
 	merchantName: string
+	brandColor?: string
 	fields: { name: KycFieldMode; phone: KycFieldMode; email: KycFieldMode }
 	offerLabel: string
 	offerValue: string
@@ -56,16 +57,34 @@ export async function loadMembershipKycPolicy(cardAddress: string): Promise<Memb
 	const body = (await response.json()) as { metadata_json?: unknown; metadata?: unknown; name?: string }
 	const meta = (body.metadata_json ?? body.metadata ?? body) as {
 		name?: string
-		shareTokenMetadata?: { kyc?: Record<string, unknown>; storeName?: string; businessName?: string }
+		backgroundColor?: string
+		background_color?: string
+		shareTokenMetadata?: {
+			kyc?: Record<string, unknown>
+			storeName?: string
+			businessName?: string
+			backgroundColor?: string
+			background_color?: string
+		}
 	}
 	const kyc = meta.shareTokenMetadata?.kyc
 	if (!kyc || kyc.enabled !== true) return null
 	const fields = (kyc.fields ?? {}) as Record<string, unknown>
 	const merchantName =
 		String(meta.shareTokenMetadata?.storeName || meta.shareTokenMetadata?.businessName || meta.name || 'Merchant')
+	const rawBrandColor =
+		String(
+			meta.shareTokenMetadata?.backgroundColor ||
+				meta.shareTokenMetadata?.background_color ||
+				meta.backgroundColor ||
+				meta.background_color ||
+				'',
+		).trim()
+	const brandColor = /^#[0-9a-f]{6}$/i.test(rawBrandColor) ? rawBrandColor : undefined
 	return {
 		enabled: true,
 		merchantName,
+		...(brandColor ? { brandColor } : {}),
 		fields: {
 			name: fieldMode(fields.name, 'optional'),
 			phone: fieldMode(fields.phone, 'off'),

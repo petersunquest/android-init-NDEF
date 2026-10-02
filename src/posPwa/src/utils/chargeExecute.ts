@@ -41,7 +41,11 @@ import {
 	type PosSuccessPassHeroProps,
 } from '@/utils/posSuccessHero'
 import type { PaymentRoutingStepPatch } from '@/utils/paymentRoutingSteps'
-import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
+import {
+	getPosPrivateKeyHex,
+	getPosSigningWalletAddress,
+	rememberProgramCardChargePrivateKey,
+} from '@/wallet/getPosPrivateKeyHex'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 
 export interface ChargeCustomerTarget {
@@ -115,6 +119,7 @@ async function submitChargeCustomerProgramPointsBurn(params: {
 	if (!pk) {
 		return { ok: false, error: 'Wallet not initialized.' }
 	}
+	rememberProgramCardChargePrivateKey(pk)
 	const prep = await burnPointsByAdminPrepare({
 		cardAddress: params.merchantInfraCard,
 		target: params.customerAa,

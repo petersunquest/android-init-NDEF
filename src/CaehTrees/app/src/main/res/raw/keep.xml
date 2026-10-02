@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@layout/notification_incoming_call,@layout/incoming_call_glass,@drawable/incoming_call_decline_bg,@drawable/incoming_call_mute_bg,@drawable/incoming_call_answer_bg,@drawable/incoming_call_decline_circle,@drawable/incoming_call_answer_circle,@drawable/incoming_call_mute_glass,@drawable/incoming_call_glass_bg,@drawable/incoming_call_avatar_fallback,@drawable/ic_call_handset,@drawable/ic_mic_off,@drawable/ic_person,@drawable/ic_incoming_call_status" />

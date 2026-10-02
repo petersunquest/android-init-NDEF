@@ -5,6 +5,12 @@ import {
 	getSessionWalletAddress,
 } from '@/wallet/posWalletService'
 
+export {
+	forgetProgramCardChargePrivateKey,
+	getProgramCardChargePrivateKeyHex,
+	rememberProgramCardChargePrivateKey,
+} from '@/wallet/posWalletSession'
+
 /**
  * Terminal **global** signing key (one EOA for all workspaces).
  *

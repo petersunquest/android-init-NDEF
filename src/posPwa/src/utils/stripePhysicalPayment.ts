@@ -10,7 +10,12 @@ import {
 	cancelStripePhysicalPayment,
 	type StripePhysicalReaderMode,
 } from '@/bridge/cashTreesScanBridge'
-import { getPosPrivateKeyHex, getPosSigningWalletAddress } from '@/wallet/getPosPrivateKeyHex'
+import { Wallet } from 'ethers'
+import {
+	getPosPrivateKeyHex,
+	getPosSigningWalletAddress,
+	getProgramCardChargePrivateKeyHex,
+} from '@/wallet/getPosPrivateKeyHex'
 import {
 	signStripeTerminalAuthorization,
 	type StripeTerminalAuthorization,
@@ -58,11 +63,15 @@ async function collectStripePhysicalPayment(params: {
 	}
 	params.onProgress?.('Preparing secure card payment...')
 	const requestId = newCashTreesScanRequestId()
-	/* Reuse the same hydrated session signer as Program Card Charge. Never
-	 * rehydrate from IndexedDB mid-flow: that can overwrite the active session
-	 * with a stale wallet and produce a different POS admin EOA. */
-	const privateKeyHex = await getPosPrivateKeyHex()
-	const posAdmin = await getPosSigningWalletAddress()
+	/* Charge Tap to Pay signs with the key Program Card Charge already used.
+	 * Top-up keeps the current session signer. Neither path rehydrates IndexedDB. */
+	const privateKeyHex =
+		params.kind === 'charge' ? getProgramCardChargePrivateKeyHex() : await getPosPrivateKeyHex()
+	const posAdmin = privateKeyHex
+		? new Wallet(`0x${privateKeyHex.replace(/^0x/i, '')}`).address
+		: params.kind === 'charge'
+			? null
+			: await getPosSigningWalletAddress()
 	if (!privateKeyHex || !posAdmin) {
 		throw new Error('POS admin wallet is not initialized.')
 	}
@@ -89,9 +98,21 @@ async function collectStripePhysicalPayment(params: {
 		authorizationNonce: authorization.nonce,
 	})
 	if (!intent.locationId) throw new Error('Stripe Terminal location is not configured for this merchant.')
+	/* Native Tap to Pay can stall after the connection token with no success
+	 * or failure callback. Bound the wait so the screen cannot spin forever. */
 	const detailPromise = new Promise<void>((resolve, reject) => {
+		let settled = false
+		const timer = window.setTimeout(() => {
+			if (settled) return
+			settled = true
+			remove()
+			cancelStripePhysicalPayment(requestId)
+			reject(new Error('Physical card payment timed out. Tap to Pay did not finish. Please try again.'))
+		}, 90_000)
 		const remove = listenStripePhysicalPayment((detail) => {
-			if (detail.requestId !== requestId) return
+			if (detail.requestId !== requestId || settled) return
+			settled = true
+			window.clearTimeout(timer)
 			remove()
 			if (!detail.ok) {
 				reject(new Error(detail.error || 'Physical card payment failed.'))

@@ -84,15 +84,23 @@ object CashTreesPushRegistration {
         notifyListeners(context, trimmed)
     }
 
-    fun payloadForWebEvent(deviceToken: String): JSONObject {
+    fun payloadForWebEvent(context: Context, deviceToken: String): JSONObject {
         val payload = JSONObject()
             .put("action", "pushDeviceToken")
             .put("deviceToken", deviceToken)
             .put("platform", "android")
             .put("bundleId", "com.beamio.app")
+            .put("fullScreenIntent", canUseFullScreenIntent(context))
+            .put("callKit", false)
         boundEoa?.let { payload.put("eoa", it) }
         boundPgpKeyId?.let { payload.put("pgpKeyId", it) }
         return payload
+    }
+
+    private fun canUseFullScreenIntent(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        return context.getSystemService(android.app.NotificationManager::class.java)
+            ?.canUseFullScreenIntent() == true
     }
 
     fun fetchAndPublishToken(context: Context) {

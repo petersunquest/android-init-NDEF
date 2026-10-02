@@ -7,4 +7,30 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowFullscreen">false</item>
     </style>
+
+    <style name="CaehTreesIncomingCallAnimation" parent="@android:style/Animation">
+        <item name="android:activityOpenEnterAnimation">@anim/beamio_no_anim</item>
+        <item name="android:activityOpenExitAnimation">@anim/beamio_no_anim</item>
+        <item name="android:activityCloseEnterAnimation">@anim/beamio_no_anim</item>
+        <item name="android:activityCloseExitAnimation">@anim/beamio_no_anim</item>
+        <item name="android:taskOpenEnterAnimation">@anim/beamio_no_anim</item>
+        <item name="android:taskOpenExitAnimation">@anim/beamio_no_anim</item>
+        <item name="android:taskCloseEnterAnimation">@anim/beamio_no_anim</item>
+        <item name="android:taskCloseExitAnimation">@anim/beamio_no_anim</item>
+    </style>
+
+    <style name="Theme.CaehTrees.IncomingCall" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@color/incoming_call_scrim</item>
+        <item name="android:colorBackground">@color/incoming_call_scrim</item>
+        <item name="android:windowAnimationStyle">@style/CaehTreesIncomingCallAnimation</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+    </style>
 </resources>

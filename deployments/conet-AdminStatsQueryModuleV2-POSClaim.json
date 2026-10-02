@@ -1,0 +1,15 @@
+{
+  "network": "conet",
+  "chainId": 224422,
+  "timestamp": "2026-09-22T22:12:26.086Z",
+  "factory": "0xfA52a0CcC96C19cF4b6Ea864615F6d52BD0774FB",
+  "adminStatsQueryModule": "0x450345B2f48a56912b0D6B9738547EC18A38b5D1",
+  "replacedAdminStatsQueryModule": "0x8be5dbe53D52d9DA8593c5dAaD84C5c826E755E3",
+  "bindTx": "0xafdae1b0c1ffee3750f8ac897267490062777117e7bc52e500e459d24d2a2718",
+  "selectors": {
+    "claimIssuedNftForUserByPosAdmin": "0x1396b831",
+    "mintIssuedNftByUserSigClaim": "0xea2b8672"
+  },
+  "expectedRoute": 2,
+  "note": "Added POS user coupon claim selectors to IssuedNft route."
+}

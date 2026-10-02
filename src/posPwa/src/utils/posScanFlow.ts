@@ -44,6 +44,7 @@ function waitForNfcEvent(): Promise<
 > {
 	return new Promise((resolve) => {
 		let settled = false
+		let timeout: number | undefined
 		const finish = (
 			value:
 				| { kind: 'success'; detail: CashTreesNfcDetail }
@@ -52,6 +53,7 @@ function waitForNfcEvent(): Promise<
 		) => {
 			if (settled) return
 			settled = true
+			if (timeout !== undefined) window.clearTimeout(timeout)
 			cleanup()
 			resolve(value)
 		}
@@ -70,6 +72,12 @@ function waitForNfcEvent(): Promise<
 			finish({ kind: 'success', detail })
 		})
 
+		timeout = window.setTimeout(() => {
+			// Some shells do not emit a cancellation event when NFC is
+			// dismissed. Continue with the QR path instead of spinning forever.
+			cancelCashTreesPhysicalCardBind()
+			finish({ kind: 'dismissed' })
+		}, 30_000)
 		startCashTreesPhysicalCardBind()
 	})
 }
@@ -82,6 +90,7 @@ function waitForQrEvent(): Promise<
 	return new Promise((resolve) => {
 		let settled = false
 		const requestId = newCashTreesScanRequestId()
+		let timeout: number | undefined
 
 		const finish = (
 			value:
@@ -91,13 +100,21 @@ function waitForQrEvent(): Promise<
 		) => {
 			if (settled) return
 			settled = true
+			if (timeout !== undefined) window.clearTimeout(timeout)
 			cleanup()
 			resolve(value)
 		}
 
 		const cleanup = listenCashTreesQr((detail: CashTreesQrDetail) => {
-			if (detail.action !== 'scanQr') return
-			if (detail.requestId && detail.requestId !== requestId) return
+			// Older iOS shells omitted `action` on the result event. The QR
+			// listener is installed for this scan only, so accept that legacy
+			// shape while still rejecting other explicitly named actions.
+			if (detail.action && detail.action !== 'scanQr') return
+			// There is only one QR scan outstanding in this flow. Some iOS
+			// shells can return the previous native requestId after the
+			// scanner is dismissed; dropping that event leaves Top-up on the
+			// scan screen forever. The explicit scanQr action is sufficient
+			// to identify the result here.
 			if (!detail.ok) {
 				if (detail.error === 'cancelled') {
 					finish({ kind: 'cancelled' })
@@ -114,6 +131,9 @@ function waitForQrEvent(): Promise<
 			finish({ kind: 'success', text })
 		})
 
+		timeout = window.setTimeout(() => {
+			finish({ kind: 'error', message: 'QR scan timed out. Please try again.' })
+		}, 120_000)
 		launchCashTreesQrScan(requestId)
 	})
 }

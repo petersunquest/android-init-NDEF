@@ -1,8 +1,11 @@
 package com.beamio.app.embedded
 
 import android.content.Context
+import android.util.Log
 import org.json.JSONObject
 import java.io.File
+import java.security.DigestInputStream
+import java.security.MessageDigest
 
 /** Documents-backed PWA bundle: `active/` (live), `staging/` (downloaded), `backup/` (rollback). */
 class EmbeddedPwaBundleStore(context: Context) {
@@ -20,41 +23,60 @@ class EmbeddedPwaBundleStore(context: Context) {
     fun bootstrapIfNeeded() {
         synchronized(lock) {
             rootDir.mkdirs()
+            recoverInterruptedSwapLocked()
             promoteStagingIfNewerLocked()
             val bundledDir = File(rootDir, "bundled")
             if (bundledDir.exists()) {
                 bundledDir.deleteRecursively()
             }
             bundledDir.mkdirs()
+            val digest = MessageDigest.getInstance("SHA-256")
             appContext.assets.open(EmbeddedPwaConstants.BUNDLE_ASSET_NAME).use { input ->
-                EmbeddedPwaZip.unzip(input, bundledDir)
+                DigestInputStream(input, digest).use { hashed ->
+                    EmbeddedPwaZip.unzip(hashed, bundledDir)
+                }
             }
+            val assetHash = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
             if (!hasValidBundle(bundledDir)) {
                 bundledDir.deleteRecursively()
                 if (hasValidBundle(activeDir)) return
                 throw IllegalStateException("Bundled SilentPassUI.zip did not contain index.html")
             }
 
+            val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val lastAssetHash = prefs.getString(KEY_ACTIVATED_ASSET_SHA256, null)
             val activeIsValid = hasValidBundle(activeDir)
             val activeVersion = if (activeIsValid) readUpdateInfo(activeDir)?.ver else null
             val bundledVersion = readUpdateInfo(bundledDir)?.ver
-            val shouldInstallBundled =
-                !activeIsValid ||
-                    (activeVersion != null &&
-                        bundledVersion != null &&
-                        isSemverNewer(activeVersion, bundledVersion))
+            val contentChanged = assetHash != lastAssetHash
+            val versionNewer =
+                activeVersion != null &&
+                    bundledVersion != null &&
+                    isSemverNewer(activeVersion, bundledVersion)
+            // Equal semver must still replace when the APK zip bytes changed.
+            // A newer OTA (active semver > bundled) is left in place.
+            val sameVersionNewBytes =
+                activeVersion != null &&
+                    bundledVersion != null &&
+                    activeVersion == bundledVersion &&
+                    contentChanged
+            val shouldInstallBundled = !activeIsValid || versionNewer || sameVersionNewBytes
+            Log.i(
+                TAG,
+                "bootstrap active=$activeVersion bundled=$bundledVersion " +
+                    "contentChanged=$contentChanged install=$shouldInstallBundled",
+            )
 
             if (!shouldInstallBundled) {
                 bundledDir.deleteRecursively()
                 return
             }
-            if (activeDir.exists()) {
-                activeDir.deleteRecursively()
-            }
-            if (!bundledDir.renameTo(activeDir)) {
+            if (!replaceActiveWithDirectoryLocked(bundledDir)) {
                 bundledDir.deleteRecursively()
                 throw IllegalStateException("Failed to activate bundled SilentPassUI.zip")
             }
+            prefs.edit().putString(KEY_ACTIVATED_ASSET_SHA256, assetHash).apply()
+            Log.i(TAG, "bootstrap activated bundled=$bundledVersion")
         }
     }
 
@@ -69,16 +91,7 @@ class EmbeddedPwaBundleStore(context: Context) {
         if (activeVersion != null && !isSemverNewer(activeVersion, stagedVersion)) {
             return false
         }
-        if (backupDir.exists()) backupDir.deleteRecursively()
-        if (activeDir.exists() && !activeDir.renameTo(backupDir)) {
-            return false
-        }
-        if (!stagingDir.renameTo(activeDir)) {
-            if (backupDir.exists() && !activeDir.exists()) {
-                backupDir.renameTo(activeDir)
-            }
-            return false
-        }
+        if (!replaceActiveWithDirectoryLocked(stagingDir)) return false
         pendingVersion = null
         return true
     }
@@ -115,16 +128,40 @@ class EmbeddedPwaBundleStore(context: Context) {
             if (!hasValidBundle(stagingDir)) {
                 throw IllegalStateException("No staged PWA update")
             }
-            if (backupDir.exists()) {
-                backupDir.deleteRecursively()
-            }
-            if (activeDir.exists()) {
-                activeDir.renameTo(backupDir)
-            }
-            if (!stagingDir.renameTo(activeDir)) {
+            if (!replaceActiveWithDirectoryLocked(stagingDir)) {
                 throw IllegalStateException("Failed to promote staged PWA update")
             }
             pendingVersion = null
+        }
+    }
+
+    /**
+     * Replace the active bundle without ever deleting it first.
+     *
+     * Both directories live under the same app-private filesystem, so renameTo
+     * is the closest available atomic commit primitive. If the process dies
+     * between the two renames, bootstrapIfNeeded() restores backupDir.
+     */
+    private fun replaceActiveWithDirectoryLocked(candidateDir: File): Boolean {
+        if (!hasValidBundle(candidateDir)) return false
+        if (backupDir.exists() && !backupDir.deleteRecursively()) return false
+
+        val hadActive = activeDir.exists()
+        if (hadActive && !activeDir.renameTo(backupDir)) return false
+        if (candidateDir.renameTo(activeDir)) {
+            return true
+        }
+
+        if (hadActive && !activeDir.exists() && backupDir.exists()) {
+            backupDir.renameTo(activeDir)
+        }
+        return false
+    }
+
+    /** Recover a crash after active→backup but before candidate→active. */
+    private fun recoverInterruptedSwapLocked() {
+        if (!hasValidBundle(activeDir) && hasValidBundle(backupDir)) {
+            backupDir.renameTo(activeDir)
         }
     }
 
@@ -158,6 +195,10 @@ class EmbeddedPwaBundleStore(context: Context) {
     }
 
     companion object {
+        private const val TAG = "BeamioEmbeddedPwa"
+        private const val PREFS_NAME = "embedded_pwa_bundle"
+        private const val KEY_ACTIVATED_ASSET_SHA256 = "activated_asset_sha256"
+
         fun isSemverNewer(oldVer: String, newVer: String): Boolean {
             val oldParts = oldVer.split('.').map { it.toIntOrNull() ?: 0 }
             val newParts = newVer.split('.').map { it.toIntOrNull() ?: 0 }

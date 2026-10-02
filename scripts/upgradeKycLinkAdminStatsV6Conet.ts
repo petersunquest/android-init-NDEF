@@ -107,8 +107,9 @@ async function main() {
 	}
 
 	const prevAdmin = String(await factory.defaultAdminStatsQueryModule())
+	const immutableSource = process.env.KYC_V6_IMMUTABLE_SOURCE || prevAdmin
 	const prev = new ethers.Contract(
-		prevAdmin,
+		immutableSource,
 		[
 			'function v5() view returns (address)',
 			'function referrerViews() view returns (address)',
@@ -117,7 +118,9 @@ async function main() {
 	)
 	const v5 = String(await prev.v5())
 	const referrerViews = String(await prev.referrerViews())
-	console.log(`[upgrade] live V6=${prevAdmin} v5=${v5} referrerViews=${referrerViews}`)
+	console.log(
+		`[upgrade] factory module=${prevAdmin} immutables from ${immutableSource} v5=${v5} referrerViews=${referrerViews}`,
+	)
 	if ((await provider.getCode(v5)) === '0x') throw new Error(`V5 ${v5} has no code`)
 	if ((await provider.getCode(referrerViews)) === '0x') {
 		throw new Error(`referrerViews ${referrerViews} has no code`)
@@ -142,6 +145,7 @@ async function main() {
 		await smokeSelector(provider, routerAddr, sig, ROUTE_STATS_QUERY)
 	}
 	await smokeSelector(provider, routerAddr, 'referrerTotalCount()', ROUTE_STATS_QUERY)
+	await smokeSelector(provider, routerAddr, 'finishFreeMembershipClaim(address)', ROUTE_STATS_QUERY)
 	await smokeSelector(provider, routerAddr, 'getReferrersPage(uint256,uint256)', ROUTE_STATS_QUERY)
 
 	const snap = {

@@ -12,6 +12,11 @@
     <!-- Launcher icon badge via silent notification (PWA publishAppState) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- API 34+: phoneCall FGS posts CallStyle; microphone FGS after answer -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- API 34+ / 部分厂商：Foreground dispatch / ReaderMode 需在 manifest 声明，否则 onResume 内 NfcActivityManager 抛 SecurityException -->
     <uses-permission android:name="android.permission.NFC" />
     <!-- WebView QR / getUserMedia；无相机或麦克风设备仍可安装 -->
@@ -78,10 +83,11 @@
             android:name="com.beamio.app.IncomingCallActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleTop"
+            android:launchMode="singleInstance"
+            android:taskAffinity="com.beamio.app.incomingcall"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@style/Theme.CaehTrees" />
+            android:theme="@style/Theme.CaehTrees.IncomingCall" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -114,6 +120,20 @@
                 <action android:name="android.telecom.ConnectionService" />
             </intent-filter>
         </service>
+        <service
+            android:name="com.beamio.app.BeamioCallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone|shortService" />
+        <receiver
+            android:name="com.beamio.app.IncomingCallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.beamio.app.action.ANSWER_CALL" />
+                <action android:name="com.beamio.app.action.DECLINE_CALL" />
+                <action android:name="com.beamio.app.action.MUTE_CALL" />
+                <action android:name="com.beamio.app.action.HANGUP_CALL" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <queries>

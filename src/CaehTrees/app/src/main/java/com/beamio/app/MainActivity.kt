@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.Settings
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
@@ -42,7 +43,9 @@ import androidx.lifecycle.Lifecycle
 import android.view.ViewGroup
 import com.beamio.app.embedded.EmbeddedPwaConstants
 import com.beamio.app.embedded.EmbeddedPwaHost
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
@@ -77,26 +80,80 @@ class MainActivity : ComponentActivity() {
         @Volatile
         private var activeInstance: MainActivity? = null
 
+        /** True while the WebView activity exists in this process. A cold FCM wake has no instance. */
+        fun isRunning(): Boolean = activeInstance != null
+
+        /**
+         * Bring the Consumer shell to the foreground so its PWA can reconnect
+         * to the mailbox and report a verified voice offer through the bridge.
+         *
+         * This deliberately carries no call identity or offer data. The native
+         * side only wakes the shell; caller identity remains PWA-decrypted and
+         * is delivered one-way through reportIncomingSystemCall().
+         */
+        fun wakeConsumerShell(context: Context) {
+            if (isRunning()) {
+                requestMailboxWake()
+                Log.i("BeamioVoiceCall", "Mailbox wake delivered without covering the incoming window")
+                return
+            }
+            Log.i("BeamioVoiceCall", "Shell start waits until the incoming window is showing")
+        }
+
+        /** Wake the PWA mailbox listener without reordering activities. */
+        fun requestMailboxWake() {
+            val activity = activeInstance ?: return
+            activity.runOnUiThread {
+                activity.intent.putExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, true)
+                activity.mailboxWakeDispatchAttempt = 0
+                activity.pendingSystemCallHandler.removeCallbacks(activity.mailboxWakeDispatchRunnable)
+                activity.pendingSystemCallHandler.post(activity.mailboxWakeDispatchRunnable)
+            }
+        }
+
         fun dispatchSystemCallAction(
             action: String,
             callId: String,
             sessionId: String = "",
             context: Context? = null,
         ) {
+            // Persist user actions until the PWA listener is ready. Caller
+            // identity is never requested from or supplied by the native side;
+            // it arrives only through reportIncomingSystemCall from the PWA.
             val activity = activeInstance
-            if (activity == null && context != null) {
-                BeamioTelecomService.savePendingSystemCallAction(context, action, callId, sessionId)
+            if (activity == null) {
+                if (context != null) {
+                    BeamioTelecomService.savePendingSystemCallAction(
+                        context,
+                        action,
+                        callId,
+                        sessionId,
+                    )
+                    Log.i(
+                        "BeamioVoiceCall",
+                        "queued system call action before WebView activity " +
+                            "action=$action callIdPresent=${callId.isNotBlank()}",
+                    )
+                } else {
+                    Log.w(
+                        "BeamioVoiceCall",
+                        "dropped system call action without context action=$action",
+                    )
+                }
                 return
             }
-            activity?.let {
-                context?.let { BeamioTelecomService.clearPendingSystemCallAction(it) }
-                it.runOnUiThread {
-                    it.dispatchAndroidBridgeJsonToWeb(
-                        JSONObject()
-                            .put("action", action)
-                            .put("callId", callId)
-                            .put("sessionId", sessionId),
-                    )
+            activity.runOnUiThread {
+                // Keep the action persisted until the WebView has actually
+                // accepted the event. Cold starts and an uninitialised
+                // WebView must be retried by the pending-action dispatcher.
+                if (!activity::webView.isInitialized) return@runOnUiThread
+                activity.dispatchAndroidBridgeJsonToWeb(
+                    JSONObject()
+                        .put("action", action)
+                        .put("callId", callId)
+                        .put("sessionId", sessionId),
+                ) {
+                    context?.let { BeamioTelecomService.clearPendingSystemCallAction(it) }
                 }
             }
         }
@@ -111,6 +168,141 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
+    private val pendingSystemCallHandler = Handler(Looper.getMainLooper())
+    private var pendingSystemCallDispatchAttempt = 0
+    private var embeddedPwaUpdateReplayAttempt = 0
+    private val embeddedPwaUpdateReplayRunnable = object : Runnable {
+        override fun run() {
+            if (!useEmbeddedPwa || !::webView.isInitialized || !::embeddedPwaHost.isInitialized) {
+                embeddedPwaUpdateReplayAttempt = 0
+                return
+            }
+            val pending = embeddedPwaHost.bundleStore.pendingUpdateVersion()
+            if (pending.isNullOrBlank() || embeddedPwaUpdateReplayAttempt >= 8) {
+                embeddedPwaUpdateReplayAttempt = 0
+                return
+            }
+            embeddedPwaUpdateReplayAttempt += 1
+            Log.i(
+                "BeamioEmbeddedPwa",
+                "replaying pending OTA event attempt=$embeddedPwaUpdateReplayAttempt pending=$pending",
+            )
+            dispatchEmbeddedPwaUpdateAvailable(
+                embeddedPwaHost.bundleStore.activeVersion(),
+                pending,
+            )
+            pendingSystemCallHandler.postDelayed(
+                this,
+                minOf(2000L, 250L + embeddedPwaUpdateReplayAttempt * 250L),
+            )
+        }
+    }
+    private var mailboxWakeDispatchAttempt = 0
+    private val mailboxWakeDispatchRunnable = object : Runnable {
+        override fun run() {
+            if (!intent.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false)) {
+                mailboxWakeDispatchAttempt = 0
+                return
+            }
+            if (mailboxWakeDispatchAttempt >= 12) {
+                Log.w("BeamioVoiceCall", "mailbox wake dispatch exhausted")
+                intent.removeExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL)
+                mailboxWakeDispatchAttempt = 0
+                return
+            }
+            mailboxWakeDispatchAttempt += 1
+            if (::webView.isInitialized) {
+                Log.i(
+                    "BeamioVoiceCall",
+                    "dispatching mailbox wake attempt=$mailboxWakeDispatchAttempt",
+                )
+                dispatchAndroidBridgeJsonToWeb(
+                    JSONObject()
+                        .put("action", "mailboxWake")
+                        .put("reason", "incomingCall"),
+                )
+            }
+            pendingSystemCallHandler.postDelayed(
+                this,
+                minOf(1500L, 250L + mailboxWakeDispatchAttempt * 125L),
+            )
+        }
+    }
+    private var showActiveCallDispatchAttempt = 0
+    private val showActiveCallRunnable = object : Runnable {
+        override fun run() {
+            if (!intent.getBooleanExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL, false)) {
+                showActiveCallDispatchAttempt = 0
+                return
+            }
+            if (!::webView.isInitialized) {
+                showActiveCallDispatchAttempt += 1
+                if (showActiveCallDispatchAttempt >= 12) {
+                    intent.removeExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL)
+                    showActiveCallDispatchAttempt = 0
+                } else {
+                    pendingSystemCallHandler.postDelayed(this, 250L)
+                }
+                return
+            }
+            showActiveCallDispatchAttempt += 1
+            Log.i(
+                "BeamioVoiceCall",
+                "dispatching showActiveVoiceCall attempt=$showActiveCallDispatchAttempt",
+            )
+            dispatchAndroidBridgeJsonToWeb(
+                JSONObject()
+                    .put("action", "showActiveVoiceCall")
+                    .put("callId", intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty())
+                    .put("sessionId", intent.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()),
+            )
+            if (showActiveCallDispatchAttempt >= 4) {
+                intent.removeExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL)
+                showActiveCallDispatchAttempt = 0
+                return
+            }
+            pendingSystemCallHandler.postDelayed(this, 350L)
+        }
+    }
+
+    private var lastShowActiveCallRequestAt = 0L
+
+    private fun requestShowActiveCall(source: Intent?) {
+        if (source?.getBooleanExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL, false) != true) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastShowActiveCallRequestAt < 1500L) return
+        lastShowActiveCallRequestAt = now
+        intent.putExtra(
+            BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL,
+            true,
+        )
+        intent.putExtra(
+            BeamioTelecomService.EXTRA_CALL_ID,
+            source.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty(),
+        )
+        intent.putExtra(
+            BeamioTelecomService.EXTRA_SESSION_ID,
+            source.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty(),
+        )
+        showActiveCallDispatchAttempt = 0
+        pendingSystemCallHandler.removeCallbacks(showActiveCallRunnable)
+        pendingSystemCallHandler.post(showActiveCallRunnable)
+    }
+    private val pendingSystemCallDispatchRunnable = object : Runnable {
+        override fun run() {
+            val pending = BeamioTelecomService.peekPendingSystemCallAction(this@MainActivity)
+            if (pending == null || pendingSystemCallDispatchAttempt >= 12) {
+                pendingSystemCallDispatchAttempt = 0
+                return
+            }
+            pendingSystemCallDispatchAttempt += 1
+            dispatchPendingSystemCallAction()
+            pendingSystemCallHandler.postDelayed(
+                this,
+                minOf(1500L, 250L + pendingSystemCallDispatchAttempt * 125L),
+            )
+        }
+    }
 
     @Volatile
     private var useEmbeddedPwa = false
@@ -120,6 +312,8 @@ class MainActivity : ComponentActivity() {
     private var pendingDeepLinkHttps: Uri? = null
 
     private val bootstrapExecutor = Executors.newSingleThreadExecutor()
+
+    private var fullScreenIntentSettingsLaunched = false
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA / RECORD_AUDIO */
     private var pendingWebPermissionRequest: PermissionRequest? = null
@@ -137,6 +331,20 @@ class MainActivity : ComponentActivity() {
 
     @Volatile
     private var nfcBindSessionActive: Boolean = false
+
+    /**
+     * PWA asked to link an NFC card. [onPause] drops the radio (required while
+     * not resumed) but must not tell the page the scan ended — that callback is
+     * often dropped while the WebView is pausing, which left “Waiting...” up
+     * forever with the reader already off. [onResume] re-arms until a tag,
+     * cancel, or [onStop].
+     */
+    @Volatile
+    private var nfcBindKeepAlive: Boolean = false
+
+    private var nfcRearmBurst: Int = 0
+    private var nfcLastArmElapsedMs: Long = 0L
+    private val nfcReadExecutor = Executors.newSingleThreadExecutor()
 
     @Volatile
     private var pendingQrScanRequestId: String? = null
@@ -550,21 +758,37 @@ class MainActivity : ComponentActivity() {
 
     /** Called from JS on UI thread */
     private fun armNfcPhysicalCardRead() {
+        Log.i("BeamioNfc", "arm keepAlive=$nfcBindKeepAlive session=$nfcBindSessionActive")
+        val now = SystemClock.elapsedRealtime()
+        nfcRearmBurst = if (now - nfcLastArmElapsedMs < 500L) nfcRearmBurst + 1 else 0
+        nfcLastArmElapsedMs = now
+        if (nfcRearmBurst > 3) {
+            Log.i("BeamioNfc", "arm aborted rearm burst=$nfcRearmBurst")
+            nfcBindKeepAlive = false
+            nfcBindSessionActive = false
+            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_reader_failed"))
+            reclaimNfcForegroundDispatchAfterReader()
+            return
+        }
         val adapter = NfcAdapter.getDefaultAdapter(this)
         if (adapter == null) {
+            nfcBindKeepAlive = false
             dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "no_hardware"))
             return
         }
         if (!adapter.isEnabled) {
+            nfcBindKeepAlive = false
             dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_disabled"))
             return
         }
         if (!hasNfcPermission()) {
+            nfcBindKeepAlive = false
             dispatchNfcJsonToWeb(
                 JSONObject().put("ok", false).put("error", "nfc_permission_denied"),
             )
             return
         }
+        nfcBindKeepAlive = true
         nfcBindSessionActive = true
         disableNfcForegroundDispatchQuiet()
         // 不得使用 FLAG_READER_SKIP_NDEF_CHECK：该标志会使标签像无 NDEF 一样交付，
@@ -577,16 +801,32 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             readerFlags = readerFlags or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
         }
-        adapter.enableReaderMode(
-            this,
-            { tag -> onNfcTagForBind(tag) },
-            readerFlags,
-            null,
-        )
+        val extras = Bundle().apply {
+            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
+        }
+        try {
+            adapter.enableReaderMode(
+                this,
+                { tag -> onNfcTagForBind(tag) },
+                readerFlags,
+                extras,
+            )
+        } catch (t: Throwable) {
+            Log.i("BeamioNfc", "enableReaderMode failed", t)
+            nfcBindKeepAlive = false
+            nfcBindSessionActive = false
+            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_reader_failed"))
+            reclaimNfcForegroundDispatchAfterReader()
+        }
     }
 
     private fun onNfcTagForBind(tag: Tag) {
-        if (!nfcBindSessionActive) return
+        Log.i("BeamioNfc", "tag callback session=$nfcBindSessionActive keepAlive=$nfcBindKeepAlive")
+        if (!nfcBindSessionActive && !nfcBindKeepAlive) return
+        // Stop re-arm before the NDEF read. A pause during connect must not
+        // start a second reader session and drop this tag.
+        nfcBindKeepAlive = false
+        nfcBindSessionActive = false
         // 在 Reader 回调线程立刻读 NDEF；若推迟到主线程，部分机型上标签已 deactivate，SUN 丢失并触发 logcat「tag already deactivated」。
         val tagUidHex = tag.id?.joinToString("") { b -> "%02X".format(b) }.orEmpty()
         val (ndefUri, sun) =
@@ -595,7 +835,6 @@ class MainActivity : ComponentActivity() {
             } else {
                 null to null
             }
-        nfcBindSessionActive = false
         runOnUiThread {
             nfcAdapter?.disableReaderMode(this@MainActivity)
             try {
@@ -648,13 +887,24 @@ class MainActivity : ComponentActivity() {
         return SunParams(uid, e, c, m)
     }
 
-    /** 单次连接读取 URI 与 SUN，避免双次 Ndef.connect 在部分机型上的问题。 */
+    /** Prefer the message already cached by reader mode. `Ndef.connect()` can hang and leave the link sheet on “Waiting...”. */
     private fun readNdefUriAndSun(tag: Tag): Pair<String?, SunParams?> {
         val ndef = Ndef.get(tag) ?: return null to null
+        val cachedUrl = ndefRecordUrl(try { ndef.cachedNdefMessage } catch (_: Exception) { null })
+        if (cachedUrl != null) return cachedUrl to parseSunParamsFromNdefUrl(cachedUrl)
+        val future = nfcReadExecutor.submit(Callable { readConnectedNdef(ndef) })
+        return try {
+            future.get(1200, TimeUnit.MILLISECONDS)
+        } catch (_: Exception) {
+            future.cancel(true)
+            null to null
+        }
+    }
+
+    private fun readConnectedNdef(ndef: Ndef): Pair<String?, SunParams?> {
         return try {
             ndef.connect()
-            val msg = ndef.cachedNdefMessage ?: ndef.ndefMessage
-            val url = msg?.records?.firstNotNullOfOrNull { it.toUri()?.toString() } ?: return null to null
+            val url = ndefRecordUrl(ndef.ndefMessage) ?: return null to null
             url to parseSunParamsFromNdefUrl(url)
         } catch (_: Exception) {
             null to null
@@ -666,7 +916,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun ndefRecordUrl(message: android.nfc.NdefMessage?): String? {
+        return message?.records?.firstNotNullOfOrNull { record ->
+            try {
+                record.toUri()?.toString()
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
     private fun disarmNfcReader(notifyWeb: Boolean, error: String?) {
+        Log.i("BeamioNfc", "disarm notify=$notifyWeb error=$error")
+        nfcBindKeepAlive = false
         nfcBindSessionActive = false
         runOnUiThread {
             try {
@@ -685,6 +947,7 @@ class MainActivity : ComponentActivity() {
         val payload = json.toString()
         val js =
             "(function(){try{var d=" + payload + ";" +
+                "try{if(typeof window.__cashTreesNfcBindResult==='function'){window.__cashTreesNfcBindResult(d);}}catch(e){}" +
                 "window.dispatchEvent(new CustomEvent('cashtreesnfc',{detail:d}));" +
                 "}catch(e){}})();"
         webView.evaluateJavascript(js, null)
@@ -739,6 +1002,7 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun startPhysicalCardBind() {
+            Log.i("BeamioNfc", "js startPhysicalCardBind")
             runOnUiThread { armNfcPhysicalCardRead() }
         }
 
@@ -809,13 +1073,34 @@ class MainActivity : ComponentActivity() {
                         body.optString("callId").isNotBlank() +
                         " sessionIdPresent=" + body.optString("sessionId").isNotBlank(),
                 )
+                Log.i(
+                    "BeamioVoiceCall",
+                    "WebView incoming caller fields displayNamePresent=" +
+                        body.optString("displayName").isNotBlank() +
+                        " peerAddressPresent=" +
+                        body.optString("peerAddress").isNotBlank() +
+                        " claimedTagPresent=" +
+                        body.optString("claimedTag").isNotBlank(),
+                )
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,
                     body.optString("callId"),
                     body.optString("peerAddress"),
                     body.optString("displayName").ifBlank { body.optString("peerAddress") },
                     body.optString("sessionId"),
+                    body.optString("claimedTag"),
+                    body.optString("claimedAddress"),
+                    body.optString("identityWarning"),
                 )
+            }
+        }
+
+        /** Called by the PWA after its cashtreesandroid listener is mounted. */
+        @JavascriptInterface
+        fun requestPendingSystemCallAction() {
+            runOnUiThread {
+                Log.i("BeamioVoiceCall", "PWA requested pending system call action")
+                dispatchPendingSystemCallAction()
             }
         }
 
@@ -823,7 +1108,13 @@ class MainActivity : ComponentActivity() {
         fun endSystemCall(json: String) {
             runOnUiThread {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
-                BeamioTelecomService.end(this@MainActivity, body.optString("callId"))
+                val callId = body.optString("callId")
+                val sessionId = body.optString("sessionId")
+                BeamioTelecomService.end(
+                    this@MainActivity,
+                    callId.ifBlank { sessionId },
+                    sessionId,
+                )
             }
         }
 
@@ -1016,6 +1307,32 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Android 14+ protects USE_FULL_SCREEN_INTENT as a special app access.
+     * It cannot be granted silently by an APK, so take the user directly to
+     * Beamio's system-controlled permission page on the first launch.
+     */
+    private fun maybeOpenFullScreenIntentSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        if (fullScreenIntentSettingsLaunched) return
+
+        val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+            ?: return
+        if (notificationManager.canUseFullScreenIntent()) return
+
+        fullScreenIntentSettingsLaunched = true
+        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+            data = Uri.parse("package:$packageName")
+        }
+        try {
+            startActivity(intent)
+            Log.i("BeamioVoiceCall", "Opened full-screen intent access for first launch")
+        } catch (error: Exception) {
+            Log.w("BeamioVoiceCall", "Full-screen intent settings unavailable", error)
+            BeamioTelecomService.openIncomingCallSettings(this)
+        }
+    }
+
     private fun applyEmbeddedPwaUpdateFromBridge() {
         if (!useEmbeddedPwa || !::webView.isInitialized || !::embeddedPwaHost.isInitialized) {
             dispatchAndroidBridgeJsonToWeb(
@@ -1049,6 +1366,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun dispatchEmbeddedPwaUpdateAvailable(currentVer: String, pendingVer: String) {
+        Log.i(
+            "BeamioEmbeddedPwa",
+            "dispatching OTA event current=$currentVer pending=$pendingVer",
+        )
         dispatchAndroidBridgeJsonToWeb(
             JSONObject()
                 .put("action", "embeddedPwaUpdateAvailable")
@@ -1062,10 +1383,19 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
+        val wakeForCall = intent?.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false) == true
+        if (wakeForCall) {
+            setTheme(R.style.Theme_CaehTrees_IncomingCall)
+        }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        applyTransparentStatusBar()
+        if (wakeForCall && IncomingCallActivity.isShowing()) {
+            moveTaskToBack(true)
+        }
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         activeInstance = this
+        allowShowOverLockScreenForVoiceWake(intent)
         BeamioTelecomService.ensurePhoneAccount(this)
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
 
@@ -1091,12 +1421,16 @@ class MainActivity : ComponentActivity() {
         CashTreesPushRegistration.hydrateFromPrefs(this)
         CashTreesPushRegistration.onTokenForWeb = { token ->
             runOnUiThread {
-                dispatchAndroidBridgeJsonToWeb(CashTreesPushRegistration.payloadForWebEvent(token))
+                dispatchAndroidBridgeJsonToWeb(
+                    CashTreesPushRegistration.payloadForWebEvent(this, token),
+                )
             }
         }
         embeddedPwaHost = EmbeddedPwaHost(this)
         rootLayout = FrameLayout(this).apply {
-            setBackgroundColor(Color.parseColor("#000414"))
+            if (!wakeForCall) {
+                setBackgroundColor(Color.parseColor("#f8f9fa"))
+            }
         }
         setContentView(rootLayout)
         hideBottomSystemBar()
@@ -1106,8 +1440,12 @@ class MainActivity : ComponentActivity() {
             try {
                 embeddedPwaHost.bootstrapIfNeeded()
                 runOnUiThread { mountEmbeddedWebView(jsBridge) }
-            } catch (_: Exception) {
-                runOnUiThread { mountRemoteFallbackWebView(jsBridge) }
+            } catch (error: Exception) {
+                // Never switch to the live website when the embedded bundle fails.
+                // Doing so changes the storage/runtime source during startup and can
+                // make a valid local wallet look like a fresh installation.
+                Log.e("BeamioEmbeddedPwa", "embedded PWA bootstrap failed; remote fallback disabled", error)
+                runOnUiThread { mountEmbeddedUnavailableWebView(jsBridge) }
             }
         }
     }
@@ -1130,7 +1468,12 @@ class MainActivity : ComponentActivity() {
                     return
                 }
             }
-            webView.loadUrl(https.toString(), HOME_DOCUMENT_REQUEST_HEADERS)
+            // Consumer Android must never switch the WebView to the remote
+            // /app/ origin: that creates a second IndexedDB/PouchDB namespace
+            // and makes an existing wallet look like a fresh install.
+            CashTreesWebConsoleRelay.logNative(
+                "ignored remote deep link while embedded PWA is active: $https",
+            )
         } catch (_: Exception) {
         }
     }
@@ -1147,12 +1490,24 @@ class MainActivity : ComponentActivity() {
         embeddedPwaHost.checkForUpdatesNow()
     }
 
-    private fun mountRemoteFallbackWebView(jsBridge: CashTreesJsBridge) {
+    private fun mountEmbeddedUnavailableWebView(jsBridge: CashTreesJsBridge) {
         useEmbeddedPwa = false
-        val wv = createRemoteWebView(jsBridge, EmbeddedPwaConstants.REMOTE_FALLBACK_URL)
+        val wv = createBaseWebView(jsBridge)
         webView = wv
         rootLayout.addView(wv)
-        applyPendingDeepLinkIfReady()
+        wv.loadDataWithBaseURL(
+            EmbeddedPwaConstants.ASSET_LOADER_ORIGIN,
+            """
+            <!doctype html><meta name="viewport" content="width=device-width,initial-scale=1">
+            <body style="background:#000414;color:white;font:16px sans-serif;padding:32px">
+            <h2>Beamio is starting</h2>
+            <p>The local app bundle is unavailable. Please retry when the device is online.</p>
+            </body>
+            """.trimIndent(),
+            "text/html",
+            "UTF-8",
+            null,
+        )
     }
 
     /**
@@ -1192,7 +1547,7 @@ class MainActivity : ComponentActivity() {
                         return loader.shouldInterceptRequest(local)
                     }
                     if (u.host?.lowercase() == EmbeddedPwaConstants.ASSET_LOADER_DOMAIN) {
-                        return loader.shouldInterceptRequest(u)
+                        return loader.shouldInterceptRequest(host.mapEmbeddedAssetUrlToLocal(u))
                     }
                     return null
                 }
@@ -1228,7 +1583,26 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     host.injectVersionGlobals(view)
                     injectWebBridgeScripts(view, "onPageFinished")
+                    applyTransparentStatusBar()
+                    embeddedPwaUpdateReplayAttempt = 0
+                    pendingSystemCallHandler.removeCallbacks(embeddedPwaUpdateReplayRunnable)
+                    pendingSystemCallHandler.postDelayed(
+                        embeddedPwaUpdateReplayRunnable,
+                        350L,
+                    )
                     dispatchPendingSystemCallAction()
+                    if (intent.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false)) {
+                        mailboxWakeDispatchAttempt = 0
+                        pendingSystemCallHandler.removeCallbacks(mailboxWakeDispatchRunnable)
+                        pendingSystemCallHandler.post(mailboxWakeDispatchRunnable)
+                    }
+                    requestShowActiveCall(intent)
+                    pendingSystemCallDispatchAttempt = 0
+                    pendingSystemCallHandler.removeCallbacks(pendingSystemCallDispatchRunnable)
+                    pendingSystemCallHandler.postDelayed(
+                        pendingSystemCallDispatchRunnable,
+                        250L,
+                    )
                 }
 
                 override fun onReceivedError(
@@ -1274,6 +1648,7 @@ class MainActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView, url: String?) {
                     injectWebBridgeScripts(view, "remote-onPageFinished")
+                    applyTransparentStatusBar()
                 }
 
                 override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
@@ -1303,7 +1678,7 @@ class MainActivity : ComponentActivity() {
             settings.builtInZoomControls = false
             isVerticalScrollBarEnabled = true
             isHorizontalScrollBarEnabled = false
-            setBackgroundColor(Color.parseColor("#000414"))
+            setBackgroundColor(Color.parseColor("#f8f9fa"))
             addJavascriptInterface(jsBridge, "CashTreesAndroid")
             addJavascriptInterface(CashTreesWebConsoleRelay.JsRelay(), CashTreesWebConsoleRelay.BRIDGE_NAME)
             CashTreesWebConsoleRelay.registerDocumentStartScript(this)
@@ -1315,18 +1690,42 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun dispatchPendingSystemCallAction() {
-        val pending = BeamioTelecomService.takePendingSystemCallAction(this) ?: return
+        val pending = BeamioTelecomService.peekPendingSystemCallAction(this) ?: return
+        Log.i(
+            "BeamioVoiceCall",
+            "dispatching pending action=${pending.getString("action").orEmpty()} " +
+                "callIdPresent=${pending.getString("callId").orEmpty().isNotBlank()}",
+        )
         dispatchAndroidBridgeJsonToWeb(
             JSONObject()
                 .put("action", pending.getString("action").orEmpty())
                 .put("callId", pending.getString("callId").orEmpty())
                 .put("sessionId", pending.getString("sessionId").orEmpty()),
-        )
+        ) {
+            // The action has reached the WebView bridge. Remove it only after
+            // evaluateJavascript completes, so a cold-start retry cannot
+            // replay an already-consumed Telecom action.
+            BeamioTelecomService.clearPendingSystemCallAction(this)
+            pendingSystemCallDispatchAttempt = 0
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        maybeEnableNfcForegroundDispatch()
+        if (IncomingCallActivity.isShowing()) {
+            IncomingCallActivity.bringToFront(this)
+            return
+        }
+        if (::rootLayout.isInitialized) {
+            rootLayout.setBackgroundColor(Color.parseColor("#f8f9fa"))
+        }
+        applyTransparentStatusBar()
+        maybeOpenFullScreenIntentSettings()
+        if (nfcBindKeepAlive) {
+            armNfcPhysicalCardRead()
+        } else {
+            maybeEnableNfcForegroundDispatch()
+        }
         // Launcher badge follows active notifications: drop stale offline alerts so the
         // PWA unread count (publishAppState) is the only badge source once we are visible.
         CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this)
@@ -1353,7 +1752,14 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        allowShowOverLockScreenForVoiceWake(intent)
         captureBeamioDeepLink(intent)
+        if (intent.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false)) {
+            mailboxWakeDispatchAttempt = 0
+            pendingSystemCallHandler.removeCallbacks(mailboxWakeDispatchRunnable)
+            pendingSystemCallHandler.post(mailboxWakeDispatchRunnable)
+        }
+        requestShowActiveCall(intent)
         val action = intent.action ?: return
         if (
             action != NfcAdapter.ACTION_TAG_DISCOVERED &&
@@ -1362,8 +1768,16 @@ class MainActivity : ComponentActivity() {
         ) {
             return
         }
-        // Reader Mode 已开启时由回调处理；此处仅在前台拦截系统默认分发。
-        if (nfcBindSessionActive) return
+        if (nfcBindKeepAlive || nfcBindSessionActive) {
+            val tag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+            }
+            if (tag != null) onNfcTagForBind(tag)
+            return
+        }
         // 未由 PWA 调用 startPhysicalCardBind：消费 Intent，不向系统/other app 冒泡。
     }
 
@@ -1372,8 +1786,15 @@ class MainActivity : ComponentActivity() {
             NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
         } catch (_: Exception) {
         }
-        if (nfcBindSessionActive) {
-            disarmNfcReader(true, "paused")
+        if (nfcBindKeepAlive) {
+            Log.i("BeamioNfc", "onPause release reader")
+            // Release the radio while not resumed. Keep the link request so
+            // onResume can arm the reader again. Do not notify the page here.
+            nfcBindSessionActive = false
+            try {
+                NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this)
+            } catch (_: Exception) {
+            }
         }
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "inactive"),
@@ -1382,6 +1803,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        if (nfcBindKeepAlive) {
+            disarmNfcReader(true, "paused")
+        }
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "background"),
         )
@@ -1390,18 +1814,44 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         if (activeInstance === this) activeInstance = null
+        pendingSystemCallHandler.removeCallbacksAndMessages(null)
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
         CashTreesPushRegistration.onTokenForWeb = null
         if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.stopUpdateDaemon()
         }
+        nfcReadExecutor.shutdownNow()
         bootstrapExecutor.shutdownNow()
         super.onDestroy()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideBottomSystemBar()
+        if (hasFocus) {
+            hideBottomSystemBar()
+            applyTransparentStatusBar()
+        }
+    }
+
+    /** Let a lock-screen Open Beamio tap boot the WebView without dismissing the keyguard. */
+    private fun allowShowOverLockScreenForVoiceWake(source: Intent?) {
+        if (source?.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false) != true) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+    }
+
+    /** Status bar stays clear so the page shows through. No black strip above the home screen. */
+    private fun applyTransparentStatusBar() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
     }
 
     /** Hide navigation bar; user can swipe edge to show it briefly (transient). */

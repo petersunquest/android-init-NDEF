@@ -55,6 +55,8 @@ RSYNC_EXCLUDES=(
 	--exclude 'homepage/'
 	--exclude 'SilentPassUI/'
 	--exclude '.well-known/'
+	--exclude 'beamio-android.apk'
+	--exclude 'beamio-softpos.apk'
 )
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then

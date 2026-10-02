@@ -15,6 +15,7 @@ import {
 } from '@/wallet/posWalletStorage'
 import {
 	clearSessionWallet,
+	forgetProgramCardChargePrivateKey,
 	getSessionPrivateKeyHex,
 	getSessionWalletAddress,
 	hasSessionWallet,
@@ -87,6 +88,7 @@ export async function createPosWalletWithIndexedDb(params: {
 	const accountName = params.accountName.trim()
 	if (!accountName) return { ok: false, error: 'Account name is required.' }
 
+	forgetProgramCardChargePrivateKey()
 	const w = Wallet.createRandom()
 	const mnemonicPhrase = w.mnemonic?.phrase?.trim()
 	if (!mnemonicPhrase) return { ok: false, error: 'Could not generate wallet mnemonic.' }
@@ -182,6 +184,7 @@ export async function restorePosWalletWithIndexedDb(params: {
 	const accountName = params.accountName.trim()
 	if (!accountName) return { ok: false, error: 'Account name is required.' }
 	if (!params.password) return { ok: false, error: 'Enter your access password' }
+	forgetProgramCardChargePrivateKey()
 
 	const local = await loadPosWalletInitFromIndexedDb()
 	if (

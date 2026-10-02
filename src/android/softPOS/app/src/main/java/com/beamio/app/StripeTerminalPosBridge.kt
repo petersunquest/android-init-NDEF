@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.stripe.stripeterminal.Terminal
 import com.stripe.stripeterminal.external.callable.Callback
+import com.stripe.stripeterminal.external.callable.Cancelable
 import com.stripe.stripeterminal.external.callable.ConnectionTokenCallback
 import com.stripe.stripeterminal.external.callable.ConnectionTokenProvider
 import com.stripe.stripeterminal.external.callable.DiscoveryListener
@@ -56,6 +57,10 @@ class StripeTerminalPosBridge(
     private var authorizationDeadline = 0
     private var authorizationNonce = ""
     private var pendingStartRaw: String? = null
+    private var operation = 0
+    private var activeCancelable: Cancelable? = null
+    private var timeout: Runnable? = null
+    private var acceptingContinuation = false
 
     private val tokenProvider = object : ConnectionTokenProvider {
         override fun fetchConnectionToken(callback: ConnectionTokenCallback) {
@@ -109,6 +114,24 @@ class StripeTerminalPosBridge(
 
     fun start(raw: String) {
         try {
+            if (!acceptingContinuation) {
+                val previousRequestId = requestId
+                val previousPaymentIntentId = paymentIntentId
+                cancelStripeWork()
+                if (previousRequestId.isNotBlank()) {
+                    emit(
+                        JSONObject()
+                            .put("action", "stripePhysicalPaymentResult")
+                            .put("requestId", previousRequestId)
+                            .put("paymentIntentId", previousPaymentIntentId)
+                            .put("errorCode", "superseded")
+                            .put("error", "Physical card payment was replaced by a new attempt.")
+                            .put("ok", false),
+                    )
+                }
+                operation += 1
+            }
+            val op = operation
             val request = JSONObject(raw)
             requestId = request.optString("requestId")
             paymentIntentId = request.optString("paymentIntentId")
@@ -150,6 +173,7 @@ class StripeTerminalPosBridge(
                         activity,
                         Manifest.permission.ACCESS_COARSE_LOCATION,
                     ) == PackageManager.PERMISSION_GRANTED
+            armTimeout(op)
             if (!hasLocationPermission) {
                 pendingStartRaw = raw
                 activity.requestStripeLocationPermission()
@@ -163,33 +187,72 @@ class StripeTerminalPosBridge(
                 pendingStartRaw = raw
                 Terminal.getInstance().disconnectReader(object : Callback {
                     override fun onSuccess() {
+                        if (op != operation) return
                         val pending = pendingStartRaw
                         pendingStartRaw = null
-                        if (pending != null) start(pending)
+                        if (pending != null) continueStart(pending)
                     }
 
                     override fun onFailure(e: TerminalException) {
+                        if (op != operation) return
                         pendingStartRaw = null
                         fail("reader_disconnect_failed", e.errorMessage)
+                        operation += 1
                     }
                 })
                 return
             }
-            startReaderDiscovery(request.optString("readerMode", "auto"))
+            startReaderDiscovery(request.optString("readerMode", "auto"), op)
         } catch (error: Exception) {
             fail("terminal_initialization_failed", error.message ?: "Stripe Terminal could not start.")
         }
     }
 
-    private fun startReaderDiscovery(mode: String) {
+    private fun continueStart(raw: String) {
+        acceptingContinuation = true
+        try {
+            start(raw)
+        } finally {
+            acceptingContinuation = false
+        }
+    }
+
+    private fun armTimeout(op: Int) {
+        timeout?.let { main.removeCallbacks(it) }
+        val runnable = Runnable {
+            if (op != operation) return@Runnable
+            cancelStripeWork()
+            fail("timed_out", "Physical card payment timed out. Tap to Pay did not finish. Please try again.")
+            operation += 1
+        }
+        timeout = runnable
+        main.postDelayed(runnable, 90_000)
+    }
+
+    private fun cancelStripeWork() {
+        timeout?.let { main.removeCallbacks(it) }
+        timeout = null
+        try {
+            activeCancelable?.cancel(object : Callback {
+                override fun onSuccess() = Unit
+                override fun onFailure(e: TerminalException) = Unit
+            })
+        } catch (_: Exception) {
+            /* Terminal may not have an active command. */
+        }
+        activeCancelable = null
+    }
+
+    private fun startReaderDiscovery(mode: String, op: Int) {
         try {
             if (mode == "external_reader") {
-                discoverBluetooth()
+                discoverBluetooth(op)
             } else {
-                connectTapToPay()
+                connectTapToPay(op)
             }
         } catch (error: Exception) {
             fail("terminal_initialization_failed", error.message ?: "Stripe Terminal could not start.")
+            operation += 1
         }
     }
 
@@ -198,91 +261,103 @@ class StripeTerminalPosBridge(
         pendingStartRaw = null
         if (!granted) {
             fail("location_permission_denied", "Location permission is required for Tap to Pay.")
+            operation += 1
             return
         }
-        if (pending != null) start(pending)
+        if (pending != null) continueStart(pending)
     }
 
-    private fun connectTapToPay() {
+    private fun connectTapToPay(op: Int) {
         val terminal = Terminal.getInstance()
-        terminal.easyConnect(
+        activeCancelable = terminal.easyConnect(
             TapToPayEasyConnectConfiguration(
                 TapToPayDiscoveryConfiguration(isSimulated = false),
                 TapToPayConnectionConfiguration(TapUseCase.Pay(locationId)),
             ),
-            readerCallback(),
+            readerCallback(op),
         )
     }
 
-    private fun discoverBluetooth() {
-        Terminal.getInstance().discoverReaders(
+    private fun discoverBluetooth(op: Int) {
+        activeCancelable = Terminal.getInstance().discoverReaders(
             BluetoothDiscoveryConfiguration(timeout = 30, isSimulated = false),
             object : DiscoveryListener {
                 override fun onUpdateDiscoveredReaders(readers: List<Reader>) {
-                    val reader = readers.firstOrNull()
-                    if (reader != null) {
-                        Terminal.getInstance().connectReader(
-                            reader,
-                            BluetoothConnectionConfiguration(locationId, true, object : com.stripe.stripeterminal.external.callable.MobileReaderListener {}),
-                            readerCallback(),
-                        )
-                    }
+                    if (op != operation) return
+                    val reader = readers.firstOrNull() ?: return
+                    Terminal.getInstance().connectReader(
+                        reader,
+                        BluetoothConnectionConfiguration(locationId, true, object : com.stripe.stripeterminal.external.callable.MobileReaderListener {}),
+                        readerCallback(op),
+                    )
                 }
             },
             object : Callback {
                 override fun onSuccess() = Unit
                 override fun onFailure(e: TerminalException) {
+                    if (op != operation) return
                     fail("reader_unavailable", e.errorMessage)
+                    operation += 1
                 }
             },
         )
     }
 
-    private fun readerCallback() = object : ReaderCallback {
+    private fun readerCallback(op: Int) = object : ReaderCallback {
         override fun onSuccess(reader: Reader) {
-            retrieveAndProcess(clientSecret)
+            if (op != operation) return
+            retrieveAndProcess(clientSecret, op)
         }
         override fun onFailure(e: TerminalException) {
+            if (op != operation) return
             fail("reader_unavailable", e.errorMessage)
+            operation += 1
         }
     }
 
-    private fun retrieveAndProcess(clientSecret: String) {
+    private fun retrieveAndProcess(clientSecret: String, op: Int) {
         Terminal.getInstance().retrievePaymentIntent(clientSecret, object : PaymentIntentCallback {
             override fun onSuccess(paymentIntent: PaymentIntent) {
-                Terminal.getInstance().processPaymentIntent(
+                if (op != operation) return
+                activeCancelable = Terminal.getInstance().processPaymentIntent(
                     paymentIntent,
                     com.stripe.stripeterminal.external.models.CollectPaymentIntentConfiguration.Builder().build(),
                     com.stripe.stripeterminal.external.models.ConfirmPaymentIntentConfiguration.Builder().build(),
                     object : PaymentIntentCallback {
                     override fun onSuccess(result: PaymentIntent) {
+                        if (op != operation) return
                         succeed(result.status.toString())
+                        operation += 1
                     }
 
                     override fun onFailure(e: TerminalException) {
+                        if (op != operation) return
                         fail("payment_failed", e.errorMessage)
+                        operation += 1
                     }
                     },
                 )
             }
 
             override fun onFailure(e: TerminalException) {
+                if (op != operation) return
                 fail("payment_intent_unavailable", e.errorMessage)
+                operation += 1
             }
         })
     }
 
-    fun cancel() {
-        try {
-            /* The SDK cancels the current payment operation when the active
-             * command is cancelled; a subsequent command can reuse the reader. */
-        } catch (_: Exception) {
-            /* Terminal may not be initialized yet. */
-        }
+    fun cancel(raw: String? = null) {
+        val expected = raw?.let { runCatching { JSONObject(it).optString("requestId") }.getOrNull() }.orEmpty()
+        if (expected.isNotBlank() && expected != requestId) return
+        cancelStripeWork()
         fail("cancelled", "Physical card payment was cancelled.")
+        operation += 1
     }
 
     private fun succeed(paymentStatus: String) {
+        timeout?.let { main.removeCallbacks(it) }
+        timeout = null
         emit(
             JSONObject()
                 .put("action", "stripePhysicalPaymentResult")
@@ -294,6 +369,8 @@ class StripeTerminalPosBridge(
     }
 
     private fun fail(code: String, message: String) {
+        timeout?.let { main.removeCallbacks(it) }
+        timeout = null
         emit(
             JSONObject()
                 .put("action", "stripePhysicalPaymentResult")

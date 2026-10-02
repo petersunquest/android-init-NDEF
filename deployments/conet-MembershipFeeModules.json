@@ -6,9 +6,9 @@
   "membershipFeeOpsLib": "0x83Ce2764646238251196b60Bbf760cba15430A4A",
   "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
   "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
-  "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
+  "adminStatsQueryModule": "0x29511a0A2A1e998bB06E82e25fD15F7583401b0A",
   "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
-  "replacedAdminStatsQueryModule": "0x003620F06B8a306b70eb6d90fd5097AeDE9947FA",
+  "replacedAdminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
   "stageSelector": "0xca5cc792",
   "bootstrapStageSelector": "0xf6614a5f",
   "setFeesSelector": "0xf5f88bcc",
@@ -22,7 +22,14 @@
   "note": "Membership fee diamond + stage via AdminStats V5; Factory binds V6 router(newV5, existing referrerViews); issue via MembershipStats",
   "bound": {
     "membershipStatsModule": "0x92b5060dafd6c023C8F2aE404cdc55C06c4Cd6de",
-    "adminStatsQueryModule": "0x962B824144b5A0cb45405C172f1819B829f20891",
+    "adminStatsQueryModule": "0x29511a0A2A1e998bB06E82e25fD15F7583401b0A",
     "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8"
+  },
+  "kycLinkUpgrade": {
+    "timestamp": "2026-09-28T22:38:32.933Z",
+    "adminStatsQueryModule": "0x29511a0A2A1e998bB06E82e25fD15F7583401b0A",
+    "adminStatsQueryModuleV5": "0x4Fbb5c11cd89aB8E078283457D88F01e9Cf8f3b8",
+    "adminStatsReferrerViews": "0x6c7648B1d5339ea844089d2d7c9da72acab2cC9C",
+    "setAdminStatsQueryModuleTx": "0xb74e361777213f581a58572d6368a93814e1dbf878877e6a5cfc677a273e2c3e"
   }
 }

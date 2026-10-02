@@ -3,3 +3,5 @@
 /* eslint-disable */
 export type { BeamioUserCardAdminStatsQueryModuleV6 } from './BeamioUserCardAdminStatsQueryModuleV6.js';
 export type { IAdminStatsSelectorRouter } from './IAdminStatsSelectorRouter.js';
+export type { ICardFactoryGatewayView } from './ICardFactoryGatewayView.js';
+export type { IPaymasterFactoryView } from './IPaymasterFactoryView.js';
