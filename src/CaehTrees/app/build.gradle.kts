@@ -85,6 +85,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // Deferred deep link after Play install (merchant detail after onboarding)
+    implementation("com.android.installreferrer:installreferrer:2.2")
     // Offline chat → FCM badge (replace app/google-services.json with Firebase Console export)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

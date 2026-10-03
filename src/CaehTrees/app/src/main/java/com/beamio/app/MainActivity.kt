@@ -311,6 +311,10 @@ class MainActivity : ComponentActivity() {
     @Volatile
     private var pendingDeepLinkHttps: Uri? = null
 
+    /** An explicit intent deep link already drove the WebView; a later install-referrer link must not replace it. */
+    @Volatile
+    private var deepLinkApplied = false
+
     private val bootstrapExecutor = Executors.newSingleThreadExecutor()
 
     private var fullScreenIntentSettingsLaunched = false
@@ -1435,6 +1439,14 @@ class MainActivity : ComponentActivity() {
         setContentView(rootLayout)
         hideBottomSystemBar()
         captureBeamioDeepLink(intent)
+        // Fresh Play install: recover the merchant / coupon link the landing page stashed.
+        InstallReferrerDeepLink.consumeOnce(this) { https ->
+            runOnUiThread {
+                if (deepLinkApplied || pendingDeepLinkHttps != null) return@runOnUiThread
+                pendingDeepLinkHttps = https
+                applyPendingDeepLinkIfReady()
+            }
+        }
 
         bootstrapExecutor.execute {
             try {
@@ -1461,6 +1473,7 @@ class MainActivity : ComponentActivity() {
         val https = pendingDeepLinkHttps ?: return
         if (!::webView.isInitialized) return
         pendingDeepLinkHttps = null
+        deepLinkApplied = true
         try {
             if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
                 embeddedPwaHost.mapBeamioAppUrlToLocal(https)?.let { local ->

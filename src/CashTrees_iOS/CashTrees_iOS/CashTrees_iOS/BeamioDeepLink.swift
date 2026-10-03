@@ -166,15 +166,15 @@ enum BeamioDeepLink {
         }
         let card = map["beamiocard"] ?? ""
         guard !card.isEmpty else { return false }
-        let discover = (map["discover"] ?? "").lowercased()
-        if discover == "open" || discover == "1" || discover == "true" { return true }
+        if map["redeemcode"] != nil { return true }
         let couponId = map["couponid"] ?? ""
         let claim = (map["claim"] ?? "").lowercased()
-        if !couponId.isEmpty, claim.isEmpty || claim == "open" || claim == "1" || claim == "true" {
-            return true
+        if !couponId.isEmpty {
+            return claim.isEmpty || claim == "open" || claim == "1" || claim == "true"
         }
-        if map["redeemcode"] != nil { return true }
-        return false
+        // Merchant link: `discover=open|1|true`, or a bare `beamiocard` with no `discover`.
+        let discover = (map["discover"] ?? "").lowercased()
+        return discover.isEmpty || discover == "open" || discover == "1" || discover == "true"
     }
 }
 
