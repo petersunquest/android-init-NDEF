@@ -523,6 +523,54 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     func loadWebAppURL(_ url: URL, in webView: WKWebView, bypassDedup: Bool = false) {
+        // Receive-from-wallet callback: prefer CustomEvent inject without full reload so
+        // Home's waiting listener survives the return from Coinbase / wallet handoff.
+        if let auth = Self.receiveUsdcAuthPayload(from: url), !auth.isEmpty {
+            let alreadyLoaded = webView.url != nil && !webView.isLoading
+            if alreadyLoaded {
+                injectReceiveUsdcAuth(auth, into: webView)
+                return
+            }
+            let key = url.absoluteString
+            if !bypassDedup, lastLoadedWebURLString == key {
+                injectReceiveUsdcAuth(auth, into: webView)
+                return
+            }
+            lastLoadedWebURLString = key
+            var request = URLRequest(url: url)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+            webView.load(request)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak webView] in
+                guard let self, let webView else { return }
+                self.injectReceiveUsdcAuth(auth, into: webView)
+            }
+            return
+        }
+        if let txHash = Self.receiveUsdcTxPayload(from: url), !txHash.isEmpty {
+            let alreadyLoaded = webView.url != nil && !webView.isLoading
+            if alreadyLoaded {
+                injectReceiveUsdcTx(txHash, into: webView)
+                return
+            }
+            let key = url.absoluteString
+            if !bypassDedup, lastLoadedWebURLString == key {
+                injectReceiveUsdcTx(txHash, into: webView)
+                return
+            }
+            lastLoadedWebURLString = key
+            var request = URLRequest(url: url)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+            webView.load(request)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self, weak webView] in
+                guard let self, let webView else { return }
+                self.injectReceiveUsdcTx(txHash, into: webView)
+            }
+            return
+        }
         let key = url.absoluteString
         if !bypassDedup, lastLoadedWebURLString == key { return }
         lastLoadedWebURLString = key
@@ -531,6 +579,79 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         webView.load(request)
+    }
+
+    private static func receiveUsdcAuthPayload(from url: URL) -> String? {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return nil
+        }
+        return items.first(where: { $0.name == "receiveUsdcAuth" })?.value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func receiveUsdcTxPayload(from url: URL) -> String? {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return nil
+        }
+        return items.first(where: { $0.name == "receiveUsdcTx" })?.value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Dual channel for PWA `subscribeReceiveUsdcAuth`: CustomEvent + sessionStorage + URL query.
+    private func injectReceiveUsdcAuth(_ payload: String, into webView: WKWebView) {
+        let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: [trimmed], options: []),
+              let arrayJson = String(data: data, encoding: .utf8),
+              arrayJson.count >= 4
+        else { return }
+        // JSONSerialization wraps as ["…"] — peel the quoted string for a JS literal.
+        let quoted = String(arrayJson.dropFirst().dropLast())
+        let js = """
+        (function(){
+          try {
+            var detail = \(quoted);
+            try { sessionStorage.setItem('beamio:receiveUsdcAuth', detail); } catch (e) {}
+            try {
+              var u = new URL(window.location.href);
+              u.searchParams.set('receiveUsdcAuth', detail);
+              history.replaceState({}, '', u.pathname + u.search + u.hash);
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('beamioReceiveUsdcAuth', { detail: detail }));
+            try { window.dispatchEvent(new CustomEvent('beamio:deeplink')); } catch (e) {}
+          } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        CashTreesWebConsoleRelay.logNative("injected beamioReceiveUsdcAuth (\(trimmed.count) chars)")
+    }
+
+    /// Dual channel for PWA `subscribeReceiveUsdcTx` (Smart Wallet USDC.transfer).
+    private func injectReceiveUsdcTx(_ payload: String, into webView: WKWebView) {
+        let trimmed = payload.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: [trimmed], options: []),
+              let arrayJson = String(data: data, encoding: .utf8),
+              arrayJson.count >= 4
+        else { return }
+        let quoted = String(arrayJson.dropFirst().dropLast())
+        let js = """
+        (function(){
+          try {
+            var detail = \(quoted);
+            try { sessionStorage.setItem('beamio:receiveUsdcTx', detail); } catch (e) {}
+            try {
+              var u = new URL(window.location.href);
+              u.searchParams.set('receiveUsdcTx', detail);
+              history.replaceState({}, '', u.pathname + u.search + u.hash);
+            } catch (e) {}
+            window.dispatchEvent(new CustomEvent('beamioReceiveUsdcTx', { detail: detail }));
+            try { window.dispatchEvent(new CustomEvent('beamio:deeplink')); } catch (e) {}
+          } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        CashTreesWebConsoleRelay.logNative("injected beamioReceiveUsdcTx (\(trimmed.count) chars)")
     }
 
     /// Start the splash handoff only after the page reports that it has
@@ -1202,7 +1323,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         // EIP-681 (`ethereum:0x…@8453/transfer?…`) for Coinbase Wallet / system wallet handoff.
         "ethereum",
         "metamask", "cbwallet", "coinbase", "base",
-        "okx", "okex", "tpdapp", "tpoutside", "phantom",
+        "okx", "okex", "tpdapp", "tpoutside", "phantom", "trust",
     ]
 
     private func openExternalURLFromBridge(_ raw: String?) {

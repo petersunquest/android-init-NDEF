@@ -146,6 +146,7 @@
         <package android:name="com.okx.wallet" />
         <package android:name="vip.mytokenpocket" />
         <package android:name="app.phantom" />
+        <package android:name="com.wallet.crypto.trustapp" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="metamask" />
@@ -181,6 +182,14 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="phantom" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="trust" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="ethereum" />
         </intent>
     </queries>
 

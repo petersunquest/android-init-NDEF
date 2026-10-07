@@ -27,6 +27,7 @@
 		<string>tpdapp</string>
 		<string>tpoutside</string>
 		<string>phantom</string>
+		<string>trust</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

@@ -160,8 +160,9 @@ class MainActivity : ComponentActivity() {
 
         private val ALLOWED_EXTERNAL_URL_SCHEMES = setOf(
             "http", "https", "mailto", "tel",
+            "ethereum",
             "metamask", "cbwallet", "coinbase", "base",
-            "okx", "okex", "tpdapp", "tpoutside", "phantom",
+            "okx", "okex", "tpdapp", "tpoutside", "phantom", "trust",
         )
     }
 
@@ -1469,21 +1470,108 @@ class MainActivity : ComponentActivity() {
         applyPendingDeepLinkIfReady()
     }
 
+    /**
+     * Deliver EIP-3009 auth from `beamio://open?receiveUsdcAuth=…` into the live PWA
+     * without a full document reload (reload would drop Home's waiting listener).
+     * Dual channel: CustomEvent `beamioReceiveUsdcAuth` + sessionStorage + URL query.
+     */
+    private fun injectReceiveUsdcAuthToPwa(authPayload: String) {
+        if (!::webView.isInitialized) return
+        val trimmed = authPayload.trim()
+        if (trimmed.isEmpty()) return
+        val quoted = JSONObject.quote(trimmed)
+        val js =
+            """
+            (function(){
+              try {
+                var detail = $quoted;
+                try { sessionStorage.setItem('beamio:receiveUsdcAuth', detail); } catch (e) {}
+                try {
+                  var u = new URL(window.location.href);
+                  u.searchParams.set('receiveUsdcAuth', detail);
+                  history.replaceState({}, '', u.pathname + u.search + u.hash);
+                } catch (e) {}
+                window.dispatchEvent(new CustomEvent('beamioReceiveUsdcAuth', { detail: detail }));
+                try { window.dispatchEvent(new CustomEvent('beamio:deeplink')); } catch (e) {}
+              } catch (e) {}
+            })();
+            """.trimIndent()
+        webView.evaluateJavascript(js, null)
+        CashTreesWebConsoleRelay.logNative("injected beamioReceiveUsdcAuth (${trimmed.length} chars)")
+    }
+
+    /**
+     * Deliver Smart Wallet USDC.transfer tx hash from `beamio://open?receiveUsdcTx=…`.
+     * Dual channel: CustomEvent `beamioReceiveUsdcTx` + sessionStorage + URL query.
+     */
+    private fun injectReceiveUsdcTxToPwa(txPayload: String) {
+        if (!::webView.isInitialized) return
+        val trimmed = txPayload.trim()
+        if (trimmed.isEmpty()) return
+        val quoted = JSONObject.quote(trimmed)
+        val js =
+            """
+            (function(){
+              try {
+                var detail = $quoted;
+                try { sessionStorage.setItem('beamio:receiveUsdcTx', detail); } catch (e) {}
+                try {
+                  var u = new URL(window.location.href);
+                  u.searchParams.set('receiveUsdcTx', detail);
+                  history.replaceState({}, '', u.pathname + u.search + u.hash);
+                } catch (e) {}
+                window.dispatchEvent(new CustomEvent('beamioReceiveUsdcTx', { detail: detail }));
+                try { window.dispatchEvent(new CustomEvent('beamio:deeplink')); } catch (e) {}
+              } catch (e) {}
+            })();
+            """.trimIndent()
+        webView.evaluateJavascript(js, null)
+        CashTreesWebConsoleRelay.logNative("injected beamioReceiveUsdcTx (${trimmed.length} chars)")
+    }
+
     private fun applyPendingDeepLinkIfReady() {
         val https = pendingDeepLinkHttps ?: return
         if (!::webView.isInitialized) return
         pendingDeepLinkHttps = null
         deepLinkApplied = true
         try {
+            val receiveAuth = https.getQueryParameter("receiveUsdcAuth")?.trim().orEmpty()
+            val receiveTx = https.getQueryParameter("receiveUsdcTx")?.trim().orEmpty()
+            if (receiveAuth.isNotEmpty() || receiveTx.isNotEmpty()) {
+                // Prefer inject-without-reload when the embedded PWA is already running.
+                val alreadyLoaded =
+                    !webView.url.isNullOrBlank() &&
+                        webView.progress >= 100
+                if (alreadyLoaded) {
+                    if (receiveAuth.isNotEmpty()) injectReceiveUsdcAuthToPwa(receiveAuth)
+                    if (receiveTx.isNotEmpty()) injectReceiveUsdcTxToPwa(receiveTx)
+                    return
+                }
+            }
             if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
                 embeddedPwaHost.mapBeamioAppUrlToLocal(https)?.let { local ->
                     webView.loadUrl(local.toString())
+                    if (receiveAuth.isNotEmpty() || receiveTx.isNotEmpty()) {
+                        // Cold start / first paint: inject again after load settles.
+                        pendingSystemCallHandler.postDelayed(
+                            {
+                                if (receiveAuth.isNotEmpty()) injectReceiveUsdcAuthToPwa(receiveAuth)
+                                if (receiveTx.isNotEmpty()) injectReceiveUsdcTxToPwa(receiveTx)
+                            },
+                            400L,
+                        )
+                    }
                     return
                 }
             }
             // Consumer Android must never switch the WebView to the remote
             // /app/ origin: that creates a second IndexedDB/PouchDB namespace
             // and makes an existing wallet look like a fresh install.
+            if (receiveAuth.isNotEmpty() || receiveTx.isNotEmpty()) {
+                if (receiveAuth.isNotEmpty()) injectReceiveUsdcAuthToPwa(receiveAuth)
+                if (receiveTx.isNotEmpty()) injectReceiveUsdcTxToPwa(receiveTx)
+                return
+            }
             CashTreesWebConsoleRelay.logNative(
                 "ignored remote deep link while embedded PWA is active: $https",
             )
