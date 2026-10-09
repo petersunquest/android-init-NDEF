@@ -84,6 +84,8 @@ class BeamioChatClientImpl implements BeamioChatClient {
 		log: new Set(),
 		historyBuffer: new Set(),
 		voiceFrame: new Set(),
+		voiceGap: new Set(),
+		voiceConflict: new Set(),
 	}
 	private historyBridge: ChatHistoryBridge
 	private routes: ChatRoute[] = []
@@ -281,6 +283,12 @@ class BeamioChatClientImpl implements BeamioChatClient {
 				return
 			case 'event:voiceFrame':
 				this.emit('voiceFrame', msg.payload)
+				return
+			case 'event:voiceGap':
+				this.emit('voiceGap', msg.payload)
+				return
+			case 'event:voiceConflict':
+				this.emit('voiceConflict', msg.payload)
 				return
 			case 'event:log':
 				this.emit('log', { level: msg.level, message: msg.message })

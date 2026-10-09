@@ -87,9 +87,14 @@ export interface VoiceFrame {
 	sessionId: string
 	from: string
 	to: string
+	direction?: 'uplink' | 'downlink' | 'inbound' | 'outbound'
 	seq: number
 	timestamp: number
 	payload: string
+	/** Video-only fragmentation metadata. All chunks share frameId/chunkCount. */
+	frameId?: string
+	chunkIndex?: number
+	chunkCount?: number
 }
 
 export const VOICE_MAX_FRAME_B64 = 12_000
@@ -174,7 +179,9 @@ export interface ChatEventMap {
 	status: StatusEvent
 	log: ChatLogEvent
 	historyBuffer: HistoryBufferEvent
-	voiceFrame: Record<string, unknown>
+	voiceFrame: VoiceFrame
+	voiceGap: import('./voice-reorder').VoiceGapEvent
+	voiceConflict: import('./voice-reorder').VoiceConflictEvent
 }
 
 export type ChatEventName = keyof ChatEventMap

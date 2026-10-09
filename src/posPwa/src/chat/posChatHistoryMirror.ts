@@ -1,4 +1,4 @@
-import type { HistoryBufferEvent, HistoryEntry } from '@/vendor/beamio-chat-sdk/types'
+import type { HistoryBufferEvent, HistoryEntry } from '@conet.project/chat-sdk/types'
 import { isPosTerminalPermissionChatPayload } from '@/chat/posChatInbound'
 import { parseChatDeliveryReceiptV1 } from '@/chat/posChatDeliveryReceipt'
 import { appendWorkerHistory } from '@/chat/posChatWorkerBridge'

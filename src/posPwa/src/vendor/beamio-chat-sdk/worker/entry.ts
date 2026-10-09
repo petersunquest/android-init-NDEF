@@ -56,6 +56,8 @@ function makeGossip(): GossipCore {
 		message: (line, armorHash, plain, viaDomain) =>
 			post({ type: 'event:message', payload: { line, armorHash, plain, viaDomain, receivedAt: Date.now() } }),
 		voiceFrame: (payload) => post({ type: 'event:voiceFrame', payload }),
+		voiceGap: (payload) => post({ type: 'event:voiceGap', payload }),
+		voiceConflict: (payload) => post({ type: 'event:voiceConflict', payload }),
 		status: (status: StatusEvent['status'], detail?: string) =>
 			post({ type: 'event:status', payload: { status, detail } }),
 		log: (level, message) => post({ type: 'event:log', level, message }),

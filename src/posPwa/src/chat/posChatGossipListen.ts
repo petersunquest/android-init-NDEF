@@ -4,7 +4,7 @@ import {
 	startWorkerGossipListen,
 	stopWorkerGossip,
 } from '@/chat/posChatWorkerBridge'
-import type { NodeInfo } from '@/vendor/beamio-chat-sdk/types'
+import type { NodeInfo } from '@conet.project/chat-sdk/types'
 
 let currentAbort: AbortController | null = null
 

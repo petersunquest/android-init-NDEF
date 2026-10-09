@@ -30,7 +30,14 @@ import {
 } from 'openpgp'
 import { ethers } from 'ethers'
 
-import type { ChatRoute, NodeInfo, PresenceEvent, StatusEvent } from '../types'
+import {
+	VOICE_MAX_FRAME_B64,
+	type ChatRoute,
+	type NodeInfo,
+	type PresenceEvent,
+	type StatusEvent,
+	type VoiceFrame,
+} from '../types'
 import type { WorkerInitPayload } from '../protocol'
 import {
 	getRandomNode,
@@ -45,11 +52,19 @@ import {
 } from '../nodes'
 import { base64ToUtf8, keccakUtf8, utf8ToBase64 } from '../crypto'
 import { buildPostBody, encryptRouteCommand, wrapArmorToEntryRoute, wrapArmorToMailboxWork } from '../envelope'
+import {
+	VoiceFrameReorderBuffer,
+	type VoiceConflictEvent,
+	type VoiceFrameChunk,
+	type VoiceGapEvent,
+} from '../voice-reorder'
 
 /** Callbacks the worker entry wires to `postMessage`. */
 export interface GossipEmit {
 	message(line: string, armorHash: string | undefined, plain: boolean, viaDomain?: string): void
-	voiceFrame(payload: Record<string, unknown>): void
+	voiceFrame(payload: VoiceFrame): void
+	voiceGap(payload: VoiceGapEvent): void
+	voiceConflict(payload: VoiceConflictEvent): void
 	status(status: StatusEvent['status'], detail?: string): void
 	log(level: 'info' | 'warn' | 'error', message: string): void
 	presence(payload: PresenceEvent): void
@@ -98,6 +113,13 @@ export class GossipCore {
 	private _userPgpKeyID = ''
 	private listenController: AbortController | null = null
 	private voiceListenController: AbortController | null = null
+	private readonly voiceReorder = new VoiceFrameReorderBuffer({
+		onEvent: (event) => {
+			if (event.type === 'frame') this.emit.voiceFrame(event.frame as VoiceFrame)
+			if (event.type === 'gap') this.emit.voiceGap(event.gap)
+			if (event.type === 'conflict') this.emit.voiceConflict(event.conflict)
+		},
+	})
 	private _lastActivityAt = 0
 	private paused = false
 	/** Listen `Securitykey` (aes-256-cbc). Sent on the command; live SI SSE frames are still plaintext JSON. */
@@ -191,6 +213,7 @@ export class GossipCore {
 			}
 			this.voiceListenController = null
 		}
+		this.voiceReorder.clear()
 	}
 
 	async startVoiceListen(sessionId: string): Promise<boolean> {
@@ -276,7 +299,12 @@ export class GossipCore {
 						if (!payload) continue
 						try {
 							const data = JSON.parse(payload) as Record<string, unknown>
-							if (data.type === 'voice_frame_v1') this.emit.voiceFrame(data)
+							if (data.type === 'voice_frame_v1') {
+								const frame = typeof data.frameTimestamp === 'number'
+									? { ...data, timestamp: data.frameTimestamp }
+									: data
+								this.voiceReorder.push(frame as unknown as VoiceFrameChunk)
+							}
 						} catch {
 							/* ignore malformed voice frames */
 						}
@@ -560,7 +588,10 @@ export class GossipCore {
 		}
 		try {
 			if (data.type === 'voice_frame_v1') {
-				this.emit.voiceFrame(data)
+				const frame = typeof data.frameTimestamp === 'number'
+					? { ...data, timestamp: data.frameTimestamp }
+					: data
+				this.voiceReorder.push(frame as unknown as VoiceFrameChunk)
 				return
 			}
 			const armored = typeof data.data === 'string' ? data.data : ''
@@ -779,10 +810,51 @@ export class GossipCore {
 	): Promise<boolean> {
 		if (!this.wallet) return false
 		try {
+			const candidate = frame as Partial<VoiceFrame>
+			if (
+				typeof candidate.callId !== 'string' ||
+				!candidate.callId ||
+				typeof candidate.sessionId !== 'string' ||
+				!candidate.sessionId ||
+				typeof candidate.to !== 'string' ||
+				!candidate.to ||
+				!Number.isSafeInteger(candidate.seq) ||
+				(candidate.seq as number) < 0 ||
+				typeof candidate.timestamp !== 'number' ||
+				!Number.isFinite(candidate.timestamp) ||
+				typeof candidate.payload !== 'string' ||
+				!candidate.payload ||
+				candidate.payload.length > VOICE_MAX_FRAME_B64
+			) {
+				return false
+			}
+			const hasChunkMetadata = candidate.chunkIndex !== undefined || candidate.chunkCount !== undefined
+			if (
+				hasChunkMetadata &&
+				(!candidate.frameId ||
+					!Number.isSafeInteger(candidate.chunkIndex) ||
+					!Number.isSafeInteger(candidate.chunkCount) ||
+					(candidate.chunkIndex as number) < 0 ||
+					(candidate.chunkCount as number) <= 0 ||
+					(candidate.chunkIndex as number) >= (candidate.chunkCount as number))
+			) {
+				return false
+			}
 			const command = {
 				command: 'voice_uplink',
 				walletAddress: this.wallet.address,
-				...frame,
+				type: 'voice_frame_v1',
+				callId: candidate.callId,
+				sessionId: candidate.sessionId,
+				from: this.wallet.address,
+				to: candidate.to,
+				direction: candidate.direction || 'uplink',
+				seq: candidate.seq,
+				frameTimestamp: candidate.timestamp,
+				payload: candidate.payload,
+				...(candidate.frameId ? { frameId: candidate.frameId } : {}),
+				...(candidate.chunkIndex !== undefined ? { chunkIndex: candidate.chunkIndex } : {}),
+				...(candidate.chunkCount !== undefined ? { chunkCount: candidate.chunkCount } : {}),
 				timestamp: Math.floor(Date.now() / 1000),
 			}
 			const innerArmor = await encryptRouteCommand(this.wallet, command, routerArmoredPublicKey)

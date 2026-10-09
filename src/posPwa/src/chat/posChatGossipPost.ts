@@ -17,9 +17,9 @@ import {
 	pickGossipEntryNodesForSend,
 	pickRouteNodesByArmoredKey,
 	postUrl,
-} from '@/vendor/beamio-chat-sdk/nodes'
-import { wrapArmorToEntryRoute } from '@/vendor/beamio-chat-sdk/envelope'
-import type { NodeInfo } from '@/vendor/beamio-chat-sdk/types'
+} from '@conet.project/chat-sdk/nodes'
+import { wrapArmorToEntryRoute } from '@conet.project/chat-sdk/envelope'
+import type { NodeInfo } from '@conet.project/chat-sdk/types'
 
 function asNodeInfo(nodes: GossipNodeInfo[]): NodeInfo[] {
 	return nodes as unknown as NodeInfo[]

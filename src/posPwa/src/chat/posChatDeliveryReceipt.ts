@@ -4,7 +4,7 @@
  * 2) Sender receipt — encrypt to sender user PGP (`beamio_chat_delivery_receipt_v1`)
  */
 import { Wallet } from 'ethers'
-import { encryptRouteCommand } from '@/vendor/beamio-chat-sdk/envelope'
+import { encryptRouteCommand } from '@conet.project/chat-sdk/envelope'
 import { fetchRecipientChatKeys } from '@/conet/searchKey'
 import { normalizePrivateKeyHex } from '@/conet/crypto'
 import { postArmoredGossipToEntries } from '@/chat/posChatGossipPost'

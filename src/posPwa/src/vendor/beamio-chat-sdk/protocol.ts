@@ -16,7 +16,9 @@ import type {
 	NodeInfo,
 	PresenceEvent,
 	StatusEvent,
+	VoiceFrame,
 } from './types'
+import type { VoiceConflictEvent, VoiceGapEvent } from './voice-reorder'
 
 /** Serialisable subset of config passed into the worker at init. */
 export interface WorkerInitPayload {
@@ -76,7 +78,9 @@ export type WorkerOutbound =
 	| { type: 'event:presence'; payload: PresenceEvent }
 	| { type: 'event:status'; payload: StatusEvent }
 	| { type: 'event:historyBuffer'; payload: HistoryBufferEvent }
-	| { type: 'event:voiceFrame'; payload: Record<string, unknown> }
+	| { type: 'event:voiceFrame'; payload: VoiceFrame }
+	| { type: 'event:voiceGap'; payload: VoiceGapEvent }
+	| { type: 'event:voiceConflict'; payload: VoiceConflictEvent }
 	| { type: 'event:log'; level: 'info' | 'warn' | 'error'; message: string }
 	/** Worker asks host (main thread) to refresh node list (host owns discovery). */
 	| { type: 'nodesRequest'; reqId: number }

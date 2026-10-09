@@ -6,7 +6,7 @@
 import { Wallet } from 'ethers'
 import { CONET_RPC } from '@/constants'
 import { CONET_ADDRESS_PGP_MANAGER, CONET_CHAT_INDEX_REGISTRY } from '@/conet/constants'
-import { createBeamioChatClient } from '@/vendor/beamio-chat-sdk'
+import { createBeamioChatClient } from '@conet.project/chat-sdk'
 import type {
 	BeamioChatConfig,
 	ChatRoute,
@@ -15,7 +15,9 @@ import type {
 	HistoryLoadOptions,
 	NodeInfo,
 	SendMessageOptions,
-} from '@/vendor/beamio-chat-sdk/types'
+	VoiceFrame,
+} from '@conet.project/chat-sdk/types'
+import type { VoiceConflictEvent, VoiceGapEvent } from '@conet.project/chat-sdk/voice-reorder'
 
 const IPFS_BASE_URL = 'https://ipfs.conet.network/api'
 const BEAMIO_API_BASE_URL = 'https://beamio.app/api'
@@ -85,7 +87,7 @@ export const appendWorkerHistory = async (entry: Omit<HistoryEntry, 'seq'>): Pro
 }
 
 function makeGossipWorker(): Worker {
-	return new Worker(new URL('../vendor/beamio-chat-sdk/worker/entry.ts', import.meta.url), {
+	return new Worker(new URL('@conet.project/chat-sdk/worker', import.meta.url), {
 		type: 'module',
 		name: 'beamio-chat-gossip',
 	})
@@ -100,7 +102,9 @@ export interface StartWorkerGossipParams {
 	nodes: NodeInfo[]
 	rootSignal: AbortSignal
 	onLine: (line: string) => void
-	onVoiceFrame?: (frame: Record<string, unknown>) => void
+	onVoiceFrame?: (frame: VoiceFrame) => void
+	onVoiceGap?: (event: VoiceGapEvent) => void
+	onVoiceConflict?: (event: VoiceConflictEvent) => void
 	onActivity: () => void
 	onLog?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
@@ -236,6 +240,8 @@ export const startWorkerGossipListen = async (p: StartWorkerGossipParams): Promi
 		}),
 	)
 	if (p.onVoiceFrame) unsubs.push(client.on('voiceFrame', p.onVoiceFrame))
+	if (p.onVoiceGap) unsubs.push(client.on('voiceGap', p.onVoiceGap))
+	if (p.onVoiceConflict) unsubs.push(client.on('voiceConflict', p.onVoiceConflict))
 	unsubs.push(
 		client.history.onBuffer((batch) => {
 			if (p.rootSignal.aborted) return
