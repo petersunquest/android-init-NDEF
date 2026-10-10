@@ -195,6 +195,75 @@ class BeamioTelecomService : ConnectionService() {
         // second self-managed call (which OEM Telecom rejects as a duplicate
         // ringing call).
         private val submittedIncomingCalls = ConcurrentHashMap.newKeySet<String>()
+        // Answer → setActive must wait until the PWA has opened getUserMedia.
+        // Fixed 3.5s was too short when route/PGP/acceptIncoming exceeded that
+        // window: MODE_IN_COMMUNICATION then made WebView report NotFound.
+        private const val SET_ACTIVE_FALLBACK_MS = 12_000L
+        private val setActiveHandler = Handler(Looper.getMainLooper())
+        private val pendingSetActive = ConcurrentHashMap<String, Runnable>()
+
+        private fun setActiveLookupKeys(callId: String, sessionId: String): List<String> =
+            listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+
+        private fun cancelPendingSetActive(callId: String, sessionId: String) {
+            for (key in setActiveLookupKeys(callId, sessionId)) {
+                pendingSetActive.remove(key)?.let { setActiveHandler.removeCallbacks(it) }
+            }
+        }
+
+        private fun scheduleDeferredSetActive(
+            callId: String,
+            sessionId: String,
+            connection: BeamioConnection,
+        ) {
+            cancelPendingSetActive(callId, sessionId)
+            val keys = setActiveLookupKeys(callId, sessionId)
+            if (keys.isEmpty()) return
+            val runnable = Runnable {
+                for (key in keys) pendingSetActive.remove(key)
+                try {
+                    val state = connection.state
+                    if (state == Connection.STATE_DISCONNECTED || state == Connection.STATE_ACTIVE) {
+                        return@Runnable
+                    }
+                    connection.setActive()
+                    Log.i(
+                        TAG,
+                        "callAnswered setActive fallback after ${SET_ACTIVE_FALLBACK_MS}ms callId=$callId",
+                    )
+                } catch (error: Exception) {
+                    Log.w(TAG, "Deferred setActive fallback failed: ${error.message}")
+                }
+            }
+            for (key in keys) pendingSetActive[key] = runnable
+            setActiveHandler.postDelayed(runnable, SET_ACTIVE_FALLBACK_MS)
+        }
+
+        /**
+         * PWA opened the mic successfully — promote Telecom to ACTIVE now
+         * (MODE_IN_COMMUNICATION) and cancel the fallback timer.
+         */
+        fun notifyVoiceMicReady(callId: String, sessionId: String) {
+            cancelPendingSetActive(callId, sessionId)
+            val connection =
+                setActiveLookupKeys(callId, sessionId)
+                    .firstNotNullOfOrNull { activeConnections[it] }
+            if (connection == null) {
+                Log.w(TAG, "notifyVoiceMicReady: no connection callId=$callId sessionId=$sessionId")
+                return
+            }
+            try {
+                val state = connection.state
+                if (state == Connection.STATE_DISCONNECTED || state == Connection.STATE_ACTIVE) {
+                    Log.i(TAG, "notifyVoiceMicReady: already state=$state callId=$callId")
+                    return
+                }
+                connection.setActive()
+                Log.i(TAG, "notifyVoiceMicReady setActive callId=$callId sessionId=$sessionId")
+            } catch (error: Exception) {
+                Log.w(TAG, "notifyVoiceMicReady setActive failed: ${error.message}")
+            }
+        }
 
         fun savePendingSystemCallAction(context: Context, action: String, callId: String, sessionId: String) {
             context.getSharedPreferences(ACTION_PREFS, Context.MODE_PRIVATE).edit()
@@ -702,11 +771,18 @@ class BeamioTelecomService : ConnectionService() {
             val connection = activeConnections[endedId] ?: activeConnections[sessionId]
             when (action) {
                 "callAnswered" -> {
-                    connection?.setActive()
+                    // Bring WebView forward and notify PWA *before* Telecom
+                    // MODE_IN_COMMUNICATION. Chromium getUserMedia often returns
+                    // NotFoundError if the mic is opened only after setActive().
+                    // Wait for PWA notifyVoiceMicReady (or 12s fallback).
                     BeamioCallForegroundService.handoffAnsweredCall(context, callId, sessionId)
                     bringMainActivityToFront(context)
+                    if (connection != null) {
+                        scheduleDeferredSetActive(endedId, sessionId, connection)
+                    }
                 }
                 "callRejected" -> {
+                    cancelPendingSetActive(endedId, sessionId)
                     connection?.let {
                         it.setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
                         it.destroy()
@@ -716,6 +792,7 @@ class BeamioTelecomService : ConnectionService() {
                     cancelIncomingNotifications(context, endedId, sessionId)
                 }
                 "callEnded", "callTimedOut" -> {
+                    cancelPendingSetActive(endedId, sessionId)
                     connection?.let {
                         val cause = if (action == "callTimedOut") {
                             DisconnectCause.MISSED

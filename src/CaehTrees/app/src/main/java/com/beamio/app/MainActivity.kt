@@ -19,9 +19,17 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.Base64
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebChromeClient
@@ -36,11 +44,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
-import android.view.ViewGroup
 import com.beamio.app.embedded.EmbeddedPwaConstants
 import com.beamio.app.embedded.EmbeddedPwaHost
 import java.util.concurrent.Callable
@@ -77,6 +85,8 @@ private object NfcStatusStrings {
 class MainActivity : ComponentActivity() {
 
     companion object {
+        private const val TAG = "MainActivity"
+
         @Volatile
         private var activeInstance: MainActivity? = null
 
@@ -169,6 +179,37 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
+    /** Full-screen in-app browser overlay (bottom → top). Null when closed. */
+    private var inAppBrowserOverlay: ViewGroup? = null
+    private var inAppBrowserWebView: WebView? = null
+    private var inAppBrowserChrome: View? = null
+    private var inAppBrowserClosing = false
+    // Beamio scroll chrome (mirrors useScrollCapsuleOpacity / iOS CashTreesInAppBrowserController).
+    private var inAppChromeOpacity = 1f
+    private var inAppLastScrollTop = 0f
+    private var inAppLatestScrollTop = 0f
+    private var inAppRevealPendingDistance = 0f
+    private var inAppRevealArmed = false
+    private var inAppRevealReady = false
+    private var inAppHideUnlock = false
+    private val inAppChromeHandler = Handler(Looper.getMainLooper())
+    private val inAppHideUnlockRunnable = Runnable {
+        inAppHideUnlock = false
+        if (inAppLatestScrollTop > 40f && inAppChromeOpacity > 0f) {
+            applyInAppChromeOpacity(computeInAppChromeOpacity(inAppLatestScrollTop), animated = true)
+        }
+    }
+    private val inAppRevealRunnable = Runnable {
+        inAppRevealArmed = false
+        inAppRevealReady = true
+        val pending = inAppRevealPendingDistance
+        inAppRevealPendingDistance = 0f
+        if (pending <= 0f || inAppChromeOpacity >= 1f) return@Runnable
+        applyInAppChromeOpacity(
+            minOf(1f, inAppChromeOpacity + pending / 100f),
+            animated = true,
+        )
+    }
     private val pendingSystemCallHandler = Handler(Looper.getMainLooper())
     private var pendingSystemCallDispatchAttempt = 0
     private var embeddedPwaUpdateReplayAttempt = 0
@@ -530,8 +571,17 @@ class MainActivity : ComponentActivity() {
             }
         }.toTypedArray()
         if (allow.isEmpty()) {
+            CashTreesWebConsoleRelay.logNative(
+                "PermissionRequest deny resources=${request.resources.joinToString()} " +
+                    "camera=${hasOsPermission(Manifest.permission.CAMERA)} " +
+                    "mic=${hasOsPermission(Manifest.permission.RECORD_AUDIO)}",
+            )
             request.deny()
         } else {
+            CashTreesWebConsoleRelay.logNative(
+                "PermissionRequest grant=${allow.joinToString()} " +
+                    "requested=${request.resources.joinToString()}",
+            )
             request.grant(allow)
         }
     }
@@ -573,6 +623,9 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 val needed = androidPermissionsForWebMedia(request)
                 if (needed.isEmpty()) {
+                    CashTreesWebConsoleRelay.logNative(
+                        "PermissionRequest deny empty-needed resources=${request.resources.joinToString()}",
+                    )
                     request.deny()
                     return@runOnUiThread
                 }
@@ -580,6 +633,10 @@ class MainActivity : ComponentActivity() {
                 if (missing.isEmpty()) {
                     grantWebViewMediaRequest(request)
                 } else {
+                    CashTreesWebConsoleRelay.logNative(
+                        "PermissionRequest requesting OS perms missing=${missing.joinToString()} " +
+                            "resources=${request.resources.joinToString()}",
+                    )
                     pendingWebPermissionRequest = request
                     requestWebViewMediaPermissions.launch(missing.toTypedArray())
                 }
@@ -1046,6 +1103,12 @@ class MainActivity : ComponentActivity() {
             runOnUiThread { openExternalUrlFromBridge(url) }
         }
 
+        /** Full-screen in-app WebView (bottom → top). Top Back closes; title = domain. */
+        @JavascriptInterface
+        fun openInAppBrowser(url: String) {
+            runOnUiThread { openInAppBrowserFromBridge(url) }
+        }
+
         /** Save a PWA blob through Android's system document picker. */
         @JavascriptInterface
         fun saveFile(json: String) {
@@ -1252,6 +1315,22 @@ class MainActivity : ComponentActivity() {
         fun debugLog(level: String, message: String) {
             CashTreesWebConsoleRelay.handleBridgeConsoleLog(level, message)
         }
+
+        /**
+         * PWA opened getUserMedia successfully. Promote Telecom to ACTIVE now
+         * (MODE_IN_COMMUNICATION) instead of the Answer-time fallback timer.
+         */
+        @JavascriptInterface
+        fun notifyVoiceMicReady(json: String) {
+            try {
+                val obj = JSONObject(json.ifBlank { "{}" })
+                val callId = obj.optString("callId", "").trim()
+                val sessionId = obj.optString("sessionId", "").trim()
+                BeamioTelecomService.notifyVoiceMicReady(callId, sessionId)
+            } catch (error: Exception) {
+                Log.w(TAG, "notifyVoiceMicReady parse failed: ${error.message}")
+            }
+        }
     }
 
     private fun isWalletPackageInstalled(packageName: String): Boolean {
@@ -1310,6 +1389,339 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, uri))
         } catch (_: Exception) {
         }
+    }
+
+    private fun sanitizedInAppBrowserUri(raw: String): Uri? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        return try {
+            val uri = Uri.parse(trimmed)
+            val scheme = uri.scheme?.lowercase() ?: return null
+            if (scheme != "http" && scheme != "https") return null
+            uri
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun domainTitleForUri(uri: Uri): String {
+        val host = (uri.host ?: "").trim()
+        if (host.isEmpty()) return uri.toString()
+        return if (host.startsWith("www.", ignoreCase = true)) host.substring(4) else host
+    }
+
+    private fun dp(value: Float): Int =
+        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics).toInt()
+
+    /**
+     * PWA `CashTreesAndroid.openInAppBrowser(url)` — full-screen overlay, slides up from bottom.
+     * Floating Back + domain title capsule share Beamio scroll show/hide (safe-area aware).
+     */
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun openInAppBrowserFromBridge(raw: String) {
+        val uri = sanitizedInAppBrowserUri(raw) ?: return
+        if (!::rootLayout.isInitialized) return
+        if (inAppBrowserOverlay != null) {
+            inAppBrowserWebView?.loadUrl(uri.toString())
+            return
+        }
+        inAppBrowserClosing = false
+        resetInAppChromeScrollState()
+
+        val density = resources.displayMetrics.density
+        val backSize = dp(36f)
+        val chromeRowH = dp(44f)
+        val titleColor = Color.parseColor("#0F172A")
+        val chevronColor = Color.parseColor("#2c2f31")
+        val webSurface = Color.parseColor("#000414")
+
+        val overlay = FrameLayout(this).apply {
+            setBackgroundColor(webSurface)
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            elevation = 24f * density
+        }
+
+        val titleView = TextView(this)
+        val browser = WebView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            setBackgroundColor(webSurface)
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.setSupportZoom(false)
+            settings.builtInZoomControls = false
+            settings.displayZoomControls = false
+            settings.mediaPlaybackRequiresUserGesture = false
+            webViewClient = object : WebViewClient() {
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                ): Boolean {
+                    val next = request?.url ?: return false
+                    val scheme = next.scheme?.lowercase().orEmpty()
+                    if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob" || scheme.isEmpty()) {
+                        return false
+                    }
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, next))
+                    } catch (_: Exception) {
+                    }
+                    return true
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    if (url.isNullOrBlank()) return
+                    try {
+                        titleView.text = domainTitleForUri(Uri.parse(url))
+                    } catch (_: Exception) {
+                    }
+                    // Lock pinch zoom; keep viewport-fit so safe-area CSS still works.
+                    view?.evaluateJavascript(
+                        """
+                        (function(){
+                          var m=document.querySelector('meta[name="viewport"]');
+                          var fit='viewport-fit=cover';
+                          var locked='width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, '+fit;
+                          if(!m){m=document.createElement('meta');m.name='viewport';(document.head||document.documentElement).appendChild(m);m.setAttribute('content',locked);}
+                          else{var c=m.getAttribute('content')||'';if(c.indexOf('user-scalable')===-1||c.indexOf('maximum-scale')===-1){m.setAttribute('content',locked);}else if(c.indexOf('viewport-fit')===-1){m.setAttribute('content',c?(c+', '+fit):fit);}}
+                        })();
+                        """.trimIndent(),
+                        null,
+                    )
+                }
+            }
+            setOnScrollChangeListener { _, _, scrollY, _, _ ->
+                scheduleInAppChromeOpacity(scrollY.toFloat())
+            }
+        }
+
+        // Floating chrome: Back + domain capsule (Chat / Home language).
+        val chrome = FrameLayout(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                chromeRowH,
+            ).apply {
+                gravity = Gravity.TOP
+            }
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(chrome) { v, insets ->
+            // max(1rem, safe-area-inset-top)
+            val top = maxOf(dp(16f), insets.getInsets(WindowInsetsCompat.Type.statusBars()).top)
+            val lp = v.layoutParams as FrameLayout.LayoutParams
+            lp.topMargin = top
+            v.layoutParams = lp
+            insets
+        }
+        ViewCompat.requestApplyInsets(chrome)
+
+        val backDisc = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.argb(235, 255, 255, 255))
+            setStroke(dp(1f), Color.argb(20, 0, 0, 0))
+        }
+        val backButton = TextView(this).apply {
+            text = "‹"
+            contentDescription = "Back"
+            setTextColor(chevronColor)
+            textSize = 28f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            background = backDisc
+            elevation = 4f * density
+            layoutParams = FrameLayout.LayoutParams(backSize, backSize).apply {
+                gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                marginStart = dp(16f)
+            }
+            setOnClickListener { dismissInAppBrowser(animated = true) }
+        }
+
+        val titleCapsuleBg = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = chromeRowH / 2f
+            setColor(Color.argb(235, 255, 255, 255))
+            setStroke(dp(1f), Color.argb(20, 0, 0, 0))
+        }
+        titleView.apply {
+            text = domainTitleForUri(uri)
+            setTextColor(titleColor)
+            textSize = 15f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+            background = titleCapsuleBg
+            elevation = 4f * density
+            setPadding(dp(16f), 0, dp(16f), 0)
+            isClickable = false
+            isFocusable = false
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                chromeRowH,
+            ).apply {
+                gravity = Gravity.CENTER
+                marginStart = dp(64f)
+                marginEnd = dp(16f)
+            }
+            maxWidth = dp(220f)
+        }
+
+        chrome.addView(backButton)
+        chrome.addView(titleView)
+
+        overlay.addView(browser)
+        overlay.addView(chrome)
+        rootLayout.addView(overlay)
+        inAppBrowserOverlay = overlay
+        inAppBrowserWebView = browser
+        inAppBrowserChrome = chrome
+        applyInAppChromeOpacity(1f, animated = false)
+
+        overlay.post {
+            val h = overlay.height.toFloat().coerceAtLeast(rootLayout.height.toFloat())
+            overlay.translationY = h
+            overlay.animate()
+                .translationY(0f)
+                .setDuration(300L)
+                .start()
+        }
+        browser.loadUrl(uri.toString())
+    }
+
+    private fun resetInAppChromeScrollState() {
+        inAppChromeHandler.removeCallbacks(inAppHideUnlockRunnable)
+        inAppChromeHandler.removeCallbacks(inAppRevealRunnable)
+        inAppChromeOpacity = 1f
+        inAppLastScrollTop = 0f
+        inAppLatestScrollTop = 0f
+        inAppRevealPendingDistance = 0f
+        inAppRevealArmed = false
+        inAppRevealReady = false
+        inAppHideUnlock = false
+    }
+
+    private fun computeInAppChromeOpacity(scrollTop: Float): Float {
+        if (scrollTop <= 40f) return 1f
+        return maxOf(0f, 1f - (scrollTop - 40f) / 100f)
+    }
+
+    private fun applyInAppChromeOpacity(next: Float, animated: Boolean) {
+        val chrome = inAppBrowserChrome ?: return
+        val clamped = next.coerceIn(0f, 1f)
+        if (kotlin.math.abs(clamped - inAppChromeOpacity) < 0.02f && clamped > 0f && clamped < 1f) {
+            return
+        }
+        inAppChromeOpacity = clamped
+        val ty = -(1f - clamped) * chrome.height.coerceAtLeast(dp(44f))
+        val apply = {
+            chrome.alpha = clamped
+            chrome.translationY = ty
+            chrome.isClickable = clamped >= 0.05f
+            chrome.isEnabled = clamped >= 0.05f
+        }
+        if (animated) {
+            chrome.animate()
+                .alpha(clamped)
+                .translationY(ty)
+                .setDuration(300L)
+                .withEndAction {
+                    chrome.isClickable = clamped >= 0.05f
+                    chrome.isEnabled = clamped >= 0.05f
+                }
+                .start()
+        } else {
+            chrome.animate().cancel()
+            apply()
+        }
+    }
+
+    private fun scheduleInAppChromeOpacity(scrollTop: Float) {
+        val browser = inAppBrowserWebView
+        if (browser != null) {
+            val contentH = browser.contentHeight * browser.scale
+            val boundsH = browser.height.toFloat()
+            if (contentH <= boundsH + 1f) {
+                inAppLastScrollTop = scrollTop
+                inAppLatestScrollTop = scrollTop
+                applyInAppChromeOpacity(1f, animated = true)
+                return
+            }
+        }
+
+        val previous = inAppLastScrollTop
+        val delta = scrollTop - previous
+        inAppLastScrollTop = scrollTop
+        inAppLatestScrollTop = scrollTop
+
+        if (delta > 0f) {
+            inAppRevealArmed = false
+            inAppRevealReady = false
+            inAppRevealPendingDistance = 0f
+            inAppChromeHandler.removeCallbacks(inAppRevealRunnable)
+            if (inAppHideUnlock) return
+            inAppHideUnlock = true
+            inAppChromeHandler.postDelayed(inAppHideUnlockRunnable, 300L)
+            applyInAppChromeOpacity(computeInAppChromeOpacity(scrollTop), animated = true)
+            return
+        }
+
+        if (delta < 0f && inAppChromeOpacity < 1f) {
+            inAppRevealPendingDistance += kotlin.math.abs(delta)
+            if (inAppRevealReady) {
+                val pending = inAppRevealPendingDistance
+                inAppRevealPendingDistance = 0f
+                applyInAppChromeOpacity(
+                    minOf(1f, inAppChromeOpacity + pending / 100f),
+                    animated = true,
+                )
+                return
+            }
+            if (!inAppRevealArmed) {
+                inAppRevealArmed = true
+                inAppChromeHandler.postDelayed(inAppRevealRunnable, 500L)
+            }
+            return
+        }
+
+        if (delta == 0f && scrollTop <= 40f) {
+            applyInAppChromeOpacity(1f, animated = true)
+        }
+    }
+
+    private fun dismissInAppBrowser(animated: Boolean) {
+        val overlay = inAppBrowserOverlay ?: return
+        if (inAppBrowserClosing) return
+        inAppBrowserClosing = true
+        resetInAppChromeScrollState()
+        val browser = inAppBrowserWebView
+        val finishClose = {
+            try {
+                browser?.stopLoading()
+                browser?.destroy()
+            } catch (_: Exception) {
+            }
+            inAppBrowserWebView = null
+            inAppBrowserChrome = null
+            if (::rootLayout.isInitialized) {
+                rootLayout.removeView(overlay)
+            }
+            inAppBrowserOverlay = null
+            inAppBrowserClosing = false
+        }
+        if (!animated) {
+            finishClose()
+            return
+        }
+        val h = overlay.height.toFloat().coerceAtLeast(1f)
+        overlay.animate()
+            .translationY(h)
+            .setDuration(300L)
+            .withEndAction { finishClose() }
+            .start()
     }
 
     /**
@@ -1408,6 +1820,15 @@ class MainActivity : ComponentActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
+                    if (inAppBrowserOverlay != null) {
+                        val browser = inAppBrowserWebView
+                        if (browser != null && browser.canGoBack()) {
+                            browser.goBack()
+                        } else {
+                            dismissInAppBrowser(animated = true)
+                        }
+                        return
+                    }
                     if (nfcBindSessionActive) {
                         disarmNfcReader(true, "cancelled")
                         return
@@ -1763,6 +2184,8 @@ class MainActivity : ComponentActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun createBaseWebView(jsBridge: CashTreesJsBridge): WebView {
+        // Enables chrome://inspect + adb forward for WebView console / getUserMedia diag.
+        WebView.setWebContentsDebuggingEnabled(true)
         return WebView(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1918,6 +2341,7 @@ class MainActivity : ComponentActivity() {
         pendingSystemCallHandler.removeCallbacksAndMessages(null)
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
         CashTreesPushRegistration.onTokenForWeb = null
+        dismissInAppBrowser(animated = false)
         if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.stopUpdateDaemon()
         }

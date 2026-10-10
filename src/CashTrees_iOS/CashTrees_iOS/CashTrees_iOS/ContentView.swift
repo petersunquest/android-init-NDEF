@@ -1073,6 +1073,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 url:payload.url||''
               });
             },
+            openInAppBrowser:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'openInAppBrowser',
+                url:payload.url||''
+              });
+            },
             queryInstalledApps:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
@@ -1236,6 +1243,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "openURL":
             let url = body["url"] as? String
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
+        case "openInAppBrowser":
+            let inAppUrl = body["url"] as? String
+            DispatchQueue.main.async { [weak self] in self?.presentInAppBrowserFromBridge(inAppUrl) }
         case "queryInstalledApps", "listInstalledWalletApps":
             let walletListRequestId = body["requestId"] as? String
             let queries = body["queries"]
@@ -1331,6 +1341,15 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         guard !trimmed.isEmpty, let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() else { return }
         guard Self.allowedExternalURLSchemes.contains(scheme) else { return }
         UIApplication.shared.open(url, options: [:], completionHandler: nil)
+    }
+
+    /// Full-screen in-app WebView (bottom → top via `coverVertical`). Top Back closes; title = domain.
+    private func presentInAppBrowserFromBridge(_ raw: String?) {
+        guard let url = CashTreesInAppBrowserController.sanitizedHTTPURL(from: raw) else { return }
+        guard let presenter = topViewController() else { return }
+        if presenter is CashTreesInAppBrowserController { return }
+        if presenter.presentedViewController is CashTreesInAppBrowserController { return }
+        presenter.present(CashTreesInAppBrowserController(url: url), animated: true)
     }
 
     /// PWA `queryInstalledApps({ requestId, queries })`. Empty / unparseable queries → MetaMask / Coinbase Wallet.
