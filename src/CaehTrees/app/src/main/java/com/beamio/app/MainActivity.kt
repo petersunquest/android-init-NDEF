@@ -1389,9 +1389,11 @@ class MainActivity : ComponentActivity() {
             val uri = Uri.parse(trimmed)
             val scheme = uri.scheme?.lowercase() ?: return
             if (scheme !in ALLOWED_EXTERNAL_URL_SCHEMES) return
-            // go.cb-w.com → market://; bare ACTION_VIEW shakes Galaxy Store / F-Droid / Play.
+            // go.cb-w.com: open Coinbase Wallet APP with the full URI when possible
+            // (Receive-from-wallet dapp?cb_url=…). Bare trampoline → launch app / Play Store.
+            // Never load go.cb-w.com in WebView (store "Open with" chooser loop).
             if ((scheme == "http" || scheme == "https") && isCoinbaseWalletTrampolineHost(uri.host)) {
-                launchCoinbaseWalletAppOrStore()
+                openCoinbaseWalletTrampolineExternally(uri)
                 return
             }
             if (scheme == "market") {
@@ -1404,6 +1406,53 @@ class MainActivity : ComponentActivity() {
             startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * Receive-from-wallet Coinbase: prefer package-targeted ACTION_VIEW so
+     * `go.cb-w.com/dapp?cb_url=…` opens inside Coinbase Wallet with the handoff URL.
+     * Bare `go.cb-w.com/` (no dapp path) falls back to launching the wallet home / Play Store.
+     */
+    private fun openCoinbaseWalletTrampolineExternally(uri: Uri) {
+        val path = (uri.path ?: "").lowercase()
+        val hasDapp =
+            path.contains("dapp") ||
+                !uri.getQueryParameter("cb_url").isNullOrBlank() ||
+                !uri.getQueryParameter("url").isNullOrBlank()
+        if (hasDapp) {
+            val packages = listOf("org.toshi", "com.coinbase.wallet", "com.coinbase.android")
+            for (pkg in packages) {
+                if (!isWalletPackageInstalled(pkg)) continue
+                val view = Intent(Intent.ACTION_VIEW, uri).apply {
+                    setPackage(pkg)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try {
+                    if (view.resolveActivity(packageManager) != null) {
+                        startActivity(view)
+                        return
+                    }
+                } catch (_: Exception) {
+                }
+            }
+            // Installed wallet could not resolve the trampoline URI — still try generic VIEW
+            // with Coinbase package pinned via chooser-free path when only one package matches.
+            try {
+                val generic = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val resolve = packageManager.queryIntentActivities(generic, 0)
+                val coinbase = resolve.firstOrNull { info ->
+                    val p = info.activityInfo?.packageName.orEmpty()
+                    p == "org.toshi" || p == "com.coinbase.wallet" || p == "com.coinbase.android"
+                }
+                if (coinbase != null) {
+                    generic.setPackage(coinbase.activityInfo.packageName)
+                    startActivity(generic)
+                    return
+                }
+            } catch (_: Exception) {
+            }
+        }
+        launchCoinbaseWalletAppOrStore()
     }
 
     private fun sanitizedInAppBrowserUri(raw: String): Uri? {
