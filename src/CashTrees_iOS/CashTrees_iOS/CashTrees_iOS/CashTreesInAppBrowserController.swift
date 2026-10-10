@@ -14,6 +14,9 @@ import WebKit
 final class CashTreesInAppBrowserController: UIViewController, WKNavigationDelegate, UIScrollViewDelegate {
     private let initialURL: URL
     private let domainTitle: String
+    /// Fired once after the modal is dismissed (Back or other dismiss path).
+    var onClosed: (() -> Void)?
+    private var didNotifyClosed = false
 
     private let webSurface = UIColor(red: 0 / 255, green: 4 / 255, blue: 20 / 255, alpha: 1)
 
@@ -238,7 +241,22 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
     }
 
     @objc private func closeTapped() {
-        dismiss(animated: true)
+        dismiss(animated: true) { [weak self] in
+            self?.notifyClosedIfNeeded()
+        }
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed || presentingViewController == nil {
+            notifyClosedIfNeeded()
+        }
+    }
+
+    private func notifyClosedIfNeeded() {
+        guard !didNotifyClosed else { return }
+        didNotifyClosed = true
+        onClosed?()
     }
 
     private func lockWebViewZoom() {

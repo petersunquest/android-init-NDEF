@@ -25,8 +25,8 @@ android {
         applicationId = "com.beamio.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 104
-        versionName = "1.0.101"
+        versionCode = 105
+        versionName = "1.0.102"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

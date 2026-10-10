@@ -1077,7 +1077,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
                 action:'openInAppBrowser',
-                url:payload.url||''
+                url:payload.url||'',
+                requestId:payload.requestId||''
               });
             },
             queryInstalledApps:function(payload){
@@ -1245,7 +1246,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             DispatchQueue.main.async { [weak self] in self?.openExternalURLFromBridge(url) }
         case "openInAppBrowser":
             let inAppUrl = body["url"] as? String
-            DispatchQueue.main.async { [weak self] in self?.presentInAppBrowserFromBridge(inAppUrl) }
+            let inAppRequestId = body["requestId"] as? String
+            DispatchQueue.main.async { [weak self] in
+                self?.presentInAppBrowserFromBridge(inAppUrl, requestId: inAppRequestId)
+            }
         case "queryInstalledApps", "listInstalledWalletApps":
             let walletListRequestId = body["requestId"] as? String
             let queries = body["queries"]
@@ -1344,12 +1348,24 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     /// Full-screen in-app WebView (bottom → top via `coverVertical`). Top Back closes; title = domain.
-    private func presentInAppBrowserFromBridge(_ raw: String?) {
+    /// On dismiss, PWA receives `cashtreesios` `{ action: "inAppBrowserClosed", requestId, url }`.
+    private func presentInAppBrowserFromBridge(_ raw: String?, requestId: String?) {
         guard let url = CashTreesInAppBrowserController.sanitizedHTTPURL(from: raw) else { return }
         guard let presenter = topViewController() else { return }
         if presenter is CashTreesInAppBrowserController { return }
         if presenter.presentedViewController is CashTreesInAppBrowserController { return }
-        presenter.present(CashTreesInAppBrowserController(url: url), animated: true)
+        let rid = (requestId ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let browser = CashTreesInAppBrowserController(url: url)
+        browser.onClosed = { [weak self] in
+            self?.dispatchIOSBridgeJsonToWeb([
+                "action": "inAppBrowserClosed",
+                "ok": true,
+                "requestId": rid,
+                "url": url.absoluteString,
+                "reason": "dismissed",
+            ])
+        }
+        presenter.present(browser, animated: true)
     }
 
     /// PWA `queryInstalledApps({ requestId, queries })`. Empty / unparseable queries → MetaMask / Coinbase Wallet.

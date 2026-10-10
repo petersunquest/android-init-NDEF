@@ -184,6 +184,9 @@ class MainActivity : ComponentActivity() {
     private var inAppBrowserWebView: WebView? = null
     private var inAppBrowserChrome: View? = null
     private var inAppBrowserClosing = false
+    /** Optional PWA requestId echoed on `inAppBrowserClosed`. */
+    private var inAppBrowserRequestId: String = ""
+    private var inAppBrowserOpenedUrl: String = ""
     /** Debounce non-http launches from the in-app WebView (stops market:// chooser shake). */
     private var inAppLastExternalLaunchKey: String? = null
     private var inAppLastExternalLaunchAtMs: Long = 0L
@@ -1106,10 +1109,14 @@ class MainActivity : ComponentActivity() {
             runOnUiThread { openExternalUrlFromBridge(url) }
         }
 
-        /** Full-screen in-app WebView (bottom → top). Top Back closes; title = domain. */
+        /**
+         * Full-screen in-app WebView (bottom → top). Top Back closes; title = domain.
+         * Accepts a plain URL string or JSON `{"url":"…","requestId":"…"}`.
+         * On dismiss, PWA receives `cashtreesandroid` `{ action: "inAppBrowserClosed", … }`.
+         */
         @JavascriptInterface
-        fun openInAppBrowser(url: String) {
-            runOnUiThread { openInAppBrowserFromBridge(url) }
+        fun openInAppBrowser(urlOrJson: String) {
+            runOnUiThread { openInAppBrowserFromBridge(urlOrJson) }
         }
 
         /** Save a PWA blob through Android's system document picker. */
@@ -1455,6 +1462,25 @@ class MainActivity : ComponentActivity() {
         launchCoinbaseWalletAppOrStore()
     }
 
+    private data class InAppBrowserOpenArgs(val url: String, val requestId: String)
+
+    /** Plain URL or JSON `{"url":"…","requestId":"…"}` from PWA. */
+    private fun parseInAppBrowserOpenArgs(raw: String): InAppBrowserOpenArgs? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return null
+        if (trimmed.startsWith("{")) {
+            return try {
+                val o = JSONObject(trimmed)
+                val url = o.optString("url", "").trim()
+                if (url.isEmpty()) null
+                else InAppBrowserOpenArgs(url, o.optString("requestId", "").trim())
+            } catch (_: Exception) {
+                null
+            }
+        }
+        return InAppBrowserOpenArgs(trimmed, "")
+    }
+
     private fun sanitizedInAppBrowserUri(raw: String): Uri? {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return null
@@ -1466,6 +1492,17 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             null
         }
+    }
+
+    private fun notifyPwaInAppBrowserClosed(requestId: String, url: String) {
+        dispatchAndroidBridgeJsonToWeb(
+            JSONObject()
+                .put("action", "inAppBrowserClosed")
+                .put("ok", true)
+                .put("requestId", requestId)
+                .put("url", url)
+                .put("reason", "dismissed"),
+        )
     }
 
     private fun domainTitleForUri(uri: Uri): String {
@@ -1617,12 +1654,14 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * PWA `CashTreesAndroid.openInAppBrowser(url)` — full-screen overlay, slides up from bottom.
+     * PWA `CashTreesAndroid.openInAppBrowser(url|json)` — full-screen overlay, slides up from bottom.
      * Floating Back + domain title capsule share Beamio scroll show/hide (safe-area aware).
+     * Dismiss notifies PWA via `inAppBrowserClosed` (optional `requestId` echoed).
      */
     @SuppressLint("SetJavaScriptEnabled")
     private fun openInAppBrowserFromBridge(raw: String) {
-        val uri = sanitizedInAppBrowserUri(raw) ?: return
+        val args = parseInAppBrowserOpenArgs(raw) ?: return
+        val uri = sanitizedInAppBrowserUri(args.url) ?: return
         if (!::rootLayout.isInitialized) return
         // go.cb-w.com is an app trampoline — WebView → market:// → store chooser shake loop.
         if (isCoinbaseWalletTrampolineHost(uri.host)) {
@@ -1630,10 +1669,16 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (inAppBrowserOverlay != null) {
+            if (args.requestId.isNotEmpty()) {
+                inAppBrowserRequestId = args.requestId
+            }
+            inAppBrowserOpenedUrl = uri.toString()
             inAppBrowserWebView?.loadUrl(uri.toString())
             return
         }
         inAppBrowserClosing = false
+        inAppBrowserRequestId = args.requestId
+        inAppBrowserOpenedUrl = uri.toString()
         inAppLastExternalLaunchKey = null
         inAppLastExternalLaunchAtMs = 0L
         resetInAppChromeScrollState()
@@ -1915,6 +1960,8 @@ class MainActivity : ComponentActivity() {
         inAppBrowserClosing = true
         resetInAppChromeScrollState()
         val browser = inAppBrowserWebView
+        val closedRequestId = inAppBrowserRequestId
+        val closedUrl = inAppBrowserOpenedUrl
         val finishClose = {
             try {
                 browser?.stopLoading()
@@ -1928,6 +1975,9 @@ class MainActivity : ComponentActivity() {
             }
             inAppBrowserOverlay = null
             inAppBrowserClosing = false
+            inAppBrowserRequestId = ""
+            inAppBrowserOpenedUrl = ""
+            notifyPwaInAppBrowserClosed(closedRequestId, closedUrl)
         }
         if (!animated) {
             finishClose()
