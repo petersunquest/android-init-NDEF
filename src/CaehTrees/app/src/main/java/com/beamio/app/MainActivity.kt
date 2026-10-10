@@ -184,6 +184,9 @@ class MainActivity : ComponentActivity() {
     private var inAppBrowserWebView: WebView? = null
     private var inAppBrowserChrome: View? = null
     private var inAppBrowserClosing = false
+    /** Debounce non-http launches from the in-app WebView (stops market:// chooser shake). */
+    private var inAppLastExternalLaunchKey: String? = null
+    private var inAppLastExternalLaunchAtMs: Long = 0L
     // Beamio scroll chrome (mirrors useScrollCapsuleOpacity / iOS CashTreesInAppBrowserController).
     private var inAppChromeOpacity = 1f
     private var inAppLastScrollTop = 0f
@@ -1386,7 +1389,19 @@ class MainActivity : ComponentActivity() {
             val uri = Uri.parse(trimmed)
             val scheme = uri.scheme?.lowercase() ?: return
             if (scheme !in ALLOWED_EXTERNAL_URL_SCHEMES) return
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            // go.cb-w.com → market://; bare ACTION_VIEW shakes Galaxy Store / F-Droid / Play.
+            if ((scheme == "http" || scheme == "https") && isCoinbaseWalletTrampolineHost(uri.host)) {
+                launchCoinbaseWalletAppOrStore()
+                return
+            }
+            if (scheme == "market") {
+                val id = uri.getQueryParameter("id")?.trim().orEmpty()
+                if (id.isNotEmpty()) {
+                    openPlayStoreForPackage(id)
+                    return
+                }
+            }
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: Exception) {
         }
     }
@@ -1413,6 +1428,145 @@ class MainActivity : ComponentActivity() {
     private fun dp(value: Float): Int =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, resources.displayMetrics).toInt()
 
+    /** Coinbase Wallet free-send trampoline — must not load in WebView (redirects to market://). */
+    private fun isCoinbaseWalletTrampolineHost(host: String?): Boolean {
+        val h = host?.lowercase()?.trim().orEmpty()
+        if (h.isEmpty()) return false
+        return h == "go.cb-w.com" || h.endsWith(".cb-w.com")
+    }
+
+    private fun openPlayStoreForPackage(packageName: String) {
+        val pkg = packageName.trim()
+        if (pkg.isEmpty()) return
+        val marketUri = Uri.parse("market://details?id=$pkg")
+        val market = Intent(Intent.ACTION_VIEW, marketUri).apply {
+            setPackage("com.android.vending")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            if (market.resolveActivity(packageManager) != null) {
+                startActivity(market)
+                return
+            }
+        } catch (_: Exception) {
+        }
+        try {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse("https://play.google.com/store/apps/details?id=$pkg"),
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun launchCoinbaseWalletAppOrStore(): Boolean {
+        val packages = listOf("org.toshi", "com.coinbase.wallet", "com.coinbase.android")
+        for (pkg in packages) {
+            if (!isWalletPackageInstalled(pkg)) continue
+            val launch = packageManager.getLaunchIntentForPackage(pkg)
+            if (launch != null) {
+                try {
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(launch)
+                    return true
+                } catch (_: Exception) {
+                }
+            }
+        }
+        openPlayStoreForPackage("org.toshi")
+        return true
+    }
+
+    /**
+     * Handle non-http(s) navigations from the in-app browser once (debounced).
+     * Bare ACTION_VIEW on market:// opens Galaxy Store / F-Droid / Play chooser in a loop.
+     */
+    private fun handleInAppBrowserNonHttpUri(view: WebView?, uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob" || scheme.isEmpty()) {
+            return false
+        }
+        try {
+            view?.stopLoading()
+        } catch (_: Exception) {
+        }
+        val key = uri.toString()
+        val now = SystemClock.elapsedRealtime()
+        if (key == inAppLastExternalLaunchKey && now - inAppLastExternalLaunchAtMs < 2_500L) {
+            return true
+        }
+        inAppLastExternalLaunchKey = key
+        inAppLastExternalLaunchAtMs = now
+        try {
+            when (scheme) {
+                "intent" -> {
+                    val parsed = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME)
+                    val pkg = parsed.`package`?.trim().orEmpty()
+                    if (parsed.resolveActivity(packageManager) != null) {
+                        startActivity(parsed)
+                        return true
+                    }
+                    val fallback = parsed.getStringExtra("browser_fallback_url")?.trim().orEmpty()
+                    if (fallback.startsWith("http://") || fallback.startsWith("https://")) {
+                        view?.loadUrl(fallback)
+                        return true
+                    }
+                    if (pkg.isNotEmpty()) {
+                        openPlayStoreForPackage(pkg)
+                        return true
+                    }
+                    val market = parsed.getStringExtra("market_referrer")
+                    if (!market.isNullOrBlank()) {
+                        openPlayStoreForPackage(pkg.ifBlank { "org.toshi" })
+                    }
+                }
+                "market" -> {
+                    val id = uri.getQueryParameter("id")?.trim().orEmpty()
+                    if (id.isNotEmpty()) {
+                        openPlayStoreForPackage(id)
+                    } else {
+                        val playOnly = Intent(Intent.ACTION_VIEW, uri).apply {
+                            setPackage("com.android.vending")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        if (playOnly.resolveActivity(packageManager) != null) {
+                            startActivity(playOnly)
+                        }
+                    }
+                }
+                "cbwallet", "coinbase", "base" -> {
+                    val packages = listOf("org.toshi", "com.coinbase.wallet", "com.coinbase.android")
+                    var launched = false
+                    for (pkg in packages) {
+                        if (!isWalletPackageInstalled(pkg)) continue
+                        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+                            setPackage(pkg)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        if (intent.resolveActivity(packageManager) != null) {
+                            startActivity(intent)
+                            launched = true
+                            break
+                        }
+                    }
+                    if (!launched) openPlayStoreForPackage("org.toshi")
+                }
+                else -> {
+                    if (scheme in ALLOWED_EXTERNAL_URL_SCHEMES) {
+                        val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        if (intent.resolveActivity(packageManager) != null) {
+                            startActivity(intent)
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return true
+    }
+
     /**
      * PWA `CashTreesAndroid.openInAppBrowser(url)` — full-screen overlay, slides up from bottom.
      * Floating Back + domain title capsule share Beamio scroll show/hide (safe-area aware).
@@ -1421,11 +1575,18 @@ class MainActivity : ComponentActivity() {
     private fun openInAppBrowserFromBridge(raw: String) {
         val uri = sanitizedInAppBrowserUri(raw) ?: return
         if (!::rootLayout.isInitialized) return
+        // go.cb-w.com is an app trampoline — WebView → market:// → store chooser shake loop.
+        if (isCoinbaseWalletTrampolineHost(uri.host)) {
+            launchCoinbaseWalletAppOrStore()
+            return
+        }
         if (inAppBrowserOverlay != null) {
             inAppBrowserWebView?.loadUrl(uri.toString())
             return
         }
         inAppBrowserClosing = false
+        inAppLastExternalLaunchKey = null
+        inAppLastExternalLaunchAtMs = 0L
         resetInAppChromeScrollState()
 
         val density = resources.displayMetrics.density
@@ -1463,15 +1624,22 @@ class MainActivity : ComponentActivity() {
                     request: WebResourceRequest?,
                 ): Boolean {
                     val next = request?.url ?: return false
-                    val scheme = next.scheme?.lowercase().orEmpty()
-                    if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob" || scheme.isEmpty()) {
-                        return false
+                    if (isCoinbaseWalletTrampolineHost(next.host)) {
+                        try {
+                            view?.stopLoading()
+                        } catch (_: Exception) {
+                        }
+                        val now = SystemClock.elapsedRealtime()
+                        val key = "cb-w-trampoline"
+                        if (key == inAppLastExternalLaunchKey && now - inAppLastExternalLaunchAtMs < 2_500L) {
+                            return true
+                        }
+                        inAppLastExternalLaunchKey = key
+                        inAppLastExternalLaunchAtMs = now
+                        launchCoinbaseWalletAppOrStore()
+                        return true
                     }
-                    try {
-                        startActivity(Intent(Intent.ACTION_VIEW, next))
-                    } catch (_: Exception) {
-                    }
-                    return true
+                    return handleInAppBrowserNonHttpUri(view, next)
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
