@@ -6,12 +6,12 @@ import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { FormData, File } from "undici";
+import { FormData } from "undici";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCAN = "https://mainnet.conet.network";
 const RPC = process.env.CONET_RPC_URL || "https://rpc1.conet.network";
-const COMPILER = "v0.8.33+commit.64118f21";
+const COMPILER = process.env.COMPILER_VERSION || "v0.8.35+commit.47b9dedd";
 const SOURCE_KEY = "project/src/b-unit/TreasuryBridgeV3.sol";
 const CONTRACT_NAME = "project/src/b-unit/TreasuryBridgeV3.sol:TreasuryBridgeV3";
 
@@ -128,11 +128,11 @@ async function localBytecodeMatch(prunedPath: string, addr: string): Promise<boo
   const solcCandidates = [
     path.join(
       process.env.HOME || "",
-      "Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.33+commit.64118f21"
+      "Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.35+commit.47b9dedd"
     ),
     path.join(
       process.env.HOME || "",
-      ".cache/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.33+commit.64118f21"
+      ".cache/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.35+commit.47b9dedd"
     ),
   ];
   const solc = solcCandidates.find((p) => fs.existsSync(p));

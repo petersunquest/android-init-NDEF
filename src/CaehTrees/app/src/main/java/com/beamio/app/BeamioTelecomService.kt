@@ -116,6 +116,14 @@ class BeamioTelecomService : ConnectionService() {
 
         fun isIncomingCall(): Boolean = incoming
 
+        fun setActiveKeepingWebViewMic(handler: Handler) {
+            setActive()
+            Log.i(
+                "BeamioVoiceCall",
+                "setActive callId=$callId handler=${handler.hashCode()}",
+            )
+        }
+
         override fun onShowIncomingCallUi() {
             // Ringing still uses the incoming card. Once the call is up, the
             // status-bar chip must return to the in-app call page.
@@ -226,7 +234,7 @@ class BeamioTelecomService : ConnectionService() {
                     if (state == Connection.STATE_DISCONNECTED || state == Connection.STATE_ACTIVE) {
                         return@Runnable
                     }
-                    connection.setActive()
+                    connection.setActiveKeepingWebViewMic(setActiveHandler)
                     Log.i(
                         TAG,
                         "callAnswered setActive fallback after ${SET_ACTIVE_FALLBACK_MS}ms callId=$callId",
@@ -258,7 +266,7 @@ class BeamioTelecomService : ConnectionService() {
                     Log.i(TAG, "notifyVoiceMicReady: already state=$state callId=$callId")
                     return
                 }
-                connection.setActive()
+                connection.setActiveKeepingWebViewMic(setActiveHandler)
                 Log.i(TAG, "notifyVoiceMicReady setActive callId=$callId sessionId=$sessionId")
             } catch (error: Exception) {
                 Log.w(TAG, "notifyVoiceMicReady setActive failed: ${error.message}")
@@ -510,9 +518,15 @@ class BeamioTelecomService : ConnectionService() {
                     "displayNameIsTag=${shown.displayName.trim().startsWith("@")} " +
                     "peerAddressPresent=${shown.peerAddress.isNotBlank()}",
             )
-            settledCallActions.remove(settleKey("callAnswered", nativeCallId))
-            settledCallActions.remove(settleKey("callRejected", nativeCallId))
-            settledCallActions.remove(settleKey("callEnded", nativeCallId))
+            // A later PWA tag lookup reports the same offer again. That must
+            // refresh a still-ringing card, not clear Answer and open a second
+            // window over the in-app call page.
+            if (incomingAnswered(callId, sessionId) || incomingAnswered(nativeCallId, sessionId)) {
+                Log.i(TAG, "reportIncoming skipped; call already answered")
+                IncomingCallActivity.finishIfMatching(callId, sessionId)
+                IncomingCallActivity.finishIfMatching(nativeCallId, sessionId)
+                return
+            }
             ensurePhoneAccount(context)
             // Post CallStyle before Telecom so the shade card is Decline/Answer
             // even when addNewIncomingCall is rejected. Same id for callId and sessionId.
@@ -684,6 +698,11 @@ class BeamioTelecomService : ConnectionService() {
 
         private fun incomingRingClock(callId: String, sessionId: String): IncomingRingClock? =
             incomingRingKeys(callId, sessionId).firstNotNullOfOrNull { incomingRingClocks[it] }
+
+        private fun incomingAnswered(callId: String, sessionId: String): Boolean =
+            incomingRingKeys(callId, sessionId).any { id ->
+                settledCallActions.contains(settleKey("callAnswered", id))
+            }
 
         private fun incomingActionAlreadySettled(callId: String, sessionId: String): Boolean {
             val actions = listOf("callAnswered", "callRejected", "callEnded", "callTimedOut")

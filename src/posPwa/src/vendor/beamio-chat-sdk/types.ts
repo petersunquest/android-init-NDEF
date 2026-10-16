@@ -226,6 +226,108 @@ export interface SendMessageOptions {
 	beamioNoPush?: boolean
 }
 
+/**
+ * A group V1 member is identified by both its EOA and the fingerprint of the
+ * current AddressPGP user key. Key rotation requires a new owner-signed roster.
+ */
+export interface GroupMemberV1 {
+	eoa: string
+	pgpFingerprint: string
+	keyEpoch: number
+}
+
+/** Group policy stored in a signed, versioned roster. */
+export interface GroupPolicyV1 {
+	name: string
+	/** The owner is the only V1 roster sequencer. */
+	owner: string
+	/** Admins may submit signed proposals, but cannot issue a roster directly. */
+	admins: string[]
+}
+
+/** Authoritative, owner-signed V1 group membership state. */
+export interface GroupRosterV1 {
+	type: 'conet_group_roster_v1'
+	groupId: string
+	version: number
+	prevRosterHash: string | null
+	issuedAt: number
+	expiresAt: number
+	policy: GroupPolicyV1
+	members: GroupMemberV1[]
+	signer: string
+	signature: string
+}
+
+/** A non-authoritative change request which an owner may turn into a roster. */
+export interface GroupAdminProposalV1 {
+	type: 'conet_group_admin_proposal_v1'
+	groupId: string
+	rosterHash: string
+	proposalId: string
+	createdAt: number
+	expiresAt: number
+	action: 'add_member' | 'remove_member' | 'add_admin' | 'remove_admin' | 'rename'
+	value: Record<string, unknown>
+	signer: string
+	signature: string
+}
+
+/** Minimal removal notice. It intentionally contains no successor roster. */
+export interface GroupTombstoneV1 {
+	type: 'conet_group_tombstone_v1'
+	groupId: string
+	removedAtVersion: number
+	previousRosterHash: string
+	issuedAt: number
+	signer: string
+	signature: string
+}
+
+/** Signed group business object, nested inside each normal recipient envelope. */
+export interface GroupMessageV1 {
+	type: 'conet_group_message_v1'
+	groupId: string
+	rosterHash: string
+	sendId: string
+	seq: number
+	createdAt: number
+	expiresAt: number
+	body: string
+	signer: string
+	signature: string
+}
+
+/**
+ * Private per-recipient wrapper. Padding is encrypted with the recipient
+ * payload and never becomes an HTTP, entry, mailbox, or push field.
+ */
+export interface GroupDeliveryPacketV1 {
+	type: 'conet_group_delivery_v1'
+	message: GroupMessageV1
+	padding: string
+}
+
+export interface GroupSendRequest {
+	roster: GroupRosterV1
+	body: string
+	seq: number
+	expiresAt: number
+	sendId?: string
+	/** V1 is deliberately limited; use MLS/epoch protocol rather than raising this. */
+	maxMembers?: number
+	/** Ciphertext plaintext bucket before PGP encryption. Default 4096 bytes. */
+	paddingBucketBytes?: number
+	/** Maximum simultaneous per-recipient encrypt/post operations. Default 2. */
+	maxConcurrency?: number
+}
+
+export interface GroupSendResult {
+	sendId: string
+	acceptedRecipients: number
+	failedRecipients: number
+}
+
 export interface BeamioChatConfig {
 	identity: ChatIdentity
 	/** Required workspace dimension for all encrypted history persistence. */
@@ -289,6 +391,11 @@ export interface BeamioChatClient {
 	init(): Promise<void>
 	/** Encrypt & send a business payload to a contact via entry A ≠ mailbox B. */
 	sendMessage(to: ChatRoute, payload: string, opts?: SendMessageOptions): Promise<{ sendId: string }>
+	/**
+	 * Deliver a V1 group message as independent, single-recipient user-PGP
+	 * armors. This never creates multi-recipient OpenPGP armor.
+	 */
+	sendGroupMessage(request: GroupSendRequest): Promise<GroupSendResult>
 	/** Encrypt a mailbox command (e.g. gossip_delivery_ack) to route B and POST via entry C ≠ B. */
 	postMailboxCommand(
 		routerArmoredPublicKey: string,

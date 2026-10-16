@@ -1,0 +1,34 @@
+{
+  "network": "conet",
+  "chainId": "224422",
+  "deployer": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1",
+  "timestamp": "2026-10-14T06:31:55.898Z",
+  "deployBlock": 1705690,
+  "implementation": "0xb3535499aBAA9369681e092eAA8d84555eB3fbDe",
+  "proxy": "0x40f1B57280f9195AfEf2B4433CEc8f79d4b58b9A",
+  "initializeArgs": {
+    "initialAdmin": "0x87cAeD4e51C36a2C2ece3Aaf4ddaC9693d2405E1"
+  },
+  "eip712": {
+    "name": "BeamioAgentReferrerRegistry",
+    "version": "1",
+    "chainId": 224422,
+    "verifyingContract": "0x40f1B57280f9195AfEf2B4433CEc8f79d4b58b9A",
+    "types": {
+      "RegisterAgent": "RegisterAgent(address agent,uint256 nonce,uint256 deadline)",
+      "RegisterTemp": "RegisterTemp(address agent,address temp,uint256 nonce,uint256 deadline)",
+      "RegisterMerchant": "RegisterMerchant(address agent,address merchant,address temp,uint256 nonce,uint256 deadline)",
+      "RegisterReferrer": "RegisterReferrer(address introducer,address referee,uint256 nonce,uint256 deadline)"
+    }
+  },
+  "nextSteps": {
+    "exportFull": "node scripts/exportStandardJsonFromBuildInfo.mjs BeamioAgentReferrerRegistry --full",
+    "verify": "npx tsx scripts/verifyBeamioAgentReferrerRegistryConet.ts"
+  },
+  "verification": {
+    "implementation": "verified (Blockscout v2)",
+    "proxy": "verified (Blockscout)",
+    "proxyExplorer": "https://mainnet.conet.network/address/0x40f1B57280f9195AfEf2B4433CEc8f79d4b58b9A",
+    "implExplorer": "https://mainnet.conet.network/address/0xb3535499aBAA9369681e092eAA8d84555eB3fbDe"
+  }
+}

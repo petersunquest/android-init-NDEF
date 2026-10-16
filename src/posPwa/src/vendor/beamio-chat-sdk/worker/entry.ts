@@ -171,6 +171,15 @@ async function handle(cmd: WorkerInbound): Promise<void> {
 			}
 			return
 		}
+		case 'sendGroup': {
+			try {
+				const result = await gossip!.sendGroup(cmd.request)
+				post({ type: 'ack', reqId: cmd.reqId, ok: true, result })
+			} catch (ex) {
+				post({ type: 'ack', reqId: cmd.reqId, ok: false, error: (ex as Error)?.message ?? String(ex) })
+			}
+			return
+		}
 		case 'queryPresence': {
 			try {
 				const result = await gossip!.queryPresence(cmd.contacts)

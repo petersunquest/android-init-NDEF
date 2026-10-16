@@ -11,6 +11,11 @@ extension Notification.Name {
 }
 
 /// Documents-backed PWA bundle: `active/` (live), `staging/` (downloaded), `backup/` (rollback).
+///
+/// Wallet / IndexedDB live in WKWebsiteDataStore under `Library/WebKit` (origin
+/// `cashtrees-local://localhost`), **not** under `silentpass_pwa/`. Replacing
+/// `active/` must never clear website data. Device uninstall is what wipes the
+/// wallet — prefer install-over only (`beamio-ios-debug-mirror-device-only.mdc`).
 final class CashTreesPWABundleStore {
     static let shared = CashTreesPWABundleStore()
 
@@ -64,11 +69,18 @@ final class CashTreesPWABundleStore {
         }
         let activeIsValid = hasValidBundle(at: activeDir)
         let activeUsesEmbeddedPaths = activeIsValid && usesEmbeddedAssetPaths(at: activeDir)
+        // Force-quit CallKit wake needs HTTP /api/registerPushDevice so ios_voip
+        // reaches the API when mailbox SI has no push_device_register. A newer
+        // Documents active (e.g. 0.52.852 OTA without HTTP) must not stick over
+        // a bundled build that includes the HTTP fallback.
+        let activeHasPushHttp = activeIsValid && bundleHasRegisterPushDeviceHttp(at: activeDir)
+        let bundledHasPushHttp = bundleHasRegisterPushDeviceHttp(at: bundledDir)
         let activeVersion = activeIsValid ? readUpdateInfo(from: activeDir)?.ver : nil
         let bundledVersion = readUpdateInfo(from: bundledDir)?.ver
         let shouldInstallBundled =
             !activeIsValid
             || !activeUsesEmbeddedPaths
+            || (bundledHasPushHttp && !activeHasPushHttp)
             || (
                 activeVersion != nil
                     && bundledVersion != nil
@@ -78,6 +90,7 @@ final class CashTreesPWABundleStore {
             try? fileManager.removeItem(at: bundledDir)
             return
         }
+        // Documents-only swap. Do not touch WKWebsiteDataStore / Library/WebKit.
         if fileManager.fileExists(atPath: activeDir.path) {
             try? fileManager.removeItem(at: activeDir)
         }
@@ -204,6 +217,29 @@ final class CashTreesPWABundleStore {
         }
         return !html.contains("src=\"/app/")
             && !html.contains("href=\"/app/")
+    }
+
+    /// True when any JS chunk posts to `/api/registerPushDevice` (HTTP fallback
+    /// for PushKit `ios_voip` when CoNET-SI lacks `push_device_register`).
+    private func bundleHasRegisterPushDeviceHttp(at dir: URL) -> Bool {
+        let staticDir = dir.appendingPathComponent("static/js", isDirectory: true)
+        let fm = fileManager
+        guard let enumerator = fm.enumerator(
+            at: staticDir,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return false
+        }
+        let needle = "/api/registerPushDevice"
+        while let item = enumerator.nextObject() as? URL {
+            guard item.pathExtension == "js",
+                  let data = try? Data(contentsOf: item, options: [.mappedIfSafe]),
+                  let text = String(data: data, encoding: .utf8)
+            else { continue }
+            if text.contains(needle) { return true }
+        }
+        return false
     }
 
     private func readUpdateInfo(from dir: URL) -> CashTreesPWAUpdateInfo? {

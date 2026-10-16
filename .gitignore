@@ -48,3 +48,4 @@ src/beamio-chat-sdk/
 src/web3-browser/
 src/web3BeaconDHT/
 src/iOS/SilentPass-pwa/
+src/patch-geth/

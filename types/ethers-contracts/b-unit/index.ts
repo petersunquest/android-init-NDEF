@@ -43,6 +43,7 @@ import type * as conetTreasurySol from './conetTreasury.sol/index.js';
 export type { conetTreasurySol };
 import type * as usdcSol from './usdc.sol/index.js';
 export type { usdcSol };
+export type { AacErc1967Proxy } from './AacErc1967Proxy.js';
 export type { AacRegistryPaused } from './AacRegistryPaused.js';
 export type { ConetTreasuryPeerStableSwapLib } from './ConetTreasuryPeerStableSwapLib.js';
 export type { ConetTreasuryPeerStableSwapSigLib } from './ConetTreasuryPeerStableSwapSigLib.js';

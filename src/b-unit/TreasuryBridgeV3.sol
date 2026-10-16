@@ -154,6 +154,22 @@ contract TreasuryBridgeV3 is
     /// @dev DeveloperFxIssuer — stake-gate + issue path (kept external for EIP-170).
     address public developerFxIssuer;
 
+    /// @notice Miner vote and miner signature completion are rejected.
+    /// @dev Packed into slot 21 after `developerFxIssuer` (offset 20).
+    bool public voteBridgeClosed;
+
+    /// @notice Source lock/burn initiates. Stays false until the AAC settler that completes them is live.
+    /// @dev Packed into the same slot (offset 21).
+    bool public sourceInitiateOpen;
+
+    /// @notice The only caller of `completeFromAac` on this chain. Base uses the AAC proxy.
+    address public aacExecutor;
+
+    /// @notice Source `initiate*` may name only a destination the owner has opened.
+    /// @dev This window opens Base (`8453`) only. Later windows open any other chain
+    ///      with `setAacDestinationOpen` — no further treasury upgrade is required.
+    mapping(uint256 => bool) public aacDestinationOpen;
+
     event MinerAdded(address indexed miner);
     event MinerRemoved(address indexed miner);
     event FeeSettlementUpdated(address indexed settlement, address indexed asset);
@@ -168,6 +184,7 @@ contract TreasuryBridgeV3 is
     event MintCallbackAllowed(address indexed target, bool allowed);
     event TreasuryAssetKindUpdated(address indexed asset, TreasuryAssetKind kind);
     event DeveloperFxIssuerUpdated(address indexed issuer);
+    event AacDestinationOpenUpdated(uint256 indexed destinationChainId, bool open);
     event TreasuryAssetOpExecuted(
         address indexed signer,
         address indexed asset,
@@ -246,6 +263,10 @@ contract TreasuryBridgeV3 is
     error InvalidUserSignature();
     error InvalidOpNonce();
     error DeveloperTokenUnqualified();
+    error VoteBridgeClosed();
+    error SourceInitiateClosed();
+    error NotAacExecutor();
+    error AacDestinationClosed();
 
     modifier onlyMiner() {
         if (!isMiner[msg.sender]) revert NotMiner();
@@ -276,6 +297,57 @@ contract TreasuryBridgeV3 is
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    function setVoteBridgeClosed(bool closed) external onlyOwner {
+        voteBridgeClosed = closed;
+    }
+
+    function setSourceInitiateOpen(bool open) external onlyOwner {
+        sourceInitiateOpen = open;
+    }
+
+    function setAacExecutor(address executor) external onlyOwner {
+        if (executor == address(0)) revert InvalidPolicy();
+        aacExecutor = executor;
+    }
+
+    /// @notice Open or close one destination chain for source lock/burn. Any chain id except 0.
+    function setAacDestinationOpen(uint256 destinationChainId, bool open) external onlyOwner {
+        if (destinationChainId == 0) revert InvalidPolicy();
+        aacDestinationOpen[destinationChainId] = open;
+        emit AacDestinationOpenUpdated(destinationChainId, open);
+    }
+
+    function _requireVoteBridgeOpen() internal view {
+        if (voteBridgeClosed) revert VoteBridgeClosed();
+    }
+
+    function _requireSourceInitiateOpen() internal view {
+        if (!sourceInitiateOpen) revert SourceInitiateClosed();
+    }
+
+    function _requireAacDestination(uint256 destinationChainId) internal view {
+        if (!aacDestinationOpen[destinationChainId]) revert AacDestinationClosed();
+    }
+
+    /// @notice AAC settler completes one proven mint or release. Miner vote stays closed.
+    /// @dev `mode` 2 is BurnRelease (transfer locked tokens). Any other mode mints `asset`.
+    function completeFromAac(
+        bytes32 operationId,
+        address asset,
+        address to,
+        uint256 amount,
+        uint8 mode
+    ) external nonReentrant {
+        if (msg.sender != aacExecutor) revert NotAacExecutor();
+        if (operationId == bytes32(0) || asset == address(0) || to == address(0) || amount == 0) revert InvalidAmount();
+        _consumeOperation(operationId);
+        if (mode == uint8(AssetMode.BurnRelease)) {
+            if (!IERC20BridgeV3(asset).transfer(to, amount)) revert TransferFailed();
+        } else {
+            ITreasuryBridgeAssetV3(asset).mint(to, amount);
+        }
+    }
 
     function minerCount() external view returns (uint256) {
         return _miners.length;
@@ -701,6 +773,8 @@ contract TreasuryBridgeV3 is
         uint256 nonce,
         address callbackTarget
     ) internal returns (bytes32 operationId) {
+        _requireSourceInitiateOpen();
+        _requireAacDestination(destinationChainId);
         _requireDeveloperFxQualified(sourceAsset);
         AssetPolicy memory policy = _findPolicy(
             block.chainid, address(this), sourceAsset, destinationAsset, AssetMode.LockMint
@@ -753,6 +827,8 @@ contract TreasuryBridgeV3 is
         bytes32 sourceTxHash,
         uint256 nonce
     ) internal returns (bytes32 operationId) {
+        _requireSourceInitiateOpen();
+        _requireAacDestination(destinationChainId);
         if (!authorizedBridgeAsset[sourceAsset]) revert AssetNotAuthorized();
         _requireDeveloperFxQualified(sourceAsset);
         AssetPolicy memory policy = _findPolicy(
@@ -802,6 +878,8 @@ contract TreasuryBridgeV3 is
         bytes32 sourceTxHash,
         uint256 nonce
     ) internal returns (bytes32 operationId) {
+        _requireSourceInitiateOpen();
+        _requireAacDestination(destinationChainId);
         if (!authorizedBridgeAsset[sourceAsset]) revert AssetNotAuthorized();
         _requireDeveloperFxQualified(sourceAsset);
         AssetPolicy memory policy = _findPolicy(
@@ -828,300 +906,60 @@ contract TreasuryBridgeV3 is
     }
 
     function executeMint(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] calldata beneficiaries,
-        uint256[] calldata amounts,
-        AssetMode mode,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        address callbackTarget,
-        bytes[] calldata signatures
-    ) external nonReentrant {
-        _verifyAttestations(
-            operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-            destinationAsset, beneficiaries, amounts, mode, grossAmount, feeAmount, sourceTxHash, nonce,
-            callbackTarget, signatures
-        );
-        _consumeOperation(operationId);
-        _distributeMint(destinationAsset, beneficiaries, amounts);
-        emit BridgeOperation(
-            operationId, sourceChainId, destinationChainId, Phase.Executed, mode,
-            sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiaries, amounts,
-            grossAmount, feeAmount, grossAmount, sourceTxHash, nonce, callbackTarget
-        );
-        if (mode == AssetMode.LockMint) {
-            _tryMintCallback(operationId, sourceChainId, destinationAsset, beneficiaries, amounts, callbackTarget);
-        }
+        bytes32,
+        uint256,
+        uint256,
+        address,
+        address,
+        address,
+        address[] calldata,
+        uint256[] calldata,
+        AssetMode,
+        uint256,
+        uint256,
+        bytes32,
+        uint256,
+        address,
+        bytes[] calldata
+    ) external pure {
+        revert VoteBridgeClosed();
     }
 
     function executeRelease(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] calldata beneficiaries,
-        uint256[] calldata amounts,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        bytes[] calldata signatures
-    ) external nonReentrant {
-        _verifyAttestations(
-            operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-            destinationAsset, beneficiaries, amounts, AssetMode.BurnRelease, grossAmount, feeAmount,
-            sourceTxHash, nonce, address(0), signatures
-        );
-        _consumeOperation(operationId);
-        _distributeRelease(destinationAsset, beneficiaries, amounts);
-        emit BridgeOperation(
-            operationId, sourceChainId, destinationChainId, Phase.Executed, AssetMode.BurnRelease,
-            sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiaries, amounts,
-            grossAmount, feeAmount, grossAmount, sourceTxHash, nonce, address(0)
-        );
+        bytes32,
+        uint256,
+        uint256,
+        address,
+        address,
+        address,
+        address[] calldata,
+        uint256[] calldata,
+        uint256,
+        uint256,
+        bytes32,
+        uint256,
+        bytes[] calldata
+    ) external pure {
+        revert VoteBridgeClosed();
     }
 
-    /// @notice Cast a miner vote directly on the destination chain.
-    /// @dev Quorum-final vote mints/releases then best-effort LockMint callback.
     function voteBridgeOperation(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] calldata beneficiaries,
-        uint256[] calldata amounts,
-        AssetMode mode,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        address callbackTarget
-    ) external onlyMiner nonReentrant {
-        _voteBridgeOperation(
-            operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-            destinationAsset, beneficiaries, amounts, mode, grossAmount, feeAmount, sourceTxHash, nonce,
-            callbackTarget
-        );
-    }
-
-    function _voteBridgeOperation(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] memory beneficiaries,
-        uint256[] memory amounts,
-        AssetMode mode,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        address callbackTarget
-    ) internal {
-        if (operationId == bytes32(0) || sourceChainId == block.chainid || destinationChainId != block.chainid) {
-            revert InvalidPolicy();
-        }
-        if (operationExecuted[operationId]) revert OperationAlreadyUsed();
-        if (grossAmount == 0 || feeAmount > grossAmount) revert InvalidAmount();
-        if (_validateBeneficiaries(beneficiaries, amounts) != grossAmount) revert InvalidBeneficiaries();
-        if (callbackTarget != address(0) && mode != AssetMode.LockMint) revert InvalidPolicy();
-
-        bytes32 routeId = keccak256(
-            abi.encode(sourceChainId, sourceTreasury, sourceAsset, destinationAsset, mode)
-        );
-        AssetPolicy memory route = _policies[routeId];
-        if (!route.enabled) revert PolicyNotEnabled();
-
-        bytes32 payloadHash = _bridgeOperationPayloadHash(
-            operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-            destinationAsset, beneficiaries, amounts, mode, grossAmount, feeAmount, sourceTxHash, nonce,
-            callbackTarget
-        );
-        bytes32 storedPayloadHash = bridgeOperationPayloadHash[operationId];
-        if (storedPayloadHash == bytes32(0)) {
-            bridgeOperationPayloadHash[operationId] = payloadHash;
-        } else if (storedPayloadHash != payloadHash) {
-            revert InvalidPolicy();
-        }
-        if (bridgeOperationVoted[operationId][msg.sender]) revert AlreadyVoted();
-
-        bridgeOperationVoted[operationId][msg.sender] = true;
-        uint256 voteCount = ++bridgeOperationVoteCount[operationId];
-        emit BridgeOperationVote(operationId, msg.sender, voteCount, requiredVotes());
-
-        if (voteCount >= requiredVotes()) {
-            _consumeOperation(operationId);
-            if (mode == AssetMode.BurnMint || mode == AssetMode.LockMint) {
-                _distributeMint(destinationAsset, beneficiaries, amounts);
-            } else if (mode == AssetMode.BurnRelease) {
-                _distributeRelease(destinationAsset, beneficiaries, amounts);
-            } else {
-                revert InvalidPolicy();
-            }
-            emit BridgeOperation(
-                operationId, sourceChainId, destinationChainId, Phase.Executed, mode,
-                sourceTreasury, sourceAsset, destinationAsset, sourceTreasury, beneficiaries, amounts,
-                grossAmount, feeAmount, grossAmount, sourceTxHash, nonce, callbackTarget
-            );
-            if (mode == AssetMode.LockMint) {
-                _tryMintCallback(
-                    operationId, sourceChainId, destinationAsset, beneficiaries, amounts, callbackTarget
-                );
-            }
-        }
-    }
-
-    /// @dev Mint already succeeded; callback failures must not revert the bridge op.
-    function _tryMintCallback(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        address destinationAsset,
-        address[] memory beneficiaries,
-        uint256[] memory amounts,
-        address callbackTarget
-    ) internal {
-        if (callbackTarget == address(0)) return;
-        if (!allowedMintCallbacks[callbackTarget]) {
-            emit BridgeMintCallbackSkipped(operationId, callbackTarget);
-            return;
-        }
-        try ITreasuryBridgeMintCallback(callbackTarget).onBridgeMint{gas: MINT_CALLBACK_GAS}(
-            operationId, sourceChainId, destinationAsset, beneficiaries, amounts
-        ) {
-            emit BridgeMintCallbackSucceeded(operationId, callbackTarget);
-        } catch (bytes memory reason) {
-            emit BridgeMintCallbackFailed(operationId, callbackTarget, reason);
-        }
-    }
-
-    function _consumeOperation(bytes32 operationId) internal {
-        if (operationExecuted[operationId]) revert OperationAlreadyUsed();
-        operationExecuted[operationId] = true;
-    }
-
-    function _validateBeneficiaries(address[] memory beneficiaries, uint256[] memory amounts)
-        internal
-        pure
-        returns (uint256 gross)
-    {
-        uint256 len = beneficiaries.length;
-        if (len == 0 || len > MAX_BENEFICIARIES || len != amounts.length) revert InvalidBeneficiaries();
-        for (uint256 i; i < len; ++i) {
-            if (beneficiaries[i] == address(0) || amounts[i] == 0) revert InvalidBeneficiaries();
-            gross += amounts[i];
-        }
-        if (gross == 0) revert InvalidAmount();
-    }
-
-    function _beneficiariesHash(address[] memory beneficiaries, uint256[] memory amounts)
-        internal
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(beneficiaries, amounts));
-    }
-
-    function _distributeMint(address asset, address[] memory beneficiaries, uint256[] memory amounts) internal {
-        for (uint256 i; i < beneficiaries.length; ++i) {
-            ITreasuryBridgeAssetV3(asset).mint(beneficiaries[i], amounts[i]);
-        }
-    }
-
-    function _distributeRelease(address asset, address[] memory beneficiaries, uint256[] memory amounts) internal {
-        for (uint256 i; i < beneficiaries.length; ++i) {
-            if (!IERC20BridgeV3(asset).transfer(beneficiaries[i], amounts[i])) revert TransferFailed();
-        }
-    }
-
-    function _bridgeOperationPayloadHash(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] memory beneficiaries,
-        uint256[] memory amounts,
-        AssetMode mode,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        address callbackTarget
-    ) internal pure returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                operationId, sourceChainId, destinationChainId, sourceTreasury, sourceAsset,
-                destinationAsset, _beneficiariesHash(beneficiaries, amounts), mode, grossAmount, feeAmount,
-                sourceTxHash, nonce, callbackTarget
-            )
-        );
-    }
-
-    function _verifyAttestations(
-        bytes32 operationId,
-        uint256 sourceChainId,
-        uint256 destinationChainId,
-        address sourceTreasury,
-        address sourceAsset,
-        address destinationAsset,
-        address[] calldata beneficiaries,
-        uint256[] calldata amounts,
-        AssetMode mode,
-        uint256 grossAmount,
-        uint256 feeAmount,
-        bytes32 sourceTxHash,
-        uint256 nonce,
-        address callbackTarget,
-        bytes[] calldata signatures
-    ) internal view {
-        if (grossAmount == 0 || feeAmount > grossAmount) revert InvalidAmount();
-        if (_validateBeneficiaries(beneficiaries, amounts) != grossAmount) revert InvalidBeneficiaries();
-        if (callbackTarget != address(0) && mode != AssetMode.LockMint) revert InvalidPolicy();
-        bytes32 routeId = keccak256(
-            abi.encode(sourceChainId, sourceTreasury, sourceAsset, destinationAsset, mode)
-        );
-        AssetPolicy memory route = _policies[routeId];
-        if (!route.enabled) revert PolicyNotEnabled();
-        if (signatures.length < requiredVotes()) revert InvalidQuorum();
-        bytes32 structHash = keccak256(
-            abi.encode(
-                BRIDGE_ATTESTATION_TYPEHASH,
-                operationId,
-                sourceChainId,
-                destinationChainId,
-                sourceTreasury,
-                sourceAsset,
-                destinationAsset,
-                _beneficiariesHash(beneficiaries, amounts),
-                mode,
-                grossAmount,
-                feeAmount,
-                sourceTxHash,
-                nonce,
-                callbackTarget
-            )
-        );
-        bytes32 digest = MessageHashUtils.toTypedDataHash(_domainSeparatorV4(), structHash);
-        address lastSigner;
-        for (uint256 i; i < signatures.length; ++i) {
-            address signer = ECDSA.recover(digest, signatures[i]);
-            if (!isMiner[signer] || signer <= lastSigner) revert InvalidSignature();
-            lastSigner = signer;
-        }
+        bytes32,
+        uint256,
+        uint256,
+        address,
+        address,
+        address,
+        address[] calldata,
+        uint256[] calldata,
+        AssetMode,
+        uint256,
+        uint256,
+        bytes32,
+        uint256,
+        address
+    ) external pure {
+        revert VoteBridgeClosed();
     }
 
     function _domainSeparatorV4() internal view returns (bytes32) {
@@ -1322,6 +1160,33 @@ contract TreasuryBridgeV3 is
         return MessageHashUtils.toTypedDataHash(_domainSeparatorV4(), structHash);
     }
 
+    function _consumeOperation(bytes32 operationId) internal {
+        if (operationExecuted[operationId]) revert OperationAlreadyUsed();
+        operationExecuted[operationId] = true;
+    }
+
+    function _validateBeneficiaries(address[] memory beneficiaries, uint256[] memory amounts)
+        internal
+        pure
+        returns (uint256 gross)
+    {
+        uint256 len = beneficiaries.length;
+        if (len == 0 || len > MAX_BENEFICIARIES || len != amounts.length) revert InvalidBeneficiaries();
+        for (uint256 i; i < len; ++i) {
+            if (beneficiaries[i] == address(0) || amounts[i] == 0) revert InvalidBeneficiaries();
+            gross += amounts[i];
+        }
+        if (gross == 0) revert InvalidAmount();
+    }
+
+    function _beneficiariesHash(address[] memory beneficiaries, uint256[] memory amounts)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(beneficiaries, amounts));
+    }
+
     function _findPolicy(
         uint256 sourceChainId,
         address sourceTreasury,
@@ -1368,7 +1233,7 @@ contract TreasuryBridgeV3 is
         );
     }
 
-    /// @dev Gap after developerFxIssuer (append-only).
-    uint256[31] private __gap;
+    /// @dev Gap after `aacDestinationOpen` (append-only). Slot 23 is the destination map.
+    uint256[30] private __gap;
 }
 

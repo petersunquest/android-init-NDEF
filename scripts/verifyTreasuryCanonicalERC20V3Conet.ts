@@ -2,14 +2,16 @@
  * Verify TreasuryCanonicalERC20V3 implementation on CoNET Blockscout.
  * Usage: IMPL=0x… npx tsx scripts/verifyTreasuryCanonicalERC20V3Conet.ts
  */
+import { execSync } from "child_process";
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { FormData, File } from "undici";
+import { FormData } from "undici";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE_URL = "https://mainnet.conet.network";
-const COMPILER_VERSION = "v0.8.33+commit.64118f21";
+const COMPILER_VERSION = process.env.COMPILER_VERSION || "v0.8.35+commit.47b9dedd";
 const ROOT = "project/src/b-unit/TreasuryCanonicalERC20V3.sol";
 const NAME = "TreasuryCanonicalERC20V3";
 
@@ -90,6 +92,46 @@ async function main() {
   const json = JSON.stringify(pruned);
   fs.writeFileSync(path.join(__dirname, "../deployments/conet-TreasuryCanonicalERC20V3Impl-verify-buildinfo.json"), json + "\n");
   console.log(`pruned ${Object.keys(pruned.sources).length} sources, ${(json.length / 1024).toFixed(1)} KB`);
+  const prunedPath = path.join(__dirname, "../deployments/conet-TreasuryCanonicalERC20V3Impl-verify-buildinfo.json");
+  const solc = path.join(
+    os.homedir(),
+    "Library/Caches/hardhat-nodejs/compilers-v3/macosx-amd64/solc-macosx-amd64-v0.8.35+commit.47b9dedd",
+  );
+  if (!fs.existsSync(solc)) throw new Error("solc 0.8.35 missing");
+  const outPath = "/tmp/wcnet-verify-out.json";
+  execSync(`"${solc}" --standard-json "${prunedPath}" > "${outPath}"`, { shell: true });
+  const compiled = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+  const local = String(
+    compiled?.contracts?.[ROOT]?.[NAME]?.evm?.deployedBytecode?.object || "",
+  ).replace(/^0x/i, "").toLowerCase();
+  if (!local) throw new Error("local deployedBytecode missing");
+  const rpc = await fetch(process.env.CONET_RPC_URL || "https://rpc1.conet.network", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getCode", params: [addr, "latest"] }),
+  });
+  const onchain = String(((await rpc.json()) as { result?: string }).result || "")
+    .replace(/^0x/i, "")
+    .toLowerCase();
+  if (onchain !== local) {
+    if (onchain.length !== local.length) {
+      throw new Error(`bytecode mismatch local=${local.length} onchain=${onchain.length}`);
+    }
+    const addrNo0x = addr.replace(/^0x/i, "").toLowerCase();
+    let other = 0;
+    for (let i = 0; i < local.length; i++) {
+      if (local[i] === onchain[i]) continue;
+      if (local.slice(i, i + 40) === "0".repeat(40) && onchain.slice(i, i + 40) === addrNo0x) {
+        i += 39;
+        continue;
+      }
+      other++;
+    }
+    if (other !== 0) throw new Error(`bytecode mismatch otherNibbleDiffs=${other}`);
+    console.log("local bytecode match except implementation immutables");
+  } else {
+    console.log(`local bytecode match len=${local.length / 2}`);
+  }
 
   const form = new FormData();
   form.set("compiler_version", COMPILER_VERSION);

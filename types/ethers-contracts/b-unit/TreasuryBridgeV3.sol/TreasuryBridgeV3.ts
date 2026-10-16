@@ -13,9 +13,9 @@ export declare namespace TreasuryBridgeV3 {
     }
 
   export interface TreasuryBridgeV3Interface extends Interface {
-    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "BRIDGE_ATTESTATION_TYPEHASH" | "INITIATE_BURN_MINT_TYPEHASH" | "MAX_BENEFICIARIES" | "MAX_FEE_BPS" | "MINT_CALLBACK_GAS" | "PAY_AND_MINT_TYPEHASH" | "TRANSFER_VIA_MINT_BURN_TYPEHASH" | "TREASURY_ASSET_OP_TYPEHASH" | "UPGRADE_INTERFACE_VERSION" | "addMiner" | "allowedMintCallbacks" | "assetPolicy" | "authorizedBridgeAsset" | "bridgeAttestationDigest" | "bridgeOperationPayloadHash" | "bridgeOperationVoteCount" | "bridgeOperationVoted" | "destinationFeeBps" | "developerFxIssuer" | "executeAssetPolicy" | "executeMint" | "executeRelease" | "executeTreasuryAssetOpWithSignature" | "feeProposalVoted" | "feeProposals" | "feeSettlement" | "feeSettlementAsset" | "getPayAndMintDigest" | "getTransferViaMintBurnDigest" | "getTreasuryAssetOpDigest" | "governanceEoaCount" | "initialize" | "initiateBurnMintForUser" | "initiateBurnMintForUserWithSignature" | "initiateBurnRelease" | "initiateLockMint(uint256,address,address,address[],uint256[],bytes32,uint256)" | "initiateLockMint(uint256,address,address,address[],uint256[],bytes32,uint256,address)" | "isDeveloperFxForwardAllowed" | "isGovernanceEoa" | "isMiner" | "minerCount" | "miners" | "mintDeveloperFxFromRegistry" | "mintForAdmin" | "operationExecuted" | "operationInitiated" | "owner" | "payAndMintWithSignature" | "policyId" | "policyVoted" | "proposeAssetPolicy" | "proposeDestinationFeeBps" | "proxiableUUID" | "removeMiner" | "renounceOwnership" | "requiredGovernanceVotes" | "requiredVotes" | "setBridgeAssetAuthorization" | "setDestinationFeeBps" | "setDeveloperFxIssuer" | "setFeeSettlement" | "setGovernanceEoa" | "setMintCallbackAllowed" | "setTreasuryAssetKind" | "setTreasuryAssetKindCanonical" | "transferOwnership" | "transferViaMintBurnWithSignature" | "treasuryAssetKind" | "treasuryAssetOpNonces" | "upgradeToAndCall" | "voteAssetPolicy" | "voteBridgeOperation" | "voteDestinationFeeBps"): FunctionFragment;
+    getFunction(nameOrSignature: "BPS_DENOMINATOR" | "BRIDGE_ATTESTATION_TYPEHASH" | "INITIATE_BURN_MINT_TYPEHASH" | "MAX_BENEFICIARIES" | "MAX_FEE_BPS" | "MINT_CALLBACK_GAS" | "PAY_AND_MINT_TYPEHASH" | "TRANSFER_VIA_MINT_BURN_TYPEHASH" | "TREASURY_ASSET_OP_TYPEHASH" | "UPGRADE_INTERFACE_VERSION" | "aacDestinationOpen" | "aacExecutor" | "addMiner" | "allowedMintCallbacks" | "assetPolicy" | "authorizedBridgeAsset" | "bridgeAttestationDigest" | "bridgeOperationPayloadHash" | "bridgeOperationVoteCount" | "bridgeOperationVoted" | "completeFromAac" | "destinationFeeBps" | "developerFxIssuer" | "executeAssetPolicy" | "executeMint" | "executeRelease" | "executeTreasuryAssetOpWithSignature" | "feeProposalVoted" | "feeProposals" | "feeSettlement" | "feeSettlementAsset" | "getPayAndMintDigest" | "getTransferViaMintBurnDigest" | "getTreasuryAssetOpDigest" | "governanceEoaCount" | "initialize" | "initiateBurnMintForUser" | "initiateBurnMintForUserWithSignature" | "initiateBurnRelease" | "initiateLockMint(uint256,address,address,address[],uint256[],bytes32,uint256)" | "initiateLockMint(uint256,address,address,address[],uint256[],bytes32,uint256,address)" | "isDeveloperFxForwardAllowed" | "isGovernanceEoa" | "isMiner" | "minerCount" | "miners" | "mintDeveloperFxFromRegistry" | "mintForAdmin" | "operationExecuted" | "operationInitiated" | "owner" | "payAndMintWithSignature" | "policyId" | "policyVoted" | "proposeAssetPolicy" | "proposeDestinationFeeBps" | "proxiableUUID" | "removeMiner" | "renounceOwnership" | "requiredGovernanceVotes" | "requiredVotes" | "setAacDestinationOpen" | "setAacExecutor" | "setBridgeAssetAuthorization" | "setDestinationFeeBps" | "setDeveloperFxIssuer" | "setFeeSettlement" | "setGovernanceEoa" | "setMintCallbackAllowed" | "setSourceInitiateOpen" | "setTreasuryAssetKind" | "setTreasuryAssetKindCanonical" | "setVoteBridgeClosed" | "sourceInitiateOpen" | "transferOwnership" | "transferViaMintBurnWithSignature" | "treasuryAssetKind" | "treasuryAssetOpNonces" | "upgradeToAndCall" | "voteAssetPolicy" | "voteBridgeClosed" | "voteBridgeOperation" | "voteDestinationFeeBps"): FunctionFragment;
 
-    getEvent(nameOrSignatureOrTopic: "AssetPolicyProposed" | "AssetPolicyUpdated" | "AssetPolicyVoted" | "BridgeAssetAuthorizationUpdated" | "BridgeMintCallbackFailed" | "BridgeMintCallbackSkipped" | "BridgeMintCallbackSucceeded" | "BridgeOperation" | "BridgeOperationVote" | "DestinationFeeProposalVoted" | "DestinationFeeUpdated" | "DeveloperFxIssuerUpdated" | "FeeSettlementMinted" | "FeeSettlementUpdated" | "GovernanceEoaUpdated" | "Initialized" | "MinerAdded" | "MinerRemoved" | "MintCallbackAllowed" | "OwnershipTransferred" | "PayAndMintExecuted" | "TransferViaMintBurnExecuted" | "TreasuryAssetKindUpdated" | "TreasuryAssetOpExecuted" | "Upgraded"): EventFragment;
+    getEvent(nameOrSignatureOrTopic: "AacDestinationOpenUpdated" | "AssetPolicyProposed" | "AssetPolicyUpdated" | "AssetPolicyVoted" | "BridgeAssetAuthorizationUpdated" | "BridgeMintCallbackFailed" | "BridgeMintCallbackSkipped" | "BridgeMintCallbackSucceeded" | "BridgeOperation" | "BridgeOperationVote" | "DestinationFeeProposalVoted" | "DestinationFeeUpdated" | "DeveloperFxIssuerUpdated" | "FeeSettlementMinted" | "FeeSettlementUpdated" | "GovernanceEoaUpdated" | "Initialized" | "MinerAdded" | "MinerRemoved" | "MintCallbackAllowed" | "OwnershipTransferred" | "PayAndMintExecuted" | "TransferViaMintBurnExecuted" | "TreasuryAssetKindUpdated" | "TreasuryAssetOpExecuted" | "Upgraded"): EventFragment;
 
     encodeFunctionData(functionFragment: 'BPS_DENOMINATOR', values?: undefined): string;
 encodeFunctionData(functionFragment: 'BRIDGE_ATTESTATION_TYPEHASH', values?: undefined): string;
@@ -27,6 +27,8 @@ encodeFunctionData(functionFragment: 'PAY_AND_MINT_TYPEHASH', values?: undefined
 encodeFunctionData(functionFragment: 'TRANSFER_VIA_MINT_BURN_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'TREASURY_ASSET_OP_TYPEHASH', values?: undefined): string;
 encodeFunctionData(functionFragment: 'UPGRADE_INTERFACE_VERSION', values?: undefined): string;
+encodeFunctionData(functionFragment: 'aacDestinationOpen', values: [BigNumberish]): string;
+encodeFunctionData(functionFragment: 'aacExecutor', values?: undefined): string;
 encodeFunctionData(functionFragment: 'addMiner', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'allowedMintCallbacks', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'assetPolicy', values: [BytesLike]): string;
@@ -35,6 +37,7 @@ encodeFunctionData(functionFragment: 'bridgeAttestationDigest', values: [BytesLi
 encodeFunctionData(functionFragment: 'bridgeOperationPayloadHash', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOperationVoteCount', values: [BytesLike]): string;
 encodeFunctionData(functionFragment: 'bridgeOperationVoted', values: [BytesLike, AddressLike]): string;
+encodeFunctionData(functionFragment: 'completeFromAac', values: [BytesLike, AddressLike, AddressLike, BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'destinationFeeBps', values: [BigNumberish]): string;
 encodeFunctionData(functionFragment: 'developerFxIssuer', values?: undefined): string;
 encodeFunctionData(functionFragment: 'executeAssetPolicy', values: [BytesLike]): string;
@@ -75,20 +78,26 @@ encodeFunctionData(functionFragment: 'removeMiner', values: [AddressLike]): stri
 encodeFunctionData(functionFragment: 'renounceOwnership', values?: undefined): string;
 encodeFunctionData(functionFragment: 'requiredGovernanceVotes', values?: undefined): string;
 encodeFunctionData(functionFragment: 'requiredVotes', values?: undefined): string;
+encodeFunctionData(functionFragment: 'setAacDestinationOpen', values: [BigNumberish, boolean]): string;
+encodeFunctionData(functionFragment: 'setAacExecutor', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setBridgeAssetAuthorization', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setDestinationFeeBps', values: [BigNumberish, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setDeveloperFxIssuer', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'setFeeSettlement', values: [AddressLike, AddressLike]): string;
 encodeFunctionData(functionFragment: 'setGovernanceEoa', values: [AddressLike, boolean]): string;
 encodeFunctionData(functionFragment: 'setMintCallbackAllowed', values: [AddressLike, boolean]): string;
+encodeFunctionData(functionFragment: 'setSourceInitiateOpen', values: [boolean]): string;
 encodeFunctionData(functionFragment: 'setTreasuryAssetKind', values: [AddressLike, BigNumberish]): string;
 encodeFunctionData(functionFragment: 'setTreasuryAssetKindCanonical', values: [AddressLike]): string;
+encodeFunctionData(functionFragment: 'setVoteBridgeClosed', values: [boolean]): string;
+encodeFunctionData(functionFragment: 'sourceInitiateOpen', values?: undefined): string;
 encodeFunctionData(functionFragment: 'transferOwnership', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'transferViaMintBurnWithSignature', values: [AddressLike, AddressLike, AddressLike, BigNumberish, BigNumberish, BigNumberish, BytesLike]): string;
 encodeFunctionData(functionFragment: 'treasuryAssetKind', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'treasuryAssetOpNonces', values: [AddressLike]): string;
 encodeFunctionData(functionFragment: 'upgradeToAndCall', values: [AddressLike, BytesLike]): string;
 encodeFunctionData(functionFragment: 'voteAssetPolicy', values: [BytesLike, TreasuryBridgeV3.AssetPolicyStruct]): string;
+encodeFunctionData(functionFragment: 'voteBridgeClosed', values?: undefined): string;
 encodeFunctionData(functionFragment: 'voteBridgeOperation', values: [BytesLike, BigNumberish, BigNumberish, AddressLike, AddressLike, AddressLike, AddressLike[], BigNumberish[], BigNumberish, BigNumberish, BigNumberish, BytesLike, BigNumberish, AddressLike]): string;
 encodeFunctionData(functionFragment: 'voteDestinationFeeBps', values: [BytesLike]): string;
 
@@ -102,6 +111,8 @@ decodeFunctionResult(functionFragment: 'PAY_AND_MINT_TYPEHASH', data: BytesLike)
 decodeFunctionResult(functionFragment: 'TRANSFER_VIA_MINT_BURN_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'TREASURY_ASSET_OP_TYPEHASH', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'UPGRADE_INTERFACE_VERSION', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'aacDestinationOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'aacExecutor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'addMiner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'allowedMintCallbacks', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'assetPolicy', data: BytesLike): Result;
@@ -110,6 +121,7 @@ decodeFunctionResult(functionFragment: 'bridgeAttestationDigest', data: BytesLik
 decodeFunctionResult(functionFragment: 'bridgeOperationPayloadHash', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperationVoteCount', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'bridgeOperationVoted', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'completeFromAac', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'destinationFeeBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'developerFxIssuer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'executeAssetPolicy', data: BytesLike): Result;
@@ -150,25 +162,43 @@ decodeFunctionResult(functionFragment: 'removeMiner', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'renounceOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requiredGovernanceVotes', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'requiredVotes', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAacDestinationOpen', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setAacExecutor', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setBridgeAssetAuthorization', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDestinationFeeBps', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setDeveloperFxIssuer', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setFeeSettlement', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setGovernanceEoa', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setMintCallbackAllowed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setSourceInitiateOpen', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTreasuryAssetKind', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'setTreasuryAssetKindCanonical', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'setVoteBridgeClosed', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'sourceInitiateOpen', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferOwnership', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'transferViaMintBurnWithSignature', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'treasuryAssetKind', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'treasuryAssetOpNonces', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'upgradeToAndCall', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteAssetPolicy', data: BytesLike): Result;
+decodeFunctionResult(functionFragment: 'voteBridgeClosed', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteBridgeOperation', data: BytesLike): Result;
 decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike): Result;
   }
 
   
+    export namespace AacDestinationOpenUpdatedEvent {
+      export type InputTuple = [destinationChainId: BigNumberish, open: boolean];
+      export type OutputTuple = [destinationChainId: bigint, open: boolean];
+      export interface OutputObject {destinationChainId: bigint, open: boolean };
+      export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>
+      export type Filter = TypedDeferredTopicFilter<Event>
+      export type Log = TypedEventLog<Event>
+      export type LogDescription = TypedLogDescription<Event>
+    }
+
+  
+
     export namespace AssetPolicyProposedEvent {
       export type InputTuple = [proposalId: BytesLike, policyId: BytesLike, policy: TreasuryBridgeV3.AssetPolicyStruct];
       export type OutputTuple = [proposalId: string, policyId: string, policy: TreasuryBridgeV3.AssetPolicyStructOutput];
@@ -583,6 +613,22 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    aacDestinationOpen: TypedContractMethod<
+      [arg0: BigNumberish, ],
+      [boolean],
+      'view'
+    >
+    
+
+    
+    aacExecutor: TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >
+    
+
+    
     addMiner: TypedContractMethod<
       [miner: AddressLike, ],
       [void],
@@ -647,6 +693,14 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    completeFromAac: TypedContractMethod<
+      [operationId: BytesLike, asset: AddressLike, to: AddressLike, amount: BigNumberish, mode: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     destinationFeeBps: TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -672,17 +726,17 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
 
     
     executeMint: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, callbackTarget: AddressLike, signatures: BytesLike[], ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BigNumberish, arg11: BytesLike, arg12: BigNumberish, arg13: AddressLike, arg14: BytesLike[], ],
       [void],
-      'nonpayable'
+      'view'
     >
     
 
     
     executeRelease: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BytesLike, arg11: BigNumberish, arg12: BytesLike[], ],
       [void],
-      'nonpayable'
+      'view'
     >
     
 
@@ -967,6 +1021,22 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    setAacDestinationOpen: TypedContractMethod<
+      [destinationChainId: BigNumberish, open: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    setAacExecutor: TypedContractMethod<
+      [executor: AddressLike, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setBridgeAssetAuthorization: TypedContractMethod<
       [asset: AddressLike, authorized: boolean, ],
       [void],
@@ -1015,6 +1085,14 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    setSourceInitiateOpen: TypedContractMethod<
+      [open: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
     setTreasuryAssetKind: TypedContractMethod<
       [asset: AddressLike, kind: BigNumberish, ],
       [void],
@@ -1027,6 +1105,22 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
       [token: AddressLike, ],
       [void],
       'nonpayable'
+    >
+    
+
+    
+    setVoteBridgeClosed: TypedContractMethod<
+      [closed: boolean, ],
+      [void],
+      'nonpayable'
+    >
+    
+
+    
+    sourceInitiateOpen: TypedContractMethod<
+      [],
+      [boolean],
+      'view'
     >
     
 
@@ -1079,10 +1173,18 @@ decodeFunctionResult(functionFragment: 'voteDestinationFeeBps', data: BytesLike)
     
 
     
+    voteBridgeClosed: TypedContractMethod<
+      [],
+      [boolean],
+      'view'
+    >
+    
+
+    
     voteBridgeOperation: TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, callbackTarget: AddressLike, ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BigNumberish, arg11: BytesLike, arg12: BigNumberish, arg13: AddressLike, ],
       [void],
-      'nonpayable'
+      'view'
     >
     
 
@@ -1147,6 +1249,16 @@ getFunction(nameOrSignature: 'UPGRADE_INTERFACE_VERSION'): TypedContractMethod<
       [string],
       'view'
     >;
+getFunction(nameOrSignature: 'aacDestinationOpen'): TypedContractMethod<
+      [arg0: BigNumberish, ],
+      [boolean],
+      'view'
+    >;
+getFunction(nameOrSignature: 'aacExecutor'): TypedContractMethod<
+      [],
+      [string],
+      'view'
+    >;
 getFunction(nameOrSignature: 'addMiner'): TypedContractMethod<
       [miner: AddressLike, ],
       [void],
@@ -1187,6 +1299,11 @@ getFunction(nameOrSignature: 'bridgeOperationVoted'): TypedContractMethod<
       [boolean],
       'view'
     >;
+getFunction(nameOrSignature: 'completeFromAac'): TypedContractMethod<
+      [operationId: BytesLike, asset: AddressLike, to: AddressLike, amount: BigNumberish, mode: BigNumberish, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'destinationFeeBps'): TypedContractMethod<
       [arg0: BigNumberish, ],
       [bigint],
@@ -1203,14 +1320,14 @@ getFunction(nameOrSignature: 'executeAssetPolicy'): TypedContractMethod<
       'nonpayable'
     >;
 getFunction(nameOrSignature: 'executeMint'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, callbackTarget: AddressLike, signatures: BytesLike[], ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BigNumberish, arg11: BytesLike, arg12: BigNumberish, arg13: AddressLike, arg14: BytesLike[], ],
       [void],
-      'nonpayable'
+      'view'
     >;
 getFunction(nameOrSignature: 'executeRelease'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, signatures: BytesLike[], ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BytesLike, arg11: BigNumberish, arg12: BytesLike[], ],
       [void],
-      'nonpayable'
+      'view'
     >;
 getFunction(nameOrSignature: 'executeTreasuryAssetOpWithSignature'): TypedContractMethod<
       [signer: AddressLike, asset: AddressLike, op: BigNumberish, account: AddressLike, amount: BigNumberish, nonce: BigNumberish, deadline: BigNumberish, signature: BytesLike, ],
@@ -1387,6 +1504,16 @@ getFunction(nameOrSignature: 'requiredVotes'): TypedContractMethod<
       [bigint],
       'view'
     >;
+getFunction(nameOrSignature: 'setAacDestinationOpen'): TypedContractMethod<
+      [destinationChainId: BigNumberish, open: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setAacExecutor'): TypedContractMethod<
+      [executor: AddressLike, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setBridgeAssetAuthorization'): TypedContractMethod<
       [asset: AddressLike, authorized: boolean, ],
       [void],
@@ -1417,6 +1544,11 @@ getFunction(nameOrSignature: 'setMintCallbackAllowed'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'setSourceInitiateOpen'): TypedContractMethod<
+      [open: boolean, ],
+      [void],
+      'nonpayable'
+    >;
 getFunction(nameOrSignature: 'setTreasuryAssetKind'): TypedContractMethod<
       [asset: AddressLike, kind: BigNumberish, ],
       [void],
@@ -1426,6 +1558,16 @@ getFunction(nameOrSignature: 'setTreasuryAssetKindCanonical'): TypedContractMeth
       [token: AddressLike, ],
       [void],
       'nonpayable'
+    >;
+getFunction(nameOrSignature: 'setVoteBridgeClosed'): TypedContractMethod<
+      [closed: boolean, ],
+      [void],
+      'nonpayable'
+    >;
+getFunction(nameOrSignature: 'sourceInitiateOpen'): TypedContractMethod<
+      [],
+      [boolean],
+      'view'
     >;
 getFunction(nameOrSignature: 'transferOwnership'): TypedContractMethod<
       [newOwner: AddressLike, ],
@@ -1457,10 +1599,15 @@ getFunction(nameOrSignature: 'voteAssetPolicy'): TypedContractMethod<
       [void],
       'nonpayable'
     >;
+getFunction(nameOrSignature: 'voteBridgeClosed'): TypedContractMethod<
+      [],
+      [boolean],
+      'view'
+    >;
 getFunction(nameOrSignature: 'voteBridgeOperation'): TypedContractMethod<
-      [operationId: BytesLike, sourceChainId: BigNumberish, destinationChainId: BigNumberish, sourceTreasury: AddressLike, sourceAsset: AddressLike, destinationAsset: AddressLike, beneficiaries: AddressLike[], amounts: BigNumberish[], mode: BigNumberish, grossAmount: BigNumberish, feeAmount: BigNumberish, sourceTxHash: BytesLike, nonce: BigNumberish, callbackTarget: AddressLike, ],
+      [arg0: BytesLike, arg1: BigNumberish, arg2: BigNumberish, arg3: AddressLike, arg4: AddressLike, arg5: AddressLike, arg6: AddressLike[], arg7: BigNumberish[], arg8: BigNumberish, arg9: BigNumberish, arg10: BigNumberish, arg11: BytesLike, arg12: BigNumberish, arg13: AddressLike, ],
       [void],
-      'nonpayable'
+      'view'
     >;
 getFunction(nameOrSignature: 'voteDestinationFeeBps'): TypedContractMethod<
       [proposalId: BytesLike, ],
@@ -1468,7 +1615,8 @@ getFunction(nameOrSignature: 'voteDestinationFeeBps'): TypedContractMethod<
       'nonpayable'
     >;
 
-    getEvent(key: 'AssetPolicyProposed'): TypedContractEvent<AssetPolicyProposedEvent.InputTuple, AssetPolicyProposedEvent.OutputTuple, AssetPolicyProposedEvent.OutputObject>;
+    getEvent(key: 'AacDestinationOpenUpdated'): TypedContractEvent<AacDestinationOpenUpdatedEvent.InputTuple, AacDestinationOpenUpdatedEvent.OutputTuple, AacDestinationOpenUpdatedEvent.OutputObject>;
+getEvent(key: 'AssetPolicyProposed'): TypedContractEvent<AssetPolicyProposedEvent.InputTuple, AssetPolicyProposedEvent.OutputTuple, AssetPolicyProposedEvent.OutputObject>;
 getEvent(key: 'AssetPolicyUpdated'): TypedContractEvent<AssetPolicyUpdatedEvent.InputTuple, AssetPolicyUpdatedEvent.OutputTuple, AssetPolicyUpdatedEvent.OutputObject>;
 getEvent(key: 'AssetPolicyVoted'): TypedContractEvent<AssetPolicyVotedEvent.InputTuple, AssetPolicyVotedEvent.OutputTuple, AssetPolicyVotedEvent.OutputObject>;
 getEvent(key: 'BridgeAssetAuthorizationUpdated'): TypedContractEvent<BridgeAssetAuthorizationUpdatedEvent.InputTuple, BridgeAssetAuthorizationUpdatedEvent.OutputTuple, BridgeAssetAuthorizationUpdatedEvent.OutputObject>;
@@ -1496,6 +1644,10 @@ getEvent(key: 'Upgraded'): TypedContractEvent<UpgradedEvent.InputTuple, Upgraded
 
     filters: {
       
+      'AacDestinationOpenUpdated(uint256,bool)': TypedContractEvent<AacDestinationOpenUpdatedEvent.InputTuple, AacDestinationOpenUpdatedEvent.OutputTuple, AacDestinationOpenUpdatedEvent.OutputObject>;
+      AacDestinationOpenUpdated: TypedContractEvent<AacDestinationOpenUpdatedEvent.InputTuple, AacDestinationOpenUpdatedEvent.OutputTuple, AacDestinationOpenUpdatedEvent.OutputObject>;
+    
+
       'AssetPolicyProposed(bytes32,bytes32,tuple)': TypedContractEvent<AssetPolicyProposedEvent.InputTuple, AssetPolicyProposedEvent.OutputTuple, AssetPolicyProposedEvent.OutputObject>;
       AssetPolicyProposed: TypedContractEvent<AssetPolicyProposedEvent.InputTuple, AssetPolicyProposedEvent.OutputTuple, AssetPolicyProposedEvent.OutputObject>;
     

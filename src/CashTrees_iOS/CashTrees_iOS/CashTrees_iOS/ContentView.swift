@@ -9,10 +9,8 @@ import Combine
 import AVFoundation
 import CoreImage
 import CoreNFC
-import CallKit
 import Photos
 import PhotosUI
-import PushKit
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -37,122 +35,6 @@ private enum NfcStatusString {
     static let noHardware = "no_hardware"
     static let disabled = "disabled"
     static let permissionDenied = "nfc_permission_denied"
-}
-
-final class BeamioCallKitManager: NSObject, CXProviderDelegate {
-    private struct AudioSessionSnapshot {
-        let category: AVAudioSession.Category
-        let mode: AVAudioSession.Mode
-        let options: AVAudioSession.CategoryOptions
-    }
-
-    private let provider: CXProvider
-    private let controller = CXCallController()
-    private struct CallIdentity {
-        let callId: String
-        let sessionId: String
-    }
-    private var callIds: [UUID: CallIdentity] = [:]
-    private var audioSessionBeforeCall: AudioSessionSnapshot?
-    var onAction: ((String, String, String) -> Void)?
-
-    override init() {
-        let configuration = CXProviderConfiguration()
-        configuration.supportsVideo = false
-        configuration.maximumCallsPerCallGroup = 1
-        configuration.maximumCallGroups = 1
-        configuration.supportedHandleTypes = [.generic]
-        provider = CXProvider(configuration: configuration)
-        super.init()
-        provider.setDelegate(self, queue: .main)
-    }
-
-    func reportIncoming(callId: String, handle: String, sessionId: String = "") {
-        let uuid = UUID()
-        callIds[uuid] = CallIdentity(callId: callId, sessionId: sessionId)
-        let update = CXCallUpdate()
-        update.remoteHandle = CXHandle(type: .generic, value: handle)
-        update.localizedCallerName = handle
-        provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
-            if error != nil { self?.callIds.removeValue(forKey: uuid) }
-        }
-    }
-
-    func startOutgoing(callId: String, handle: String, sessionId: String = "") {
-        let uuid = UUID()
-        callIds[uuid] = CallIdentity(callId: callId, sessionId: sessionId)
-        let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: handle))
-        controller.request(CXTransaction(action: action)) { [weak self] error in
-            if error != nil {
-                self?.callIds.removeValue(forKey: uuid)
-            }
-        }
-    }
-
-    func end(callId: String, sessionId: String = "") {
-        guard let uuid = callIds.first(where: {
-            let identity = $0.value
-            return sessionId.isEmpty
-                ? identity.callId == callId
-                : identity.sessionId == sessionId
-        })?.key else { return }
-        controller.request(CXTransaction(action: CXEndCallAction(call: uuid))) { _ in }
-    }
-
-    func providerDidReset(_ provider: CXProvider) {
-        callIds.removeAll()
-        restoreAudioSession()
-    }
-
-    func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
-        emit("callAnswered", action.callUUID)
-        action.fulfill()
-    }
-
-    func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
-        emit("callEnded", action.callUUID)
-        action.fulfill()
-    }
-
-    func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
-        provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
-        emit("callStarted", action.callUUID)
-        action.fulfill()
-    }
-
-    func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
-        if audioSessionBeforeCall == nil {
-            audioSessionBeforeCall = AudioSessionSnapshot(
-                category: audioSession.category,
-                mode: audioSession.mode,
-                options: audioSession.categoryOptions,
-            )
-        }
-        try? audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetoothHFP, .defaultToSpeaker])
-        try? audioSession.setActive(true)
-    }
-
-    func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
-        restoreAudioSession()
-    }
-
-    private func restoreAudioSession() {
-        let audioSession = AVAudioSession.sharedInstance()
-        let snapshot = audioSessionBeforeCall
-        audioSessionBeforeCall = nil
-
-        // Leave the Bluetooth HFP route and let the previous music/audio owner
-        // resume. The voiceChat mode otherwise keeps Bluetooth in mono call mode.
-        try? audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
-
-        guard let snapshot else { return }
-        try? audioSession.setCategory(snapshot.category, mode: snapshot.mode, options: snapshot.options)
-    }
-
-    private func emit(_ action: String, _ uuid: UUID) {
-        guard let identity = callIds[uuid] else { return }
-        onAction?(action, identity.callId, identity.sessionId)
-    }
 }
 
 /// SUN query（与 MainActivity.parseSunParamsFromNdefUrl 一致；模板 e/c/m 全 0 为 nil）
@@ -361,7 +243,7 @@ final class CashTreesWebLoadState: ObservableObject {
 
 // MARK: - WK Coordinator
 
-final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate, PKPushRegistryDelegate {
+final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, UIDocumentPickerDelegate, PHPickerViewControllerDelegate {
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
 
@@ -376,17 +258,21 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private var didEnterBackgroundObserver: NSObjectProtocol?
     private var embeddedPwaUpdateObserver: NSObjectProtocol?
     private var pushTokenObserver: NSObjectProtocol?
+    private var webPushFlushObserver: NSObjectProtocol?
+    private var incomingVoiceCallObserver: NSObjectProtocol?
     private var appLifecycleObserver: NSObjectProtocol?
     private var pendingCameraCaptureRequestId = ""
     private var pendingPhotoPickerRequestId = ""
     private var pendingFilePickerCompletion: (([URL]?) -> Void)?
     private var activeFilePickerSecurityScopedURLs: [URL] = []
-    private let callKit = BeamioCallKitManager()
-    private let voipRegistry = PKPushRegistry(queue: .main)
     /// Set when the app actually enters background (not Control Center / lock peek).
     private var backgroundedAt: Date?
     private var webContentLivenessProbeGeneration = 0
     private var webContentLivenessProbeInFlight = false
+    /// PushKit / APNs may fire before WKWebView exists or before PWA attaches
+    /// `cashtreesios` listener — queue `pushDeviceToken` until `webContentReady`.
+    private var pendingPushTokenPayloads: [[String: Any]] = []
+    private var webContentReadyForPush = false
     var lastHandledDeepLinkNonce = 0
 
     /// JS ping must complete within this window or the content process is treated as dead.
@@ -398,15 +284,15 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     override init() {
         super.init()
-        callKit.onAction = { [weak self] action, callId, sessionId in
+        // PushKit + CallKit live in BeamioVoipIncomingBootstrap (AppDelegate).
+        // Wire Answer/End into the WebView once the shell is up.
+        BeamioVoipIncomingBootstrap.shared.setWebBridge { [weak self] action, callId, sessionId in
             self?.dispatchIOSBridgeJsonToWeb([
                 "action": action,
                 "callId": callId,
                 "sessionId": sessionId,
             ])
         }
-        voipRegistry.delegate = self
-        voipRegistry.desiredPushTypes = [.voIP]
         becameActiveObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -433,8 +319,31 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             object: nil,
             queue: .main
         ) { [weak self] note in
-            guard let hex = note.userInfo?["deviceToken"] as? String, !hex.isEmpty else { return }
-            self?.dispatchIOSBridgeJsonToWeb(CashTreesPushRegistration.payloadForWebEvent(deviceToken: hex))
+            // Empty hex = native cleared stale token — still forward so PWA drops dedupe.
+            let hex = (note.userInfo?["deviceToken"] as? String) ?? ""
+            let platform = (note.userInfo?["platform"] as? String) ?? "ios"
+            self?.dispatchIOSBridgeJsonToWeb(
+                CashTreesPushRegistration.payloadForWebEvent(deviceToken: hex, platform: platform)
+            )
+        }
+        webPushFlushObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesRequestWebPushFlush,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.requestWebPushRegisterFlush()
+        }
+        incomingVoiceCallObserver = NotificationCenter.default.addObserver(
+            forName: .cashTreesIncomingVoiceCallPush,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            self?.handleIncomingVoiceCallPush(from: note)
+        }
+        // Cold-start debug-incoming may post before this observer exists.
+        if let pending = BeamioDebugIncomingPending.take() {
+            let note = Notification(name: .cashTreesIncomingVoiceCallPush, object: nil, userInfo: pending)
+            handleIncomingVoiceCallPush(from: note)
         }
         appLifecycleObserver = NotificationCenter.default.addObserver(
             forName: .cashTreesAppLifecycle,
@@ -451,6 +360,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     private func handleAppBecameActive() {
+        BeamioGuardianRoster.kick()
         // Drop stale offline push tray + badge; PWA re-publishes unread via publishAppState.
         CashTreesNativeAppStateBridge.clearOfflineChatAlerts()
         // Recovery is latency-sensitive. Never await the network-backed OTA check
@@ -464,12 +374,20 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             recoverWebContentIfNeeded()
             probeWebContentLivenessAndRecoverIfNeeded()
         }
+        // Wallet unlock / EIP-191 may finish after first webContentReady flush —
+        // re-push cached voip/alert so registerPushDevice can land for CallKit wake.
+        if webContentReadyForPush {
+            CashTreesPushRegistration.flushCachedTokensToWeb()
+            requestWebPushRegisterFlush()
+            injectNativePushSnapshotToWeb()
+        }
         Task { @MainActor in
             await CashTreesLocalPWAHost.shared.refreshOnForeground()
         }
     }
 
     deinit {
+        BeamioVoipIncomingBootstrap.shared.setWebBridge(nil)
         if let becameActiveObserver {
             NotificationCenter.default.removeObserver(becameActiveObserver)
         }
@@ -482,44 +400,41 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         if let pushTokenObserver {
             NotificationCenter.default.removeObserver(pushTokenObserver)
         }
+        if let webPushFlushObserver {
+            NotificationCenter.default.removeObserver(webPushFlushObserver)
+        }
+        if let incomingVoiceCallObserver {
+            NotificationCenter.default.removeObserver(incomingVoiceCallObserver)
+        }
         if let appLifecycleObserver {
             NotificationCenter.default.removeObserver(appLifecycleObserver)
         }
     }
 
-    func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for type: PKPushType) {
-        let token = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
+    /// CallKit already reported by AppDelegate bootstrap (VoIP / alert). Forward identity to PWA only.
+    private func handleIncomingVoiceCallPush(from note: Notification) {
+        let callId = (note.userInfo?["callId"] as? String) ?? ""
+        let sessionId = (note.userInfo?["sessionId"] as? String) ?? ""
+        let peerAddress = (note.userInfo?["peerAddress"] as? String) ?? ""
+        let displayName = (note.userInfo?["displayName"] as? String) ?? "Beamio call"
+        let claimedTag = (note.userInfo?["claimedTag"] as? String) ?? ""
+        let claimedAddress = (note.userInfo?["claimedAddress"] as? String) ?? ""
+        guard !callId.isEmpty else { return }
+        NSLog(
+            "[CashTrees] incoming→PWA callId=%@ sessionId=%@ name=%@",
+            callId,
+            sessionId,
+            displayName
+        )
         dispatchIOSBridgeJsonToWeb([
-            "action": "pushDeviceToken",
-            "token": token,
-            "deviceToken": token,
-            "platform": "ios_voip",
-            "bundleId": Bundle.main.bundleIdentifier ?? "com.beamio.beamio",
+            "action": "reportIncomingSystemCall",
+            "callId": callId,
+            "sessionId": sessionId,
+            "peerAddress": peerAddress,
+            "displayName": displayName,
+            "claimedTag": claimedTag,
+            "claimedAddress": claimedAddress,
         ])
-    }
-
-    func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
-        dispatchIOSBridgeJsonToWeb([
-            "action": "pushDeviceToken",
-            "token": "",
-            "deviceToken": "",
-            "platform": "ios_voip",
-        ])
-    }
-
-    func pushRegistry(
-        _ registry: PKPushRegistry,
-        didReceiveIncomingPushWith payload: PKPushPayload,
-        for type: PKPushType,
-        completion: @escaping () -> Void
-    ) {
-        let body = payload.dictionaryPayload
-        let callId = (body["callId"] as? String) ?? (body["call_id"] as? String) ?? ""
-        let displayName = (body["displayName"] as? String) ?? (body["peerAddress"] as? String) ?? "Beamio call"
-        if !callId.isEmpty {
-            callKit.reportIncoming(callId: callId, handle: displayName)
-        }
-        completion()
     }
 
     func loadWebAppURL(_ url: URL, in webView: WKWebView, bypassDedup: Bool = false) {
@@ -662,6 +577,78 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         initialWebRenderReadySignaled = true
         DispatchQueue.main.async { [weak self] in
             self?.loadState?.beginSplashHandoff()
+            // PWA listener is attached by init — flush any early PushKit/APNs tokens
+            // and re-post cached voip so `ios_voip` reaches registerPushDevice.
+            self?.markWebContentReadyForPushAndFlush()
+        }
+    }
+
+    private func markWebContentReadyForPushAndFlush() {
+        webContentReadyForPush = true
+        flushPendingPushTokenPayloads()
+        CashTreesPushRegistration.flushCachedTokensToWeb()
+        injectNativePushSnapshotToWeb()
+        requestWebPushRegisterFlush()
+        // Wallet unlock often lags first paint — keep kicking register.
+        for delay in [3.0, 8.0, 20.0, 45.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.webContentReadyForPush else { return }
+                CashTreesPushRegistration.flushCachedTokensToWeb()
+                self.injectNativePushSnapshotToWeb()
+                self.requestWebPushRegisterFlush()
+            }
+        }
+    }
+
+    /// Kick PWA HTTP `registerPushDevice` after delayed VoIP/alert re-notify
+    /// (wallet unlock may lag behind PushKit events past the first flush window).
+    private func requestWebPushRegisterFlush() {
+        guard let webView, webContentReadyForPush else { return }
+        let js = """
+        (function(){
+          try {
+            if (typeof window.__beamioFlushPushRegister === 'function') {
+              window.__beamioFlushPushRegister();
+            }
+          } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// Sync UserDefaults voip/alert hex into the PWA even if CustomEvent delivery fails.
+    private func injectNativePushSnapshotToWeb() {
+        guard let webView, webContentReadyForPush else { return }
+        let voip = (CashTreesPushRegistration.lastVoipDeviceTokenHex ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let alert = (CashTreesPushRegistration.lastDeviceTokenHex ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !voip.isEmpty || !alert.isEmpty else { return }
+        let voipEsc = voip.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        let alertEsc = alert.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        let js = """
+        (function(){
+          try {
+            window.__beamioNativePushSnapshot = { ios: '\(alertEsc)', ios_voip: '\(voipEsc)' };
+            if (typeof window.__beamioIngestNativePushSnapshot === 'function') {
+              window.__beamioIngestNativePushSnapshot();
+            }
+          } catch (e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func flushPendingPushTokenPayloads() {
+        guard webContentReadyForPush, webView != nil else { return }
+        let queued = pendingPushTokenPayloads
+        pendingPushTokenPayloads.removeAll()
+        for payload in queued {
+            dispatchIOSBridgeJsonToWeb(payload)
         }
     }
 
@@ -976,8 +963,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         window.__CT_EMBEDDED_PWA_PENDING_VER__='\(pendingEsc)';
         (function(){
           var H='\(cashTreesIOSWKHandlerName)';
-          if(!window.webkit||!window.webkit.messageHandlers||!window.webkit.messageHandlers[H])return;
-          window.CashTreesIOS={
+          function install(){
+            if(!window.webkit||!window.webkit.messageHandlers||!window.webkit.messageHandlers[H])return false;
+            if(window.CashTreesIOS&&typeof window.CashTreesIOS.bindPushIdentity==='function')return true;
+            window.CashTreesIOS={
             getNfcStatus:function(){return window.__CT_IOS_NFC_STATUS__||'no_bridge';},
             getEmbeddedPwaVersion:function(){return window.__CT_EMBEDDED_PWA_VER__||'';},
             getEmbeddedPwaPendingVersion:function(){return window.__CT_EMBEDDED_PWA_PENDING_VER__||'';},
@@ -1055,7 +1044,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 callId:payload.callId||'',
                 sessionId:payload.sessionId||'',
                 peerAddress:payload.peerAddress||'',
-                displayName:payload.displayName||''
+                displayName:payload.displayName||'',
+                claimedTag:payload.claimedTag||'',
+                claimedAddress:payload.claimedAddress||'',
+                identityWarning:payload.identityWarning||''
               });
             },
             endSystemCall:function(payload){
@@ -1126,6 +1118,46 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 pgpKeyId:payload.pgpKeyId||''
               });
             },
+            setNativeChatPgpSecrets:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'setNativeChatPgpSecrets',
+                privateKeyArmor:payload.privateKeyArmor||'',
+                publicKeyArmor:payload.publicKeyArmor||'',
+                pgpKeyId:payload.pgpKeyId||'',
+                routePublicKeyArmor:payload.routePublicKeyArmor||'',
+                entryDomains:Array.isArray(payload.entryDomains)?payload.entryDomains:[],
+                siNodes:Array.isArray(payload.siNodes)?payload.siNodes:[],
+                mailboxIp:payload.mailboxIp||'',
+                eoa:payload.eoa||''
+              });
+            },
+            setNativeSiNodeRoster:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'setNativeSiNodeRoster',
+                siNodes:Array.isArray(payload.siNodes)?payload.siNodes:[],
+                mailboxIp:payload.mailboxIp||''
+              });
+            },
+            postPgpCiphertext:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'postPgpCiphertext',
+                requestId:payload.requestId||'',
+                data:payload.data||'',
+                excludeIps:Array.isArray(payload.excludeIps)?payload.excludeIps:[]
+              });
+            },
+            registerPushDeviceHttp:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'registerPushDeviceHttp',
+                requestId:payload.requestId||'',
+                url:payload.url||'',
+                body:payload.body||''
+              });
+            },
             debugLog:function(level,message){
               window.webkit.messageHandlers[H].postMessage({
                 action:'consoleLog',
@@ -1134,6 +1166,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               });
             }
           };
+            return true;
+          }
+          if(install())return;
+          var n=0;
+          var t=setInterval(function(){
+            if(install()||++n>=200)clearInterval(t);
+          },25);
         })();
         """
     }
@@ -1222,22 +1261,40 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "startSystemCall":
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
-            let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
-            DispatchQueue.main.async { [weak self] in
-                self?.callKit.startOutgoing(callId: callId, handle: peer, sessionId: sessionId)
+            // B35: never pass peer/tag into CallKit — dual EOA/@tag collapses
+            // the system in-call bottom bar. Opaque "Beamio" only.
+            DispatchQueue.main.async {
+                BeamioVoipIncomingBootstrap.shared.callKit.startOutgoing(
+                    callId: callId,
+                    handle: "Beamio",
+                    sessionId: sessionId
+                )
             }
         case "reportIncomingSystemCall":
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
-            let peer = body["displayName"] as? String ?? body["peerAddress"] as? String ?? ""
-            DispatchQueue.main.async { [weak self] in
-                self?.callKit.reportIncoming(callId: callId, handle: peer, sessionId: sessionId)
+            let peerAddress = body["peerAddress"] as? String ?? ""
+            let displayName = body["displayName"] as? String
+                ?? (peerAddress.isEmpty ? "Beamio call" : peerAddress)
+            let claimedTag = body["claimedTag"] as? String ?? ""
+            let claimedAddress = body["claimedAddress"] as? String ?? ""
+            let identityWarning = body["identityWarning"] as? String ?? ""
+            DispatchQueue.main.async {
+                BeamioVoipIncomingBootstrap.shared.reportIncomingCallKit(
+                    callId: callId,
+                    sessionId: sessionId,
+                    peerAddress: peerAddress,
+                    displayName: displayName,
+                    claimedTag: claimedTag,
+                    claimedAddress: claimedAddress,
+                    identityWarning: identityWarning
+                )
             }
         case "endSystemCall":
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
-            DispatchQueue.main.async { [weak self] in
-                self?.callKit.end(callId: callId, sessionId: sessionId)
+            DispatchQueue.main.async {
+                BeamioVoipIncomingBootstrap.shared.callKit.end(callId: callId, sessionId: sessionId)
             }
         case "webContentReady":
             DispatchQueue.main.async { [weak self] in self?.beginInitialWebHandoffIfNeeded() }
@@ -1293,15 +1350,145 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             DispatchQueue.main.async {
                 CashTreesNativeAppStateBridge.notifyBackgroundChat(from: body)
             }
+        case "setNativeChatPgpSecrets":
+            DispatchQueue.main.async {
+                let ok = BeamioChatPgpKeychain.upsert(fromWeb: body)
+                NSLog("[CashTreesIOS] setNativeChatPgpSecrets ok=%@", ok ? "true" : "false")
+            }
+        case "setNativeSiNodeRoster":
+            DispatchQueue.main.async {
+                let ok = BeamioChatPgpKeychain.upsertRoster(fromWeb: body)
+                NSLog("[CashTreesIOS] setNativeSiNodeRoster ok=%@", ok ? "true" : "false")
+            }
+        case "postPgpCiphertext":
+            let requestId = (body["requestId"] as? String) ?? ""
+            let armor = (body["data"] as? String) ?? ""
+            let excludeRaw = body["excludeIps"] as? [Any] ?? []
+            let exclude = Set(excludeRaw.compactMap { $0 as? String })
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                var blocked = exclude
+                let mailbox = BeamioChatPgpKeychain.loadMailboxIp()
+                if !mailbox.isEmpty { blocked.insert(mailbox) }
+                let result = BeamioSiCipherPost.post(
+                    armor: armor,
+                    nodes: BeamioChatPgpKeychain.loadSiNodes(),
+                    excludeIps: blocked
+                )
+                DispatchQueue.main.async {
+                    self?.dispatchIOSBridgeJsonToWeb([
+                        "action": "postPgpCiphertext",
+                        "requestId": requestId,
+                        "ok": result.ok,
+                        "status": result.status,
+                        "body": result.body,
+                        "error": result.error,
+                    ])
+                }
+            }
         case "bindPushIdentity":
             let eoa = body["eoa"] as? String
             let pgpKeyId = body["pgpKeyId"] as? String
-            DispatchQueue.main.async {
+            let bindRequestId = (body["requestId"] as? String) ?? ""
+            DispatchQueue.main.async { [weak self] in
+                // PWA already attached `cashtreesios` before calling bind — treat
+                // as ready so queued/cached voip reaches registerPushDevice.
+                self?.webContentReadyForPush = true
                 CashTreesPushRegistration.bindIdentity(eoa: eoa, pgpKeyId: pgpKeyId)
+                self?.flushPendingPushTokenPayloads()
+                self?.injectNativePushSnapshotToWeb()
+                self?.requestWebPushRegisterFlush()
+                // Sync reply with current hex so PWA can HTTP-register immediately
+                // (CustomEvent alone was missed when listener/bind raced).
+                var reply: [String: Any] = [
+                    "action": "bindPushIdentity",
+                    "ok": true,
+                ]
+                if !bindRequestId.isEmpty { reply["requestId"] = bindRequestId }
+                if let voip = CashTreesPushRegistration.lastVoipDeviceTokenHex,
+                   !voip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                {
+                    reply["ios_voip"] = voip.lowercased()
+                }
+                if let alert = CashTreesPushRegistration.lastDeviceTokenHex,
+                   !alert.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                {
+                    reply["ios"] = alert.lowercased()
+                }
+                self?.dispatchIOSBridgeJsonToWeb(reply)
+                for delay in [1.5, 4.0, 10.0] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                        guard let self, self.webContentReadyForPush else { return }
+                        CashTreesPushRegistration.flushCachedTokensToWeb()
+                        self.injectNativePushSnapshotToWeb()
+                        self.requestWebPushRegisterFlush()
+                    }
+                }
+            }
+        case "registerPushDeviceHttp":
+            // PWA-signed body → native URLSession (WKWebView custom-scheme fetch
+            // to beamio.app often fails; CallKit wake needs DB write).
+            let pushRegRequestId = (body["requestId"] as? String) ?? ""
+            let pushRegUrl = (body["url"] as? String) ?? ""
+            let pushRegBody = (body["body"] as? String) ?? ""
+            DispatchQueue.main.async { [weak self] in
+                self?.postRegisterPushDeviceHttp(
+                    urlString: pushRegUrl,
+                    bodyJson: pushRegBody,
+                    requestId: pushRegRequestId
+                )
             }
         default:
             break
         }
+    }
+
+    /// POST already-signed `registerPushDevice` JSON via URLSession.
+    private func postRegisterPushDeviceHttp(urlString: String, bodyJson: String, requestId: String) {
+        let rid = requestId.trimmingCharacters(in: .whitespacesAndNewlines)
+        func reply(ok: Bool, status: Int = 0, error: String? = nil) {
+            var payload: [String: Any] = [
+                "action": "registerPushDeviceHttp",
+                "requestId": rid,
+                "ok": ok,
+            ]
+            if status > 0 { payload["status"] = status }
+            if let error, !error.isEmpty { payload["error"] = error }
+            dispatchIOSBridgeJsonToWeb(payload)
+        }
+        guard let url = URL(string: urlString),
+              url.scheme == "https",
+              let host = url.host,
+              (host == "beamio.app" || host.hasSuffix(".beamio.app")),
+              let data = bodyJson.data(using: .utf8),
+              !data.isEmpty
+        else {
+            reply(ok: false, error: "invalid_url_or_body")
+            return
+        }
+        var req = URLRequest(url: url, timeoutInterval: 14)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = data
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                if let error {
+                    reply(ok: false, error: error.localizedDescription)
+                    return
+                }
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                var success = false
+                if status >= 200, status < 300, let data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                {
+                    success = json["success"] as? Bool == true
+                }
+                CashTreesWebConsoleRelay.logNative(
+                    "registerPushDeviceHttp status=\(status) ok=\(success) rid=\(rid.prefix(12))"
+                )
+                reply(ok: success, status: status)
+                _ = self
+            }
+        }.resume()
     }
 
     private func dispatchEmbeddedPwaUpdateAvailable(from note: Notification) {
@@ -1895,6 +2082,27 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     private func dispatchIOSBridgeJsonToWeb(_ dict: [String: Any], completion: (() -> Void)? = nil) {
+        // Early PushKit before WebView / before PWA listener: queue push tokens.
+        if let action = dict["action"] as? String, action == "pushDeviceToken" {
+            if webView == nil || !webContentReadyForPush {
+                pendingPushTokenPayloads.append(dict)
+                // Keep only the latest token per platform (ios vs ios_voip).
+                var latestByPlatform: [String: [String: Any]] = [:]
+                for item in pendingPushTokenPayloads {
+                    let platform = (item["platform"] as? String)?.lowercased() ?? "ios"
+                    latestByPlatform[platform] = item
+                }
+                pendingPushTokenPayloads = Array(latestByPlatform.values)
+                NSLog(
+                    "[CashTreesPush] queued pushDeviceToken platform=%@ (webReady=%@ webView=%@)",
+                    (dict["platform"] as? String) ?? "?",
+                    webContentReadyForPush ? "1" : "0",
+                    webView == nil ? "nil" : "ok"
+                )
+                completion?()
+                return
+            }
+        }
         guard let webView = webView else { return }
         guard JSONSerialization.isValidJSONObject(dict),
               let data = try? JSONSerialization.data(withJSONObject: dict, options: []),
@@ -2109,6 +2317,14 @@ struct CashTreesWebView: UIViewRepresentable {
             )
         )
 
+        let coord = context.coordinator
+        coord.loadState = loadState
+        // Register handlers BEFORE user scripts so documentStart bridge can see
+        // messageHandlers.CashTreesIOS (otherwise CashTreesIOS never installs).
+        config.userContentController.add(coord, name: cashTreesIOSWKHandlerName)
+        config.userContentController.add(coord.webConsoleMessageHandler, name: CashTreesWebConsoleRelay.handlerName)
+        CashTreesWebConsoleRelay.logNative("registered handlers CashTreesIOS + \(CashTreesWebConsoleRelay.handlerName)")
+
         let status = queryIosNfcStatusString()
         let bridge = CashTreesWebCoordinator.bridgeInjectionScript(
             nfcStatus: status,
@@ -2122,12 +2338,6 @@ struct CashTreesWebView: UIViewRepresentable {
         config.userContentController.addUserScript(
             WKUserScript(source: renderReady, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         )
-
-        let coord = context.coordinator
-        coord.loadState = loadState
-        config.userContentController.add(coord, name: cashTreesIOSWKHandlerName)
-        config.userContentController.add(coord.webConsoleMessageHandler, name: CashTreesWebConsoleRelay.handlerName)
-        CashTreesWebConsoleRelay.logNative("registered handlers CashTreesIOS + \(CashTreesWebConsoleRelay.handlerName)")
 
         let webView = CashTreesWKWebView(frame: .zero, configuration: config)
         coord.webView = webView

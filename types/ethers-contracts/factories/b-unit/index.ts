@@ -22,6 +22,7 @@ export * as treasuryDeveloperFxLibSol from './TreasuryDeveloperFxLib.sol/index.j
 export * as baseTreasurySol from './baseTreasury.sol/index.js';
 export * as conetTreasurySol from './conetTreasury.sol/index.js';
 export * as usdcSol from './usdc.sol/index.js';
+export { AacErc1967Proxy__factory } from './AacErc1967Proxy__factory.js';
 export { AacRegistryPaused__factory } from './AacRegistryPaused__factory.js';
 export { ConetTreasuryPeerStableSwapLib__factory } from './ConetTreasuryPeerStableSwapLib__factory.js';
 export { ConetTreasuryPeerStableSwapSigLib__factory } from './ConetTreasuryPeerStableSwapSigLib__factory.js';

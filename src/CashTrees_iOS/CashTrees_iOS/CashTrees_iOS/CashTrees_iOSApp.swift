@@ -14,22 +14,69 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // PushKit + CallKit must be ready before WebView — same as Android MessagingService
+        // so a force-quit app still shows the system incoming-call UI and wakes Beamio.
+        BeamioVoipIncomingBootstrap.shared.start()
+        BeamioGuardianRoster.kick()
         UNUserNotificationCenter.current().delegate = self
         // Re-register if we already have a bound identity (cold start after prior grant).
-        if CashTreesPushRegistration.boundEoa != nil {
-            CashTreesPushRegistration.requestAuthorizationAndRegister()
-        }
-        return true
-    }
+		if CashTreesPushRegistration.boundEoa != nil {
+			CashTreesPushRegistration.requestAuthorizationAndRegister()
+		} else {
+			// Still refresh the alert token so Dev install-over can rebind before PWA unlock.
+			CashTreesPushRegistration.forceRegisterForRemoteNotifications()
+		}
+		// iOS 26+: LaunchOptionsKey.remoteNotification is deprecated. Cold-start /
+		// background voiceCall payloads arrive via
+		// application(_:didReceiveRemoteNotification:fetchCompletionHandler:) and
+		// userNotificationCenter(_:didReceive:withCompletionHandler:) below.
+		//
+		// CoreDevice `--payload-url` / cold open often delivers custom schemes only via
+		// LaunchOptionsKey.url — SwiftUI `.onOpenURL` alone misses that path.
+		if let url = launchOptions?[.url] as? URL {
+			NSLog("[BeamioDeepLink] launchOptions.url %@", url.absoluteString)
+			_ = Self.handleDebugURL(url)
+		}
+		return true
+	}
+
+	/// Warm / background → foreground custom-scheme opens (incl. Safari / CoreDevice).
+	func application(
+		_ app: UIApplication,
+		open url: URL,
+		options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+	) -> Bool {
+		NSLog("[BeamioDeepLink] application.open %@", url.absoluteString)
+		return Self.handleDebugURL(url)
+	}
+
+	@discardableResult
+	static func handleDebugURL(_ url: URL) -> Bool {
+		if BeamioDeepLink.handleDebugIncomingIfPresent(url) { return true }
+		if BeamioDeepLink.handleDebugDeclineIfPresent(url) { return true }
+		if BeamioDeepLink.handleDebugAnswerIfPresent(url) { return true }
+		if BeamioDeepLink.handleDebugEndAllIfPresent(url) { return true }
+		return false
+	}
 
     /// Foreground: suppress chat APNs banners/sound (SSE may already show the message),
     /// but still apply `.badge` so the home-screen icon updates if the user backgrounds/force-quits
     /// before the next offline notify (empty options previously dropped badge entirely).
+    /// `type=voiceCall` alert fallback must wake CallKit even while the app is active.
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        let userInfo = notification.request.content.userInfo
+        if CashTreesPushRegistration.postIncomingVoiceCallIfPresent(from: userInfo) {
+            if #available(iOS 14.0, *) {
+                completionHandler([.banner, .sound, .badge, .list])
+            } else {
+                completionHandler([.alert, .sound, .badge])
+            }
+            return
+        }
         if applicationIsActive {
             completionHandler([.badge])
             return
@@ -39,6 +86,26 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         } else {
             completionHandler([.alert, .sound, .badge])
         }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        CashTreesPushRegistration.postIncomingVoiceCallIfPresent(
+            from: response.notification.request.content.userInfo
+        )
+        completionHandler()
+    }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        let handled = CashTreesPushRegistration.postIncomingVoiceCallIfPresent(from: userInfo)
+        completionHandler(handled ? .newData : .noData)
     }
 
     private var applicationIsActive: Bool {
@@ -87,6 +154,7 @@ struct CashTrees_iOSApp: App {
                 }
                 .onOpenURL { url in
                     Task { @MainActor in
+                        if CashTreesAppDelegate.handleDebugURL(url) { return }
                         deepLinkStore.handleIncomingURL(url)
                     }
                 }

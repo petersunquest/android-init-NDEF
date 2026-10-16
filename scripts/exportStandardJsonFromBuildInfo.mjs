@@ -32,6 +32,14 @@ const CONFIG = {
     sourceKey: "project/src/mainnet/ChatIndexRegistryProxy.sol",
     contractName: "ChatIndexRegistryProxy",
   },
+  BeamioAgentReferrerRegistry: {
+    sourceKey: "project/src/mainnet/BeamioAgentReferrerRegistry.sol",
+    contractName: "BeamioAgentReferrerRegistry",
+  },
+  BeamioAgentReferrerRegistryProxy: {
+    sourceKey: "project/src/mainnet/BeamioAgentReferrerRegistryProxy.sol",
+    contractName: "BeamioAgentReferrerRegistryProxy",
+  },
   ReferralPurchaseSplitV1: {
     sourceKey: "project/src/mainnet/ReferralPurchaseSplitV1.sol",
     contractName: "ReferralPurchaseSplitV1",

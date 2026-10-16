@@ -29,6 +29,24 @@ export {
 } from './envelope'
 export type { MailboxWorkEnvelope } from './envelope'
 export { postUrl } from './nodes'
+export {
+	GROUP_V1_DEFAULT_PADDING_BUCKET_BYTES,
+	GROUP_V1_MAX_BODY_BYTES,
+	GROUP_V1_MAX_MEMBERS,
+	GroupStateV1,
+	assertGroupAdminProposalV1,
+	assertGroupDeliveryPacketV1,
+	assertGroupRosterV1,
+	assertGroupMessageV1,
+	assertGroupTombstoneV1,
+	assertNextGroupRosterV1,
+	canonicalGroupJson,
+	createGroupMessageV1,
+	createPaddedGroupDeliveryPacket,
+	groupRosterHash,
+	normalizeGroupAddress,
+	signGroupObject,
+} from './group'
 
 export type {
 	BeamioChatClient,
@@ -43,6 +61,15 @@ export type {
 	ChatRuntimeOptions,
 	ChatStatus,
 	DeliveryReceiptEvent,
+	GroupAdminProposalV1,
+	GroupDeliveryPacketV1,
+	GroupMemberV1,
+	GroupMessageV1,
+	GroupPolicyV1,
+	GroupRosterV1,
+	GroupSendRequest,
+	GroupSendResult,
+	GroupTombstoneV1,
 	HistoryBufferEvent,
 	HistoryEntry,
 	HistoryLoadOptions,

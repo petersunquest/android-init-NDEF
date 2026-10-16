@@ -1,0 +1,43 @@
+{
+  "runtimeBytes": 24571,
+  "chains": {
+    "conet": {
+      "impl": "0xc426f2aE938Ba28ad18b3cf7470c7c8c27362a15",
+      "deployTx": "0x4d6e49fdb4684a9ee12a1a1056ca10dbafa64e0f4c7b86824e593a4f3ae450f6",
+      "deployBlock": 1719895,
+      "upgradeTx": "0xf979091ea84489a64ac93610519f650d350805286f5f6525b2f972dfb21d6898",
+      "upgradeBlock": 1719896,
+      "voteBridgeClosed": true,
+      "voteProbe": "VoteBridgeClosed",
+      "before": {
+        "minerCount": "4",
+        "feeSettlement": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+        "developerFxIssuer": "0x083da39C81D9078fE5d31e852eBAdb34B885b698"
+      },
+      "after": {
+        "minerCount": "4",
+        "feeSettlement": "0x305f90A7f38289219BA1b4be98CB5b47e7b15Ac2",
+        "developerFxIssuer": "0x083da39C81D9078fE5d31e852eBAdb34B885b698"
+      }
+    },
+    "base": {
+      "impl": "0xB6fD1A2fB9497021f6604E4869cD5d49890db53A",
+      "deployTx": "0xa75708a69f9cd3301f877174151fb19d53c85e7641b7d3d1da24f74c21740ebf",
+      "deployBlock": 52627770,
+      "upgradeTx": "0xb1702e9573ea81f2b6a5dc4c75c60e8d8e6a7f67c9291fb6d054bbac2f02d621",
+      "upgradeBlock": 52627773,
+      "voteBridgeClosed": true,
+      "voteProbe": "VoteBridgeClosed",
+      "before": {
+        "minerCount": "4",
+        "feeSettlement": "0x0000000000000000000000000000000000000000",
+        "developerFxIssuer": null
+      },
+      "after": {
+        "minerCount": "4",
+        "feeSettlement": "0x0000000000000000000000000000000000000000",
+        "developerFxIssuer": "0x0000000000000000000000000000000000000000"
+      }
+    }
+  }
+}

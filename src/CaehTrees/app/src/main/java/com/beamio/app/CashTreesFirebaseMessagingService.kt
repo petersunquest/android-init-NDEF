@@ -16,6 +16,7 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
+        BeamioGuardianRoster.kick(this)
         val data = message.data
         val type = data["type"]?.trim().orEmpty()
         Log.i(
@@ -39,8 +40,38 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
                 callId,
                 sessionId,
             )
-            // FCM is only a wake signal. It does not contain caller identity
-            // and must never make the native side pull/decrypt a voice offer.
+            // FCM stays opaque (no caller identity in push). After the CallStyle
+            // surface is up, shell fetches offerArmor via mailbox route PGP,
+            // decrypts with stored user PGP, and upgrades Incoming to @tag + short EOA.
+            if (callId.isNotBlank()) {
+                BeamioVoiceOfferIdentity.scheduleResolveDelayed(
+                    applicationContext,
+                    callId,
+                    sessionId,
+                    delayMs = 500L,
+                ) { identity ->
+                    val tag = identity.beamioTag.orEmpty()
+                    val display = tag.ifBlank { identity.shortAddress }
+                    IncomingCallActivity.updateShownCaller(
+                        callId = identity.callId,
+                        sessionId = identity.sessionId,
+                        displayName = display,
+                        peerAddress = identity.callerEoa,
+                        claimedTag = tag,
+                        claimedAddress = identity.callerEoa,
+                        identityWarning = "",
+                    )
+                    BeamioTelecomService.showIncomingCallNotification(
+                        applicationContext,
+                        callId = identity.callId,
+                        peerAddress = identity.callerEoa,
+                        displayName = display,
+                        sessionId = identity.sessionId,
+                        claimedTag = tag,
+                        claimedAddress = identity.callerEoa,
+                    )
+                }
+            }
             return
         }
         if (type != "chatBadge" && type != "syncChatBadge") return

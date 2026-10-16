@@ -3,8 +3,8 @@
 //  CashTrees_iOS
 //
 //  Full-screen in-app WebView opened from the PWA bridge (bottom → top).
-//  Floating chrome (circular Back + domain title capsule) matches Beamio Chat /
-//  Home: safe-area top, shared scroll show/hide (opacity + translateY).
+//  Floating chrome (circular Back + plain centered domain title) matches Beamio
+//  Chat / Home: safe-area top, shared scroll show/hide (opacity + translateY).
 //
 
 import UIKit
@@ -18,7 +18,10 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
     var onClosed: (() -> Void)?
     private var didNotifyClosed = false
 
-    private let webSurface = UIColor(red: 0 / 255, green: 4 / 255, blue: 20 / 255, alpha: 1)
+    /// White shell surface — page may paint edge-to-edge under notch when chrome is hidden.
+    private let webSurface = UIColor.white
+    private let chromeRowHeight: CGFloat = 44
+    private let chromeBelowGap: CGFloat = 8
 
     // Beamio scroll chrome (useScrollCapsuleOpacity / beamio-scrollable-top-controls-global).
     private let scrollThreshold: CGFloat = 40
@@ -38,6 +41,7 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
     private var revealArmed = false
     private var revealReady = false
 
+    /// Plain domain title — full-row horizontal center, no capsule chrome.
     private lazy var titleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -46,24 +50,9 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
         label.font = .systemFont(ofSize: 15, weight: .bold)
         label.textColor = UIColor(red: 15 / 255, green: 23 / 255, blue: 42 / 255, alpha: 1)
         label.lineBreakMode = .byTruncatingMiddle
+        label.isUserInteractionEnabled = false
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return label
-    }()
-
-    /// Center domain capsule — same floating chrome language as Chat identity pill.
-    private lazy var titleCapsule: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = UIColor.white.withAlphaComponent(0.92)
-        view.layer.cornerRadius = 22
-        view.layer.borderWidth = 1
-        view.layer.borderColor = CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 0.08)
-        view.layer.shadowColor = CGColor(srgbRed: 0, green: 0, blue: 0, alpha: 1)
-        view.layer.shadowOpacity = 0.08
-        view.layer.shadowRadius = 12
-        view.layer.shadowOffset = CGSize(width: 0, height: 4)
-        view.isUserInteractionEnabled = false
-        return view
     }()
 
     private lazy var backButton: UIButton = {
@@ -83,6 +72,10 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
         button.layer.shadowOpacity = 0.16
         button.layer.shadowRadius = 5
         button.layer.shadowOffset = CGSize(width: 0, height: 2)
+        // Keep the SF Symbol optically centered in the circular disc.
+        button.contentHorizontalAlignment = .center
+        button.contentVerticalAlignment = .center
+        button.imageView?.contentMode = .center
         button.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
         return button
     }()
@@ -188,9 +181,9 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
 
         view.addSubview(webView)
         view.addSubview(floatingChrome)
+        // Title under Back so the circular button stays on top for hits + shadow.
+        floatingChrome.addSubview(titleLabel)
         floatingChrome.addSubview(backButton)
-        floatingChrome.addSubview(titleCapsule)
-        titleCapsule.addSubview(titleLabel)
 
         let top = floatingChrome.topAnchor.constraint(equalTo: view.topAnchor, constant: chromeTopInset())
         chromeTopConstraint = top
@@ -204,28 +197,22 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
             top,
             floatingChrome.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             floatingChrome.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            floatingChrome.heightAnchor.constraint(equalToConstant: 44),
+            floatingChrome.heightAnchor.constraint(equalToConstant: chromeRowHeight),
 
             backButton.leadingAnchor.constraint(equalTo: floatingChrome.leadingAnchor, constant: 16),
             backButton.centerYAnchor.constraint(equalTo: floatingChrome.centerYAnchor),
             backButton.widthAnchor.constraint(equalToConstant: 36),
             backButton.heightAnchor.constraint(equalToConstant: 36),
 
-            titleCapsule.centerXAnchor.constraint(equalTo: floatingChrome.centerXAnchor),
-            titleCapsule.centerYAnchor.constraint(equalTo: floatingChrome.centerYAnchor),
-            titleCapsule.heightAnchor.constraint(equalToConstant: 44),
-            titleCapsule.leadingAnchor.constraint(greaterThanOrEqualTo: backButton.trailingAnchor, constant: 12),
-            titleCapsule.trailingAnchor.constraint(lessThanOrEqualTo: floatingChrome.trailingAnchor, constant: -16),
-
-            titleLabel.leadingAnchor.constraint(equalTo: titleCapsule.leadingAnchor, constant: 16),
-            titleLabel.trailingAnchor.constraint(equalTo: titleCapsule.trailingAnchor, constant: -16),
-            titleLabel.topAnchor.constraint(equalTo: titleCapsule.topAnchor, constant: 10),
-            titleLabel.bottomAnchor.constraint(equalTo: titleCapsule.bottomAnchor, constant: -10),
-            titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
+            // Full-row centered plain text; horizontal padding clears the Back disc.
+            titleLabel.leadingAnchor.constraint(equalTo: floatingChrome.leadingAnchor, constant: 56),
+            titleLabel.trailingAnchor.constraint(equalTo: floatingChrome.trailingAnchor, constant: -56),
+            titleLabel.centerYAnchor.constraint(equalTo: floatingChrome.centerYAnchor),
         ])
 
         webView.scrollView.delegate = self
         applyChromeOpacity(1, animated: false)
+        syncContentTopInset(opacity: 1)
         lockWebViewZoom()
         webView.load(URLRequest(url: initialURL))
     }
@@ -233,11 +220,31 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
     override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         chromeTopConstraint?.constant = chromeTopInset()
+        syncContentTopInset(opacity: chromeOpacity)
     }
 
     /// `max(1rem, env(safe-area-inset-top))` — Beamio fixed-top capsule protocol.
     private func chromeTopInset() -> CGFloat {
         max(16, view.safeAreaInsets.top)
+    }
+
+    /// Content clears Back + title + gap; 0 when chrome hidden → fullscreen incl. notch.
+    private func contentTopInset(for opacity: CGFloat) -> CGFloat {
+        if opacity < 0.05 { return 0 }
+        if opacity >= 0.99 { return chromeTopInset() + chromeRowHeight + chromeBelowGap }
+        return (chromeTopInset() + chromeRowHeight + chromeBelowGap) * opacity
+    }
+
+    private func syncContentTopInset(opacity: CGFloat) {
+        let inset = contentTopInset(for: opacity)
+        let sv = webView.scrollView
+        var content = sv.contentInset
+        var scroll = sv.verticalScrollIndicatorInsets
+        if abs(content.top - inset) < 0.5 { return }
+        content.top = inset
+        scroll.top = inset
+        sv.contentInset = content
+        sv.verticalScrollIndicatorInsets = scroll
     }
 
     @objc private func closeTapped() {
@@ -279,22 +286,33 @@ final class CashTreesInAppBrowserController: UIViewController, WKNavigationDeleg
         let clamped = min(1, max(0, next))
         if abs(clamped - chromeOpacity) < opacityEps, clamped > 0, clamped < 1 { return }
         chromeOpacity = clamped
-        let transform = CGAffineTransform(translationX: 0, y: -(1 - clamped) * floatingChrome.bounds.height.nonZeroOr(44))
+        let hitEnabled = clamped >= 0.05
+        let transform = CGAffineTransform(translationX: 0, y: -(1 - clamped) * floatingChrome.bounds.height.nonZeroOr(chromeRowHeight))
+        if hitEnabled {
+            floatingChrome.isHidden = false
+        }
         let apply = {
             self.floatingChrome.alpha = clamped
             self.floatingChrome.transform = transform
-            self.floatingChrome.isUserInteractionEnabled = clamped >= 0.05
-            self.backButton.isUserInteractionEnabled = clamped >= 0.05
+            self.floatingChrome.isUserInteractionEnabled = hitEnabled
+            self.backButton.isUserInteractionEnabled = hitEnabled
+            self.syncContentTopInset(opacity: clamped)
         }
         if animated {
             UIView.animate(
                 withDuration: chromeAnimMs,
                 delay: 0,
                 options: [.curveEaseOut, .allowUserInteraction, .beginFromCurrentState],
-                animations: apply
+                animations: apply,
+                completion: { _ in
+                    if !hitEnabled {
+                        self.floatingChrome.isHidden = true
+                    }
+                }
             )
         } else {
             apply()
+            floatingChrome.isHidden = !hitEnabled
         }
     }
 

@@ -15,6 +15,8 @@ import type {
 	ChatEventListener,
 	ChatEventName,
 	ChatRoute,
+	GroupSendRequest,
+	GroupSendResult,
 	SendMessageOptions,
 	HistoryBufferEvent,
 	HistoryEntry,
@@ -153,6 +155,10 @@ class BeamioChatClientImpl implements BeamioChatClient {
 			beamioNoPush: opts?.beamioNoPush,
 		})
 		return { sendId }
+	}
+
+	sendGroupMessage(request: GroupSendRequest): Promise<GroupSendResult> {
+		return this.request<GroupSendResult>({ type: 'sendGroup', reqId: 0, request })
 	}
 
 	async queryPresence(contacts: ChatRoute[]): Promise<Record<string, boolean>> {

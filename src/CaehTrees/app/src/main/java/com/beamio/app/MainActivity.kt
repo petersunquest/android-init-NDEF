@@ -14,11 +14,13 @@ import android.nfc.tech.Ndef
 import android.os.Environment
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.Base64
@@ -26,8 +28,10 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.webkit.JavascriptInterface
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.webkit.PermissionRequest
@@ -177,6 +181,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private lateinit var webView: WebView
+    private var nativeVoiceMic: BeamioNativeVoiceMic? = null
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
     /** Full-screen in-app browser overlay (bottom → top). Null when closed. */
@@ -198,6 +203,8 @@ class MainActivity : ComponentActivity() {
     private var inAppRevealArmed = false
     private var inAppRevealReady = false
     private var inAppHideUnlock = false
+    /** Top padding so page content clears safe-area + Back/title; 0 when chrome hidden (edge-to-edge). */
+    private var inAppChromeContentInsetPx = 0
     private val inAppChromeHandler = Handler(Looper.getMainLooper())
     private val inAppHideUnlockRunnable = Runnable {
         inAppHideUnlock = false
@@ -1320,6 +1327,68 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /**
+         * Persist recipient user PGP (+ mailbox route / entry domains) for killed-app
+         * `voice_offer_fetch` + local decrypt. Mirrors iOS `setNativeChatPgpSecrets`.
+         * Payload: JSON string `{ privateKeyArmor, publicKeyArmor?, pgpKeyId?,
+         * routePublicKeyArmor?, entryDomains?, eoa? }`.
+         */
+        @JavascriptInterface
+        fun setNativeChatPgpSecrets(json: String) {
+            val ok = BeamioChatPgpStore.upsertFromWeb(this@MainActivity, json)
+            Log.i(TAG, "setNativeChatPgpSecrets ok=$ok")
+        }
+
+        /** Persist Guardian IP roster without re-sending the user PGP private key. */
+        @JavascriptInterface
+        fun setNativeSiNodeRoster(json: String) {
+            val ok = BeamioChatPgpStore.upsertRoster(this@MainActivity, json)
+            Log.i(TAG, "setNativeSiNodeRoster ok=$ok")
+        }
+
+        /**
+         * PWA ciphertext delivery. The shell picks `http://{ip}/post`.
+         * Payload: `{ requestId, data, excludeIps? }`. Reply via `cashtreesandroid`.
+         */
+        @JavascriptInterface
+        fun postPgpCiphertext(json: String) {
+            Thread {
+                try {
+                    val body = JSONObject(json.ifBlank { "{}" })
+                    val requestId = body.optString("requestId", "")
+                    val armor = body.optString("data", "")
+                    val exclude = HashSet<String>()
+                    val arr = body.optJSONArray("excludeIps")
+                    if (arr != null) {
+                        for (i in 0 until arr.length()) {
+                            val ip = arr.optString(i, "").trim()
+                            if (ip.isNotEmpty()) exclude.add(ip)
+                        }
+                    }
+                    val mailbox = BeamioChatPgpStore.loadMailboxIp(this@MainActivity)
+                    if (mailbox.isNotBlank()) exclude.add(mailbox)
+                    val result = BeamioSiCipherPost.post(
+                        armor,
+                        BeamioChatPgpStore.loadSiNodes(this@MainActivity),
+                        exclude,
+                    )
+                    runOnUiThread {
+                        dispatchAndroidBridgeJsonToWeb(
+                            JSONObject()
+                                .put("action", "postPgpCiphertext")
+                                .put("requestId", requestId)
+                                .put("ok", result.ok)
+                                .put("status", result.status)
+                                .put("body", result.body)
+                                .put("error", result.error),
+                        )
+                    }
+                } catch (error: Exception) {
+                    Log.w(TAG, "postPgpCiphertext failed: ${error.message}")
+                }
+            }.start()
+        }
+
         /** PWA debug log → logcat (`PWA-JS` tag); mirrors iOS `CashTreesIOS.debugLog`. */
         @JavascriptInterface
         fun debugLog(level: String, message: String) {
@@ -1340,6 +1409,34 @@ class MainActivity : ComponentActivity() {
             } catch (error: Exception) {
                 Log.w(TAG, "notifyVoiceMicReady parse failed: ${error.message}")
             }
+        }
+
+        /**
+         * Record 16 kHz mono PCM outside WebView. WebView getUserMedia stays
+         * silent while Telecom holds MODE_IN_COMMUNICATION.
+         */
+        @JavascriptInterface
+        fun startNativeVoiceMic(): Boolean {
+            stopNativeVoiceMic()
+            val mic = BeamioNativeVoiceMic { pcmBase64 ->
+                runOnUiThread {
+                    if (!::webView.isInitialized) return@runOnUiThread
+                    webView.evaluateJavascript(
+                        "window.__beamioNativeMicChunk&&window.__beamioNativeMicChunk('$pcmBase64')",
+                        null,
+                    )
+                }
+            }
+            if (!mic.start()) return false
+            nativeVoiceMic = mic
+            return true
+        }
+
+        @JavascriptInterface
+        fun stopNativeVoiceMic() {
+            val mic = nativeVoiceMic
+            nativeVoiceMic = null
+            mic?.stop()
         }
     }
 
@@ -1521,6 +1618,110 @@ class MainActivity : ComponentActivity() {
         return h == "go.cb-w.com" || h.endsWith(".cb-w.com")
     }
 
+    /**
+     * Coinbase Onramp / login HTTPS hosts must stay in the in-app WebView.
+     * Coinbase often redirects via `intent://…#Intent;scheme=https;package=com.android.chrome;…`
+     * — starting that Intent opens Chrome with the full checkout URL (device evidence).
+     */
+    private fun isCoinbaseOnrampKeepInWebViewHost(host: String?): Boolean {
+        val h = host?.lowercase()?.trim().orEmpty()
+        if (h.isEmpty()) return false
+        return h == "pay.coinbase.com" ||
+            h == "login.coinbase.com" ||
+            h == "www.coinbase.com" ||
+            h == "coinbase.com" ||
+            h.endsWith(".coinbase.com")
+    }
+
+    private fun isSystemBrowserPackage(packageName: String?): Boolean {
+        val p = packageName?.lowercase()?.trim().orEmpty()
+        if (p.isEmpty()) return false
+        return p == "com.android.chrome" ||
+            p == "com.chrome.beta" ||
+            p == "com.chrome.dev" ||
+            p == "com.chrome.canary" ||
+            p == "com.google.android.apps.chrome" ||
+            p == "com.sec.android.app.sbrowser" ||
+            p == "org.mozilla.firefox" ||
+            p == "com.microsoft.emmx" ||
+            p == "com.opera.browser" ||
+            p == "com.brave.browser" ||
+            p.contains("browser")
+    }
+
+    private fun preferLoadHttpsInInAppWebView(uri: Uri?, targetPackage: String?): Boolean {
+        if (uri == null) return false
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        if (scheme != "http" && scheme != "https") return false
+        if (isCoinbaseOnrampKeepInWebViewHost(uri.host)) return true
+        if (isSystemBrowserPackage(targetPackage)) return true
+        return false
+    }
+
+    /**
+     * While the in-app overlay is open, Chromium / OEM WebView may still fire
+     * ACTION_VIEW → Chrome for OAuth (`login.coinbase.com`) when `onCreateWindow`
+     * mishandles transport. Intercept and reload into the overlay WebView.
+     */
+    private fun tryKeepInAppBrowserExternalIntent(intent: Intent?): Boolean {
+        if (intent == null || inAppBrowserOverlay == null) return false
+        val action = intent.action
+        if (action != null &&
+            action != Intent.ACTION_VIEW &&
+            action != Intent.ACTION_MAIN
+        ) {
+            return false
+        }
+        val data = intent.data ?: return false
+        val scheme = data.scheme?.lowercase().orEmpty()
+        val pkg = intent.`package`
+        if (scheme == "http" || scheme == "https") {
+            val host = data.host?.lowercase().orEmpty()
+            // Never swallow Play Store / market HTTPS while overlay is open.
+            if (host.contains("play.google.com") || host == "market.android.com") {
+                return false
+            }
+            // Chromium OAuth escape: Chrome package, blank package, or Coinbase hosts.
+            if (
+                isCoinbaseOnrampKeepInWebViewHost(data.host) ||
+                isSystemBrowserPackage(pkg) ||
+                pkg.isNullOrBlank()
+            ) {
+                val url = data.toString()
+                Log.i(TAG, "inAppBrowser: intercept startActivity host=${data.host} pkg=$pkg")
+                runOnUiThread {
+                    inAppBrowserWebView?.loadUrl(url)
+                }
+                return true
+            }
+        }
+        if (scheme == "intent") {
+            try {
+                val parsed = Intent.parseUri(data.toString(), Intent.URI_INTENT_SCHEME)
+                val https = parsed.data
+                if (https != null && preferLoadHttpsInInAppWebView(https, parsed.`package`)) {
+                    Log.i(TAG, "inAppBrowser: intercept intent startActivity host=${https.host}")
+                    runOnUiThread {
+                        inAppBrowserWebView?.loadUrl(https.toString())
+                    }
+                    return true
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return false
+    }
+
+    override fun startActivity(intent: Intent) {
+        if (tryKeepInAppBrowserExternalIntent(intent)) return
+        super.startActivity(intent)
+    }
+
+    override fun startActivity(intent: Intent, options: Bundle?) {
+        if (tryKeepInAppBrowserExternalIntent(intent)) return
+        super.startActivity(intent, options)
+    }
+
     private fun openPlayStoreForPackage(packageName: String) {
         val pkg = packageName.trim()
         if (pkg.isEmpty()) return
@@ -1588,18 +1789,78 @@ class MainActivity : ComponentActivity() {
         try {
             when (scheme) {
                 "intent" -> {
-                    val parsed = Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME)
+                    val rawIntent = uri.toString()
+                    val parsed = Intent.parseUri(rawIntent, Intent.URI_INTENT_SCHEME)
                     val pkg = parsed.`package`?.trim().orEmpty()
-                    if (parsed.resolveActivity(packageManager) != null) {
+                    val dataUri = parsed.data
+                    var fallback = parsed.getStringExtra("browser_fallback_url")?.trim().orEmpty()
+                    if (fallback.isEmpty()) {
+                        // Some OEMs omit the extra; parse S.browser_fallback_url from the raw URI.
+                        val m = Regex("""S\.browser_fallback_url=([^;]+)""").find(rawIntent)
+                        if (m != null) {
+                            fallback = Uri.decode(m.groupValues[1]).trim()
+                        }
+                    }
+                    Log.i(
+                        TAG,
+                        "inAppBrowser: intent pkg=$pkg dataHost=${dataUri?.host} " +
+                            "fallbackHost=${runCatching { Uri.parse(fallback).host }.getOrNull()}",
+                    )
+                    // Never hand Coinbase / browser-package HTTPS to Chrome — keep checkout in shell.
+                    if (preferLoadHttpsInInAppWebView(dataUri, pkg)) {
+                        Log.i(TAG, "inAppBrowser: keep intent https in WebView host=${dataUri?.host} pkg=$pkg")
+                        view?.loadUrl(dataUri!!.toString())
+                        return true
+                    }
+                    if (fallback.startsWith("http://") || fallback.startsWith("https://")) {
+                        val fbUri = Uri.parse(fallback)
+                        if (
+                            preferLoadHttpsInInAppWebView(fbUri, pkg) ||
+                            isCoinbaseOnrampKeepInWebViewHost(fbUri.host) ||
+                            pkg.isEmpty() ||
+                            isSystemBrowserPackage(pkg)
+                        ) {
+                            Log.i(TAG, "inAppBrowser: keep intent fallback in WebView host=${fbUri.host}")
+                            view?.loadUrl(fallback)
+                            return true
+                        }
+                    }
+                    // intent://login.coinbase.com/…#Intent;scheme=https;package=com.android.chrome;end
+                    // with empty data/fallback — rebuild https from authority + scheme extra.
+                    val intentScheme = parsed.scheme?.lowercase().orEmpty().ifBlank {
+                        Regex(""";scheme=([a-zA-Z0-9+.-]+)""").find(rawIntent)?.groupValues?.getOrNull(1)
+                            ?.lowercase().orEmpty()
+                    }
+                    if (
+                        (intentScheme == "http" || intentScheme == "https") &&
+                        (isSystemBrowserPackage(pkg) || pkg.isEmpty() || isCoinbaseOnrampKeepInWebViewHost(uri.host))
+                    ) {
+                        val hostPart = uri.host?.trim().orEmpty()
+                        if (hostPart.isNotEmpty()) {
+                            val rebuilt = Uri.Builder()
+                                .scheme(intentScheme)
+                                .encodedAuthority(uri.encodedAuthority)
+                                .encodedPath(uri.encodedPath)
+                                .encodedQuery(uri.encodedQuery)
+                                .encodedFragment(null)
+                                .build()
+                                .toString()
+                                .substringBefore("#Intent")
+                            if (rebuilt.startsWith("http://") || rebuilt.startsWith("https://")) {
+                                Log.i(TAG, "inAppBrowser: rebuild intent→https host=$hostPart")
+                                view?.loadUrl(rebuilt)
+                                return true
+                            }
+                        }
+                    }
+                    // Wallet / non-browser apps only (never Chrome for https checkout).
+                    if (pkg.isNotEmpty() && !isSystemBrowserPackage(pkg) &&
+                        parsed.resolveActivity(packageManager) != null
+                    ) {
                         startActivity(parsed)
                         return true
                     }
-                    val fallback = parsed.getStringExtra("browser_fallback_url")?.trim().orEmpty()
-                    if (fallback.startsWith("http://") || fallback.startsWith("https://")) {
-                        view?.loadUrl(fallback)
-                        return true
-                    }
-                    if (pkg.isNotEmpty()) {
+                    if (pkg.isNotEmpty() && !isSystemBrowserPackage(pkg)) {
                         openPlayStoreForPackage(pkg)
                         return true
                     }
@@ -1654,6 +1915,53 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * Force window.open / target=_blank into the same in-app WebView so Coinbase OAuth
+     * (login.coinbase.com) never reaches Chromium's system-browser fallback.
+     */
+    private fun injectInAppBrowserSameWindowNavigation(view: WebView?) {
+        if (view == null) return
+        view.evaluateJavascript(
+            """
+            (function(){
+              if (window.__beamioInAppSameWindow) return;
+              window.__beamioInAppSameWindow = 1;
+              var _open = window.open;
+              window.open = function(url, name, features) {
+                try {
+                  if (typeof url === 'string' && url) {
+                    var u = new URL(url, location.href);
+                    if (u.protocol === 'http:' || u.protocol === 'https:') {
+                      location.assign(u.href);
+                      return null;
+                    }
+                  }
+                } catch (e) {}
+                if (typeof url === 'string' && url) {
+                  // Never hand non-http window.open to Chromium (intent:// → Chrome).
+                  try { location.href = url; } catch (e2) {}
+                  return null;
+                }
+                // Empty / relative open — stay in-shell; do not call native _open.
+                return null;
+              };
+              document.addEventListener('click', function(e) {
+                var t = e.target;
+                if (!t || !t.closest) return;
+                var a = t.closest('a[target="_blank"]');
+                if (!a || !a.href) return;
+                if (/^https?:/i.test(a.href)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  location.assign(a.href);
+                }
+              }, true);
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    /**
      * PWA `CashTreesAndroid.openInAppBrowser(url|json)` — full-screen overlay, slides up from bottom.
      * Floating Back + domain title capsule share Beamio scroll show/hide (safe-area aware).
      * Dismiss notifies PWA via `inAppBrowserClosed` (optional `requestId` echoed).
@@ -1662,6 +1970,7 @@ class MainActivity : ComponentActivity() {
     private fun openInAppBrowserFromBridge(raw: String) {
         val args = parseInAppBrowserOpenArgs(raw) ?: return
         val uri = sanitizedInAppBrowserUri(args.url) ?: return
+        Log.i(TAG, "openInAppBrowserFromBridge host=${uri.host} requestId=${args.requestId}")
         if (!::rootLayout.isInitialized) return
         // go.cb-w.com is an app trampoline — WebView → market:// → store chooser shake loop.
         if (isCoinbaseWalletTrampolineHost(uri.host)) {
@@ -1686,9 +1995,10 @@ class MainActivity : ComponentActivity() {
         val density = resources.displayMetrics.density
         val backSize = dp(36f)
         val chromeRowH = dp(44f)
+        val chromeBelowGap = dp(8f)
         val titleColor = Color.parseColor("#0F172A")
-        val chevronColor = Color.parseColor("#2c2f31")
-        val webSurface = Color.parseColor("#000414")
+        // White shell surface — page may paint edge-to-edge under notch when chrome is hidden.
+        val webSurface = Color.WHITE
 
         val overlay = FrameLayout(this).apply {
             setBackgroundColor(webSurface)
@@ -1697,6 +2007,7 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             elevation = 24f * density
+            fitsSystemWindows = false
         }
 
         val titleView = TextView(this)
@@ -1706,8 +2017,13 @@ class MainActivity : ComponentActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
             setBackgroundColor(webSurface)
+            // Top inset clears Back + title; removed when chrome opacity → 0 (fullscreen / notch).
+            clipToPadding = true
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            // Keep true so Chromium delivers window.open to onCreateWindow (we never hand off to Chrome).
+            settings.javaScriptCanOpenWindowsAutomatically = true
+            settings.setSupportMultipleWindows(true)
             settings.setSupportZoom(false)
             settings.builtInZoomControls = false
             settings.displayZoomControls = false
@@ -1718,6 +2034,11 @@ class MainActivity : ComponentActivity() {
                     request: WebResourceRequest?,
                 ): Boolean {
                     val next = request?.url ?: return false
+                    Log.i(
+                        TAG,
+                        "inAppBrowser: override scheme=${next.scheme} host=${next.host} " +
+                            "main=${request.isForMainFrame}",
+                    )
                     if (isCoinbaseWalletTrampolineHost(next.host)) {
                         try {
                             view?.stopLoading()
@@ -1733,7 +2054,38 @@ class MainActivity : ComponentActivity() {
                         launchCoinbaseWalletAppOrStore()
                         return true
                     }
+                    // http(s) stay in this WebView (return false = WebView loads). Do not
+                    // loadUrl+return-true here — that re-enters shouldOverride and can loop.
+                    // Chrome escape for login.coinbase.com is onCreateWindow → false, not this.
+                    val scheme = next.scheme?.lowercase().orEmpty()
+                    if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob") {
+                        return false
+                    }
                     return handleInAppBrowserNonHttpUri(view, next)
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    if (url.isNullOrBlank()) return false
+                    val next = try {
+                        Uri.parse(url)
+                    } catch (_: Exception) {
+                        return false
+                    }
+                    Log.i(TAG, "inAppBrowser: override(legacy) scheme=${next.scheme} host=${next.host}")
+                    if (isCoinbaseWalletTrampolineHost(next.host)) {
+                        launchCoinbaseWalletAppOrStore()
+                        return true
+                    }
+                    val scheme = next.scheme?.lowercase().orEmpty()
+                    if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob") {
+                        return false
+                    }
+                    return handleInAppBrowserNonHttpUri(view, next)
+                }
+
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    injectInAppBrowserSameWindowNavigation(view)
                 }
 
                 override fun onPageFinished(view: WebView?, url: String?) {
@@ -1742,6 +2094,7 @@ class MainActivity : ComponentActivity() {
                         titleView.text = domainTitleForUri(Uri.parse(url))
                     } catch (_: Exception) {
                     }
+                    injectInAppBrowserSameWindowNavigation(view)
                     // Lock pinch zoom; keep viewport-fit so safe-area CSS still works.
                     view?.evaluateJavascript(
                         """
@@ -1757,12 +2110,106 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+            // Coinbase OAuth uses window.open / target=_blank. Returning false from
+            // onCreateWindow → Chromium ACTION_VIEW → Chrome (login.coinbase.com).
+            // Returning true WITHOUT assigning WebViewTransport + sendToTarget() also
+            // lets Chromium fall back to Chrome on many OEM WebViews — always sink
+            // the popup into a throwaway WebView that redirects into [host].
+            webChromeClient = object : WebChromeClient() {
+                override fun onCreateWindow(
+                    view: WebView?,
+                    isDialog: Boolean,
+                    isUserGesture: Boolean,
+                    resultMsg: Message?,
+                ): Boolean {
+                    val host = view ?: return false
+                    val hitUrl = host.hitTestResult?.extra?.trim().orEmpty()
+                    Log.i(
+                        TAG,
+                        "inAppBrowser: onCreateWindow dialog=$isDialog gesture=$isUserGesture " +
+                            "hit=${hitUrl.take(120)} transport=${resultMsg?.obj != null}",
+                    )
+                    if (hitUrl.startsWith("http://") || hitUrl.startsWith("https://")) {
+                        if (!isCoinbaseWalletTrampolineHost(Uri.parse(hitUrl).host)) {
+                            host.loadUrl(hitUrl)
+                        } else {
+                            launchCoinbaseWalletAppOrStore()
+                        }
+                    }
+                    val transport = resultMsg?.obj as? WebView.WebViewTransport
+                    if (transport == null) {
+                        // No transport to fill — never return false (that opens Chrome).
+                        return true
+                    }
+                    val sink = WebView(host.context).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.javaScriptCanOpenWindowsAutomatically = false
+                        settings.setSupportMultipleWindows(false)
+                        webViewClient = object : WebViewClient() {
+                            private fun routeToHost(next: Uri?): Boolean {
+                                if (next == null) return true
+                                Log.i(TAG, "inAppBrowser: popup→host scheme=${next.scheme} host=${next.host}")
+                                if (isCoinbaseWalletTrampolineHost(next.host)) {
+                                    launchCoinbaseWalletAppOrStore()
+                                    return true
+                                }
+                                if (handleInAppBrowserNonHttpUri(host, next)) {
+                                    return true
+                                }
+                                val scheme = next.scheme?.lowercase().orEmpty()
+                                if (scheme == "http" || scheme == "https" || scheme == "about" || scheme == "blob") {
+                                    host.post { host.loadUrl(next.toString()) }
+                                }
+                                return true
+                            }
+
+                            override fun shouldOverrideUrlLoading(
+                                v: WebView?,
+                                request: WebResourceRequest?,
+                            ): Boolean = routeToHost(request?.url)
+
+                            @Deprecated("Deprecated in Java")
+                            override fun shouldOverrideUrlLoading(v: WebView?, url: String?): Boolean {
+                                if (url.isNullOrBlank()) return true
+                                return routeToHost(
+                                    try {
+                                        Uri.parse(url)
+                                    } catch (_: Exception) {
+                                        null
+                                    },
+                                )
+                            }
+
+                            override fun onPageStarted(v: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                if (url.isNullOrBlank() || url == "about:blank") return
+                                try {
+                                    val next = Uri.parse(url)
+                                    val scheme = next.scheme?.lowercase().orEmpty()
+                                    if (scheme == "http" || scheme == "https") {
+                                        Log.i(TAG, "inAppBrowser: popup onPageStarted→host ${next.host}")
+                                        host.post { host.loadUrl(url) }
+                                        try {
+                                            v?.stopLoading()
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                } catch (_: Exception) {
+                                }
+                            }
+                        }
+                    }
+                    transport.webView = sink
+                    resultMsg.sendToTarget()
+                    return true
+                }
+            }
             setOnScrollChangeListener { _, _, scrollY, _, _ ->
                 scheduleInAppChromeOpacity(scrollY.toFloat())
             }
         }
 
-        // Floating chrome: Back + domain capsule (Chat / Home language).
+        // Floating chrome: circular Back (shadow) + plain domain title (full-row center).
         val chrome = FrameLayout(this).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1770,44 +2217,64 @@ class MainActivity : ComponentActivity() {
             ).apply {
                 gravity = Gravity.TOP
             }
+            // Touches pass through when opacity < 0.05 (see applyInAppChromeOpacity).
+            isClickable = true
+            clipChildren = false
+            clipToPadding = false
         }
         ViewCompat.setOnApplyWindowInsetsListener(chrome) { v, insets ->
-            // max(1rem, safe-area-inset-top)
+            // max(1rem, safe-area-inset-top) — chrome floats below notch / status bar.
             val top = maxOf(dp(16f), insets.getInsets(WindowInsetsCompat.Type.statusBars()).top)
             val lp = v.layoutParams as FrameLayout.LayoutParams
             lp.topMargin = top
             v.layoutParams = lp
+            // Content clears chrome + small gap; collapses to 0 when chrome is hidden.
+            // WebView ignores View padding for HTML layout — use layout topMargin instead.
+            inAppChromeContentInsetPx = top + chromeRowH + chromeBelowGap
+            syncInAppBrowserTopInset(inAppChromeOpacity)
             insets
         }
         ViewCompat.requestApplyInsets(chrome)
+        // Fallback inset before first insets pass (non-notch ≈ 16 + 44 + 8).
+        inAppChromeContentInsetPx = dp(16f) + chromeRowH + chromeBelowGap
+        syncInAppBrowserTopInset(1f)
 
         val backDisc = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.argb(235, 255, 255, 255))
             setStroke(dp(1f), Color.argb(20, 0, 0, 0))
         }
-        val backButton = TextView(this).apply {
-            text = "‹"
+        // Oval disc + centered chevron; elevation shadow matches iOS circular Back.
+        val backButton = FrameLayout(this).apply {
             contentDescription = "Back"
-            setTextColor(chevronColor)
-            textSize = 28f
-            typeface = Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
             background = backDisc
-            elevation = 4f * density
+            elevation = 8f * density
+            outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setOval(0, 0, view.width, view.height)
+                }
+            }
+            clipToOutline = false
+            isClickable = true
+            isFocusable = true
             layoutParams = FrameLayout.LayoutParams(backSize, backSize).apply {
                 gravity = Gravity.CENTER_VERTICAL or Gravity.START
                 marginStart = dp(16f)
             }
             setOnClickListener { dismissInAppBrowser(animated = true) }
+            addView(
+                ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_chevron_left)
+                    scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    isClickable = false
+                    isFocusable = false
+                    layoutParams = FrameLayout.LayoutParams(dp(17f), dp(17f), Gravity.CENTER)
+                },
+            )
         }
 
-        val titleCapsuleBg = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = chromeRowH / 2f
-            setColor(Color.argb(235, 255, 255, 255))
-            setStroke(dp(1f), Color.argb(20, 0, 0, 0))
-        }
+        // Domain as plain centered text (no capsule / pill chrome).
         titleView.apply {
             text = domainTitleForUri(uri)
             setTextColor(titleColor)
@@ -1816,24 +2283,24 @@ class MainActivity : ComponentActivity() {
             gravity = Gravity.CENTER
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
-            background = titleCapsuleBg
-            elevation = 4f * density
-            setPadding(dp(16f), 0, dp(16f), 0)
+            background = null
+            elevation = 0f
+            // Symmetric padding keeps title optically centered on the full row
+            // while clearing the leading Back disc.
+            setPadding(dp(56f), 0, dp(56f), 0)
             isClickable = false
             isFocusable = false
             layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 chromeRowH,
             ).apply {
                 gravity = Gravity.CENTER
-                marginStart = dp(64f)
-                marginEnd = dp(16f)
             }
-            maxWidth = dp(220f)
         }
 
-        chrome.addView(backButton)
+        // Title under Back so the circular button stays on top for hits + shadow.
         chrome.addView(titleView)
+        chrome.addView(backButton)
 
         overlay.addView(browser)
         overlay.addView(chrome)
@@ -1871,6 +2338,46 @@ class MainActivity : ComponentActivity() {
         return maxOf(0f, 1f - (scrollTop - 40f) / 100f)
     }
 
+    /**
+     * Push WebView below floating Back + title so HTML content is not covered.
+     * Chromium WebView does not apply View padding to the document — topMargin is required.
+     * 0 when chrome hidden → edge-to-edge incl. notch (matches iOS contentInset collapse).
+     */
+    private fun syncInAppBrowserTopInset(opacity: Float) {
+        val browser = inAppBrowserWebView ?: return
+        val lp = browser.layoutParams as? FrameLayout.LayoutParams ?: return
+        // Fully visible → exact inset; mid-fade interpolate; hidden → 0 (fullscreen).
+        val next = when {
+            opacity >= 0.99f -> inAppChromeContentInsetPx
+            opacity < 0.05f -> 0
+            else -> (inAppChromeContentInsetPx * opacity).toInt()
+        }
+        if (lp.topMargin != next) {
+            lp.topMargin = next
+            browser.layoutParams = lp
+        }
+        if (browser.paddingTop != 0) {
+            browser.setPadding(0, 0, 0, 0)
+        }
+    }
+
+    private fun setInAppChromeHitTesting(enabled: Boolean) {
+        val chrome = inAppBrowserChrome ?: return
+        chrome.isClickable = enabled
+        chrome.isEnabled = enabled
+        chrome.isFocusable = enabled
+        if (chrome is ViewGroup) {
+            for (i in 0 until chrome.childCount) {
+                val child = chrome.getChildAt(i)
+                child.isClickable = enabled
+                child.isEnabled = enabled
+                child.isFocusable = enabled
+            }
+        }
+        // INVISIBLE lets touches reach the WebView under the chrome layer.
+        chrome.visibility = if (enabled) View.VISIBLE else View.INVISIBLE
+    }
+
     private fun applyInAppChromeOpacity(next: Float, animated: Boolean) {
         val chrome = inAppBrowserChrome ?: return
         val clamped = next.coerceIn(0f, 1f)
@@ -1878,26 +2385,40 @@ class MainActivity : ComponentActivity() {
             return
         }
         inAppChromeOpacity = clamped
+        val hitEnabled = clamped >= 0.05f
         val ty = -(1f - clamped) * chrome.height.coerceAtLeast(dp(44f))
-        val apply = {
+        val applyVisual = {
             chrome.alpha = clamped
             chrome.translationY = ty
-            chrome.isClickable = clamped >= 0.05f
-            chrome.isEnabled = clamped >= 0.05f
+            syncInAppBrowserTopInset(clamped)
+        }
+        if (hitEnabled) {
+            // Show before animating in so the fade is visible.
+            chrome.visibility = View.VISIBLE
+            setInAppChromeHitTesting(true)
         }
         if (animated) {
             chrome.animate()
                 .alpha(clamped)
                 .translationY(ty)
                 .setDuration(300L)
+                .withStartAction {
+                    syncInAppBrowserTopInset(clamped)
+                }
                 .withEndAction {
-                    chrome.isClickable = clamped >= 0.05f
-                    chrome.isEnabled = clamped >= 0.05f
+                    syncInAppBrowserTopInset(clamped)
+                    if (!hitEnabled) {
+                        setInAppChromeHitTesting(false)
+                    } else {
+                        chrome.isClickable = true
+                        chrome.isEnabled = true
+                    }
                 }
                 .start()
         } else {
             chrome.animate().cancel()
-            apply()
+            applyVisual()
+            setInAppChromeHitTesting(hitEnabled)
         }
     }
 
@@ -2073,6 +2594,7 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        BeamioGuardianRoster.kick(this)
         applyTransparentStatusBar()
         if (wakeForCall && IncomingCallActivity.isShowing()) {
             moveTaskToBack(true)
@@ -2503,9 +3025,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        val openingActiveCall =
+            intent.getBooleanExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL, false)
         if (IncomingCallActivity.isShowing()) {
-            IncomingCallActivity.bringToFront(this)
-            return
+            // Answer already asked for the in-app call page. Putting the
+            // translucent incoming task back in front leaves the glass card
+            // over that page.
+            if (openingActiveCall) {
+                IncomingCallActivity.finishIfShowing()
+            } else {
+                IncomingCallActivity.bringToFront(this)
+                return
+            }
         }
         if (::rootLayout.isInitialized) {
             rootLayout.setBackgroundColor(Color.parseColor("#f8f9fa"))
@@ -2612,6 +3143,8 @@ class MainActivity : ComponentActivity() {
         if (::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.stopUpdateDaemon()
         }
+        nativeVoiceMic?.stop()
+        nativeVoiceMic = null
         nfcReadExecutor.shutdownNow()
         bootstrapExecutor.shutdownNow()
         super.onDestroy()

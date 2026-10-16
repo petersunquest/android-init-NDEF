@@ -47,6 +47,7 @@ class IncomingCallActivity : Activity() {
             splashScreen.setOnExitAnimationListener { splash -> splash.remove() }
         }
         super.onCreate(savedInstanceState)
+        BeamioGuardianRoster.kick(this)
         window.setFormat(PixelFormat.TRANSLUCENT)
         activeInstance = this
         appContext = applicationContext

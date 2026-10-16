@@ -3,6 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>aps-environment</key>
+	<!-- Production APS for Distribution / Ad Hoc installs. AuthKey
+	     7GXMG42Y6P delivers on api.push.apple.com for production tokens;
+	     development-signed builds fail sandbox with BadEnvironmentKeyInToken. -->
 	<string>production</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>

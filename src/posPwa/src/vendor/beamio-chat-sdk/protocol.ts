@@ -9,6 +9,7 @@ import type {
 	ChatRoute,
 	ChatRuntimeOptions,
 	DeliveryReceiptEvent,
+	GroupSendRequest,
 	HistoryBufferEvent,
 	HistoryEntry,
 	HistoryLoadOptions,
@@ -46,6 +47,7 @@ export type WorkerCommand =
 	| { type: 'setRoutes'; routes: ChatRoute[] }
 	| { type: 'setNodes'; nodes: NodeInfo[] }
 	| { type: 'send'; reqId: number; to: ChatRoute; payload: string; sendId: string; beamioNoPush?: boolean }
+	| { type: 'sendGroup'; reqId: number; request: GroupSendRequest }
 	| { type: 'queryPresence'; reqId: number; contacts: ChatRoute[] }
 	| { type: 'historyLoad'; reqId: number; options?: HistoryLoadOptions }
 	| { type: 'historyAppend'; reqId: number; entry: Omit<HistoryEntry, 'seq'> }
