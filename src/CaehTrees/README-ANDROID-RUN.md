@@ -9,7 +9,7 @@ The Gradle module folder is named `CaehTrees`; that is **not** the install packa
 
 1. Firebase Console → add Android app with package `com.beamio.app`.
 2. Download `google-services.json` into `app/` (replace the placeholder).
-3. On API host `~/.master.json` set FCM HTTP v1 credentials (see x402sdk `offlineChatPush.ts`):
+3. On API host `{API_HOST_MASTER_FILE}` set FCM HTTP v1 credentials (see x402sdk `offlineChatPush.ts`):
    - `fcm_project_id`
    - `fcm_service_account_path` (or `fcm_service_account_json`)
 4. PWA calls `CashTreesAndroid.bindPushIdentity(JSON.stringify({ eoa, pgpKeyId }))` after chat init.

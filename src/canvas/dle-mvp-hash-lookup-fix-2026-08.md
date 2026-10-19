@@ -12,7 +12,7 @@
 - Runtime：`jsonrpcFacade.ts` + `hashPipe.ts` + `hop1.ts` — `dle_locateHash` / `dle_getByHash` / `eth_*ByHash` 共用管道；命中后 hop-1 `dle_getObject` 到 `historyProviders`（实验室 HTTP :27101）。`dle_getObject` 只读本地 freezer。
 - Runtime：`hashStore.ts` — 文件 KV `hash-index.json` + freezer `hash-freezer.json`，键 `(chainNftId, height)`。
 - Runtime：`hashIndexTree.ts` — 组内排序 Keccak `HashIndexTreeV1`；`dle_getHashIndexRoot` / `dle_proveHash`；`committedInAc: false`；**不是**热 Get。
-- 实验室：单组 7 归档 TCP 27101；`70.35.205.77` 上 30 HTTP miner；P5 L1 16/16；`pilotStartedAt=null`。
+- 实验室：单组 7 归档 TCP 27101；`{HOST_D}` 上 30 HTTP miner；P5 L1 16/16；`pilotStartedAt=null`。
 - 前序快照：`dle-hash-must-hit-chain-2026-08.md`、`dle-geth-archive-hash-lookup-2026-08.md`、`dle-hash-index-tree-2026-08.md`、`dle-rpc-hash-proxy-2026-08.md`（均已入 §5.2.0e）。
 
 ## 假设

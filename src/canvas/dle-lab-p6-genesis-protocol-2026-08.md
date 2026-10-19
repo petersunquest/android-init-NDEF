@@ -66,7 +66,7 @@ nft42 AC        = true × 7
 
 ## 事故（2026-08-16 keep 发版）
 
-`lab:deploy-archive-keep` 后 fd-03（`198.251.77.98`）与 fd-05（`170.205.39.67`）进程在听 `:27101`，但 localhost `/health` 30s 仍 0 字节。CPU 84–96%，ESTAB 260–340，listen backlog 260+。根因：`hashStore` 每次 Get 整文件读盘 + P6 load 对 700 条 `indexRouteAndTip` + `/health` 当场重算 Merkle；弱机事件循环饿死。`liveGroupCount` 被 keep 脚本打回 1（未带 `planeDirectory`）。**不**重启 geth/beacon/validator。
+`lab:deploy-archive-keep` 后 fd-03（`{LAB_HOST_07}`）与 fd-05（`{LAB_HOST_06}`）进程在听 `:27101`，但 localhost `/health` 30s 仍 0 字节。CPU 84–96%，ESTAB 260–340，listen backlog 260+。根因：`hashStore` 每次 Get 整文件读盘 + P6 load 对 700 条 `indexRouteAndTip` + `/health` 当场重算 Merkle；弱机事件循环饿死。`liveGroupCount` 被 keep 脚本打回 1（未带 `planeDirectory`）。**不**重启 geth/beacon/validator。
 
 修复：内存 KV；load 只 `registerLabChainNft`；心跳 `/liveness`；`hashIndex` / extraHealth 缓存；`newchain-state` 原子写入 + 2s persist 防抖；**分批 gossip**（pending 3 + certified 2；空闲 certified 3 / 5s）；出证后单 topic 广播；同槽同 mac / 已出证票 **不 persist**。恢复平面须 `lab:deploy-m6`（**禁止**再跑 `lab:deploy-archive-keep`，会抹 `planeDirectory`）。
 

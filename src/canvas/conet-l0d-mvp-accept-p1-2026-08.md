@@ -39,8 +39,8 @@
 
 | 主机 | overlay vIP | geth | beacon | l0d | `[l0]` |
 | --- | --- | --- | --- | --- | --- |
-| `74.208.224.45` | `100.64.0.5` | 1.17.3 · 9 peers（含 `.98:8400`）· `0x0` | v7.1.4 · head 679775 · dist 258073 · 15 peers | pid 863022 · TUN UP | 关 |
-| `198.251.77.98` | `100.64.0.6` | **已恢复** 21:47:24Z；7 peers（含 `.45`）；EL `0xcd4dc` / `0xd7fbc` | v7.1.8 · head 937848 · dist 0 · optimistic · 15 peers | pid 3310266 · TUN UP | 关 |
+| `{LAB_HOST_18}` | `{LAB_HOST_01}` | 1.17.3 · 9 peers（含 `.98:8400`）· `0x0` | v7.1.4 · head 679775 · dist 258073 · 15 peers | pid 863022 · TUN UP | 关 |
+| `{LAB_HOST_07}` | `{LAB_HOST_02}` | **已恢复** 21:47:24Z；7 peers（含 `.45`）；EL `0xcd4dc` / `0xd7fbc` | v7.1.8 · head 937848 · dist 0 · optimistic · 15 peers | pid 3310266 · TUN UP | 关 |
 
 确定性关系（P1 出站 + 入站解密 + listen worker，已在 crate；生产 SI listen 未打开）：
 

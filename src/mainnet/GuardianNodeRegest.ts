@@ -2,18 +2,22 @@
 
 import GuardianNodesInfoV6ABI from "./abi/GuardianNodesInfoV6.json";
 import { ethers } from "ethers"
-import { createRequire } from "node:module"
-import { join } from "node:path"
-import { homedir } from "node:os"
+import { readFileSync } from "node:fs"
 
-const require = createRequire(import.meta.url)
-const masterSetup = require(join(homedir(), ".master.json"))
+// Operator-local settings come from the environment. The values are in the private maintenance guide.
+function requiredEnv(name: string): string {
+	const value = process.env[name]
+	if (!value) throw new Error(`set ${name} in the environment (see the private maintenance guide)`)
+	return value
+}
+
+const masterSetup = JSON.parse(readFileSync(requiredEnv("OWNER_KEY_FILE"), "utf8"))
 
 const v1Address = "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D"
 const newNodeAddress = "0xCd68C3FFFE403f9F26081807c77aB29a4DF6940D"
 
 const newProvider = new ethers.JsonRpcProvider("https://mainnet-rpc.conet.network")
-const v1Provider = new ethers.JsonRpcProvider("http://38.102.126.30:80")
+const v1Provider = new ethers.JsonRpcProvider(`http://${requiredEnv("CONET_NODE_A")}:80`)
 const masterWallet = new ethers.Wallet(masterSetup.settle_contractAdmin[0], newProvider)
 
 const oldNodeContract = new ethers.Contract(v1Address, GuardianNodesInfoV6ABI, v1Provider)

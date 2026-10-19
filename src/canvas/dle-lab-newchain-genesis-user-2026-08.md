@@ -1,6 +1,6 @@
 # DLE 实验室：三类新链创世 + 随机用户 daemon（2026-08-16）
 
-- **Canvas 标识：** 无独立交互 Canvas；本快照记录实验室 NewChain 平面与 `70.35.205.77` daemon 用户。
+- **Canvas 标识：** 无独立交互 Canvas；本快照记录实验室 NewChain 平面与 `{HOST_D}` daemon 用户。
 - **日期：** 2026-08-16
 - **状态：** **身份 wipe 后已 keep 补路由并重新开链。** 资产 / 存储 / 交易创世 7/7 合格；daemon 已按 15–45s `setTimeout` 链随机开链（验收时已见第 4 条）。
 - **规范优先级：** 英中白皮书 Mode A / 三类链语义 + 现役 NFT 42 BFT AC > 本快照。**本平面不是白皮书规范变更，也不是 L1 NFT mint。**
@@ -9,7 +9,7 @@
 
 - 现役 BFT 链仍是 NFT **42**，Group ID = `0x3076a806de71ab75b2d48063cc3f1e7d8f8e3d54cb1d45a7469c75c9276f2ad0`，EVM `eth_chainId=0x44c45`（281669），`chainName=CoNET-DLE Testnet`。
 - 身份 wipe 后线上 `lab-cli` 一度没有 `/newchain/*`（404）。本轮 `npm run lab:deploy-archive-keep`（`START_ARCHIVE_KEEP_ALL`）补路由；**未 wipe** `bft-state.json` / `ondemand-state.json` / hash store。滚动发版时旧客户端写过不一致条目，已只删 `newchain-state.json` 后 keep 重启，再开新创世。
-- 用户机：`70.35.205.77` `/home/peter/dle-newchain-user`（**独立于** `/home/peter/dle-ondemand-clients`）。PID `111957`。
+- 用户机：`{HOST_D}` `{REMOTE_HOME}/dle-newchain-user`（**独立于** `{REMOTE_HOME}/dle-ondemand-clients`）。PID `111957`。
 - 部署证据：`src/conet-layer2/pilot/evidence/conet-dle-30d-lab-2026-08/newchain-user-deploy.json`（`acceptedAt=2026-08-16T10:20:20.337Z`）。
 - 线上：`GET /newchain/chains` 7/7 一致；三类 `dle_route` → 本组 hash；`dle_getByHash(valueHash)` `status=hit`。
 
@@ -39,7 +39,7 @@
 ## 冻结结论
 
 1. **三类创世合格**：Mode A replay 被 7 台接受；证书 `DleLabGenesisCertificateV1` 且 `labOnly` / `notL1Nft` / `notArchiveCertificate` / `height=0x1`；`dle_route` 与 `dle_getByHash` 命中本组。
-2. **daemon 用户已部署**：先强制三类 smoke，再随机类别持续开链。入口 `newchain-user-cli.js`，状态 `/home/peter/dle-newchain-user/data/status.json`。
+2. **daemon 用户已部署**：先强制三类 smoke，再随机类别持续开链。入口 `newchain-user-cli.js`，状态 `{REMOTE_HOME}/dle-newchain-user/data/status.json`。
 3. **诚实边界**：实验室 stub。**不是** L1 出生证、Treasury burn、Settlement escrow、或 30 天资格。
 4. **未改白皮书**；未实现 M6 / 第二组 / 裂变 / 改 5+2。
 5. **P18（2026-08-17）** 新 \(Q_V\) 改为 EIP-712 `ArchiveValidatorQuorumAttest`；new-chain-user HTTP 仍只查 `schema === 'DleLabValidatorQuorumV1'`。磁盘旧 HMAC \(Q_V\) keep-only。**不是**生产 secp256k1 / 30 天资格。
@@ -62,7 +62,7 @@
 - [x] `POST /newchain/request` + persist `newchain-state.json`
 - [x] `registerLabChainNft` 后 `dle_route` / `dle_getByHash` 命中
 - [x] `lab:deploy-archive-keep` 7/7（AC 仍在；只清过不一致的 `newchain-state.json`）
-- [x] `lab:deploy-newchain-user` → `70.35.205.77:/home/peter/dle-newchain-user`
+- [x] `lab:deploy-newchain-user` → `{HOST_D}:{REMOTE_HOME}/dle-newchain-user`
 - [x] 7/7 三类各 ≥1，hash hit，NFT 42 仍活，ondemand 进程未停
 - [x] 调度为 `setTimeout` 链（禁 `setInterval`）；验收时已出现第 4 条随机链
 - [ ] 未宣称 30 天资格 / L1 出生证

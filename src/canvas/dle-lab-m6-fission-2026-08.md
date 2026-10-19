@@ -7,10 +7,10 @@
 
 ## 事实来源
 
-- 用户指定 7 台新机：`170.205.39.135`、`167.254.243.162`、`212.52.0.166`、`212.52.0.165`、`212.52.0.164`、`212.52.0.160`、`212.52.0.149`。SSH 盘点：无 geth/beacon/validator，27101 空闲，无既有 `dle-30d-lab`。
+- 用户指定 7 台新机：`{LAB_HOST_05}`、`{LAB_HOST_03}`、`{LAB_HOST_13}`、`{LAB_HOST_12}`、`{LAB_HOST_11}`、`{LAB_HOST_10}`、`{LAB_HOST_09}`。SSH 盘点：无 geth/beacon/validator，27101 空闲，无既有 `dle-30d-lab`。
 - 第一组 7 台归档、on-demand 30、newchain-user、NFT 42 BFT **保持运行**。G1 只允许 keep 滚动重启（不 wipe）。禁止重启遗留 EL/CL。
 - Runtime：`labRoute.ts` `planeDirectory`；`hashPipe.ts` `locatePlane`；`hop1.ts` 外组无本地 fallback；`jsonrpcFacade.ts` 仅 `planeWideNull` 返回 JSON-RPC `null`。
-- Pilot：`pilot/lab/hosts-m6-g2.json`、`pilot/inventories/conet-dle-m6-g2-2026-08.json`、`pilot/src/m6.ts`。目录 `/home/peter/dle-m6-g2`，端口 27101。
+- Pilot：`pilot/lab/hosts-m6-g2.json`、`pilot/inventories/conet-dle-m6-g2-2026-08.json`、`pilot/src/m6.ts`。目录 `{REMOTE_HOME}/dle-m6-g2`，端口 27101。
 - Explorer：Clusters = \(G_e\)；Chain ID 下 Group ID 胶囊仍只链第一组 bootstrap tx；第二组 hash **无** Blockscout `/tx/`。
 - Git：CoNET-DLE `ba141c4`；docs `bc10ad1`（开发文案 `gitbook/developers/l2.md` § Lab gather (2026-08-16)）。
 

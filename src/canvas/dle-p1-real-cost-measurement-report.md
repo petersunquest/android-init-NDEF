@@ -60,7 +60,7 @@ CPU 数字来自 Apple M1 / 16 GB 上的临时参考实现，不是生产编码�
 
 ## 5. 现役 L1 双 archive 资源基线
 
-采样对象是 `38.102.126.50` 上两个同机 CoNET L1 geth archive RPC，不是 DLE Archive signer。
+采样对象是 `{CONET_NODE_B}` 上两个同机 CoNET L1 geth archive RPC，不是 DLE Archive signer。
 
 | 资源 | 实测 / 月度外推 | 边界 |
 | --- | --- | --- |
