@@ -10,6 +10,7 @@ import {
 	payByNfcUidSignContainer,
 	postAAtoEOA,
 } from '@/api/beamioApi'
+import { USDC_BASE } from '@/constants'
 import type { ReadBalanceCardItem, UIDAssetsResult } from '@/types/pos'
 import { formatPosAssetsQueryError } from '@/utils/formatPosAssetsQueryError'
 import {
@@ -795,7 +796,28 @@ export async function executeQrCharge(params: {
 		wallet: customerEoa,
 	})
 
-	if (usdcWei > 0) {
+	/**
+	 * OpenContainer QR binds openRelayedNonce. Any successful Scan-to-Pay charge
+	 * must relay that signature first so the nonce advances and the QR cannot
+	 * settle twice. Points-only used to skip AAtoEOA and only burn #0 — same QR
+	 * stayed valid until deadline.
+	 *
+	 * Points-only: relay a zero-amount USDC item (no transfer; still bumps nonce
+	 * + Charge B-Unit). Then burn customer #0 with skipBunitFee.
+	 */
+	let openContainerRelayed = false
+	if (usdcWei > 0 || burnPoints6 > 0) {
+		if (!(usdcWei > 0)) {
+			payload.items = [
+				{
+					kind: 0,
+					asset: USDC_BASE,
+					amount: '0',
+					tokenId: '0',
+					data: '0x',
+				},
+			]
+		}
 		const pay = await postAAtoEOA({
 			openContainerPayload: payload,
 			currency: payCurrency,
@@ -808,6 +830,7 @@ export async function executeQrCharge(params: {
 			patch?.('waitTx', 'error')
 			return { status: 'error', message: pay?.error ?? 'Payment failed' }
 		}
+		openContainerRelayed = true
 		lastTxHash = pay.txHash
 	}
 
@@ -819,7 +842,7 @@ export async function executeQrCharge(params: {
 			burnPoints6,
 			burnFiat6,
 			burnCurrency: payCurrency,
-			skipBunitFee: usdcWei > 0,
+			skipBunitFee: openContainerRelayed,
 			submitIdentity,
 		})
 		if (!burn.ok) {
