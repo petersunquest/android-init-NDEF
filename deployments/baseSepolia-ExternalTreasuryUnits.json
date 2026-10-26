@@ -1,0 +1,208 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x4642e1EF8705f7EF6ede04b643d5B64010bd7263",
+  "deployedAt": "2026-10-26T21:01:07.635Z",
+  "params": {
+    "maxProofAgeBlocks": "2000",
+    "perDepositCapRaw": "1000000000",
+    "tokenDecimals": 6,
+    "maxUnitsPerPayment": 16
+  },
+  "contracts": {
+    "ExternalTreasuryMockVerifier": {
+      "address": "0x2EF79D60082bE7efb59af25A50932511125E181c",
+      "txHash": "0xd85b6f3f42e4ddf61559bd9934e049ac299b78ff46420db1c3630749741e17fc"
+    },
+    "UnitStateMockVerifier": {
+      "address": "0xE12B6a5728751567179CB53FdB2b504A2c6f0c3f",
+      "txHash": "0xf814f711f58f377adab005ec3a262ed41ba67793813249a8375e43e164f92942"
+    },
+    "DepositUnit": {
+      "address": "0xed12Aea79F723132Eb783037a250675066610D03",
+      "txHash": "0x7c2c7790e438c1fad19b196d69df09484e829f2b22df59a314d3291e57f1e7ed"
+    },
+    "DepositUnitMockUSDC": {
+      "address": "0xb55B0c5832D545ea49Ab8F4A0b069Fc42774988b",
+      "txHash": "0xb343b002bfb070075cb1f9b59763299eb2a21510a5080099ef79649595cb69a7"
+    },
+    "ExternalTreasuryUnits": {
+      "address": "0x3C3203A3574e5724f1CA3ef410694Df0f837B7a8",
+      "txHash": "0x72b380e9a7b486fcf785bf59b254984be72965f37f85edd309f3e608ea4a6b8f"
+    },
+    "DepositUnitFactory": {
+      "address": "0xA07421f74ad029F91777113ef0bA00C25a9fb762",
+      "txHash": "0x72b380e9a7b486fcf785bf59b254984be72965f37f85edd309f3e608ea4a6b8f"
+    }
+  },
+  "acceptance": {
+    "deposits": [
+      {
+        "index": 1,
+        "amount": "100000000",
+        "commitment": "0x56a3ef6a1b6fcd7a8bcf57f6153a1d1b311705cbc19009ace2f9c99929a1cb4c",
+        "depositId": "0xc1b896122fb87d0ab21c04a06a570c57a8bf35748bd0407117920235989063f5",
+        "unit": "0x3562BE11c1BDc474CE2308CC59B1F9108804bfEC",
+        "txHash": "0x73b32ad86791b0bbbb289894012365e9b9cf522ab62122a282ed62adf2923c66",
+        "blockNumber": 50632869
+      },
+      {
+        "index": 2,
+        "amount": "50000000",
+        "commitment": "0xf4cfb1b348885d68f6beb19370cec72fe08c26f23e490832076b5d92645f0688",
+        "depositId": "0xde20eb89c7ac606f92c20118bf582f1808d943f158890d3b51793199d0cd412e",
+        "unit": "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F",
+        "txHash": "0x5beac67ec6b6973c1afb638c442f968a62bbaa371e7ec66bbbf92fbde4e16cd1",
+        "blockNumber": 50632879
+      },
+      {
+        "index": 3,
+        "amount": "80000000",
+        "commitment": "0x0dc7d96a26ad1134a31a497717c112d7064126c49378a7e16b1b49ab9f45a4f4",
+        "depositId": "0x6dc4599d762ad075ccebf1af30c2497d882eb61f0e9ae7a93c160dfb8e7e8f1b",
+        "unit": "0x9F4A91cA2d759FedcB934e9828eaB054E46674D9",
+        "txHash": "0x914c8b03861e4217d2155a24841c6d46d66ea80c66e65981b182f043c9dc23db",
+        "blockNumber": 50632889
+      }
+    ],
+    "activations": [
+      {
+        "unit": "0x3562BE11c1BDc474CE2308CC59B1F9108804bfEC",
+        "proofBlock": "50632892",
+        "registerTxHash": "0x06bef67ebc324b12628d987b99955e27d0a8f60cb222e575e78eec547f2fb2ad",
+        "reportTxHash": "0x269631888ef18521afd0a1a2bc77c007215b098efccc92c5382597b31e627062",
+        "blockNumber": 50632906,
+        "statusAfter": "ACTIVE"
+      },
+      {
+        "unit": "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F",
+        "proofBlock": "50632914",
+        "registerTxHash": "0x004c9ce159efa18440387a4fae193077c34eb87ef621dc8ee8071498d09f1a63",
+        "reportTxHash": "0x5a3c34224f9223c97c6c5fd2f4c0b3d751c434befe41580b78d4ddf5de57b5fb",
+        "blockNumber": 50632928,
+        "statusAfter": "ACTIVE"
+      },
+      {
+        "unit": "0x9F4A91cA2d759FedcB934e9828eaB054E46674D9",
+        "proofBlock": "50632936",
+        "registerTxHash": "0x0862d48d93220c6cb76f942001934c26e52005ee76c3452f111e9a938970fabc",
+        "reportTxHash": "0xb4d2f3b44312ccf4a268195b609fac6b27025e5ac01789e60616805eb281f720",
+        "blockNumber": 50632944,
+        "statusAfter": "ACTIVE"
+      }
+    ],
+    "withdrawals": [
+      {
+        "index": 1,
+        "amount": "120000000",
+        "burnId": "0x759139229e09a4062e08752076f02e9df7f90487f4f774ac4ed46a70db2c29f1",
+        "registerTxHash": "0x3ed8613f0659a1cd76dfe0774d98f14163c314ea1caf4fa16e77680100e564f2",
+        "releaseTxHash": "0x6cfd1db7ab4a690cff738574d3a35996c8ac020108e5f30a855875e86eb321c8",
+        "blockNumber": 50632965,
+        "previewedUnits": [
+          "0x3562BE11c1BDc474CE2308CC59B1F9108804bfEC",
+          "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F"
+        ],
+        "previewedAmounts": [
+          "100000000",
+          "20000000"
+        ],
+        "transfers": [
+          {
+            "from": "0x3562BE11c1BDc474CE2308CC59B1F9108804bfEC",
+            "to": "0x4642e1EF8705f7EF6ede04b643d5B64010bd7263",
+            "amount": "100000000"
+          },
+          {
+            "from": "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F",
+            "to": "0x4642e1EF8705f7EF6ede04b643d5B64010bd7263",
+            "amount": "20000000"
+          }
+        ]
+      },
+      {
+        "index": 2,
+        "amount": "30000000",
+        "burnId": "0xbc4a815129887fd875115331b90c4ce5bbc6a723317c445f60988b004d27fc5c",
+        "registerTxHash": "0x561728fd07cb751b32afde650a1169a208da1f92d7e9e429e9a76e64395bbfd2",
+        "releaseTxHash": "0x7ebe72c445fe9d6d533aa0f1b37fcf4f9c3a8662413b0806dfe444559a9c9d87",
+        "blockNumber": 50632979,
+        "previewedUnits": [
+          "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F"
+        ],
+        "previewedAmounts": [
+          "30000000"
+        ],
+        "transfers": [
+          {
+            "from": "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F",
+            "to": "0x4642e1EF8705f7EF6ede04b643d5B64010bd7263",
+            "amount": "30000000"
+          }
+        ]
+      },
+      {
+        "index": 3,
+        "amount": "50000000",
+        "burnId": "0x140f99374435e5bbf17f5034d919c720c51846bde742a6708f44b6b937f6f64d",
+        "registerTxHash": "0x37fae5a311b36e3732d451fa0c1c9af707d21f947b423ff67be05e3b1a5e570f",
+        "releaseTxHash": "0x011a070a1759729662a5ff25eddc83208182b065652a7fd52899f9d668030c15",
+        "blockNumber": 50632988,
+        "previewedUnits": [
+          "0x9F4A91cA2d759FedcB934e9828eaB054E46674D9"
+        ],
+        "previewedAmounts": [
+          "50000000"
+        ],
+        "transfers": [
+          {
+            "from": "0x9F4A91cA2d759FedcB934e9828eaB054E46674D9",
+            "to": "0x4642e1EF8705f7EF6ede04b643d5B64010bd7263",
+            "amount": "50000000"
+          }
+        ]
+      }
+    ],
+    "mint": {
+      "txHash": "0x9cc178237b20e6417e15b926aaedfaa89094f8de21892e3832e5287cfd36220e"
+    },
+    "approve": {
+      "txHash": "0x70fa4088c5cab4959723826bb40b43ef7f41812bf5363853bed87212377d2d27"
+    },
+    "finalState": {
+      "buckets": {
+        "registered": "0",
+        "active": "30000000",
+        "restricted": "0",
+        "unverified": "0",
+        "confirmedLoss": "0"
+      },
+      "principal": "30000000",
+      "treasuryTokenBalance": "0",
+      "deployerTokenBalance": "200000000",
+      "units": [
+        {
+          "index": 1,
+          "unit": "0x3562BE11c1BDc474CE2308CC59B1F9108804bfEC",
+          "status": "SPENT",
+          "remaining": "0",
+          "tokenBalance": "0"
+        },
+        {
+          "index": 2,
+          "unit": "0x829FD700a271eA71E49C3c946C1Ab3Cf720db70F",
+          "status": "SPENT",
+          "remaining": "0",
+          "tokenBalance": "0"
+        },
+        {
+          "index": 3,
+          "unit": "0x9F4A91cA2d759FedcB934e9828eaB054E46674D9",
+          "status": "ACTIVE",
+          "remaining": "30000000",
+          "tokenBalance": "30000000"
+        }
+      ]
+    }
+  }
+}

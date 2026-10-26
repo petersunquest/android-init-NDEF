@@ -134,6 +134,11 @@ export default defineConfig({
           url: "https://sepolia.basescan.org",
           apiUrl: "https://api-sepolia.basescan.org/api",
         },
+        blockscout: {
+          name: "Base Sepolia Blockscout",
+          url: "https://base-sepolia.blockscout.com",
+          apiUrl: "https://base-sepolia.blockscout.com/api",
+        },
       },
     },
     224422: {
