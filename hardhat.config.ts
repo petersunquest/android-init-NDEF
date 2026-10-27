@@ -19,6 +19,33 @@ function getConetAccounts(): string[] {
   }
 }
 
+// Solidity settings shared by every compiler entry. Historical bytecode keeps bytecodeHash "none".
+const solcSettings = {
+  debug: {
+    revertStrings: "strip" as const,
+  },
+  optimizer: {
+    enabled: true,
+    // V20 UserCard was deployed with the two-run optimizer profile.
+    // Keep this explicit so FULL Standard JSON reproduces the beacon implementation.
+    runs: 2,
+  },
+  viaIR: true, // 解决 "Stack too deep" 错误
+  evmVersion: "cancun" as const, // 必须：Bytes.sol 使用 mcopy (Cancun)
+  outputSelection: { "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "storageLayout"] } },
+}
+
+// The six Base Sepolia external-treasury contracts. Sourcify reports an exact match only when the
+// bytecode carries a metadata hash, so these files compile with "ipfs" and nothing else changes.
+const EXTERNAL_TREASURY_SOURCES = [
+  "src/b-unit/external-treasury-immutable/mocks/ExternalTreasuryMockVerifier.sol",
+  "src/b-unit/external-treasury-units/mocks/UnitStateMockVerifier.sol",
+  "src/b-unit/external-treasury-units/DepositUnit.sol",
+  "src/b-unit/external-treasury-units/mocks/DepositUnitMockUSDC.sol",
+  "src/b-unit/external-treasury-units/ExternalTreasuryUnits.sol",
+  "src/b-unit/external-treasury-units/DepositUnitFactory.sol",
+]
+
 export default defineConfig({
   plugins: [hardhatToolboxMochaEthers],
   paths: {
@@ -37,24 +64,15 @@ export default defineConfig({
   solidity: {
     // New deployments compile with the repository-wide canonical compiler.
     // Historical verification scripts keep their deployment-time compiler.
-    version: "0.8.35",
-    settings: {
-      metadata: {
-        bytecodeHash: "none",
-      },
-      debug: {
-        revertStrings: "strip",
-      },
-      optimizer: {
-        enabled: true,
-          // V20 UserCard was deployed with the two-run optimizer profile.
-          // Keep this explicit so FULL Standard JSON reproduces the beacon implementation.
-          runs: 2
-      },
-      viaIR: true  // 解决 "Stack too deep" 错误
-      , evmVersion: "cancun"  // 必须：Bytes.sol 使用 mcopy (Cancun)
-      , outputSelection: { "*": { "*": ["abi", "evm.bytecode", "evm.deployedBytecode", "storageLayout"] } }
-    }
+    compilers: [{ version: "0.8.35", settings: { ...solcSettings, metadata: { bytecodeHash: "none" as const } } }],
+    // The external treasury units use an IPFS metadata hash so Sourcify can report an exact match.
+    // Only the files in EXTERNAL_TREASURY_SOURCES are overridden; every other contract keeps bytecodeHash "none".
+    overrides: Object.fromEntries(
+      EXTERNAL_TREASURY_SOURCES.map((source) => [
+        source,
+        { version: "0.8.35", settings: { ...solcSettings, metadata: { bytecodeHash: "ipfs" as const } } },
+      ]),
+    ),
   },
   networks: {
     // Local Hardhat node for mock-L1 auction E2E (never CoNET 224422).

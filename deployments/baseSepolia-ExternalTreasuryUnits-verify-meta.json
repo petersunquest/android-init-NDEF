@@ -8,10 +8,11 @@
   },
   "viaIR": true,
   "evmVersion": "cancun",
+  "bytecodeHash": "ipfs",
   "contracts": [
     {
       "contractName": "ExternalTreasuryMockVerifier",
-      "address": "0x2EF79D60082bE7efb59af25A50932511125E181c",
+      "address": "0x3f780e94Bf5329b182d75EE611074A9Dc65C5744",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-ExternalTreasuryMockVerifier.json",
       "sourceFiles": 2,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
@@ -21,7 +22,7 @@
     },
     {
       "contractName": "UnitStateMockVerifier",
-      "address": "0xE12B6a5728751567179CB53FdB2b504A2c6f0c3f",
+      "address": "0x1F73d05a76759DC2C7a5D3818e7beD302Fd742F6",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-UnitStateMockVerifier.json",
       "sourceFiles": 2,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
@@ -31,7 +32,7 @@
     },
     {
       "contractName": "DepositUnit",
-      "address": "0xed12Aea79F723132Eb783037a250675066610D03",
+      "address": "0xDbB8cB074608484f276Eb8D8d1b6eF1A84045dEe",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-DepositUnit.json",
       "sourceFiles": 8,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
@@ -41,7 +42,7 @@
     },
     {
       "contractName": "DepositUnitMockUSDC",
-      "address": "0xb55B0c5832D545ea49Ab8F4A0b069Fc42774988b",
+      "address": "0xF50a08AfAc949b0412F8B8784A9f7B915c03E617",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-DepositUnitMockUSDC.json",
       "sourceFiles": 6,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
@@ -51,22 +52,22 @@
     },
     {
       "contractName": "ExternalTreasuryUnits",
-      "address": "0x3C3203A3574e5724f1CA3ef410694Df0f837B7a8",
+      "address": "0xeC708cDC106E76B86DF88868315855E3af41e115",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-ExternalTreasuryUnits.json",
       "sourceFiles": 15,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
       "license": "MIT",
-      "constructorArgs": "0000000000000000000000002ef79d60082be7efb59af25a50932511125e181c000000000000000000000000e12b6a5728751567179cb53fdb2b504a2c6f0c3f000000000000000000000000ed12aea79f723132eb783037a250675066610d0300000000000000000000000000000000000000000000000000000000000007d000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000b55b0c5832d545ea49ab8f4a0b069fc42774988b0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b9aca00",
+      "constructorArgs": "0000000000000000000000003f780e94bf5329b182d75ee611074a9dc65c57440000000000000000000000001f73d05a76759dc2c7a5d3818e7bed302fd742f6000000000000000000000000dbb8cb074608484f276eb8d8d1b6ef1a84045dee00000000000000000000000000000000000000000000000000000000000007d000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000f50a08afac949b0412f8b8784a9f7b915c03e6170000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b9aca00",
       "bytecodeMatchesChain": true
     },
     {
       "contractName": "DepositUnitFactory",
-      "address": "0xA07421f74ad029F91777113ef0bA00C25a9fb762",
+      "address": "0x143824C75CAcdc9E1a56463F9cD8Adae728f9256",
       "standardInputFile": "baseSepolia-ExternalTreasuryUnits-standard-input-DepositUnitFactory.json",
       "sourceFiles": 5,
       "compilerVersion": "v0.8.35+commit.47b9dedd",
       "license": "MIT",
-      "constructorArgs": "0000000000000000000000003c3203a3574e5724f1ca3ef410694df0f837b7a8000000000000000000000000ed12aea79f723132eb783037a250675066610d03",
+      "constructorArgs": "000000000000000000000000ec708cdc106e76b86df88868315855e3af41e115000000000000000000000000dbb8cb074608484f276eb8d8d1b6ef1a84045dee",
       "bytecodeMatchesChain": true
     }
   ]

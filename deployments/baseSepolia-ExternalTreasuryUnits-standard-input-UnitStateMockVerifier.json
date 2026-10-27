@@ -1,11 +1,11 @@
 {
   "language": "Solidity",
   "sources": {
-    "project/src/b-unit/external-treasury-units/mocks/UnitStateMockVerifier.sol": {
-      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\nimport {IUnitStateVerifier} from \"../IUnitStateVerifier.sol\";\n\n/// @title UnitStateMockVerifier\n/// @notice Test-only verifier. A proof is accepted only if the test registered those exact bytes for that message kind.\ncontract UnitStateMockVerifier is IUnitStateVerifier {\n    error UnknownProof();\n\n    mapping(bytes32 proofHash => bool) private _hasState;\n    mapping(bytes32 proofHash => UnitState) private _state;\n    mapping(bytes32 proofHash => bool) private _hasLoss;\n    mapping(bytes32 proofHash => UnitLoss) private _loss;\n\n    function registerUnitState(bytes calldata proof, UnitState calldata s) external {\n        bytes32 k = keccak256(proof);\n        _hasState[k] = true;\n        _state[k] = s;\n    }\n\n    function registerUnitLoss(bytes calldata proof, UnitLoss calldata l) external {\n        bytes32 k = keccak256(proof);\n        _hasLoss[k] = true;\n        _loss[k] = l;\n    }\n\n    function verifyUnitState(bytes calldata proof) external view returns (UnitState memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasState[k]) revert UnknownProof();\n        return _state[k];\n    }\n\n    function verifyUnitLoss(bytes calldata proof) external view returns (UnitLoss memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasLoss[k]) revert UnknownProof();\n        return _loss[k];\n    }\n}\n"
-    },
     "project/src/b-unit/external-treasury-units/IUnitStateVerifier.sol": {
       "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\n/// @title IUnitStateVerifier\n/// @notice Verifies CoNET-finalised proofs about one deposit unit on the external chain: its restriction state and balance\n///         at one finalised block, and a loss determination for part of its principal. The proof system behind this\n///         interface (state-root and storage proofs bound to finality) is a separate work item.\ninterface IUnitStateVerifier {\n    /// @notice Restriction state and balance of one unit at one finalised external-chain block.\n    struct UnitState {\n        uint256 chainId;\n        address treasury;\n        address unit;\n        address token;\n        bool restricted;\n        uint256 balance;\n        uint256 blockNumber;\n    }\n\n    /// @notice A loss determination for part of one unit's registered principal.\n    struct UnitLoss {\n        uint256 chainId;\n        address treasury;\n        address unit;\n        address token;\n        uint256 amount;\n        uint256 blockNumber;\n    }\n\n    function verifyUnitState(bytes calldata proof) external view returns (UnitState memory);\n\n    function verifyUnitLoss(bytes calldata proof) external view returns (UnitLoss memory);\n}\n"
+    },
+    "project/src/b-unit/external-treasury-units/mocks/UnitStateMockVerifier.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\nimport {IUnitStateVerifier} from \"../IUnitStateVerifier.sol\";\n\n/// @title UnitStateMockVerifier\n/// @notice Test-only verifier. A proof is accepted only if the test registered those exact bytes for that message kind.\ncontract UnitStateMockVerifier is IUnitStateVerifier {\n    error UnknownProof();\n\n    mapping(bytes32 proofHash => bool) private _hasState;\n    mapping(bytes32 proofHash => UnitState) private _state;\n    mapping(bytes32 proofHash => bool) private _hasLoss;\n    mapping(bytes32 proofHash => UnitLoss) private _loss;\n\n    function registerUnitState(bytes calldata proof, UnitState calldata s) external {\n        bytes32 k = keccak256(proof);\n        _hasState[k] = true;\n        _state[k] = s;\n    }\n\n    function registerUnitLoss(bytes calldata proof, UnitLoss calldata l) external {\n        bytes32 k = keccak256(proof);\n        _hasLoss[k] = true;\n        _loss[k] = l;\n    }\n\n    function verifyUnitState(bytes calldata proof) external view returns (UnitState memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasState[k]) revert UnknownProof();\n        return _state[k];\n    }\n\n    function verifyUnitLoss(bytes calldata proof) external view returns (UnitLoss memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasLoss[k]) revert UnknownProof();\n        return _loss[k];\n    }\n}\n"
     }
   },
   "settings": {
@@ -14,7 +14,7 @@
     },
     "evmVersion": "cancun",
     "metadata": {
-      "bytecodeHash": "none"
+      "bytecodeHash": "ipfs"
     },
     "optimizer": {
       "enabled": true,
@@ -43,9 +43,7 @@
         ]
       }
     },
-    "remappings": [
-      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/"
-    ],
+    "remappings": [],
     "viaIR": true
   }
 }

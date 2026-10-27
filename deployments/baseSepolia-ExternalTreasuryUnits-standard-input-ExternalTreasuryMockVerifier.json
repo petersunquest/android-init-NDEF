@@ -1,11 +1,11 @@
 {
   "language": "Solidity",
   "sources": {
-    "project/src/b-unit/external-treasury-immutable/mocks/ExternalTreasuryMockVerifier.sol": {
-      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\nimport {IConetProofVerifier} from \"../IConetProofVerifier.sol\";\n\n/// @title ExternalTreasuryMockVerifier\n/// @notice Test-only verifier. A proof is accepted only if the test registered those exact bytes for that message kind.\ncontract ExternalTreasuryMockVerifier is IConetProofVerifier {\n    error UnknownProof();\n\n    mapping(bytes32 proofHash => bool) private _hasAllowlist;\n    mapping(bytes32 proofHash => Allowlist) private _allowlist;\n    mapping(bytes32 proofHash => bool) private _hasBurn;\n    mapping(bytes32 proofHash => Burn) private _burn;\n    mapping(bytes32 proofHash => bool) private _hasRefund;\n    mapping(bytes32 proofHash => Refund) private _refund;\n\n    function registerAllowlist(bytes calldata proof, Allowlist calldata m) external {\n        bytes32 k = keccak256(proof);\n        _hasAllowlist[k] = true;\n        _allowlist[k] = m;\n    }\n\n    function registerBurn(bytes calldata proof, Burn calldata b) external {\n        bytes32 k = keccak256(proof);\n        _hasBurn[k] = true;\n        _burn[k] = b;\n    }\n\n    function registerRefund(bytes calldata proof, Refund calldata r) external {\n        bytes32 k = keccak256(proof);\n        _hasRefund[k] = true;\n        _refund[k] = r;\n    }\n\n    function verifyAllowlist(bytes calldata proof) external view returns (Allowlist memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasAllowlist[k]) revert UnknownProof();\n        return _allowlist[k];\n    }\n\n    function verifyBurn(bytes calldata proof) external view returns (Burn memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasBurn[k]) revert UnknownProof();\n        return _burn[k];\n    }\n\n    function verifyRefund(bytes calldata proof) external view returns (Refund memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasRefund[k]) revert UnknownProof();\n        return _refund[k];\n    }\n}\n"
-    },
     "project/src/b-unit/external-treasury-immutable/IConetProofVerifier.sol": {
       "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\n/// @title IConetProofVerifier\n/// @notice Checks CoNET-side messages against a finalized CoNET state. This verifier is the only trust root the\n/// treasury relies on for whitelist changes, releases and refunds. The committee-signature path is not modelled here.\ninterface IConetProofVerifier {\n    /// @notice A governance whitelist message. `chainId` and `treasury` bind it to one deployment.\n    struct Allowlist {\n        uint256 chainId;\n        address treasury;\n        address token;\n        bool add;\n        uint256 version;\n        uint256 cap;\n        bytes32 codeHash;\n    }\n\n    /// @notice A CoNET burn that releases `amount` of `token` to `recipient` on this chain.\n    struct Burn {\n        uint256 chainId;\n        address treasury;\n        address token;\n        address recipient;\n        uint256 amount;\n        bytes32 burnId;\n    }\n\n    /// @notice One proof, at one finalized CoNET block, that the route is disabled and that `depositId` was never minted.\n    struct Refund {\n        uint256 chainId;\n        address treasury;\n        bytes32 depositId;\n        address token;\n        address depositor;\n        uint256 amount;\n    }\n\n    function verifyAllowlist(bytes calldata proof) external view returns (Allowlist memory);\n\n    function verifyBurn(bytes calldata proof) external view returns (Burn memory);\n\n    function verifyRefund(bytes calldata proof) external view returns (Refund memory);\n}\n"
+    },
+    "project/src/b-unit/external-treasury-immutable/mocks/ExternalTreasuryMockVerifier.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.35;\n\nimport {IConetProofVerifier} from \"../IConetProofVerifier.sol\";\n\n/// @title ExternalTreasuryMockVerifier\n/// @notice Test-only verifier. A proof is accepted only if the test registered those exact bytes for that message kind.\ncontract ExternalTreasuryMockVerifier is IConetProofVerifier {\n    error UnknownProof();\n\n    mapping(bytes32 proofHash => bool) private _hasAllowlist;\n    mapping(bytes32 proofHash => Allowlist) private _allowlist;\n    mapping(bytes32 proofHash => bool) private _hasBurn;\n    mapping(bytes32 proofHash => Burn) private _burn;\n    mapping(bytes32 proofHash => bool) private _hasRefund;\n    mapping(bytes32 proofHash => Refund) private _refund;\n\n    function registerAllowlist(bytes calldata proof, Allowlist calldata m) external {\n        bytes32 k = keccak256(proof);\n        _hasAllowlist[k] = true;\n        _allowlist[k] = m;\n    }\n\n    function registerBurn(bytes calldata proof, Burn calldata b) external {\n        bytes32 k = keccak256(proof);\n        _hasBurn[k] = true;\n        _burn[k] = b;\n    }\n\n    function registerRefund(bytes calldata proof, Refund calldata r) external {\n        bytes32 k = keccak256(proof);\n        _hasRefund[k] = true;\n        _refund[k] = r;\n    }\n\n    function verifyAllowlist(bytes calldata proof) external view returns (Allowlist memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasAllowlist[k]) revert UnknownProof();\n        return _allowlist[k];\n    }\n\n    function verifyBurn(bytes calldata proof) external view returns (Burn memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasBurn[k]) revert UnknownProof();\n        return _burn[k];\n    }\n\n    function verifyRefund(bytes calldata proof) external view returns (Refund memory) {\n        bytes32 k = keccak256(proof);\n        if (!_hasRefund[k]) revert UnknownProof();\n        return _refund[k];\n    }\n}\n"
     }
   },
   "settings": {
@@ -14,7 +14,7 @@
     },
     "evmVersion": "cancun",
     "metadata": {
-      "bytecodeHash": "none"
+      "bytecodeHash": "ipfs"
     },
     "optimizer": {
       "enabled": true,
@@ -43,11 +43,7 @@
         ]
       }
     },
-    "remappings": [
-      "npm/@openzeppelin/contracts-upgradeable@5.4.0/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/",
-      "project/:@openzeppelin/contracts-upgradeable/=npm/@openzeppelin/contracts-upgradeable@5.4.0/",
-      "project/:@openzeppelin/contracts/=npm/@openzeppelin/contracts@5.4.0/"
-    ],
+    "remappings": [],
     "viaIR": true
   }
 }
