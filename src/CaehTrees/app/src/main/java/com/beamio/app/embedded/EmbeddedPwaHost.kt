@@ -68,10 +68,12 @@ class EmbeddedPwaHost(context: Context) {
      */
     fun mapBeamioAppUrlToLocal(uri: Uri): Uri? {
         val host = uri.host?.lowercase() ?: return null
-        if (host != "beamio.app") return null
+        if (host != "beamio.app" && host != "www.beamio.app") return null
         if (shouldBypassEmbeddedAssetLoader(uri)) return null
         var path = uri.path ?: "/"
         when {
+            // Marketing landing must never be served from the embedded bundle.
+            path == "/app-download" || path.startsWith("/app-download/") -> path = "/index.html"
             path == "/app" || path == "/app/" -> path = "/index.html"
             path.startsWith("/app/") -> path = path.removePrefix("/app")
         }
@@ -91,6 +93,7 @@ class EmbeddedPwaHost(context: Context) {
     fun mapEmbeddedAssetUrlToLocal(uri: Uri): Uri {
         val path = uri.path ?: "/"
         val normalizedPath = when {
+            path == "/app-download" || path.startsWith("/app-download/") -> "/index.html"
             path == "/app" || path == "/app/" -> "/index.html"
             path.startsWith("/app/") -> path.removePrefix("/app")
             path.isEmpty() || path == "/" -> "/index.html"

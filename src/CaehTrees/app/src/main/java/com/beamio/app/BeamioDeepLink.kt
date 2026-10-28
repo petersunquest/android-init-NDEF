@@ -25,7 +25,10 @@ object BeamioDeepLink {
             val target = Uri.parse(decoded)
             if (target.scheme?.equals("https", ignoreCase = true) == true) {
                 val h = target.host?.lowercase().orEmpty()
-                if (h == "beamio.app" || h == "www.beamio.app") return target
+                if (h == "beamio.app" || h == "www.beamio.app") {
+                    // Nested `/app-download?…` must become `/app/?…` (parity with iOS unwrap).
+                    return unwrapAppDownloadLandingUri(target) ?: target
+                }
             }
         }
 
@@ -44,6 +47,47 @@ object BeamioDeepLink {
         }
         val base = EmbeddedPwaConstants.REMOTE_FALLBACK_URL.trimEnd('/')
         return Uri.parse("$base/?$filtered")
+    }
+
+    /**
+     * Landing `/app-download?target=…/app/…` or invite-only `/app-download?invite=0x…`
+     * → HTTPS `/app/?…` so the WebView never loads the marketing SPA.
+     */
+    fun unwrapAppDownloadLandingUri(url: Uri): Uri? {
+        if (!url.scheme.equals("https", ignoreCase = true)) return null
+        val host = url.host?.lowercase().orEmpty()
+        if (host != "beamio.app" && host != "www.beamio.app") return null
+        val path = url.path.orEmpty()
+        if (path != "/app-download" && !path.startsWith("/app-download/")) return null
+
+        val outerInvite = agentInviteQueryValue(url)
+        val targetRaw = url.getQueryParameter("target")?.trim().orEmpty()
+        if (targetRaw.isNotEmpty()) {
+            val decoded = Uri.decode(targetRaw)
+            val target = Uri.parse(decoded)
+            if (!target.scheme.equals("https", ignoreCase = true)) return null
+            val th = target.host?.lowercase().orEmpty()
+            if (th != "beamio.app" && th != "www.beamio.app") return null
+            val tp = target.path.orEmpty()
+            if (tp != "/app" && tp != "/app/" && !tp.startsWith("/app/")) return null
+            return mergeAgentInviteIfNeeded(target, outerInvite)
+        }
+        val invite = outerInvite ?: return null
+        val base = EmbeddedPwaConstants.REMOTE_FALLBACK_URL.trimEnd('/')
+        return Uri.parse("$base/?invite=${Uri.encode(invite)}")
+    }
+
+    private fun agentInviteQueryValue(url: Uri): String? {
+        val invite =
+            url.getQueryParameter("invite")?.trim().orEmpty()
+                .ifEmpty { url.getQueryParameter("Invite")?.trim().orEmpty() }
+        return if (invite.matches(Regex("^0x[0-9a-fA-F]{40}$"))) invite else null
+    }
+
+    private fun mergeAgentInviteIfNeeded(url: Uri, outerInvite: String?): Uri {
+        if (outerInvite.isNullOrBlank()) return url
+        if (agentInviteQueryValue(url) != null) return url
+        return url.buildUpon().appendQueryParameter("invite", outerInvite).build()
     }
 
     /**
@@ -71,11 +115,20 @@ object BeamioDeepLink {
         return discover.isEmpty() || discover == "open" || discover == "1" || discover == "true"
     }
 
+    /** Agent invite `invite=0x` + 40 hex. Distinct from Discover merchant `ref=`. */
+    fun carriesAgentInvite(url: Uri): Boolean {
+        val invite =
+            url.getQueryParameter("invite")?.trim().orEmpty()
+                .ifEmpty { url.getQueryParameter("Invite")?.trim().orEmpty() }
+        return invite.matches(Regex("^0x[0-9a-fA-F]{40}$"))
+    }
+
     /**
      * Play Install Referrer payload written by the landing page:
-     * `beamio_dl=<urlencoded https://beamio.app/app/?beamiocard=…&ref=…>`.
-     * Returns the inner HTTPS URL only for allowed hosts / `/app` paths that carry a
-     * merchant or coupon payload; anything else is ignored.
+     * `beamio_dl=<urlencoded https://beamio.app/app/?invite=0x…>`
+     * or a merchant / coupon `/app/` URL.
+     * Returns the inner HTTPS URL only for allowed hosts / `/app` paths that carry
+     * an agent invite or a merchant / coupon payload; anything else is ignored.
      */
     fun resolveInstallReferrer(referrer: String?): Uri? {
         val raw = referrer?.trim().orEmpty()
@@ -85,12 +138,18 @@ object BeamioDeepLink {
             ?.removePrefix("beamio_dl=")
             ?.takeIf { it.isNotBlank() }
             ?: return null
-        val candidate = Uri.parse(Uri.decode(encoded))
-        if (!candidate.scheme.equals("https", ignoreCase = true)) return null
-        val host = candidate.host?.lowercase().orEmpty()
+        val decoded = Uri.parse(Uri.decode(encoded))
+        if (!decoded.scheme.equals("https", ignoreCase = true)) return null
+        val host = decoded.host?.lowercase().orEmpty()
         if (host != "beamio.app" && host != "www.beamio.app") return null
+        // Landing may stash `/app-download?invite=…` — unwrap before requiring `/app`.
+        val candidate = unwrapAppDownloadLandingUri(decoded) ?: decoded
         val path = candidate.path.orEmpty()
         if (path != "/app" && path != "/app/" && !path.startsWith("/app/")) return null
-        return if (carriesMerchantOrCouponPayload(candidate)) candidate else null
+        return if (carriesAgentInvite(candidate) || carriesMerchantOrCouponPayload(candidate)) {
+            candidate
+        } else {
+            null
+        }
     }
 }

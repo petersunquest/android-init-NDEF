@@ -10,8 +10,8 @@ import com.android.installreferrer.api.InstallReferrerStateListener
  * Deferred deep link after a Play Store install.
  *
  * The share landing opens Play with `referrer=beamio_dl=<inner /app/ URL>`. On the first
- * launch of a fresh install we read that referrer once and hand the merchant / coupon URL
- * to the embedded PWA, so onboarding can finish on the merchant detail page.
+ * launch of a fresh install we read that referrer once and hand the invite, merchant, or
+ * coupon URL to the embedded PWA. An `invite=0x…` URL lets a new wallet sign RegisterReferrer.
  */
 object InstallReferrerDeepLink {
     private const val TAG = "BeamioInstallReferrer"

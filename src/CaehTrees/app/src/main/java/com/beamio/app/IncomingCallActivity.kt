@@ -1,295 +1,291 @@
 package com.beamio.app
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.graphics.Outline
-import android.media.Ringtone
-import android.media.RingtoneManager
-import android.graphics.drawable.GradientDrawable
-import android.graphics.PixelFormat
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.os.Bundle
+import android.os.PowerManager
 import android.util.Log
-import android.view.Gravity
+import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
-import android.view.View
 import android.widget.ImageView
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.TextView
+import android.window.OnBackInvokedDispatcher
+import java.lang.ref.WeakReference
 
 /**
- * Native incoming-call surface. Telecom self-managed accounts do not promise
- * that Android will render the dialer's incoming-call screen, so Beamio owns
- * this full-screen, lock-screen-safe surface.
+ * Lock-screen incoming window for a third-party VoIP app.
+ * The stock phone app only draws its full-screen card for the default dialer.
+ * This window is launched by the notification full-screen intent so it can
+ * appear over the keyguard and play the system ringtone.
  */
 class IncomingCallActivity : Activity() {
-    private var callId = ""
-    private var sessionId = ""
-    private val callerLookupHandler = Handler(Looper.getMainLooper())
-    private var callerLookupAttempt = 0
-    private val callerLookupRunnable = object : Runnable {
-        override fun run() {
-            if (!isFinishing && callerLookupAttempt < 30) {
-                callerLookupAttempt += 1
-                render(intent)
-            }
-        }
-    }
+    private var callId: String = ""
+    private var sessionId: String = ""
+    private var claimedTag: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            splashScreen.setOnExitAnimationListener { splash -> splash.remove() }
-        }
         super.onCreate(savedInstanceState)
-        BeamioGuardianRoster.kick(this)
-        window.setFormat(PixelFormat.TRANSLUCENT)
-        activeInstance = this
-        appContext = applicationContext
-        overridePendingTransition(0, 0)
+        showOverLockScreen()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            ) { }
+        }
+        setContentView(R.layout.activity_incoming_call)
+        applyBannerEdgeInsets()
+        clipAvatar()
+        bindActions()
+        instance = WeakReference(this)
         render(intent)
-        Log.i("BeamioVoiceCall", "IncomingCallActivity scrim shown")
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        activeInstance = this
-        render(intent)
-    }
-
-    private fun render(source: Intent) {
-        callId = source.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
-        sessionId = source.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
-        val claimed = source.getStringExtra(BeamioTelecomService.EXTRA_CLAIMED_TAG).orEmpty().trim()
-        val rawName = source.getStringExtra(BeamioTelecomService.EXTRA_DISPLAY_NAME).orEmpty().trim()
-        val title = when {
-            claimed.isNotBlank() -> if (claimed.startsWith("@")) claimed else "@$claimed"
-            rawName.isNotBlank() && !rawName.startsWith("0x", ignoreCase = true) ->
-                rawName.substringBefore("  ").trim()
-            else -> "Incoming call"
-        }
-        val warning = source.getStringExtra(BeamioTelecomService.EXTRA_IDENTITY_WARNING).orEmpty().trim()
-        val subtitle = if (warning.isBlank() || warning == "Incoming voice call") {
-            getString(R.string.incoming_call_glass_subtitle)
-        } else {
-            warning
-        }
-        val tag = claimed.ifBlank { title }
-        findViewById<TextView>(R.id.incoming_call_title)?.let { titleView ->
-            titleView.text = title
-            findViewById<TextView>(R.id.incoming_call_body)?.text = subtitle
-            applyAvatar(tag)
-            return
-        }
-        val density = resources.displayMetrics.density
-        val root = FrameLayout(this)
-        val card = layoutInflater.inflate(R.layout.incoming_call_glass, root, false)
-        card.findViewById<TextView>(R.id.incoming_call_title).text = title
-        card.findViewById<TextView>(R.id.incoming_call_body).text = subtitle
-        val avatarView = card.findViewById<ImageView>(R.id.incoming_call_avatar)
-        avatarView.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(view: View, outline: Outline) {
-                outline.setOval(0, 0, view.width, view.height)
-            }
-        }
-        avatarView.clipToOutline = true
-        applyAvatar(tag, card)
-        card.findViewById<View>(R.id.incoming_call_decline).setOnClickListener {
-            finishCall("callRejected")
-        }
-        card.findViewById<View>(R.id.incoming_call_mute).setOnClickListener {
-            Log.i("BeamioVoiceCall", "Incoming mute tapped")
-            BeamioTelecomService.silenceIncomingWindow(this, callId, sessionId)
-        }
-        card.findViewById<View>(R.id.incoming_call_answer).setOnClickListener {
-            finishCall("callAnswered")
-        }
-        val side = (16 * density).toInt()
-        val top = (56 * density).toInt()
-        root.addView(card, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            Gravity.TOP,
-        ).apply {
-            leftMargin = side
-            rightMargin = side
-            topMargin = top
-        })
-        setContentView(root)
-    }
-
-    private fun applyAvatar(tag: String, root: View? = null) {
-        val avatarView = root?.findViewById(R.id.incoming_call_avatar)
-            ?: findViewById<ImageView>(R.id.incoming_call_avatar)
-            ?: return
-        val avatar = BeamioTelecomService.cachedCallerAvatar(tag) ?: return
-        avatarView.setImageBitmap(avatar)
-        avatarView.visibility = View.VISIBLE
-        val fallback = root?.findViewById(R.id.incoming_call_avatar_fallback)
-            ?: findViewById<View>(R.id.incoming_call_avatar_fallback)
-        fallback?.visibility = View.GONE
-    }
-
-    private fun showScrim() {
-        render(intent)
+        raiseIncomingTask()
+        Log.i(TAG, "Incoming window showing titlePresent=${titlePresent(intent)} taskId=$taskId")
     }
 
     override fun onResume() {
         super.onResume()
-        if (!isFinishing) {
-            startRinging()
-            ensureShellBehindCall()
+        raiseIncomingTask()
+    }
+
+    /** Keep this activity's task above MainActivity when both are alive. */
+    private fun raiseIncomingTask() {
+        @Suppress("DEPRECATION")
+        runCatching {
+            val am = getSystemService(ACTIVITY_SERVICE) as ActivityManager
+            am.moveTaskToFront(taskId, 0)
         }
-        Log.i("BeamioVoiceCall", "IncomingCallActivity onResume")
-    }
-
-    override fun onPause() {
-        Log.i("BeamioVoiceCall", "IncomingCallActivity onPause finishing=$isFinishing")
-        super.onPause()
-    }
-
-    override fun onStop() {
-        Log.i("BeamioVoiceCall", "IncomingCallActivity onStop finishing=$isFinishing")
-        if (isFinishing) stopRinging()
-        super.onStop()
     }
 
     /**
-     * FCM only carries call handles. The Consumer shell has to run behind this
-     * window so the PWA can decrypt the offer and report the BeamioTag.
-     * MainActivity uses the translucent call theme and moves itself back.
+     * Force L/R/top edge on the nested inset host. Root [fitsSystemWindows] only
+     * clears the status bar; putting the product edge on that same view is a no-op
+     * because the framework replaces its padding with system insets.
      */
-    private fun ensureShellBehindCall() {
-        if (MainActivity.isRunning()) return
-        val launch = Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_MAIN
-            addCategory(Intent.CATEGORY_LAUNCHER)
-            putExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, true)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_NO_ANIMATION
+    private fun applyBannerEdgeInsets() {
+        val edgePx = resources.getDimensionPixelSize(R.dimen.incoming_call_banner_edge)
+        val host = findViewById<View>(R.id.incoming_call_banner_inset) ?: return
+        host.setPadding(edgePx, edgePx, edgePx, host.paddingBottom)
+        Log.i(TAG, "Incoming banner edgePx=$edgePx density=${resources.displayMetrics.density}")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        val nextCall = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
+        val nextSession = intent.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
+        if (!matches(nextCall, nextSession)) {
+            if (!BeamioTelecomService.wasBusyRejected(nextCall, nextSession)) {
+                BeamioTelecomService.rejectSecondaryWhileBusy(this, nextCall, nextSession)
+            }
+            return
         }
-        runCatching {
-            startActivity(launch)
-            overridePendingTransition(0, 0)
-            Log.i("BeamioVoiceCall", "Consumer shell started behind the incoming window")
-        }
+        super.onNewIntent(intent)
+        setIntent(intent)
+        render(intent)
     }
 
     override fun onDestroy() {
-        Log.i("BeamioVoiceCall", "IncomingCallActivity onDestroy finishing=$isFinishing")
-        callerLookupHandler.removeCallbacksAndMessages(null)
-        stopRinging()
-        if (activeInstance === this) activeInstance = null
+        if (instance?.get() === this) instance = null
         super.onDestroy()
+        // Answer keeps the Telecom connection ACTIVE, so this flush no-ops
+        // until the call itself ends. Decline / timeout can send queued busy
+        // uplinks once the glass window is gone.
+        BeamioNativeVoiceSignaling.flushDeferredStickyDeclinesIfIdle()
     }
 
-    private fun openBeamio() {
-        val launch = Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_MAIN
-            addCategory(Intent.CATEGORY_LAUNCHER)
-            putExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, true)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        startActivity(launch)
-        val keep = Intent(this, IncomingCallActivity::class.java).apply {
-            action = "com.beamio.app.INCOMING_CALL"
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                Intent.FLAG_ACTIVITY_NEW_TASK
-            putExtras(intent)
-        }
-        startActivity(keep)
+    @Deprecated("Incoming calls stay up until Decline, Answer, or Mute.")
+    override fun onBackPressed() {
+        // The window is the system incoming-call surface. Back must not drop it.
     }
 
-    private fun finishCall(action: String) {
-        BeamioTelecomService.finishIncomingCall(this, action, callId, sessionId)
+    private fun showOverLockScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+            )
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    private fun clipAvatar() {
+        val avatar = findViewById<ImageView>(R.id.incoming_call_avatar)
+        avatar.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setOval(0, 0, view.width, view.height)
+            }
+        }
+        avatar.clipToOutline = true
+    }
+
+    private fun bindActions() {
+        findViewById<View>(R.id.incoming_call_decline).setOnClickListener {
+            it.isEnabled = false
+            BeamioTelecomService.finishIncomingCall(this, "callRejected", callId, sessionId)
+        }
+        findViewById<View>(R.id.incoming_call_answer).setOnClickListener {
+            it.isEnabled = false
+            BeamioTelecomService.finishIncomingCall(this, "callAnswered", callId, sessionId)
+        }
+        findViewById<View>(R.id.incoming_call_mute).setOnClickListener {
+            it.isEnabled = false
+            BeamioTelecomService.silenceIncomingWindow(this, callId, sessionId)
+        }
+    }
+
+    private fun render(source: Intent?) {
+        callId = source?.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty().trim()
+        sessionId = source?.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty().trim()
+        claimedTag = source?.getStringExtra(BeamioTelecomService.EXTRA_CLAIMED_TAG).orEmpty().trim()
+        val title = source?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_TITLE).orEmpty()
+            .ifBlank { getString(R.string.incoming_call_body) }
+        val body = source?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_BODY).orEmpty()
+            .ifBlank { getString(R.string.incoming_call_glass_subtitle) }
+        findViewById<TextView>(R.id.incoming_call_title).text = title
+        findViewById<TextView>(R.id.incoming_call_body).text = body
+        bindAvatar(title)
+    }
+
+    private fun bindAvatar(title: String) {
+        val avatar = findViewById<ImageView>(R.id.incoming_call_avatar)
+        val fallback = findViewById<ImageView>(R.id.incoming_call_avatar_fallback)
+        val seed = claimedTag.ifBlank { title }
+        val bitmap = BeamioTelecomService.cachedCallerAvatar(seed)
+        if (bitmap == null) {
+            avatar.visibility = View.GONE
+            fallback.visibility = View.VISIBLE
+            return
+        }
+        avatar.setImageBitmap(bitmap)
+        avatar.visibility = View.VISIBLE
+        fallback.visibility = View.GONE
+    }
+
+    private fun matches(callId: String, sessionId: String): Boolean {
+        val call = callId.trim()
+        val session = sessionId.trim()
+        if (call.isEmpty() && session.isEmpty()) return this.callId.isEmpty() && this.sessionId.isEmpty()
+        return (call.isNotEmpty() && call == this.callId) ||
+            (session.isNotEmpty() && session == this.sessionId)
+    }
+
+    private fun finishFromCall() {
+        if (isFinishing) return
         finish()
-        overridePendingTransition(0, 0)
-    }
-
-    override fun finish() {
-        super.finish()
-        overridePendingTransition(0, 0)
-    }
-
-    private fun startRinging() {
-        if (BeamioTelecomService.isIncomingMuted(callId, sessionId)) return
-        if (ringing?.isPlaying == true) return
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE) ?: return
-        ringing = RingtoneManager.getRingtone(this, uri)?.also { tone ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) tone.isLooping = true
-            tone.play()
-        }
     }
 
     companion object {
-        @Volatile
-        private var activeInstance: IncomingCallActivity? = null
-        private var appContext: Context? = null
-        private var ringing: Ringtone? = null
+        private const val TAG = "BeamioVoiceCall"
+        private var instance: WeakReference<IncomingCallActivity>? = null
 
-        fun stopRinging() {
-            ringing?.stop()
-            ringing = null
+        /** Ids of the glass window that is on screen. Empty when it is finishing. */
+        fun shownCallKeys(): Set<String> {
+            val activity = instance?.get() ?: return emptySet()
+            if (activity.isFinishing || activity.isDestroyed) return emptySet()
+            return listOf(activity.callId, activity.sessionId)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toSet()
         }
 
-        fun isShowing(): Boolean = activeInstance != null
+        fun present(context: Context, launch: Intent) {
+            val callId = launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
+            val sessionId = launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
+            if (BeamioTelecomService.wasBusyRejected(callId, sessionId)) return
+            if (BeamioTelecomService.anotherCallOwnsChrome(callId, sessionId)) {
+                BeamioTelecomService.rejectSecondaryWhileBusy(context, callId, sessionId)
+                return
+            }
+            val run = Runnable { presentOnMain(context.applicationContext, launch) }
+            if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) run.run()
+            else android.os.Handler(android.os.Looper.getMainLooper()).post(run)
+        }
+
+        private fun presentOnMain(app: Context, launch: Intent) {
+            wakeScreen(app)
+            val showing = instance?.get()
+            if (showing != null && !showing.isFinishing) {
+                val nextCall = launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
+                val nextSession = launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
+                val shown = shownCallKeys()
+                val sameWindow = listOf(nextCall, nextSession).any { it.isNotBlank() && shown.contains(it) }
+                if (!sameWindow) return
+                showing.render(launch)
+                showing.raiseIncomingTask()
+                return
+            }
+            val opening = Intent(launch).apply {
+                setClass(app, IncomingCallActivity::class.java)
+                // Same-task stack on top of MainActivity (REORDER_TO_FRONT).
+                // Separate singleInstance affinity put a translucent window
+                // under opaque MainActivity on Samsung — glass drawn but invisible.
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_NO_USER_ACTION,
+                )
+            }
+            runCatching { app.startActivity(opening) }
+                .onSuccess {
+                    Log.i(TAG, "Incoming window startActivity dispatched (FSI if BAL blocks)")
+                }
+                .onFailure {
+                    Log.i(TAG, "Incoming window start deferred to fullScreenIntent")
+                }
+        }
+
+        private fun wakeScreen(app: Context) {
+            val power = app.getSystemService(PowerManager::class.java) ?: return
+            @Suppress("DEPRECATION")
+            val screen = power.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                    PowerManager.ON_AFTER_RELEASE,
+                "beamio:incoming-screen",
+            )
+            screen.setReferenceCounted(false)
+            runCatching { screen.acquire(10_000L) }
+        }
+
+        fun stopRinging() {
+            BeamioIncomingRingtone.stop()
+        }
+
+        fun isShowing(): Boolean {
+            val activity = instance?.get() ?: return false
+            return !activity.isFinishing
+        }
 
         fun bringToFront(context: Context) {
-            val activity = activeInstance ?: return
-            val intent = Intent(context, IncomingCallActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_NO_ANIMATION
-                if (context !is Activity) {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                putExtras(activity.intent)
-            }
-            runCatching {
-                context.startActivity(intent)
-                if (context is Activity) context.overridePendingTransition(0, 0)
-            }
+            val activity = instance?.get() ?: return
+            present(context, activity.intent ?: return)
         }
 
         fun refreshAvatarIfShowing() {
-            activeInstance?.runOnUiThread {
-                val activity = activeInstance ?: return@runOnUiThread
-                activity.render(activity.intent)
-            }
+            val activity = instance?.get() ?: return
+            val title = activity.findViewById<TextView>(R.id.incoming_call_title)?.text?.toString().orEmpty()
+            activity.bindAvatar(title)
         }
 
-        /** Close the visible incoming window only when it is this call. */
         fun finishIfMatching(callId: String, sessionId: String) {
-            val activity = activeInstance ?: return
-            val ended = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }
-            val shown = listOf(activity.callId, activity.sessionId).map { it.trim() }.filter { it.isNotEmpty() }
-            if (ended.isNotEmpty() && shown.isNotEmpty() && ended.none { it in shown }) return
-            finishIfShowing()
+            val activity = instance?.get()
+            if (activity != null && !activity.matches(callId, sessionId)) return
+            BeamioIncomingRingtone.stop()
+            activity?.finishFromCall()
         }
 
-        /** Close lock-screen UI when Answer/Decline came from the in-app buttons. */
         fun finishIfShowing() {
-            val activity = activeInstance ?: return
-            activeInstance = null
-            activity.runOnUiThread {
-                activity.finish()
-                activity.overridePendingTransition(0, 0)
-            }
+            BeamioIncomingRingtone.stop()
+            instance?.get()?.finishFromCall()
         }
 
-        /**
-         * The PWA may learn the verified BeamioTag after the native screen has
-         * already been launched. Re-render that same screen instead of leaving
-         * the first address/generic fallback visible.
-         */
         fun updateShownCaller(
             callId: String,
             sessionId: String,
@@ -299,108 +295,25 @@ class IncomingCallActivity : Activity() {
             claimedAddress: String,
             identityWarning: String,
         ) {
-            val activity = activeInstance
-            if (activity == null) {
-                // The PWA may deliver the verified identity before Android has
-                // created the full-screen activity. Keep every handle in the
-                // durable caller pool; render() will resolve it later.
-                val context = appContext ?: run {
-                    Log.w("BeamioVoiceCall", "updateShownCaller no activity/context")
-                    return
-                }
-                val primaryKey = callId.trim().ifBlank { sessionId.trim() }
-                if (primaryKey.isNotBlank()) {
-                    BeamioTelecomService.rememberShownCaller(
-                        context,
-                        primaryKey,
-                        peerAddress,
-                        displayName,
-                        claimedTag,
-                        claimedAddress,
-                        identityWarning,
-                    )
-                }
-                if (sessionId.isNotBlank() && sessionId.trim() != primaryKey) {
-                    BeamioTelecomService.rememberShownCaller(
-                        context,
-                        sessionId.trim(),
-                        peerAddress,
-                        displayName,
-                        claimedTag,
-                        claimedAddress,
-                        identityWarning,
-                    )
-                }
-                Log.i(
-                    "BeamioVoiceCall",
-                    "updateShownCaller queued without activity " +
-                        "callIdPresent=${callId.isNotBlank()} " +
-                        "sessionIdPresent=${sessionId.isNotBlank()}",
-                )
-                return
+            val activity = instance?.get() ?: return
+            if (!activity.matches(callId, sessionId)) return
+            val title = displayName.trim().ifBlank {
+                claimedTag.trim().ifBlank { peerAddress.trim() }
+            }.ifBlank { activity.getString(R.string.incoming_call_body) }
+            val body = identityWarning.trim().ifBlank {
+                activity.getString(R.string.incoming_call_glass_subtitle)
             }
-            activity.runOnUiThread {
-                val sameCall =
-                    (callId.isNotBlank() && activity.callId == callId) ||
-                        (sessionId.isNotBlank() && activity.sessionId == sessionId)
-                Log.i(
-                    "BeamioVoiceCall",
-                    "updateShownCaller matched=" + sameCall +
-                        " callIdPresent=" + callId.isNotBlank() +
-                        " sessionIdPresent=" + sessionId.isNotBlank() +
-                        " displayNamePresent=" + displayName.isNotBlank() +
-                        " peerAddressPresent=" + peerAddress.isNotBlank(),
-                )
-                if (!sameCall) return@runOnUiThread
-                activity.intent.putExtra(BeamioTelecomService.EXTRA_DISPLAY_NAME, displayName)
-                activity.intent.putExtra(BeamioTelecomService.EXTRA_PEER_ADDRESS, peerAddress)
-                activity.intent.putExtra(BeamioTelecomService.EXTRA_CLAIMED_TAG, claimedTag)
-                activity.intent.putExtra(BeamioTelecomService.EXTRA_CLAIMED_ADDRESS, claimedAddress)
-                activity.intent.putExtra(BeamioTelecomService.EXTRA_IDENTITY_WARNING, identityWarning)
-                activity.render(activity.intent)
-                Log.i("BeamioVoiceCall", "updateShownCaller rendered verified caller")
+            activity.claimedTag = claimedTag.trim().ifBlank { activity.claimedTag }
+            activity.findViewById<TextView>(R.id.incoming_call_title)?.text = title
+            activity.findViewById<TextView>(R.id.incoming_call_body)?.text = body
+            activity.bindAvatar(title)
+            if (claimedAddress.isNotBlank()) {
+                activity.intent?.putExtra(BeamioTelecomService.EXTRA_CLAIMED_ADDRESS, claimedAddress)
             }
         }
-    }
 
-    private fun capsule(text: String, background: String, foreground: String, sizeSp: Float = 16f): TextView =
-        TextView(this).apply {
-            this.text = text
-            setTextColor(Color.parseColor(foreground))
-            textSize = sizeSp
-            gravity = Gravity.CENTER
-            setPadding(28, 14, 28, 14)
-            setBackground(
-                GradientDrawable().apply {
-                    cornerRadius = 80f
-                    setColor(Color.parseColor(background))
-                },
-            )
+        private fun titlePresent(source: Intent?): Boolean {
+            return !source?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_TITLE).isNullOrBlank()
         }
-
-    private fun centeredParams() = LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.WRAP_CONTENT,
-        LinearLayout.LayoutParams.WRAP_CONTENT,
-    ).apply {
-        gravity = Gravity.CENTER_HORIZONTAL
-        bottomMargin = 12
-    }
-
-    private fun actionParams() = LinearLayout.LayoutParams(0, 56, 1f).apply {
-        marginStart = 8
-        marginEnd = 8
-    }
-
-    private fun formatBeamioTag(raw: String): String {
-        val value = raw.trim()
-        if (value.isBlank() || value.startsWith("0x", ignoreCase = true)) return ""
-        if (value.equals("Incoming voice call", ignoreCase = true)) return ""
-        if (value.equals("Beamio contact", ignoreCase = true)) return ""
-        return if (value.startsWith("@")) value else "@$value"
-    }
-
-    private fun formatCallerEoa(raw: String): String {
-        val value = raw.trim()
-        return if (value.startsWith("0x", ignoreCase = true) && value.length >= 42) value else ""
     }
 }

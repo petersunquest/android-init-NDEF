@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="#111111"
+                android:textColor="#FFFFFFFF"
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
@@ -63,7 +63,7 @@
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:text="@string/incoming_call_glass_subtitle"
-                android:textColor="#5C6370"
+                android:textColor="#B3FFFFFF"
                 android:textSize="14sp" />
         </LinearLayout>
     </LinearLayout>

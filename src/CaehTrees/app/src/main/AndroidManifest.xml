@@ -17,6 +17,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- API 34+ / 部分厂商：Foreground dispatch / ReaderMode 需在 manifest 声明，否则 onResume 内 NfcActivityManager 抛 SecurityException -->
     <uses-permission android:name="android.permission.NFC" />
     <!-- WebView QR / getUserMedia；无相机或麦克风设备仍可安装 -->
@@ -43,6 +44,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.CaehTrees"
         android:usesCleartextTraffic="true">
+        <!-- Website ↔ app Digital Asset Links (beamio.app assetlinks.json + getInstalledRelatedApps). -->
+        <meta-data
+            android:name="asset_statements"
+            android:resource="@string/asset_statements" />
         <!-- FQCN must match namespace com.beamio.app (Play package id: com.beamio.app). -->
         <activity
             android:name="com.beamio.app.MainActivity"
@@ -80,15 +85,19 @@
             android:resizeableActivity="true"
             android:theme="@style/Theme.CaehTrees" />
 
+        <!--
+          Same-task singleTop (not singleInstance + separate affinity).
+          A translucent separate-task window sits under opaque MainActivity on
+          Samsung (Z-order); stacking on the app task keeps the glass visible.
+        -->
         <activity
             android:name="com.beamio.app.IncomingCallActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleInstance"
-            android:taskAffinity="com.beamio.app.incomingcall"
+            android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@style/Theme.CaehTrees.IncomingCall" />
+            android:theme="@style/Theme.CaehTrees.IncomingCallWindow" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

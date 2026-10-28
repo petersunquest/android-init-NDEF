@@ -1,4 +1,6 @@
 package com.beamio.app
+import network.conet.chat.BeamioSiCipherPost
+import network.conet.chat.BeamioChatPgpStore
 
 import android.content.Context
 import android.os.Handler

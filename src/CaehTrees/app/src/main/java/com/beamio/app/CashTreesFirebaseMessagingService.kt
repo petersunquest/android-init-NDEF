@@ -31,36 +31,28 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
                     "sessionIdPresent=${data["sessionId"]?.isNullOrBlank() == false}",
             )
             val sessionId = data["sessionId"]?.trim().orEmpty()
-            // Mailbox is the wake source. Post a native full-screen call surface
-            // immediately, even when the Consumer process/activity was killed.
-            // Only opaque call/session handles cross this boundary; caller
-            // identity must come from the PWA's verified mailbox message.
+            if (BeamioTelecomService.wasBusyRejected(callId, sessionId)) return
+            // Claim or busy-reject before any encryption WebView. A second call
+            // must not open OpenPgp while the first glass window is up.
             BeamioTelecomService.showIncomingCallWakeNotification(
                 applicationContext,
                 callId,
                 sessionId,
             )
-            // FCM stays opaque (no caller identity in push). After the CallStyle
-            // surface is up, shell fetches offerArmor via mailbox route PGP,
-            // decrypts with stored user PGP, and upgrades Incoming to @tag + short EOA.
+            if (BeamioTelecomService.wasBusyRejected(callId, sessionId)) return
+            // Prefetch offerArmor → sessionKey BEFORE CallStyle so Decline can
+            // AES-encrypt voice_call_reject_v1 (same race as iOS PushKit).
+            // FCM stays opaque (no caller identity in push); resolve upgrades title.
             if (callId.isNotBlank()) {
                 BeamioVoiceOfferIdentity.scheduleResolveDelayed(
                     applicationContext,
                     callId,
                     sessionId,
-                    delayMs = 500L,
+                    delayMs = 0L,
                 ) { identity ->
+                    // Upgrade the same small incoming window to @BeamioTag.
                     val tag = identity.beamioTag.orEmpty()
                     val display = tag.ifBlank { identity.shortAddress }
-                    IncomingCallActivity.updateShownCaller(
-                        callId = identity.callId,
-                        sessionId = identity.sessionId,
-                        displayName = display,
-                        peerAddress = identity.callerEoa,
-                        claimedTag = tag,
-                        claimedAddress = identity.callerEoa,
-                        identityWarning = "",
-                    )
                     BeamioTelecomService.showIncomingCallNotification(
                         applicationContext,
                         callId = identity.callId,

@@ -12,11 +12,11 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 
 /**
- * Posts the system CallStyle incoming card as a phoneCall foreground-service
- * notification. Android 14+ rejects CallStyle from NotificationManager.notify()
- * unless it belongs to a foreground service or carries a fullScreenIntent.
- * After Answer, that card is removed and a silent status entry keeps the
- * service alive. The PWA call page is the call UI.
+ * Keeps a phoneCall / shortService foreground notification alive while a call
+ * is ringing or active. Incoming uses a silent CATEGORY_SERVICE notification
+ * (never CATEGORY_CALL / CallStyle — Samsung draws a second heads-up for those;
+ * the glass [IncomingCallActivity] is the only UI).
+ * After Answer, that notification is replaced with a quiet ongoing status entry.
  */
 class BeamioCallForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
@@ -42,11 +42,17 @@ class BeamioCallForegroundService : Service() {
                 val id = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
                 val notification = readNotification(intent)
                 if (id == 0 || notification == null) {
-                    Log.e(TAG, "Incoming FGS missing CallStyle notification")
+                    Log.e(TAG, "Incoming FGS missing notification")
                     if (activeForegroundNotificationId == 0) stopSelf()
                     return START_NOT_STICKY
                 }
-                postIncoming(id, notification)
+                val glass = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(EXTRA_GLASS_LAUNCH, Intent::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(EXTRA_GLASS_LAUNCH)
+                }
+                postIncoming(id, notification, glass)
             }
             ACTION_ONGOING -> {
                 val callId = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
@@ -70,7 +76,7 @@ class BeamioCallForegroundService : Service() {
     }
 
     /**
-     * Caller hung up. Drop the CallStyle foreground notification from this
+     * Caller hung up. Drop the incoming foreground notification from this
      * process. An exported Decline broadcast is not required.
      */
     fun removeCallForeground() {
@@ -106,9 +112,9 @@ class BeamioCallForegroundService : Service() {
     }
 
     /**
-     * The CallStyle card is the foreground notification, so NotificationManager
-     * .cancel() leaves the heads-up up. Remove that foreground entry, then post
-     * a silent ongoing notification that has no Answer / Decline actions.
+     * The ringing FGS notification cannot be dismissed with NotificationManager
+     * .cancel() alone. Remove that foreground entry, then post a silent ongoing
+     * notification that has no Answer / Decline actions.
      */
     fun replaceIncomingWithQuiet(callId: String, sessionId: String) {
         val previous = activeForegroundNotificationId
@@ -136,7 +142,7 @@ class BeamioCallForegroundService : Service() {
         Log.i(TAG, "Ongoing call status bar posted")
     }
 
-    private fun postIncoming(id: Int, notification: Notification) {
+    private fun postIncoming(id: Int, notification: Notification, glassLaunch: Intent?) {
         val previous = activeForegroundNotificationId
         try {
             startIncomingForeground(id, notification)
@@ -144,9 +150,15 @@ class BeamioCallForegroundService : Service() {
             if (previous != 0 && previous != id) {
                 NotificationManagerCompat.from(this).cancel(previous)
             }
-            Log.i(TAG, "CallStyle incoming FGS posted id=$id")
+            Log.i(TAG, "Incoming FGS posted id=$id")
+            // After phoneCall/shortService FGS is up, BAL often allows startActivity
+            // even when the earlier present() from FCM was dropped silently.
+            if (glassLaunch != null && !IncomingCallActivity.isShowing()) {
+                IncomingCallActivity.present(this, glassLaunch)
+                Log.i(TAG, "Incoming window re-present after FGS")
+            }
         } catch (error: Exception) {
-            Log.e(TAG, "Incoming CallStyle FGS denied", error)
+            Log.e(TAG, "Incoming FGS denied", error)
             if (activeForegroundNotificationId == 0) stopSelf()
         }
     }
@@ -154,7 +166,7 @@ class BeamioCallForegroundService : Service() {
     /**
      * phoneCall is the right type once Telecom has a connection. Before that,
      * Android 15+ rejects it. shortService can still start from an FCM wake and
-     * is enough for CallStyle to be accepted as a foreground-service notification.
+     * is enough for a CATEGORY_CALL FGS notification.
      */
     private fun startIncomingForeground(id: Int, notification: Notification) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -169,7 +181,7 @@ class BeamioCallForegroundService : Service() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
             )
         } catch (phoneCallDenied: Exception) {
-            Log.w(TAG, "phoneCall FGS denied; using shortService for CallStyle", phoneCallDenied)
+            Log.w(TAG, "phoneCall FGS denied; using shortService for incoming", phoneCallDenied)
             ServiceCompat.startForeground(
                 this,
                 id,
@@ -218,6 +230,7 @@ class BeamioCallForegroundService : Service() {
         private const val ACTION_MUTE = "com.beamio.app.action.MUTE_INCOMING_FGS"
         private const val EXTRA_NOTIFICATION_ID = "notificationId"
         private const val EXTRA_NOTIFICATION = "notification"
+        private const val EXTRA_GLASS_LAUNCH = "glassLaunch"
 
         @Volatile
         var activeForegroundNotificationId: Int = 0
@@ -238,11 +251,19 @@ class BeamioCallForegroundService : Service() {
             start(context, callId, sessionId)
         }
 
-        fun startIncoming(context: Context, notificationId: Int, notification: Notification) {
+        fun startIncoming(
+            context: Context,
+            notificationId: Int,
+            notification: Notification,
+            glassLaunch: Intent? = null,
+        ) {
             val intent = Intent(context, BeamioCallForegroundService::class.java).apply {
                 action = ACTION_INCOMING
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
                 putExtra(EXTRA_NOTIFICATION, notification)
+                if (glassLaunch != null) {
+                    putExtra(EXTRA_GLASS_LAUNCH, glassLaunch)
+                }
             }
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

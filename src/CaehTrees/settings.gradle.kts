@@ -19,6 +19,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // chat-sdk-android (same role as the SwiftPM `chat-sdk-ios` package on iOS).
+        maven {
+            url = uri("https://raw.githubusercontent.com/CoNET-project/chat-sdk-android/main/maven")
+            content { includeGroup("network.conet") }
+        }
     }
 }
 

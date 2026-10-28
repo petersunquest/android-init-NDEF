@@ -25,8 +25,8 @@ android {
         applicationId = "com.beamio.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 113
-        versionName = "1.0.110"
+        versionCode = 134
+        versionName = "1.0.131"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -44,6 +44,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Same cert as the installed release so install-over does not
+            // require uninstall. Device wallet data stays in place.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         release {
             // R8：缩小体积 + 生成 mapping；AGP 8.5+ 会将 mapping 打入 AAB，Play 可自动去混淆崩溃栈
             isMinifyEnabled = true
@@ -79,6 +86,9 @@ tasks.register<Exec>("launchDebug") {
 }
 
 dependencies {
+    // Native Conet Chat module (listen / send / history / presence / hybrid signing).
+    // Same role as the SwiftPM `chat-sdk-ios` package: https://github.com/CoNET-project/chat-sdk-android
+    implementation("network.conet:chat:0.2.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity)

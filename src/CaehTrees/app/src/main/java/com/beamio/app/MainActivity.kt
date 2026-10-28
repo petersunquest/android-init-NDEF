@@ -1,4 +1,7 @@
 package com.beamio.app
+import network.conet.chat.BeamioSiCipherPost
+import network.conet.chat.BeamioChatPgpStore
+import network.conet.chat.BeamioConetChatModule
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -1136,10 +1139,45 @@ class MainActivity : ComponentActivity() {
         fun startSystemCall(json: String) {
             runOnUiThread {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                val callId = body.optString("callId")
+                val sessionId = body.optString("sessionId")
+                val sessionKey = body.optString("sessionKey")
+                val peerAddress = body.optString("peerAddress")
+                // Dialer owns voice_listen + VoIP wake (offerArmor). PWA must not
+                // start worker listen on the same sessionId (session_conflict).
+                val wakeArmor = body.optString("dialerWakeOfferArmor", "").trim()
+                val wakeCallee = body.optString("dialerWakeCalleeEoa", "").trim()
+                    .ifBlank { peerAddress.trim() }
+                val wakeExpires = body.optLong("dialerWakeExpiresAt", 0L)
+                val wakeTs = body.optLong("dialerWakeTimestamp", 0L)
+                val wake = if (
+                    wakeArmor.contains("BEGIN PGP MESSAGE") &&
+                    wakeCallee.isNotBlank() &&
+                    wakeExpires > 0L
+                ) {
+                    BeamioNativeVoiceSignaling.DialerWake(
+                        callId = callId.ifBlank { sessionId },
+                        calleeEoa = wakeCallee,
+                        expiresAt = wakeExpires,
+                        pushTimestamp = if (wakeTs > 0L) wakeTs else System.currentTimeMillis() / 1000L,
+                        offerArmor = wakeArmor,
+                    )
+                } else {
+                    null
+                }
                 BeamioTelecomService.startOutgoing(
                     this@MainActivity,
-                    body.optString("callId"),
-                    body.optString("displayName").ifBlank { body.optString("peerAddress") },
+                    callId,
+                    "Beamio",
+                    sessionId = sessionId,
+                )
+                BeamioNativeVoiceSignaling.attachOutgoingDialer(
+                    this@MainActivity,
+                    callId = callId,
+                    sessionId = sessionId,
+                    sessionKey = sessionKey,
+                    peerEoa = peerAddress,
+                    wake = wake,
                 )
             }
         }
@@ -1152,27 +1190,55 @@ class MainActivity : ComponentActivity() {
                     Log.e("BeamioVoiceCall", "Invalid reportIncomingSystemCall JSON", it)
                     return@runOnUiThread
                 }
+                val callId = body.optString("callId").trim()
+                val sessionId = body.optString("sessionId").trim()
+                val peerAddress = body.optString("peerAddress").trim()
+                val sessionKey = body.optString("sessionKey").trim()
+                val to = body.optString("to").trim()
                 Log.i(
                     "BeamioVoiceCall",
                     "WebView incoming call payload parsed callIdPresent=" +
-                        body.optString("callId").isNotBlank() +
-                        " sessionIdPresent=" + body.optString("sessionId").isNotBlank(),
+                        callId.isNotBlank() +
+                        " sessionIdPresent=" + sessionId.isNotBlank() +
+                        " sessionKey=" + if (sessionKey.isEmpty()) "no" else "yes",
                 )
                 Log.i(
                     "BeamioVoiceCall",
                     "WebView incoming caller fields displayNamePresent=" +
                         body.optString("displayName").isNotBlank() +
                         " peerAddressPresent=" +
-                        body.optString("peerAddress").isNotBlank() +
+                        peerAddress.isNotBlank() +
                         " claimedTagPresent=" +
                         body.optString("claimedTag").isNotBlank(),
                 )
+                // PWA already decrypted the offer — cache AES key so Telecom Decline/X
+                // can encrypt voice_call_reject_v1 without waiting for mailbox resolve.
+                if (callId.isNotBlank() && sessionKey.isNotBlank()) {
+                    val tag = body.optString("claimedTag").trim()
+                        .ifBlank { body.optString("displayName").trim() }
+                        .takeIf { it.isNotBlank() && !it.equals("Beamio", ignoreCase = true) }
+                    BeamioNativeVoiceSignaling.rememberOffer(
+                        BeamioVoiceOfferIdentity.ResolvedIdentity(
+                            callerEoa = peerAddress,
+                            beamioTag = tag,
+                            shortAddress = if (peerAddress.length >= 10) {
+                                peerAddress.take(6) + "…" + peerAddress.takeLast(4)
+                            } else {
+                                peerAddress
+                            },
+                            callId = callId,
+                            sessionId = sessionId,
+                            sessionKey = sessionKey,
+                            to = to,
+                        ),
+                    )
+                }
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,
-                    body.optString("callId"),
-                    body.optString("peerAddress"),
-                    body.optString("displayName").ifBlank { body.optString("peerAddress") },
-                    body.optString("sessionId"),
+                    callId,
+                    peerAddress,
+                    body.optString("displayName").ifBlank { peerAddress },
+                    sessionId,
                     body.optString("claimedTag"),
                     body.optString("claimedAddress"),
                     body.optString("identityWarning"),
@@ -1438,6 +1504,42 @@ class MainActivity : ComponentActivity() {
             nativeVoiceMic = null
             mic?.stop()
         }
+
+        /**
+         * Native Conet Chat Module (`chat-sdk-android`, same contract as the iOS `ConetChatSDK`).
+         * True means the PWA must never spawn the TypeScript gossip Worker.
+         */
+        @JavascriptInterface
+        fun chatModuleAvailable(): Boolean = BeamioConetChatModule.isAvailable()
+
+        /**
+         * PWA → native WorkerCommand (`init`, `send`, `history*`, …) as a JSON string.
+         * Results come back as `cashtreesandroid` events:
+         * `{ action: "chatModuleEvent", event }` and `{ action: "chatModuleSignRequest", … }`.
+         */
+        @JavascriptInterface
+        fun chatModuleCommand(json: String) {
+            val body = try {
+                JSONObject(json)
+            } catch (_: Exception) {
+                return
+            }
+            BeamioConetChatModule.handleCommand(applicationContext, body) { payload ->
+                runOnUiThread { dispatchAndroidBridgeJsonToWeb(payload) }
+            }
+        }
+
+        /** PWA answer to a `chatModuleSignRequest`: `{ reqId, ok, signature?, error? }`. */
+        @JavascriptInterface
+        fun chatModuleSignResponse(json: String) {
+            try {
+                BeamioConetChatModule.fulfillSign(JSONObject(json))
+            } catch (_: Exception) {
+            }
+        }
+
+        @JavascriptInterface
+        fun chatModuleIsRunning(): Boolean = BeamioConetChatModule.isRunning()
     }
 
     private fun isWalletPackageInstalled(packageName: String): Boolean {
@@ -2594,9 +2696,12 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // The PWA pushes its own roster; the shell refreshes `getAllNodes` itself instead.
+        BeamioChatPgpStore.onRosterUpsertFromWeb = { ctx -> BeamioGuardianRoster.kick(ctx) }
         BeamioGuardianRoster.kick(this)
         applyTransparentStatusBar()
-        if (wakeForCall && IncomingCallActivity.isShowing()) {
+        // Glass Incoming removed — keep Main behind system CallStyle when woken for ring.
+        if (wakeForCall) {
             moveTaskToBack(true)
         }
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -2650,7 +2755,7 @@ class MainActivity : ComponentActivity() {
         setContentView(rootLayout)
         hideBottomSystemBar()
         captureBeamioDeepLink(intent)
-        // Fresh Play install: recover the merchant / coupon link the landing page stashed.
+        // Fresh Play install: recover the invite / merchant / coupon link the landing page stashed.
         InstallReferrerDeepLink.consumeOnce(this) { https ->
             runOnUiThread {
                 if (deepLinkApplied || pendingDeepLinkHttps != null) return@runOnUiThread
@@ -2759,7 +2864,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
-                embeddedPwaHost.mapBeamioAppUrlToLocal(https)?.let { local ->
+                // Belt-and-suspenders: unwrap `/app-download?invite=` before local map.
+                val resolved = BeamioDeepLink.unwrapAppDownloadLandingUri(https) ?: https
+                embeddedPwaHost.mapBeamioAppUrlToLocal(resolved)?.let { local ->
                     webView.loadUrl(local.toString())
                     if (receiveAuth.isNotEmpty() || receiveTx.isNotEmpty()) {
                         // Cold start / first paint: inject again after load settles.
@@ -3025,19 +3132,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        val openingActiveCall =
-            intent.getBooleanExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL, false)
-        if (IncomingCallActivity.isShowing()) {
-            // Answer already asked for the in-app call page. Putting the
-            // translucent incoming task back in front leaves the glass card
-            // over that page.
-            if (openingActiveCall) {
-                IncomingCallActivity.finishIfShowing()
-            } else {
-                IncomingCallActivity.bringToFront(this)
-                return
-            }
-        }
+        // Glass IncomingCallActivity is the only incoming UI; drop Samsung shade ghosts.
+        BeamioTelecomService.dismissStaleIncomingUi(this)
         if (::rootLayout.isInitialized) {
             rootLayout.setBackgroundColor(Color.parseColor("#f8f9fa"))
         }

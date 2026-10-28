@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Root uses fitsSystemWindows so status-bar inset clears the notch.
+  Do NOT put L/R/top edge on the root: fitsSystemWindows replaces that
+  view's padding with system insets (L/R often 0) — that is why bumping
+  @dimen/incoming_call_banner_edge alone had no visible effect.
+
+  Edge gap lives on a nested inset host via padding (not include margins,
+  which some translucent themes drop).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/incoming_call_window"
+    android:fitsSystemWindows="true"
+    android:paddingBottom="16dp">
+
+    <FrameLayout
+        android:id="@+id/incoming_call_banner_inset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:paddingStart="@dimen/incoming_call_banner_edge"
+        android:paddingTop="@dimen/incoming_call_banner_edge"
+        android:paddingEnd="@dimen/incoming_call_banner_edge">
+
+        <include
+            layout="@layout/incoming_call_glass"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+    </FrameLayout>
+</FrameLayout>

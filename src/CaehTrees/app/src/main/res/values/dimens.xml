@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 0.5rem at 16px root — glass card L/R/top margin -->
+    <dimen name="incoming_call_banner_edge">8dp</dimen>
+</resources>
