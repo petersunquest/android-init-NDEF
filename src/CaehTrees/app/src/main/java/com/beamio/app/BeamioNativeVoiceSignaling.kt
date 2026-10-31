@@ -52,6 +52,9 @@ object BeamioNativeVoiceSignaling {
         /** Unix seconds for mailbox pushTimestamp. */
         val pushTimestamp: Long,
         val offerArmor: String,
+        /** Per-call relay node (armored route key + IP); empty for the legacy own-mailbox path. */
+        val relayRouteArmored: String = "",
+        val relayIp: String = "",
     )
 
     data class ActiveCall(
@@ -72,8 +75,18 @@ object BeamioNativeVoiceSignaling {
         val acceptSessionId: String get() = listenSessionId
     }
 
-    fun rememberOffer(resolved: BeamioVoiceOfferIdentity.ResolvedIdentity) {
-        if (resolved.callId.isBlank() || resolved.sessionKey.isBlank()) return
+    fun rememberOffer(incoming: BeamioVoiceOfferIdentity.ResolvedIdentity) {
+        if (incoming.callId.isBlank() || incoming.sessionKey.isBlank()) return
+        // A later copy without relay fields (the PWA report) must not erase the
+        // signed relay from the shell's own decrypt.
+        val prior = cache[incoming.callId]
+        val resolved = if (incoming.relayRouteArmored.isBlank() && prior != null &&
+            prior.relayRouteArmored.isNotBlank() && prior.sessionId == incoming.sessionId
+        ) {
+            incoming.copy(relayRouteArmored = prior.relayRouteArmored, relayIp = prior.relayIp)
+        } else {
+            incoming
+        }
         cache[resolved.callId] = resolved
         if (resolved.sessionId.isNotBlank()) {
             cache[resolved.sessionId] = resolved
@@ -157,6 +170,8 @@ object BeamioNativeVoiceSignaling {
                 expiresAt = raw.expiresAt,
                 pushTimestamp = raw.pushTimestamp,
                 offerArmor = raw.offerArmor.trim(),
+                relayRouteArmored = raw.relayRouteArmored.trim(),
+                relayIp = raw.relayIp.trim(),
             )
             if (!normalized.offerArmor.contains("BEGIN PGP MESSAGE")) {
                 Log.w(TAG, "dialer — wake offerArmor missing; listen without push")
@@ -614,11 +629,19 @@ object BeamioNativeVoiceSignaling {
             return false
         }
 
-        val keys = BeamioAddressPgp.searchKey(caller) ?: run {
-            Log.w(TAG, "searchKey(caller) failed")
-            return false
+        // The caller's session lives on its per-call relay node when the signed
+        // offer names one; older offers fall back to the caller's mailbox.
+        val relayRoute = offer.relayRouteArmored.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }
+        val keys = if (relayRoute == null) {
+            BeamioAddressPgp.searchKey(caller) ?: run {
+                Log.w(TAG, "searchKey(caller) failed")
+                return false
+            }
+        } else {
+            null
         }
-        if (!keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) return false
+        val routeArmored = relayRoute ?: keys?.routePublicKeyArmored.orEmpty()
+        if (!routeArmored.contains("BEGIN PGP PUBLIC KEY")) return false
 
         val secrets = BeamioChatPgpStore.load(context) ?: return false
         val roster = rosterOf(secrets)
@@ -627,7 +650,11 @@ object BeamioNativeVoiceSignaling {
             return false
         }
         val exclude = buildSet {
-            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
+            if (relayRoute != null) {
+                BeamioSiCipherPost.normalizeIp(offer.relayIp)?.let { add(it) }
+            } else {
+                keys?.let { BeamioAddressPgp.mailboxIp(it.routePgpKeyID, roster) }?.let { add(it) }
+            }
             BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
         }
 
@@ -649,8 +676,8 @@ object BeamioNativeVoiceSignaling {
         val encryptWait = Object()
         var armor: String? = null
         var encryptError: String? = null
-        BeamioOpenPgpHost.shared(context).encryptToRoute(
-            keys.routePublicKeyArmored,
+        BeamioNativeRoutePgp.encryptToRouteAsync(context, 
+            routeArmored,
             uplink.toString(),
         ) { result ->
             result.onSuccess { armor = it }

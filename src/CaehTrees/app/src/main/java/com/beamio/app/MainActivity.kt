@@ -1340,6 +1340,8 @@ class MainActivity : ComponentActivity() {
                         expiresAt = wakeExpires,
                         pushTimestamp = if (wakeTs > 0L) wakeTs else System.currentTimeMillis() / 1000L,
                         offerArmor = wakeArmor,
+                        relayRouteArmored = body.optString("dialerRelayRoute", "").trim(),
+                        relayIp = body.optString("dialerRelayIp", "").trim(),
                     )
                 } else {
                     null
@@ -1423,6 +1425,12 @@ class MainActivity : ComponentActivity() {
                             sessionId = sessionId,
                             sessionKey = sessionKey,
                             to = to,
+                            relayRouteArmored = body.optString("relayRoute", "").trim().let { raw ->
+                                if (raw.isBlank()) "" else runCatching {
+                                    String(android.util.Base64.decode(raw, android.util.Base64.DEFAULT), Charsets.UTF_8)
+                                }.getOrNull()?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }.orEmpty()
+                            },
+                            relayIp = body.optString("relayIp", "").trim(),
                         ),
                     )
                 }

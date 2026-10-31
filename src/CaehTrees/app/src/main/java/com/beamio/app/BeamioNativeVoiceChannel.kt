@@ -44,13 +44,20 @@ object BeamioNativeVoiceChannel {
      */
     private const val UPLINK_FRAME_MS = 160
     private const val UPLINK_FRAME_BYTES = SAMPLE_RATE * UPLINK_FRAME_MS / 1000 * 2
-    /** Downlink jitter window: wait for late nextSeq before skip (~120ms). */
-    /** Wait this long for a late / out-of-order frame (matches the playout depth). */
-    private const val RX_JITTER_MS = 320L
     /** Playout depth before audio starts, and again after an underrun. */
     private const val PLAYOUT_TARGET_BYTES = SAMPLE_RATE * 2 * 320 / 1000
-    /** Hard latency cap: beyond this the oldest queued audio is dropped. */
-    private const val PLAYOUT_MAX_BYTES = SAMPLE_RATE * 2 * 600 / 1000
+    /**
+     * Adaptive depth (industry-style adaptive jitter buffer): every underrun adds
+     * 160 ms up to 800 ms; 10 s without one takes 80 ms back. Frames arrive
+     * through a different random entry each time, so arrival spread can exceed
+     * a fixed 320 ms.
+     */
+    private const val PLAYOUT_MAX_TARGET_BYTES = SAMPLE_RATE * 2 * 800 / 1000
+    private const val PLAYOUT_STEP_UP_BYTES = SAMPLE_RATE * 2 * 160 / 1000
+    private const val PLAYOUT_STEP_DOWN_BYTES = SAMPLE_RATE * 2 * 80 / 1000
+    private const val PLAYOUT_DECAY_MS = 10_000L
+    /** Latency cap stays this far above the current depth. */
+    private const val PLAYOUT_CAP_HEADROOM_BYTES = SAMPLE_RATE * 2 * 400 / 1000
     /** Fade-in after a gap or underrun so the restart does not click. */
     private const val FADE_SAMPLES = SAMPLE_RATE * 5 / 1000
     /** Missing frames filled with silence at most (keeps timing without long holes). */
@@ -288,7 +295,8 @@ object BeamioNativeVoiceChannel {
         activeRef.set(null)
         if (!keepApp) appCtx.set(null)
         if (listenSessionId.length >= 16 && app != null) {
-            io.execute { postVoiceUnlisten(app, listenSessionId) }
+            val relay = previous?.dialerWake
+            io.execute { postVoiceUnlisten(app, listenSessionId, relay) }
         }
         Log.i(
             TAG,
@@ -296,8 +304,15 @@ object BeamioNativeVoiceChannel {
         )
     }
 
-    /** Best-effort `voice_unlisten` to own mailbox route (entry ≠ B). SI drops session without EIP-191. */
-    private fun postVoiceUnlisten(app: Context, sessionId: String) {
+    /**
+     * Best-effort `voice_unlisten` to the node holding the session: the call's
+     * relay node when there is one, else own mailbox (entry ≠ that node).
+     */
+    private fun postVoiceUnlisten(
+        app: Context,
+        sessionId: String,
+        relay: BeamioNativeVoiceSignaling.DialerWake? = null,
+    ) {
         try {
             val secrets = BeamioChatPgpStore.load(app) ?: run {
                 Log.w(TAG, "unlisten — no secrets")
@@ -316,8 +331,9 @@ object BeamioNativeVoiceChannel {
             val encryptWait = Object()
             var armor: String? = null
             var encryptError: String? = null
-            BeamioOpenPgpHost.shared(app).encryptToRoute(
-                secrets.routePublicKeyArmor,
+            val relayRoute = relay?.relayRouteArmored?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }
+            BeamioNativeRoutePgp.encryptToRouteAsync(app, 
+                relayRoute ?: secrets.routePublicKeyArmor,
                 command,
             ) { result ->
                 result.onSuccess { armor = it }
@@ -335,6 +351,7 @@ object BeamioNativeVoiceChannel {
             val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
             val exclude = buildSet {
                 BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+                if (relayRoute != null) BeamioSiCipherPost.normalizeIp(relay.relayIp)?.let { add(it) }
             }
             val posted = BeamioSiCipherPost.post(encrypted, roster, exclude, maxAttempts = 3)
             Log.i(TAG, "voice_unlisten session=${sessionId.take(12)} ok=${posted.ok}")
@@ -356,11 +373,15 @@ object BeamioNativeVoiceChannel {
             .put("command", "voice_listen")
             .put("sessionId", active.listenSessionId)
             .put("timestamp", System.currentTimeMillis() / 1000L)
-        // Dialer owns VoIP wake: mailbox notifies callee when offerArmor is present.
+        // Dialer owns VoIP wake: the node holding the session calls the push API.
         val wake = active.dialerWake
+        // Per-call relay node (not own mailbox). The PWA already delivered the
+        // offer to the callee's mailbox through a random entry, so the listen
+        // carries no offerArmor and no node is asked to forward it.
+        val relayRoute = wake?.relayRouteArmored?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }
         if (
             wake != null &&
-            wake.offerArmor.contains("BEGIN PGP MESSAGE") &&
+            (relayRoute != null || wake.offerArmor.contains("BEGIN PGP MESSAGE")) &&
             wake.calleeEoa.isNotBlank() &&
             wake.callId.isNotBlank()
         ) {
@@ -368,15 +389,15 @@ object BeamioNativeVoiceChannel {
             commandObj.put("targetWallet", wake.calleeEoa)
             commandObj.put("expiresAt", wake.expiresAt)
             commandObj.put("pushTimestamp", wake.pushTimestamp)
-            commandObj.put("offerArmor", wake.offerArmor)
+            if (relayRoute == null) commandObj.put("offerArmor", wake.offerArmor)
         }
         val command = commandObj.toString()
 
         val encryptWait = Object()
         var armor: String? = null
         var encryptError: String? = null
-        BeamioOpenPgpHost.shared(context).encryptToRoute(
-            secrets.routePublicKeyArmor,
+        BeamioNativeRoutePgp.encryptToRouteAsync(context, 
+            relayRoute ?: secrets.routePublicKeyArmor,
             command,
         ) { result ->
             result.onSuccess { armor = it }
@@ -395,6 +416,8 @@ object BeamioNativeVoiceChannel {
         val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
         val exclude = buildSet {
             BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+            // Entry must not be the node that holds the session.
+            if (relayRoute != null) BeamioSiCipherPost.normalizeIp(wake.relayIp)?.let { add(it) }
         }
         val entry = BeamioSiCipherPost.getRandomNode(roster, excludeIps = exclude)
         val entryIp = entry?.let { BeamioSiCipherPost.normalizeIp(it.ip) }
@@ -404,7 +427,11 @@ object BeamioNativeVoiceChannel {
         }
         val url = BeamioSiCipherPost.postUrl(entryIp) ?: return
         val body = JSONObject().put("data", encrypted).toString()
-        Log.i(TAG, "voice_listen entry=$entryIp session=${active.listenSessionId.take(12)}")
+        Log.i(
+            TAG,
+            "voice_listen entry=$entryIp session=${active.listenSessionId.take(12)} " +
+                "node=${if (relayRoute != null) "relay" else "own-mailbox"}",
+        )
 
         var conn: HttpURLConnection? = null
         val started = System.currentTimeMillis()
@@ -787,7 +814,8 @@ object BeamioNativeVoiceChannel {
             for (chunk in toPlay) playPcm(chunk)
         }
         rxJitterRunnable = work
-        rxHandler.postDelayed(work, RX_JITTER_MS)
+        // Reorder wait follows the adaptive playout depth.
+        rxHandler.postDelayed(work, playoutTargetBytes * 1000L / (SAMPLE_RATE * 2))
     }
 
     private fun skipRxGapLocked(reason: String, out: MutableList<ByteArray>) {
@@ -879,18 +907,13 @@ object BeamioNativeVoiceChannel {
             Log.w(TAG, "uplink abort — bad peerEoa")
             return
         }
-        val keys = BeamioAddressPgp.searchKey(peer)
-        if (keys == null || !keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) {
-            Log.w(TAG, "uplink abort — searchKey(peer) route PGP missing")
+        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
+        val (routeArmored, exclude) = peerSessionRoute(active, peer, roster, secrets) ?: run {
+            Log.w(TAG, "uplink abort — peer session route missing")
             return
         }
-        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
-        val exclude = buildSet {
-            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
-            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
-        }
         pickEntryIp(roster, exclude)?.let { entry ->
-            val route = UplinkRoute(keys.routePublicKeyArmored, roster, exclude, EntryRotation(entry))
+            val route = UplinkRoute(routeArmored, roster, exclude, EntryRotation(entry))
             if (uplinkRoute.compareAndSet(null, route)) {
                 Log.i(TAG, "uplink route first entry=$entry")
                 refillEntries(route)
@@ -910,7 +933,7 @@ object BeamioNativeVoiceChannel {
                 context = context,
                 pcmChunk = buf.copyOf(n),
                 active = live,
-                routeArmored = keys.routePublicKeyArmored,
+                routeArmored = routeArmored,
                 roster = roster,
                 exclude = exclude,
             )
@@ -1004,6 +1027,31 @@ object BeamioNativeVoiceChannel {
     private var playQueuedBytes = 0
     private var playThread: Thread? = null
     @Volatile private var playPrebuffering = true
+    @Volatile private var playoutTargetBytes = PLAYOUT_TARGET_BYTES
+    private var lastUnderrunAtMs = 0L
+    private var lastDecayAtMs = 0L
+
+    /** Caller holds [playLock]. */
+    private fun growPlayoutTargetLocked() {
+        val now = System.currentTimeMillis()
+        lastUnderrunAtMs = now
+        lastDecayAtMs = now
+        val next = minOf(PLAYOUT_MAX_TARGET_BYTES, playoutTargetBytes + PLAYOUT_STEP_UP_BYTES)
+        if (next != playoutTargetBytes) {
+            playoutTargetBytes = next
+            Log.i(TAG, "underrun — playout depth ${next * 1000 / (SAMPLE_RATE * 2)}ms")
+        }
+    }
+
+    /** Caller holds [playLock]. */
+    private fun decayPlayoutTargetLocked() {
+        if (playoutTargetBytes <= PLAYOUT_TARGET_BYTES) return
+        val now = System.currentTimeMillis()
+        if (now - lastUnderrunAtMs < PLAYOUT_DECAY_MS || now - lastDecayAtMs < PLAYOUT_DECAY_MS) return
+        lastDecayAtMs = now
+        playoutTargetBytes = maxOf(PLAYOUT_TARGET_BYTES, playoutTargetBytes - PLAYOUT_STEP_DOWN_BYTES)
+        Log.i(TAG, "stable — playout depth ${playoutTargetBytes * 1000 / (SAMPLE_RATE * 2)}ms")
+    }
     @Volatile private var playFadeNext = true
     private val playDrop = AtomicInteger(0)
     private val playUnderruns = AtomicInteger(0)
@@ -1020,7 +1068,8 @@ object BeamioNativeVoiceChannel {
             playQueue.addLast(pcm)
             playQueuedBytes += pcm.size
             // Latency cap: drop the oldest audio, keep the newest.
-            while (playQueuedBytes > PLAYOUT_MAX_BYTES && playQueue.size > 1) {
+            decayPlayoutTargetLocked()
+            while (playQueuedBytes > playoutTargetBytes + PLAYOUT_CAP_HEADROOM_BYTES && playQueue.size > 1) {
                 playQueuedBytes -= playQueue.removeFirst().size
                 playFadeNext = true
                 val d = playDrop.incrementAndGet()
@@ -1054,7 +1103,7 @@ object BeamioNativeVoiceChannel {
             while (running.get() && mediaLive.get()) {
                 val chunk: ByteArray? = synchronized(playLock) {
                     when {
-                        playPrebuffering && playQueuedBytes < PLAYOUT_TARGET_BYTES -> {
+                        playPrebuffering && playQueuedBytes < playoutTargetBytes -> {
                             playLock.wait(20L)
                             null
                         }
@@ -1070,6 +1119,7 @@ object BeamioNativeVoiceChannel {
                                 // The track really ran dry: rebuffer before resuming.
                                 playPrebuffering = true
                                 playFadeNext = true
+                                growPlayoutTargetLocked()
                                 val u = playUnderruns.incrementAndGet()
                                 if (u <= 3 || u % 20 == 0) Log.i(TAG, "playout underrun; rebuffering count=$u")
                             }
@@ -1154,6 +1204,9 @@ object BeamioNativeVoiceChannel {
             playQueuedBytes = 0
             playPrebuffering = true
             playFadeNext = true
+            playoutTargetBytes = PLAYOUT_TARGET_BYTES
+            lastUnderrunAtMs = 0L
+            lastDecayAtMs = 0L
             playLock.notifyAll()
         }
         playThread?.interrupt()
@@ -1210,24 +1263,43 @@ object BeamioNativeVoiceChannel {
             Log.w(TAG, "uplink route — bad peerEoa")
             return null
         }
-        val keys = BeamioAddressPgp.searchKey(peer)
-        if (keys == null || !keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) {
-            Log.w(TAG, "uplink route — searchKey(peer) route PGP missing")
-            return null
-        }
         val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
-        val exclude = buildSet {
-            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
-            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+        val (routeArmored, exclude) = peerSessionRoute(active, peer, roster, secrets) ?: run {
+            Log.w(TAG, "uplink route — peer session route missing")
+            return null
         }
         val entry = pickEntryIp(roster, exclude) ?: run {
             Log.w(TAG, "uplink route — no entry node")
             return null
         }
         Log.i(TAG, "uplink route first entry=$entry")
-        val route = UplinkRoute(keys.routePublicKeyArmored, roster, exclude, EntryRotation(entry))
+        val route = UplinkRoute(routeArmored, roster, exclude, EntryRotation(entry))
         refillEntries(route)
         return route
+    }
+
+    /**
+     * Route key of the node holding the peer's voice session, plus the IPs an
+     * entry must not be. Callee: the caller's per-call relay node from the
+     * signed offer (older offers: the caller's mailbox). Dialer: the callee's
+     * mailbox, where the callee listens.
+     */
+    private fun peerSessionRoute(
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        peer: String,
+        roster: List<BeamioChatPgpStore.SiNode>,
+        secrets: BeamioChatPgpStore.Secrets,
+    ): Pair<String, Set<String>>? {
+        val own = BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)
+        val relay = active.offer.relayRouteArmored
+        if (active.role == BeamioNativeVoiceSignaling.Role.CALLEE && relay.contains("BEGIN PGP PUBLIC KEY")) {
+            val exclude = setOfNotNull(BeamioSiCipherPost.normalizeIp(active.offer.relayIp), own)
+            return relay to exclude
+        }
+        val keys = BeamioAddressPgp.searchKey(peer)
+        if (keys == null || !keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) return null
+        val exclude = setOfNotNull(BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster), own)
+        return keys.routePublicKeyArmored to exclude
     }
 
     /** Probe more entries in the background until the pool has [ENTRY_POOL_TARGET]. */
@@ -1406,17 +1478,25 @@ object BeamioNativeVoiceChannel {
             .put("payload", payload)
             .put("timestamp", nowMs / 1000L)
         if (mediaKind != null) uplink.put("mediaKind", mediaKind)
-        BeamioOpenPgpHost.shared(app).encryptToRoute(route.routeArmored, uplink.toString()) { result ->
+        val encStarted = System.currentTimeMillis()
+        BeamioNativeRoutePgp.encryptToRouteAsync(app, route.routeArmored, uplink.toString()) { result ->
+            val encMs = System.currentTimeMillis() - encStarted
             val armor = result.getOrNull()
             if (armor.isNullOrBlank() || !armor.contains("BEGIN PGP MESSAGE")) {
                 done()
-                return@encryptToRoute
+                return@encryptToRouteAsync
             }
             io.execute {
                 try {
                     val entryIp = route.entries.next()
                     val postStarted = System.currentTimeMillis()
+                    val queueMs = postStarted - encStarted - encMs
                     val ok = entryIp != null && postDirect(armor, entryIp)
+                    val postMs = System.currentTimeMillis() - postStarted
+                    if (encMs + queueMs + postMs >= 900) {
+                        // Diagnostics: which step makes a frame late (sender gaps on the peer).
+                        Log.i(TAG, "uplink slow seq=$seq enc=${encMs}ms queue=${queueMs}ms post=${postMs}ms ok=$ok entry=$entryIp kind=${mediaKind ?: "audio"}")
+                    }
                     if (ok && entryIp != null &&
                         route.entries.recordLatency(entryIp, System.currentTimeMillis() - postStarted)
                     ) {

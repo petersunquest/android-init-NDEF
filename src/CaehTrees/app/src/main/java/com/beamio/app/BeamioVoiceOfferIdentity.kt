@@ -44,7 +44,22 @@ object BeamioVoiceOfferIdentity {
         val sessionKey: String = "",
         /** Offer `to` (local callee EOA when present). */
         val to: String = "",
+        /**
+         * Caller's per-call relay node (armored route key + IP), signed in the
+         * offer. Accept / control / media go to the caller's session there.
+         * Empty for offers from older callers (their own mailbox).
+         */
+        val relayRouteArmored: String = "",
+        val relayIp: String = "",
     )
+
+    /** base64 armored route key → armor, or "" when absent / not a public key. */
+    private fun decodeRelayRoute(raw: String): String {
+        if (raw.isBlank()) return ""
+        return runCatching {
+            String(android.util.Base64.decode(raw.trim(), android.util.Base64.DEFAULT), Charsets.UTF_8)
+        }.getOrNull()?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }.orEmpty()
+    }
 
     fun scheduleResolve(
         context: Context,
@@ -93,7 +108,7 @@ object BeamioVoiceOfferIdentity {
                 val encryptWait = Object()
                 var armor: String? = null
                 var encryptError: String? = null
-                BeamioOpenPgpHost.shared(app).encryptToRoute(
+                BeamioNativeRoutePgp.encryptToRouteAsync(app, 
                     secrets.routePublicKeyArmor,
                     command.toString(),
                 ) { result ->
@@ -163,6 +178,8 @@ object BeamioVoiceOfferIdentity {
                     sessionId = verified.optString("sessionId", sessionId).ifBlank { sessionId },
                     sessionKey = sessionKey,
                     to = to,
+                    relayRouteArmored = verified.optString("relayRouteArmored", "").trim(),
+                    relayIp = verified.optString("relayIp", "").trim(),
                 )
                 identity = resolved
                 if (sessionKey.isNotEmpty()) {
@@ -263,7 +280,12 @@ object BeamioVoiceOfferIdentity {
                 "tempWalletAddress:${payload.optString("tempWalletAddress").lowercase()}",
                 "entryDomains:$entryDomains",
                 "codec:${payload.optString("codec")}",
-            ).joinToString("\n")
+            ).let { base ->
+                // Relay lines are signed only when the offer has them.
+                val relay = payload.optString("relayRoute")
+                if (relay.isBlank()) base
+                else base + listOf("relayRoute:$relay", "relayIp:${payload.optString("relayIp")}")
+            }.joinToString("\n")
             if (signature.isBlank()) {
                 callback(Result.failure(IllegalStateException("missing_signature")))
                 return@decryptInboundArmor
@@ -287,7 +309,9 @@ object BeamioVoiceOfferIdentity {
                             .put("sessionId", sessionId)
                             .put("sessionKey", sessionKey)
                             .put("to", to)
-                            .put("claimedTag", payload.optString("beamioTag").ifBlank { payload.optString("tag") }),
+                            .put("claimedTag", payload.optString("beamioTag").ifBlank { payload.optString("tag") })
+                            .put("relayRouteArmored", decodeRelayRoute(payload.optString("relayRoute")))
+                            .put("relayIp", payload.optString("relayIp").trim()),
                     ),
                 )
             }
