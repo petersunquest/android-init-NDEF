@@ -110,6 +110,38 @@ enum BeamioNativeVoiceSignaling {
 		lock.unlock()
 	}
 
+	/// Incoming calls this device already declined or hung up, keyed by callId
+	/// and sessionId. The PWA or a replayed chat offer can soft-report the same
+	/// call again seconds later; that must not ring a call that is over.
+	/// Persisted so a relaunch (or a cold start from a push) still knows.
+	private static let locallyEndedKey = "beamio.voice.locallyEnded"
+	private static let locallyEndedTTL: TimeInterval = 600
+
+	/// Caller holds `lock`.
+	private static func loadLocallyEnded(now: Date) -> [String: TimeInterval] {
+		let raw = UserDefaults.standard.dictionary(forKey: locallyEndedKey) as? [String: TimeInterval] ?? [:]
+		let cutoff = now.timeIntervalSince1970 - locallyEndedTTL
+		return raw.filter { $0.value >= cutoff }
+	}
+
+	static func markLocallyEnded(callId: String, sessionId: String) {
+		lock.lock()
+		let now = Date()
+		var map = loadLocallyEnded(now: now)
+		if !callId.isEmpty { map[callId] = now.timeIntervalSince1970 }
+		if !sessionId.isEmpty { map[sessionId] = now.timeIntervalSince1970 }
+		UserDefaults.standard.set(map, forKey: locallyEndedKey)
+		lock.unlock()
+	}
+
+	static func wasLocallyEnded(callId: String, sessionId: String) -> Bool {
+		lock.lock()
+		defer { lock.unlock() }
+		let map = loadLocallyEnded(now: Date())
+		return (!callId.isEmpty && map[callId] != nil)
+			|| (!sessionId.isEmpty && map[sessionId] != nil)
+	}
+
 	/// AES-relay `voice_end_v1` from the peer (browser Hang Up). Marks remote-ended
 	/// so we do not bounce a hangup back, then tears CallKit + InCall.
 	static func applyRemoteMediaEnd(callId: String, sessionId: String) {

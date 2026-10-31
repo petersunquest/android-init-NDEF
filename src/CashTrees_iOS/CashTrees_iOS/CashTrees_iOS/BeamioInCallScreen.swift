@@ -66,11 +66,63 @@ final class BeamioInCallScreenModel: ObservableObject {
 	/// placed ("Calling…"), then switch to the timer on Accept.
 	func beginOutgoing(callId: String, sessionId: String, address: String) {
 		let sameLiveCall = live && self.callId == callId
-		begin(callId: callId, sessionId: sessionId, tag: "", address: address)
+		// Keep the tag a prepared screen already looked up for this peer.
+		let preparedTag = (live && self.callId.isEmpty
+			&& self.address.caseInsensitiveCompare(address) == .orderedSame) ? tag : ""
+		preparedId = ""
+		begin(callId: callId, sessionId: sessionId, tag: preparedTag, address: address)
 		if !sameLiveCall { connected = false }
+		lookUpTag(for: address)
+	}
+
+	/// The PWA's `prepareSystemCall` id while the screen waits for `startSystemCall`.
+	private var preparedId = ""
+	private var cancelledPrepareIds: [String] = []
+
+	/// Dial pressed: show "Calling…" at once while the PWA still builds the
+	/// offer. `beginOutgoing` later fills in the real call ids.
+	func beginPrepared(prepareId: String, address: String) {
+		if live && !isPrepared {
+			NSLog("[BeamioInCall] prepare skipped; a call is live")
+			return
+		}
+		begin(callId: "", sessionId: "", tag: "", address: address)
+		connected = false
+		preparedId = prepareId
+		crumb("incall-prepared")
+		lookUpTag(for: address)
+	}
+
+	/// True while the screen is shown for a dial that has no call ids yet.
+	var isPrepared: Bool { live && callId.isEmpty && sessionId.isEmpty }
+
+	/// End a prepared screen. An empty `prepareId` means "whatever is prepared".
+	@discardableResult
+	func cancelPrepared(prepareId: String = "") -> Bool {
+		guard isPrepared else { return false }
+		if !prepareId.isEmpty, !preparedId.isEmpty, prepareId != preparedId { return false }
+		let id = prepareId.isEmpty ? preparedId : prepareId
+		if !id.isEmpty {
+			cancelledPrepareIds.append(id)
+			if cancelledPrepareIds.count > 20 { cancelledPrepareIds.removeFirst() }
+		}
+		preparedId = ""
+		end(callId: "")
+		crumb("incall-prepared-cancelled")
+		return true
+	}
+
+	/// The user hung up while this dial was still being prepared.
+	func wasPrepareCancelled(_ prepareId: String) -> Bool {
+		!prepareId.isEmpty && cancelledPrepareIds.contains(prepareId)
+	}
+
+	private func lookUpTag(for address: String) {
+		guard !address.isEmpty else { return }
 		BeamioTagAddressLookup.fetchExactTag(for: address) { [weak self] tag in
 			DispatchQueue.main.async {
-				guard let self, self.live, self.callId == callId,
+				guard let self, self.live,
+				      self.address.caseInsensitiveCompare(address) == .orderedSame,
 				      let tag, let normalized = BeamioIncomingCallPayload.normalizedBeamioTag(tag)
 				else { return }
 				self.tag = normalized
@@ -445,6 +497,13 @@ final class BeamioInCallScreenModel: ObservableObject {
 	}
 
 	func hangUp() {
+		if cancelPrepared() {
+			// Hung up while the PWA was still preparing the dial: no call
+			// exists yet. Tell the PWA to drop the dial it is building.
+			NSLog("[BeamioInCall] End on prepared screen — cancel dial")
+			BeamioVoipIncomingBootstrap.shared.emitCallActionToWeb("callEnded", callId: "", sessionId: "")
+			return
+		}
 		BeamioVoipIncomingBootstrap.shared.callKit.end(callId: callId, sessionId: sessionId)
 	}
 

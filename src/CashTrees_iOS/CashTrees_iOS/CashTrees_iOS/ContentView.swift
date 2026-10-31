@@ -1133,10 +1133,26 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 requestId:payload.requestId||''
               });
             },
+            prepareSystemCall:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'prepareSystemCall',
+                prepareId:payload.prepareId||'',
+                peerAddress:payload.peerAddress||''
+              });
+            },
+            cancelPreparedSystemCall:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'cancelPreparedSystemCall',
+                prepareId:payload.prepareId||''
+              });
+            },
             startSystemCall:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
                 action:'startSystemCall',
+                prepareId:payload.prepareId||'',
                 callId:payload.callId||'',
                 sessionId:payload.sessionId||'',
                 sessionKey:payload.sessionKey||'',
@@ -1389,11 +1405,27 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             DispatchQueue.main.async { [weak self] in
                 self?.presentPhotoPicker(requestId: requestId)
             }
+        case "prepareSystemCall":
+            // Dial pressed: show the native call screen ("Calling…") at once
+            // while the PWA still resolves routes and builds the offer.
+            let prepareId = body["prepareId"] as? String ?? ""
+            let peerAddress = body["peerAddress"] as? String ?? ""
+            DispatchQueue.main.async {
+                BeamioInCallScreenModel.shared.beginPrepared(prepareId: prepareId, address: peerAddress)
+            }
+        case "cancelPreparedSystemCall":
+            let prepareId = body["prepareId"] as? String ?? ""
+            DispatchQueue.main.async {
+                if BeamioInCallScreenModel.shared.cancelPrepared(prepareId: prepareId) {
+                    NSLog("[BeamioInCall] prepared call screen closed by PWA")
+                }
+            }
         case "startSystemCall":
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
             let sessionKey = body["sessionKey"] as? String ?? ""
             let peerAddress = body["peerAddress"] as? String ?? ""
+            let prepareId = body["prepareId"] as? String ?? ""
             let wakeCallId = body["dialerWakeCallId"] as? String ?? callId
             let wakeCallee = body["dialerWakeCalleeEoa"] as? String ?? peerAddress
             let wakeExpires: Int64 = {
@@ -1425,6 +1457,17 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             // the system in-call bottom bar. Opaque "Beamio" only.
             // Native owns dialer voice_listen + VoIP wake (no worker listen).
             DispatchQueue.main.async {
+                if BeamioInCallScreenModel.shared.wasPrepareCancelled(prepareId) {
+                    // The user hung up on the prepared screen before the offer
+                    // was ready. Do not ring the callee; let the PWA clean up.
+                    NSLog("[BeamioInCall] startSystemCall dropped; dial was cancelled while preparing")
+                    BeamioVoipIncomingBootstrap.shared.emitCallActionToWeb(
+                        "callEnded",
+                        callId: callId,
+                        sessionId: sessionId
+                    )
+                    return
+                }
                 BeamioVoipIncomingBootstrap.shared.callKit.startOutgoing(
                     callId: callId,
                     handle: "Beamio",

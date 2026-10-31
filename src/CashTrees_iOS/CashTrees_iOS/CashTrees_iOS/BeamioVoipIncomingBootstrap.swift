@@ -49,6 +49,9 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	/// Soft re-delivery must NOT treat a completed-but-dead map as "keep-inflight"
 	/// (flash-hide: CallKit died, map lingered, soft-recent-dead never re-reported).
 	private var pendingIncomingReportStartedAt: [UUID: CFAbsoluteTime] = [:]
+	/// callId → a `reportIncoming` that has not finished yet, plus the
+	/// completions of duplicate deliveries that joined it. Main thread.
+	private var inflightIncomingReports: [String: (startedAt: CFAbsoluteTime, waiters: [((Error?) -> Void)?])] = [:]
 	/// UUIDs that have already been Answered. Unanswered `CXEndCallAction` is
 	/// Decline (must emit `callRejected` so the dialer stops ringing); answered
 	/// End is Hang Up (`callEnded`). Matches Android Decline → `callRejected`.
@@ -2559,6 +2562,34 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			)
 			return
 		}
+		// The map entry is written only after the async zombie sweep below, so
+		// a second delivery of the same call (VoIP push + alert push arrive
+		// within a millisecond) would pass the map check above and report a
+		// second CallKit call. Join it to the report already in flight.
+		let inflightKey = callId.isEmpty ? sessionId : callId
+		if !inflightKey.isEmpty {
+			if let running = inflightIncomingReports[inflightKey],
+			   CFAbsoluteTimeGetCurrent() - running.startedAt < 10
+			{
+				inflightIncomingReports[inflightKey]?.waiters.append(completion)
+				NSLog(
+					"[BeamioCallKit] reportIncoming joined in-flight report callId=%@ pushKit=%@",
+					callId,
+					mustReportForPushKit ? "yes" : "no"
+				)
+				writeBusyQaBreadcrumb("report-join-inflight:\(callId)")
+				return
+			}
+			inflightIncomingReports[inflightKey] = (CFAbsoluteTimeGetCurrent(), [])
+		}
+		let callerCompletion = completion
+		let completion: ((Error?) -> Void)? = { [weak self] error in
+			let waiters = inflightKey.isEmpty
+				? []
+				: (self?.inflightIncomingReports.removeValue(forKey: inflightKey)?.waiters ?? [])
+			callerCompletion?(error)
+			waiters.forEach { $0?(error) }
+		}
 		// B35: ALWAYS a fresh UUID. Deterministic uuid(forCallId:) + async zombie
 		// end let Answer attach to orphan dual-header chrome (EOA + @tag) with
 		// Speaker/Mute/End piled bottom-left.
@@ -2727,10 +2758,12 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 				// voice_end raced ahead of PushKit action=end orphan report), do
 				// NOT adopt sticky and do NOT scheduleSuspend — those kept
 				// full-screen CallKit chrome after the browser Hang Up.
+				// A PushKit re-delivery of a call this device already declined or
+				// hung up must be reported (Apple rule) but is over: tear it too.
 				let remoteEnded = BeamioNativeVoiceSignaling.wasRemoteEnded(
 					callId: callId,
 					sessionId: sessionId
-				)
+				) || BeamioNativeVoiceSignaling.wasLocallyEnded(callId: callId, sessionId: sessionId)
 				BeamioNativeVoiceSignaling.qaTrail(
 					"call reported callId=\(callId.prefix(8)) remoteEnded=\(remoteEnded)"
 				)
@@ -4715,6 +4748,22 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			)
 			return
 		}
+		// The call this suspend was armed for is over (declined, ended, timed
+		// out). Suspending now only sends the user to the home screen while
+		// they are using Beamio.
+		if !hasLiveCallKitCall() {
+			writeBusyQaBreadcrumb(
+				"suspend-perform-skip-no-call:\(reason):state=\(state.rawValue):attempt=\(attempt)"
+			)
+			NSLog(
+				"[BeamioCallKit] suspend-perform SKIP — no live CallKit call reason=%@",
+				reason
+			)
+			if !softReassertInFlight {
+				endIdentityBackgroundTask()
+			}
+			return
+		}
 		// v67: sticky Incoming + busy / self-probe must not end the identity
 		// background task or call private suspend. Those drop the banner
 		// while CXCallObserver still reports the call as live.
@@ -5432,11 +5481,10 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 					reason: "system-cxend-natural",
 					callId: stickyIdentity.callId
 				)
-				emitToWebWhenForeground(
-					"callRejected",
-					callId: stickyIdentity.callId,
-					sessionId: stickyIdentity.sessionId
-				)
+				// Same route as a normal Decline: the shell sends the reject
+				// uplink now. Deferring to the WebView left the caller ringing
+				// while Beamio stayed in the background.
+				onAction?("callRejected", stickyIdentity.callId, stickyIdentity.sessionId)
 				return
 			}
 
@@ -5521,11 +5569,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 					reason: "system-cxend-snap-natural",
 					callId: snap.callId
 				)
-				emitToWebWhenForeground(
-					"callRejected",
-					callId: snap.callId,
-					sessionId: snap.sessionId
-				)
+				// Same route as a normal Decline: the shell sends the reject now.
+				onAction?("callRejected", snap.callId, snap.sessionId)
 				return
 			}
 			stickyRingingSnapshot = snap
@@ -5938,6 +5983,17 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			if !known.isEmpty { return known }
 			return payload.callKitHandle
 		}()
+		// This device already declined or hung up this call. A soft report (PWA
+		// bridge, replayed chat offer) must not ring it again. PushKit still
+		// takes the normal path (Apple requires a report for every VoIP push).
+		if !mustReportForPushKit,
+		   BeamioNativeVoiceSignaling.wasLocallyEnded(callId: callId, sessionId: sessionId)
+		{
+			NSLog("[BeamioVoip] soft report SKIP — already ended on this device callId=%@", callId)
+			callKit.writeBusyQaBreadcrumb("soft-skip-locally-ended:\(callId)")
+			DispatchQueue.main.async { completion?(nil) }
+			return
+		}
 		let now = Date()
 		let softRecentSame =
 			callId == lastReportedCallId && now.timeIntervalSince(lastReportedAt) < 2
@@ -6163,8 +6219,22 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 
 	var isGlassIncomingPresented: Bool { false }
 
+	/// Send a call action to the PWA only (no CallKit or uplink side effects).
+	/// Queued until the WebView bridge is ready. Main thread.
+	func emitCallActionToWeb(_ action: String, callId: String, sessionId: String) {
+		if let webBridge {
+			webBridge(action, callId, sessionId)
+		} else {
+			pendingBridgeActions.append((action, callId, sessionId))
+		}
+	}
+
 	private func forwardCallKitAction(_ action: String, callId: String, sessionId: String) {
 		// Decline / Answer / End: native entry path — do not wait for PWA.
+		if action == "callRejected" || action == "callEnded" {
+			// A later soft report of this call (PWA, replayed offer) must not ring again.
+			BeamioNativeVoiceSignaling.markLocallyEnded(callId: callId, sessionId: sessionId)
+		}
 		if action == "callRejected" {
 			if BeamioNativeVoiceSignaling.wasRemoteEnded(callId: callId, sessionId: sessionId) {
 				// The caller cancelled: nothing to decline, and no uplink is needed.
