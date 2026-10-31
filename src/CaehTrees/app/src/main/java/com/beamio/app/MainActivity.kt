@@ -97,8 +97,14 @@ class MainActivity : ComponentActivity() {
         @Volatile
         private var activeInstance: MainActivity? = null
 
+        @Volatile
+        private var uiResumed: Boolean = false
+
         /** True while the WebView activity exists in this process. A cold FCM wake has no instance. */
         fun isRunning(): Boolean = activeInstance != null
+
+        /** True only while MainActivity is between onResume and onPause (user-visible). */
+        fun isUiResumed(): Boolean = uiResumed
 
         /**
          * Bring the Consumer shell to the foreground so its PWA can reconnect
@@ -109,12 +115,71 @@ class MainActivity : ComponentActivity() {
          * is delivered one-way through reportIncomingSystemCall().
          */
         fun wakeConsumerShell(context: Context) {
-            if (isRunning()) {
+            // Glass lives in its own task. Raising opaque Main while glass is
+            // presenting covers IncomingCallActivity on Samsung — mailbox only.
+            if (IncomingCallActivity.isPresentInFlight() || IncomingCallActivity.isShowing()) {
                 requestMailboxWake()
-                Log.i("BeamioVoiceCall", "Mailbox wake delivered without covering the incoming window")
+                Log.i("BeamioVoiceCall", "Mailbox wake only; incoming glass owns foreground")
+                return
+            }
+            // Under launcher, moveTaskToFront / PendingIntent.raise Main BAL_BLOCK
+            // and aborts the pending CallStyle FSI. During RINGING, mailbox only.
+            if (BeamioTelecomService.hasActiveIncomingRing()) {
+                requestMailboxWake()
+                Log.i("BeamioVoiceCall", "Mailbox wake only; CallStyle FSI owns glass under launcher")
+                return
+            }
+            if (isUiResumed()) {
+                requestMailboxWake()
+                Log.i("BeamioVoiceCall", "Mailbox wake; Main already resumed")
+                return
+            }
+            if (isRunning()) {
+                bringAppTaskForward(context)
+                requestMailboxWake()
+                Log.i("BeamioVoiceCall", "Mailbox wake + app task raised")
                 return
             }
             Log.i("BeamioVoiceCall", "Shell start waits until the incoming window is showing")
+        }
+
+        /**
+         * Move the existing MainActivity task above the launcher so a same-task
+         * translucent IncomingCallActivity can actually appear. Uses
+         * moveTaskToFront plus a BAL-safe PendingIntent on the opaque shell
+         * (Samsung often Aborts translucent starts while allowing opaque).
+         */
+        fun bringAppTaskForward(context: Context) {
+            val app = context.applicationContext
+            val activity = activeInstance
+            if (activity != null) {
+                runCatching {
+                    @Suppress("DEPRECATION")
+                    val am = app.getSystemService(android.app.ActivityManager::class.java)
+                    am?.moveTaskToFront(
+                        activity.taskId,
+                        android.app.ActivityManager.MOVE_TASK_WITH_HOME,
+                    )
+                    Log.i(
+                        "BeamioVoiceCall",
+                        "App task moveTaskToFront taskId=${activity.taskId}",
+                    )
+                }.onFailure {
+                    Log.w("BeamioVoiceCall", "App task moveTaskToFront failed: ${it.message}")
+                }
+            }
+            val intent = Intent(app, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                    Intent.FLAG_ACTIVITY_NO_USER_ACTION
+                putExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, true)
+            }
+            IncomingCallActivity.forceBringActivityViaPendingIntent(
+                app,
+                intent,
+                requestCode = 2,
+            )
         }
 
         /** Wake the PWA mailbox listener without reordering activities. */
@@ -181,12 +246,58 @@ class MainActivity : ComponentActivity() {
             "metamask", "cbwallet", "coinbase", "base",
             "okx", "okex", "tpdapp", "tpoutside", "phantom", "trust",
         )
+
+        /**
+         * Minimize InCall → bring MainActivity forward and show the green
+         * “Return to call” pill (iOS BeamioInCallReturnPill).
+         */
+        fun bringForwardWithInCallReturnPill(context: Context) {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                putExtra(EXTRA_SHOW_IN_CALL_RETURN_PILL, true)
+            }
+            runCatching { context.startActivity(intent) }
+            val activity = activeInstance
+            if (activity != null) {
+                activity.runOnUiThread { activity.showInCallReturnPill() }
+            }
+        }
+
+        fun hideInCallReturnPill() {
+            val activity = activeInstance ?: return
+            activity.runOnUiThread { activity.hideInCallReturnPillInternal() }
+        }
+
+        /**
+         * Prompt RECORD_AUDIO for native temporary-channel mic uplink when
+         * MainActivity is the foreground host (InCall may not be showing yet).
+         */
+        fun requestMicForVoiceUplink() {
+            val activity = activeInstance ?: return
+            if (activity.isFinishing) return
+            activity.runOnUiThread { activity.ensureMicForVoiceUplink() }
+        }
+
+        private const val EXTRA_SHOW_IN_CALL_RETURN_PILL = "beamio.show_in_call_return_pill"
     }
 
     private lateinit var webView: WebView
     private var nativeVoiceMic: BeamioNativeVoiceMic? = null
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
+    /** Green return-to-call pill while InCall is minimized (iOS parity). */
+    private var inCallReturnPill: View? = null
+    private val inCallReturnPillHandler = Handler(Looper.getMainLooper())
+    private val inCallReturnPillTick = object : Runnable {
+        override fun run() {
+            refreshInCallReturnPillLabel()
+            if (inCallReturnPill != null && InCallScreenModel.isLive()) {
+                inCallReturnPillHandler.postDelayed(this, 1_000L)
+            }
+        }
+    }
     /** Full-screen in-app browser overlay (bottom → top). Null when closed. */
     private var inAppBrowserOverlay: ViewGroup? = null
     private var inAppBrowserWebView: WebView? = null
@@ -430,6 +541,24 @@ class MainActivity : ComponentActivity() {
         pendingWebPermissionRequest = null
         if (req == null) return@registerForActivityResult
         grantWebViewMediaRequest(req)
+    }
+
+    /** Native Accept path (no WebView getUserMedia) — mic for PCM uplink. */
+    private val requestNativeVoiceMicPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        Log.i(TAG, "native voice RECORD_AUDIO granted=$granted")
+        if (granted) {
+            BeamioNativeVoiceChannel.retryCaptureAfterMicPermission()
+        } else {
+            Log.w(TAG, "native voice RECORD_AUDIO denied — media uplink silent")
+        }
+    }
+
+    private fun ensureMicForVoiceUplink() {
+        BeamioVoiceMicPermission.requestIfNeeded(this, requestNativeVoiceMicPermission) {
+            BeamioNativeVoiceChannel.retryCaptureAfterMicPermission()
+        }
     }
 
     private val requestNativeCameraPermission = registerForActivityResult(
@@ -1179,6 +1308,20 @@ class MainActivity : ComponentActivity() {
                     peerEoa = peerAddress,
                     wake = wake,
                 )
+                // Inside the shell the dialer uses the same native call screen as
+                // the callee (the PWA hides its own call page). Only a dial
+                // carries sessionKey.
+                if (sessionKey.isNotBlank()) {
+                    InCallScreenModel.beginOutgoing(callId, sessionId, peerAddress)
+                    InCallActivity.present(this@MainActivity, callId, sessionId, tag = "", address = peerAddress)
+                    Thread {
+                        val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
+                            .getOrNull().orEmpty()
+                        if (tag.isNotBlank()) {
+                            InCallActivity.refreshIdentityIfShowing(callId, sessionId, tag, peerAddress)
+                        }
+                    }.start()
+                }
             }
         }
 
@@ -1261,6 +1404,11 @@ class MainActivity : ComponentActivity() {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val callId = body.optString("callId")
                 val sessionId = body.optString("sessionId")
+                Log.i(
+                    "BeamioVoiceCall",
+                    "endSystemCall bridge callIdPresent=${callId.isNotBlank()} " +
+                        "sessionIdPresent=${sessionId.isNotBlank()}",
+                )
                 BeamioTelecomService.end(
                     this@MainActivity,
                     callId.ifBlank { sessionId },
@@ -2700,10 +2848,9 @@ class MainActivity : ComponentActivity() {
         BeamioChatPgpStore.onRosterUpsertFromWeb = { ctx -> BeamioGuardianRoster.kick(ctx) }
         BeamioGuardianRoster.kick(this)
         applyTransparentStatusBar()
-        // Glass Incoming removed — keep Main behind system CallStyle when woken for ring.
-        if (wakeForCall) {
-            moveTaskToBack(true)
-        }
+        // Do NOT moveTaskToBack on wake-for-call. Glass IncomingCallActivity is
+        // same-task translucent; putting the task behind the launcher hides the
+        // glass with MainActivity (browser→Android "no incoming window").
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         activeInstance = this
         allowShowOverLockScreenForVoiceWake(intent)
@@ -3132,8 +3279,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        uiResumed = true
         // Glass IncomingCallActivity is the only incoming UI; drop Samsung shade ghosts.
-        BeamioTelecomService.dismissStaleIncomingUi(this)
+        // Skip while waking for an incoming call — raise-then-present races onResume
+        // before glass exists; dismiss would stop FGS and kill RINGING mid-dial.
+        val wakeForCall = intent.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false)
+        if (wakeForCall || IncomingCallActivity.isPresentInFlight()) {
+            Log.i("BeamioVoiceCall", "Skip stale dismiss on resume wakeForCall=$wakeForCall")
+        } else {
+            BeamioTelecomService.dismissStaleIncomingUi(this)
+        }
         if (::rootLayout.isInitialized) {
             rootLayout.setBackgroundColor(Color.parseColor("#f8f9fa"))
         }
@@ -3150,9 +3305,118 @@ class MainActivity : ComponentActivity() {
         if (useEmbeddedPwa && ::embeddedPwaHost.isInitialized) {
             embeddedPwaHost.checkForUpdatesNow()
         }
+        if (InCallScreenModel.isLive() && !InCallScreenModel.isPresented() && !InCallActivity.isShowing()) {
+            showInCallReturnPill()
+        } else if (!InCallScreenModel.isLive()) {
+            hideInCallReturnPillInternal()
+        }
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "active"),
         )
+    }
+
+    private fun showInCallReturnPill() {
+        if (!::rootLayout.isInitialized) return
+        if (!InCallScreenModel.isLive()) {
+            hideInCallReturnPillInternal()
+            return
+        }
+        val existing = inCallReturnPill
+        if (existing != null) {
+            existing.visibility = View.VISIBLE
+            refreshInCallReturnPillLabel()
+            inCallReturnPillHandler.removeCallbacks(inCallReturnPillTick)
+            inCallReturnPillHandler.post(inCallReturnPillTick)
+            return
+        }
+        val density = resources.displayMetrics.density
+        val pill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setBackgroundResource(R.drawable.bg_in_call_return_pill)
+            val padH = (14 * density + 0.5f).toInt()
+            val padV = (10 * density + 0.5f).toInt()
+            setPadding(padH, padV, padH, padV)
+            elevation = 8 * density
+            isClickable = true
+            isFocusable = true
+            contentDescription = getString(R.string.in_call_return)
+            setOnClickListener {
+                val snap = InCallScreenModel.snapshot()
+                InCallActivity.present(
+                    this@MainActivity,
+                    snap.callId,
+                    snap.sessionId,
+                    tag = snap.tag,
+                    address = snap.address,
+                )
+                hideInCallReturnPillInternal()
+            }
+        }
+        val icon = ImageView(this).apply {
+            setImageResource(R.drawable.ic_in_call_phone)
+            val size = (18 * density + 0.5f).toInt()
+            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                marginEnd = (8 * density + 0.5f).toInt()
+            }
+            imageTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+        }
+        val label = TextView(this).apply {
+            id = View.generateViewId()
+            setTextColor(Color.WHITE)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            text = getString(R.string.in_call_return)
+            tag = "in_call_return_label"
+        }
+        pill.addView(icon)
+        pill.addView(label)
+        val statusTop = ViewCompat.getRootWindowInsets(rootLayout)
+            ?.getInsets(WindowInsetsCompat.Type.statusBars())
+            ?.top
+            ?: 0
+        val lp = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = statusTop + (12 * density + 0.5f).toInt()
+            if (topMargin < (48 * density).toInt()) {
+                topMargin = (48 * density + 0.5f).toInt()
+            }
+        }
+        rootLayout.addView(pill, lp)
+        inCallReturnPill = pill
+        refreshInCallReturnPillLabel()
+        inCallReturnPillHandler.removeCallbacks(inCallReturnPillTick)
+        inCallReturnPillHandler.post(inCallReturnPillTick)
+    }
+
+    private fun hideInCallReturnPillInternal() {
+        inCallReturnPillHandler.removeCallbacks(inCallReturnPillTick)
+        val pill = inCallReturnPill ?: return
+        inCallReturnPill = null
+        if (::rootLayout.isInitialized) {
+            rootLayout.removeView(pill)
+        }
+    }
+
+    private fun refreshInCallReturnPillLabel() {
+        val pill = inCallReturnPill as? ViewGroup ?: return
+        val label = (0 until pill.childCount)
+            .map { pill.getChildAt(it) }
+            .filterIsInstance<TextView>()
+            .firstOrNull { it.tag == "in_call_return_label" }
+            ?: return
+        val answeredAt = InCallScreenModel.snapshot().answeredAtMs
+        val elapsed = if (answeredAt <= 0L) {
+            0L
+        } else {
+            ((System.currentTimeMillis() - answeredAt) / 1000L).coerceAtLeast(0L)
+        }
+        val minutes = elapsed / 60L
+        val seconds = elapsed % 60L
+        label.text = String.format("%02d:%02d  %s", minutes, seconds, getString(R.string.in_call_return))
     }
 
     override fun onRequestPermissionsResult(
@@ -3172,6 +3436,9 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         allowShowOverLockScreenForVoiceWake(intent)
         captureBeamioDeepLink(intent)
+        if (intent.getBooleanExtra(EXTRA_SHOW_IN_CALL_RETURN_PILL, false)) {
+            showInCallReturnPill()
+        }
         if (intent.getBooleanExtra(BeamioTelecomService.EXTRA_WAKE_FOR_CALL, false)) {
             mailboxWakeDispatchAttempt = 0
             pendingSystemCallHandler.removeCallbacks(mailboxWakeDispatchRunnable)
@@ -3200,6 +3467,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        uiResumed = false
         try {
             NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
         } catch (_: Exception) {
@@ -3232,6 +3500,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         if (activeInstance === this) activeInstance = null
+        inCallReturnPillHandler.removeCallbacks(inCallReturnPillTick)
+        inCallReturnPill = null
         pendingSystemCallHandler.removeCallbacksAndMessages(null)
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
         CashTreesPushRegistration.onTokenForWeb = null

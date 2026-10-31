@@ -12,12 +12,17 @@
     <!-- Launcher icon badge via silent notification (PWA publishAppState) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- targetSdk 36 BAL blocks IncomingCallActivity under launcher; overlay glass
+         from phoneCall FGS is the reliable CallKit-style banner path. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- API 34+: phoneCall FGS posts CallStyle; microphone FGS after answer -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Incoming-call glass under launcher: AlarmManager.setAlarmClock BAL bypass (API 31+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <!-- API 34+ / 部分厂商：Foreground dispatch / ReaderMode 需在 manifest 声明，否则 onResume 内 NfcActivityManager 抛 SecurityException -->
     <uses-permission android:name="android.permission.NFC" />
     <!-- WebView QR / getUserMedia；无相机或麦克风设备仍可安装 -->
@@ -86,18 +91,35 @@
             android:theme="@style/Theme.CaehTrees" />
 
         <!--
-          Same-task singleTop (not singleInstance + separate affinity).
-          A translucent separate-task window sits under opaque MainActivity on
-          Samsung (Z-order); stacking on the app task keeps the glass visible.
+          Dedicated singleInstance task. Same-task translucent glass under a
+          backgrounded Beamio task never resumes on Samsung (app=null + Pending
+          Intents). Separate affinity + AppTask.moveToFront raises glass above
+          the launcher. Do not raise opaque Main before glass — Main covers it.
         -->
         <activity
             android:name="com.beamio.app.IncomingCallActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:launchMode="singleTop"
+            android:launchMode="singleInstance"
+            android:taskAffinity="com.beamio.app.incoming"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.CaehTrees.IncomingCallWindow" />
+
+        <!--
+          Native CallKit-style in-call page after Answer. Must show over lock
+          screen (parity with iOS BeamioInCallScreen); Answer from glass /
+          CallStyle / Telecom must not drop into a dead Main-only unlock.
+        -->
+        <activity
+            android:name="com.beamio.app.InCallActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.CaehTrees.InCall" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -142,6 +164,16 @@
                 <action android:name="com.beamio.app.action.DECLINE_CALL" />
                 <action android:name="com.beamio.app.action.MUTE_CALL" />
                 <action android:name="com.beamio.app.action.HANGUP_CALL" />
+            </intent-filter>
+        </receiver>
+        <!-- exported=true so adb shell can fire background BAL smoke; production FCM path does not use this. -->
+        <receiver
+            android:name="com.beamio.app.BeamioIncomingCallSmokeReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.beamio.app.SMOKE_INCOMING_CALL" />
+                <action android:name="com.beamio.app.SMOKE_ANSWER" />
             </intent-filter>
         </receiver>
     </application>

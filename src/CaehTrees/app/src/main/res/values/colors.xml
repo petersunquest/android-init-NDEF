@@ -9,9 +9,47 @@
     <color name="white">#FFFFFFFF</color>
     <!-- Adaptive icon background only (no template grid); tune to match your PNG edges if needed -->
     <color name="ic_launcher_adaptive_background">#0A1018</color>
-    <!-- Full-screen behind the dual-window banner stays clear; banner fill is glass_bg. -->
+    <!-- Layout chrome behind the glass card (overlay + content view). Must be
+         transparent so TYPE_APPLICATION_OVERLAY does not paint a black slab
+         behind the CallKit glass. Activity windowBackground still uses the
+         opaque color below — Samsung BAL aborts translucent IncomingCallActivity
+         (code 102). Banner fill stays on glass_bg. -->
     <color name="incoming_call_scrim">#00000000</color>
     <color name="incoming_call_window">#00000000</color>
-    <!-- Incoming-call glass banner: charcoal @ 85% opacity (alpha D9). -->
-    <color name="incoming_call_banner">#D91A1A1A</color>
+    <color name="incoming_call_window_opaque">#FF000000</color>
+    <!-- Incoming-call glass banner: iOS systemMaterial dark ≈ #2C2C2E @ 90%. -->
+    <color name="incoming_call_banner">#E62C2C2E</color>
+    <!-- Secondary label on dark glass (iOS secondaryLabel ≈ 60% white). -->
+    <color name="incoming_call_product_line">#99EBEBF5</color>
+    <!-- Flat fallbacks (legacy refs); glass buttons use metallic rim/face below. -->
+    <color name="incoming_call_decline">#FFD81720</color>
+    <color name="incoming_call_answer">#FF0754D9</color>
+    <!-- Reject metallic rim (CSS 180deg) + face (CSS 160deg). -->
+    <color name="incoming_call_decline_rim_start">#FFFF7779</color>
+    <color name="incoming_call_decline_rim_mid">#FFD51B22</color>
+    <color name="incoming_call_decline_rim_end">#FF79080D</color>
+    <color name="incoming_call_decline_face_start">#FFF02A31</color>
+    <color name="incoming_call_decline_face_mid">#FFD81720</color>
+    <color name="incoming_call_decline_face_end">#FFB40C15</color>
+    <!-- Accept metallic rim + face. -->
+    <color name="incoming_call_answer_rim_start">#FF75BAFF</color>
+    <color name="incoming_call_answer_rim_mid">#FF1767EE</color>
+    <color name="incoming_call_answer_rim_end">#FF063184</color>
+    <color name="incoming_call_answer_face_start">#FF1671F8</color>
+    <color name="incoming_call_answer_face_mid">#FF0754D9</color>
+    <color name="incoming_call_answer_face_end">#FF063FAE</color>
+
+    <!-- Unlocked in-call page (iOS BeamioInCallScreen). -->
+    <color name="in_call_bg_top">#FF2C3A4D</color>
+    <color name="in_call_bg_mid">#FF161E2A</color>
+    <color name="in_call_bg_bottom">#FF0A0E15</color>
+    <color name="in_call_control_disc">#33FFFFFF</color>
+    <color name="in_call_control_disc_active">#FFFFFFFF</color>
+    <color name="in_call_end">#FFFF3B30</color>
+    <color name="in_call_eoa_accent">#FF0051D1</color>
+    <color name="in_call_eoa_surface">#FFE9EDFF</color>
+    <color name="in_call_eoa_border">#FFDCE2F7</color>
+    <color name="in_call_eoa_text">#FF424655</color>
+    <color name="in_call_return_pill">#FF2FAF52</color>
+
 </resources>

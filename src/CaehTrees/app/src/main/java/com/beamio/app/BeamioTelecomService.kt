@@ -78,6 +78,35 @@ class BeamioTelecomService : ConnectionService() {
         )
     }
 
+    /**
+     * Telecom rejected the incoming Connection (OEM WAITING_CALL zombies, too many
+     * self-managed RINGING, etc.). Without this override the offer stays silent:
+     * reportIncoming armed the ring clock and deferred glass to onShowIncomingCallUi,
+     * which never runs — CallStyle/FSI and IncomingCallActivity never arm.
+     */
+    override fun onCreateIncomingConnectionFailed(
+        connectionManagerPhoneAccount: PhoneAccountHandle?,
+        request: ConnectionRequest,
+    ) {
+        val callId = request.extras?.getString(EXTRA_CALL_ID).orEmpty()
+        val originalCallId = request.extras?.getString(EXTRA_ORIGINAL_CALL_ID).orEmpty()
+        val sessionId = request.extras?.getString(EXTRA_SESSION_ID).orEmpty()
+        Log.w(
+            TAG,
+            "createConnectionFailed → CallStyle/glass fallback " +
+                "callIdPresent=${callId.isNotBlank()} " +
+                "originalCallIdPresent=${originalCallId.isNotBlank()} " +
+                "sessionIdPresent=${sessionId.isNotBlank()}",
+        )
+        fallBackIncomingWithoutTelecom(
+            this,
+            telecomCallId = callId,
+            originalCallId = originalCallId,
+            sessionId = sessionId,
+            requestExtras = request.extras,
+        )
+    }
+
     override fun onCreateOutgoingConnection(
         connectionManagerPhoneAccount: PhoneAccountHandle?,
         request: ConnectionRequest,
@@ -138,7 +167,7 @@ class BeamioTelecomService : ConnectionService() {
             )
         }
 
-        override fun onShowIncomingCallUi() {
+            override fun onShowIncomingCallUi() {
             // Ringing still uses the incoming card. Once the call is up, the
             // status-bar chip must return to the in-app call page.
             val stillRinging = incoming && state == STATE_RINGING
@@ -146,6 +175,10 @@ class BeamioTelecomService : ConnectionService() {
                 openActiveCallScreen(context, callId, sessionId)
                 return
             }
+            Log.i(TAG, "onShowIncomingCallUi RINGING callIdPresent=${callId.isNotBlank()}")
+            // Connection is RINGING — BAL exemption is live only on this binder
+            // call stack. Present glass *first* (sync), then arm CallStyle shade.
+            // Do not Handler.post — posting loses REASON_SELF_MANAGED_CONNECTION_SERVICE.
             showIncomingCallNotification(
                 context, callId, peerAddress, displayName, sessionId,
                 claimedTag, claimedAddress, identityWarning,
@@ -155,6 +188,60 @@ class BeamioTelecomService : ConnectionService() {
         fun updateCallerDisplayName(name: String) {
             if (!incoming || name.isBlank()) return
             setCallerDisplayName(name, TelecomManager.PRESENTATION_ALLOWED)
+        }
+
+        /** Endpoints Telecom offers for this call (Android 14+). */
+        @Volatile private var availableEndpoints: List<android.telecom.CallEndpoint> = emptyList()
+
+        override fun onAvailableCallEndpointsChanged(endpoints: MutableList<android.telecom.CallEndpoint>) {
+            availableEndpoints = endpoints.toList()
+        }
+
+        /**
+         * Speaker on/off for a self-managed call. Telecom owns the audio route,
+         * so AudioManager.setSpeakerphoneOn is ignored; ask Telecom instead.
+         */
+        fun setSpeaker(on: Boolean): Boolean {
+            if (Build.VERSION.SDK_INT >= 34) {
+                val wantType = if (on) {
+                    android.telecom.CallEndpoint.TYPE_SPEAKER
+                } else {
+                    android.telecom.CallEndpoint.TYPE_EARPIECE
+                }
+                val endpoint = availableEndpoints.firstOrNull { it.endpointType == wantType }
+                    ?: if (!on) {
+                        // No earpiece (e.g. headset only): take any non-speaker route.
+                        availableEndpoints.firstOrNull {
+                            it.endpointType != android.telecom.CallEndpoint.TYPE_SPEAKER
+                        }
+                    } else {
+                        null
+                    }
+                if (endpoint != null) {
+                    requestCallEndpointChange(
+                        endpoint,
+                        java.util.concurrent.Executors.newSingleThreadExecutor(),
+                        object : android.os.OutcomeReceiver<Void, android.telecom.CallEndpointException> {
+                            override fun onResult(result: Void?) {
+                                Log.i(TAG, "speaker=$on endpoint changed")
+                            }
+
+                            override fun onError(error: android.telecom.CallEndpointException) {
+                                Log.w(TAG, "speaker=$on endpoint change failed: ${error.message}")
+                            }
+                        },
+                    )
+                    return true
+                }
+                Log.w(TAG, "speaker=$on no matching endpoint (available=${availableEndpoints.size})")
+            }
+            Log.i(TAG, "speaker=$on via setAudioRoute")
+            @Suppress("DEPRECATION")
+            setAudioRoute(
+                if (on) android.telecom.CallAudioState.ROUTE_SPEAKER
+                else android.telecom.CallAudioState.ROUTE_WIRED_OR_EARPIECE,
+            )
+            return true
         }
 
         /** Mark disconnect as already handled so onDisconnect will not emit callEnded. */
@@ -218,6 +305,23 @@ class BeamioTelecomService : ConnectionService() {
         private const val CALLER_POOL_PREFS = "beamio_pending_caller_pool_v1"
         private const val CALLER_POOL_TTL_MS = 2 * 60 * 1000L
         private val activeConnections = ConcurrentHashMap<String, BeamioConnection>()
+
+        /**
+         * Route the live call to the speaker (or back). Returns false when no
+         * Telecom connection is live, so the caller can fall back to AudioManager.
+         */
+        fun setSpeaker(on: Boolean): Boolean {
+            val all = activeConnections.values.distinct()
+            val live = all.filter { it.occupiesVoiceChrome() }
+            Log.i(
+                TAG,
+                "setSpeaker on=$on connections=${all.size} live=${live.size} " +
+                    "states=${all.joinToString(",") { it.state.toString() }}",
+            )
+            if (live.isEmpty()) return false
+            live.forEach { runCatching { it.setSpeaker(on) } }
+            return true
+        }
         // FCM may create the Telecom call before the PWA has verified the
         // caller. Keep a process-local submission set so the later verified
         // report only updates the existing call instead of submitting a
@@ -347,6 +451,30 @@ class BeamioTelecomService : ConnectionService() {
             } catch (_: SecurityException) {
                 // Register below; registerPhoneAccount is idempotent.
             }
+            registerSelfManagedPhoneAccount(telecom, handle)
+        }
+
+        /**
+         * Unregister + re-register so Telecom drops orphan RINGING / WAITING_CALL
+         * rows that no longer map to a live [Connection] in this process (common
+         * after forceClear / install-over when Samsung kept zombies).
+         */
+        fun resetSelfManagedPhoneAccount(context: Context) {
+            val telecom = context.getSystemService(TelecomManager::class.java) ?: return
+            val handle = phoneAccountHandle(context)
+            runCatching {
+                telecom.unregisterPhoneAccount(handle)
+                Log.i(TAG, "PhoneAccount unregistered to clear Telecom RINGING orphans")
+            }.onFailure {
+                Log.w(TAG, "PhoneAccount unregister failed: ${it.message}")
+            }
+            registerSelfManagedPhoneAccount(telecom, handle)
+        }
+
+        private fun registerSelfManagedPhoneAccount(
+            telecom: TelecomManager,
+            handle: PhoneAccountHandle,
+        ) {
             val account = PhoneAccount.builder(handle, "Beamio Phone")
                 .setCapabilities(PhoneAccount.CAPABILITY_SELF_MANAGED)
                 .setSupportedUriSchemes(listOf(PHONE_SCHEME))
@@ -383,15 +511,22 @@ class BeamioTelecomService : ConnectionService() {
             val previous = shownCallers[callKey]
             val generic = isGenericCallerName(displayName) || isWalletAddress(displayName)
             val previousTag = previous?.displayName?.takeIf(::isBeamioTag)
+                ?: previous?.claimedTag?.takeIf(::isBeamioTag)
+            val mergedDisplay = when {
+                isBeamioTag(displayName) -> displayName.trim()
+                previousTag != null && generic -> previousTag
+                generic -> previous?.displayName?.takeUnless(::isGenericCallerName) ?: displayName
+                else -> displayName
+            }
+            val mergedClaimed = when {
+                isBeamioTag(claimedTag) -> claimedTag.trim()
+                isBeamioTag(mergedDisplay) -> mergedDisplay.trim()
+                else -> claimedTag.ifBlank { previous?.claimedTag.orEmpty() }
+            }
             val merged = ShownCaller(
                 peerAddress = peerAddress.ifBlank { previous?.peerAddress.orEmpty() },
-                displayName = when {
-                    isBeamioTag(displayName) -> displayName.trim()
-                    previousTag != null && generic -> previousTag
-                    generic -> previous?.displayName?.takeUnless(::isGenericCallerName) ?: displayName
-                    else -> displayName
-                },
-                claimedTag = claimedTag.ifBlank { previous?.claimedTag.orEmpty() },
+                displayName = mergedDisplay,
+                claimedTag = mergedClaimed,
                 claimedAddress = claimedAddress.ifBlank { previous?.claimedAddress.orEmpty() },
                 identityWarning = identityWarning.ifBlank { previous?.identityWarning.orEmpty() },
             )
@@ -463,10 +598,17 @@ class BeamioTelecomService : ConnectionService() {
                 !cachedGeneric || fallbackGeneric -> stored.displayName.ifBlank { fallback.displayName }
                 else -> fallback.displayName
             }
+            val claimed = when {
+                isBeamioTag(fallback.claimedTag) -> fallback.claimedTag.trim()
+                isBeamioTag(stored.claimedTag) -> stored.claimedTag.trim()
+                isBeamioTag(displayName) -> displayName.trim()
+                isBeamioTag(fallback.displayName) -> fallback.displayName.trim()
+                else -> stored.claimedTag.ifBlank { fallback.claimedTag }
+            }
             return ShownCaller(
                 peerAddress = stored.peerAddress.ifBlank { fallback.peerAddress },
                 displayName = displayName,
-                claimedTag = stored.claimedTag.ifBlank { fallback.claimedTag },
+                claimedTag = claimed,
                 claimedAddress = stored.claimedAddress.ifBlank { fallback.claimedAddress },
                 identityWarning = stored.identityWarning.ifBlank { fallback.identityWarning },
             )
@@ -506,12 +648,136 @@ class BeamioTelecomService : ConnectionService() {
             return key.isNotEmpty() && busyRejectKeys.contains(key)
         }
 
-        /** Glass window, answered call, or a claim made before either exists. */
-        fun hasStickyVoiceChrome(): Boolean {
+        /**
+         * Live chrome the user can see or hear — not leftover claim keys alone.
+         * Orphan [claimedChromeKeys] without this must not busy-reject the next dial.
+         */
+        private fun hasLiveVoiceChrome(): Boolean {
+            // claimedChromeKeys alone is NOT live chrome — BAL Abort can leave
+            // ownership claimed with no glass, which then busy-rejects later dials.
             if (IncomingCallActivity.isShowing()) return true
             if (BeamioNativeVoiceSignaling.currentActiveCall() != null) return true
-            if (claimedChromeKeys.isNotEmpty()) return true
-            return activeConnections.values.any { it.occupiesVoiceChrome() }
+            // RINGING / DIALING without glass is orphan sticky chrome (BAL Abort
+            // after rememberChromeOwner). Do not treat it as busy for the next dial.
+            return activeConnections.values.any { it.hasVisibleOrConnectedChrome() }
+        }
+
+        /**
+         * True when a connection should block a second dial: active/holding always,
+         * ringing/dialing only while the glass window is actually showing.
+         */
+        private fun BeamioConnection.hasVisibleOrConnectedChrome(): Boolean {
+            return when (state) {
+                Connection.STATE_ACTIVE, Connection.STATE_HOLDING -> true
+                Connection.STATE_RINGING, Connection.STATE_DIALING -> IncomingCallActivity.isShowing()
+                else -> false
+            }
+        }
+
+        /** Glass window, answered call, or a claim made before either exists. */
+        fun hasStickyVoiceChrome(): Boolean {
+            if (hasLiveVoiceChrome()) return true
+            return claimedChromeKeys.isNotEmpty()
+        }
+
+        /**
+         * Keyguard / lock / screen-off: overlay cannot appear above it; CallStyle
+         * FSI (USE_FULL_SCREEN_INTENT) must own the lock UI.
+         *
+         * Screen-off race: after KEYCODE_SLEEP, [KeyguardManager.isKeyguardLocked]
+         * can still be false briefly while the panel is non-interactive. Treat
+         * !isInteractive as lock UI so we never demote CallStyle to quiet keep-alive
+         * before the keyguard fully engages (Samsung lock = no Beamio incoming).
+         */
+        fun isDeviceKeyguardLocked(context: Context): Boolean {
+            val app = context.applicationContext
+            val pm = app.getSystemService(android.os.PowerManager::class.java)
+            val interactive = runCatching { pm?.isInteractive }.getOrNull()
+            if (interactive == false) return true
+            val km = app.getSystemService(android.app.KeyguardManager::class.java)
+                ?: return false
+            return runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                    km.isDeviceLocked || km.isKeyguardLocked
+                } else {
+                    @Suppress("DEPRECATION")
+                    km.inKeyguardRestrictedInputMode()
+                }
+            }.getOrDefault(false)
+        }
+
+        /**
+         * Product glass is actually on-screen (Activity or attached overlay).
+         * [IncomingCallOverlay.canPresent] is only SYSTEM_ALERT_WINDOW permission —
+         * using it as "chrome up" skips CallStyle under the keyguard and leaves a
+         * quiet keep-alive with no Answer button (lock-screen answer dead).
+         * Overlay [IncomingCallOverlay.isShowing] under keyguard is a lie — the
+         * window attaches but is invisible; never treat it as chrome then.
+         *
+         * Under keyguard / screen-off: always false. [IncomingCallActivity] may
+         * report isShowing while occluded behind Samsung keyguard; demoting
+         * CallStyle then leaves the lock screen with no Beamio incoming UI.
+         */
+        private fun productIncomingChromeVisible(context: Context? = null): Boolean {
+            val app = context?.applicationContext
+            if (app != null && isDeviceKeyguardLocked(app)) return false
+            if (IncomingCallActivity.isShowing()) return true
+            return IncomingCallOverlay.isShowing()
+        }
+
+        /**
+         * Debug / smoke only: wipe sticky chrome so the next dial is not
+         * busy-rejected by orphan claimed keys, ACTIVE connections, or keep-alive
+         * notifications left after a failed BAL / lock-screen arm.
+         */
+        fun forceClearStickyVoiceStateForSmoke(context: Context) {
+            val app = context.applicationContext
+            Log.i(TAG, "forceClearStickyVoiceStateForSmoke begin")
+            runCatching {
+                activeConnections.values.toList().forEach { conn ->
+                    runCatching {
+                        conn.setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
+                        conn.destroy()
+                    }
+                }
+                activeConnections.clear()
+            }
+            claimedChromeKeys.clear()
+            busyRejectKeys.clear()
+            submittedIncomingCalls.clear()
+            settledCallActions.clear()
+            armedCallStyleKeys.clear()
+            lastArmedCallStyleTitle.clear()
+            mutedIncomingKeys.clear()
+            incomingRingClocks.keys.toList().forEach { key ->
+                incomingRingClocks.remove(key)?.runnable?.let { incomingRingHandler.removeCallbacks(it) }
+            }
+            BeamioNativeVoiceSignaling.clearActiveCall()
+            InCallScreenModel.end()
+            runCatching { IncomingCallActivity.finishIfShowing() }
+            runCatching { IncomingCallOverlay.dismiss() }
+            runCatching { InCallActivity.finishIfShowing() }
+            BeamioCallForegroundService.stop(app)
+            runCatching {
+                val nm = NotificationManagerCompat.from(app)
+                nm.cancelAll()
+            }
+            // Drop Telecom-framework RINGING / WAITING_CALL orphans that are not
+            // in our process map — otherwise the next addNewIncomingCall fails
+            // with createConnectionFailed and lock-screen glass never arms.
+            resetSelfManagedPhoneAccount(app)
+            Log.i(TAG, "forceClearStickyVoiceStateForSmoke done")
+        }
+
+        /** Drop busy-reject marks that mention any of [ids] (callId / sessionId aliases). */
+        private fun clearBusyRejectForIds(ids: Collection<String>) {
+            val needles = ids.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+            if (needles.isEmpty()) return
+            busyRejectKeys.removeIf { key ->
+                needles.any { id ->
+                    key == id || key.startsWith("$id|") || key.endsWith("|$id") || key.contains("|$id|")
+                }
+            }
         }
 
         /**
@@ -561,11 +827,89 @@ class BeamioTelecomService : ConnectionService() {
                 .forEach { claimedChromeKeys.add(it) }
         }
 
-        private fun releaseChromeOwner(callId: String, sessionId: String) {
-            listOf(callId, sessionId)
+        /**
+         * True when sticky chrome already belongs to a *different* call than
+         * [callId]/[sessionId]. A stale mid-ring `callEnded` (old voice_end /
+         * silent bridge end) must not tear down the ringing call's chrome.
+         */
+        private fun shouldIgnoreStaleTerminalAction(callId: String, sessionId: String): Boolean {
+            if (!hasStickyVoiceChrome()) return false
+            val ending = listOf(callId, sessionId)
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
-                .forEach { claimedChromeKeys.remove(it) }
+                .toSet()
+            if (ending.isEmpty()) return false
+            val owned = primaryVoiceCallKeys()
+            if (owned.isEmpty()) return false
+            val foreign = ending.none { owned.contains(it) }
+            if (foreign) {
+                Log.i(
+                    TAG,
+                    "ignore stale terminal; sticky chrome preserved " +
+                        "endingCount=${ending.size} ownedCount=${owned.size}",
+                )
+            }
+            return foreign
+        }
+
+        /**
+         * Only one call owns the incoming glass. [reportIncoming] claims the WebView
+         * `callId` plus `sessionId` / nativeCallId; the glass Intent only carries
+         * nativeCallId (= sessionId). Decline used to [Set.remove] just those two and
+         * left the original callId in [claimedChromeKeys], so [hasStickyVoiceChrome]
+         * stayed true for minutes and the next offer was busy-rejected with no window.
+         *
+         * Empty [callId]/[sessionId] force-clears (orphan teardown). Non-empty
+         * ending ids that do not intersect claimed/submitted are skipped so a
+         * foreign mid-ring `callEnded` cannot nuclear-wipe the current ring.
+         */
+        private fun releaseChromeOwner(callId: String, sessionId: String) {
+            val ending = listOf(callId, sessionId)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            if (ending.isEmpty()) {
+                val cleared = claimedChromeKeys.size
+                val aliases = claimedChromeKeys.toList()
+                val busyCleared = busyRejectKeys.size
+                claimedChromeKeys.clear()
+                aliases.forEach { submittedIncomingCalls.remove(it) }
+                // busyRejectKeys used to stick until process death — a false
+                // secondary reject then blocked every retry of that offer.
+                busyRejectKeys.clear()
+                if (cleared > 0 || busyCleared > 0) {
+                    Log.i(
+                        TAG,
+                        "chrome ownership force-cleared claimedWas=$cleared " +
+                            "busyRejectWas=$busyCleared",
+                    )
+                }
+                return
+            }
+            val intersects = ending.any { claimedChromeKeys.contains(it) } ||
+                ending.any { submittedIncomingCalls.contains(it) }
+            if (!intersects) {
+                // Still drop busy-reject marks for this offer so a later idle
+                // retry is not permanently poisoned.
+                clearBusyRejectForIds(ending)
+                Log.i(
+                    TAG,
+                    "releaseChromeOwner skipped; ending ids not in claimed/submitted",
+                )
+                return
+            }
+            val aliases = linkedSetOf<String>()
+            aliases.addAll(ending)
+            aliases.addAll(claimedChromeKeys)
+            val cleared = claimedChromeKeys.size
+            claimedChromeKeys.clear()
+            aliases.forEach { submittedIncomingCalls.remove(it) }
+            clearBusyRejectForIds(aliases)
+            if (cleared > 0 || aliases.isNotEmpty()) {
+                Log.i(
+                    TAG,
+                    "chrome ownership cleared claimedWas=$cleared aliasCount=${aliases.size}",
+                )
+            }
         }
 
         private fun busyKey(callId: String, sessionId: String): String {
@@ -590,10 +934,93 @@ class BeamioTelecomService : ConnectionService() {
                     if (id.isNotEmpty()) keys.add(id)
                 }
             }
+            // Same glass gate as hasLiveVoiceChrome: RINGING without a window
+            // must not poison anotherCallOwnsChrome for the next browser dial.
             activeConnections.values.forEach { connection ->
-                if (connection.occupiesVoiceChrome()) keys.addAll(connection.identityKeys())
+                if (connection.hasVisibleOrConnectedChrome()) {
+                    keys.addAll(connection.identityKeys())
+                }
             }
             return keys
+        }
+
+        /**
+         * Tear Telecom RINGING/DIALING rows that never got a glass window so the
+         * next dial is not stuck behind an invisible primary connection.
+         * [keepKeys] protects the offer we are about to present.
+         */
+        private fun tearDownInvisibleRingingConnections(
+            context: Context,
+            keepKeys: Set<String> = emptySet(),
+        ) {
+            if (IncomingCallActivity.isShowing()) return
+            val orphans = activeConnections.entries.filter { (_, connection) ->
+                val ringingOrDialing =
+                    connection.state == Connection.STATE_RINGING ||
+                        connection.state == Connection.STATE_DIALING
+                if (!ringingOrDialing) return@filter false
+                connection.identityKeys().none { keepKeys.contains(it) }
+            }.toList()
+            if (orphans.isEmpty()) return
+            orphans.forEach { (key, connection) ->
+                Log.i(
+                    TAG,
+                    "tearDownInvisibleRinging key=$key state=${connection.state}",
+                )
+                val ids = connection.identityKeys()
+                val idList = ids.toList()
+                cancelIncomingRingTimeout(
+                    idList.getOrElse(0) { "" },
+                    idList.getOrElse(1) { "" },
+                )
+                runCatching {
+                    connection.setDisconnected(
+                        android.telecom.DisconnectCause(
+                            android.telecom.DisconnectCause.CANCELED,
+                            "Invisible ringing chrome cleared",
+                        ),
+                    )
+                    connection.destroy()
+                }
+                activeConnections.remove(key)
+                cancelIncomingNotifications(context, key, key)
+                ids.forEach { id -> cancelIncomingNotifications(context, id, id) }
+            }
+            if (BeamioNativeVoiceSignaling.currentActiveCall() == null &&
+                activeConnections.values.none { it.occupiesVoiceChrome() }
+            ) {
+                releaseChromeOwner("", "")
+            }
+        }
+
+        /**
+         * Glass retries exhausted while launcher stayed top. Do not leave this
+         * RINGING connection as "busy" for later dials — tear it if still invisible.
+         */
+        fun onIncomingGlassPresentFailed(
+            context: Context,
+            callId: String,
+            sessionId: String,
+        ) {
+            if (IncomingCallActivity.isShowing()) return
+            Log.w(
+                TAG,
+                "incoming glass never showed after BAL retries; " +
+                    "clearing invisible RINGING so next dial can present",
+            )
+            val keep = callerLookupKeys(callId, sessionId.ifBlank { callId }, sessionId, null).toSet()
+            // Keep the current offer's connection until the ring timeout / user
+            // answers from the heads-up notification; only clear *other* orphans.
+            tearDownInvisibleRingingConnections(context, keepKeys = keep)
+            // Current offer RINGING alone must not block a later dial either.
+            synchronized(chromeGate) {
+                if (!hasLiveVoiceChrome() && claimedChromeKeys.isNotEmpty()) {
+                    val claimedWas = claimedChromeKeys.size
+                    claimedChromeKeys.clear()
+                    submittedIncomingCalls.clear()
+                    Log.i(TAG, "released claimed chrome after glass fail claimedWas=$claimedWas")
+                }
+            }
         }
 
         fun reportIncoming(
@@ -607,7 +1034,37 @@ class BeamioTelecomService : ConnectionService() {
             identityWarning: String = "",
         ) {
             val nativeCallId = sessionId.ifBlank { callId }
+            // PWA may fire reportIncomingSystemCall twice on the same bridge
+            // thread pool (offer + tag refresh). Claim Telecom submit under the
+            // same chromeGate lock so we never open TC@N and TC@N+1 for one call.
+            val callKeys = callerLookupKeys(callId, nativeCallId, sessionId, null)
+            // BAL Abort can leave Telecom RINGING with no glass. Tear those
+            // before chromeGate so the new offer is not busy-rejected and does
+            // not stack a second invisible primary connection.
+            tearDownInvisibleRingingConnections(context, keepKeys = callKeys.toSet())
+            val submitTelecom: Boolean
             synchronized(chromeGate) {
+                // Claim keys alone (no glass / visible RINGING / active signaling)
+                // are orphans from a prior race. Treating them as "busy" made the
+                // next browser dial busy-reject with no window, then stuck that
+                // offer in busyRejectKeys forever.
+                if (claimedChromeKeys.isNotEmpty() && !hasLiveVoiceChrome()) {
+                    val orphanClaims = claimedChromeKeys.size
+                    val orphanBusy = busyRejectKeys.size
+                    claimedChromeKeys.clear()
+                    submittedIncomingCalls.clear()
+                    busyRejectKeys.clear()
+                    Log.i(
+                        TAG,
+                        "reclaim orphan chrome before primary " +
+                            "claimedWas=$orphanClaims busyRejectWas=$orphanBusy",
+                    )
+                } else if (wasBusyRejected(callId, sessionId) && !hasLiveVoiceChrome()) {
+                    // Offer was false-busy-rejected while chrome was sticky; idle
+                    // now — allow this dial to present glass.
+                    clearBusyRejectForIds(listOf(callId, sessionId, nativeCallId))
+                    Log.i(TAG, "cleared idle busy-reject so offer can present glass")
+                }
                 if (wasBusyRejected(callId, sessionId)) {
                     Log.i(TAG, "ignore late push for a call already busy-rejected")
                     return
@@ -617,6 +1074,12 @@ class BeamioTelecomService : ConnectionService() {
                     return
                 }
                 rememberChromeOwner(callId, sessionId, nativeCallId)
+                // Primary claim wins over any prior busy-reject mark for this offer.
+                clearBusyRejectForIds(listOf(callId, sessionId, nativeCallId))
+                submitTelecom = callKeys.none { submittedIncomingCalls.contains(it) }
+                if (submitTelecom) {
+                    callKeys.forEach { submittedIncomingCalls.add(it) }
+                }
             }
             val shown = keepShownCaller(
                 context,
@@ -658,51 +1121,190 @@ class BeamioTelecomService : ConnectionService() {
                 IncomingCallActivity.finishIfMatching(nativeCallId, sessionId)
                 return
             }
-            ensurePhoneAccount(context)
-            // Post glass window + silent FGS before Telecom. Same id for callId and sessionId.
+            // Empty local map still allows Telecom orphans (Samsung WAITING_CALL)
+            // that make createConnectionFailed — wipe PhoneAccount first.
+            if (activeConnections.isEmpty()) {
+                resetSelfManagedPhoneAccount(context)
+            } else {
+                ensurePhoneAccount(context)
+            }
+            // Telecom RINGING first. phoneCall FGS is denied until a live
+            // Connection exists; posting CallStyle + present() before that
+            // leaves shortService only, and targetSdk 36 BAL still blocks
+            // PendingIntent.send — glass never tops the launcher.
+            if (submitTelecom) {
+                val telecom = context.getSystemService(TelecomManager::class.java)
+                if (telecom == null) {
+                    synchronized(chromeGate) {
+                        callKeys.forEach { submittedIncomingCalls.remove(it) }
+                    }
+                } else {
+                    val handle = phoneAccountHandle(context)
+                    val extras = Bundle().apply {
+                        putString(EXTRA_CALL_ID, nativeCallId)
+                        putString(EXTRA_ORIGINAL_CALL_ID, callId)
+                        putString(EXTRA_SESSION_ID, sessionId)
+                        putString(EXTRA_DISPLAY_NAME, shown.displayName)
+                        putString(EXTRA_PEER_ADDRESS, shown.peerAddress)
+                        putString(EXTRA_CLAIMED_TAG, shown.claimedTag)
+                        putString(EXTRA_CLAIMED_ADDRESS, shown.claimedAddress)
+                        putString(EXTRA_IDENTITY_WARNING, shown.identityWarning)
+                        putParcelable(
+                            TelecomManager.EXTRA_INCOMING_CALL_ADDRESS,
+                            Uri.parse("$PHONE_SCHEME:$nativeCallId"),
+                        )
+                    }
+                    try {
+                        telecom.addNewIncomingCall(handle, extras)
+                        Log.i(
+                            TAG,
+                            "Telecom addNewIncomingCall; glass deferred to onShowIncomingCallUi",
+                        )
+                        // Prefer onShowIncomingCallUi for first glass (Telecom BAL).
+                        // If OEM never creates the Connection (createConnectionFailed
+                        // or silent drop), watchdog arms CallStyle/FSI so lock screen
+                        // still shows Beamio Answer.
+                        scheduleTelecomIncomingWatchdog(
+                            context,
+                            nativeCallId = nativeCallId,
+                            originalCallId = callId,
+                            sessionId = sessionId,
+                            shown = shown,
+                        )
+                        activeConnections[nativeCallId]?.updateCallerDisplayName(shown.displayName)
+                        if (callId.isNotBlank()) {
+                            activeConnections[callId]?.updateCallerDisplayName(shown.displayName)
+                        }
+                        if (sessionId.isNotBlank()) {
+                            activeConnections[sessionId]?.updateCallerDisplayName(shown.displayName)
+                        }
+                        return
+                    } catch (error: Exception) {
+                        synchronized(chromeGate) {
+                            callKeys.forEach { submittedIncomingCalls.remove(it) }
+                        }
+                        Log.w(TAG, "Telecom addNewIncomingCall failed; posting glass without Telecom BAL", error)
+                    }
+                }
+            } else {
+                Log.i(
+                    TAG,
+                    "Telecom incoming call already submitted; refresh glass " +
+                        "callIdPresent=${callId.isNotBlank()} " +
+                        "sessionIdPresent=${sessionId.isNotBlank()}",
+                )
+            }
+            // Fallback / refresh path (Telecom unavailable or already submitted).
             showIncomingCallNotification(
                 context, nativeCallId, shown.peerAddress, shown.displayName, sessionId,
                 shown.claimedTag, shown.claimedAddress, shown.identityWarning,
                 aliasCallId = callId,
             )
-            val telecom = context.getSystemService(TelecomManager::class.java) ?: return
-            val handle = phoneAccountHandle(context)
             activeConnections[nativeCallId]?.updateCallerDisplayName(shown.displayName)
             if (callId.isNotBlank()) activeConnections[callId]?.updateCallerDisplayName(shown.displayName)
             if (sessionId.isNotBlank()) activeConnections[sessionId]?.updateCallerDisplayName(shown.displayName)
-            val callKeys = callerLookupKeys(callId, nativeCallId, sessionId, null)
-            val alreadySubmitted = callKeys.any { submittedIncomingCalls.contains(it) }
-            if (alreadySubmitted) {
-                Log.i(
+        }
+
+        /**
+         * After [TelecomManager.addNewIncomingCall], wait briefly for a live
+         * [Connection]. If OEM never delivers [onCreateIncomingConnection] /
+         * [onShowIncomingCallUi] (createConnectionFailed or silent drop), arm
+         * CallStyle + FSI so lock-screen glass still appears.
+         */
+        private fun scheduleTelecomIncomingWatchdog(
+            context: Context,
+            nativeCallId: String,
+            originalCallId: String,
+            sessionId: String,
+            shown: ShownCaller,
+        ) {
+            val app = context.applicationContext
+            val keys = listOf(nativeCallId, originalCallId, sessionId)
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .distinct()
+            incomingRingHandler.postDelayed({
+                val hasConn = keys.any { activeConnections.containsKey(it) }
+                if (hasConn) return@postDelayed
+                if (incomingAnswered(originalCallId, sessionId) ||
+                    incomingAnswered(nativeCallId, sessionId)
+                ) {
+                    return@postDelayed
+                }
+                if (productIncomingChromeVisible(app)) return@postDelayed
+                Log.w(
                     TAG,
-                    "Telecom incoming call already submitted; updated caller only " +
-                        "callIdPresent=${callId.isNotBlank()} " +
-                        "sessionIdPresent=${sessionId.isNotBlank()}",
+                    "Telecom incoming watchdog: no Connection after addNewIncomingCall — " +
+                        "CallStyle/FSI fallback (lock-screen glass)",
                 )
+                fallBackIncomingWithoutTelecom(
+                    app,
+                    telecomCallId = nativeCallId,
+                    originalCallId = originalCallId,
+                    sessionId = sessionId,
+                    requestExtras = null,
+                    shownOverride = shown,
+                )
+            }, 1_200L)
+        }
+
+        /**
+         * Telecom create failed or never created a Connection — clear submit
+         * gates and post CallStyle / present glass so Answer is visible under
+         * the keyguard (USE_FULL_SCREEN_INTENT).
+         */
+        internal fun fallBackIncomingWithoutTelecom(
+            context: Context,
+            telecomCallId: String,
+            originalCallId: String,
+            sessionId: String,
+            requestExtras: Bundle?,
+            shownOverride: ShownCaller? = null,
+        ) {
+            val app = context.applicationContext
+            val callId = originalCallId.ifBlank {
+                requestExtras?.getString(EXTRA_ORIGINAL_CALL_ID).orEmpty()
+            }.ifBlank { telecomCallId }
+            val sid = sessionId.ifBlank {
+                requestExtras?.getString(EXTRA_SESSION_ID).orEmpty()
+            }
+            val nativeId = telecomCallId.ifBlank { sid.ifBlank { callId } }
+            val keys = callerLookupKeys(callId, nativeId, sid, null)
+            synchronized(chromeGate) {
+                keys.forEach { submittedIncomingCalls.remove(it) }
+            }
+            if (incomingAnswered(callId, sid) || incomingAnswered(nativeId, sid)) {
+                Log.i(TAG, "fallBackIncomingWithoutTelecom skipped; already answered")
                 return
             }
-            callKeys.forEach { submittedIncomingCalls.add(it) }
-            val extras = Bundle().apply {
-                putString(EXTRA_CALL_ID, nativeCallId)
-                putString(EXTRA_ORIGINAL_CALL_ID, callId)
-                putString(EXTRA_SESSION_ID, sessionId)
-                putString(EXTRA_DISPLAY_NAME, shown.displayName)
-                putString(EXTRA_PEER_ADDRESS, shown.peerAddress)
-                putString(EXTRA_CLAIMED_TAG, shown.claimedTag)
-                putString(EXTRA_CLAIMED_ADDRESS, shown.claimedAddress)
-                putString(EXTRA_IDENTITY_WARNING, shown.identityWarning)
-                putParcelable(
-                    TelecomManager.EXTRA_INCOMING_CALL_ADDRESS,
-                    Uri.parse("$PHONE_SCHEME:$nativeCallId"),
-                )
+            if (productIncomingChromeVisible(app)) {
+                Log.i(TAG, "fallBackIncomingWithoutTelecom skipped; glass already up")
+                return
             }
-            try {
-                telecom.addNewIncomingCall(handle, extras)
-                Log.i(TAG, "Telecom addNewIncomingCall submitted")
-            } catch (error: Exception) {
-                callKeys.forEach { submittedIncomingCalls.remove(it) }
-                Log.w(TAG, "Telecom addNewIncomingCall failed; glass incoming window remains", error)
-            }
+            val extrasFallback = ShownCaller(
+                peerAddress = requestExtras?.getString(EXTRA_PEER_ADDRESS).orEmpty(),
+                displayName = requestExtras?.getString(EXTRA_DISPLAY_NAME).orEmpty()
+                    .ifBlank { "Beamio" },
+                claimedTag = requestExtras?.getString(EXTRA_CLAIMED_TAG).orEmpty(),
+                claimedAddress = requestExtras?.getString(EXTRA_CLAIMED_ADDRESS).orEmpty(),
+                identityWarning = requestExtras?.getString(EXTRA_IDENTITY_WARNING).orEmpty(),
+            )
+            val shown = shownOverride ?: resolvePendingCaller(
+                app,
+                callerLookupKeys(callId, nativeId, sid, null),
+                fallback = extrasFallback,
+            )
+            Log.i(
+                TAG,
+                "fallBackIncomingWithoutTelecom CallStyle/FSI " +
+                    "callIdPresent=${callId.isNotBlank()} " +
+                    "sessionIdPresent=${sid.isNotBlank()}",
+            )
+            showIncomingCallNotification(
+                app, nativeId, shown.peerAddress, shown.displayName, sid,
+                shown.claimedTag, shown.claimedAddress, shown.identityWarning,
+                aliasCallId = callId,
+            )
         }
 
         fun isPhoneAccountEnabled(context: Context): Boolean {
@@ -795,6 +1397,12 @@ class BeamioTelecomService : ConnectionService() {
 
         fun end(context: Context, callId: String, sessionId: String = "") {
             val id = callId.ifBlank { sessionId }
+            Log.i(
+                TAG,
+                "end() bridge callEnded callIdPresent=${callId.isNotBlank()} " +
+                    "sessionIdPresent=${sessionId.isNotBlank()} " +
+                    "endedIdPresent=${id.isNotBlank()} stickyChrome=${hasStickyVoiceChrome()}",
+            )
             completeIncomingUserAction(context, "callEnded", id, sessionId, fromTelecom = false)
         }
 
@@ -838,18 +1446,26 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         /**
-         * v13: HIGH + silent + CATEGORY_SERVICE (not CATEGORY_CALL).
-         * Samsung One UI synthesizes a second Decline/Answer heads-up for any
-         * CATEGORY_CALL / CallStyle shade card — even with setSilent + no actions.
-         * Ringtone is [BeamioIncomingRingtone]; UI is only the glass Activity.
+         * v14: HIGH + CATEGORY_CALL + CallStyle.
          *
-         * v12 used IMPORTANCE_LOW to further hide the shade card, but that also
-         * blocked fullScreenIntent while the screen was on / another app was
-         * top — BAL then silently dropped startActivity and no glass appeared.
-         * HIGH is required for FSI; CATEGORY_SERVICE + silent still avoids the
-         * Samsung call heads-up.
+         * Android 14+ (targetSdk 34+) only auto-fires fullScreenIntent for
+         * CallStyle / CATEGORY_CALL (and alarms). v13 used silent
+         * CATEGORY_SERVICE so Samsung skipped FSI while the screen was on /
+         * launcher was top — BAL then dropped startActivity and no glass
+         * appeared for browser→Android dials.
+         *
+         * v14 kept HIGH + CallStyle but muted the channel (sound/vib off);
+         * Samsung then skipped interrupt / FSI while only startForeground
+         * posted the notif. v15 keeps CallStyle and restores ringtone +
+         * vibration so NotificationManager can fire fullScreenIntent.
+         *
+         * CallStyle heads-up is the system entry when glass BAL-fails; once
+         * [IncomingCallActivity] is visible, demote to a quiet FGS keep-alive
+         * so Samsung does not leave a second Decline/Answer card over glass.
          */
-        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls_v13"
+        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls_v15"
+        /** Silent FGS keep-alive while glass / overlay is the product UI. Never HUN. */
+        private const val GLASS_KEEPALIVE_CHANNEL_ID = "beamio_glass_keepalive_v1"
         private const val NOTIFICATION_ALIAS_PREFS = "beamio_call_notification_keys"
         private const val ONGOING_CALL_CHANNEL_ID = "beamio_ongoing_calls_v2"
         private const val QUIET_ANSWERED_CHANNEL_ID = "beamio_answered_call_quiet_v1"
@@ -873,6 +1489,14 @@ class BeamioTelecomService : ConnectionService() {
         private val callerAvatarLoads = ConcurrentHashMap.newKeySet<String>()
         private val beamioTagLookups = ConcurrentHashMap.newKeySet<String>()
         private val mutedIncomingKeys = ConcurrentHashMap.newKeySet<String>()
+        /** CallStyle NM.notify + FSI already armed for these ring keys. */
+        private val armedCallStyleKeys = ConcurrentHashMap.newKeySet<String>()
+        /**
+         * Last CallStyle / keep-alive title posted per primary notification key.
+         * Used so a later verified `@BeamioTag` can quietly refresh Person/title
+         * under lock without re-arming ringtone (onlyAlertOnce).
+         */
+        private val lastArmedCallStyleTitle = ConcurrentHashMap<String, String>()
 
         private fun settleKey(action: String, callId: String): String = "$action|$callId"
 
@@ -881,6 +1505,9 @@ class BeamioTelecomService : ConnectionService() {
 
         private fun incomingRingClock(callId: String, sessionId: String): IncomingRingClock? =
             incomingRingKeys(callId, sessionId).firstNotNullOfOrNull { incomingRingClocks[it] }
+
+        /** True while an incoming ring timeout clock is live (CallStyle / FSI path). */
+        fun hasActiveIncomingRing(): Boolean = incomingRingClocks.isNotEmpty()
 
         private fun incomingAnswered(callId: String, sessionId: String): Boolean =
             incomingRingKeys(callId, sessionId).any { id ->
@@ -918,6 +1545,10 @@ class BeamioTelecomService : ConnectionService() {
             val clock = incomingRingClock(callId, sessionId) ?: return
             incomingRingHandler.removeCallbacks(clock.runnable)
             incomingRingClocks.entries.removeIf { it.value === clock }
+            incomingRingKeys(callId, sessionId).forEach { key ->
+                armedCallStyleKeys.remove(key)
+                lastArmedCallStyleTitle.remove(key)
+            }
         }
 
         private fun incomingRingShouldRearm(callId: String, sessionId: String): Boolean {
@@ -961,9 +1592,12 @@ class BeamioTelecomService : ConnectionService() {
             // Peer signaling BEFORE settle short-circuit (iOS parity).
             // Telecom REJECTED + glass Decline can race: first attempt may lack
             // offer/sessionKey; a second completeIncomingUserAction must still uplink.
+            // callEnded must uplink voice_end_v1 before forgetOffer so the browser
+            // dialer leaves the in-call UI (AES temporary relay).
             when (action) {
                 "callAnswered" -> BeamioNativeVoiceSignaling.sendAccept(context, callId, sessionId)
                 "callRejected" -> BeamioNativeVoiceSignaling.sendDecline(context, callId, sessionId)
+                "callEnded" -> BeamioNativeVoiceSignaling.sendHangup(context, callId, sessionId)
             }
             clearIncomingMute(endedId, sessionId)
             val firstSettle = settledCallActions.add(settleKey(action, endedId))
@@ -994,7 +1628,30 @@ class BeamioTelecomService : ConnectionService() {
                 )
                 return
             }
+
+            // Stale mid-ring callEnded (wrong/old ids) must not stop FGS, finish
+            // glass, or nuclear-clear claimedChromeKeys for the ringing call.
+            // Keep the settle so the same stale end cannot re-enter later.
+            if ((action == "callEnded" || action == "callTimedOut") &&
+                shouldIgnoreStaleTerminalAction(endedId, sessionId)
+            ) {
+                Log.i(
+                    TAG,
+                    "completeIncomingUserAction ignored stale $action " +
+                        "fromTelecom=$fromTelecom (chrome left for ringing call)",
+                )
+                return
+            }
+
             cancelIncomingRingTimeout(endedId, sessionId)
+            val answeredCaller = if (action == "callAnswered") {
+                resolvePendingCaller(
+                    context,
+                    listOf(endedId, sessionId, callId).filter { it.isNotBlank() }.distinct(),
+                )
+            } else {
+                null
+            }
             shownCallers.remove(endedId)
             if (sessionId.isNotBlank()) shownCallers.remove(sessionId)
             context.getSharedPreferences(CALLER_POOL_PREFS, Context.MODE_PRIVATE).edit()
@@ -1007,8 +1664,14 @@ class BeamioTelecomService : ConnectionService() {
                 BeamioCallForegroundService.handoffAnsweredCall(context, endedId, sessionId)
             } else {
                 BeamioCallForegroundService.stop(context)
+                InCallActivity.finishIfMatching(endedId, sessionId)
             }
             IncomingCallActivity.finishIfMatching(endedId, sessionId)
+            // Always tear overlay chrome on settle. ID-gated dismiss can no-op
+            // when Answer extras use a remapped/native callId while the overlay
+            // still holds the wake id — leaving BeamioIncomingCall above InCall
+            // under an occluded keyguard.
+            IncomingCallOverlay.dismissIfShowing()
             val connection = activeConnections[endedId] ?: activeConnections[sessionId]
             when (action) {
                 "callAnswered" -> {
@@ -1021,9 +1684,64 @@ class BeamioTelecomService : ConnectionService() {
                         }
                         scheduleDeferredSetActive(endedId, sessionId, connection)
                     }
+                    // Unlocked CallKit-style page (iOS BeamioInCallScreen parity).
+                    val inCallTag = when {
+                        answeredCaller != null && isBeamioTag(answeredCaller.claimedTag) ->
+                            answeredCaller.claimedTag.trim()
+                        answeredCaller != null && isBeamioTag(answeredCaller.displayName) ->
+                            answeredCaller.displayName.trim()
+                        else -> ""
+                    }
+                    val inCallAddress = answeredCaller?.peerAddress.orEmpty().ifBlank {
+                        answeredCaller?.claimedAddress.orEmpty()
+                    }
+                    val presentCallId = endedId.ifBlank { callId }
+                    InCallActivity.present(
+                        context,
+                        callId = presentCallId,
+                        sessionId = sessionId,
+                        tag = inCallTag,
+                        address = inCallAddress,
+                    )
+                    // Tag may still be resolving when Answer lands — kick lookup /
+                    // avatar so InCall refreshes after CallStyle-settled early-return.
+                    val aliasForInCall =
+                        callId.trim().takeIf { it.isNotBlank() && it != presentCallId }.orEmpty()
+                    if (inCallAddress.isNotBlank() && !isBeamioTag(inCallTag)) {
+                        scheduleBeamioTagLookup(
+                            context,
+                            inCallAddress,
+                            presentCallId,
+                            sessionId,
+                            claimedTag = inCallTag,
+                            claimedAddress = answeredCaller?.claimedAddress.orEmpty(),
+                            identityWarning = answeredCaller?.identityWarning.orEmpty(),
+                            aliasCallId = aliasForInCall,
+                        )
+                    } else if (isBeamioTag(inCallTag) && callerAvatarBitmap(inCallTag) == null) {
+                        scheduleCallerAvatar(
+                            context,
+                            inCallTag,
+                            presentCallId,
+                            inCallAddress,
+                            inCallTag,
+                            sessionId,
+                            inCallTag,
+                            answeredCaller?.claimedAddress.orEmpty(),
+                            answeredCaller?.identityWarning.orEmpty(),
+                            aliasForInCall,
+                        )
+                    } else if (isBeamioTag(inCallTag)) {
+                        InCallActivity.refreshIdentityIfShowing(
+                            presentCallId,
+                            sessionId,
+                            tag = inCallTag,
+                            address = inCallAddress,
+                        )
+                    }
                     Log.i(
                         TAG,
-                        "native accept UI settled callIdPresent=${callId.isNotBlank()} (skip PWA)",
+                        "native accept UI settled callIdPresent=${callId.isNotBlank()} (InCall)",
                     )
                     return
                 }
@@ -1033,10 +1751,25 @@ class BeamioTelecomService : ConnectionService() {
                         it.setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
                         it.destroy()
                         activeConnections.remove(callId, it)
+                        activeConnections.remove(endedId, it)
                         if (sessionId.isNotBlank()) activeConnections.remove(sessionId, it)
                     }
+                    // Tear any other RINGING orphan keyed under an alias of this call.
+                    activeConnections.entries
+                        .filter { (_, conn) ->
+                            conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
+                        }
+                        .toList()
+                        .forEach { (key, conn) ->
+                            runCatching {
+                                conn.setDisconnected(DisconnectCause(DisconnectCause.REJECTED))
+                                conn.destroy()
+                            }
+                            activeConnections.remove(key, conn)
+                        }
                     BeamioCallForegroundService.stop(context)
                     cancelIncomingNotifications(context, endedId, sessionId)
+                    cancelIncomingNotifications(context, callId, sessionId)
                     // AES reject uplink already queued (sendDecline). Also notify PWA so it
                     // can send user-PGP voice_call_reject_v1 — dialer listen may not be up
                     // yet (SI drops AES with target_voice_session_not_found), leaving the
@@ -1048,7 +1781,6 @@ class BeamioTelecomService : ConnectionService() {
                     savePendingSystemCallAction(context, action, endedId, sessionId)
                     MainActivity.dispatchSystemCallAction(action, callId, sessionId, context)
                     releaseChromeOwner(callId, sessionId)
-                    releaseChromeOwner(endedId, sessionId)
                     BeamioNativeVoiceSignaling.flushDeferredStickyDeclinesIfIdle()
                     return
                 }
@@ -1067,15 +1799,21 @@ class BeamioTelecomService : ConnectionService() {
                     }
                     BeamioCallForegroundService.stop(context)
                     cancelIncomingNotifications(context, endedId, sessionId)
+                    cancelIncomingNotifications(context, callId, sessionId)
                     // Stop native temporary voice channel; still notify PWA for dialer UI.
                     BeamioNativeVoiceChannel.stop()
                     releaseChromeOwner(callId, sessionId)
-                    releaseChromeOwner(endedId, sessionId)
                     BeamioNativeVoiceSignaling.clearActiveCall()
                     BeamioNativeVoiceSignaling.forgetOffer(callId, sessionId)
+                    BeamioNativeVoiceSignaling.forgetOffer(endedId, sessionId)
+                    InCallScreenModel.end(endedId.ifBlank { callId })
+                    MainActivity.hideInCallReturnPill()
+                    InCallActivity.finishIfMatching(endedId, sessionId)
+                    InCallActivity.finishIfMatching(callId, sessionId)
                     Log.i(TAG, "native voice channel stopped on $action; emit PWA UI")
                     savePendingSystemCallAction(context, action, endedId, sessionId)
                     MainActivity.dispatchSystemCallAction(action, callId, sessionId, context)
+                    BeamioNativeVoiceSignaling.flushDeferredStickyDeclinesIfIdle()
                     return
                 }
             }
@@ -1101,6 +1839,64 @@ class BeamioTelecomService : ConnectionService() {
             if (now - lastOpenActiveCallAt < 1500L) return
             lastOpenActiveCallAt = now
             IncomingCallActivity.finishIfMatching(callId, sessionId)
+            // Prefer the unlocked CallKit-style InCall page when a shell-answered call is live.
+            if (InCallScreenModel.isLive()) {
+                val snap = InCallScreenModel.snapshot()
+                val presentCallId = callId.ifBlank { snap.callId }
+                val presentSessionId = sessionId.ifBlank { snap.sessionId }
+                val shown = resolvePendingCaller(
+                    context,
+                    listOf(presentCallId, presentSessionId).filter { it.isNotBlank() }.distinct(),
+                )
+                val tag = when {
+                    isBeamioTag(shown.claimedTag) -> shown.claimedTag.trim()
+                    isBeamioTag(shown.displayName) -> shown.displayName.trim()
+                    snap.tag.isNotBlank() -> snap.tag
+                    else -> ""
+                }
+                val address = shown.peerAddress.ifBlank { shown.claimedAddress }.ifBlank { snap.address }
+                InCallActivity.present(
+                    context,
+                    presentCallId,
+                    presentSessionId,
+                    tag = tag,
+                    address = address,
+                )
+                if (address.isNotBlank() && !isBeamioTag(tag)) {
+                    scheduleBeamioTagLookup(
+                        context,
+                        address,
+                        presentCallId,
+                        presentSessionId,
+                        claimedTag = tag,
+                        claimedAddress = shown.claimedAddress,
+                        identityWarning = shown.identityWarning,
+                        aliasCallId = "",
+                    )
+                } else if (isBeamioTag(tag) && callerAvatarBitmap(tag) == null) {
+                    scheduleCallerAvatar(
+                        context,
+                        tag,
+                        presentCallId,
+                        address,
+                        tag,
+                        presentSessionId,
+                        tag,
+                        shown.claimedAddress,
+                        shown.identityWarning,
+                        "",
+                    )
+                } else if (isBeamioTag(tag)) {
+                    InCallActivity.refreshIdentityIfShowing(
+                        presentCallId,
+                        presentSessionId,
+                        tag = tag,
+                        address = address,
+                    )
+                }
+                Log.i(TAG, "Active InCall screen requested callIdPresent=${presentCallId.isNotBlank()}")
+                return
+            }
             val intent = Intent(context, MainActivity::class.java).apply {
                 action = "com.beamio.app.action.SHOW_ACTIVE_CALL"
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -1182,9 +1978,6 @@ class BeamioTelecomService : ConnectionService() {
             val walletLine = shortWallet(resolved.peerAddress).ifBlank {
                 shortWallet(resolved.displayName)
             }
-            // Visible UI is only IncomingCallActivity (glass card). Do not use
-            // CallStyle.forIncomingCall, Decline/Answer actions, or CATEGORY_CALL —
-            // Samsung One UI synthesizes a second heads-up card over glass.
             val name = when {
                 tag.isNotBlank() -> tag
                 walletLine.isNotBlank() -> walletLine
@@ -1193,41 +1986,226 @@ class BeamioTelecomService : ConnectionService() {
             val body = resolved.identityWarning.ifBlank {
                 context.getString(R.string.incoming_call_glass_subtitle)
             }
+            val ringKeys = listOf(primary, callId, sessionId, aliasCallId)
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            val alreadyArmed = ringKeys.any { armedCallStyleKeys.contains(it) }
+            if (alreadyArmed) {
+                // Parity with iOS updateVerifiedIdentity: once a verified
+                // @BeamioTag exists, main line (CallStyle under lock + Activity/
+                // overlay) must show @tag — never leave "Incoming call".
+                val effectiveClaimed = tag.ifBlank { claimed }
+                IncomingCallActivity.updateShownCaller(
+                    callId = callId,
+                    sessionId = sessionId,
+                    displayName = name,
+                    peerAddress = resolved.peerAddress,
+                    claimedTag = effectiveClaimed,
+                    claimedAddress = resolved.claimedAddress.ifBlank { claimedAddress },
+                    identityWarning = resolved.identityWarning.ifBlank { identityWarning },
+                )
+                IncomingCallOverlay.updateShownCaller(
+                    callId = callId,
+                    sessionId = sessionId,
+                    displayName = name,
+                    peerAddress = resolved.peerAddress,
+                    claimedTag = effectiveClaimed,
+                    identityWarning = resolved.identityWarning.ifBlank { identityWarning },
+                )
+                // Answer may already be on InCall — keep @tag + avatar in sync
+                // with CallStyle / glass (same verified identity).
+                if (InCallScreenModel.isLive() &&
+                    InCallScreenModel.matches(callId, sessionId) &&
+                    (tag.isNotBlank() || resolved.peerAddress.isNotBlank())
+                ) {
+                    InCallActivity.refreshIdentityIfShowing(
+                        callId,
+                        sessionId,
+                        tag = tag.ifBlank { effectiveClaimed },
+                        address = resolved.peerAddress.ifBlank { claimedAddress },
+                    )
+                    if (tag.isNotBlank() && callerAvatarBitmap(tag) == null) {
+                        scheduleCallerAvatar(
+                            context,
+                            tag,
+                            callId,
+                            resolved.peerAddress,
+                            name,
+                            sessionId,
+                            effectiveClaimed,
+                            claimedAddress,
+                            identityWarning,
+                            aliasCallId,
+                        )
+                    }
+                }
+                if (IncomingCallActivity.isShowing() || IncomingCallOverlay.isShowing()) {
+                    IncomingCallActivity.refreshCallerChrome(name, body)
+                    IncomingCallOverlay.refreshCallerChrome(name, body)
+                } else {
+                    val window = incomingWindowIntent(
+                        context,
+                        callId = callId,
+                        sessionId = sessionId,
+                        title = name,
+                        body = body,
+                        claimedTag = effectiveClaimed,
+                    )
+                    Log.i(TAG, "CallStyle already armed but glass missing → Telecom binder present")
+                    IncomingCallActivity.presentFromTelecomShowIncomingUi(context, window)
+                }
+                val keyguardLocked = isDeviceKeyguardLocked(context)
+                val previousTitle = lastArmedCallStyleTitle[primary].orEmpty()
+                val verifiedTagReady = isBeamioTag(name) || isBeamioTag(effectiveClaimed)
+                val titleChanged = name.isNotBlank() && name != previousTitle
+                if (verifiedTagReady && titleChanged) {
+                    // Under lock CallStyle IS the product chrome — must quietly
+                    // re-notify Person/title. onlyAlertOnce keeps ringtone/FSI.
+                    // Unlocked + glass: demote keep-alive title only (no HUN).
+                    if (keyguardLocked || !productIncomingChromeVisible(context)) {
+                        quietlyRefreshArmedCallStyle(
+                            context = context,
+                            primary = primary,
+                            callId = callId,
+                            sessionId = sessionId,
+                            name = name,
+                            body = body,
+                            claimedTag = effectiveClaimed,
+                            aliasCallId = aliasCallId,
+                        )
+                    } else {
+                        demoteIncomingChromeAfterGlass(
+                            context, callId, sessionId, name, body, aliasCallId = aliasCallId,
+                        )
+                    }
+                    lastArmedCallStyleTitle[primary] = name
+                    ringKeys.forEach { key ->
+                        activeConnections[key]?.updateCallerDisplayName(name)
+                    }
+                    Log.i(
+                        TAG,
+                        "Incoming identity refresh title=$name keyguard=$keyguardLocked " +
+                            "glass=${productIncomingChromeVisible(context)}",
+                    )
+                }
+                // Demote CallStyle HUN once glass owns unlocked UI. Under keyguard
+                // productIncomingChromeVisible is false so CallStyle stays owner.
+                if (!keyguardLocked && productIncomingChromeVisible(context)) {
+                    demoteIncomingChromeAfterGlass(
+                        context, callId, sessionId, name, body, aliasCallId = aliasCallId,
+                    )
+                    val main = android.os.Handler(android.os.Looper.getMainLooper())
+                    for (delayMs in longArrayOf(400L, 1_200L)) {
+                        main.postDelayed(
+                            {
+                                if (
+                                    !isDeviceKeyguardLocked(context) &&
+                                    productIncomingChromeVisible(context)
+                                ) {
+                                    demoteIncomingChromeAfterGlass(
+                                        context,
+                                        callId,
+                                        sessionId,
+                                        name,
+                                        body,
+                                        aliasCallId = aliasCallId,
+                                    )
+                                }
+                            },
+                            delayMs,
+                        )
+                    }
+                }
+                if (tag.isBlank()) {
+                    scheduleBeamioTagLookup(
+                        context,
+                        resolved.peerAddress,
+                        callId,
+                        sessionId,
+                        effectiveClaimed,
+                        claimedAddress,
+                        identityWarning,
+                        aliasCallId,
+                    )
+                }
+                if (callerAvatarBitmap(tag) == null && tag.isNotBlank()) {
+                    scheduleCallerAvatar(
+                        context,
+                        tag,
+                        callId,
+                        resolved.peerAddress,
+                        name,
+                        sessionId,
+                        tag,
+                        claimedAddress,
+                        identityWarning,
+                        aliasCallId,
+                    )
+                }
+                return
+            }
             val avatar = callerAvatarBitmap(tag)
             val postedId = notificationId(primary)
+            val firstArmClaimed = tag.ifBlank { claimed }
             val window = incomingWindowIntent(
                 context,
                 callId = callId,
                 sessionId = sessionId,
                 title = name,
                 body = body,
-                claimedTag = claimedTag,
+                claimedTag = firstArmClaimed,
             )
-            val fullScreen = PendingIntent.getActivity(
+            // Same requestCode as sendAllowlistedFullScreenIntent so NMS's
+            // +30s FSI allowlist applies to the PendingIntent we send next.
+            val fullScreen = IncomingCallActivity.buildFullScreenPendingIntent(
                 context,
-                postedId + 3,
                 window,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                IncomingCallActivity.fullScreenIntentRequestCode(window),
             )
-            // Quiet FGS keep-alive. CATEGORY_SERVICE avoids Samsung's call
-            // heads-up; glass UI is started via FGS (phoneCall BAL) then
-            // present() + fullScreenIntent (HIGH channel required when screen on).
+            // CallStyle + CATEGORY_CALL is required for Android 14+ to auto-fire
+            // FSI while the screen is on. Answer/Decline stay on IncomingCallActionReceiver.
+            val answer = incomingActionPendingIntent(
+                context, ACTION_ANSWER, callId, sessionId, postedId + 1,
+            )
+            val decline = incomingActionPendingIntent(
+                context, ACTION_DECLINE, callId, sessionId, postedId + 2,
+            )
+            val personIcon = if (avatar != null) {
+                IconCompat.createWithBitmap(avatar)
+            } else {
+                IconCompat.createWithResource(context, R.drawable.ic_incoming_call_status)
+            }
+            val person = Person.Builder()
+                .setName(name)
+                .setIcon(personIcon)
+                .setImportant(true)
+                .build()
             val builder = NotificationCompat.Builder(context, INCOMING_CALL_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_incoming_call_status)
                 .setContentTitle(name)
                 .setContentText(body)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
-                .setSilent(true)
                 .setTimeoutAfter(INCOMING_RING_TIMEOUT_MS)
                 .setColor(0xFF1562F0.toInt())
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
                 .setFullScreenIntent(fullScreen, true)
                 .setContentIntent(fullScreen)
+                .setLargeIcon(avatar)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setStyle(
+                    NotificationCompat.CallStyle.forIncomingCall(person, decline, answer),
+                )
+            } else {
+                builder
+                    .addAction(0, context.getString(R.string.incoming_call_decline), decline)
+                    .addAction(0, context.getString(R.string.incoming_call_answer), answer)
+            }
             val manager = NotificationManagerCompat.from(context)
             listOf(callId, sessionId, aliasCallId)
                 .map { it.trim() }
@@ -1239,15 +2217,99 @@ class BeamioTelecomService : ConnectionService() {
             } else {
                 true
             }
-            Log.i(TAG, "fullScreenIntentAllowed=$fullScreenAllowed")
-            BeamioIncomingRingtone.start(context, primary)
-            // FGS first so phoneCall / shortService can exempt BAL for present().
-            // FSI on HIGH channel covers the case where startActivity is still blocked.
-            BeamioCallForegroundService.startIncoming(context, postedId, builder.build(), window)
-            IncomingCallActivity.present(context, window)
+            Log.i(TAG, "fullScreenIntentAllowed=$fullScreenAllowed callStyle=true")
+            // Glass FIRST while onShowIncomingCallUi binder BAL is live.
+            // Notify / FGS after — those can take longer and burn the window.
+            if (!IncomingCallActivity.isShowing()) {
+                IncomingCallActivity.presentFromTelecomShowIncomingUi(context, window)
+            }
+            val glassUp = IncomingCallActivity.isShowing()
+            val overlayUp = IncomingCallOverlay.isShowing()
+            val keyguardLocked = isDeviceKeyguardLocked(context)
+            // Lock / screen-off: always post CallStyle + FSI. Never quietOnly —
+            // Activity/overlay "showing" under occluded keyguard is a lie and
+            // demoting leaves the lock screen with no Beamio incoming at all.
+            val quietOnly =
+                !keyguardLocked && (glassUp || overlayUp)
+            val notification = if (quietOnly) {
+                Log.i(
+                    TAG,
+                    "Quiet keep-alive (skip CallStyle HUN) id=$postedId " +
+                        "glassUp=$glassUp overlayUp=$overlayUp keyguardLocked=$keyguardLocked",
+                )
+                buildGlassKeepAliveNotification(
+                    context,
+                    callId = callId,
+                    sessionId = sessionId,
+                    title = name,
+                    body = body,
+                )
+            } else {
+                builder.build()
+            }
+            // Dual-post: NM.notify so system_server allowlists this same
+            // fullScreen PendingIntent (+30s) when CallStyle path is used.
+            // Quiet path only replaces any prior shade on this id.
+            runCatching {
+                manager.notify(postedId, notification)
+                Log.i(
+                    TAG,
+                    if (quietOnly) {
+                        "Quiet keep-alive NM.notify posted id=$postedId"
+                    } else {
+                        "CallStyle NM.notify posted id=$postedId"
+                    },
+                )
+            }.onFailure {
+                Log.w(TAG, "Incoming NM.notify failed id=$postedId", it)
+            }
+            if (quietOnly) {
+                // Cancel any leftover CallStyle ids from a prior arm / wrong alias.
+                cancelActiveCallStyleNotifications(context, keepId = postedId)
+            }
+            // Channel v15 plays the ringtone; avoid MediaPlayer double-ring.
+            // FGS keep-alive may retry presentFromPhoneCallFgs if glass missing.
+            ringKeys.forEach { armedCallStyleKeys.add(it) }
+            lastArmedCallStyleTitle[primary] = name
+            BeamioCallForegroundService.startIncoming(
+                context,
+                postedId,
+                notification,
+                // Always pass window: FGS skips present when glass is already up,
+                // but needs callId/title extras to demote CallStyle without
+                // resurrecting Decline/Answer over overlay glass.
+                window,
+            )
+            // Demote whenever CallStyle was skipped OR glass is already up.
+            // quietOnly alone (overlayOk) must demote leftovers from a prior arm.
+            if (quietOnly) {
+                demoteIncomingChromeAfterGlass(
+                    context, callId, sessionId, name, body, aliasCallId = aliasCallId,
+                )
+                val main = android.os.Handler(android.os.Looper.getMainLooper())
+                for (delayMs in longArrayOf(400L, 1_200L)) {
+                    main.postDelayed(
+                        {
+                            if (productIncomingChromeVisible(context)) {
+                                demoteIncomingChromeAfterGlass(
+                                    context,
+                                    callId,
+                                    sessionId,
+                                    name,
+                                    body,
+                                    aliasCallId = aliasCallId,
+                                )
+                            }
+                        },
+                        delayMs,
+                    )
+                }
+            }
             Log.i(
                 TAG,
-                "Glass incoming window posted nameIsTag=${tag.isNotBlank()} " +
+                "Glass incoming FGS armed glassUp=$glassUp quietOnly=$quietOnly " +
+                    "keyguardLocked=$keyguardLocked " +
+                    "nameIsTag=${tag.isNotBlank()} " +
                     "walletLinePresent=${walletLine.isNotBlank()} bodyIsWarning=${resolved.identityWarning.isNotBlank()} " +
                     "avatarReady=${avatar != null}",
             )
@@ -1257,7 +2319,7 @@ class BeamioTelecomService : ConnectionService() {
                     resolved.peerAddress,
                     callId,
                     sessionId,
-                    claimedTag,
+                    firstArmClaimed,
                     claimedAddress,
                     identityWarning,
                     aliasCallId,
@@ -1268,10 +2330,10 @@ class BeamioTelecomService : ConnectionService() {
                     context,
                     tag,
                     callId,
-                    peerAddress,
-                    displayName,
+                    resolved.peerAddress,
+                    name,
                     sessionId,
-                    claimedTag,
+                    firstArmClaimed,
                     claimedAddress,
                     identityWarning,
                     aliasCallId,
@@ -1315,6 +2377,17 @@ class BeamioTelecomService : ConnectionService() {
                 if (bitmap == null) return@Thread
                 callerAvatarBitmaps[key] = bitmap
                 incomingRingHandler.post {
+                    // Avatar may finish after Answer — still paint InCall.
+                    if (InCallScreenModel.isLive() &&
+                        InCallScreenModel.matches(callId, sessionId)
+                    ) {
+                        InCallActivity.refreshIdentityIfShowing(
+                            callId,
+                            sessionId,
+                            tag = tag.ifBlank { claimedTag },
+                            address = peerAddress,
+                        )
+                    }
                     if (incomingActionAlreadySettled(callId, sessionId)) return@post
                     if (incomingRingClock(callId, sessionId) == null &&
                         incomingRingClock(aliasCallId, sessionId) == null
@@ -1360,30 +2433,58 @@ class BeamioTelecomService : ConnectionService() {
                 beamioTagLookups.remove(key)
                 if (lookedUp.isNullOrBlank()) return@Thread
                 incomingRingHandler.post {
-                    if (incomingActionAlreadySettled(callId, sessionId)) return@post
                     Log.i(TAG, "Caller BeamioTag resolved")
                     listOf(callId, sessionId, aliasCallId)
                         .map { it.trim() }
                         .filter { it.isNotBlank() }
                         .distinct()
-                        .forEach { key ->
+                        .forEach { rememberKey ->
                             rememberShownCaller(
                                 app,
-                                key,
+                                rememberKey,
                                 address,
                                 lookedUp,
-                                claimedTag,
+                                lookedUp,
                                 claimedAddress,
                                 identityWarning,
                             )
                         }
+                    // Answer may have already opened InCall without @tag —
+                    // always push verified identity onto the live call page.
+                    if (InCallScreenModel.isLive() &&
+                        InCallScreenModel.matches(callId, sessionId)
+                    ) {
+                        InCallActivity.refreshIdentityIfShowing(
+                            callId,
+                            sessionId,
+                            tag = lookedUp,
+                            address = address,
+                        )
+                        if (callerAvatarBitmap(lookedUp) == null) {
+                            scheduleCallerAvatar(
+                                app,
+                                lookedUp,
+                                callId,
+                                address,
+                                lookedUp,
+                                sessionId,
+                                lookedUp,
+                                claimedAddress,
+                                identityWarning,
+                                aliasCallId,
+                            )
+                        }
+                    }
+                    if (incomingActionAlreadySettled(callId, sessionId)) return@post
                     showIncomingCallNotification(
                         app,
                         callId,
                         address,
                         lookedUp,
                         sessionId,
-                        claimedTag,
+                        // Verified lookup becomes claimedTag so CallStyle /
+                        // Activity keep @tag across soft-reassert / demote.
+                        lookedUp,
                         claimedAddress,
                         identityWarning,
                         aliasCallId,
@@ -1506,40 +2607,296 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         private fun wakeConsumerShell(context: Context) {
-            if (MainActivity.isRunning()) {
-                MainActivity.requestMailboxWake()
-                Log.i(TAG, "Mailbox wake kept glass incoming window in front")
-                return
-            }
-            // Incoming window is its own task. Do not start MainActivity over it
-            // when Beamio itself is not running.
-            Log.i(TAG, "Shell start deferred — incoming window owns the screen")
+            // Delegates to MainActivity.wakeConsumerShell — raises the opaque
+            // app task before same-task translucent glass can become visible.
+            MainActivity.wakeConsumerShell(context)
         }
 
         fun ensureIncomingCallChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService(android.app.NotificationManager::class.java) ?: return
-            // v13: HIGH (FSI while screen on). Delete older channels — Android
-            // will not raise an existing channel's importance after creation.
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v7") }
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v8") }
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v9") }
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v10") }
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v11") }
-            runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v12") }
+            // v15: HIGH CallStyle + ringtone/vib so Samsung interrupts and can
+            // fire FSI. Delete older channels — Android will not raise an
+            // existing channel's importance / sound after creation.
+            for (old in 7..14) {
+                runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v$old") }
+            }
+            val ringtone = android.media.RingtoneManager.getDefaultUri(
+                android.media.RingtoneManager.TYPE_RINGTONE,
+            )
+            val audioAttrs = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
             val channel = android.app.NotificationChannel(
                 INCOMING_CALL_CHANNEL_ID,
                 "Incoming calls",
                 android.app.NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description =
-                    "Incoming voice keep-alive. Glass window is the only UI; shade stays quiet."
+                    "Incoming Beamio voice calls. Opens the full-screen incoming window."
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                setSound(ringtone, audioAttrs)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0L, 500L, 500L, 500L)
+                setShowBadge(false)
+            }
+            manager.createNotificationChannel(channel)
+            ensureGlassKeepAliveChannel(context)
+        }
+
+        /** MIN + silent — FGS keep-alive must never heads-up over Beamio glass. */
+        private fun ensureGlassKeepAliveChannel(context: Context) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            val manager = context.getSystemService(android.app.NotificationManager::class.java) ?: return
+            val channel = android.app.NotificationChannel(
+                GLASS_KEEPALIVE_CHANNEL_ID,
+                "Call keep-alive",
+                android.app.NotificationManager.IMPORTANCE_MIN,
+            ).apply {
+                description =
+                    "Silent status while the Beamio incoming call window is open. No alerts."
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
                 setSound(null, null)
                 enableVibration(false)
                 setShowBadge(false)
             }
             manager.createNotificationChannel(channel)
+        }
+
+        /**
+         * CallStyle Answer/Decline must be [PendingIntent.FLAG_MUTABLE] so the
+         * system can attach extras. Used only for CallStyle action buttons.
+         */
+        private fun incomingActionPendingIntent(
+            context: Context,
+            action: String,
+            callId: String,
+            sessionId: String,
+            requestCode: Int,
+        ): PendingIntent {
+            val intent = Intent(context, IncomingCallActionReceiver::class.java).apply {
+                this.action = action
+                putExtra(EXTRA_CALL_ID, callId)
+                putExtra(EXTRA_SESSION_ID, sessionId)
+            }
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    PendingIntent.FLAG_MUTABLE
+                } else {
+                    0
+                }
+            return PendingIntent.getBroadcast(context, requestCode, intent, flags)
+        }
+
+        /**
+         * Quiet FGS keep-alive after glass is visible. Replaces CallStyle so
+         * Samsung does not leave a second Answer/Decline heads-up over the glass.
+         */
+        fun buildGlassKeepAliveNotification(
+            context: Context,
+            callId: String,
+            sessionId: String,
+            title: String,
+            body: String,
+        ): Notification {
+            ensureGlassKeepAliveChannel(context)
+            val window = incomingWindowIntent(
+                context,
+                callId = callId,
+                sessionId = sessionId,
+                title = title,
+                body = body,
+                claimedTag = "",
+            )
+            val content = IncomingCallActivity.buildFullScreenPendingIntent(
+                context,
+                window,
+                IncomingCallActivity.fullScreenIntentRequestCode(window),
+            )
+            return NotificationCompat.Builder(context, GLASS_KEEPALIVE_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_incoming_call_status)
+                .setContentTitle(title.ifBlank { "Incoming call" })
+                .setContentText(body.ifBlank { context.getString(R.string.incoming_call_glass_subtitle) })
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
+                .setPriority(NotificationCompat.PRIORITY_MIN)
+                .setVisibility(NotificationCompat.VISIBILITY_SECRET)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setOnlyAlertOnce(true)
+                .setSilent(true)
+                .setTimeoutAfter(INCOMING_RING_TIMEOUT_MS)
+                .setColor(0xFF1562F0.toInt())
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+                .setContentIntent(content)
+                .build()
+        }
+
+        /**
+         * Quietly refresh an already-armed CallStyle Person/title under lock
+         * after BeamioTag resolve. [NotificationCompat.Builder.setOnlyAlertOnce]
+         * keeps ringtone/FSI; same notification id so Samsung does not treat
+         * this as a second incoming call.
+         */
+        private fun quietlyRefreshArmedCallStyle(
+            context: Context,
+            primary: String,
+            callId: String,
+            sessionId: String,
+            name: String,
+            body: String,
+            claimedTag: String,
+            aliasCallId: String,
+        ) {
+            val postedId = notificationId(primary)
+            if (postedId == 0 || name.isBlank()) return
+            val title = name.trim()
+            val text = body.ifBlank { context.getString(R.string.incoming_call_glass_subtitle) }
+            val avatar = callerAvatarBitmap(claimedTag.ifBlank { title })
+            val personIcon = if (avatar != null) {
+                IconCompat.createWithBitmap(avatar)
+            } else {
+                IconCompat.createWithResource(context, R.drawable.ic_incoming_call_status)
+            }
+            val person = Person.Builder()
+                .setName(title)
+                .setIcon(personIcon)
+                .setImportant(true)
+                .build()
+            val window = incomingWindowIntent(
+                context,
+                callId = callId,
+                sessionId = sessionId,
+                title = title,
+                body = text,
+                claimedTag = claimedTag.ifBlank { title.takeIf(::isBeamioTag).orEmpty() },
+            )
+            val fullScreen = IncomingCallActivity.buildFullScreenPendingIntent(
+                context,
+                window,
+                IncomingCallActivity.fullScreenIntentRequestCode(window),
+            )
+            val answer = incomingActionPendingIntent(
+                context, ACTION_ANSWER, callId, sessionId, postedId + 1,
+            )
+            val decline = incomingActionPendingIntent(
+                context, ACTION_DECLINE, callId, sessionId, postedId + 2,
+            )
+            val builder = NotificationCompat.Builder(context, INCOMING_CALL_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_incoming_call_status)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setOnlyAlertOnce(true)
+                .setTimeoutAfter(INCOMING_RING_TIMEOUT_MS)
+                .setColor(0xFF1562F0.toInt())
+                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+                .setFullScreenIntent(fullScreen, true)
+                .setContentIntent(fullScreen)
+                .setLargeIcon(avatar)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setStyle(
+                    NotificationCompat.CallStyle.forIncomingCall(person, decline, answer),
+                )
+            } else {
+                builder
+                    .addAction(0, context.getString(R.string.incoming_call_decline), decline)
+                    .addAction(0, context.getString(R.string.incoming_call_answer), answer)
+            }
+            val notification = builder.build()
+            runCatching {
+                NotificationManagerCompat.from(context).notify(postedId, notification)
+                BeamioCallForegroundService.refreshIncomingCallStyle(
+                    context,
+                    postedId,
+                    notification,
+                )
+                Log.i(
+                    TAG,
+                    "Quiet CallStyle identity refresh id=$postedId title=$title " +
+                        "aliasPresent=${aliasCallId.isNotBlank()} avatarReady=${avatar != null}",
+                )
+            }.onFailure {
+                Log.w(TAG, "Quiet CallStyle identity refresh failed id=$postedId", it)
+            }
+        }
+
+        /** Demote CallStyle shade once glass (Activity or overlay) is on screen. */
+        fun demoteIncomingChromeAfterGlass(
+            context: Context,
+            callId: String,
+            sessionId: String,
+            title: String = "",
+            body: String = "",
+            aliasCallId: String = "",
+        ) {
+            // Lock / screen-off: always keep CallStyle FSI. Activity may report
+            // isShowing while occluded behind Samsung keyguard — demoting then
+            // replaces FSI with silent keep-alive and the user sees nothing.
+            if (isDeviceKeyguardLocked(context)) {
+                Log.i(
+                    TAG,
+                    "Skip CallStyle demote; keyguard/screen-off — CallStyle FSI owns lock UI " +
+                        "activityUp=${IncomingCallActivity.isShowing()}",
+                )
+                return
+            }
+            val keys = listOf(callId, sessionId, aliasCallId)
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            // Must include aliasCallId — CallStyle was posted on
+            // notificationId(primaryNotificationKey(..., aliasCallId)).
+            val primary = primaryNotificationKey(context, *keys.toTypedArray())
+            BeamioCallForegroundService.demoteIncomingAfterGlass(
+                context,
+                callId = callId,
+                sessionId = sessionId,
+                title = title.ifBlank { "Incoming call" },
+                body = body.ifBlank { context.getString(R.string.incoming_call_glass_subtitle) },
+                notificationId = notificationId(primary),
+                aliasKeys = keys,
+            )
+        }
+
+        /**
+         * Cancel every active CATEGORY_CALL / CallStyle shade on the incoming
+         * channel except [keepId] (quiet FGS keep-alive). Used when glass is up
+         * so Samsung HUN cannot cover TYPE_APPLICATION_OVERLAY.
+         */
+        fun cancelActiveCallStyleNotifications(context: Context, keepId: Int) {
+            val compat = NotificationManagerCompat.from(context)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+            val nm = context.getSystemService(android.app.NotificationManager::class.java) ?: return
+            nm.activeNotifications?.forEach { status ->
+                if (status.id == keepId) return@forEach
+                val n = status.notification
+                val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    n.channelId.orEmpty()
+                } else {
+                    ""
+                }
+                val isIncomingChannel = channelId.startsWith("beamio_incoming_calls")
+                val isCallCategory = n.category == Notification.CATEGORY_CALL
+                if (!isIncomingChannel && !isCallCategory) return@forEach
+                if (!isCallCategory && (n.flags and Notification.FLAG_FOREGROUND_SERVICE) != 0) {
+                    // Quiet CATEGORY_SERVICE FGS keep-alive — leave alone.
+                    return@forEach
+                }
+                if (!isCallCategory) return@forEach
+                nm.cancel(status.id)
+                nm.cancel(status.tag, status.id)
+                compat.cancel(status.id)
+                compat.cancel(status.tag, status.id)
+                Log.i(
+                    TAG,
+                    "Cancelled CallStyle HUN over glass id=${status.id} channel=$channelId",
+                )
+            }
         }
 
         /**
@@ -1556,33 +2913,21 @@ class BeamioTelecomService : ConnectionService() {
             // Telecom RINGING can lag a beat, and same-process multi-resume used
             // to finish the window while the user still needed it.
             if (glassShowing) return
-
-            val ringingOrphans = activeConnections.entries
-                .filter { (_, conn) ->
-                    conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
-                }
-                .toList()
-
-            if (ringingOrphans.isNotEmpty()) {
-                for ((key, conn) in ringingOrphans) {
-                    // Glass gone but Telecom still RINGING — tell dialer we rejected
-                    // (best-effort) and notify callee PWA so App.tsx can gossip. Settling
-                    // without a PWA emit used to block a later X press (!firstSettle
-                    // returned early) and left the caller on Ringing….
-                    BeamioNativeVoiceSignaling.sendDecline(context, key, key)
-                    cancelIncomingRingTimeout(key, key)
-                    settledCallActions.add(settleKey("callRejected", key))
-                    settledCallActions.add(settleKey("callEnded", key))
-                    settledCallActions.add(settleKey("callTimedOut", key))
-                    savePendingSystemCallAction(context, "callRejected", key, key)
-                    MainActivity.dispatchSystemCallAction("callRejected", key, key, context)
-                    runCatching {
-                        conn.setDisconnected(DisconnectCause(DisconnectCause.CANCELED))
-                        conn.destroy()
-                    }
-                    activeConnections.remove(key, conn)
-                }
-                Log.i(TAG, "Orphan ringing torn down without glass count=${ringingOrphans.size}")
+            // bringAppTaskForward raises opaque MainActivity so same-task glass
+            // can become visible. That resume used to tear down RINGING + FGS
+            // before BAL retries could show IncomingCallActivity — browser dial
+            // then never showed a window. Skip while present is in flight or
+            // Telecom is still RINGING; onIncomingGlassPresentFailed cleans up.
+            if (IncomingCallActivity.isPresentInFlight()) {
+                Log.i(TAG, "Stale dismiss skipped; glass present in flight")
+                return
+            }
+            val hasRinging = activeConnections.values.any { conn ->
+                conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
+            }
+            if (hasRinging) {
+                Log.i(TAG, "Stale dismiss skipped; RINGING without glass (present pending)")
+                return
             }
 
             BeamioCallForegroundService.stop(context)
@@ -1625,6 +2970,14 @@ class BeamioTelecomService : ConnectionService() {
                     )
                 }
             }
+            // Orphan teardown never called releaseChromeOwner — leftover claims made
+            // the next browser→Android dial busy-reject with no glass.
+            if (BeamioNativeVoiceSignaling.currentActiveCall() == null &&
+                activeConnections.values.none { it.occupiesVoiceChrome() }
+            ) {
+                releaseChromeOwner("", "")
+            }
+            BeamioNativeVoiceSignaling.flushDeferredStickyDeclinesIfIdle()
             Log.i(TAG, "Stale incoming UI dismissed")
         }
 
@@ -1808,6 +3161,7 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         fun cancelIncomingNotifications(context: Context, callId: String, sessionId: String) {
+            IncomingCallActivity.cancelAlarmClockGlassPresent(context, callId, sessionId)
             val manager = NotificationManagerCompat.from(context)
             val aliases = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotBlank() }.distinct()
             val prefs = context.getSharedPreferences(NOTIFICATION_ALIAS_PREFS, Context.MODE_PRIVATE)
@@ -1816,6 +3170,8 @@ class BeamioTelecomService : ConnectionService() {
             (aliases + listOf(primary)).filter { it.isNotBlank() }.distinct().forEach { key ->
                 val id = notificationId(key)
                 if (id != keepForegroundId) manager.cancel(id)
+                armedCallStyleKeys.remove(key)
+                lastArmedCallStyleTitle.remove(key)
             }
             val editor = prefs.edit()
             aliases.forEach { editor.remove("alias:$it") }

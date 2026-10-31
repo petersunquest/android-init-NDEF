@@ -6,17 +6,23 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 
 /**
  * Keeps a phoneCall / shortService foreground notification alive while a call
- * is ringing or active. Incoming uses a silent CATEGORY_SERVICE notification
- * (never CATEGORY_CALL / CallStyle — Samsung draws a second heads-up for those;
- * the glass [IncomingCallActivity] is the only UI).
- * After Answer, that notification is replaced with a quiet ongoing status entry.
+ * is ringing or active.
+ *
+ * Ringing starts as CallStyle + CATEGORY_CALL so Android 14+ can auto-fire the
+ * full-screen intent while the screen is on. Once [IncomingCallActivity] is
+ * visible, [demoteIncomingAfterGlass] swaps that shade for a silent
+ * CATEGORY_SERVICE keep-alive so Samsung does not leave a second Answer/Decline
+ * heads-up over the glass. After Answer, the notification becomes a quiet
+ * ongoing status entry.
  */
 class BeamioCallForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
@@ -36,7 +42,8 @@ class BeamioCallForegroundService : Service() {
                 val callId = intent?.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
                 val sessionId = intent?.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
                 holdMutedIncoming(callId, sessionId)
-                return START_STICKY
+                // Mute hold is short-lived; do not resurrect after process death.
+                return START_NOT_STICKY
             }
             ACTION_INCOMING -> {
                 val id = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
@@ -53,6 +60,10 @@ class BeamioCallForegroundService : Service() {
                     intent.getParcelableExtra(EXTRA_GLASS_LAUNCH)
                 }
                 postIncoming(id, notification, glass)
+                // Incoming must not START_STICKY: after force-stop / kill the OS
+                // would resurrect a ghost RINGING FGS + glass with no live offer,
+                // and sticky chrome then busy-rejects the next real dial.
+                return START_NOT_STICKY
             }
             ACTION_ONGOING -> {
                 val callId = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
@@ -65,6 +76,8 @@ class BeamioCallForegroundService : Service() {
                 postOngoingCall(callId, sessionId)
             }
         }
+        // Active call may be restarted after a brief process death; incoming
+        // already returned START_NOT_STICKY above.
         return START_STICKY
     }
 
@@ -144,18 +157,111 @@ class BeamioCallForegroundService : Service() {
 
     private fun postIncoming(id: Int, notification: Notification, glassLaunch: Intent?) {
         val previous = activeForegroundNotificationId
+        val callId = glassLaunch
+            ?.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID)
+            .orEmpty()
+        val sessionId = glassLaunch
+            ?.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID)
+            .orEmpty()
+        val title = glassLaunch
+            ?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_TITLE)
+            .orEmpty()
+            .ifBlank { "Incoming call" }
+        val body = glassLaunch
+            ?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_BODY)
+            .orEmpty()
+        // Critical race: Activity/overlay may already have demoted CallStyle to
+        // quiet via NM.notify. If we startForeground with the original CallStyle
+        // parcel, Samsung re-posts Decline/Answer HUN *over* Beamio glass.
+        // Prefer quiet only when glass/overlay is *actually* showing — not merely
+        // when SYSTEM_ALERT_WINDOW is granted (that killed lock-screen Answer).
+        // Lock / screen-off: never preferQuiet — CallStyle FSI owns lock UI even
+        // when IncomingCallActivity reports isShowing behind an occluded keyguard.
+        val keyguardLocked = BeamioTelecomService.isDeviceKeyguardLocked(this)
+        val preferQuiet =
+            !keyguardLocked &&
+                (IncomingCallActivity.isShowing() || IncomingCallOverlay.isShowing())
+        // Never startForeground with CallStyle when glass/overlay is the product
+        // UI — that resurrects Decline/Answer HUN over TYPE_APPLICATION_OVERLAY.
+        val forFgs = if (preferQuiet) {
+            BeamioTelecomService.buildGlassKeepAliveNotification(
+                this,
+                callId = callId,
+                sessionId = sessionId,
+                title = title,
+                body = body,
+            )
+        } else {
+            notification
+        }
         try {
-            startIncomingForeground(id, notification)
+            // Do NOT NotificationManager.notify again here when CallStyle is
+            // intentional. startForeground alone keeps / replaces the shade.
+            startIncomingForeground(id, forFgs)
             activeForegroundNotificationId = id
             if (previous != 0 && previous != id) {
                 NotificationManagerCompat.from(this).cancel(previous)
             }
-            Log.i(TAG, "Incoming FGS posted id=$id")
-            // After phoneCall/shortService FGS is up, BAL often allows startActivity
-            // even when the earlier present() from FCM was dropped silently.
-            if (glassLaunch != null && !IncomingCallActivity.isShowing()) {
-                IncomingCallActivity.present(this, glassLaunch)
-                Log.i(TAG, "Incoming window re-present after FGS")
+            Log.i(
+                TAG,
+                "Incoming FGS posted id=$id preferQuiet=$preferQuiet " +
+                    "keyguardLocked=$keyguardLocked " +
+                    "glassUp=${IncomingCallActivity.isShowing()}",
+            )
+            // Visible shell: normal present(). Under launcher: phoneCall FGS
+            // may startActivity when the Intent uses CLEAR_TASK (recreate),
+            // which avoids Samsung balDontBringExistingBackgroundTaskStackToFg.
+            // Allowlisted FSI send runs in parallel from showIncomingCallNotification.
+            // Under keyguard skip overlay-first present — CallStyle FSI owns lock UI.
+            if (glassLaunch != null && !IncomingCallActivity.isShowing() && !keyguardLocked) {
+                if (IncomingCallActivity.hasVisibleAppUi()) {
+                    IncomingCallActivity.present(this, glassLaunch)
+                    Log.i(TAG, "Incoming window present after FGS (app UI already visible)")
+                } else {
+                    IncomingCallActivity.presentFromPhoneCallFgs(this, glassLaunch)
+                    Log.i(TAG, "Incoming window presentFromPhoneCallFgs under launcher")
+                }
+            }
+            // After glass attach (or overlay-capable path), demote any leftover
+            // CallStyle — including delayed retries for async Activity onCreate.
+            // Never demote under keyguard unless IncomingCallActivity is up.
+            if (preferQuiet || IncomingCallActivity.isShowing()) {
+                demoteIncomingAfterGlass(
+                    this,
+                    callId = callId,
+                    sessionId = sessionId,
+                    title = title,
+                    body = body,
+                    notificationId = id,
+                )
+                val main = Handler(Looper.getMainLooper())
+                for (delayMs in longArrayOf(400L, 1_200L)) {
+                    main.postDelayed(
+                        {
+                            // demoteIncomingAfterGlass itself no-ops under keyguard;
+                            // still gate here so we do not spam NM under lock.
+                            if (BeamioTelecomService.isDeviceKeyguardLocked(
+                                    this@BeamioCallForegroundService,
+                                )
+                            ) {
+                                return@postDelayed
+                            }
+                            val activityUp = IncomingCallActivity.isShowing()
+                            val overlayUp = IncomingCallOverlay.isShowing()
+                            if (activityUp || overlayUp) {
+                                demoteIncomingAfterGlass(
+                                    this@BeamioCallForegroundService,
+                                    callId = callId,
+                                    sessionId = sessionId,
+                                    title = title,
+                                    body = body,
+                                    notificationId = id,
+                                )
+                            }
+                        },
+                        delayMs,
+                    )
+                }
             }
         } catch (error: Exception) {
             Log.e(TAG, "Incoming FGS denied", error)
@@ -211,6 +317,9 @@ class BeamioCallForegroundService : Service() {
         return false
     }
 
+    fun postQuietForegroundPublic(id: Int, notification: Notification): Boolean =
+        postQuietForeground(id, notification)
+
     private fun readNotification(intent: Intent): Notification? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_NOTIFICATION, Notification::class.java)
@@ -251,6 +360,79 @@ class BeamioCallForegroundService : Service() {
             start(context, callId, sessionId)
         }
 
+        /**
+         * Replace CallStyle Answer/Decline shade with a silent keep-alive after
+         * glass is showing. Keeps phoneCall/shortService FGS alive for ring timeout.
+         *
+         * Must work even when FGS [instance] is not yet onCreated (glass often
+         * demotes before startForegroundService runs) — otherwise CallStyle HUN
+         * stays and covers TYPE_APPLICATION_OVERLAY.
+         */
+        fun demoteIncomingAfterGlass(
+            context: Context,
+            callId: String,
+            sessionId: String,
+            title: String,
+            body: String,
+            notificationId: Int,
+            aliasKeys: List<String> = emptyList(),
+        ) {
+            // Lock / screen-off: never demote CallStyle FSI. Activity may report
+            // isShowing while occluded — quiet keep-alive then = no Beamio UI.
+            if (BeamioTelecomService.isDeviceKeyguardLocked(context)) {
+                Log.i(
+                    TAG,
+                    "Skip demoteIncomingAfterGlass; keyguard/screen-off — keep CallStyle FSI " +
+                        "activityUp=${IncomingCallActivity.isShowing()}",
+                )
+                return
+            }
+            val quiet = BeamioTelecomService.buildGlassKeepAliveNotification(
+                context,
+                callId = callId,
+                sessionId = sessionId,
+                title = title,
+                body = body,
+            )
+            // Prefer the live FGS id (same shade that held CallStyle). Fall back
+            // to the CallStyle posted id, then a stable FOREGROUND_ID — never
+            // leave CallStyle orphaned on a different hash id.
+            val id = when {
+                activeForegroundNotificationId != 0 -> activeForegroundNotificationId
+                notificationId != 0 -> notificationId
+                else -> FOREGROUND_ID
+            }
+            val live = instance
+            if (live != null) {
+                if (!live.postQuietForegroundPublic(id, quiet)) {
+                    NotificationManagerCompat.from(context).notify(id, quiet)
+                }
+                activeForegroundNotificationId = id
+            } else {
+                NotificationManagerCompat.from(context).notify(id, quiet)
+            }
+            val cancelIds = linkedSetOf<Int>()
+            if (notificationId != 0) cancelIds.add(notificationId)
+            (aliasKeys + listOf(callId, sessionId))
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .forEach { key -> cancelIds.add(BeamioTelecomService.notificationId(key)) }
+            cancelIds
+                .filter { it != id }
+                .forEach { aliasId ->
+                    NotificationManagerCompat.from(context).cancel(aliasId)
+                    NotificationManagerCompat.from(context).cancel(null, aliasId)
+                }
+            // Nuclear: any leftover CATEGORY_CALL HUN on the incoming channel
+            // (wrong alias hash) still covers TYPE_APPLICATION_OVERLAY glass.
+            BeamioTelecomService.cancelActiveCallStyleNotifications(context, keepId = id)
+            Log.i(
+                TAG,
+                "Incoming CallStyle demoted after glass keepId=$id " +
+                    "cancelledAliases=${cancelIds.filter { it != id }} fgsLive=${live != null}",
+            )
+        }
+
         fun startIncoming(
             context: Context,
             notificationId: Int,
@@ -273,6 +455,32 @@ class BeamioCallForegroundService : Service() {
                 }
             } catch (error: Exception) {
                 Log.e(TAG, "startForegroundService failed for incoming call", error)
+            }
+        }
+
+        /**
+         * Replace CallStyle Person/title on the live FGS shade after BeamioTag
+         * resolve (lock-screen identity refresh). Does not re-present glass.
+         */
+        fun refreshIncomingCallStyle(
+            context: Context,
+            notificationId: Int,
+            notification: Notification,
+        ) {
+            val live = instance
+            if (live != null && notificationId != 0) {
+                runCatching {
+                    live.startIncomingForeground(notificationId, notification)
+                    activeForegroundNotificationId = notificationId
+                    Log.i(TAG, "Incoming CallStyle FGS identity refresh id=$notificationId")
+                }.onFailure {
+                    Log.w(TAG, "Incoming CallStyle FGS identity refresh failed", it)
+                    NotificationManagerCompat.from(context).notify(notificationId, notification)
+                }
+                return
+            }
+            if (notificationId != 0) {
+                NotificationManagerCompat.from(context).notify(notificationId, notification)
             }
         }
 

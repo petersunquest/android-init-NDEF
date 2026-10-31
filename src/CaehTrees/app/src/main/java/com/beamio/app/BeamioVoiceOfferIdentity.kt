@@ -123,7 +123,11 @@ object BeamioVoiceOfferIdentity {
                 val decryptWait = Object()
                 var payload: JSONObject? = null
                 var decryptError: String? = null
-                BeamioOpenPgpHost.shared(app).decryptAndVerifyOffer(
+                // chat-sdk-android 0.2.1 `decryptAndVerifyOffer` always reports
+                // decrypt_fail: its async JS returns a Promise to evaluateJavascript,
+                // which hands back "{}". Same checks via bridge methods that work.
+                decryptAndVerifyOfferViaBridge(
+                    app,
                     secrets.privateKeyArmor,
                     offerArmor,
                 ) { result ->
@@ -139,6 +143,7 @@ object BeamioVoiceOfferIdentity {
                 val verified = payload
                 if (verified == null) {
                     Log.w(TAG, "decrypt/verify failed: ${decryptError ?: "timeout"}")
+                    logOfferKeyMismatch(offerArmor, secrets)
                     return@execute
                 }
                 val caller = verified.optString("callerEoa", "").trim().lowercase()
@@ -201,6 +206,153 @@ object BeamioVoiceOfferIdentity {
                 }
             }
         }
+    }
+
+    /**
+     * Decrypt a `voice_call_offer_v1` armor and verify the caller signature —
+     * the same checks as the SDK's `decryptAndVerifyOffer`, built on
+     * `decryptInboundArmor` + `verifyMessage`, which return results correctly.
+     * Success JSON: callerEoa, callId, sessionId, sessionKey, to, claimedTag.
+     */
+    private fun decryptAndVerifyOfferViaBridge(
+        app: Context,
+        privateKeyArmor: String,
+        offerArmor: String,
+        callback: (Result<JSONObject>) -> Unit,
+    ) {
+        val host = BeamioOpenPgpHost.shared(app)
+        host.decryptInboundArmor(privateKeyArmor, "", offerArmor) { decrypted ->
+            val text = decrypted.getOrElse {
+                callback(Result.failure(IllegalStateException("decrypt_fail: ${it.message}")))
+                return@decryptInboundArmor
+            }.text
+            // The PWA wraps the offer in a chat envelope:
+            // base64({ timestamp, text: "<offer JSON>", from, signMessage }).
+            val payload = extractVoiceOffer(text) ?: run {
+                callback(Result.failure(IllegalStateException("not_offer")))
+                return@decryptInboundArmor
+            }
+            val from = payload.optString("from").trim().lowercase()
+            val signature = payload.optString("callerSignature")
+            val callId = payload.optString("callId")
+            val sessionId = payload.optString("sessionId")
+            val to = payload.optString("to").trim().lowercase()
+            val sessionKey = payload.optString("sessionKey")
+            val entries = payload.optJSONArray("entryDomains")
+            val entryDomains = if (entries != null) {
+                (0 until entries.length()).joinToString(",") { entries.optString(it) }
+            } else {
+                payload.optString("entryDomains")
+            }
+            // Numbers as integers, like JS template strings and iOS.
+            fun num(key: String): String = when (val v = payload.opt(key)) {
+                is Number -> if (v.toDouble() == Math.floor(v.toDouble())) v.toLong().toString() else v.toString()
+                null, JSONObject.NULL -> ""
+                else -> v.toString()
+            }
+            // Must match the dialer's signed text exactly (PWA `voiceCallOfferSignText`).
+            val lines = listOf(
+                "CoNET voice_call_offer_v1",
+                "callId:$callId",
+                "sessionId:$sessionId",
+                "to:$to",
+                "createdAt:${num("createdAt")}",
+                "expiresAt:${num("expiresAt")}",
+                "timestamp:${num("timestamp")}",
+                "sessionKey:$sessionKey",
+                "tempWalletAddress:${payload.optString("tempWalletAddress").lowercase()}",
+                "entryDomains:$entryDomains",
+                "codec:${payload.optString("codec")}",
+            ).joinToString("\n")
+            if (signature.isBlank()) {
+                callback(Result.failure(IllegalStateException("missing_signature")))
+                return@decryptInboundArmor
+            }
+            host.verifyMessage(lines, signature) { verified ->
+                // The caller is whoever signed the offer (same rule as iOS); a
+                // claimed `from` that disagrees is logged, never trusted.
+                val recovered = verified.getOrNull()?.trim()?.lowercase().orEmpty()
+                if (!recovered.matches(Regex("^0x[0-9a-f]{40}$"))) {
+                    callback(Result.failure(IllegalStateException("verify_fail")))
+                    return@verifyMessage
+                }
+                if (from.isNotEmpty() && from != recovered) {
+                    Log.w(TAG, "offer claimed from differs from signer; using signer")
+                }
+                callback(
+                    Result.success(
+                        JSONObject()
+                            .put("callerEoa", recovered)
+                            .put("callId", callId)
+                            .put("sessionId", sessionId)
+                            .put("sessionKey", sessionKey)
+                            .put("to", to)
+                            .put("claimedTag", payload.optString("beamioTag").ifBlank { payload.optString("tag") }),
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Find the `voice_call_offer_v1` object in decrypted plaintext. Same walk
+     * as iOS: JSON or base64(JSON) at the root, then nested objects, nested
+     * `text` strings and JSON-in-string values, up to 8 levels deep.
+     */
+    private fun extractVoiceOffer(plaintext: String): JSONObject? {
+        fun parse(s: String): JSONObject? {
+            val t = s.trim()
+            if (!t.startsWith("{")) return null
+            return runCatching { JSONObject(t) }.getOrNull()
+        }
+        fun walk(value: Any?, depth: Int): JSONObject? {
+            if (depth >= 8 || value == null) return null
+            when (value) {
+                is JSONObject -> {
+                    if (value.optString("type") == "voice_call_offer_v1") return value
+                    val keys = value.keys()
+                    while (keys.hasNext()) {
+                        walk(value.opt(keys.next()), depth + 1)?.let { return it }
+                    }
+                }
+                is org.json.JSONArray -> {
+                    for (i in 0 until value.length()) walk(value.opt(i), depth + 1)?.let { return it }
+                }
+                is String -> parse(value)?.let { return walk(it, depth + 1) }
+            }
+            return null
+        }
+        parse(plaintext)?.let { return walk(it, 0) }
+        val decoded = runCatching {
+            String(
+                android.util.Base64.decode(plaintext.replace(Regex("\\s+"), ""), android.util.Base64.DEFAULT),
+                Charsets.UTF_8,
+            )
+        }.getOrNull() ?: return null
+        return parse(decoded)?.let { walk(it, 0) }
+    }
+
+    /**
+     * Diagnostics for an offer this device cannot decrypt: which key the
+     * dialer encrypted to, versus the key stored here and the one published
+     * on chain for this wallet. Key IDs only, never key material.
+     */
+    private fun logOfferKeyMismatch(offerArmor: String, secrets: BeamioChatPgpStore.Secrets) {
+        runCatching {
+            val recipients = BeamioPgpKeyIds.messageRecipients(offerArmor)
+            val local = BeamioPgpKeyIds.publicKeyIds(secrets.publicKeyArmor)
+            val published = BeamioAddressPgp.searchKey(secrets.eoa)
+                ?.let { BeamioPgpKeyIds.publicKeyIds(it.userPublicKeyArmored) }
+                .orEmpty()
+            val match = recipients.any { it in local }
+            val secret = BeamioPgpKeyIds.secretKeyProtection(secrets.privateKeyArmor)
+            Log.w(
+                TAG,
+                "offer key check recipients=$recipients local=$local published=$published " +
+                    "recipientIsLocal=$match localMatchesPublished=${local.toSet() == published.toSet()} " +
+                    "privateKeys=$secret",
+            )
+        }.onFailure { Log.w(TAG, "offer key check failed: ${it.message}") }
     }
 
     private fun rosterOf(secrets: BeamioChatPgpStore.Secrets): List<BeamioChatPgpStore.SiNode> {

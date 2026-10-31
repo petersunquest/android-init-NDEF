@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tight-cropped Beamio product mark: blue ring + B fill the square (not AdaptiveIcon). -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="fill"
+    android:src="@drawable/incoming_call_product_mark" />

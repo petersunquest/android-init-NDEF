@@ -1,5 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 0.5rem at 16px root — glass card L/R/top margin -->
+    <!-- Screen inset: L/R + top gap around glass (0.5rem = 8dp). -->
     <dimen name="incoming_call_banner_edge">8dp</dimen>
+    <!-- Inner padding of the glass card. -->
+    <dimen name="incoming_call_glass_pad_start">16dp</dimen>
+    <dimen name="incoming_call_glass_pad_end">14dp</dimen>
+    <!-- Vertical pad scaled so total glass height ≈ 150% of prior wrap height. -->
+    <dimen name="incoming_call_glass_pad_vertical">21dp</dimen>
+    <!-- Prior content ~64dp → 150% min height. -->
+    <dimen name="incoming_call_glass_min_height">96dp</dimen>
+    <!-- Product mark: outer blue chrome 20dp; inner launcher PNG 80% = 16dp. -->
+    <!-- Outer blue chrome 20dp; inner raw PNG at 80% = 16dp (not AdaptiveIcon mipmap). -->
+    <!-- Full product mark slot (iOS CallKit parity). Blue ring is in the glyph. -->
+    <dimen name="incoming_call_app_icon">20dp</dimen>
+    <dimen name="incoming_call_app_icon_radius">5dp</dimen>
+    <dimen name="incoming_call_product_icon_gap">7dp</dimen>
+    <!-- Title under product line. -->
+    <dimen name="incoming_call_title_top">3dp</dimen>
+    <!-- Gap between text block and Decline/Answer. -->
+    <dimen name="incoming_call_text_to_actions">14dp</dimen>
+    <!-- Decline / Answer circles — iOS CallKit compact size. -->
+    <dimen name="incoming_call_action_size">36dp</dimen>
+    <dimen name="incoming_call_action_gap">8dp</dimen>
+    <dimen name="incoming_call_action_icon_pad">9dp</dimen>
+    <!-- Glass corner radius 0.5rem (= 8dp). -->
+    <dimen name="incoming_call_glass_corner">8dp</dimen>
 </resources>

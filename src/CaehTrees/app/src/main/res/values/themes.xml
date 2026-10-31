@@ -19,37 +19,58 @@
         <item name="android:taskCloseExitAnimation">@anim/beamio_no_anim</item>
     </style>
 
-    <style name="Theme.CaehTrees.IncomingCall" parent="@android:style/Theme.Translucent.NoTitleBar">
+    <!-- Opaque dark shell (not Theme.Translucent): BAL + Samsung abort non-opaque
+         IncomingCallActivity with START result code=102 even under phoneCall FGS. -->
+    <style name="Theme.CaehTrees.IncomingCall" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@color/incoming_call_scrim</item>
-        <item name="android:colorBackground">@color/incoming_call_scrim</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@color/incoming_call_window_opaque</item>
+        <item name="android:colorBackground">@color/incoming_call_window_opaque</item>
         <item name="android:windowAnimationStyle">@style/CaehTreesIncomingCallAnimation</item>
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowSplashScreenBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/incoming_call_window_opaque</item>
+        <item name="android:navigationBarColor">@color/incoming_call_window_opaque</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowSplashScreenBackground">@color/incoming_call_window_opaque</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
-    <!-- Fully transparent behind the small glass card. -->
-    <style name="Theme.CaehTrees.IncomingCallWindow" parent="@android:style/Theme.Translucent.NoTitleBar">
+    <!-- Opaque full-screen dark behind the CallKit-style glass card. -->
+    <style name="Theme.CaehTrees.IncomingCallWindow" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@color/incoming_call_window</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@color/incoming_call_window_opaque</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowContentOverlay">@null</item>
-        <item name="android:colorBackground">@color/incoming_call_window</item>
+        <item name="android:colorBackground">@color/incoming_call_window_opaque</item>
         <item name="android:backgroundDimEnabled">false</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@color/incoming_call_window_opaque</item>
+        <item name="android:navigationBarColor">@color/incoming_call_window_opaque</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowAnimationStyle">@style/CaehTreesIncomingCallAnimation</item>
-        <item name="android:windowSplashScreenBackground">@color/incoming_call_window</item>
+        <item name="android:windowSplashScreenBackground">@color/incoming_call_window_opaque</item>
         <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+
+    <!-- Unlocked in-call page (iOS BeamioInCallScreen / CallKit style). -->
+    <style name="Theme.CaehTrees.InCall" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@drawable/bg_in_call_gradient</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

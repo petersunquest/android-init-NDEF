@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/in_call_control_disc"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_in_call_control_disc"
+        android:foreground="?android:attr/selectableItemBackgroundBorderless">
+
+        <ImageView
+            android:id="@+id/in_call_control_icon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:contentDescription="@null"
+            android:scaleType="centerInside"
+            android:tint="@android:color/white" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/in_call_control_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textColor="#E6FFFFFF"
+        android:textSize="12sp" />
+</LinearLayout>

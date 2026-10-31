@@ -11,6 +11,8 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import org.json.JSONObject
@@ -24,22 +26,94 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Native temporary voice relay: `voice_listen` SSE + AES PCM uplink/downlink.
+ * Native temporary voice relay: `voice_listen` SSE + AES PCM uplink/downlink,
+ * plus in-call video as JPEG frames. Wire format matches iOS
+ * `BeamioNativeVoiceChannel` and the PWA:
+ * - audio: `BPCM` + u32-LE sample rate + int16-LE mono PCM
+ * - video: `BJPG` + u16-LE width + u16-LE height + u32-LE frameId + JPEG
+ * - control: AES JSON (`voice_video_enable_v1` / `voice_video_disable_v1`, …)
+ * All three share one uplink `seq` counter.
  * No PWA — EncryptedSharedPreferences route PGP + `BeamioSiCipherPost` entry path.
  */
 object BeamioNativeVoiceChannel {
     private const val TAG = "BeamioNativeVoiceCh"
     private const val SAMPLE_RATE = 16_000
+    /**
+     * 160 ms per packet: each packet costs a route-PGP encrypt plus a relay POST,
+     * so 80 ms packets could not be sent in real time (≈40 % dropped).
+     */
+    private const val UPLINK_FRAME_MS = 160
+    private const val UPLINK_FRAME_BYTES = SAMPLE_RATE * UPLINK_FRAME_MS / 1000 * 2
+    /** Downlink jitter window: wait for late nextSeq before skip (~120ms). */
+    /** Wait this long for a late / out-of-order frame (matches the playout depth). */
+    private const val RX_JITTER_MS = 320L
+    /** Playout depth before audio starts, and again after an underrun. */
+    private const val PLAYOUT_TARGET_BYTES = SAMPLE_RATE * 2 * 320 / 1000
+    /** Hard latency cap: beyond this the oldest queued audio is dropped. */
+    private const val PLAYOUT_MAX_BYTES = SAMPLE_RATE * 2 * 600 / 1000
+    /** Fade-in after a gap or underrun so the restart does not click. */
+    private const val FADE_SAMPLES = SAMPLE_RATE * 5 / 1000
+    /** Missing frames filled with silence at most (keeps timing without long holes). */
+    private const val MAX_CONCEAL_FRAMES = 2
+    /** The track counts as dry when less than 20 ms of written audio is left. */
+    private const val UNDERRUN_GUARD_FRAMES = SAMPLE_RATE * 20 / 1000
+    /** Video is shown this long after its earliest possible arrival (≈ audio delay). */
+    private const val VIDEO_PLAYOUT_DELAY_MS = 300L
+    private const val RX_MAX_PENDING = 48
+    private val PCM_MAGIC = byteArrayOf(0x42, 0x50, 0x43, 0x4D) // "BPCM"
+    private val JPG_MAGIC = byteArrayOf(0x42, 0x4A, 0x50, 0x47) // "BJPG"
+    private const val MAX_VIDEO_IN_FLIGHT = 2
+    private const val MAX_AUDIO_IN_FLIGHT = 10
+    /**
+     * Largest audio packet when the sender is behind (~250 ms). The SI relay
+     * rejects a frame whose base64 payload exceeds 12 000 chars (≈ 8.9 KB raw),
+     * answering `invalid_voice_frame`.
+     */
+    private const val MAX_PACKET_BYTES = 8_000
     private val io = Executors.newCachedThreadPool()
+    private val rxHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     private val mediaLive = AtomicBoolean(false)
     private val uplinkSeq = AtomicInteger(1)
+    private val uplinkInFlight = AtomicBoolean(false)
+    private val uplinkPostOk = AtomicInteger(0)
+    private val uplinkDrop = AtomicInteger(0)
     private val activeRef = AtomicReference<BeamioNativeVoiceSignaling.ActiveCall?>(null)
     private val appCtx = AtomicReference<Context?>(null)
     private var listenConn: HttpURLConnection? = null
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private val captureStarted = AtomicBoolean(false)
+    private val captureMuted = AtomicBoolean(false)
+    private val pcmPendingLock = Any()
+    private var pcmPending = ByteArray(0)
+    private val rxLock = Any()
+    private var rxNextSeq: Int? = null
+    private val rxPendingPcm = HashMap<Int, ByteArray>()
+    private var rxJitterRunnable: Runnable? = null
+
+    /** Peer route crypto, resolved once per call and shared by audio, video and control. */
+    private class UplinkRoute(
+        val routeArmored: String,
+        val roster: List<BeamioChatPgpStore.SiNode>,
+        val exclude: Set<String>,
+        /** One entry for the whole call (iOS parity): no per-frame probing. */
+        val entryIp: String,
+    )
+    private val uplinkFailStreak = AtomicInteger(0)
+    private val uplinkRoute = AtomicReference<UplinkRoute?>(null)
+    private val uplinkRouteResolving = AtomicBoolean(false)
+    private val videoInFlight = AtomicInteger(0)
+    private val audioInFlight = AtomicInteger(0)
+    private val videoFrameId = AtomicInteger(0)
+
+    /** Soft mute: keep AudioRecord running but skip AES uplink frames. */
+    fun setCaptureMuted(muted: Boolean) {
+        captureMuted.set(muted)
+        Log.i(TAG, "captureMuted=$muted")
+    }
+
+    fun isRunning(): Boolean = running.get()
 
     fun start(context: Context, active: BeamioNativeVoiceSignaling.ActiveCall) {
         val app = context.applicationContext
@@ -49,10 +123,17 @@ object BeamioNativeVoiceChannel {
         running.set(true)
         mediaLive.set(active.mediaEnabled)
         uplinkSeq.set(1)
+        uplinkInFlight.set(false)
+        uplinkPostOk.set(0)
+        uplinkDrop.set(0)
+        synchronized(pcmPendingLock) { pcmPending = ByteArray(0) }
+        resetRxJitter()
+        resetVideoState()
         captureStarted.set(false)
+        captureMuted.set(false)
         Log.i(
             TAG,
-            "start role=${active.role} callId=${active.offer.callId.take(12)} listen=${active.listenSessionId.take(12)} media=${active.mediaEnabled}",
+            "start role=${active.role} callId=${active.offer.callId.take(12)} listen=${active.listenSessionId.take(12)} peerMedia=${active.peerMediaSessionId.take(12)} media=${active.mediaEnabled}",
         )
         io.execute { startVoiceListen(app, active) }
         if (active.mediaEnabled) {
@@ -67,9 +148,29 @@ object BeamioNativeVoiceChannel {
         activeRef.set(active)
         mediaLive.set(true)
         Log.i(TAG, "enableMedia peerSession=${active.peerMediaSessionId.take(12)}")
-        if (running.get() && captureStarted.compareAndSet(false, true)) {
-            io.execute { startCapture(app, active) }
+        if (!running.get()) return
+        if (audioRecord != null) return
+        // Do not pre-set captureStarted — startCapture owns that flag (and may
+        // leave it false while awaiting RECORD_AUDIO).
+        captureStarted.set(false)
+        io.execute { startCapture(app, active) }
+    }
+
+    /**
+     * After the user grants RECORD_AUDIO (InCall / MainActivity dialog), retry
+     * PCM capture if the temporary channel is still live and not yet recording.
+     */
+    fun retryCaptureAfterMicPermission() {
+        val app = appCtx.get() ?: return
+        val active = activeRef.get() ?: return
+        if (!running.get() || !mediaLive.get()) return
+        if (audioRecord != null) {
+            Log.i(TAG, "retryCapture skip — already capturing")
+            return
         }
+        Log.i(TAG, "retryCapture after RECORD_AUDIO grant callId=${active.offer.callId.take(12)}")
+        captureStarted.set(false)
+        io.execute { startCapture(app, active) }
     }
 
     fun stop() {
@@ -85,11 +186,17 @@ object BeamioNativeVoiceChannel {
         running.set(false)
         mediaLive.set(false)
         captureStarted.set(false)
+        captureMuted.set(false)
+        uplinkInFlight.set(false)
+        synchronized(pcmPendingLock) { pcmPending = ByteArray(0) }
+        resetRxJitter()
+        resetVideoState()
         try {
             listenConn?.disconnect()
         } catch (_: Exception) {
         }
         listenConn = null
+        releaseVoiceEffects()
         try {
             audioRecord?.stop()
             audioRecord?.release()
@@ -107,7 +214,10 @@ object BeamioNativeVoiceChannel {
         if (listenSessionId.length >= 16 && app != null) {
             io.execute { postVoiceUnlisten(app, listenSessionId) }
         }
-        Log.i(TAG, "stopped")
+        Log.i(
+            TAG,
+            "stopped uplinkOk=${uplinkPostOk.get()} uplinkDrop=${uplinkDrop.get()} lastSeq=${uplinkSeq.get()}",
+        )
     }
 
     /** Best-effort `voice_unlisten` to own mailbox route (entry ≠ B). SI drops session without EIP-191. */
@@ -322,10 +432,24 @@ object BeamioNativeVoiceChannel {
             Log.w(TAG, "decrypt fail: ${e.message}")
             return
         }
-        val asText = try {
-            String(plain, Charsets.UTF_8)
-        } catch (_: Exception) {
+        val seq = if (frame.has("seq")) frame.optInt("seq", -1) else -1
+        if (startsWith(plain, JPG_MAGIC)) {
+            // Video shares the audio seq counter: mark the slot so the PCM
+            // jitter buffer does not stall waiting for it.
+            if (mediaLive.get()) {
+                markRxSeqConsumed(seq)
+                handleInboundVideo(plain, frame.optLong("frameTimestamp", 0L))
+            }
+            return
+        }
+        val asText = if (startsWith(plain, PCM_MAGIC)) {
             null
+        } else {
+            try {
+                String(plain, Charsets.UTF_8)
+            } catch (_: Exception) {
+                null
+            }
         }
         if (asText != null && asText.trimStart().startsWith("{")) {
             try {
@@ -346,6 +470,12 @@ object BeamioNativeVoiceChannel {
                 }
                 if (t == "voice_end_v1" || t == "voice_call_reject_v1") {
                     stop()
+                    return
+                }
+                // Control frames also take a seq on the sender.
+                markRxSeqConsumed(seq)
+                if (t == "voice_video_disable_v1") {
+                    rxHandler.post { InCallActivity.applyPeerVideoFrameIfShowing(null) }
                 }
                 return
             } catch (_: Exception) {
@@ -353,23 +483,269 @@ object BeamioNativeVoiceChannel {
             }
         }
         if (!mediaLive.get()) return
-        playPcm(plain)
+        val pcm = stripPcmHeader(plain) ?: return
+        noteRxAudio(pcm.size)
+        if (seq >= 0) {
+            enqueueRxPcm(seq, pcm)
+        } else {
+            playPcm(pcm)
+        }
+    }
+
+    private var rxAudioStartMs = 0L
+    private var rxAudioBytes = 0L
+    private var rxAudioPackets = 0
+
+    /** Diagnostics: received audio duration vs wall time (should stay near 100 %). */
+    private fun noteRxAudio(bytes: Int) {
+        val now = System.currentTimeMillis()
+        synchronized(rxLock) {
+            if (rxAudioStartMs == 0L) rxAudioStartMs = now
+            rxAudioBytes += bytes
+            rxAudioPackets += 1
+            if (rxAudioPackets % 25 == 0) {
+                val wall = (now - rxAudioStartMs).coerceAtLeast(1L)
+                val audioMs = rxAudioBytes * 1000 / (SAMPLE_RATE * 2)
+                Log.i(TAG, "rx audio ${audioMs}ms over ${wall}ms wall (${audioMs * 100 / wall}%) packets=$rxAudioPackets avgMs=${audioMs / rxAudioPackets}")
+            }
+        }
+    }
+
+    private var echoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
+    private var gainControl: android.media.audiofx.AutomaticGainControl? = null
+
+    /**
+     * Turn on the platform echo canceller, noise suppressor and AGC for the mic
+     * session. VOICE_COMMUNICATION alone does not guarantee AEC on every device;
+     * without it the far end hears its own voice back from our speaker.
+     */
+    private fun attachVoiceEffects(sessionId: Int) {
+        releaseVoiceEffects()
+        if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+            echoCanceler = runCatching {
+                android.media.audiofx.AcousticEchoCanceler.create(sessionId)?.apply { enabled = true }
+            }.getOrNull()
+        }
+        if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+            noiseSuppressor = runCatching {
+                android.media.audiofx.NoiseSuppressor.create(sessionId)?.apply { enabled = true }
+            }.getOrNull()
+        }
+        if (android.media.audiofx.AutomaticGainControl.isAvailable()) {
+            gainControl = runCatching {
+                android.media.audiofx.AutomaticGainControl.create(sessionId)?.apply { enabled = true }
+            }.getOrNull()
+        }
+        Log.i(
+            TAG,
+            "voice effects aec=${echoCanceler?.enabled == true} ns=${noiseSuppressor?.enabled == true} " +
+                "agc=${gainControl?.enabled == true}",
+        )
+    }
+
+    private fun releaseVoiceEffects() {
+        runCatching { echoCanceler?.release() }
+        runCatching { noiseSuppressor?.release() }
+        runCatching { gainControl?.release() }
+        echoCanceler = null
+        noiseSuppressor = null
+        gainControl = null
+    }
+
+    private fun startsWith(bytes: ByteArray, magic: ByteArray): Boolean {
+        if (bytes.size < magic.size) return false
+        for (i in magic.indices) if (bytes[i] != magic[i]) return false
+        return true
+    }
+
+    /** `BPCM` + u32-LE rate + PCM → PCM at 16 kHz. Headerless PCM passes through. */
+    private fun stripPcmHeader(plain: ByteArray): ByteArray? {
+        if (!startsWith(plain, PCM_MAGIC)) {
+            return if (plain.size >= 2 && plain.size % 2 == 0) plain else null
+        }
+        if (plain.size < 10) return null
+        val rate = (plain[4].toInt() and 0xFF) or
+            ((plain[5].toInt() and 0xFF) shl 8) or
+            ((plain[6].toInt() and 0xFF) shl 16) or
+            ((plain[7].toInt() and 0xFF) shl 24)
+        val body = plain.copyOfRange(8, 8 + ((plain.size - 8) / 2) * 2)
+        if (rate == SAMPLE_RATE) return body
+        if (rate !in 8_000..48_000 || body.isEmpty()) return null
+        // Linear resample to 16 kHz.
+        val count = body.size / 2
+        val outCount = maxOf(1, (count.toLong() * SAMPLE_RATE / rate).toInt())
+        val out = ByteArray(outCount * 2)
+        fun sample(i: Int): Int =
+            (body[2 * i].toInt() and 0xFF) or (body[2 * i + 1].toInt() shl 8)
+        for (i in 0 until outCount) {
+            val pos = i.toDouble() * rate / SAMPLE_RATE
+            val i0 = minOf(pos.toInt(), count - 1)
+            val i1 = minOf(i0 + 1, count - 1)
+            val f = pos - i0
+            val v = (sample(i0) * (1 - f) + sample(i1) * f).toInt().coerceIn(-32768, 32767)
+            out[2 * i] = (v and 0xFF).toByte()
+            out[2 * i + 1] = ((v shr 8) and 0xFF).toByte()
+        }
+        return out
+    }
+
+    /** Decode a `BJPG` frame and queue it for paced display as the peer video background. */
+    private fun handleInboundVideo(plain: ByteArray, senderTsMs: Long) {
+        if (plain.size <= 12) return
+        val bitmap = try {
+            android.graphics.BitmapFactory.decodeByteArray(plain, 12, plain.size - 12)
+        } catch (_: Exception) {
+            null
+        } ?: return
+        scheduleVideoFrame(bitmap, senderTsMs)
+    }
+
+    // MARK: - Video playout
+
+    private val videoLock = Any()
+    private var videoMinDeltaMs: Long? = null
+    private var videoLastSenderTs = 0L
+
+    /**
+     * Frames arrive in bursts over the relay. Show each one at its sender time
+     * plus a fixed delay over the best (lowest) observed transit, so playback
+     * keeps the sender's cadence. Out-of-order and duplicate frames are dropped.
+     */
+    private fun scheduleVideoFrame(bitmap: android.graphics.Bitmap, senderTsMs: Long) {
+        val now = System.currentTimeMillis()
+        if (senderTsMs <= 0L) {
+            rxHandler.post { InCallActivity.applyPeerVideoFrameIfShowing(bitmap) }
+            return
+        }
+        val waitMs: Long
+        synchronized(videoLock) {
+            if (senderTsMs <= videoLastSenderTs) return
+            videoLastSenderTs = senderTsMs
+            val delta = now - senderTsMs
+            // Track the fastest transit; relax slowly so a slower path is adopted.
+            val prev = videoMinDeltaMs
+            val min = if (prev == null) delta else minOf(delta, prev + 2L)
+            videoMinDeltaMs = min
+            waitMs = (senderTsMs + min + VIDEO_PLAYOUT_DELAY_MS - now).coerceAtLeast(0L)
+        }
+        rxHandler.postDelayed({
+            if (running.get() && mediaLive.get()) InCallActivity.applyPeerVideoFrameIfShowing(bitmap)
+        }, waitMs)
+    }
+
+    private fun resetVideoPlayout() {
+        synchronized(videoLock) {
+            videoMinDeltaMs = null
+            videoLastSenderTs = 0L
+        }
+    }
+
+    /** Fill a seq slot with an empty chunk so the PCM jitter drain moves past it. */
+    private fun markRxSeqConsumed(seq: Int) {
+        if (seq < 0) return
+        enqueueRxPcm(seq, ByteArray(0))
+    }
+
+    private fun resetRxJitter() {
+        synchronized(rxLock) {
+            rxJitterRunnable?.let { rxHandler.removeCallbacks(it) }
+            rxJitterRunnable = null
+            rxNextSeq = null
+            rxPendingPcm.clear()
+        }
+    }
+
+    /** Playout jitter: buffer late/OOO seq ~120ms, then contiguous play; timeout → skip gap. */
+    private fun enqueueRxPcm(seq: Int, pcm: ByteArray) {
+        val toPlay = ArrayList<ByteArray>()
+        synchronized(rxLock) {
+            val next = rxNextSeq
+            if (next != null && seq < next) return
+            if (rxPendingPcm.containsKey(seq)) return
+            rxPendingPcm[seq] = pcm
+            if (rxNextSeq == null) {
+                rxNextSeq = seq
+            }
+            if (rxPendingPcm.size > RX_MAX_PENDING) {
+                skipRxGapLocked(reason = "overflow", out = toPlay)
+            } else {
+                drainRxLocked(out = toPlay)
+                scheduleRxJitterIfNeededLocked()
+            }
+        }
+        for (chunk in toPlay) playPcm(chunk)
+    }
+
+    private fun drainRxLocked(out: MutableList<ByteArray>) {
+        var next = rxNextSeq ?: return
+        while (true) {
+            val pcm = rxPendingPcm.remove(next) ?: break
+            out.add(pcm)
+            next += 1
+        }
+        rxNextSeq = next
+        if (rxPendingPcm.isEmpty()) {
+            rxJitterRunnable?.let { rxHandler.removeCallbacks(it) }
+            rxJitterRunnable = null
+        }
+    }
+
+    private fun scheduleRxJitterIfNeededLocked() {
+        val next = rxNextSeq ?: return
+        val hasLater = rxPendingPcm.keys.any { it > next }
+        if (!hasLater) return
+        if (rxJitterRunnable != null) return
+        val work = Runnable {
+            val toPlay = ArrayList<ByteArray>()
+            synchronized(rxLock) {
+                rxJitterRunnable = null
+                skipRxGapLocked(reason = "timeout", out = toPlay)
+            }
+            for (chunk in toPlay) playPcm(chunk)
+        }
+        rxJitterRunnable = work
+        rxHandler.postDelayed(work, RX_JITTER_MS)
+    }
+
+    private fun skipRxGapLocked(reason: String, out: MutableList<ByteArray>) {
+        val next = rxNextSeq ?: return
+        val later = rxPendingPcm.keys.filter { it > next }
+        val minKey = later.minOrNull() ?: return
+        Log.i(TAG, "rx jitter skip $next..<$minKey reason=$reason")
+        rxJitterRunnable?.let { rxHandler.removeCallbacks(it) }
+        rxJitterRunnable = null
+        // Fill lost audio with short silence so the timeline is not compressed;
+        // the next real frame fades in (see playout loop).
+        repeat(minOf(minKey - next, MAX_CONCEAL_FRAMES)) { out.add(ByteArray(UPLINK_FRAME_BYTES)) }
+        playFadeNext = true
+        rxNextSeq = minKey
+        drainRxLocked(out = out)
+        scheduleRxJitterIfNeededLocked()
     }
 
     private fun startCapture(context: Context, active: BeamioNativeVoiceSignaling.ActiveCall) {
-        captureStarted.set(true)
+        if (!running.get() || !mediaLive.get()) return
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "RECORD_AUDIO not granted — no uplink")
+            // Keep captureStarted=false so grant → retryCaptureAfterMicPermission can start.
+            captureStarted.set(false)
+            Log.w(TAG, "RECORD_AUDIO not granted — no uplink; awaiting permission dialog")
+            Handler(Looper.getMainLooper()).post {
+                InCallActivity.requestMicForVoiceUplinkIfShowing()
+                MainActivity.requestMicForVoiceUplink()
+            }
             return
         }
+        if (!captureStarted.compareAndSet(false, true)) return
         val minBuf = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
         )
         if (minBuf <= 0) {
+            captureStarted.set(false)
             Log.w(TAG, "AudioRecord min buffer invalid")
             return
         }
@@ -382,22 +758,60 @@ object BeamioNativeVoiceChannel {
                 minBuf * 2,
             )
         } catch (e: Exception) {
+            captureStarted.set(false)
             Log.w(TAG, "AudioRecord create fail: ${e.message}")
             return
         }
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
+            captureStarted.set(false)
             Log.w(TAG, "AudioRecord not initialized")
             return
         }
         audioRecord = record
+        attachVoiceEffects(record.audioSessionId)
         try {
             record.startRecording()
         } catch (e: Exception) {
+            try {
+                record.release()
+            } catch (_: Exception) {
+            }
+            audioRecord = null
+            captureStarted.set(false)
             Log.w(TAG, "startRecording fail: ${e.message}")
             return
         }
-        Log.i(TAG, "capture started 16k mono")
+        Log.i(
+            TAG,
+            "capture started 16k mono uplinkSeq=${uplinkSeq.get()} frameBytes=$UPLINK_FRAME_BYTES peerMedia=${active.peerMediaSessionId.take(12)}",
+        )
+        // Resolve route crypto once — per-buffer searchKey/PGP setup starved Soft inbound.
+        val secrets = BeamioChatPgpStore.load(context)
+        if (secrets == null) {
+            Log.w(TAG, "uplink abort — no ChatPgp secrets")
+            return
+        }
+        val peer = active.peerEoa.lowercase()
+        if (!peer.matches(Regex("^0x[0-9a-f]{40}$"))) {
+            Log.w(TAG, "uplink abort — bad peerEoa")
+            return
+        }
+        val keys = BeamioAddressPgp.searchKey(peer)
+        if (keys == null || !keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) {
+            Log.w(TAG, "uplink abort — searchKey(peer) route PGP missing")
+            return
+        }
+        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
+        val exclude = buildSet {
+            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
+            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+        }
+        pickEntryIp(roster, exclude)?.let { entry ->
+            if (uplinkRoute.compareAndSet(null, UplinkRoute(keys.routePublicKeyArmored, roster, exclude, entry))) {
+                Log.i(TAG, "uplink route entry=$entry")
+            }
+        }
         val buf = ByteArray(minBuf)
         while (running.get() && mediaLive.get()) {
             val n = try {
@@ -406,72 +820,216 @@ object BeamioNativeVoiceChannel {
                 break
             }
             if (n <= 0) continue
+            if (captureMuted.get()) continue
             val live = activeRef.get() ?: active
-            uplinkPcm(context, buf.copyOf(n), live)
+            appendAndMaybeUplink(
+                context = context,
+                pcmChunk = buf.copyOf(n),
+                active = live,
+                routeArmored = keys.routePublicKeyArmored,
+                roster = roster,
+                exclude = exclude,
+            )
         }
     }
 
-    private fun uplinkPcm(
+    /**
+     * Accumulate AudioRecord chunks into 160 ms frames, then AES +
+     * single-flight PGP encrypt → SI post. Prior path encrypted every minBuf
+     * (~dozens/sec) and silently dropped under OpenPGP backpressure — Soft
+     * dialer only ever saw Accept control.
+     */
+    private fun appendAndMaybeUplink(
+        context: Context,
+        pcmChunk: ByteArray,
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        routeArmored: String,
+        roster: List<BeamioChatPgpStore.SiNode>,
+        exclude: Set<String>,
+    ) {
+        if (!running.get() || !mediaLive.get() || pcmChunk.isEmpty()) return
+        if (active.peerMediaSessionId.isBlank()) {
+            if (uplinkDrop.getAndIncrement() < 3) {
+                Log.w(TAG, "uplink skip — peerMediaSessionId blank")
+            }
+            return
+        }
+        // Adaptive packetization (any length decodes on every peer): send 160 ms
+        // packets while a send slot is free; when all slots are busy keep the
+        // audio and send it with the next packet (up to ~250 ms) instead of dropping.
+        var packet: ByteArray? = null
+        synchronized(pcmPendingLock) {
+            val merged = ByteArray(pcmPending.size + pcmChunk.size)
+            System.arraycopy(pcmPending, 0, merged, 0, pcmPending.size)
+            System.arraycopy(pcmChunk, 0, merged, pcmPending.size, pcmChunk.size)
+            var rest = merged
+            val slotFree = uplinkRoute.get() != null && audioInFlight.get() < MAX_AUDIO_IN_FLIGHT
+            if (merged.size >= UPLINK_FRAME_BYTES && slotFree) {
+                val whole = (merged.size / UPLINK_FRAME_BYTES) * UPLINK_FRAME_BYTES
+                val take = minOf(whole, MAX_PACKET_BYTES)
+                packet = merged.copyOfRange(0, take)
+                rest = merged.copyOfRange(take, merged.size)
+            }
+            // Never keep more than one second of unsent audio: drop the oldest.
+            val maxPending = SAMPLE_RATE * 2
+            pcmPending = if (rest.size > maxPending) {
+                rest.copyOfRange(rest.size - maxPending, rest.size)
+            } else {
+                rest
+            }
+        }
+        packet?.let { uplinkPcmFrame(context, it, active, routeArmored, roster, exclude) }
+    }
+
+    private fun uplinkPcmFrame(
         context: Context,
         pcm: ByteArray,
         active: BeamioNativeVoiceSignaling.ActiveCall,
+        routeArmored: String,
+        roster: List<BeamioChatPgpStore.SiNode>,
+        exclude: Set<String>,
     ) {
         if (!running.get() || !mediaLive.get() || pcm.isEmpty()) return
+        if (captureMuted.get()) return
         if (active.peerMediaSessionId.isBlank()) return
-        val peer = active.peerEoa.lowercase()
-        if (!peer.matches(Regex("^0x[0-9a-f]{40}$"))) return
-        val seq = uplinkSeq.getAndIncrement()
-        val payload = try {
-            BeamioVoiceAesGcm.encryptBytes(active.offer.sessionKey, pcm)
-        } catch (_: Exception) {
+        val route = uplinkRoute.get() ?: routeOrResolve(active) ?: return
+        // Up to MAX_AUDIO_IN_FLIGHT posts at once (iOS: 6). Beyond that the
+        // frame is dropped: late audio is worse than lost audio.
+        if (audioInFlight.incrementAndGet() > MAX_AUDIO_IN_FLIGHT) {
+            audioInFlight.decrementAndGet()
+            val d = uplinkDrop.incrementAndGet()
+            if (d <= 3 || d % 25 == 0) {
+                Log.w(TAG, "uplink drop in-flight seq~${uplinkSeq.get()} drops=$d")
+            }
             return
         }
-        val nowMs = System.currentTimeMillis()
-        val secrets = BeamioChatPgpStore.load(context) ?: return
-        val localEoa = active.localEoa
-        val keys = BeamioAddressPgp.searchKey(peer) ?: return
-        if (!keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) return
-        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
-        val exclude = buildSet {
-            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
-            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
-        }
-        val uplink = JSONObject()
-            .put("command", "voice_uplink")
-            .put("type", "voice_frame_v1")
-            .put("walletAddress", localEoa)
-            .put("from", localEoa)
-            .put("callId", active.offer.callId)
-            .put("sessionId", active.listenSessionId)
-            .put("targetSessionId", active.peerMediaSessionId)
-            .put("to", peer)
-            .put("direction", "uplink")
-            .put("seq", seq)
-            .put("frameTimestamp", nowMs)
-            .put("payload", payload)
-            .put("timestamp", nowMs / 1000L)
-
-        BeamioOpenPgpHost.shared(context).encryptToRoute(
-            keys.routePublicKeyArmored,
-            uplink.toString(),
-        ) { result ->
-            val armor = result.getOrNull() ?: return@encryptToRoute
-            if (!armor.contains("BEGIN PGP MESSAGE")) return@encryptToRoute
-            BeamioSiCipherPost.post(armor, roster, exclude, maxAttempts = 2)
+        // Same wire as iOS / PWA: BPCM + u32-LE rate + PCM.
+        val framed = ByteArray(8 + pcm.size)
+        System.arraycopy(PCM_MAGIC, 0, framed, 0, 4)
+        putLe32(framed, 4, SAMPLE_RATE)
+        System.arraycopy(pcm, 0, framed, 8, pcm.size)
+        postUplink(active, route, framed, mediaKind = null) {
+            audioInFlight.decrementAndGet()
         }
     }
 
+    // MARK: - Audio playout
+
+    private val playLock = Object()
+    private val playQueue = ArrayDeque<ByteArray>()
+    private var playQueuedBytes = 0
+    private var playThread: Thread? = null
+    @Volatile private var playPrebuffering = true
+    @Volatile private var playFadeNext = true
+    private val playDrop = AtomicInteger(0)
+    private val playUnderruns = AtomicInteger(0)
+    private val uplinkFailLogged = AtomicInteger(0)
+
+    /**
+     * Queue decoded PCM for playout. Never blocks the caller (SSE reader or
+     * jitter timer); a dedicated thread feeds the AudioTrack.
+     */
     private fun playPcm(pcm: ByteArray) {
         if (pcm.isEmpty() || !running.get() || !mediaLive.get()) return
-        var track = audioTrack
-        if (track == null) {
-            val minBuf = AudioTrack.getMinBufferSize(
-                SAMPLE_RATE,
-                AudioFormat.CHANNEL_OUT_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-            )
-            if (minBuf <= 0) return
-            track = AudioTrack.Builder()
+        ensurePlayoutThread()
+        synchronized(playLock) {
+            playQueue.addLast(pcm)
+            playQueuedBytes += pcm.size
+            // Latency cap: drop the oldest audio, keep the newest.
+            while (playQueuedBytes > PLAYOUT_MAX_BYTES && playQueue.size > 1) {
+                playQueuedBytes -= playQueue.removeFirst().size
+                playFadeNext = true
+                val d = playDrop.incrementAndGet()
+                if (d <= 3 || d % 50 == 0) Log.w(TAG, "playout over latency cap; dropped oldest count=$d")
+            }
+            playLock.notifyAll()
+        }
+    }
+
+    private fun ensurePlayoutThread() {
+        synchronized(playLock) {
+            if (playThread?.isAlive == true) return
+            playPrebuffering = true
+            playFadeNext = true
+            playThread = Thread({ playoutLoop() }, "BeamioPlayout").apply { start() }
+        }
+    }
+
+    /**
+     * Industry-style playout buffer: hold [PLAYOUT_TARGET_BYTES] before starting
+     * and again after every underrun, then write with blocking calls on this
+     * thread so the track paces itself.
+     */
+    private fun playoutLoop() {
+        val track = createAudioTrack() ?: return
+        audioTrack = track
+        // Frames handed to the track; with the playback head this gives what is
+        // still queued inside the track (part of the jitter buffer too).
+        var framesWritten = 0L
+        try {
+            while (running.get() && mediaLive.get()) {
+                val chunk: ByteArray? = synchronized(playLock) {
+                    when {
+                        playPrebuffering && playQueuedBytes < PLAYOUT_TARGET_BYTES -> {
+                            playLock.wait(20L)
+                            null
+                        }
+                        playQueue.isEmpty() -> {
+                            val played = track.playbackHeadPosition.toLong() and 0xFFFFFFFFL
+                            val inTrack = framesWritten - played
+                            if (inTrack > UNDERRUN_GUARD_FRAMES) {
+                                // The track is still playing earlier audio: just wait
+                                // for the next packet. Rebuffering here would insert
+                                // a gap on every slightly late packet.
+                                playLock.wait(10L)
+                            } else {
+                                // The track really ran dry: rebuffer before resuming.
+                                playPrebuffering = true
+                                playFadeNext = true
+                                val u = playUnderruns.incrementAndGet()
+                                if (u <= 3 || u % 20 == 0) Log.i(TAG, "playout underrun; rebuffering count=$u")
+                            }
+                            null
+                        }
+                        else -> {
+                            if (playPrebuffering) {
+                                playPrebuffering = false
+                                Log.i(TAG, "playout start depthMs=${playQueuedBytes * 1000 / (SAMPLE_RATE * 2)}")
+                            }
+                            playQueue.removeFirst().also { playQueuedBytes -= it.size }
+                        }
+                    }
+                }
+                if (chunk == null) continue
+                val out = if (playFadeNext) {
+                    playFadeNext = false
+                    fadeIn(chunk)
+                } else {
+                    chunk
+                }
+                val n = track.write(out, 0, out.size)
+                if (n < 0) break
+                framesWritten += n / 2
+            }
+        } catch (_: InterruptedException) {
+        } catch (e: Exception) {
+            Log.w(TAG, "playout loop ended: ${e.message}")
+        } finally {
+            runCatching { track.stop() }
+            runCatching { track.release() }
+            if (audioTrack === track) audioTrack = null
+        }
+    }
+
+    private fun createAudioTrack(): AudioTrack? {
+        val minBuf = AudioTrack.getMinBufferSize(
+            SAMPLE_RATE,
+            AudioFormat.CHANNEL_OUT_MONO,
+            AudioFormat.ENCODING_PCM_16BIT,
+        )
+        if (minBuf <= 0) return null
+        return runCatching {
+            AudioTrack.Builder()
                 .setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -485,19 +1043,293 @@ object BeamioNativeVoiceChannel {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                         .build(),
                 )
-                .setBufferSizeInBytes(minBuf * 2)
+                // The playout queue holds the jitter depth; keep the track buffer small.
+                .setBufferSizeInBytes(maxOf(minBuf * 2, UPLINK_FRAME_BYTES))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
-            audioTrack = track
-            try {
-                track.play()
-            } catch (_: Exception) {
-                return
+                .also { it.play() }
+        }.onFailure { Log.w(TAG, "AudioTrack create failed: ${it.message}") }.getOrNull()
+    }
+
+    /** Linear 5 ms fade-in on 16-bit little-endian mono PCM. */
+    private fun fadeIn(pcm: ByteArray): ByteArray {
+        val out = pcm.copyOf()
+        val n = minOf(FADE_SAMPLES, out.size / 2)
+        for (i in 0 until n) {
+            val v = (out[2 * i].toInt() and 0xFF) or (out[2 * i + 1].toInt() shl 8)
+            val scaled = v * i / n
+            out[2 * i] = (scaled and 0xFF).toByte()
+            out[2 * i + 1] = ((scaled shr 8) and 0xFF).toByte()
+        }
+        return out
+    }
+
+    private fun resetPlayout() {
+        synchronized(playLock) {
+            playQueue.clear()
+            playQueuedBytes = 0
+            playPrebuffering = true
+            playFadeNext = true
+            playLock.notifyAll()
+        }
+        playThread?.interrupt()
+        playThread = null
+        playDrop.set(0)
+        playUnderruns.set(0)
+        resetVideoPlayout()
+    }
+
+    private fun resetVideoState() {
+        uplinkRoute.set(null)
+        uplinkRouteResolving.set(false)
+        videoInFlight.set(0)
+        audioInFlight.set(0)
+        uplinkFailStreak.set(0)
+        uplinkFailLogged.set(0)
+        videoFrameId.set(0)
+        synchronized(rxLock) {
+            rxAudioStartMs = 0L
+            rxAudioBytes = 0L
+            rxAudioPackets = 0
+        }
+        resetPlayout()
+    }
+
+    // MARK: - Shared route
+
+    /**
+     * Peer route for uplink posts. Resolved off the main thread once per call;
+     * returns null (and starts a resolve) until it is ready.
+     */
+    private fun routeOrResolve(active: BeamioNativeVoiceSignaling.ActiveCall): UplinkRoute? {
+        uplinkRoute.get()?.let { return it }
+        val app = appCtx.get() ?: return null
+        if (uplinkRouteResolving.compareAndSet(false, true)) {
+            io.execute {
+                try {
+                    resolveRoute(app, active)?.let { uplinkRoute.compareAndSet(null, it) }
+                } finally {
+                    uplinkRouteResolving.set(false)
+                }
             }
         }
-        try {
-            track.write(pcm, 0, pcm.size)
-        } catch (_: Exception) {
+        return null
+    }
+
+    private fun resolveRoute(context: Context, active: BeamioNativeVoiceSignaling.ActiveCall): UplinkRoute? {
+        val secrets = BeamioChatPgpStore.load(context) ?: run {
+            Log.w(TAG, "uplink route — no ChatPgp secrets")
+            return null
         }
+        val peer = active.peerEoa.lowercase()
+        if (!peer.matches(Regex("^0x[0-9a-f]{40}$"))) {
+            Log.w(TAG, "uplink route — bad peerEoa")
+            return null
+        }
+        val keys = BeamioAddressPgp.searchKey(peer)
+        if (keys == null || !keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")) {
+            Log.w(TAG, "uplink route — searchKey(peer) route PGP missing")
+            return null
+        }
+        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
+        val exclude = buildSet {
+            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
+            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+        }
+        val entry = pickEntryIp(roster, exclude) ?: run {
+            Log.w(TAG, "uplink route — no entry node")
+            return null
+        }
+        Log.i(TAG, "uplink route entry=$entry")
+        return UplinkRoute(keys.routePublicKeyArmored, roster, exclude, entry)
+    }
+
+    /** SDK pick first; else any roster node outside [exclude] and not marked unreachable. */
+    private fun pickEntryIp(roster: List<BeamioChatPgpStore.SiNode>, exclude: Set<String>): String? {
+        runCatching { BeamioSiCipherPost.getRandomNode(roster, exclude) }.getOrNull()
+            ?.ip?.let { BeamioSiCipherPost.normalizeIp(it) }?.let { return it }
+        return roster.asSequence()
+            .mapNotNull { BeamioSiCipherPost.normalizeIp(it.ip) }
+            .filter { it !in exclude && !BeamioSiCipherPost.isMarkedUnreachable(it) }
+            .toList()
+            .randomOrNull()
+    }
+
+    /**
+     * One direct `POST /post` to the call's entry (iOS `postDirect`). A late
+     * frame is useless, so there is no retry. ok = HTTP 2xx and body `ok` not false.
+     */
+    private fun postDirect(armor: String, ip: String): Boolean {
+        val started = System.currentTimeMillis()
+        var conn: HttpURLConnection? = null
+        return try {
+            val url = runCatching { BeamioSiCipherPost.postUrl(ip) }.getOrNull() ?: "http://$ip/post"
+            conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = 6_000
+                readTimeout = 6_000
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+            }
+            val body = JSONObject().put("data", armor).toString().toByteArray(Charsets.UTF_8)
+            conn.outputStream.use { it.write(body) }
+            val status = conn.responseCode
+            val text = runCatching {
+                (if (status in 200..299) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            }.getOrDefault("")
+            var ok = status in 200..299
+            if (ok) {
+                runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
+                    if (obj.has("ok")) ok = obj.optBoolean("ok", false)
+                }
+            }
+            if (!ok) {
+                val f = uplinkFailLogged.incrementAndGet()
+                if (f <= 5 || f % 50 == 0) {
+                    Log.w(TAG, "uplink post fail ip=$ip status=$status body=${text.take(120)} count=$f")
+                }
+            }
+            ok
+        } catch (e: Exception) {
+            val f = uplinkFailLogged.incrementAndGet()
+            if (f <= 5 || f % 50 == 0) {
+                Log.w(TAG, "uplink post error ip=$ip ${e.javaClass.simpleName}: ${e.message} count=$f")
+            }
+            // Unreachable entry: score it out so the next pick avoids it.
+            runCatching {
+                BeamioSiCipherPost.scoreEntry(ip, false, (System.currentTimeMillis() - started).toInt())
+            }
+            false
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
+    /** Count outcomes; three failures in a row drop the route so a new entry is picked. */
+    private fun finishUplink(ok: Boolean, route: UplinkRoute) {
+        if (ok) {
+            uplinkFailStreak.set(0)
+            return
+        }
+        if (uplinkFailStreak.incrementAndGet() >= 3) {
+            uplinkFailStreak.set(0)
+            if (uplinkRoute.compareAndSet(route, null)) {
+                Log.w(TAG, "uplink entry ${route.entryIp} failing — re-pick")
+            }
+        }
+    }
+
+    // MARK: - Video
+
+    /**
+     * Send one camera frame as `BJPG`. Frames are dropped (not queued) while
+     * [MAX_VIDEO_IN_FLIGHT] posts are pending, so video can never back up audio.
+     */
+    fun sendVideoJpegFrame(jpeg: ByteArray, width: Int, height: Int) {
+        val active = activeRef.get() ?: return
+        if (!running.get() || !mediaLive.get() || jpeg.isEmpty()) return
+        if (active.peerMediaSessionId.isBlank()) return
+        val route = routeOrResolve(active) ?: return
+        // Audio first: skip video while audio has half its send slots in use.
+        if (audioInFlight.get() >= MAX_AUDIO_IN_FLIGHT / 2) return
+        if (videoInFlight.incrementAndGet() > MAX_VIDEO_IN_FLIGHT) {
+            videoInFlight.decrementAndGet()
+            return
+        }
+        val frameId = videoFrameId.incrementAndGet()
+        val framed = ByteArray(12 + jpeg.size)
+        System.arraycopy(JPG_MAGIC, 0, framed, 0, 4)
+        putLe16(framed, 4, width)
+        putLe16(framed, 6, height)
+        putLe32(framed, 8, frameId)
+        System.arraycopy(jpeg, 0, framed, 12, jpeg.size)
+        postUplink(active, route, framed, mediaKind = "video") {
+            videoInFlight.decrementAndGet()
+        }
+    }
+
+    /** Tell the peer this side's camera turned on or off. Does not touch the call. */
+    fun sendVideoEnableControl(enabled: Boolean) {
+        val active = activeRef.get() ?: return
+        if (!running.get() || !mediaLive.get()) return
+        if (active.peerMediaSessionId.isBlank()) return
+        val route = routeOrResolve(active) ?: return
+        val body = JSONObject()
+            .put("type", if (enabled) "voice_video_enable_v1" else "voice_video_disable_v1")
+            .put("callId", active.offer.callId)
+            .put("sessionId", active.listenSessionId)
+            .put("from", active.localEoa)
+            .put("timestamp", System.currentTimeMillis())
+        postUplink(active, route, body.toString().toByteArray(Charsets.UTF_8), mediaKind = null) {}
+        Log.i(TAG, "video control enabled=$enabled callId=${active.offer.callId.take(12)}")
+    }
+
+    /** AES + route PGP + SI post on the io pool. [done] always runs once. */
+    private fun postUplink(
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        route: UplinkRoute,
+        plain: ByteArray,
+        mediaKind: String?,
+        done: () -> Unit,
+    ) {
+        val app = appCtx.get() ?: run { done(); return }
+        val seq = uplinkSeq.getAndIncrement()
+        val payload = try {
+            BeamioVoiceAesGcm.encryptBytes(active.offer.sessionKey, plain)
+        } catch (e: Exception) {
+            done()
+            return
+        }
+        val nowMs = System.currentTimeMillis()
+        val uplink = JSONObject()
+            .put("command", "voice_uplink")
+            .put("type", "voice_frame_v1")
+            .put("walletAddress", active.localEoa)
+            .put("from", active.localEoa)
+            .put("callId", active.offer.callId)
+            .put("sessionId", active.listenSessionId)
+            .put("targetSessionId", active.peerMediaSessionId)
+            .put("to", active.peerEoa.lowercase())
+            .put("direction", "uplink")
+            .put("seq", seq)
+            .put("frameTimestamp", nowMs)
+            .put("payload", payload)
+            .put("timestamp", nowMs / 1000L)
+        if (mediaKind != null) uplink.put("mediaKind", mediaKind)
+        BeamioOpenPgpHost.shared(app).encryptToRoute(route.routeArmored, uplink.toString()) { result ->
+            val armor = result.getOrNull()
+            if (armor.isNullOrBlank() || !armor.contains("BEGIN PGP MESSAGE")) {
+                done()
+                return@encryptToRoute
+            }
+            io.execute {
+                try {
+                    val ok = postDirect(armor, route.entryIp)
+                    if (ok) {
+                        val n = uplinkPostOk.incrementAndGet()
+                        if (n <= 3 || n % 100 == 0) {
+                            Log.i(TAG, "uplink post ok seq=$seq kind=${mediaKind ?: "audio/control"} okCount=$n entry=${route.entryIp}")
+                        }
+                    }
+                    finishUplink(ok, route)
+                } finally {
+                    done()
+                }
+            }
+        }
+    }
+
+    private fun putLe16(out: ByteArray, at: Int, value: Int) {
+        val v = value.coerceIn(0, 0xFFFF)
+        out[at] = (v and 0xFF).toByte()
+        out[at + 1] = ((v shr 8) and 0xFF).toByte()
+    }
+
+    private fun putLe32(out: ByteArray, at: Int, value: Int) {
+        out[at] = (value and 0xFF).toByte()
+        out[at + 1] = ((value shr 8) and 0xFF).toByte()
+        out[at + 2] = ((value shr 16) and 0xFF).toByte()
+        out[at + 3] = ((value shr 24) and 0xFF).toByte()
     }
 }

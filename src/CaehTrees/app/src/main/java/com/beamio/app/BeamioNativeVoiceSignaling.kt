@@ -26,6 +26,7 @@ object BeamioNativeVoiceSignaling {
     private val cache = ConcurrentHashMap<String, BeamioVoiceOfferIdentity.ResolvedIdentity>()
     private val inFlightDecline = ConcurrentHashMap.newKeySet<String>()
     private val inFlightAccept = ConcurrentHashMap.newKeySet<String>()
+    private val inFlightHangup = ConcurrentHashMap.newKeySet<String>()
     private val activeCall = AtomicReference<ActiveCall?>(null)
     /** Second call while the glass window or an active call owns the mic. Uplink waits until both are gone. */
     private data class DeferredStickyDecline(
@@ -208,6 +209,9 @@ object BeamioNativeVoiceSignaling {
         )
         BeamioNativeVoiceChannel.enableMedia(context.applicationContext, next)
         main.post {
+            if (InCallScreenModel.markConnected(next.offer.callId)) {
+                InCallActivity.refreshStateIfShowing()
+            }
             BeamioTelecomService.markOutgoingConnected(
                 context.applicationContext,
                 next.offer.callId,
@@ -239,6 +243,9 @@ object BeamioNativeVoiceSignaling {
                 sessionId,
                 context.applicationContext,
             )
+            // Close the dialer's native call screen.
+            InCallScreenModel.end(callId)
+            InCallActivity.finishIfMatching(callId, sessionId)
             // Tear down Telecom UI without a second PWA emit (already sent reject/timeout).
             BeamioTelecomService.disconnectOutgoingQuiet(
                 context.applicationContext,
@@ -399,6 +406,88 @@ object BeamioNativeVoiceSignaling {
     }
 
     private var stickyDeclineApp: Context? = null
+
+    /**
+     * Local End Call — AES `voice_end_v1` on the caller's temporary relay so the
+     * browser dialer tears down immediately (Chat PGP alone can lag or miss while
+     * the dialer is on the voice SSE). Must run **before** [forgetOffer].
+     */
+    fun sendHangup(context: Context, callId: String, sessionId: String) {
+        val app = context.applicationContext
+        val key = "$callId|$sessionId"
+        if (!inFlightHangup.add(key)) {
+            Log.i(TAG, "hangup already in-flight key=${key.take(24)}")
+            return
+        }
+        // Snapshot before Telecom clears ActiveCall / forgetOffer on the main path.
+        var offerSnapshot = cachedOffer(callId, sessionId)
+        if (offerSnapshot == null || offerSnapshot.sessionKey.isBlank()) {
+            activeCall.get()?.offer?.let { live ->
+                val matches =
+                    (callId.isNotBlank() && live.callId == callId) ||
+                        (sessionId.isNotBlank() && live.sessionId == sessionId) ||
+                        (callId.isBlank() && sessionId.isBlank() && live.callId.isNotBlank())
+                if (matches) offerSnapshot = live
+            }
+        }
+        io.execute {
+            val wake = acquireUplinkWakeLock(app, "hangup")
+            try {
+                var offer = offerSnapshot
+                if (offer == null || offer.sessionKey.isBlank()) {
+                    offer = BeamioVoiceOfferIdentity.resolveBlocking(app, callId, sessionId, 8_000L)
+                }
+                if (offer == null || offer.sessionKey.isBlank()) {
+                    Log.w(TAG, "hangup skip — no offer/sessionKey callId=${callId.take(12)}")
+                    return@execute
+                }
+                val secrets = BeamioChatPgpStore.load(app) ?: run {
+                    Log.w(TAG, "hangup — no ChatPgp secrets")
+                    return@execute
+                }
+                val localEoa = secrets.eoa.trim().lowercase()
+                if (!localEoa.matches(Regex("^0x[0-9a-f]{40}$"))) {
+                    Log.w(TAG, "hangup — missing local eoa")
+                    return@execute
+                }
+                val nowMs = System.currentTimeMillis()
+                val body = JSONObject()
+                    .put("type", "voice_end_v1")
+                    .put("callId", offer.callId)
+                    .put("sessionId", offer.sessionId)
+                    .put("from", localEoa)
+                    .put("to", offer.callerEoa.lowercase())
+                    .put("reason", "ended")
+                    .put("createdAt", nowMs)
+                    .put("timestamp", nowMs)
+                var ok = false
+                var attempt = 0
+                while (attempt < 3 && !ok) {
+                    if (attempt > 0) {
+                        try {
+                            Thread.sleep(500L * attempt)
+                        } catch (_: InterruptedException) {
+                            break
+                        }
+                    }
+                    ok = postControlUplink(app, offer, localEoa, body, offer.sessionId)
+                    Log.i(
+                        TAG,
+                        "hangup uplink callId=${offer.callId.take(12)} attempt=${attempt + 1} ok=$ok",
+                    )
+                    attempt += 1
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "hangup failed: ${e.message}")
+            } finally {
+                inFlightHangup.remove(key)
+                try {
+                    if (wake?.isHeld == true) wake.release()
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
 
     /** Telecom Answer — AES accept on temporary relay; starts native channel. */
     fun sendAccept(context: Context, callId: String, sessionId: String) {

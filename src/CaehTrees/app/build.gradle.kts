@@ -25,8 +25,8 @@ android {
         applicationId = "com.beamio.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 135
-        versionName = "1.0.132"
+        versionCode = 162
+        versionName = "1.0.158"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -96,6 +96,10 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    // In-call video uplink (front camera → JPEG frames, same wire as iOS).
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
     // Deferred deep link after Play install (merchant detail after onboarding)
     implementation("com.android.installreferrer:installreferrer:2.2")
     // Offline chat → FCM badge (replace app/google-services.json with Firebase Console export)

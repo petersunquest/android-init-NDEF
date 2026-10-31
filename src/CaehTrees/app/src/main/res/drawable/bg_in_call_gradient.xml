@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- iOS BeamioInCallScreen: #2C3A4D → #161E2A → #0A0E15 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:centerColor="#FF161E2A"
+        android:endColor="#FF0A0E15"
+        android:startColor="#FF2C3A4D"
+        android:type="linear" />
+</shape>

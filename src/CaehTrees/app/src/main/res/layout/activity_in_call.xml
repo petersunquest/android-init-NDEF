@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Beamio in-call page, same design as iOS BeamioInCallScreen: "Beamio Audio"
+     product line, caller, timer, wallet capsule, then Mute / Speaker / End only.
+     Shows over the lock screen without unlocking. Peer video (when present) is
+     the full-screen background; tools from @tag down collapse to the bottom. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/in_call_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_in_call_gradient"
+    android:fitsSystemWindows="false">
+
+    <!-- Full-bleed peer FaceTime JPEG (hidden until a frame arrives). -->
+    <ImageView
+        android:id="@+id/in_call_peer_video"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@string/in_call_peer_video"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/in_call_peer_video_scrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp">
+
+        <!-- Top chrome: minimize + optional local preview. -->
+        <FrameLayout
+            android:id="@+id/in_call_top_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="12dp">
+
+            <ImageButton
+                android:id="@+id/in_call_minimize"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="start|top"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/in_call_minimize"
+                android:padding="10dp"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_in_call_chevron_down"
+                android:tint="#CCFFFFFF" />
+
+            <!-- Product line, same as the incoming screens: Beamio mark + "Beamio Audio". -->
+            <LinearLayout
+                android:id="@+id/in_call_product_row"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_gravity="top|center_horizontal"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/in_call_app_icon"
+                    android:layout_width="@dimen/incoming_call_app_icon"
+                    android:layout_height="@dimen/incoming_call_app_icon"
+                    android:contentDescription="@string/app_name"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/incoming_call_app_icon" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/incoming_call_product_icon_gap"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="@string/incoming_call_glass_subtitle"
+                    android:textColor="@color/incoming_call_product_line"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Live front-camera preview while this side shares video. -->
+            <androidx.camera.view.PreviewView
+                android:id="@+id/in_call_local_preview"
+                android:layout_width="88dp"
+                android:layout_height="118dp"
+                android:layout_gravity="end|top"
+                android:background="@drawable/bg_in_call_local_preview"
+                android:contentDescription="@string/in_call_local_preview"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <Space
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- Collapsed strip (peer video only): tap to expand tools. -->
+        <LinearLayout
+            android:id="@+id/in_call_tools_collapsed"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/bg_in_call_tools_sheet"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="14dp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="40dp"
+                android:layout_height="5dp"
+                android:background="@drawable/bg_in_call_grabber" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/in_call_collapsed_avatar"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_in_call_avatar_ring"
+                    android:contentDescription="@string/in_call_caller_avatar"
+                    android:padding="1dp"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/in_call_collapsed_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@android:color/white"
+                    android:textSize="17sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/in_call_collapsed_timer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:fontFamily="monospace"
+                    android:text="00:00"
+                    android:textColor="#BFFFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_in_call_chevron_up"
+                    android:tint="#B3FFFFFF" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Expanded tools: identity + grid (from @tag down). -->
+        <LinearLayout
+            android:id="@+id/in_call_tools_expanded"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="28dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingBottom="12dp">
+
+            <View
+                android:id="@+id/in_call_tools_grabber"
+                android:layout_width="40dp"
+                android:layout_height="5dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_in_call_grabber"
+                android:visibility="gone" />
+
+            <!-- Verified @BeamioTag fun-emoji avatar (seed = tag plaintext). -->
+            <ImageView
+                android:id="@+id/in_call_avatar"
+                android:layout_width="88dp"
+                android:layout_height="88dp"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_in_call_avatar_ring"
+                android:contentDescription="@string/in_call_caller_avatar"
+                android:padding="3dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/in_call_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="@android:color/white"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/in_call_timer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:fontFamily="monospace"
+                android:text="00:00"
+                android:textColor="#B3FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/in_call_address_capsule"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="22dp"
+                android:background="@drawable/bg_in_call_eoa_capsule"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp">
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_in_call_wallet"
+                    android:tint="@color/in_call_eoa_accent" />
+
+                <TextView
+                    android:id="@+id/in_call_address"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:textColor="@color/in_call_eoa_text"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Row 1: Mute | Video | Speaker (same as iOS). -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingTop="26dp"
+                android:paddingBottom="22dp"
+                android:weightSum="3">
+
+                <include
+                    android:id="@+id/in_call_mute"
+                    layout="@layout/include_in_call_control"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <include
+                    android:id="@+id/in_call_video"
+                    layout="@layout/include_in_call_control"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+                <include
+                    android:id="@+id/in_call_speaker"
+                    layout="@layout/include_in_call_control"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+            </LinearLayout>
+
+            <!-- Row 2: End, centered. -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/in_call_end"
+                    android:layout_width="78dp"
+                    android:layout_height="78dp"
+                    android:background="@drawable/bg_in_call_end"
+                    android:contentDescription="@string/in_call_end"
+                    android:padding="22dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_in_call_end" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/in_call_end_short"
+                    android:textColor="#E6FFFFFF"
+                    android:textSize="13sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

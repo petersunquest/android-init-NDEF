@@ -1,8 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <solid android:color="#FFFF3B30" />
-    <stroke
-        android:width="1.5dp"
-        android:color="#F2FFFFFF" />
-</shape>
+<!-- Metallic red reject: outer rim + inset face (CSS icon-btn reject). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <gradient
+                android:angle="270"
+                android:centerColor="@color/incoming_call_decline_rim_mid"
+                android:endColor="@color/incoming_call_decline_rim_end"
+                android:startColor="@color/incoming_call_decline_rim_start"
+                android:type="linear" />
+        </shape>
+    </item>
+    <item
+        android:bottom="1.2dp"
+        android:left="1.2dp"
+        android:right="1.2dp"
+        android:top="1.2dp">
+        <shape android:shape="oval">
+            <gradient
+                android:angle="315"
+                android:centerColor="@color/incoming_call_decline_face_mid"
+                android:endColor="@color/incoming_call_decline_face_end"
+                android:startColor="@color/incoming_call_decline_face_start"
+                android:type="linear" />
+        </shape>
+    </item>
+</layer-list>
