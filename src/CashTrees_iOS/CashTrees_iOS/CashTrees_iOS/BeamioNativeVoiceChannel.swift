@@ -82,7 +82,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private struct UplinkRoute {
 		var routePublicKeyArmor: String
 		var nodes: [BeamioChatPgpKeychain.SiNode]
-		var entryIp: String
+		var exclude: Set<String>
+		/// Each frame goes to a different random entry (CoNET Chat: random entry per delivery).
+		var entries: BeamioEntryRotation
 	}
 
 	/// Downlink jitter / reorder (~120ms). Wait for late nextSeq instead of hard-dropping OOO.
@@ -299,16 +301,13 @@ final class BeamioNativeVoiceChannel: NSObject {
 			}
 			let seq = self.takeUplinkSeq()
 			let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-			let localEoa = active.localEoa
 			let uplink: [String: Any] = [
+				// Route command read by the peer's mailbox: no wallet fields.
 				"command": "voice_uplink",
 				"type": "voice_frame_v1",
-				"walletAddress": localEoa,
-				"from": localEoa,
 				"callId": active.offer.callId,
 				"sessionId": active.listenSessionId,
 				"targetSessionId": active.peerMediaSessionId,
-				"to": peer,
 				"direction": "uplink",
 				"seq": seq,
 				"frameTimestamp": nowMs,
@@ -320,8 +319,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 			      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
 			else { return }
 			let opaque = Data(jsonUtf8.utf8).base64EncodedString()
+			guard let entryIp = route.entries.next() else { return }
 			self.videoUplinkInFlight += 1
-			let entryIp = route.entryIp
 			BeamioOpenPgpHost.shared.encrypt(
 				plaintext: opaque,
 				publicKeyArmor: route.routePublicKeyArmor
@@ -333,6 +332,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				}
 				self.uplinkPostQueue.async {
 					let outcome = Self.postDirect(armor: armor, ip: entryIp)
+					self.noteEntryOutcome(outcome, ip: entryIp, route: route)
 					self.queue.async {
 						self.videoUplinkInFlight = max(0, self.videoUplinkInFlight - 1)
 						self.finishUplink(outcome, ip: entryIp)
@@ -359,16 +359,13 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 		let seq = takeUplinkSeq()
 		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-		let localEoa = active.localEoa
 		let uplink: [String: Any] = [
+			// Route command read by the peer's mailbox: no wallet fields.
 			"command": "voice_uplink",
 			"type": "voice_frame_v1",
-			"walletAddress": localEoa,
-			"from": localEoa,
 			"callId": active.offer.callId,
 			"sessionId": active.listenSessionId,
 			"targetSessionId": active.peerMediaSessionId,
-			"to": peer,
 			"direction": "uplink",
 			"seq": seq,
 			"frameTimestamp": nowMs,
@@ -379,7 +376,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
 		else { return }
 		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
-		let entryIp = route.entryIp
+		guard let entryIp = route.entries.next() else { return }
 		BeamioOpenPgpHost.shared.encrypt(
 			plaintext: opaque,
 			publicKeyArmor: route.routePublicKeyArmor
@@ -387,7 +384,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 			guard let self else { return }
 			guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else { return }
 			self.uplinkPostQueue.async {
-				_ = Self.postDirect(armor: armor, ip: entryIp)
+				let outcome = Self.postDirect(armor: armor, ip: entryIp)
+				self.noteEntryOutcome(outcome, ip: entryIp, route: route)
 			}
 		}
 	}
@@ -985,6 +983,18 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func restartEngine(_ engine: AVAudioEngine, player: AVAudioPlayerNode, attempt: Int) {
 		guard self.engine === engine else { return }
 		do {
+			// A configuration change can switch the output hardware format. The
+			// old mixer → output connection then renders nothing: the player
+			// reports playing while no scheduled buffer ever completes. Reconnect
+			// with the current output format before starting again.
+			if engine.isRunning { engine.stop() }
+			player.stop()
+			engine.connect(player, to: engine.mainMixerNode, format: Self.playbackFormat)
+			engine.connect(
+				engine.mainMixerNode,
+				to: engine.outputNode,
+				format: engine.outputNode.inputFormat(forBus: 0)
+			)
 			try engine.start()
 			player.play()
 			NSLog("[BeamioNativeVoiceChannel] engine restarted attempt=%d", attempt)
@@ -999,6 +1009,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 
 	/// Every 2 s: engine / player state, playout backlog, output route and the
 	/// level actually reaching the mixer output.
+	private var lastDiagBacklogMs = -1
+	private var stalledDiagTicks = 0
+
 	private func startDiagnostics() {
 		diagTimer?.cancel()
 		let timer = DispatchSource.makeTimerSource(queue: queue)
@@ -1007,6 +1020,27 @@ final class BeamioNativeVoiceChannel: NSObject {
 			guard let self else { return }
 			let backlogMs = self.rxBacklogSamples * 1000 / Self.wireRate
 			let prebuffering = self.playPrebuffering
+			// Playout stall: buffers are scheduled but none completes. Recover
+			// by rebuilding the graph connections and restarting in place.
+			if backlogMs > 0, !prebuffering, backlogMs == self.lastDiagBacklogMs {
+				self.stalledDiagTicks += 1
+			} else {
+				self.stalledDiagTicks = 0
+			}
+			self.lastDiagBacklogMs = backlogMs
+			if self.stalledDiagTicks >= 3 {
+				self.stalledDiagTicks = 0
+				self.rxBacklogSamples = 0
+				self.playPrebuffering = true
+				self.playPending.removeAll()
+				self.playPendingSamples = 0
+				self.playFadeNext = true
+				DispatchQueue.main.async {
+					guard let engine = self.engine, let player = self.playerNode else { return }
+					NSLog("[BeamioNativeVoiceChannel] playout stalled at %dms; reconnecting engine", backlogMs)
+					self.restartEngine(engine, player: player, attempt: 1)
+				}
+			}
 			DispatchQueue.main.async {
 				let outputs = AVAudioSession.sharedInstance().currentRoute.outputs
 					.map { $0.portType.rawValue }.joined(separator: ",")
@@ -1145,16 +1179,59 @@ final class BeamioNativeVoiceChannel: NSObject {
 					resolved = UplinkRoute(
 						routePublicKeyArmor: keys.routePublicKeyArmored,
 						nodes: nodes,
-						entryIp: node.ip
+						exclude: exclude,
+						entries: BeamioEntryRotation(first: node.ip)
 					)
 				}
 			}
+			if let resolved { self?.refillEntries(resolved) }
 			self?.queue.async {
 				guard let self, self.running, self.active?.offer.callId == callId else { return }
 				self.uplinkRoute = resolved
 				self.uplinkRouteResolving = false
-				NSLog("[BeamioNativeVoiceChannel] uplink route entry=%@", resolved?.entryIp ?? "unavailable")
+				NSLog(
+					"[BeamioNativeVoiceChannel] uplink route ready=%@ pool=%d",
+					resolved == nil ? "no" : "yes",
+					resolved?.entries.size ?? 0
+				)
 			}
+		}
+	}
+
+	/// Only an unreachable entry (status 0) leaves the pool; an application
+	/// error such as a closed peer session says nothing about the entry.
+	private func noteEntryOutcome(
+		_ outcome: (ok: Bool, status: Int, ms: Int, note: String),
+		ip: String,
+		route: UplinkRoute
+	) {
+		if !outcome.ok, outcome.status == 0 {
+			route.entries.markFailed(ip)
+		} else if outcome.ok, route.entries.recordLatency(ip, ms: outcome.ms) {
+			NSLog("[BeamioNativeVoiceChannel] uplink entry %@ slow — dropped from pool", ip)
+		}
+		if route.entries.size < BeamioEntryRotation.poolMin {
+			refillEntries(route)
+		}
+	}
+
+	/// Probe more entries on the post queue until the pool reaches its target.
+	private func refillEntries(_ route: UplinkRoute) {
+		guard route.entries.size < BeamioEntryRotation.poolTarget, route.entries.beginRefill() else { return }
+		uplinkPostQueue.async {
+			defer { route.entries.endRefill() }
+			var attempts = 0
+			while route.entries.size < BeamioEntryRotation.poolTarget,
+			      attempts < BeamioEntryRotation.poolTarget * 2
+			{
+				attempts += 1
+				guard let node = BeamioSiCipherPost.getRandomNode(
+					nodes: route.nodes,
+					excludeIps: route.exclude.union(route.entries.known())
+				) else { break }
+				route.entries.add(node.ip)
+			}
+			NSLog("[BeamioNativeVoiceChannel] uplink entry pool size=%d", route.entries.size)
 		}
 	}
 
@@ -1235,14 +1312,12 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
 		let localEoa = active.localEoa
 		let uplink: [String: Any] = [
+			// Route command read by the peer's mailbox: no wallet fields.
 			"command": "voice_uplink",
 			"type": "voice_frame_v1",
-			"walletAddress": localEoa,
-			"from": localEoa,
 			"callId": active.offer.callId,
 			"sessionId": active.listenSessionId,
 			"targetSessionId": active.peerMediaSessionId,
-			"to": peer,
 			"direction": "uplink",
 			"seq": seq,
 			"frameTimestamp": nowMs,
@@ -1253,8 +1328,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
 		else { return }
 		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
+		guard let entryIp = route.entries.next() else { return }
 		uplinkInFlight += 1
-		let entryIp = route.entryIp
 		BeamioOpenPgpHost.shared.encrypt(
 			plaintext: opaque,
 			publicKeyArmor: route.routePublicKeyArmor
@@ -1267,6 +1342,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			// Network I/O is blocking; keep it off the OpenPGP callback thread.
 			self.uplinkPostQueue.async {
 				let outcome = Self.postDirect(armor: armor, ip: entryIp)
+				self.noteEntryOutcome(outcome, ip: entryIp, route: route)
 				self.queue.async {
 					self.uplinkInFlight = max(0, self.uplinkInFlight - 1)
 					self.finishUplink(outcome, ip: entryIp)
@@ -1346,5 +1422,98 @@ final class BeamioNativeVoiceChannel: NSObject {
 				}
 			}
 		}
+	}
+}
+
+
+/// Probed, reachable entries for one call. `next()` returns a random entry
+/// that differs from the previous pick, without probing (a per-frame probe
+/// made frames late). Unreachable entries cool down before they can return.
+final class BeamioEntryRotation {
+	static let poolTarget = 6
+	static let poolMin = 3
+	private static let failedCooldown: TimeInterval = 60
+
+	private let lock = NSLock()
+	private var healthy: [String]
+	private var failedUntil: [String: Date] = [:]
+	private var last: String?
+	private var refilling = false
+
+	init(first: String) {
+		healthy = [first]
+	}
+
+	var size: Int {
+		lock.lock(); defer { lock.unlock() }
+		return healthy.count
+	}
+
+	func next() -> String? {
+		lock.lock(); defer { lock.unlock() }
+		guard !healthy.isEmpty else { return nil }
+		let choices = healthy.count > 1 ? healthy.filter { $0 != last } : healthy
+		let pick = choices.randomElement()
+		last = pick
+		return pick
+	}
+
+	func add(_ ip: String) {
+		lock.lock(); defer { lock.unlock() }
+		if let until = failedUntil[ip], until > Date() { return }
+		if !healthy.contains(ip) { healthy.append(ip) }
+	}
+
+	func markFailed(_ ip: String) {
+		lock.lock(); defer { lock.unlock() }
+		dropLocked(ip)
+	}
+
+	/// An entry whose average post time exceeds this leaves the pool.
+	private static let slowMs: Double = 600
+	private static let slowMinSamples = 3
+	private var latencyEwma: [String: Double] = [:]
+	private var samples: [String: Int] = [:]
+
+	/// Record one post time. A slow entry makes its frames late and drains the
+	/// peer's playout buffer, so it leaves the pool. Returns true when dropped.
+	func recordLatency(_ ip: String, ms: Int) -> Bool {
+		lock.lock(); defer { lock.unlock() }
+		guard healthy.contains(ip) else { return false }
+		let next = latencyEwma[ip].map { $0 * 0.7 + Double(ms) * 0.3 } ?? Double(ms)
+		latencyEwma[ip] = next
+		let n = (samples[ip] ?? 0) + 1
+		samples[ip] = n
+		if n >= Self.slowMinSamples, next > Self.slowMs, healthy.count > 1 {
+			dropLocked(ip)
+			return true
+		}
+		return false
+	}
+
+	private func dropLocked(_ ip: String) {
+		healthy.removeAll { $0 == ip }
+		latencyEwma[ip] = nil
+		samples[ip] = nil
+		failedUntil[ip] = Date().addingTimeInterval(Self.failedCooldown)
+	}
+
+	/// Entries to skip when probing for more: in the pool or cooling down.
+	func known() -> Set<String> {
+		lock.lock(); defer { lock.unlock() }
+		let now = Date()
+		return Set(healthy).union(failedUntil.filter { $0.value > now }.keys)
+	}
+
+	func beginRefill() -> Bool {
+		lock.lock(); defer { lock.unlock() }
+		if refilling { return false }
+		refilling = true
+		return true
+	}
+
+	func endRefill() {
+		lock.lock(); defer { lock.unlock() }
+		refilling = false
 	}
 }

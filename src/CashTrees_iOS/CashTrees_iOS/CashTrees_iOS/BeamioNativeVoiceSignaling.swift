@@ -976,14 +976,12 @@ enum BeamioNativeVoiceSignaling {
 
 		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
 		let uplink: [String: Any] = [
+			// Route command read by the peer's mailbox: no wallet fields.
 			"command": "voice_uplink",
 			"type": "voice_frame_v1",
-			"walletAddress": localEoa,
-			"from": localEoa,
 			"callId": offer.callId,
 			"sessionId": ownSessionId ?? frameSessionId,
 			"targetSessionId": frameSessionId,
-			"to": caller,
 			"direction": "uplink",
 			"seq": seq,
 			"frameTimestamp": nowMs,
