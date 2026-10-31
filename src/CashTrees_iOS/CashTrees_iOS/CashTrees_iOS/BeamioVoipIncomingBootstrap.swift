@@ -2019,7 +2019,10 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		}
 	}
 
-	/// Audio-only CallKit chrome.
+	/// Audio CallKit chrome; calls are reported with `hasVideo = false`.
+	/// `supportsVideo = true` only enables the in-call Video button: tapping it
+	/// unlocks, opens Beamio with a start-call intent, and
+	/// `BeamioCallKitVideoButton` turns on video in the Beamio call screen.
 	/// Icon: `BeamioCallKitIcon` (40pt, pure white RGB + alpha). Masks that are
 	/// not true white-alpha templates make FaceTime show "?" and, together
 	/// with dual-identity headers, collapse the bottom Speaker/Mute/End grid
@@ -2027,7 +2030,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	private static func makeConfiguration() -> CXProviderConfiguration {
 		// iOS 14+: use default init (localizedName initializer is deprecated).
 		let configuration = CXProviderConfiguration()
-		configuration.supportsVideo = false
+		configuration.supportsVideo = true
 		// One answered/ringing call per group. Allow a *second* call group so the
 		// busy-reject path can satisfy PushKit (`reportNewIncomingCall`) and
 		// instantly `declinedElsewhere` without displacing the live ringing call.
@@ -5710,6 +5713,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			audioSession.category.rawValue,
 			audioSession.mode.rawValue
 		)
+		// Dialer: ringback plays from here until Accept / end (no-op otherwise).
+		BeamioCallTonePlayer.shared.callAudioDidActivate()
 		// After lock-screen Answer, re-assert shell in-call presentation so unlock
 		// lands on BeamioInCallScreen (aligned layout), not only CallKit chrome.
 		// Must not early-return when presented is already true — wake + retries.
@@ -5744,6 +5749,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	}
 
 	func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+		BeamioCallTonePlayer.shared.callAudioDidDeactivate()
 		restoreAudioSession()
 	}
 

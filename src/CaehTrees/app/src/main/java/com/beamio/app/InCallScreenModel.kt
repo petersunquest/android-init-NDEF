@@ -52,7 +52,10 @@ object InCallScreenModel {
         ) previous.tag else ""
         preparedId.set("")
         begin(callId, sessionId, tag = preparedTag, address = address, presentImmediately = true)
-        if (!sameLiveCall) connectedFlag.set(false)
+        if (!sameLiveCall) {
+            connectedFlag.set(false)
+            BeamioCallTonePlayer.resetForNewDial()
+        }
     }
 
     /** The PWA's `prepareSystemCall` id while the screen waits for `startSystemCall`. */
@@ -74,6 +77,7 @@ object InCallScreenModel {
         state.set(state.get().copy(callId = "", sessionId = ""))
         connectedFlag.set(false)
         prepareError.set("")
+        BeamioCallTonePlayer.resetForNewDial()
         preparedId.set(prepareId.trim())
         android.util.Log.i("BeamioInCall", "prepared outgoing screen")
     }
@@ -132,6 +136,7 @@ object InCallScreenModel {
         val current = state.get()
         if (callId.isNotBlank() && current.callId.isNotBlank() && callId != current.callId) return false
         connectedFlag.set(true)
+        BeamioCallTonePlayer.stopRingback("connected")
         state.set(current.copy(answeredAtMs = System.currentTimeMillis()))
         android.util.Log.i("BeamioInCall", "outgoing connected callId=${current.callId.take(12)}")
         return true
@@ -262,6 +267,8 @@ object InCallScreenModel {
         presentedFlag.set(false)
         connectedFlag.set(true)
         prepareError.set("")
+        BeamioCallTonePlayer.stopRingback("ended")
+        BeamioCallTonePlayer.resetForNewDial()
         mutedFlag.set(false)
         BeamioNativeVoiceChannel.setCaptureMuted(false)
         state.set(State())

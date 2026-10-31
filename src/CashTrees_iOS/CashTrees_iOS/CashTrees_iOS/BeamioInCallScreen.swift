@@ -168,6 +168,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		connected = true
 		answeredAt = Date()
 		NSLog("[BeamioInCall] outgoing connected callId=%@", self.callId)
+		BeamioCallKitVideoButton.callDidConnect()
 	}
 
 	/// `foregroundDial`: the user dialed from the app in the foreground. The

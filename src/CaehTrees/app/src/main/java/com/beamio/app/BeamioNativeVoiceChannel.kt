@@ -230,6 +230,8 @@ object BeamioNativeVoiceChannel {
         appCtx.set(app)
         activeRef.set(active)
         mediaLive.set(true)
+        // Accept arrived: the ringback must stop before the mic / speaker open.
+        BeamioCallTonePlayer.stopRingback("voice-media", mediaStarting = true)
         Log.i(TAG, "enableMedia peerSession=${active.peerMediaSessionId.take(12)}")
         if (!running.get()) return
         if (audioRecord != null) return
