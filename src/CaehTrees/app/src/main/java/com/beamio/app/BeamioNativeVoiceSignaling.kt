@@ -633,14 +633,13 @@ object BeamioNativeVoiceSignaling {
 
         val nowMs = System.currentTimeMillis()
         val uplink = JSONObject()
+            // Route command read by the peer's mailbox: no wallet fields (the
+            // relay needs only session ids). Wallets stay inside the AES body.
             .put("command", "voice_uplink")
             .put("type", "voice_frame_v1")
-            .put("walletAddress", localEoa)
-            .put("from", localEoa)
             .put("callId", offer.callId)
             .put("sessionId", frameSessionId)
             .put("targetSessionId", offer.sessionId)
-            .put("to", caller)
             .put("direction", "uplink")
             .put("seq", 0)
             .put("frameTimestamp", nowMs)

@@ -64,6 +64,14 @@ object BeamioNativeVoiceChannel {
     private val JPG_MAGIC = byteArrayOf(0x42, 0x4A, 0x50, 0x47) // "BJPG"
     private const val MAX_VIDEO_IN_FLIGHT = 2
     private const val MAX_AUDIO_IN_FLIGHT = 10
+    /** Reachable entries kept per call; each frame picks one at random. */
+    private const val ENTRY_POOL_TARGET = 6
+    /** Refill in the background when the pool falls below this. */
+    private const val ENTRY_POOL_MIN = 3
+    private const val FAILED_ENTRY_COOLDOWN_MS = 60_000L
+    /** An entry whose average post time exceeds this leaves the pool. */
+    private const val SLOW_ENTRY_MS = 600.0
+    private const val SLOW_ENTRY_MIN_SAMPLES = 3
     /**
      * Largest audio packet when the sender is behind (~250 ms). The SI relay
      * rejects a frame whose base64 payload exceeds 12 000 chars (≈ 8.9 KB raw),
@@ -97,9 +105,77 @@ object BeamioNativeVoiceChannel {
         val routeArmored: String,
         val roster: List<BeamioChatPgpStore.SiNode>,
         val exclude: Set<String>,
-        /** One entry for the whole call (iOS parity): no per-frame probing. */
-        val entryIp: String,
+        /** Each frame goes to a different random entry (CoNET Chat: random entry per delivery). */
+        val entries: EntryRotation,
     )
+
+    /**
+     * Probed, reachable entries for this call. [next] returns a random one that
+     * differs from the previous pick, without probing (a per-frame probe made
+     * frames late). Failed entries leave the pool for [FAILED_ENTRY_COOLDOWN_MS].
+     */
+    private class EntryRotation(first: String) {
+        private val lock = Any()
+        private val healthy = ArrayList<String>().apply { add(first) }
+        private val failedUntil = HashMap<String, Long>()
+        private var last: String? = null
+
+        fun next(): String? = synchronized(lock) {
+            if (healthy.isEmpty()) return null
+            val choices = if (healthy.size > 1) healthy.filter { it != last } else healthy
+            val pick = choices.random()
+            last = pick
+            pick
+        }
+
+        fun add(ip: String) = synchronized(lock) {
+            val until = failedUntil[ip]
+            if (until != null && until > System.currentTimeMillis()) return@synchronized
+            if (ip !in healthy) healthy.add(ip)
+        }
+
+        fun markFailed(ip: String) = synchronized(lock) {
+            healthy.remove(ip)
+            latencyEwma.remove(ip)
+            samples.remove(ip)
+            failedUntil[ip] = System.currentTimeMillis() + FAILED_ENTRY_COOLDOWN_MS
+        }
+
+        private val latencyEwma = HashMap<String, Double>()
+        private val samples = HashMap<String, Int>()
+
+        /**
+         * Record one post time. A slow entry makes its frames late and drains the
+         * peer's playout buffer, so it leaves the pool like an unreachable one.
+         * Returns true when [ip] was dropped as slow.
+         */
+        fun recordLatency(ip: String, ms: Long): Boolean = synchronized(lock) {
+            if (ip !in healthy) return@synchronized false
+            val prev = latencyEwma[ip]
+            val next = if (prev == null) ms.toDouble() else prev * 0.7 + ms * 0.3
+            latencyEwma[ip] = next
+            val n = (samples[ip] ?: 0) + 1
+            samples[ip] = n
+            if (n >= SLOW_ENTRY_MIN_SAMPLES && next > SLOW_ENTRY_MS && healthy.size > 1) {
+                healthy.remove(ip)
+                latencyEwma.remove(ip)
+                samples.remove(ip)
+                failedUntil[ip] = System.currentTimeMillis() + FAILED_ENTRY_COOLDOWN_MS
+                true
+            } else {
+                false
+            }
+        }
+
+        fun size(): Int = synchronized(lock) { healthy.size }
+
+        /** Entries to skip when probing for more: in the pool or cooling down. */
+        fun known(): Set<String> = synchronized(lock) {
+            val now = System.currentTimeMillis()
+            healthy.toSet() + failedUntil.filterValues { it > now }.keys
+        }
+    }
+    private val entryRefillRunning = AtomicBoolean(false)
     private val uplinkFailStreak = AtomicInteger(0)
     private val uplinkRoute = AtomicReference<UplinkRoute?>(null)
     private val uplinkRouteResolving = AtomicBoolean(false)
@@ -814,8 +890,10 @@ object BeamioNativeVoiceChannel {
             BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
         }
         pickEntryIp(roster, exclude)?.let { entry ->
-            if (uplinkRoute.compareAndSet(null, UplinkRoute(keys.routePublicKeyArmored, roster, exclude, entry))) {
-                Log.i(TAG, "uplink route entry=$entry")
+            val route = UplinkRoute(keys.routePublicKeyArmored, roster, exclude, EntryRotation(entry))
+            if (uplinkRoute.compareAndSet(null, route)) {
+                Log.i(TAG, "uplink route first entry=$entry")
+                refillEntries(route)
             }
         }
         val buf = ByteArray(minBuf)
@@ -1146,8 +1224,29 @@ object BeamioNativeVoiceChannel {
             Log.w(TAG, "uplink route — no entry node")
             return null
         }
-        Log.i(TAG, "uplink route entry=$entry")
-        return UplinkRoute(keys.routePublicKeyArmored, roster, exclude, entry)
+        Log.i(TAG, "uplink route first entry=$entry")
+        val route = UplinkRoute(keys.routePublicKeyArmored, roster, exclude, EntryRotation(entry))
+        refillEntries(route)
+        return route
+    }
+
+    /** Probe more entries in the background until the pool has [ENTRY_POOL_TARGET]. */
+    private fun refillEntries(route: UplinkRoute) {
+        if (route.entries.size() >= ENTRY_POOL_TARGET) return
+        if (!entryRefillRunning.compareAndSet(false, true)) return
+        io.execute {
+            try {
+                var attempts = 0
+                while (route.entries.size() < ENTRY_POOL_TARGET && attempts < ENTRY_POOL_TARGET * 2) {
+                    attempts++
+                    val ip = pickEntryIp(route.roster, route.exclude + route.entries.known()) ?: break
+                    route.entries.add(ip)
+                }
+                Log.i(TAG, "uplink entry pool size=${route.entries.size()}")
+            } finally {
+                entryRefillRunning.set(false)
+            }
+        }
     }
 
     /** SDK pick first; else any roster node outside [exclude] and not marked unreachable. */
@@ -1165,7 +1264,11 @@ object BeamioNativeVoiceChannel {
      * One direct `POST /post` to the call's entry (iOS `postDirect`). A late
      * frame is useless, so there is no retry. ok = HTTP 2xx and body `ok` not false.
      */
+    /** Set by [postDirect] when the entry could not be reached (vs an app-level error). */
+    private val lastPostUnreachable = ThreadLocal<Boolean>()
+
     private fun postDirect(armor: String, ip: String): Boolean {
+        lastPostUnreachable.set(false)
         val started = System.currentTimeMillis()
         var conn: HttpURLConnection? = null
         return try {
@@ -1203,6 +1306,7 @@ object BeamioNativeVoiceChannel {
                 Log.w(TAG, "uplink post error ip=$ip ${e.javaClass.simpleName}: ${e.message} count=$f")
             }
             // Unreachable entry: score it out so the next pick avoids it.
+            lastPostUnreachable.set(true)
             runCatching {
                 BeamioSiCipherPost.scoreEntry(ip, false, (System.currentTimeMillis() - started).toInt())
             }
@@ -1221,7 +1325,7 @@ object BeamioNativeVoiceChannel {
         if (uplinkFailStreak.incrementAndGet() >= 3) {
             uplinkFailStreak.set(0)
             if (uplinkRoute.compareAndSet(route, null)) {
-                Log.w(TAG, "uplink entry ${route.entryIp} failing — re-pick")
+                Log.w(TAG, "uplink entries failing — re-resolve route")
             }
         }
     }
@@ -1289,14 +1393,13 @@ object BeamioNativeVoiceChannel {
         }
         val nowMs = System.currentTimeMillis()
         val uplink = JSONObject()
+            // Route command read by the peer's mailbox: no wallet fields (the
+            // relay needs only session ids).
             .put("command", "voice_uplink")
             .put("type", "voice_frame_v1")
-            .put("walletAddress", active.localEoa)
-            .put("from", active.localEoa)
             .put("callId", active.offer.callId)
             .put("sessionId", active.listenSessionId)
             .put("targetSessionId", active.peerMediaSessionId)
-            .put("to", active.peerEoa.lowercase())
             .put("direction", "uplink")
             .put("seq", seq)
             .put("frameTimestamp", nowMs)
@@ -1311,11 +1414,24 @@ object BeamioNativeVoiceChannel {
             }
             io.execute {
                 try {
-                    val ok = postDirect(armor, route.entryIp)
+                    val entryIp = route.entries.next()
+                    val postStarted = System.currentTimeMillis()
+                    val ok = entryIp != null && postDirect(armor, entryIp)
+                    if (ok && entryIp != null &&
+                        route.entries.recordLatency(entryIp, System.currentTimeMillis() - postStarted)
+                    ) {
+                        Log.i(TAG, "uplink entry $entryIp slow — dropped from pool")
+                    }
+                    // Only an unreachable entry leaves the pool; an app-level
+                    // error (closed peer session) says nothing about the entry.
+                    if (!ok && entryIp != null && lastPostUnreachable.get() == true) {
+                        route.entries.markFailed(entryIp)
+                    }
+                    if (route.entries.size() < ENTRY_POOL_MIN) refillEntries(route)
                     if (ok) {
                         val n = uplinkPostOk.incrementAndGet()
                         if (n <= 3 || n % 100 == 0) {
-                            Log.i(TAG, "uplink post ok seq=$seq kind=${mediaKind ?: "audio/control"} okCount=$n entry=${route.entryIp}")
+                            Log.i(TAG, "uplink post ok seq=$seq kind=${mediaKind ?: "audio/control"} okCount=$n entry=$entryIp pool=${route.entries.size()}")
                         }
                     }
                     finishUplink(ok, route)
