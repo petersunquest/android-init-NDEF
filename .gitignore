@@ -35,6 +35,11 @@ Thumbs.db
 src/x402sdk/build/
 src/CaehTrees/play-console/*.pem
 src/CashTrees_iOS/iOS_NDEF/DerivedDataCI/
+src/CashTrees_iOS/build/
+src/CashTrees_iOS/CashTrees_iOS/build/
+src/CashTrees_iOS/DerivedData-*/
+src/CashTrees_iOS/CashTrees_iOS/DerivedData-*/
+/build/adhoc-voip-*/
 src/CashTrees_iOS/CashTrees_iOS/CashTrees_iOS/SilentPassUI-*.zip
 src/android/softPOS/app/google-services.json
 states/
