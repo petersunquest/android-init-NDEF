@@ -1162,7 +1162,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 dialerWakeCalleeEoa:payload.dialerWakeCalleeEoa||'',
                 dialerWakeExpiresAt:payload.dialerWakeExpiresAt||0,
                 dialerWakeTimestamp:payload.dialerWakeTimestamp||0,
-                dialerWakeOfferArmor:payload.dialerWakeOfferArmor||''
+                dialerWakeOfferArmor:payload.dialerWakeOfferArmor||'',
+                dialerRelayRoute:payload.dialerRelayRoute||'',
+                dialerRelayIp:payload.dialerRelayIp||''
               });
             },
             reportIncomingSystemCall:function(payload){
@@ -1177,7 +1179,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 claimedAddress:payload.claimedAddress||'',
                 identityWarning:payload.identityWarning||'',
                 sessionKey:payload.sessionKey||'',
-                to:payload.to||''
+                to:payload.to||'',
+                relayRoute:payload.relayRoute||'',
+                relayIp:payload.relayIp||''
               });
             },
             endSystemCall:function(payload){
@@ -1450,7 +1454,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     calleeEoa: wakeCallee,
                     expiresAt: wakeExpires,
                     pushTimestamp: wakeTs,
-                    offerArmor: wakeArmor
+                    offerArmor: wakeArmor,
+                    relayRouteArmored: (body["dialerRelayRoute"] as? String ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                    relayIp: (body["dialerRelayIp"] as? String ?? "")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                 )
             }()
             // B35: never pass peer/tag into CallKit — dual EOA/@tag collapses
@@ -1528,7 +1536,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                         callId: callId,
                         sessionId: sessionId,
                         sessionKey: sessionKey.trimmingCharacters(in: .whitespacesAndNewlines),
-                        to: to.trimmingCharacters(in: .whitespacesAndNewlines)
+                        to: to.trimmingCharacters(in: .whitespacesAndNewlines),
+                        relayRouteArmored: BeamioVoiceOfferIdentity.Resolved.decodeRelayRoute(
+                            body["relayRoute"] as? String ?? ""
+                        ),
+                        relayIp: (body["relayIp"] as? String ?? "")
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                 )
             }

@@ -21,6 +21,9 @@ enum BeamioNativeVoiceSignaling {
 		/// Push timestamp (unix sec).
 		var pushTimestamp: Int64
 		var offerArmor: String
+		/// Per-call relay node (armored route key + IP); empty for the legacy own-mailbox path.
+		var relayRouteArmored: String = ""
+		var relayIp: String = ""
 	}
 
 	/// Active native temporary-relay call (callee after Answer, or dialer after startSystemCall).
@@ -368,9 +371,20 @@ enum BeamioNativeVoiceSignaling {
 		return (type: hit.0, callId: hit.1, sessionId: hit.2)
 	}
 
-	static func rememberOffer(_ resolved: BeamioVoiceOfferIdentity.Resolved) {
-		guard !resolved.callId.isEmpty else { return }
+	static func rememberOffer(_ incoming: BeamioVoiceOfferIdentity.Resolved) {
+		guard !incoming.callId.isEmpty else { return }
 		lock.lock()
+		// A later copy without relay fields (the PWA report) must not erase the
+		// signed relay from the shell's own decrypt.
+		var resolved = incoming
+		if resolved.relayRouteArmored.isEmpty,
+		   let prior = cacheByCallId[resolved.callId],
+		   !prior.relayRouteArmored.isEmpty,
+		   prior.sessionId == resolved.sessionId
+		{
+			resolved.relayRouteArmored = prior.relayRouteArmored
+			resolved.relayIp = prior.relayIp
+		}
 		cacheByCallId[resolved.callId] = resolved
 		if !resolved.sessionId.isEmpty {
 			cacheByCallId[resolved.sessionId] = resolved
@@ -957,18 +971,27 @@ enum BeamioNativeVoiceSignaling {
 			return false
 		}
 
-		guard let keys = BeamioAddressPgp.searchKey(address: caller),
-		      keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")
-		else {
-			NSLog("[BeamioNativeVoice] searchKey(caller) failed")
-			return false
-		}
-
+		// The caller's session lives on its per-call relay node when the signed
+		// offer names one (callee side); otherwise the peer's mailbox.
+		let relayRoute: String? = (caller == offer.callerEoa.lowercased()
+			&& offer.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY")) ? offer.relayRouteArmored : nil
+		var routeArmor = relayRoute ?? ""  // set below for the mailbox path
 		let secrets = BeamioChatPgpKeychain.load()
 		let nodes = BeamioChatPgpKeychain.loadSiNodes()
 		var exclude = Set<String>()
-		if let b = BeamioAddressPgp.mailboxIp(forRoutePgpKeyID: keys.routePgpKeyID, nodes: nodes) {
-			exclude.insert(b)
+		if relayRoute != nil {
+			if let relayIp = BeamioSiCipherPost.normalizeIp(offer.relayIp) { exclude.insert(relayIp) }
+		} else {
+			guard let keys = BeamioAddressPgp.searchKey(address: caller),
+			      keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")
+			else {
+				NSLog("[BeamioNativeVoice] searchKey(caller) failed")
+				return false
+			}
+			routeArmor = keys.routePublicKeyArmored
+			if let b = BeamioAddressPgp.mailboxIp(forRoutePgpKeyID: keys.routePgpKeyID, nodes: nodes) {
+				exclude.insert(b)
+			}
 		}
 		if let mailbox = BeamioSiCipherPost.normalizeIp(secrets?.mailboxIp ?? "") {
 			exclude.insert(mailbox)
@@ -995,7 +1018,7 @@ enum BeamioNativeVoiceSignaling {
 
 		let sem = DispatchSemaphore(value: 0)
 		var armorOut: String?
-		BeamioOpenPgpHost.shared.encrypt(plaintext: opaque, publicKeyArmor: keys.routePublicKeyArmored) { result in
+		BeamioOpenPgpHost.shared.encrypt(plaintext: opaque, publicKeyArmor: routeArmor) { result in
 			armorOut = try? result.get()
 			sem.signal()
 		}

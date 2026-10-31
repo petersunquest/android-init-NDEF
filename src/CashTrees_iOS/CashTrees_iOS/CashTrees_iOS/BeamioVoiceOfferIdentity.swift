@@ -16,6 +16,21 @@ enum BeamioVoiceOfferIdentity {
 		var sessionKey: String
 		/// Offer `to` (local callee EOA when present).
 		var to: String
+		/// Caller's per-call relay node (armored route key + IP), signed in the
+		/// offer. Accept / control / media go to the caller's session there.
+		/// Empty for offers from older callers (their own mailbox).
+		var relayRouteArmored: String = ""
+		var relayIp: String = ""
+
+		/// base64 armored route key → armor, or "" when absent / not a public key.
+		static func decodeRelayRoute(_ raw: String) -> String {
+			let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+			guard !t.isEmpty, let data = Data(base64Encoded: t, options: .ignoreUnknownCharacters),
+			      let armor = String(data: data, encoding: .utf8),
+			      armor.contains("BEGIN PGP PUBLIC KEY")
+			else { return "" }
+			return armor
+		}
 	}
 
 	/// Best-effort; failures leave CallKit on opaque "Beamio".
@@ -235,7 +250,9 @@ enum BeamioVoiceOfferIdentity {
 						callId: (offerCallId?.isEmpty == false ? offerCallId! : callId),
 						sessionId: (offerSessionId?.isEmpty == false ? offerSessionId! : sessionId),
 						sessionKey: sessionKey,
-						to: toField
+						to: toField,
+						relayRouteArmored: Resolved.decodeRelayRoute((offer["relayRoute"] as? String) ?? ""),
+						relayIp: ((offer["relayIp"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 					)
 					BeamioNativeVoiceSignaling.rememberOffer(resolved)
 					NSLog(
@@ -322,7 +339,7 @@ enum BeamioVoiceOfferIdentity {
 		}()
 		let to = s("to").lowercased()
 		let temp = s("tempWalletAddress").lowercased()
-		return [
+		return ([
 			"CoNET voice_call_offer_v1",
 			"callId:\(s("callId"))",
 			"sessionId:\(s("sessionId"))",
@@ -334,6 +351,10 @@ enum BeamioVoiceOfferIdentity {
 			"tempWalletAddress:\(temp)",
 			"entryDomains:\(entryDomains)",
 			"codec:\(s("codec"))",
-		].joined(separator: "\n")
+		] + (s("relayRoute").isEmpty
+			? []
+			// Relay lines are signed only when the offer has them.
+			: ["relayRoute:\(s("relayRoute"))", "relayIp:\(s("relayIp"))"]
+		)).joined(separator: "\n")
 	}
 }

@@ -72,8 +72,6 @@ final class BeamioNativeVoiceChannel: NSObject {
 	/// rejects a frame whose base64 payload exceeds 12 000 chars (≈ 8.9 KB raw).
 	private static let maxPacketBytes = 8_000
 	private static let maxVideoUplinkInFlight = 2
-	/// Playback queued beyond this is dropped so latency cannot grow without bound.
-	private static let maxPlayBacklogSamples = 9_600
 	private var videoUplinkInFlight = 0
 	private var videoFrameId: UInt32 = 0
 	private var onRemoteVideoFrame: ((UIImage) -> Void)?
@@ -92,10 +90,22 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private var rxPendingPcm: [Int: Data] = [:]
 	private var rxPendingJpeg: [Int: (image: UIImage, senderTs: Int64)] = [:]
 	private var rxJitterWorkItem: DispatchWorkItem?
-	/// Wait this long for a late / out-of-order frame (matches the playout depth).
-	private static let rxJitterSeconds: TimeInterval = 0.320
-	/// Playout depth before audio starts, and again after an underrun (320 ms).
-	private static let playoutTargetSamples = 5_120
+	/// Adaptive playout depth (industry-style adaptive jitter buffer). Starts at
+	/// 320 ms; every underrun adds 160 ms up to 800 ms; 10 s without an underrun
+	/// takes 80 ms back. Frames now reach us through a different random entry
+	/// each time, so arrival spread can exceed a fixed 320 ms.
+	private static let playoutMinSamples = 5_120
+	private static let playoutMaxSamples = 12_800
+	private static let playoutStepUpSamples = 2_560
+	private static let playoutStepDownSamples = 1_280
+	private static let playoutDecayInterval: TimeInterval = 10
+	private var playoutTargetSamples = 5_120
+	private var lastUnderrunAt = Date.distantPast
+	private var lastDecayAt = Date()
+	/// Reorder wait follows the playout depth.
+	private var rxJitterWait: TimeInterval { Double(playoutTargetSamples) / Double(Self.wireRate) }
+	/// Latency cap stays 400 ms above the current depth.
+	private var maxPlayBacklog: Int { playoutTargetSamples + 6_400 }
 	/// Fade-in after a gap or underrun so the restart does not click (5 ms).
 	private static let fadeSamples = 80
 	/// Missing frames filled with silence at most.
@@ -201,6 +211,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 		playPending.removeAll()
 		playPendingSamples = 0
 		playFadeNext = true
+		playoutTargetSamples = Self.playoutMinSamples
+		lastUnderrunAt = .distantPast
+		lastDecayAt = Date()
 		videoMinDeltaMs = nil
 		videoLastSenderTs = 0
 		uplinkAccum = Data()
@@ -394,6 +407,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		// Capture before tear-down: dialer Stop must free mailbox voice_listen
 		// so the next redial can re-occupy the same sessionId (or a new one).
 		let listenSessionId = active?.listenSessionId ?? ""
+		let relayWake = active?.dialerWake
 		running = false
 		listenHandle?.cancel()
 		listenHandle = nil
@@ -402,14 +416,15 @@ final class BeamioNativeVoiceChannel: NSObject {
 		active = nil
 		resetMediaStateLocked()
 		if listenSessionId.count >= 16 {
-			postVoiceUnlistenLocked(sessionId: listenSessionId)
+			postVoiceUnlistenLocked(sessionId: listenSessionId, relay: relayWake)
 		}
 		NSLog("[BeamioNativeVoiceChannel] stopped")
 	}
 
-	/// Best-effort `voice_unlisten` to own mailbox route (entry ≠ B). SI drops
-	/// the session without EIP-191 when sessionId length ≥ 16.
-	private func postVoiceUnlistenLocked(sessionId: String) {
+	/// Best-effort `voice_unlisten` to the node holding the session: the call's
+	/// relay node when there is one, else own mailbox (entry ≠ that node). SI
+	/// drops the session without EIP-191 when sessionId length ≥ 16.
+	private func postVoiceUnlistenLocked(sessionId: String, relay: BeamioNativeVoiceSignaling.DialerWake? = nil) {
 		guard let secrets = BeamioChatPgpKeychain.load(),
 		      secrets.routePublicKeyArmor.contains("BEGIN PGP PUBLIC KEY")
 		else {
@@ -427,9 +442,12 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 		let sem = DispatchSemaphore(value: 0)
 		var armorOut: String?
+		let relayRoute = relay.flatMap {
+			$0.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY") ? $0.relayRouteArmored : nil
+		}
 		BeamioOpenPgpHost.shared.encrypt(
 			plaintext: opaque,
-			publicKeyArmor: secrets.routePublicKeyArmor
+			publicKeyArmor: relayRoute ?? secrets.routePublicKeyArmor
 		) { result in
 			armorOut = try? result.get()
 			sem.signal()
@@ -443,6 +461,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 		var exclude = Set<String>()
 		if let mailbox = BeamioSiCipherPost.normalizeIp(secrets.mailboxIp) {
 			exclude.insert(mailbox)
+		}
+		if relayRoute != nil, let relayIp = BeamioSiCipherPost.normalizeIp(relay?.relayIp ?? "") {
+			exclude.insert(relayIp)
 		}
 		let posted = BeamioSiCipherPost.post(armor: armor, nodes: nodes, excludeIps: exclude, maxAttempts: 3, timeout: 8)
 		NSLog(
@@ -466,16 +487,22 @@ final class BeamioNativeVoiceChannel: NSObject {
 			"sessionId": active.listenSessionId,
 			"timestamp": Int(Date().timeIntervalSince1970),
 		]
-		// Dialer owns VoIP wake: mailbox notifies callee when offerArmor is present.
+		// Per-call relay node (not own mailbox). The PWA already delivered the
+		// offer to the callee's mailbox through a random entry, so the listen
+		// carries no offerArmor and no node is asked to forward it.
+		let relayRoute: String? = active.dialerWake.flatMap {
+			$0.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY") ? $0.relayRouteArmored : nil
+		}
+		// Dialer owns VoIP wake: the node holding the session calls the push API.
 		if let wake = active.dialerWake,
-		   wake.offerArmor.contains("BEGIN PGP MESSAGE"),
+		   relayRoute != nil || wake.offerArmor.contains("BEGIN PGP MESSAGE"),
 		   !wake.calleeEoa.isEmpty,
 		   !wake.callId.isEmpty {
 			command["callId"] = wake.callId
 			command["targetWallet"] = wake.calleeEoa
 			command["expiresAt"] = wake.expiresAt
 			command["pushTimestamp"] = wake.pushTimestamp
-			command["offerArmor"] = wake.offerArmor
+			if relayRoute == nil { command["offerArmor"] = wake.offerArmor }
 		}
 		guard let jsonData = try? JSONSerialization.data(withJSONObject: command, options: []),
 		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
@@ -506,7 +533,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		var armorOut: String?
 		BeamioOpenPgpHost.shared.encrypt(
 			plaintext: opaque,
-			publicKeyArmor: secrets.routePublicKeyArmor
+			publicKeyArmor: relayRoute ?? secrets.routePublicKeyArmor
 		) { result in
 			armorOut = try? result.get()
 			sem.signal()
@@ -522,10 +549,15 @@ final class BeamioNativeVoiceChannel: NSObject {
 		if let mailbox = BeamioSiCipherPost.normalizeIp(secrets.mailboxIp) {
 			exclude.insert(mailbox)
 		}
+		// Entry must not be the node that holds the session.
+		if relayRoute != nil, let relayIp = BeamioSiCipherPost.normalizeIp(active.dialerWake?.relayIp ?? "") {
+			exclude.insert(relayIp)
+		}
 		guard let entryIp = pickEntryIp(nodes: nodes, exclude: exclude) else {
 			NSLog("[BeamioNativeVoiceChannel] listen — no reachable entry IP")
 			return
 		}
+		NSLog("[BeamioNativeVoiceChannel] voice_listen node=%@", relayRoute != nil ? "relay" : "own-mailbox")
 		guard let url = BeamioSiCipherPost.postUrl(for: entryIp) else { return }
 
 		_ = offerIndexed.wait(timeout: .now() + 3)
@@ -779,7 +811,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			}
 		}
 		rxJitterWorkItem = work
-		queue.asyncAfter(deadline: .now() + Self.rxJitterSeconds, execute: work)
+		queue.asyncAfter(deadline: .now() + rxJitterWait, execute: work)
 	}
 
 	private func skipRxGapLocked(reason: String) {
@@ -1162,9 +1194,32 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func resolveUplinkRouteIfNeeded(peer: String, callId: String) {
 		guard !uplinkRouteResolving else { return }
 		uplinkRouteResolving = true
+		// Callee: the caller's session is on its per-call relay node (signed in
+		// the offer). Dialer: the callee listens on its own mailbox.
+		let relayOffer: BeamioVoiceOfferIdentity.Resolved? = {
+			guard let active, active.role == .callee,
+			      active.offer.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY")
+			else { return nil }
+			return active.offer
+		}()
 		uplinkPostQueue.async { [weak self] in
 			var resolved: UplinkRoute?
-			if let keys = BeamioAddressPgp.searchKey(address: peer),
+			if let relay = relayOffer {
+				let nodes = BeamioChatPgpKeychain.loadSiNodes()
+				var exclude = Set<String>()
+				if let relayIp = BeamioSiCipherPost.normalizeIp(relay.relayIp) { exclude.insert(relayIp) }
+				if let mailbox = BeamioSiCipherPost.normalizeIp(BeamioChatPgpKeychain.load()?.mailboxIp ?? "") {
+					exclude.insert(mailbox)
+				}
+				if let node = BeamioSiCipherPost.getRandomNode(nodes: nodes, excludeIps: exclude) {
+					resolved = UplinkRoute(
+						routePublicKeyArmor: relay.relayRouteArmored,
+						nodes: nodes,
+						exclude: exclude,
+						entries: BeamioEntryRotation(first: node.ip)
+					)
+				}
+			} else if let keys = BeamioAddressPgp.searchKey(address: peer),
 			   keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")
 			{
 				let nodes = BeamioChatPgpKeychain.loadSiNodes()
@@ -1353,7 +1408,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 
 	/// Industry-style playout buffer: hold `playoutTargetSamples` before the first
 	/// frame plays and again after every underrun; cap latency with
-	/// `maxPlayBacklogSamples`. Runs on `queue`.
+	/// `maxPlayBacklog`. Runs on `queue`.
 	private func playPcm(_ pcm: Data) {
 		guard !pcm.isEmpty else { return }
 		let frames = pcm.count / MemoryLayout<Int16>.size
@@ -1361,7 +1416,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		if playPrebuffering {
 			playPending.append(pcm)
 			playPendingSamples += frames
-			guard playPendingSamples >= Self.playoutTargetSamples else { return }
+			guard playPendingSamples >= playoutTargetSamples else { return }
 			playPrebuffering = false
 			NSLog("[BeamioNativeVoiceChannel] playout start depthMs=%d", playPendingSamples * 1000 / Self.wireRate)
 			let pending = playPending
@@ -1371,11 +1426,34 @@ final class BeamioNativeVoiceChannel: NSObject {
 			return
 		}
 		// Latency cap: the player is well behind, drop this frame.
-		if rxBacklogSamples > Self.maxPlayBacklogSamples {
+		decayPlayoutTargetIfStable()
+		if rxBacklogSamples > maxPlayBacklog {
 			playFadeNext = true
 			return
 		}
 		schedulePcm(pcm)
+	}
+
+	private func growPlayoutTargetAfterUnderrun() {
+		let now = Date()
+		lastUnderrunAt = now
+		lastDecayAt = now
+		let next = min(Self.playoutMaxSamples, playoutTargetSamples + Self.playoutStepUpSamples)
+		if next != playoutTargetSamples {
+			playoutTargetSamples = next
+			NSLog("[BeamioNativeVoiceChannel] underrun — playout depth %dms", next * 1000 / Self.wireRate)
+		}
+	}
+
+	private func decayPlayoutTargetIfStable() {
+		guard playoutTargetSamples > Self.playoutMinSamples else { return }
+		let now = Date()
+		guard now.timeIntervalSince(lastUnderrunAt) >= Self.playoutDecayInterval,
+		      now.timeIntervalSince(lastDecayAt) >= Self.playoutDecayInterval
+		else { return }
+		lastDecayAt = now
+		playoutTargetSamples = max(Self.playoutMinSamples, playoutTargetSamples - Self.playoutStepDownSamples)
+		NSLog("[BeamioNativeVoiceChannel] stable — playout depth %dms", playoutTargetSamples * 1000 / Self.wireRate)
 	}
 
 	/// 16 kHz mono Float32 (standard, non-interleaved) — the player's format.
@@ -1419,6 +1497,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				if self.rxBacklogSamples == 0, !self.playPrebuffering {
 					self.playPrebuffering = true
 					self.playFadeNext = true
+					self.growPlayoutTargetAfterUnderrun()
 				}
 			}
 		}
