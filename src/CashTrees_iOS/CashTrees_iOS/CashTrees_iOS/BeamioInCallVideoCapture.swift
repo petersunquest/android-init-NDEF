@@ -13,6 +13,13 @@ final class BeamioInCallVideoCapture: NSObject {
 	private let sessionQueue = DispatchQueue(label: "beamio.incall.video.session")
 	private let output = AVCaptureVideoDataOutput()
 	private var lastJpegAt: CFTimeInterval = 0
+	/// One Core Image context for the whole session: creating one per frame
+	/// cost several milliseconds of CPU on every frame.
+	private lazy var ciContext = CIContext(options: [.useSoftwareRenderer: false])
+	private let encodeStatsLock = NSLock()
+	private var encodeCount = 0
+	private var encodeSumMs = 0.0
+	private var encodeMaxMs = 0.0
 	private var running = false
 	private var configuring = false
 
@@ -29,6 +36,27 @@ final class BeamioInCallVideoCapture: NSObject {
 	}
 
 	func isRunning() -> Bool { running }
+
+	/// Scale + JPEG time per sent frame since the last call (for `[VideoStats]`).
+	func takeEncodeStats() -> (count: Int, sumMs: Double, maxMs: Double) {
+		encodeStatsLock.lock()
+		defer {
+			encodeCount = 0
+			encodeSumMs = 0
+			encodeMaxMs = 0
+			encodeStatsLock.unlock()
+		}
+		return (encodeCount, encodeSumMs, encodeMaxMs)
+	}
+
+	private func noteEncode(since start: CFTimeInterval) {
+		let ms = (CACurrentMediaTime() - start) * 1000
+		encodeStatsLock.lock()
+		encodeCount += 1
+		encodeSumMs += ms
+		encodeMaxMs = max(encodeMaxMs, ms)
+		encodeStatsLock.unlock()
+	}
 
 	/// The capture session, for the single local preview layer.
 	var captureSession: AVCaptureSession { session }
@@ -195,8 +223,7 @@ extension BeamioInCallVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate
 		let outW = Int(scaled.extent.width.rounded())
 		let outH = Int(scaled.extent.height.rounded())
 		guard outW > 0, outH > 0 else { return }
-		let context = CIContext(options: [.useSoftwareRenderer: false])
-		guard let cg = context.createCGImage(scaled, from: scaled.extent) else { return }
+		guard let cg = ciContext.createCGImage(scaled, from: scaled.extent) else { return }
 		// The SI relay rejects a frame whose base64 payload exceeds 12 000 chars
 		// (≈ 8.9 KB raw incl. AES + BJPG header): step quality, then size, down
 		// until the JPEG fits.
@@ -209,6 +236,7 @@ extension BeamioInCallVideoCapture: AVCaptureVideoDataOutputSampleBufferDelegate
 				{
 					let w = Int(image.size.width * image.scale)
 					let h = Int(image.size.height * image.scale)
+					noteEncode(since: now)
 					onJpegFrame?(jpeg, w, h)
 					return
 				}

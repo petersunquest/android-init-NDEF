@@ -69,6 +69,19 @@ object BeamioNativeVoiceChannel {
     private const val RX_MAX_PENDING = 48
     private val PCM_MAGIC = byteArrayOf(0x42, 0x50, 0x43, 0x4D) // "BPCM"
     private val JPG_MAGIC = byteArrayOf(0x42, 0x4A, 0x50, 0x47) // "BJPG"
+    /**
+     * Video v2: `BJP2` + u16-LE width + u16-LE height + u32-LE frameId + u64-LE
+     * capture time (Unix ms) + JPEG. The relay drops every outer field except
+     * seq/timestamp/payload, so the capture time rides inside the AES payload.
+     */
+    private val JP2_MAGIC = byteArrayOf(0x42, 0x4A, 0x50, 0x32) // "BJP2"
+    /** Media capability announced in `voice_media_caps_v1` (2 = split-seq video + BJP2). */
+    private const val LOCAL_VIDEO_CAPS = 2
+    /**
+     * Split-seq video frames use seq ≥ this. Audio and controls count up from 1,
+     * so the ranges never meet: a lost or late video frame no longer stalls audio.
+     */
+    const val VIDEO_SEQ_BASE = 1_000_000_000
     private const val MAX_VIDEO_IN_FLIGHT = 2
     private const val MAX_AUDIO_IN_FLIGHT = 10
     /** Reachable entries kept per call; each frame picks one at random. */
@@ -189,6 +202,19 @@ object BeamioNativeVoiceChannel {
     private val videoInFlight = AtomicInteger(0)
     private val audioInFlight = AtomicInteger(0)
     private val videoFrameId = AtomicInteger(0)
+    /** Peer's announced video capability (0 until `voice_media_caps_v1` arrives). */
+    private val peerVideoCaps = AtomicInteger(0)
+    private val capsSent = AtomicInteger(0)
+    private val videoSeqOffset = AtomicInteger(0)
+    private val stats = BeamioVideoStats()
+    /**
+     * QA switch for before/after runs: when `files/beamio-video-legacy` exists
+     * (`adb shell run-as com.beamio.app touch files/beamio-video-legacy`), calls
+     * use the previous behaviour (no caps, shared-seq BJPG) while `[VideoStats]`
+     * still logs. Read once per call.
+     */
+    @Volatile private var legacyMode = false
+    private val statsUnderrunsSeen = AtomicInteger(0)
 
     /** Soft mute: keep AudioRecord running but skip AES uplink frames. */
     fun setCaptureMuted(muted: Boolean) {
@@ -202,6 +228,8 @@ object BeamioNativeVoiceChannel {
         val app = context.applicationContext
         appCtx.set(app)
         stopInternal(keepApp = true)
+        legacyMode = java.io.File(app.filesDir, "beamio-video-legacy").exists()
+        if (legacyMode) Log.i(TAG, "QA legacy video mode")
         activeRef.set(active)
         running.set(true)
         mediaLive.set(active.mediaEnabled)
@@ -536,13 +564,21 @@ object BeamioNativeVoiceChannel {
             return
         }
         val seq = if (frame.has("seq")) frame.optInt("seq", -1) else -1
-        if (startsWith(plain, JPG_MAGIC)) {
+        if (seq >= VIDEO_SEQ_BASE) {
+            // Split-seq video (the peer saw our caps): never touches the audio
+            // reorder buffer, so its loss or delay cannot stall audio.
+            if (mediaLive.get()) handleInboundVideo(plain, 0L)
+            maybeFlushStats()
+            return
+        }
+        if (startsWith(plain, JPG_MAGIC) || startsWith(plain, JP2_MAGIC)) {
             // Video shares the audio seq counter: mark the slot so the PCM
             // jitter buffer does not stall waiting for it.
             if (mediaLive.get()) {
                 markRxSeqConsumed(seq)
                 handleInboundVideo(plain, frame.optLong("frameTimestamp", 0L))
             }
+            maybeFlushStats()
             return
         }
         val asText = if (startsWith(plain, PCM_MAGIC)) {
@@ -583,6 +619,17 @@ object BeamioNativeVoiceChannel {
                 }
                 // Control frames also take a seq on the sender.
                 markRxSeqConsumed(seq)
+                if (t == "voice_media_caps_v1") {
+                    notePeerCaps(json)
+                    return
+                }
+                if (t == "voice_video_enable_v1") {
+                    notePeerCaps(json)
+                    // The peer is about to send video: make sure it knows what
+                    // we can receive (our earlier caps may have been lost).
+                    sendMediaCaps("peer-video-on")
+                    return
+                }
                 if (t == "voice_video_disable_v1") {
                     rxHandler.post { InCallActivity.applyPeerVideoFrameIfShowing(null) }
                 }
@@ -594,6 +641,7 @@ object BeamioNativeVoiceChannel {
         if (!mediaLive.get()) return
         val pcm = stripPcmHeader(plain) ?: return
         noteRxAudio(pcm.size)
+        stats.update { it.audioRx += 1 }
         if (seq >= 0) {
             enqueueRxPcm(seq, pcm)
         } else {
@@ -701,13 +749,21 @@ object BeamioNativeVoiceChannel {
 
     /** Decode a `BJPG` frame and queue it for paced display as the peer video background. */
     private fun handleInboundVideo(plain: ByteArray, senderTsMs: Long) {
-        if (plain.size <= 12) return
+        val v2 = startsWith(plain, JP2_MAGIC)
+        val header = if (v2) 20 else 12
+        if (plain.size <= header) return
+        val captureMs = if (v2) getLe64(plain, 12) else 0L
         val bitmap = try {
-            android.graphics.BitmapFactory.decodeByteArray(plain, 12, plain.size - 12)
+            android.graphics.BitmapFactory.decodeByteArray(plain, header, plain.size - header)
         } catch (_: Exception) {
             null
         } ?: return
-        scheduleVideoFrame(bitmap, senderTsMs)
+        stats.update {
+            it.rxIn += 1
+            it.rxBytes += plain.size
+        }
+        if (captureMs > 0L) stats.noteRxTiming(captureMs, System.currentTimeMillis())
+        scheduleVideoFrame(bitmap, if (captureMs > 0L) captureMs else senderTsMs)
     }
 
     // MARK: - Video playout
@@ -715,6 +771,8 @@ object BeamioNativeVoiceChannel {
     private val videoLock = Any()
     private var videoMinDeltaMs: Long? = null
     private var videoLastSenderTs = 0L
+    /** Capture time of the newest remote frame shown (main thread). */
+    private var videoShownCaptureMs = 0L
 
     /**
      * Frames arrive in bursts over the relay. Show each one at its sender time
@@ -724,12 +782,18 @@ object BeamioNativeVoiceChannel {
     private fun scheduleVideoFrame(bitmap: android.graphics.Bitmap, senderTsMs: Long) {
         val now = System.currentTimeMillis()
         if (senderTsMs <= 0L) {
-            rxHandler.post { InCallActivity.applyPeerVideoFrameIfShowing(bitmap) }
+            rxHandler.post {
+                stats.update { it.rxShown += 1 }
+                InCallActivity.applyPeerVideoFrameIfShowing(bitmap)
+            }
             return
         }
         val waitMs: Long
         synchronized(videoLock) {
-            if (senderTsMs <= videoLastSenderTs) return
+            if (senderTsMs <= videoLastSenderTs) {
+                stats.update { it.rxSuperseded += 1 }
+                return
+            }
             videoLastSenderTs = senderTsMs
             val delta = now - senderTsMs
             // Track the fastest transit; relax slowly so a slower path is adopted.
@@ -739,7 +803,15 @@ object BeamioNativeVoiceChannel {
             waitMs = (senderTsMs + min + VIDEO_PLAYOUT_DELAY_MS - now).coerceAtLeast(0L)
         }
         rxHandler.postDelayed({
-            if (running.get() && mediaLive.get()) InCallActivity.applyPeerVideoFrameIfShowing(bitmap)
+            if (!running.get() || !mediaLive.get()) return@postDelayed
+            // Main thread. A newer frame already shown wins: never step back.
+            if (senderTsMs < videoShownCaptureMs) {
+                stats.update { it.rxSuperseded += 1 }
+                return@postDelayed
+            }
+            videoShownCaptureMs = senderTsMs
+            stats.update { it.rxShown += 1 }
+            InCallActivity.applyPeerVideoFrameIfShowing(bitmap)
         }, waitMs)
     }
 
@@ -748,6 +820,7 @@ object BeamioNativeVoiceChannel {
             videoMinDeltaMs = null
             videoLastSenderTs = 0L
         }
+        rxHandler.post { videoShownCaptureMs = 0L }
     }
 
     /** Fill a seq slot with an empty chunk so the PCM jitter drain moves past it. */
@@ -823,6 +896,7 @@ object BeamioNativeVoiceChannel {
         val later = rxPendingPcm.keys.filter { it > next }
         val minKey = later.minOrNull() ?: return
         Log.i(TAG, "rx jitter skip $next..<$minKey reason=$reason")
+        stats.update { it.audioGapSkip += 1 }
         rxJitterRunnable?.let { rxHandler.removeCallbacks(it) }
         rxJitterRunnable = null
         // Fill lost audio with short silence so the timeline is not compressed;
@@ -1224,6 +1298,11 @@ object BeamioNativeVoiceChannel {
         uplinkFailStreak.set(0)
         uplinkFailLogged.set(0)
         videoFrameId.set(0)
+        peerVideoCaps.set(0)
+        capsSent.set(0)
+        videoSeqOffset.set(0)
+        stats.reset()
+        statsUnderrunsSeen.set(0)
         synchronized(rxLock) {
             rxAudioStartMs = 0L
             rxAudioBytes = 0L
@@ -1244,7 +1323,13 @@ object BeamioNativeVoiceChannel {
         if (uplinkRouteResolving.compareAndSet(false, true)) {
             io.execute {
                 try {
-                    resolveRoute(app, active)?.let { uplinkRoute.compareAndSet(null, it) }
+                    resolveRoute(app, active)?.let {
+                        if (uplinkRoute.compareAndSet(null, it) &&
+                            (capsSent.get() == 0 || peerVideoCaps.get() == 0)
+                        ) {
+                            sendMediaCaps("route")
+                        }
+                    }
                 } finally {
                     uplinkRouteResolving.set(false)
                 }
@@ -1408,27 +1493,99 @@ object BeamioNativeVoiceChannel {
      * Send one camera frame as `BJPG`. Frames are dropped (not queued) while
      * [MAX_VIDEO_IN_FLIGHT] posts are pending, so video can never back up audio.
      */
-    fun sendVideoJpegFrame(jpeg: ByteArray, width: Int, height: Int) {
+    fun sendVideoJpegFrame(
+        jpeg: ByteArray,
+        width: Int,
+        height: Int,
+        // The capture calls this on its analyzer thread right after encoding.
+        encodeMs: Long = BeamioInCallVideoCapture.lastEncodeMs,
+    ) {
+        val captureMs = System.currentTimeMillis()
         val active = activeRef.get() ?: return
         if (!running.get() || !mediaLive.get() || jpeg.isEmpty()) return
         if (active.peerMediaSessionId.isBlank()) return
-        val route = routeOrResolve(active) ?: return
+        stats.update {
+            it.txCap += 1
+            if (encodeMs >= 0) {
+                it.capEncodeN += 1
+                it.capEncodeMsSum += encodeMs
+                it.capEncodeMsMax = maxOf(it.capEncodeMsMax, encodeMs)
+            }
+        }
+        maybeFlushStats()
+        val route = routeOrResolve(active) ?: run {
+            stats.update { it.txDropRoute += 1 }
+            return
+        }
         // Audio first: skip video while audio has half its send slots in use.
-        if (audioInFlight.get() >= MAX_AUDIO_IN_FLIGHT / 2) return
+        if (audioInFlight.get() >= MAX_AUDIO_IN_FLIGHT / 2) {
+            stats.update { it.txDropAudio += 1 }
+            return
+        }
         if (videoInFlight.incrementAndGet() > MAX_VIDEO_IN_FLIGHT) {
             videoInFlight.decrementAndGet()
+            stats.update { it.txDropBusy += 1 }
             return
         }
         val frameId = videoFrameId.incrementAndGet()
-        val framed = ByteArray(12 + jpeg.size)
-        System.arraycopy(JPG_MAGIC, 0, framed, 0, 4)
+        // Split-seq + BJP2 only after the peer announced support; older peers
+        // keep the shared-seq BJPG they understand.
+        val split = peerVideoCaps.get() >= 2
+        val header = if (split) 20 else 12
+        val framed = ByteArray(header + jpeg.size)
+        System.arraycopy(if (split) JP2_MAGIC else JPG_MAGIC, 0, framed, 0, 4)
         putLe16(framed, 4, width)
         putLe16(framed, 6, height)
         putLe32(framed, 8, frameId)
-        System.arraycopy(jpeg, 0, framed, 12, jpeg.size)
-        postUplink(active, route, framed, mediaKind = "video") {
+        if (split) putLe64(framed, 12, captureMs)
+        System.arraycopy(jpeg, 0, framed, header, jpeg.size)
+        val seq = if (split) VIDEO_SEQ_BASE + videoSeqOffset.incrementAndGet() else null
+        postUplink(active, route, framed, mediaKind = "video", seqOverride = seq, jpegBytes = jpeg.size) {
             videoInFlight.decrementAndGet()
         }
+    }
+
+    /**
+     * Announce what this build can receive (`voice_media_caps_v1`, AES control on
+     * the shared seq). Old peers log the unknown type and ignore it.
+     */
+    private fun sendMediaCaps(reason: String) {
+        if (legacyMode) return
+        val active = activeRef.get() ?: return
+        if (!running.get() || !mediaLive.get()) return
+        if (active.peerMediaSessionId.isBlank()) return
+        val route = uplinkRoute.get() ?: return
+        capsSent.incrementAndGet()
+        val body = JSONObject()
+            .put("type", "voice_media_caps_v1")
+            .put("callId", active.offer.callId)
+            .put("sessionId", active.listenSessionId)
+            .put("video", LOCAL_VIDEO_CAPS)
+            .put("timestamp", System.currentTimeMillis())
+        postUplink(active, route, body.toString().toByteArray(Charsets.UTF_8), mediaKind = null) {}
+        Log.i(TAG, "media caps sent video=$LOCAL_VIDEO_CAPS reason=$reason")
+    }
+
+    /** Peer capability from `voice_media_caps_v1` or a video enable control. */
+    private fun notePeerCaps(json: JSONObject) {
+        val video = json.optInt("video", 0)
+        if (legacyMode || video <= 0) return
+        val prev = peerVideoCaps.getAndSet(video)
+        if (prev != video) Log.i(TAG, "peer media caps video=$video")
+        // Reply once so both sides know even if our first announcement was lost.
+        if (prev == 0 && json.optString("type") == "voice_media_caps_v1") sendMediaCaps("reply")
+    }
+
+    private fun maybeFlushStats() {
+        val underruns = playUnderruns.get()
+        val seen = statsUnderrunsSeen.getAndSet(underruns)
+        if (underruns > seen) stats.update { it.audioUnderrun += underruns - seen }
+        val mode = when {
+            legacyMode -> "legacy"
+            peerVideoCaps.get() >= 2 -> "v2"
+            else -> "v1"
+        }
+        stats.maybeFlush(TAG, mode, peerVideoCaps.get())
     }
 
     /** Tell the peer this side's camera turned on or off. Does not touch the call. */
@@ -1442,6 +1599,9 @@ object BeamioNativeVoiceChannel {
             .put("callId", active.offer.callId)
             .put("sessionId", active.listenSessionId)
             .put("from", active.localEoa)
+            // Inside the AES payload: the peer learns our capability even if
+            // the caps frame was lost.
+            .put("video", if (legacyMode) 0 else LOCAL_VIDEO_CAPS)
             .put("timestamp", System.currentTimeMillis())
         postUplink(active, route, body.toString().toByteArray(Charsets.UTF_8), mediaKind = null) {}
         Log.i(TAG, "video control enabled=$enabled callId=${active.offer.callId.take(12)}")
@@ -1453,10 +1613,14 @@ object BeamioNativeVoiceChannel {
         route: UplinkRoute,
         plain: ByteArray,
         mediaKind: String?,
+        seqOverride: Int? = null,
+        jpegBytes: Int = 0,
         done: () -> Unit,
     ) {
         val app = appCtx.get() ?: run { done(); return }
-        val seq = uplinkSeq.getAndIncrement()
+        val seq = seqOverride ?: uplinkSeq.getAndIncrement()
+        val isVideo = mediaKind == "video"
+        val isAudio = mediaKind == null && startsWith(plain, PCM_MAGIC)
         val payload = try {
             BeamioVoiceAesGcm.encryptBytes(active.offer.sessionKey, plain)
         } catch (e: Exception) {
@@ -1486,6 +1650,19 @@ object BeamioNativeVoiceChannel {
                 done()
                 return@encryptToRouteAsync
             }
+            if (isVideo) {
+                stats.update {
+                    it.txSent += 1
+                    it.txJpegBytes += jpegBytes
+                    it.txWireBytes += armor.length
+                    it.txEncMsSum += encMs
+                }
+            } else if (isAudio) {
+                stats.update {
+                    it.audioTx += 1
+                    it.audioTxWireBytes += armor.length
+                }
+            }
             io.execute {
                 try {
                     val entryIp = route.entries.next()
@@ -1493,6 +1670,13 @@ object BeamioNativeVoiceChannel {
                     val queueMs = postStarted - encStarted - encMs
                     val ok = entryIp != null && postDirect(armor, entryIp)
                     val postMs = System.currentTimeMillis() - postStarted
+                    if (isVideo) {
+                        stats.update {
+                            if (ok) it.txOk += 1 else it.txFail += 1
+                            it.txPostMsSum += postMs
+                            it.txPostMsMax = maxOf(it.txPostMsMax, postMs)
+                        }
+                    }
                     if (encMs + queueMs + postMs >= 900) {
                         // Diagnostics: which step makes a frame late (sender gaps on the peer).
                         Log.i(TAG, "uplink slow seq=$seq enc=${encMs}ms queue=${queueMs}ms post=${postMs}ms ok=$ok entry=$entryIp kind=${mediaKind ?: "audio"}")
@@ -1526,6 +1710,16 @@ object BeamioNativeVoiceChannel {
         val v = value.coerceIn(0, 0xFFFF)
         out[at] = (v and 0xFF).toByte()
         out[at + 1] = ((v shr 8) and 0xFF).toByte()
+    }
+
+    private fun putLe64(out: ByteArray, at: Int, value: Long) {
+        for (i in 0 until 8) out[at + i] = ((value shr (8 * i)) and 0xFF).toByte()
+    }
+
+    private fun getLe64(src: ByteArray, at: Int): Long {
+        var v = 0L
+        for (i in 0 until 8) v = v or ((src[at + i].toLong() and 0xFF) shl (8 * i))
+        return v
     }
 
     private fun putLe32(out: ByteArray, at: Int, value: Int) {
