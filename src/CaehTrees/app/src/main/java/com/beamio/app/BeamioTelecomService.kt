@@ -140,7 +140,19 @@ class BeamioTelecomService : ConnectionService() {
                     TelecomManager.PRESENTATION_ALLOWED,
                 )
             }
-            if (incoming) setRinging() else setDialing()
+            if (incoming) {
+                setRinging()
+            } else {
+                setDialing()
+                BeamioCallTonePlayer.onOutgoingConnectionDialing()
+            }
+        }
+
+        override fun onStateChanged(state: Int) {
+            super.onStateChanged(state)
+            if (!incoming && (state == STATE_ACTIVE || state == STATE_HOLDING || state == STATE_DISCONNECTED)) {
+                BeamioCallTonePlayer.stopRingback("telecom-state-$state")
+            }
         }
 
         fun isIncomingCall(): Boolean = incoming

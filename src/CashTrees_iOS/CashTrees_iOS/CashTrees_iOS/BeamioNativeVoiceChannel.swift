@@ -914,6 +914,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func startAudioEngine(active: BeamioNativeVoiceSignaling.ActiveCall) {
 		stopAudioEngine()
 		guard active.mediaEnabled else { return }
+		// Accept arrived: the ringback must be gone before voice processing starts.
+		BeamioCallTonePlayer.shared.stopRingback(reason: "voice-engine")
 		let engine = AVAudioEngine()
 		let player = AVAudioPlayerNode()
 		engine.attach(player)
