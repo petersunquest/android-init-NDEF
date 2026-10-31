@@ -36,6 +36,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INStartCallIntent</string>
+		<string>INStartVideoCallIntent</string>
+	</array>
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Beamio uses notification badges to show unread chat messages on the app icon.</string>
 	<key>UIBackgroundModes</key>

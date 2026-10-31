@@ -44,6 +44,15 @@ final class BeamioInCallScreenModel: ObservableObject {
 	/// English camera / FaceTime error; cleared on success or call end.
 	@Published private(set) var videoError: String?
 	@Published private(set) var videoToggleBusy = false
+	/// The PWA could not place a prepared dial; shown in place of the status.
+	@Published private(set) var prepareError = ""
+
+	/// Status text before the call connects: "Connecting…" while the PWA still
+	/// builds the offer, "Calling…" once the callee is being rung.
+	var pendingLabel: String {
+		if !prepareError.isEmpty { return prepareError }
+		return isPrepared ? "Connecting…" : "Calling…"
+	}
 
 	private var surfaceRetryWorkItems: [DispatchWorkItem] = []
 	private var surfaceForegroundObservers: [NSObjectProtocol] = []
@@ -70,7 +79,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		let preparedTag = (live && self.callId.isEmpty
 			&& self.address.caseInsensitiveCompare(address) == .orderedSame) ? tag : ""
 		preparedId = ""
-		begin(callId: callId, sessionId: sessionId, tag: preparedTag, address: address)
+		begin(callId: callId, sessionId: sessionId, tag: preparedTag, address: address, foregroundDial: true)
 		if !sameLiveCall { connected = false }
 		lookUpTag(for: address)
 	}
@@ -86,10 +95,11 @@ final class BeamioInCallScreenModel: ObservableObject {
 			NSLog("[BeamioInCall] prepare skipped; a call is live")
 			return
 		}
-		begin(callId: "", sessionId: "", tag: "", address: address)
+		begin(callId: "", sessionId: "", tag: "", address: address, foregroundDial: true)
 		connected = false
+		prepareError = ""
 		preparedId = prepareId
-		crumb("incall-prepared")
+		NSLog("[BeamioInCall] incall-prepared")
 		lookUpTag(for: address)
 	}
 
@@ -107,8 +117,30 @@ final class BeamioInCallScreenModel: ObservableObject {
 			if cancelledPrepareIds.count > 20 { cancelledPrepareIds.removeFirst() }
 		}
 		preparedId = ""
+		prepareError = ""
 		end(callId: "")
 		crumb("incall-prepared-cancelled")
+		return true
+	}
+
+	/// The PWA could not place the prepared dial. Keep the screen up with the
+	/// reason; End (or a short timeout) closes it. Returns false when no
+	/// matching prepared screen is showing.
+	@discardableResult
+	func failPrepared(prepareId: String, message: String) -> Bool {
+		guard isPrepared else { return false }
+		if !prepareId.isEmpty, !preparedId.isEmpty, prepareId != preparedId { return false }
+		let id = prepareId.isEmpty ? preparedId : prepareId
+		if !id.isEmpty {
+			cancelledPrepareIds.append(id)
+			if cancelledPrepareIds.count > 20 { cancelledPrepareIds.removeFirst() }
+		}
+		prepareError = message
+		crumb("incall-prepared-failed")
+		DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+			guard let self, self.isPrepared, self.prepareError == message else { return }
+			self.cancelPrepared()
+		}
 		return true
 	}
 
@@ -136,9 +168,14 @@ final class BeamioInCallScreenModel: ObservableObject {
 		connected = true
 		answeredAt = Date()
 		NSLog("[BeamioInCall] outgoing connected callId=%@", self.callId)
+		BeamioCallKitVideoButton.callDidConnect()
 	}
 
-	func begin(callId: String, sessionId: String, tag: String, address: String) {
+	/// `foregroundDial`: the user dialed from the app in the foreground. The
+	/// screen only needs `presented`; the lock-screen answer wake below (scene
+	/// activation, own-URL open, timed retries, fsynced breadcrumbs) costs
+	/// hundreds of milliseconds on the main thread before the screen paints.
+	func begin(callId: String, sessionId: String, tag: String, address: String, foregroundDial: Bool = false) {
 		let sameLiveCall = live && self.callId == callId
 		self.callId = callId
 		self.sessionId = sessionId
@@ -188,6 +225,11 @@ final class BeamioInCallScreenModel: ObservableObject {
 		// including after lock-screen slide-to-answer + unlock — raise the
 		// dedicated host window (and ContentView fallback) over system Keypad.
 		presented = true
+		if foregroundDial && UIApplication.shared.applicationState == .active {
+			destroyHostWindow()
+			NSLog("[BeamioInCall] begin callId=%@ presented=yes foreground-dial", callId)
+			return
+		}
 		NSLog(
 			"[BeamioInCall] begin callId=%@ tag=%@ presented=yes same=%@ appState=%ld",
 			callId,
@@ -246,8 +288,13 @@ final class BeamioInCallScreenModel: ObservableObject {
 			"lock-answer-surface-visible:\(source):host=\(hostToken):appState=\(state.rawValue)"
 		)
 		// Always request scene / beamio://incall — inactive needs wake; active
-		// still benefits after CallKit yields key-window ownership.
-		Self.bringAppForward(source: source)
+		// still benefits after CallKit yields key-window ownership. Not for the
+		// `beamio://incall` link itself while active: that link is our own wake,
+		// and re-opening it from here looped (dozens of wakes per second, each
+		// with fsynced breadcrumbs on the main thread) for the whole call.
+		if !(state == .active && source == "deepLink-incall") {
+			Self.bringAppForward(source: source)
+		}
 	}
 
 	/// Lock-screen Answer often refuses `openURL` until unlock. Retry present +
@@ -455,6 +502,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		remoteVideoImage = nil
 		videoError = nil
 		videoToggleBusy = false
+		prepareError = ""
 		NSLog("[BeamioInCall] end callId=%@", callId)
 	}
 
@@ -497,6 +545,11 @@ final class BeamioInCallScreenModel: ObservableObject {
 	}
 
 	func hangUp() {
+		if !prepareError.isEmpty, isPrepared {
+			// The dial already failed; the PWA has nothing left to cancel.
+			cancelPrepared()
+			return
+		}
 		if cancelPrepared() {
 			// Hung up while the PWA was still preparing the dial: no call
 			// exists yet. Tell the PWA to drop the dial it is building.
@@ -599,8 +652,10 @@ final class BeamioInCallScreenModel: ObservableObject {
 		let wasOn = localVideoOn
 		localVideoOn = false
 		videoToggleBusy = false
-		BeamioInCallVideoCapture.shared.onJpegFrame = nil
-		BeamioInCallVideoCapture.shared.stop()
+		if BeamioInCallVideoCapture.instantiated {
+			BeamioInCallVideoCapture.shared.onJpegFrame = nil
+			BeamioInCallVideoCapture.shared.stop()
+		}
 		guard wasOn else { return }
 		if sendControl {
 			BeamioNativeVoiceChannel.shared.sendVideoEnableControl(enabled: false)
@@ -646,7 +701,7 @@ struct BeamioInCallReturnPill: View {
 							.font(.system(size: 13, weight: .bold))
 						TimelineView(.periodic(from: .now, by: 1)) { context in
 							let total = max(0, Int(context.date.timeIntervalSince(model.answeredAt)))
-							Text(model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : "Calling…")
+							Text(model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : model.pendingLabel)
 								.font(.system(size: 14, weight: .semibold, design: .monospaced))
 						}
 						Text("Return to call")
@@ -779,6 +834,10 @@ struct BeamioInCallScreen: View {
 				toolsExpanded = true
 			}
 		}
+		.onAppear {
+			BeamioCallTiming.mark("screen-onAppear")
+			DispatchQueue.main.async { BeamioCallTiming.mark("screen-runloop") }
+		}
 	}
 
 	/// Same product line as Android and the incoming screens: Beamio mark + "Beamio Audio".
@@ -811,7 +870,7 @@ struct BeamioInCallScreen: View {
 						.foregroundStyle(.white)
 						.lineLimit(1)
 					TimelineView(.periodic(from: .now, by: 1)) { context in
-						Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : "Calling…")
+						Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel)
 							.font(.system(size: 15, weight: .medium).monospacedDigit())
 							.foregroundStyle(Color.white.opacity(0.75))
 					}
@@ -861,7 +920,7 @@ struct BeamioInCallScreen: View {
 					.padding(.horizontal, 24)
 					.accessibilityLabel("Caller \(title)")
 				TimelineView(.periodic(from: .now, by: 1)) { context in
-					Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : "Calling…")
+					Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel)
 						.font(.system(size: 18, weight: .regular).monospacedDigit())
 						.foregroundStyle(Color.white.opacity(0.7))
 				}

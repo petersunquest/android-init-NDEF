@@ -1138,14 +1138,17 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
               window.webkit.messageHandlers[H].postMessage({
                 action:'prepareSystemCall',
                 prepareId:payload.prepareId||'',
-                peerAddress:payload.peerAddress||''
+                peerAddress:payload.peerAddress||'',
+                dialId:payload.dialId||'',
+                tapAt:Number(payload.tapAt)||0
               });
             },
             cancelPreparedSystemCall:function(payload){
               payload=payload||{};
               window.webkit.messageHandlers[H].postMessage({
                 action:'cancelPreparedSystemCall',
-                prepareId:payload.prepareId||''
+                prepareId:payload.prepareId||'',
+                error:payload.error||''
               });
             },
             startSystemCall:function(payload){
@@ -1414,17 +1417,30 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             // while the PWA still resolves routes and builds the offer.
             let prepareId = body["prepareId"] as? String ?? ""
             let peerAddress = body["peerAddress"] as? String ?? ""
+            let tapAt: Int64 = (body["tapAt"] as? NSNumber)?.int64Value ?? 0
+            BeamioCallTiming.begin(dialId: body["dialId"] as? String ?? "", tapAt: tapAt)
+            BeamioCallTiming.mark("prepare-received")
             DispatchQueue.main.async {
+                BeamioCallTiming.mark("prepare-main")
                 BeamioInCallScreenModel.shared.beginPrepared(prepareId: prepareId, address: peerAddress)
+                BeamioCallTiming.mark("prepared")
             }
         case "cancelPreparedSystemCall":
             let prepareId = body["prepareId"] as? String ?? ""
+            let error = (body["error"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            BeamioCallTiming.mark("prepare-cancelled", error.isEmpty ? "" : "failed")
             DispatchQueue.main.async {
-                if BeamioInCallScreenModel.shared.cancelPrepared(prepareId: prepareId) {
+                if !error.isEmpty {
+                    // Show why the dial failed on the call screen; End closes it.
+                    if BeamioInCallScreenModel.shared.failPrepared(prepareId: prepareId, message: error) {
+                        NSLog("[BeamioInCall] prepared dial failed; reason shown on call screen")
+                    }
+                } else if BeamioInCallScreenModel.shared.cancelPrepared(prepareId: prepareId) {
                     NSLog("[BeamioInCall] prepared call screen closed by PWA")
                 }
             }
         case "startSystemCall":
+            BeamioCallTiming.mark("start-received")
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
             let sessionKey = body["sessionKey"] as? String ?? ""
@@ -1476,6 +1492,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     )
                     return
                 }
+                BeamioCallTiming.mark("start-main")
                 BeamioVoipIncomingBootstrap.shared.callKit.startOutgoing(
                     callId: callId,
                     handle: "Beamio",

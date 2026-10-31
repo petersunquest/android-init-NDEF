@@ -112,6 +112,7 @@ class BeamioTelecomService : ConnectionService() {
         request: ConnectionRequest,
     ): Connection {
         val callId = request.address?.schemeSpecificPart.orEmpty()
+        BeamioCallTiming.mark("telecom-onCreateOutgoingConnection")
         // The status-bar call chip only appears for a CallStyle ongoing notification.
         BeamioCallForegroundService.showOngoingCall(this, callId, "")
         return BeamioConnection(this, callId, "", "", "", incoming = false)
@@ -140,7 +141,19 @@ class BeamioTelecomService : ConnectionService() {
                     TelecomManager.PRESENTATION_ALLOWED,
                 )
             }
-            if (incoming) setRinging() else setDialing()
+            if (incoming) {
+                setRinging()
+            } else {
+                setDialing()
+                BeamioCallTonePlayer.onOutgoingConnectionDialing()
+            }
+        }
+
+        override fun onStateChanged(state: Int) {
+            super.onStateChanged(state)
+            if (!incoming && (state == STATE_ACTIVE || state == STATE_HOLDING || state == STATE_DISCONNECTED)) {
+                BeamioCallTonePlayer.stopRingback("telecom-state-$state")
+            }
         }
 
         fun isIncomingCall(): Boolean = incoming
@@ -1353,7 +1366,9 @@ class BeamioTelecomService : ConnectionService() {
                 if (sessionId.isNotBlank()) putString(EXTRA_SESSION_ID, sessionId)
             }
             try {
+                BeamioCallTiming.mark("telecom-placeCall")
                 telecom.placeCall(Uri.parse("$PHONE_SCHEME:$callId"), extras)
+                BeamioCallTiming.mark("telecom-placeCall-returned")
             } catch (_: SecurityException) {
                 MainActivity.dispatchSystemCallAction("callFailed", callId)
             }

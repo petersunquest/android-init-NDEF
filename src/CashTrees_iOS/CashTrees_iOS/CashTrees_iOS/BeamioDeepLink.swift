@@ -77,6 +77,16 @@ enum BeamioDeepLink {
     /// soft-reassert sticky CallKit A (background `reportNewIncomingCall` fails).
     static let busyChromeRescueHost = "busy-chrome-rescue"
 
+    /// `beamio://debug-*` QA links work only in Debug builds. Release ignores
+    /// them, so no other app or web page can fake or end a call.
+    static var debugLinksEnabled: Bool {
+        #if DEBUG
+        return true
+        #else
+        return false
+        #endif
+    }
+
     /// Default in-app WebView entry when custom scheme carries query-only params (remote semantics).
     static let defaultWebAppURL = URL(string: "https://beamio.app/app/")!
 
@@ -193,6 +203,7 @@ enum BeamioDeepLink {
     /// Handle `beamio://debug-incoming?…` for on-device Incoming UI acceptance (no real dial).
     @discardableResult
     static func handleDebugIncomingIfPresent(_ url: URL) -> Bool {
+        guard debugLinksEnabled else { return false }
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
         let pathHost: String = {
@@ -343,6 +354,7 @@ enum BeamioDeepLink {
     /// Handle `beamio://debug-decline?callId=…` — request CallKit End without Answer (Decline path).
     @discardableResult
     static func handleDebugDeclineIfPresent(_ url: URL) -> Bool {
+        guard debugLinksEnabled else { return false }
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
         let pathHost: String = {
@@ -378,6 +390,7 @@ enum BeamioDeepLink {
     /// Handle `beamio://debug-answer?callId=…` — Answer ringing CallKit for in-call layout QA.
     @discardableResult
     static func handleDebugAnswerIfPresent(_ url: URL) -> Bool {
+        guard debugLinksEnabled else { return false }
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
         let pathHost: String = {
@@ -430,7 +443,9 @@ enum BeamioDeepLink {
     static func handleDebugInCallIfPresent(_ url: URL) -> Bool {
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
-        guard host == "debug-incall" || host == inCallHost else { return false }
+        // `incall` is the shell's own wake after Answer and must work in Release.
+        let isDebugInCall = debugLinksEnabled && host == "debug-incall"
+        guard isDebugInCall || host == inCallHost else { return false }
         let action = host == inCallHost
             ? "show"
             : (URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -458,6 +473,7 @@ enum BeamioDeepLink {
     /// Handle `beamio://debug-end-all` — end every CallKit call still held by the system.
     @discardableResult
     static func handleDebugEndAllIfPresent(_ url: URL) -> Bool {
+        guard debugLinksEnabled else { return false }
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
         let pathHost: String = {
@@ -482,6 +498,7 @@ enum BeamioDeepLink {
     /// Handle `beamio://debug-remote-end?callId=…&sessionId=…` — peer Hang Up race stamp.
     @discardableResult
     static func handleDebugRemoteEndIfPresent(_ url: URL) -> Bool {
+        guard debugLinksEnabled else { return false }
         guard url.scheme?.lowercased() == customScheme else { return false }
         let host = (url.host ?? "").lowercased()
         let pathHost: String = {

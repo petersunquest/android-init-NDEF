@@ -46,6 +46,12 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
 			if !Self.handleDebugURL(url) {
 				BeamioDeepLink.stashColdOpenURL(url)
 			}
+		} else if let activity = options.userActivities.first(where: {
+			BeamioCallKitVideoButton.activityTypes.contains($0.activityType)
+		}) {
+			// CallKit Video button while the app had no scene (PushKit launch).
+			BeamioDeepLink.accept("ACCEPT scene-callkit-video")
+			BeamioCallKitVideoButton.handle(activity, source: "scene-connect")
 		} else if let url = options.userActivities.compactMap(\.webpageURL).first {
 			BeamioDeepLink.accept("ACCEPT scene-activity")
 			BeamioDeepLink.stashColdOpenURL(url)
@@ -166,6 +172,13 @@ struct CashTrees_iOSApp: App {
                         if CashTreesAppDelegate.handleDebugURL(url) { return }
                         deepLinkStore.handleIncomingURL(url)
                     }
+                }
+                // CallKit in-call Video button → video in the Beamio call screen.
+                .onContinueUserActivity("INStartCallIntent") { activity in
+                    BeamioCallKitVideoButton.handle(activity, source: "continue")
+                }
+                .onContinueUserActivity("INStartVideoCallIntent") { activity in
+                    BeamioCallKitVideoButton.handle(activity, source: "continue")
                 }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
                     guard let url = activity.webpageURL else { return }

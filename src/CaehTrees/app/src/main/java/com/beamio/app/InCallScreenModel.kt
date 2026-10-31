@@ -52,11 +52,19 @@ object InCallScreenModel {
         ) previous.tag else ""
         preparedId.set("")
         begin(callId, sessionId, tag = preparedTag, address = address, presentImmediately = true)
-        if (!sameLiveCall) connectedFlag.set(false)
+        if (!sameLiveCall) {
+            connectedFlag.set(false)
+            BeamioCallTonePlayer.resetForNewDial()
+        }
     }
 
     /** The PWA's `prepareSystemCall` id while the screen waits for `startSystemCall`. */
     private val preparedId = AtomicReference("")
+
+    /** The PWA could not place the prepared dial; shown in place of the status. */
+    private val prepareError = AtomicReference("")
+
+    fun prepareError(): String = prepareError.get()
     private val cancelledPrepareIds = java.util.Collections.synchronizedSet(LinkedHashSet<String>())
 
     /**
@@ -68,6 +76,8 @@ object InCallScreenModel {
         // begin() keeps old ids when the new ones are blank; a prepared screen has none.
         state.set(state.get().copy(callId = "", sessionId = ""))
         connectedFlag.set(false)
+        prepareError.set("")
+        BeamioCallTonePlayer.resetForNewDial()
         preparedId.set(prepareId.trim())
         android.util.Log.i("BeamioInCall", "prepared outgoing screen")
     }
@@ -100,6 +110,22 @@ object InCallScreenModel {
         return true
     }
 
+    /**
+     * The PWA could not place the prepared dial. Keep the screen up with the
+     * reason; End (or a short timeout) closes it. Returns false when no
+     * matching prepared screen is showing.
+     */
+    fun failPrepared(prepareId: String, message: String): Boolean {
+        val want = prepareId.trim()
+        val current = preparedId.get()
+        if (!isPrepared()) return false
+        if (want.isNotEmpty() && current.isNotEmpty() && want != current) return false
+        val id = want.ifEmpty { current }
+        if (id.isNotEmpty()) cancelledPrepareIds.add(id)
+        prepareError.set(message.trim())
+        android.util.Log.i("BeamioInCall", "prepared dial failed; reason shown on call screen")
+        return true
+    }
     /** The user hung up while this dial was still being prepared. */
     fun wasPrepareCancelled(prepareId: String): Boolean =
         prepareId.isNotBlank() && cancelledPrepareIds.contains(prepareId.trim())
@@ -110,6 +136,7 @@ object InCallScreenModel {
         val current = state.get()
         if (callId.isNotBlank() && current.callId.isNotBlank() && callId != current.callId) return false
         connectedFlag.set(true)
+        BeamioCallTonePlayer.stopRingback("connected")
         state.set(current.copy(answeredAtMs = System.currentTimeMillis()))
         android.util.Log.i("BeamioInCall", "outgoing connected callId=${current.callId.take(12)}")
         return true
@@ -239,6 +266,9 @@ object InCallScreenModel {
         liveFlag.set(false)
         presentedFlag.set(false)
         connectedFlag.set(true)
+        prepareError.set("")
+        BeamioCallTonePlayer.stopRingback("ended")
+        BeamioCallTonePlayer.resetForNewDial()
         mutedFlag.set(false)
         BeamioNativeVoiceChannel.setCaptureMuted(false)
         state.set(State())

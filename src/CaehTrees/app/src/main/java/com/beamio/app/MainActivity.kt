@@ -22,13 +22,16 @@ import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.util.Base64
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.PixelCopy
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -287,6 +290,16 @@ class MainActivity : ComponentActivity() {
     private var nativeVoiceMic: BeamioNativeVoiceMic? = null
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
+    /**
+     * Last WebView frame, taken when a call screen covers this activity. While the
+     * activity is stopped the WebView drops its frame and needs a moment to draw
+     * again, so the call screen's exit used to reveal a blank page first.
+     */
+    private var callCoverSnapshot: Bitmap? = null
+    private var callCoverView: ImageView? = null
+    private var callCoverGeneration = 0
+    /** Between onStart and onStop. */
+    private var uiVisible = false
     /** Green return-to-call pill while InCall is minimized (iOS parity). */
     private var inCallReturnPill: View? = null
     private val inCallReturnPillHandler = Handler(Looper.getMainLooper())
@@ -1271,7 +1284,12 @@ class MainActivity : ComponentActivity() {
          */
         @JavascriptInterface
         fun prepareSystemCall(json: String) {
+            runCatching { JSONObject(json) }.getOrNull()?.let {
+                BeamioCallTiming.begin(it.optString("dialId"), it.optLong("tapAt", 0L))
+            }
+            BeamioCallTiming.mark("prepare-received")
             runOnUiThread {
+                BeamioCallTiming.mark("prepare-main")
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val prepareId = body.optString("prepareId").trim()
                 val peerAddress = body.optString("peerAddress").trim()
@@ -1281,6 +1299,7 @@ class MainActivity : ComponentActivity() {
                 }
                 InCallScreenModel.beginPrepared(prepareId, peerAddress)
                 InCallActivity.present(this@MainActivity, "", "", tag = "", address = peerAddress)
+                BeamioCallTiming.mark("prepared")
                 if (peerAddress.isNotBlank()) {
                     Thread {
                         val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
@@ -1299,7 +1318,21 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val prepareId = body.optString("prepareId").trim()
-                if (InCallScreenModel.cancelPrepared(prepareId)) {
+                val error = body.optString("error").trim()
+                BeamioCallTiming.mark("prepare-cancelled", if (error.isEmpty()) "" else "failed")
+                if (error.isNotEmpty()) {
+                    // Show why the dial failed on the call screen; End closes it.
+                    if (InCallScreenModel.failPrepared(prepareId, error)) {
+                        InCallActivity.refreshStateIfShowing()
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (InCallScreenModel.isPrepared() && InCallScreenModel.prepareError() == error &&
+                                InCallScreenModel.cancelPrepared()
+                            ) {
+                                InCallActivity.finishIfShowing()
+                            }
+                        }, 6_000L)
+                    }
+                } else if (InCallScreenModel.cancelPrepared(prepareId)) {
                     Log.i("BeamioVoiceCall", "prepared call screen closed by PWA")
                     InCallActivity.finishIfShowing()
                 }
@@ -1308,7 +1341,9 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun startSystemCall(json: String) {
+            BeamioCallTiming.mark("start-received")
             runOnUiThread {
+                BeamioCallTiming.mark("start-main")
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val callId = body.optString("callId")
                 val sessionId = body.optString("sessionId")
@@ -3335,9 +3370,109 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        uiVisible = true
+    }
+
+    private fun isCallScreenCoveringPage(): Boolean =
+        InCallScreenModel.isLive() ||
+            InCallActivity.isShowing() ||
+            IncomingCallActivity.isShowing() ||
+            IncomingCallActivity.isPresentInFlight()
+
+    /** onPause: copy the WebView pixels while they are still on screen. */
+    private fun captureCallCoverSnapshot() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!::webView.isInitialized || !isCallScreenCoveringPage()) return
+        val w = webView.width
+        val h = webView.height
+        if (w <= 0 || h <= 0 || !webView.isAttachedToWindow) return
+        val loc = IntArray(2)
+        webView.getLocationInWindow(loc)
+        val bitmap = runCatching { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }.getOrNull() ?: return
+        val generation = ++callCoverGeneration
+        try {
+            PixelCopy.request(
+                window,
+                Rect(loc[0], loc[1], loc[0] + w, loc[1] + h),
+                bitmap,
+                { result ->
+                    if (result != PixelCopy.SUCCESS || generation != callCoverGeneration || uiResumed) {
+                        bitmap.recycle()
+                        return@request
+                    }
+                    dropCallCoverSnapshot()
+                    callCoverSnapshot = bitmap
+                    // onStop may already have run before the copy finished.
+                    if (!uiVisible) showCallCoverSnapshot()
+                },
+                Handler(Looper.getMainLooper()),
+            )
+        } catch (e: IllegalArgumentException) {
+            bitmap.recycle()
+        }
+    }
+
+    /** onStop: put the copied frame over the WebView so the return draws it at once. */
+    private fun showCallCoverSnapshot() {
+        val bitmap = callCoverSnapshot ?: return
+        if (!::rootLayout.isInitialized || !::webView.isInitialized) return
+        val view = callCoverView ?: ImageView(this).apply {
+            scaleType = ImageView.ScaleType.FIT_XY
+            isClickable = false
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }.also { callCoverView = it }
+        view.setImageBitmap(bitmap)
+        view.translationX = webView.left.toFloat()
+        view.translationY = webView.top.toFloat()
+        if (view.parent == null) {
+            val index = rootLayout.indexOfChild(webView)
+            rootLayout.addView(view, index + 1, FrameLayout.LayoutParams(webView.width, webView.height))
+        }
+        view.visibility = View.VISIBLE
+    }
+
+    /** onResume: drop the cover once the WebView has a fresh frame to draw. */
+    private fun releaseCallCoverWhenWebViewDraws() {
+        val view = callCoverView
+        if (view == null || view.parent == null) {
+            dropCallCoverSnapshot()
+            return
+        }
+        val generation = ++callCoverGeneration
+        val remove = Runnable {
+            if (generation == callCoverGeneration) dropCallCoverSnapshot()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && ::webView.isInitialized) {
+            webView.postVisualStateCallback(
+                generation.toLong(),
+                object : WebView.VisualStateCallback() {
+                    override fun onComplete(requestId: Long) {
+                        // The WebView draws the fresh frame on its next draw; remove after it.
+                        rootLayout.postOnAnimation(remove)
+                    }
+                },
+            )
+        }
+        // Never leave a stale picture over the live page.
+        rootLayout.postDelayed(remove, 1_500L)
+    }
+
+    private fun dropCallCoverSnapshot() {
+        callCoverView?.let { view ->
+            view.setImageDrawable(null)
+            (view.parent as? ViewGroup)?.removeView(view)
+        }
+        callCoverSnapshot?.recycle()
+        callCoverSnapshot = null
+    }
+
     override fun onResume() {
         super.onResume()
         uiResumed = true
+        releaseCallCoverWhenWebViewDraws()
         // Glass IncomingCallActivity is the only incoming UI; drop Samsung shade ghosts.
         // Skip while waking for an incoming call — raise-then-present races onResume
         // before glass exists; dismiss would stop FGS and kill RINGING mid-dial.
@@ -3526,6 +3661,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         uiResumed = false
+        captureCallCoverSnapshot()
         try {
             NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
         } catch (_: Exception) {
@@ -3547,6 +3683,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        uiVisible = false
+        showCallCoverSnapshot()
         if (nfcBindKeepAlive) {
             disarmNfcReader(true, "paused")
         }
@@ -3558,6 +3696,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         if (activeInstance === this) activeInstance = null
+        dropCallCoverSnapshot()
         inCallReturnPillHandler.removeCallbacks(inCallReturnPillTick)
         inCallReturnPill = null
         pendingSystemCallHandler.removeCallbacksAndMessages(null)

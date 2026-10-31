@@ -178,6 +178,14 @@ enum CashTreesWebConsoleRelay {
         } else {
             text = String(describing: message ?? "")
         }
+        if text.contains("[CallTiming]") {
+            BeamioCallTiming.record(text)
+            return
+        }
+        // Debug device QA: keep chat/voice route lines next to the dial trail.
+        if text.contains("[Chat]") || text.contains("[voiceCall]") {
+            BeamioCallTiming.appendDebugFile("\(Int64(Date().timeIntervalSince1970 * 1000)) \(text)")
+        }
         logPwa(level: resolvedLevel, message: text)
     }
 

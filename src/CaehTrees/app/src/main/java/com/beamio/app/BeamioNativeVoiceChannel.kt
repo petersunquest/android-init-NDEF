@@ -258,6 +258,8 @@ object BeamioNativeVoiceChannel {
         appCtx.set(app)
         activeRef.set(active)
         mediaLive.set(true)
+        // Accept arrived: the ringback must stop before the mic / speaker open.
+        BeamioCallTonePlayer.stopRingback("voice-media", mediaStarting = true)
         Log.i(TAG, "enableMedia peerSession=${active.peerMediaSessionId.take(12)}")
         if (!running.get()) return
         if (audioRecord != null) return
@@ -436,6 +438,7 @@ object BeamioNativeVoiceChannel {
             if (armor == null && encryptError == null) encryptWait.wait(12_000L)
         }
         val encrypted = armor
+        BeamioCallTiming.mark("listen-encrypted")
         if (encrypted.isNullOrBlank() || !encrypted.contains("BEGIN PGP MESSAGE")) {
             Log.w(TAG, "listen encrypt failed: ${encryptError ?: "timeout"}")
             return
@@ -487,6 +490,7 @@ object BeamioNativeVoiceChannel {
                 return
             }
             BeamioSiCipherPost.scoreEntry(entryIp, reachable = true, latencyMs = latency)
+            BeamioCallTiming.mark("listen-open", "http=$latency")
             val stream = BufferedInputStream(conn.inputStream)
             val buf = ByteArray(4096)
             val sse = StringBuilder()
