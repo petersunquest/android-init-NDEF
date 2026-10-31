@@ -43,10 +43,66 @@ object InCallScreenModel {
      * is placed ("Calling…"); [markConnected] starts the timer on Accept.
      */
     fun beginOutgoing(callId: String, sessionId: String, address: String) {
-        val sameLiveCall = liveFlag.get() && callId.isNotBlank() && state.get().callId == callId
-        begin(callId, sessionId, tag = "", address = address, presentImmediately = true)
+        val previous = state.get()
+        val sameLiveCall = liveFlag.get() && callId.isNotBlank() && previous.callId == callId
+        // Keep the tag a prepared screen already looked up for this peer.
+        val preparedTag = if (
+            liveFlag.get() && previous.callId.isBlank() &&
+            previous.address.equals(address.trim(), ignoreCase = true)
+        ) previous.tag else ""
+        preparedId.set("")
+        begin(callId, sessionId, tag = preparedTag, address = address, presentImmediately = true)
         if (!sameLiveCall) connectedFlag.set(false)
     }
+
+    /** The PWA's `prepareSystemCall` id while the screen waits for `startSystemCall`. */
+    private val preparedId = AtomicReference("")
+    private val cancelledPrepareIds = java.util.Collections.synchronizedSet(LinkedHashSet<String>())
+
+    /**
+     * Dial pressed: show "Calling…" at once while the PWA still builds the
+     * offer. [beginOutgoing] later fills in the real call ids.
+     */
+    fun beginPrepared(prepareId: String, address: String) {
+        begin(callId = "", sessionId = "", tag = "", address = address, presentImmediately = true)
+        // begin() keeps old ids when the new ones are blank; a prepared screen has none.
+        state.set(state.get().copy(callId = "", sessionId = ""))
+        connectedFlag.set(false)
+        preparedId.set(prepareId.trim())
+        android.util.Log.i("BeamioInCall", "prepared outgoing screen")
+    }
+
+    /** True while the screen is shown for a dial that has no call ids yet. */
+    fun isPrepared(): Boolean {
+        if (!liveFlag.get()) return false
+        val current = state.get()
+        return current.callId.isBlank() && current.sessionId.isBlank()
+    }
+
+    /**
+     * End a prepared screen. [prepareId] blank means "whatever is prepared".
+     * Returns true when a prepared screen was closed.
+     */
+    fun cancelPrepared(prepareId: String = ""): Boolean {
+        val want = prepareId.trim()
+        val current = preparedId.get()
+        if (!isPrepared()) return false
+        if (want.isNotEmpty() && current.isNotEmpty() && want != current) return false
+        val id = want.ifEmpty { current }
+        if (id.isNotEmpty()) {
+            cancelledPrepareIds.add(id)
+            synchronized(cancelledPrepareIds) {
+                while (cancelledPrepareIds.size > 20) cancelledPrepareIds.remove(cancelledPrepareIds.first())
+            }
+        }
+        preparedId.set("")
+        end()
+        return true
+    }
+
+    /** The user hung up while this dial was still being prepared. */
+    fun wasPrepareCancelled(prepareId: String): Boolean =
+        prepareId.isNotBlank() && cancelledPrepareIds.contains(prepareId.trim())
 
     /** Dialer: the callee accepted. Returns true when this changed the state. */
     fun markConnected(callId: String): Boolean {

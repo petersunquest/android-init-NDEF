@@ -234,7 +234,21 @@ class InCallActivity : ComponentActivity() {
         findViewById<View>(R.id.in_call_minimize).setOnClickListener { minimizeCall() }
         findViewById<View>(R.id.in_call_end).setOnClickListener {
             it.isEnabled = false
-            BeamioTelecomService.end(this, callId, sessionId)
+            if (callId.isBlank() && sessionId.isBlank() && InCallScreenModel.cancelPrepared()) {
+                // Hung up while the PWA was still preparing the dial: no call
+                // exists yet. Tell the PWA to drop the dial it is building.
+                Log.i(TAG, "End on prepared screen — cancel dial")
+                MainActivity.dispatchSystemCallAction("callEnded", "", "", applicationContext)
+                finishFromCall()
+                return@setOnClickListener
+            }
+            // startSystemCall may have filled in the ids before this screen re-rendered.
+            val snapshot = InCallScreenModel.snapshot()
+            BeamioTelecomService.end(
+                this,
+                callId.ifBlank { snapshot.callId },
+                sessionId.ifBlank { snapshot.sessionId },
+            )
         }
         findViewById<View>(R.id.in_call_tools_collapsed)?.setOnClickListener {
             toolsExpanded = true

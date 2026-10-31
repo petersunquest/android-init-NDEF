@@ -1264,6 +1264,48 @@ class MainActivity : ComponentActivity() {
             runOnUiThread { saveFileFromBridge(json) }
         }
 
+        /**
+         * Dial pressed in the PWA: show the native call screen ("Calling…")
+         * right away. The PWA still resolves routes and builds the offer, then
+         * sends `startSystemCall` with the same `prepareId`.
+         */
+        @JavascriptInterface
+        fun prepareSystemCall(json: String) {
+            runOnUiThread {
+                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                val prepareId = body.optString("prepareId").trim()
+                val peerAddress = body.optString("peerAddress").trim()
+                if (InCallScreenModel.isLive() && !InCallScreenModel.isPrepared()) {
+                    Log.i("BeamioVoiceCall", "prepareSystemCall skipped; a call is live")
+                    return@runOnUiThread
+                }
+                InCallScreenModel.beginPrepared(prepareId, peerAddress)
+                InCallActivity.present(this@MainActivity, "", "", tag = "", address = peerAddress)
+                if (peerAddress.isNotBlank()) {
+                    Thread {
+                        val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
+                            .getOrNull().orEmpty()
+                        if (tag.isNotBlank()) {
+                            InCallActivity.refreshIdentityIfShowing("", "", tag, peerAddress)
+                        }
+                    }.start()
+                }
+            }
+        }
+
+        /** The PWA could not start the prepared dial: close the prepared screen. */
+        @JavascriptInterface
+        fun cancelPreparedSystemCall(json: String) {
+            runOnUiThread {
+                val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
+                val prepareId = body.optString("prepareId").trim()
+                if (InCallScreenModel.cancelPrepared(prepareId)) {
+                    Log.i("BeamioVoiceCall", "prepared call screen closed by PWA")
+                    InCallActivity.finishIfShowing()
+                }
+            }
+        }
+
         @JavascriptInterface
         fun startSystemCall(json: String) {
             runOnUiThread {
@@ -1272,6 +1314,14 @@ class MainActivity : ComponentActivity() {
                 val sessionId = body.optString("sessionId")
                 val sessionKey = body.optString("sessionKey")
                 val peerAddress = body.optString("peerAddress")
+                val prepareId = body.optString("prepareId").trim()
+                if (InCallScreenModel.wasPrepareCancelled(prepareId)) {
+                    // The user hung up on the prepared screen before the offer
+                    // was ready. Do not ring the callee; let the PWA clean up.
+                    Log.i("BeamioVoiceCall", "startSystemCall dropped; dial was cancelled while preparing")
+                    MainActivity.dispatchSystemCallAction("callEnded", callId, sessionId, applicationContext)
+                    return@runOnUiThread
+                }
                 // Dialer owns voice_listen + VoIP wake (offerArmor). PWA must not
                 // start worker listen on the same sessionId (session_conflict).
                 val wakeArmor = body.optString("dialerWakeOfferArmor", "").trim()
