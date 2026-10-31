@@ -5707,6 +5707,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			audioSession.category.rawValue,
 			audioSession.mode.rawValue
 		)
+		// Dialer: ringback plays from here until Accept / end (no-op otherwise).
+		BeamioCallTonePlayer.shared.callAudioDidActivate()
 		// After lock-screen Answer, re-assert shell in-call presentation so unlock
 		// lands on BeamioInCallScreen (aligned layout), not only CallKit chrome.
 		// Must not early-return when presented is already true — wake + retries.
@@ -5741,6 +5743,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	}
 
 	func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+		BeamioCallTonePlayer.shared.callAudioDidDeactivate()
 		restoreAudioSession()
 	}
 
