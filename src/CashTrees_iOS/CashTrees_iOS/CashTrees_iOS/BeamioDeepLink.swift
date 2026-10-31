@@ -7,9 +7,54 @@
 
 import Combine
 import Foundation
+import os
 import UIKit
 
 enum BeamioDeepLink {
+    private static let acceptLog = Logger(subsystem: "com.beamio.beamio", category: "DeepLink")
+
+    /// Public unified log. `NSLog` is redacted on device and cannot prove invite delivery.
+    static func accept(_ message: String) {
+        acceptLog.info("\(message, privacy: .public)")
+    }
+
+    /// Cold-start `UIOpenURLAction` can arrive before SwiftUI `.onOpenURL` is attached.
+    private static var coldOpenURL: URL?
+
+    /// v57: `beamio://busy-chrome-rescue` openURL can surface the system
+    /// "paste from …" sheet if we also read UIPasteboard on becomeActive.
+    /// Suppress pasteboard deferred-deep-link reads until this deadline.
+    private static var pasteboardDeferredDeepLinkSuppressUntil: Date?
+
+    /// Skip pasteboard deep-link consume for `seconds` (busy chrome-rescue).
+    static func suppressPasteboardDeferredDeepLink(forSeconds seconds: TimeInterval) {
+        let until = Date().addingTimeInterval(max(0.5, seconds))
+        if let existing = pasteboardDeferredDeepLinkSuppressUntil, existing > until {
+            return
+        }
+        pasteboardDeferredDeepLinkSuppressUntil = until
+        accept("ACCEPT pasteboard-suppress \(Int(seconds))s")
+    }
+
+    static var isPasteboardDeferredDeepLinkSuppressed: Bool {
+        guard let until = pasteboardDeferredDeepLinkSuppressUntil else { return false }
+        if Date() >= until {
+            pasteboardDeferredDeepLinkSuppressUntil = nil
+            return false
+        }
+        return true
+    }
+
+    static func stashColdOpenURL(_ url: URL) {
+        coldOpenURL = url
+        accept("ACCEPT stashed-cold-open")
+    }
+
+    static func takeColdOpenURL() -> URL? {
+        defer { coldOpenURL = nil }
+        return coldOpenURL
+    }
+
     static let customScheme = "beamio"
     static let customOpenHost = "open"
     /// Device QA: `beamio://debug-incoming?callId=…&peerAddress=0x…&claimedTag=@rrr12`
@@ -19,8 +64,18 @@ enum BeamioDeepLink {
     static let debugDeclineHost = "debug-decline"
     /// Device QA: `beamio://debug-answer?callId=…` — Answer ringing CallKit → verify in-call chrome.
     static let debugAnswerHost = "debug-answer"
+    /// `beamio://incall` — the shell's own wake after a CallKit Answer: activate the
+    /// app and show the native call screen (never loads a web page).
+    static let inCallHost = "incall"
     /// Device QA: `beamio://debug-end-all` — tear down system CallKit zombies (dual-header chrome).
     static let debugEndAllHost = "debug-end-all"
+    /// Device QA: `beamio://debug-remote-end?callId=…&sessionId=…` — stamp
+    /// `remoteEnded` + tear CallKit (peer Hang Up race). Used with a same-callId
+    /// `debug-incoming` within ~3s to verify soft-allow / soft-skip-stale crumbs.
+    static let debugRemoteEndHost = "debug-remote-end"
+    /// v26: self-wake after busy secondary while backgrounded — activate then
+    /// soft-reassert sticky CallKit A (background `reportNewIncomingCall` fails).
+    static let busyChromeRescueHost = "busy-chrome-rescue"
 
     /// Default in-app WebView entry when custom scheme carries query-only params (remote semantics).
     static let defaultWebAppURL = URL(string: "https://beamio.app/app/")!
@@ -44,21 +99,76 @@ enum BeamioDeepLink {
     ///
     /// `/app-download` must never load inside the native WKWebView — it is the homepage SPA,
     /// not SilentPassUI `/app/`, and can strand the launch splash on a loading interstitial.
+    ///
+    /// Personal invite landings may put `invite=0x…` on the **outer** `/app-download` URL
+    /// (desktop shows Invited by) without a nested `target=`. Preserve that EOA into `/app/?invite=`.
     static func unwrapAppDownloadLandingURL(_ url: URL) -> URL? {
         let path = url.path
         guard path == "/app-download" || path.hasPrefix("/app-download/") else { return nil }
-        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let targetRaw = components.queryItems?.first(where: { $0.name == "target" })?.value
-        else { return nil }
-        let decoded = targetRaw.removingPercentEncoding ?? targetRaw
-        guard let targetURL = URL(string: decoded),
-              let sanitized = sanitizeHTTPSWebURL(targetURL)
-        else { return nil }
-        let targetPath = sanitized.path
-        guard targetPath == "/app" || targetPath == "/app/" || targetPath.hasPrefix("/app/") else {
-            return nil
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        let outerInvite = agentInviteQueryValue(from: components.queryItems)
+
+        if let targetRaw = components.queryItems?.first(where: { $0.name == "target" })?.value {
+            let decoded = targetRaw.removingPercentEncoding ?? targetRaw
+            guard let targetURL = URL(string: decoded),
+                  let sanitized = sanitizeHTTPSWebURL(targetURL)
+            else { return nil }
+            let targetPath = sanitized.path
+            guard targetPath == "/app" || targetPath == "/app/" || targetPath.hasPrefix("/app/") else {
+                return nil
+            }
+            let merged = mergeAgentInviteIfNeeded(into: sanitized, outerInvite: outerInvite)
+            NSLog("[BeamioDeepLink] unwrap app-download target → %@", merged.absoluteString)
+            if merged.absoluteString.localizedCaseInsensitiveContains("invite="),
+               !merged.path.localizedCaseInsensitiveContains("app-download") {
+                accept("ACCEPT unwrap-target")
+            }
+            return merged
         }
-        return sanitized
+
+        // Invite-only landing: `/app-download?invite=0x…` (no target) → `/app/?invite=0x…`
+        guard let invite = outerInvite else { return nil }
+        guard let inviteOnly = webAppURLWithInvite(invite) else { return nil }
+        NSLog("[BeamioDeepLink] unwrap invite-only app-download → %@", inviteOnly.absoluteString)
+        accept("ACCEPT unwrap-invite-only")
+        return inviteOnly
+    }
+
+    /// Build `https://beamio.app/app/?invite=<eoa>` for invite-only landings.
+    private static func webAppURLWithInvite(_ invite: String) -> URL? {
+        var merged = URLComponents(url: defaultWebAppURL, resolvingAgainstBaseURL: false)
+        merged?.queryItems = [URLQueryItem(name: "invite", value: invite)]
+        guard let resolved = merged?.url else { return nil }
+        return sanitizeHTTPSWebURL(resolved) ?? resolved
+    }
+
+    /// If outer landing carried `invite=` and the inner `/app/` URL does not, copy it in.
+    private static func mergeAgentInviteIfNeeded(into url: URL, outerInvite: String?) -> URL {
+        guard let outerInvite else { return url }
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        if agentInviteQueryValue(from: components.queryItems) != nil {
+            return url
+        }
+        var items = components.queryItems ?? []
+        items.append(URLQueryItem(name: "invite", value: outerInvite))
+        var next = components
+        next.queryItems = items
+        return next.url ?? url
+    }
+
+    /// `invite` / `Invite` query = EOA `0x` + 40 hex (personal referral).
+    private static func agentInviteQueryValue(from items: [URLQueryItem]?) -> String? {
+        guard let items else { return nil }
+        for name in ["invite", "Invite"] {
+            guard let raw = items.first(where: { $0.name == name })?.value?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !raw.isEmpty
+            else { continue }
+            if raw.range(of: #"^0x[0-9a-fA-F]{40}$"#, options: .regularExpression) != nil {
+                return raw
+            }
+        }
+        return nil
     }
 
     /// Resolve an incoming Universal Link or `beamio://` URL to an allowed HTTPS URL for the WebView.
@@ -73,6 +183,12 @@ enum BeamioDeepLink {
             return nil
         }
     }
+
+    /// `application(_:open:)` + SwiftUI `.onOpenURL` both fire for the same
+    /// `beamio://debug-incoming` — collapse duplicates within this window.
+    private static var lastDebugIncomingCallId: String = ""
+    private static var lastDebugIncomingAt: Date = .distantPast
+    private static let debugIncomingDedupeWindow: TimeInterval = 1.5
 
     /// Handle `beamio://debug-incoming?…` for on-device Incoming UI acceptance (no real dial).
     @discardableResult
@@ -105,6 +221,19 @@ enum BeamioDeepLink {
         let claimedTag = q("claimedTag").isEmpty ? (q("tag").isEmpty ? "@rrr12" : q("tag")) : q("claimedTag")
         let claimedAddress = q("claimedAddress").isEmpty ? peerAddress : q("claimedAddress")
         let displayName = q("displayName").isEmpty ? claimedTag : q("displayName")
+        let selfProbe = q("selfProbe").lowercased()
+        let now = Date()
+        if callId == lastDebugIncomingCallId,
+           now.timeIntervalSince(lastDebugIncomingAt) < debugIncomingDedupeWindow {
+            NSLog(
+                "[BeamioDeepLink] debug-incoming DEDUPE callId=%@ age=%.2fs",
+                callId,
+                now.timeIntervalSince(lastDebugIncomingAt)
+            )
+            return true
+        }
+        lastDebugIncomingCallId = callId
+        lastDebugIncomingAt = now
         NSLog(
             "[BeamioDeepLink] debug-incoming callId=%@ tag=%@ peer=%@",
             callId,
@@ -119,12 +248,23 @@ enum BeamioDeepLink {
             "claimedTag": claimedTag,
             "claimedAddress": claimedAddress,
         ]
-        // Foreground (.active): glass Incoming with @tag + AddressCapsule — no
-        // CallKit recreate (CallKit cannot render the capsule). Background /
-        // killed: recreate provider then opaque CallKit "Beamio".
-        // Do NOT re-report CallKit on delayed NC posts (that previously killed ringing).
+        // System CallKit only (no glass overlay). Recreate provider only when
+        // idle — so zombie dual-header chrome cannot steal Answer on a fresh
+        // first ring. If already ringing/connected/sticky, skip recreate (would
+        // kill the live call and defeat the single-call busy gate QA path).
+        // Re-read sticky/busy *inside* deliver — entry snapshot can race dual openURL.
         let deliver = {
-            let reportAndNotify = {
+            let ck = BeamioVoipIncomingBootstrap.shared.callKit
+            let stickyNow = ck.hasStickyPrimaryExcluding(
+                callId: callId,
+                sessionId: sessionId
+            )
+            let busyNow = ck.isStickyOrBusyExcluding(
+                callId: callId,
+                sessionId: sessionId
+            )
+            let liveNow = ck.hasLiveCallKitCall()
+            let reportCallKit = {
                 BeamioVoipIncomingBootstrap.shared.reportFromUserInfo(userInfo) { error in
                     if let error {
                         NSLog(
@@ -135,19 +275,60 @@ enum BeamioDeepLink {
                         NSLog("[BeamioDeepLink] debug-incoming report OK callId=%@", callId)
                     }
                 }
-                NotificationCenter.default.post(
-                    name: .cashTreesIncomingVoiceCallPush,
-                    object: nil,
-                    userInfo: userInfo
+            }
+            if busyNow || liveNow || stickyNow {
+                // v17 busy/sticky: decline-only — NEVER reportCallKit / recreate.
+                // openURL report was system-CXEnding sticky A → Home idle after-b.
+                // sendDecline(busy) + emitToWeb(callRejected) for chat leave-behind.
+                NSLog(
+                    "[BeamioDeepLink] debug-incoming busy — decline-only callId=%@ busy=%@ live=%@ sticky=%@",
+                    callId,
+                    busyNow ? "yes" : "no",
+                    liveNow ? "yes" : "no",
+                    stickyNow ? "yes" : "no"
                 )
-            }
-            if UIApplication.shared.applicationState == .active {
-                reportAndNotify()
-                return
-            }
-            // B35: wait for zombie end + provider recreate BEFORE CallKit report.
-            BeamioVoipIncomingBootstrap.shared.callKit.recreateProvider {
-                reportAndNotify()
+                BeamioVoipIncomingBootstrap.shared.rejectSecondaryWhileBusy(
+                    callId: callId,
+                    sessionId: sessionId
+                )
+            } else {
+                // v19: idle path reports directly. Do NOT recreateProvider here —
+                // recreate is sticky-blocked / races soft-reassert and made CALL A
+                // miss while CALL B landed as a fresh first ring (@rr02). Use
+                // debug-end-all for teardown; first inbound just reportNewIncomingCall.
+                reportCallKit()
+                if selfProbe == "pwa" {
+                    // In-process second call. Do not openURL call B — that
+                    // activates the scene and SpringBoard drops Incoming.
+                    ck.armDebugSelfProbePwa(primaryCallId: callId)
+                }
+                if !ck.isStickyOrBusyExcluding(callId: callId, sessionId: sessionId) {
+                    NotificationCenter.default.post(
+                        name: .cashTreesIncomingVoiceCallPush,
+                        object: nil,
+                        userInfo: userInfo
+                    )
+                }
+                // Delayed re-post for PWA only for the sole first inbound.
+                // Busy second inbound must not schedule these timers.
+                let notifyWebIfIdle = {
+                    let busy = BeamioVoipIncomingBootstrap.shared.callKit
+                        .isStickyOrBusyExcluding(callId: callId, sessionId: sessionId)
+                    guard !busy else {
+                        NSLog(
+                            "[BeamioDeepLink] debug-incoming delayed-notify SKIP busy callId=%@",
+                            callId
+                        )
+                        return
+                    }
+                    NotificationCenter.default.post(
+                        name: .cashTreesIncomingVoiceCallPush,
+                        object: nil,
+                        userInfo: userInfo
+                    )
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: notifyWebIfIdle)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: notifyWebIfIdle)
             }
         }
         BeamioDebugIncomingPending.stash(userInfo)
@@ -156,16 +337,6 @@ enum BeamioDeepLink {
         } else {
             DispatchQueue.main.async(execute: deliver)
         }
-        // Delayed re-post for PWA only (CallKit already reported on first deliver).
-        let notifyWeb = {
-            NotificationCenter.default.post(
-                name: .cashTreesIncomingVoiceCallPush,
-                object: nil,
-                userInfo: userInfo
-            )
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: notifyWeb)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0, execute: notifyWeb)
         return true
     }
 
@@ -194,12 +365,7 @@ enum BeamioDeepLink {
         let sessionId = q("sessionId")
         NSLog("[BeamioDeepLink] debug-decline callId=%@ sessionId=%@", callId, sessionId)
         let run = {
-            let boot = BeamioVoipIncomingBootstrap.shared
-            if boot.isGlassIncomingPresented {
-                boot.declineGlassIncoming()
-            } else {
-                boot.callKit.end(callId: callId, sessionId: sessionId)
-            }
+            BeamioVoipIncomingBootstrap.shared.callKit.end(callId: callId, sessionId: sessionId)
         }
         if Thread.isMainThread {
             run()
@@ -233,19 +399,58 @@ enum BeamioDeepLink {
             ? BeamioVoipIncomingBootstrap.shared.callKit.lastReportedCallId
             : q("callId")
         let sessionId = q("sessionId")
-        NSLog("[BeamioDeepLink] debug-answer callId=%@ sessionId=%@", callId, sessionId)
+        // stay=1|true|yes → Answer without private suspend (Accept-stay QA).
+        let stayRaw = q("stay").lowercased()
+        let stay = stayRaw == "1" || stayRaw == "true" || stayRaw == "yes"
+        NSLog(
+            "[BeamioDeepLink] debug-answer callId=%@ sessionId=%@ stay=%@",
+            callId,
+            sessionId,
+            stay ? "1" : "0"
+        )
         let run = {
-            let boot = BeamioVoipIncomingBootstrap.shared
-            if boot.isGlassIncomingPresented {
-                boot.acceptGlassIncoming()
-            } else {
-                boot.callKit.answer(callId: callId, sessionId: sessionId)
-            }
+            BeamioVoipIncomingBootstrap.shared.callKit.answer(
+                callId: callId,
+                sessionId: sessionId,
+                stay: stay
+            )
         }
         if Thread.isMainThread {
             run()
         } else {
             DispatchQueue.main.async(execute: run)
+        }
+        return true
+    }
+
+    /// Handle `beamio://debug-incall?action=mute|speaker|minimize|show|end|facetime|video` —
+    /// press the shell call screen controls on a device with no touch automation.
+    /// `facetime` / `video` toggles **local** FaceTime uplink only (peer must press separately).
+    @discardableResult
+    static func handleDebugInCallIfPresent(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == customScheme else { return false }
+        let host = (url.host ?? "").lowercased()
+        guard host == "debug-incall" || host == inCallHost else { return false }
+        let action = host == inCallHost
+            ? "show"
+            : (URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "action" })?.value?.lowercased() ?? "")
+        NSLog("[BeamioDeepLink] debug-incall action=%@", action)
+        DispatchQueue.main.async {
+            let model = BeamioInCallScreenModel.shared
+            switch action {
+            case "mute": model.toggleMute()
+            case "speaker": model.toggleSpeaker()
+            case "minimize": model.minimize()
+            case "show": model.ensureSurfaceVisible(source: "deepLink-incall")
+            case "end": model.hangUp()
+            case "facetime", "video", "video-on", "video-toggle":
+                BeamioVoipIncomingBootstrap.shared.callKit.writeBusyQaBreadcrumb(
+                    "faceTime deep-link live=\(model.live ? "1" : "0") callId=\(model.callId)"
+                )
+                model.toggleFaceTime()
+            default: break
+            }
         }
         return true
     }
@@ -264,9 +469,74 @@ enum BeamioDeepLink {
         }
         NSLog("[BeamioDeepLink] debug-end-all")
         let run = {
-            let boot = BeamioVoipIncomingBootstrap.shared
-            boot.dismissGlassIncomingIfPresent()
-            boot.callKit.endAllCallsForDebug()
+            BeamioVoipIncomingBootstrap.shared.callKit.endAllCallsForDebug()
+        }
+        if Thread.isMainThread {
+            run()
+        } else {
+            DispatchQueue.main.async(execute: run)
+        }
+        return true
+    }
+
+    /// Handle `beamio://debug-remote-end?callId=…&sessionId=…` — peer Hang Up race stamp.
+    @discardableResult
+    static func handleDebugRemoteEndIfPresent(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == customScheme else { return false }
+        let host = (url.host ?? "").lowercased()
+        let pathHost: String = {
+            let p = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return p.lowercased()
+        }()
+        guard host == debugRemoteEndHost || (host.isEmpty && pathHost == debugRemoteEndHost) else {
+            return false
+        }
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func q(_ name: String) -> String {
+            items.first(where: { $0.name == name })?.value?
+                .removingPercentEncoding?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }
+        let callKit = BeamioVoipIncomingBootstrap.shared.callKit
+        let callId = q("callId").isEmpty ? callKit.lastReportedCallId : q("callId")
+        let sessionId = q("sessionId")
+        NSLog(
+            "[BeamioDeepLink] debug-remote-end callId=%@ sessionId=%@",
+            callId,
+            sessionId
+        )
+        BeamioVoipIncomingBootstrap.shared.callKit.writeBusyQaBreadcrumb(
+            "debug-remote-end:\(callId):sid=\(sessionId)"
+        )
+        let run = {
+            BeamioNativeVoiceSignaling.applyRemoteMediaEnd(
+                callId: callId,
+                sessionId: sessionId
+            )
+        }
+        if Thread.isMainThread {
+            run()
+        } else {
+            DispatchQueue.main.async(execute: run)
+        }
+        return true
+    }
+
+    /// Handle `beamio://busy-chrome-rescue` — activate host then restore sticky CallKit A.
+    @discardableResult
+    static func handleBusyChromeRescueIfPresent(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == customScheme else { return false }
+        let host = (url.host ?? "").lowercased()
+        let pathHost: String = {
+            let p = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return p.lowercased()
+        }()
+        guard host == busyChromeRescueHost || (host.isEmpty && pathHost == busyChromeRescueHost) else {
+            return false
+        }
+        NSLog("[BeamioDeepLink] busy-chrome-rescue")
+        let run = {
+            BeamioVoipIncomingBootstrap.shared.callKit.handleBusyChromeRescue()
         }
         if Thread.isMainThread {
             run()
@@ -354,11 +624,24 @@ enum BeamioDeepLink {
         return local.url ?? localBase
     }
 
-    /// Pasteboard / Play-referrer style deferred install: only merchant/coupon/redeem deep links.
+    /// Pasteboard / Play-referrer style deferred install: merchant/coupon/redeem **or** personal `invite=`.
     static func resolveDeferredInstallDeepLink(from url: URL) -> URL? {
         guard let resolved = resolveWebAppURL(from: url) ?? resolveHTTPSWebTarget(url) else { return nil }
-        guard urlCarriesMerchantOrCouponPayload(resolved) else { return nil }
+        guard urlCarriesDeferredInstallPayload(resolved) else { return nil }
         return resolved
+    }
+
+    /// True when the resolved `/app/` URL should survive post-install pasteboard restore.
+    private static func urlCarriesDeferredInstallPayload(_ url: URL) -> Bool {
+        if urlCarriesAgentInvite(url) { return true }
+        return urlCarriesMerchantOrCouponPayload(url)
+    }
+
+    private static func urlCarriesAgentInvite(_ url: URL) -> Bool {
+        guard let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else {
+            return false
+        }
+        return agentInviteQueryValue(from: items) != nil
     }
 
     private static func urlCarriesMerchantOrCouponPayload(_ url: URL) -> Bool {
@@ -419,19 +702,45 @@ final class CashTreesDeepLinkStore: ObservableObject {
     private var pendingWebURLStorage: URL?
     private var didAttemptPasteboardDeferredDeepLink = false
 
+    func consumeColdOpenURLIfNeeded() {
+        guard let url = BeamioDeepLink.takeColdOpenURL() else { return }
+        handleIncomingURL(url)
+    }
+
     func handleIncomingURL(_ url: URL) {
         if BeamioDeepLink.handleDebugIncomingIfPresent(url) { return }
         if BeamioDeepLink.handleDebugDeclineIfPresent(url) { return }
         if BeamioDeepLink.handleDebugAnswerIfPresent(url) { return }
+        if BeamioDeepLink.handleDebugInCallIfPresent(url) { return }
         if BeamioDeepLink.handleDebugEndAllIfPresent(url) { return }
-        guard let resolved = BeamioDeepLink.resolveWebAppURL(from: url) else { return }
-        pendingWebURLStorage = BeamioDeepLink.mapResolvedWebAppURLToLocal(resolved)
+        if BeamioDeepLink.handleDebugRemoteEndIfPresent(url) { return }
+        if BeamioDeepLink.handleBusyChromeRescueIfPresent(url) { return }
+        guard let resolved = BeamioDeepLink.resolveWebAppURL(from: url) else {
+            NSLog("[BeamioDeepLink] handleIncomingURL unresolved %@", url.absoluteString)
+            return
+        }
+        let local = BeamioDeepLink.mapResolvedWebAppURLToLocal(resolved)
+        NSLog(
+            "[BeamioDeepLink] handleIncomingURL remote=%@ local=%@",
+            resolved.absoluteString,
+            local.absoluteString
+        )
+        if local.absoluteString.localizedCaseInsensitiveContains("invite="),
+           !local.path.localizedCaseInsensitiveContains("app-download") {
+            BeamioDeepLink.accept("ACCEPT incoming")
+        }
+        pendingWebURLStorage = local
         scheduleDeepLinkArrivalPublish()
     }
 
-    /// After App Store install: landing copied `https://beamio.app/app/?beamiocard=…&ref=…` to the pasteboard.
+    /// After App Store install: landing copied `https://beamio.app/app/?beamiocard=…` or `…?invite=0x…` to the pasteboard.
     /// Consume once on cold start when no Universal Link / custom scheme arrived.
     func consumeDeferredDeepLinkFromPasteboardIfNeeded() {
+        // v57: busy-chrome-rescue openURL must not trigger paste sheet.
+        if BeamioDeepLink.isPasteboardDeferredDeepLinkSuppressed {
+            BeamioDeepLink.accept("ACCEPT pasteboard-skip-suppressed")
+            return
+        }
         guard !didAttemptPasteboardDeferredDeepLink else { return }
         didAttemptPasteboardDeferredDeepLink = true
         guard pendingWebURLStorage == nil else { return }

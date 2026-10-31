@@ -287,6 +287,18 @@ enum CashTreesPushRegistration {
 		let sessionId = (userInfo["sessionId"] as? String)
 			?? (userInfo["session_id"] as? String)
 			?? ""
+		let action = ((userInfo["action"] as? String) ?? "")
+			.trimmingCharacters(in: .whitespacesAndNewlines)
+			.lowercased()
+		if action == "end" {
+			NSLog(
+				"[CashTreesPush] voiceCall end callId=%@ sessionId=%@",
+				callId,
+				sessionId
+			)
+			BeamioNativeVoiceSignaling.applyRemoteMediaEnd(callId: callId, sessionId: sessionId)
+			return true
+		}
 		let peerAddress = (userInfo["peerAddress"] as? String)
 			?? (userInfo["peer_address"] as? String)
 			?? ""

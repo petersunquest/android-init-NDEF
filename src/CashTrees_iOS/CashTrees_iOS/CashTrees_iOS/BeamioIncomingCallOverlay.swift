@@ -189,101 +189,33 @@ struct BeamioIncomingCallGlassView: View {
 	}
 }
 
-/// Hosts `BeamioIncomingCallGlassView` above the WebView while foreground.
+/// Deprecated: Beamio glass Incoming is unused. System CallKit is the only
+/// incoming UI. All methods are no-ops kept for link compatibility.
 enum BeamioIncomingCallGlassHost {
-	private static var window: UIWindow?
-	private static var onAcceptHandler: (() -> Void)?
-	private static var onDeclineHandler: (() -> Void)?
 	private(set) static var currentPayload: BeamioIncomingCallPayload?
 
-	static var isPresented: Bool { window != nil }
+	static var isPresented: Bool { false }
 
 	static func present(
 		_ payload: BeamioIncomingCallPayload,
 		onAccept: @escaping () -> Void,
 		onDecline: @escaping () -> Void
 	) {
-		dismiss(animated: false)
-		currentPayload = payload
-		onAcceptHandler = onAccept
-		onDeclineHandler = onDecline
-
-		let scene = UIApplication.shared.connectedScenes
-			.compactMap { $0 as? UIWindowScene }
-			.first(where: { $0.activationState == .foregroundActive })
-			?? UIApplication.shared.connectedScenes
-			.compactMap { $0 as? UIWindowScene }
-			.first
-
-		guard let scene else {
-			NSLog("[BeamioIncoming] glass present skipped — no UIWindowScene")
-			return
-		}
-
-		let root = UIHostingController(
-			rootView: BeamioIncomingCallGlassView(
-				payload: payload,
-				onAccept: onAccept,
-				onDecline: onDecline
-			)
-		)
-		root.view.backgroundColor = .clear
-
-		let win = UIWindow(windowScene: scene)
-		win.windowLevel = .alert + 2
-		win.rootViewController = root
-		win.makeKeyAndVisible()
-		window = win
+		_ = onAccept
+		_ = onDecline
 		NSLog(
-			"[BeamioIncoming] glass presented callId=%@ tag=%@ addr=%@",
-			payload.callId,
-			payload.titleTag,
-			BeamioIncomingAddressFormat.short(payload.capsuleAddress)
+			"[BeamioIncoming] glass present ignored (CallKit only) callId=%@",
+			payload.callId
 		)
 	}
 
-	/// Refresh identity (`@tag` / capsule) without tearing down Accept/Decline.
 	static func update(_ payload: BeamioIncomingCallPayload) {
-		guard isPresented else { return }
-		currentPayload = payload
-		guard let host = window?.rootViewController as? UIHostingController<BeamioIncomingCallGlassView> else {
-			return
-		}
-		host.rootView = BeamioIncomingCallGlassView(
-			payload: payload,
-			onAccept: onAcceptHandler ?? {},
-			onDecline: onDeclineHandler ?? {}
-		)
-		NSLog(
-			"[BeamioIncoming] glass updated callId=%@ tag=%@ addr=%@",
-			payload.callId,
-			payload.titleTag,
-			BeamioIncomingAddressFormat.short(payload.capsuleAddress)
-		)
+		_ = payload
 	}
 
 	static func dismiss(animated: Bool = true) {
-		guard let win = window else {
-			currentPayload = nil
-			onAcceptHandler = nil
-			onDeclineHandler = nil
-			return
-		}
-		let finish = {
-			win.isHidden = true
-			win.rootViewController = nil
-			window = nil
-			currentPayload = nil
-			onAcceptHandler = nil
-			onDeclineHandler = nil
-		}
-		if animated {
-			UIView.animate(withDuration: 0.2, animations: {
-				win.alpha = 0
-			}, completion: { _ in finish() })
-		} else {
-			finish()
-		}
+		_ = animated
+		currentPayload = nil
 	}
 }
 

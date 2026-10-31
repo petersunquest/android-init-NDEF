@@ -50,6 +50,8 @@ final class CashTreesLocalPWAHost: ObservableObject {
         notifyPendingUpdateIfNeeded()
     }
 
+    /// Swap Documents `silentpass_pwa/active` only. Wallet IndexedDB stays in
+    /// `WKWebsiteDataStore.default()` (`cashtrees-local://localhost`) across OTA.
     func applyPendingUpdate() async -> Bool {
         guard bundleStore.hasPendingUpdate() else {
             lastError = "No staged update"

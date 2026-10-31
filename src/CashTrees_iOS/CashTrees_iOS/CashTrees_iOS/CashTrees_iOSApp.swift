@@ -26,28 +26,33 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
 			// Still refresh the alert token so Dev install-over can rebind before PWA unlock.
 			CashTreesPushRegistration.forceRegisterForRemoteNotifications()
 		}
-		// iOS 26+: LaunchOptionsKey.remoteNotification is deprecated. Cold-start /
-		// background voiceCall payloads arrive via
-		// application(_:didReceiveRemoteNotification:fetchCompletionHandler:) and
-		// userNotificationCenter(_:didReceive:withCompletionHandler:) below.
-		//
-		// CoreDevice `--payload-url` / cold open often delivers custom schemes only via
-		// LaunchOptionsKey.url — SwiftUI `.onOpenURL` alone misses that path.
-		if let url = launchOptions?[.url] as? URL {
-			NSLog("[BeamioDeepLink] launchOptions.url %@", url.absoluteString)
-			_ = Self.handleDebugURL(url)
-		}
+		// iOS 26+: LaunchOptionsKey.url / OpenURLOptionsKey are deprecated.
+		// Cold-start and warm custom-scheme opens use UIScene.ConnectionOptions
+		// (configurationForConnecting / scene openURLContexts) plus SwiftUI
+		// `.onOpenURL`. VoiceCall payloads still arrive via
+		// didReceiveRemoteNotification / userNotificationCenter below.
+		_ = launchOptions
 		return true
 	}
 
-	/// Warm / background → foreground custom-scheme opens (incl. Safari / CoreDevice).
 	func application(
-		_ app: UIApplication,
-		open url: URL,
-		options: [UIApplication.OpenURLOptionsKey: Any] = [:]
-	) -> Bool {
-		NSLog("[BeamioDeepLink] application.open %@", url.absoluteString)
-		return Self.handleDebugURL(url)
+		_ application: UIApplication,
+		configurationForConnecting connectingSceneSession: UISceneSession,
+		options: UIScene.ConnectionOptions
+	) -> UISceneConfiguration {
+		if let url = options.urlContexts.first?.url {
+			BeamioDeepLink.accept("ACCEPT scene-url")
+			NSLog("[BeamioDeepLink] scene.urlContexts %@", url.absoluteString)
+			if !Self.handleDebugURL(url) {
+				BeamioDeepLink.stashColdOpenURL(url)
+			}
+		} else if let url = options.userActivities.compactMap(\.webpageURL).first {
+			BeamioDeepLink.accept("ACCEPT scene-activity")
+			BeamioDeepLink.stashColdOpenURL(url)
+		} else {
+			BeamioDeepLink.accept("ACCEPT scene-connect-empty")
+		}
+		return UISceneConfiguration(name: nil, sessionRole: connectingSceneSession.role)
 	}
 
 	@discardableResult
@@ -55,7 +60,10 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
 		if BeamioDeepLink.handleDebugIncomingIfPresent(url) { return true }
 		if BeamioDeepLink.handleDebugDeclineIfPresent(url) { return true }
 		if BeamioDeepLink.handleDebugAnswerIfPresent(url) { return true }
+		if BeamioDeepLink.handleDebugInCallIfPresent(url) { return true }
 		if BeamioDeepLink.handleDebugEndAllIfPresent(url) { return true }
+		if BeamioDeepLink.handleDebugRemoteEndIfPresent(url) { return true }
+		if BeamioDeepLink.handleBusyChromeRescueIfPresent(url) { return true }
 		return false
 	}
 
@@ -153,6 +161,7 @@ struct CashTrees_iOSApp: App {
                     deepLinkStore.consumeDeferredDeepLinkFromPasteboardIfNeeded()
                 }
                 .onOpenURL { url in
+                    BeamioDeepLink.accept("ACCEPT on-open-url")
                     Task { @MainActor in
                         if CashTreesAppDelegate.handleDebugURL(url) { return }
                         deepLinkStore.handleIncomingURL(url)

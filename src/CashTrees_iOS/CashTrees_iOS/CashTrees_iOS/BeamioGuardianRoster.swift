@@ -1,3 +1,4 @@
+import ConetChatSDK
 import Foundation
 
 /// Shell-owned Guardian `ip_addr` roster. Reads `GuardianNodesInfoV6.getAllNodes`
@@ -182,8 +183,7 @@ enum BeamioGuardianRoster {
 	}
 
 	private static func armorFromBase64(_ raw: String) -> String {
-		let compact = raw.filter { !$0.isWhitespace }
-		guard let data = Data(base64Encoded: compact),
+		guard let data = BeamioLenientBase64.decode(raw),
 		      let text = String(data: data, encoding: .utf8)
 		else { return "" }
 		return text

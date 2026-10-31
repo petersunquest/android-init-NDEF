@@ -1,6 +1,15 @@
 {
-  "originHash": "42df2cdc0f5017969cb5db56d6ad457d2a3fa566eee97a79052c756532e05bdc",
+  "originHash": "76bf8aeaf47727a4e6b53b8db50f39954de0f047b79c696a154e809dfd5ebcdd",
   "pins": [
+    {
+      "identity": "chat-sdk-ios",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/CoNET-project/chat-sdk-ios.git",
+      "state": {
+        "revision": "0ba11163564e6f7488c9fda231087294b38136b3",
+        "version": "0.1.2"
+      }
+    },
     {
       "identity": "zipfoundation",
       "kind": "remoteSourceControl",

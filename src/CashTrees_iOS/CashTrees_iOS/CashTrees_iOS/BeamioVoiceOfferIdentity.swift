@@ -1,3 +1,4 @@
+import ConetChatSDK
 import Foundation
 
 /// Resolve CallKit / Incoming identity for a killed-app VoIP wake:
@@ -11,6 +12,10 @@ enum BeamioVoiceOfferIdentity {
 		var shortAddress: String
 		var callId: String
 		var sessionId: String
+		/// Offer AES-GCM key (base64 32 bytes) — required for native Decline uplink.
+		var sessionKey: String
+		/// Offer `to` (local callee EOA when present).
+		var to: String
 	}
 
 	/// Best-effort; failures leave CallKit on opaque "Beamio".
@@ -48,6 +53,29 @@ enum BeamioVoiceOfferIdentity {
 		}
 	}
 
+	/// Live chat inbound (already decrypted + outer EIP-191 `from` recovered by
+	/// the chat module). Same offer verify + BeamioTag path as mailbox fetch —
+	/// used when VoIP wake already painted opaque "Beamio" and the offer
+	/// arrives as a normal chat line before / instead of voice_offer_fetch.
+	static func resolveFromInboundChatLine(
+		line: String,
+		from: String,
+		completion: @escaping (Resolved?) -> Void
+	) {
+		let signer = from.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+		guard signer.hasPrefix("0x"), signer.count == 42 else {
+			completion(nil)
+			return
+		}
+		parseAndVerify(
+			plaintext: line,
+			callId: "",
+			sessionId: "",
+			expectedCallerEoa: signer,
+			completion: completion
+		)
+	}
+
 	// MARK: - Fetch
 
 	private static func fetchOfferArmor(
@@ -68,7 +96,9 @@ enum BeamioVoiceOfferIdentity {
 			completion(nil)
 			return
 		}
-		BeamioOpenPgpHost.shared.encrypt(plaintext: cmdJson, publicKeyArmor: secrets.routePublicKeyArmor) { enc in
+		// SI peel: JSON.parse(Buffer.from(decrypted, 'base64')) — encrypt base64(JSON), not raw JSON.
+		let opaque = Data(cmdJson.utf8).base64EncodedString()
+		BeamioOpenPgpHost.shared.encrypt(plaintext: opaque, publicKeyArmor: secrets.routePublicKeyArmor) { enc in
 			switch enc {
 			case .failure(let err):
 				NSLog("[BeamioVoiceOffer] encrypt fetch cmd failed %@", err.localizedDescription)
@@ -79,11 +109,23 @@ enum BeamioVoiceOfferIdentity {
 					if let ip = BeamioSiCipherPost.normalizeIp(secrets.mailboxIp) {
 						exclude.insert(ip)
 					}
+					// Keep wall-clock under CallKit identity bg-task (~18s):
+					// 3 entries × 5s timeout. Default 4×12s was cancelled mid-POST
+					// (status=0) when chrome suspended at 3.5s → banner stayed "Beamio".
 					let result = BeamioSiCipherPost.post(
 						armor: armor,
 						nodes: Self.roster(from: secrets),
-						excludeIps: exclude
+						excludeIps: exclude,
+						maxAttempts: 3,
+						timeout: 5
 					)
+					if !result.ok {
+						NSLog(
+							"[BeamioVoiceOffer] SiPost failed status=%d err=%@",
+							result.status,
+							result.error.isEmpty ? "-" : result.error
+						)
+					}
 					let offer = Self.extractOfferArmor(result.body)
 					DispatchQueue.main.async { completion(offer) }
 				}
@@ -135,6 +177,7 @@ enum BeamioVoiceOfferIdentity {
 		plaintext: String,
 		callId: String,
 		sessionId: String,
+		expectedCallerEoa: String? = nil,
 		completion: @escaping (Resolved?) -> Void
 	) {
 		// Outer chat envelope may wrap the offer; walk nested `text` / flatten.
@@ -162,6 +205,17 @@ enum BeamioVoiceOfferIdentity {
 					completion(nil)
 					return
 				}
+				if let expected = expectedCallerEoa?.lowercased(), !expected.isEmpty,
+				   expected != eoa.lowercased()
+				{
+					NSLog(
+						"[BeamioVoiceOffer] outer signer=%@ != callerSignature=%@",
+						expected,
+						eoa
+					)
+					completion(nil)
+					return
+				}
 				if !claimedFrom.isEmpty, claimedFrom.lowercased() != eoa.lowercased() {
 					NSLog(
 						"[BeamioVoiceOffer] claimed from=%@ != recovered=%@",
@@ -169,19 +223,27 @@ enum BeamioVoiceOfferIdentity {
 						eoa
 					)
 				}
+				let sessionKey = (offer["sessionKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+				let toField = (offer["to"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+				let offerCallId = (offer["callId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+				let offerSessionId = (offer["sessionId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
 				BeamioTagAddressLookup.fetchExactTag(for: eoa) { tag in
 					let resolved = Resolved(
 						callerEoa: eoa,
 						beamioTag: tag ?? "",
 						shortAddress: BeamioIncomingAddressFormat.short(eoa),
-						callId: callId,
-						sessionId: sessionId
+						callId: (offerCallId?.isEmpty == false ? offerCallId! : callId),
+						sessionId: (offerSessionId?.isEmpty == false ? offerSessionId! : sessionId),
+						sessionKey: sessionKey,
+						to: toField
 					)
+					BeamioNativeVoiceSignaling.rememberOffer(resolved)
 					NSLog(
-						"[BeamioVoiceOffer] resolved callId=%@ tag=%@ short=%@",
-						callId,
+						"[BeamioVoiceOffer] resolved callId=%@ tag=%@ short=%@ hasSessionKey=%@",
+						resolved.callId.isEmpty ? callId : resolved.callId,
 						resolved.beamioTag.isEmpty ? "-" : resolved.beamioTag,
-						resolved.shortAddress
+						resolved.shortAddress,
+						sessionKey.isEmpty ? "no" : "yes"
 					)
 					completion(resolved)
 				}
@@ -211,6 +273,18 @@ enum BeamioVoiceOfferIdentity {
 			return nil
 		}
 		if let root = parseJsonObject(plaintext) {
+			return walk(root, depth: 0)
+		}
+		// The offer armor is a Chat envelope: the PGP literal is base64(UTF-8 JSON),
+		// exactly like every other Chat message (web worker and PWA both encode it
+		// so). Decoding it here was missing, so a fetched offer never parsed and the
+		// killed-app call stayed anonymous.
+		let compact = plaintext.trimmingCharacters(in: .whitespacesAndNewlines)
+		if let data = Data(base64Encoded: compact, options: [.ignoreUnknownCharacters])
+			?? BeamioLenientBase64.decode(compact),
+		   let text = String(data: data, encoding: .utf8),
+		   let root = parseJsonObject(text)
+		{
 			return walk(root, depth: 0)
 		}
 		return nil

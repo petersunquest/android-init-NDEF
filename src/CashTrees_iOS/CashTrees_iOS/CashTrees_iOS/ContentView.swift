@@ -7,6 +7,7 @@
 
 import Combine
 import AVFoundation
+import ConetChatSDK
 import CoreImage
 import CoreNFC
 import Photos
@@ -361,6 +362,67 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     private func handleAppBecameActive() {
         BeamioGuardianRoster.kick()
+        // Tapping the green "return to call" bar / unlock after lock Answer.
+        // Always re-assert (must not no-op when presented is already true).
+        BeamioInCallScreenModel.shared.ensureSurfaceVisible(source: "becameActive")
+        // v28–v30: sticky LIVE or busy-guard → leave CallKit alone (force-suspend
+        // after Call B openURL collapsed A → Home idle).
+        // v31: snap present but sticky DEAD → we are ACTIVE now (best moment to
+        // reportNewIncomingCall). restore + private-suspend → Home + banner.
+        // Blind LEAVE-ALONE on snap alone left after-b idle when CXEnd killed A
+        // in background and soft-reassert never got a foreground report.
+        // v35: sticky LIVE never forceReplace (v34 forceReplace+suspend = Home idle).
+        let ck = BeamioVoipIncomingBootstrap.shared.callKit
+        ck.flushDeferredForegroundWebEmits(reason: "became-active")
+        if ck.isStickyPrimaryStillLive() {
+            // v61: busy LIVE → absolute leave-alone (v60 tear+report hung).
+            // presumedDead kick only for legacy in-memory state from older builds;
+            // v61 preserve never marks presumedDead while sticky LIVE.
+            if ck.isBusyChromeGuardActive(), ck.isBusyChromePresumedDead() {
+                // v64: presumedDead only from legacy / DEAD paths — still suppress
+                // pasteboard before any rescue that may openURL.
+                BeamioDeepLink.suppressPasteboardDeferredDeepLink(forSeconds: 30)
+                NSLog(
+                    "[CashTrees] becameActive — busy-guard+LIVE+presumed-dead → zombie-rescue"
+                )
+                ck.kickBusyZombieRescueIfNeeded(reason: "became-active-zombie-rescue")
+            } else if ck.isBusyChromeGuardActive() {
+                BeamioDeepLink.suppressPasteboardDeferredDeepLink(forSeconds: 30)
+                NSLog(
+                    "[CashTrees] becameActive — busy-guard+LIVE absolute leave-alone (v64)"
+                )
+            } else if ck.isBusyZombieChromeHealArmed() {
+                NSLog(
+                    "[CashTrees] becameActive — sticky LIVE + zombie-heal armed → kick"
+                )
+                ck.kickBusyZombieHealIfArmed(reason: "became-active-zombie-heal")
+            } else {
+                NSLog(
+                    "[CashTrees] becameActive — sticky LIVE LEAVE-ALONE absolute-noop (no refresh)"
+                )
+            }
+        } else if ck.hasStickyRingingSnapshot() {
+            NSLog(
+                "[CashTrees] becameActive — sticky DEAD + snap → restore"
+            )
+            ck.restoreStickyCallKitChrome(reason: "became-active-dead-snap")
+        } else if ck.isBusyChromeGuardActive() {
+            NSLog(
+                "[CashTrees] becameActive — busy-guard + DEAD/no-snap → kick restore path"
+            )
+            ck.kickBusyChromeResuspendIfNeeded(reason: "became-active-busy")
+        } else if ck.hasAnsweredLiveCall() {
+            // v87: Accept / green-bar wake must keep the shell in-call screen
+            // foreground. Prior path treated any live CallKit UUID as ringing
+            // Incoming and force-suspended → brief show then collapse loop.
+            NSLog(
+                "[CashTrees] becameActive — answered/in-call LEAVE-ALONE (v87, no force-suspend)"
+            )
+            ck.writeBusyQaBreadcrumb("became-active-answered-leave-alone")
+        } else if ck.hasLiveCallKitCall() {
+            ck.refreshLiveIncomingChrome(reason: "became-active")
+            ck.scheduleForceSuspendRetries(reason: "became-active")
+        }
         // Drop stale offline push tray + badge; PWA re-publishes unread via publishAppState.
         CashTreesNativeAppStateBridge.clearOfflineChatAlerts()
         // Recovery is latency-sensitive. Never await the network-backed OTA check
@@ -420,6 +482,20 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         let claimedTag = (note.userInfo?["claimedTag"] as? String) ?? ""
         let claimedAddress = (note.userInfo?["claimedAddress"] as? String) ?? ""
         guard !callId.isEmpty else { return }
+        // Single-call gate: shell already sendDecline(busy)+emitToWeb(callRejected).
+        // Do not inject a second reportIncomingSystemCall into the PWA — that
+        // thrashes UI while another CallKit call is ringing/connected.
+        if BeamioVoipIncomingBootstrap.shared.callKit.isStickyOrBusyExcluding(
+            callId: callId,
+            sessionId: sessionId
+        ) {
+            NSLog(
+                "[CashTrees] incoming→PWA SKIP busy callId=%@ sessionId=%@ (chat via callRejected)",
+                callId,
+                sessionId
+            )
+            return
+        }
         NSLog(
             "[CashTrees] incoming→PWA callId=%@ sessionId=%@ name=%@",
             callId,
@@ -489,6 +565,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         let key = url.absoluteString
         if !bypassDedup, lastLoadedWebURLString == key { return }
         lastLoadedWebURLString = key
+        if key.localizedCaseInsensitiveContains("invite=") {
+            NSLog("[BeamioDeepLink] loadWebAppURL %@", key)
+            if key.localizedCaseInsensitiveContains("app-download") {
+                BeamioDeepLink.accept("ACCEPT load-still-download")
+            } else {
+                BeamioDeepLink.accept("ACCEPT load-left-download")
+            }
+        }
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
@@ -669,8 +753,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
         if navigationAction.targetFrame?.isMainFrame ?? false,
            let unwrapped = BeamioDeepLink.unwrapAppDownloadLandingURL(url) {
+            let local = BeamioDeepLink.mapResolvedWebAppURLToLocal(unwrapped)
+            NSLog(
+                "[BeamioDeepLink] nav unwrap app-download → %@",
+                local.absoluteString
+            )
+            if local.absoluteString.localizedCaseInsensitiveContains("invite=") {
+                BeamioDeepLink.accept("ACCEPT nav-unwrap")
+            }
             decisionHandler(.cancel)
-            loadWebAppURL(BeamioDeepLink.mapResolvedWebAppURLToLocal(unwrapped), in: webView, bypassDedup: true)
+            loadWebAppURL(local, in: webView, bypassDedup: true)
             return
         }
         decisionHandler(.allow)
@@ -943,6 +1035,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         completion?(nil)
     }
 
+    static func jsQuote(_ raw: String) -> String {
+        raw
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+    }
+
     /// document start 注入用：与 Android `CashTreesAndroid.getNfcStatus()` 字符串一致
     static func bridgeInjectionScript(
         nfcStatus: String,
@@ -950,9 +1050,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         pendingVer: String
     ) -> String {
         func esc(_ raw: String) -> String {
-            raw
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
+            Self.jsQuote(raw)
         }
         let nfcEsc = esc(nfcStatus)
         let verEsc = esc(embeddedVer)
@@ -961,6 +1059,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         window.__CT_IOS_NFC_STATUS__='\(nfcEsc)';
         window.__CT_EMBEDDED_PWA_VER__='\(verEsc)';
         window.__CT_EMBEDDED_PWA_PENDING_VER__='\(pendingEsc)';
+        try {
+          var consumed = sessionStorage.getItem('__CT_PWA_CONSUMED_PENDING__');
+          if (consumed && consumed === window.__CT_EMBEDDED_PWA_PENDING_VER__) {
+            window.__CT_EMBEDDED_PWA_PENDING_VER__ = '';
+            var applied = sessionStorage.getItem('__CT_PWA_APPLIED_VER__');
+            if (applied) window.__CT_EMBEDDED_PWA_VER__ = applied;
+          }
+        } catch (e) {}
         (function(){
           var H='\(cashTreesIOSWKHandlerName)';
           function install(){
@@ -1033,8 +1139,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 action:'startSystemCall',
                 callId:payload.callId||'',
                 sessionId:payload.sessionId||'',
+                sessionKey:payload.sessionKey||'',
                 peerAddress:payload.peerAddress||'',
-                displayName:payload.displayName||''
+                displayName:payload.displayName||'',
+                dialerWakeCallId:payload.dialerWakeCallId||'',
+                dialerWakeCalleeEoa:payload.dialerWakeCalleeEoa||'',
+                dialerWakeExpiresAt:payload.dialerWakeExpiresAt||0,
+                dialerWakeTimestamp:payload.dialerWakeTimestamp||0,
+                dialerWakeOfferArmor:payload.dialerWakeOfferArmor||''
               });
             },
             reportIncomingSystemCall:function(payload){
@@ -1047,7 +1159,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 displayName:payload.displayName||'',
                 claimedTag:payload.claimedTag||'',
                 claimedAddress:payload.claimedAddress||'',
-                identityWarning:payload.identityWarning||''
+                identityWarning:payload.identityWarning||'',
+                sessionKey:payload.sessionKey||'',
+                to:payload.to||''
               });
             },
             endSystemCall:function(payload){
@@ -1147,6 +1261,23 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 requestId:payload.requestId||'',
                 data:payload.data||'',
                 excludeIps:Array.isArray(payload.excludeIps)?payload.excludeIps:[]
+              });
+            },
+            chatModuleCommand:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'chatModuleCommand',
+                command:payload.command||payload||{}
+              });
+            },
+            chatModuleSignResponse:function(payload){
+              payload=payload||{};
+              window.webkit.messageHandlers[H].postMessage({
+                action:'chatModuleSignResponse',
+                reqId:payload.reqId,
+                ok:!!payload.ok,
+                signature:payload.signature||'',
+                error:payload.error||''
               });
             },
             registerPushDeviceHttp:function(payload){
@@ -1261,14 +1392,61 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "startSystemCall":
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
+            let sessionKey = body["sessionKey"] as? String ?? ""
+            let peerAddress = body["peerAddress"] as? String ?? ""
+            let wakeCallId = body["dialerWakeCallId"] as? String ?? callId
+            let wakeCallee = body["dialerWakeCalleeEoa"] as? String ?? peerAddress
+            let wakeExpires: Int64 = {
+                if let n = body["dialerWakeExpiresAt"] as? Int64 { return n }
+                if let n = body["dialerWakeExpiresAt"] as? Int { return Int64(n) }
+                if let n = body["dialerWakeExpiresAt"] as? Double { return Int64(n) }
+                if let s = body["dialerWakeExpiresAt"] as? String, let n = Int64(s) { return n }
+                return 0
+            }()
+            let wakeTs: Int64 = {
+                if let n = body["dialerWakeTimestamp"] as? Int64 { return n }
+                if let n = body["dialerWakeTimestamp"] as? Int { return Int64(n) }
+                if let n = body["dialerWakeTimestamp"] as? Double { return Int64(n) }
+                if let s = body["dialerWakeTimestamp"] as? String, let n = Int64(s) { return n }
+                return 0
+            }()
+            let wakeArmor = body["dialerWakeOfferArmor"] as? String ?? ""
+            let wake: BeamioNativeVoiceSignaling.DialerWake? = {
+                guard wakeArmor.contains("BEGIN PGP MESSAGE"), !wakeCallee.isEmpty else { return nil }
+                return BeamioNativeVoiceSignaling.DialerWake(
+                    callId: wakeCallId.isEmpty ? callId : wakeCallId,
+                    calleeEoa: wakeCallee,
+                    expiresAt: wakeExpires,
+                    pushTimestamp: wakeTs,
+                    offerArmor: wakeArmor
+                )
+            }()
             // B35: never pass peer/tag into CallKit — dual EOA/@tag collapses
             // the system in-call bottom bar. Opaque "Beamio" only.
+            // Native owns dialer voice_listen + VoIP wake (no worker listen).
             DispatchQueue.main.async {
                 BeamioVoipIncomingBootstrap.shared.callKit.startOutgoing(
                     callId: callId,
                     handle: "Beamio",
                     sessionId: sessionId
                 )
+                BeamioNativeVoiceSignaling.attachOutgoingDialer(
+                    callId: callId,
+                    sessionId: sessionId,
+                    sessionKey: sessionKey,
+                    peerEoa: peerAddress,
+                    wake: wake
+                )
+                // Inside the shell the dialer uses the same native call screen
+                // as the callee; the PWA hides its own call page here. Only a
+                // dial carries sessionKey (an in-page answer reuses this action).
+                if !sessionKey.isEmpty {
+                    BeamioInCallScreenModel.shared.beginOutgoing(
+                        callId: callId,
+                        sessionId: sessionId,
+                        address: peerAddress
+                    )
+                }
             }
         case "reportIncomingSystemCall":
             let callId = body["callId"] as? String ?? ""
@@ -1279,6 +1457,38 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let claimedTag = body["claimedTag"] as? String ?? ""
             let claimedAddress = body["claimedAddress"] as? String ?? ""
             let identityWarning = body["identityWarning"] as? String ?? ""
+            let sessionKey = body["sessionKey"] as? String ?? ""
+            let to = body["to"] as? String ?? ""
+            // PWA already decrypted the offer — cache AES key so CallKit Decline
+            // can encrypt voice_call_reject_v1 without waiting for mailbox resolve.
+            if !callId.isEmpty && !sessionKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let tagHint = claimedTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                let displayHint = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let tag: String = {
+                    if !tagHint.isEmpty { return tagHint }
+                    if !displayHint.isEmpty && displayHint.caseInsensitiveCompare("Beamio") != .orderedSame {
+                        return displayHint
+                    }
+                    return ""
+                }()
+                let short: String = {
+                    if peerAddress.count >= 10 {
+                        return String(peerAddress.prefix(6)) + "…" + String(peerAddress.suffix(4))
+                    }
+                    return peerAddress
+                }()
+                BeamioNativeVoiceSignaling.rememberOffer(
+                    BeamioVoiceOfferIdentity.Resolved(
+                        callerEoa: peerAddress,
+                        beamioTag: tag,
+                        shortAddress: short,
+                        callId: callId,
+                        sessionId: sessionId,
+                        sessionKey: sessionKey.trimmingCharacters(in: .whitespacesAndNewlines),
+                        to: to.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
+                )
+            }
             DispatchQueue.main.async {
                 BeamioVoipIncomingBootstrap.shared.reportIncomingCallKit(
                     callId: callId,
@@ -1321,20 +1531,47 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             Task { @MainActor [weak self] in
                 guard let self, let webView = self.webView else { return }
                 let host = CashTreesLocalPWAHost.shared
+                let consumedPending = host.pendingUpdateVersion() ?? ""
                 let ok = await host.applyPendingUpdate()
-                var payload: [String: Any] = [
-                    "action": "applyEmbeddedPwaUpdate",
-                    "ok": ok,
-                    "ver": host.activeVersion(),
-                ]
-                if !ok, let err = host.lastError {
-                    payload["error"] = err
-                }
-                self.dispatchIOSBridgeJsonToWeb(payload)
+                let active = host.activeVersion()
                 if ok {
-                    self.syncEmbeddedPwaVersionGlobals(in: webView)
+                    let consumed = consumedPending
+                    // Staging is already active. Remember that pending version so the
+                    // document-start script does not paint the update bar again after reload.
+                    let js = """
+                    try {
+                      sessionStorage.setItem('__CT_PWA_APPLIED_VER__', '\(Self.jsQuote(active))');
+                      sessionStorage.setItem('__CT_PWA_CONSUMED_PENDING__', '\(Self.jsQuote(consumed))');
+                    } catch (e) {}
+                    window.__CT_EMBEDDED_PWA_VER__='\(Self.jsQuote(active))';
+                    window.__CT_EMBEDDED_PWA_PENDING_VER__='';
+                    """
+                    _ = try? await webView.evaluateJavaScript(js)
                     webView.reload()
+                    return
                 }
+                let err = host.lastError ?? "No staged update"
+                let stale = err == "No staged update" || err == "No staged PWA update"
+                if stale {
+                    let js = """
+                    window.__CT_EMBEDDED_PWA_VER__='\(Self.jsQuote(active))';
+                    window.__CT_EMBEDDED_PWA_PENDING_VER__='';
+                    """
+                    _ = try? await webView.evaluateJavaScript(js)
+                    self.dispatchIOSBridgeJsonToWeb([
+                        "action": "applyEmbeddedPwaUpdate",
+                        "ok": false,
+                        "ver": active,
+                        "error": err,
+                    ])
+                    return
+                }
+                self.dispatchIOSBridgeJsonToWeb([
+                    "action": "applyEmbeddedPwaUpdate",
+                    "ok": false,
+                    "ver": active,
+                    "error": err,
+                ])
             }
         case "publishAppState":
             let state = body["state"] as? [String: Any]
@@ -1385,6 +1622,21 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     ])
                 }
             }
+        case "chatModuleCommand":
+            let command = body["command"] as? [String: Any] ?? body
+            BeamioNativeVoiceSignaling.qaTrail("chatModuleCommand \((command["type"] as? String) ?? (command["cmd"] as? String) ?? "?")")
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                // Emit may be chatModuleEvent or chatModuleSignRequest (full bridge payload).
+                BeamioConetChatModule.handleCommand(command) { payload in
+                    // Caller cancel / hang-up is acted on here, before the page sees it.
+                    BeamioNativeVoiceSignaling.observeChatEvent(payload)
+                    DispatchQueue.main.async {
+                        self?.dispatchIOSBridgeJsonToWeb(payload)
+                    }
+                }
+            }
+        case "chatModuleSignResponse":
+            BeamioConetChatSignBroker.fulfill(fromWeb: body)
         case "bindPushIdentity":
             let eoa = body["eoa"] as? String
             let pgpKeyId = body["pgpKeyId"] as? String
@@ -2270,6 +2522,11 @@ struct CashTreesWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
+        // Wallet / mnemonic / privateKeyArmor live in WKWebView IndexedDB (PouchDB "conet")
+        // under origin cashtrees-local://localhost → Library/WebKit/WebsiteData.
+        // MUST use the shared persistent store so install-over + Embedded OTA keep the wallet.
+        // Never assign .nonPersistent() or call WKWebsiteDataStore.removeData here.
+        config.websiteDataStore = .default()
 
         /// 必须含 `viewport-fit=cover`，WKWebView 才会把刘海区安全区暴露给 CSS `env(safe-area-inset-*)`（与 Safari/PWA 一致）。
         /// 若整段覆盖远程 viewport，会抹掉 `viewport-fit` 导致 Web 侧 safe-area 恒为 0、首屏贴顶。
@@ -2362,6 +2619,7 @@ struct CashTreesWebView: UIViewRepresentable {
         sv.bounces = false
 
         let pendingRemote: URL? = {
+            deepLinkStore.consumeColdOpenURLIfNeeded()
             deepLinkStore.consumeDeferredDeepLinkFromPasteboardIfNeeded()
             return deepLinkStore.takePendingWebURL()
         }()
@@ -2481,6 +2739,7 @@ struct ContentView: View {
     @ObservedObject private var localPWAHost = CashTreesLocalPWAHost.shared
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var webLoadState = CashTreesWebLoadState()
+    @ObservedObject private var inCall = BeamioInCallScreenModel.shared
     @State private var webContentVisible = false
 
     var body: some View {
@@ -2496,18 +2755,39 @@ struct ContentView: View {
                 .opacity(webContentVisible ? 1 : 0)
                 .ignoresSafeArea()
             }
-            if webLoadState.isSplashVisible {
+            // Splash below in-call: after lock Answer, splash must not cover
+            // BeamioInCallScreen while the scene is still finishing handoff.
+            if webLoadState.isSplashVisible && !inCall.presented {
                 CashTreesSplashOverlay(
                     animateOut: webLoadState.shouldAnimateOut,
                     onAnimationCompleted: {
                         webLoadState.finishSplashHandoff()
                     }
                 )
+                .zIndex(5)
+            }
+            // Shell-answered InCall (see BeamioInCallScreenModel). When the app
+            // is `.active`, the model tears down the staging host window so this
+            // ContentView overlay is the product UI. While inactive/background,
+            // `externalHostActive` may be true (staging only — cannot cover
+            // SpringBoard CallKit). Live + minimized → green return pill only.
+            if inCall.live && !inCall.presented {
+                BeamioInCallReturnPill(model: inCall)
+                    .zIndex(90)
+            }
+            if inCall.presented && !inCall.externalHostActive {
+                BeamioInCallScreen(model: inCall)
+                    .transition(.move(edge: .trailing))
+                    .zIndex(100)
             }
         }
+        .animation(.easeOut(duration: 0.3), value: inCall.presented)
         .onAppear {
             localPWAHost.startIfNeeded()
             webLoadState.scheduleSplashFallback()
+            if inCall.live {
+                BeamioInCallScreenModel.shared.ensureSurfaceVisible(source: "contentView-onAppear")
+            }
         }
         .onChange(of: webLoadState.shouldAnimateOut) { _, newValue in
             guard newValue else { return }
@@ -2543,10 +2823,13 @@ struct ContentView: View {
                 return
             }
             guard newPhase == .active else { return }
+            // Lock-screen slide-to-answer: after unlock / scene activation, force
+            // BeamioInCallScreen (aligned layout) over CallKit system chrome.
+            BeamioInCallScreenModel.shared.ensureSurfaceVisible(source: "scenePhase-active")
             // Keep the current pixels visible during an ordinary app switch.
             // If WKWebView was terminated, the coordinator has already restored
             // the splash before reloading and will reveal the page after render.
-            guard !webLoadState.isSplashVisible else { return }
+            guard !webLoadState.isSplashVisible || inCall.presented else { return }
             webContentVisible = true
         }
     }
