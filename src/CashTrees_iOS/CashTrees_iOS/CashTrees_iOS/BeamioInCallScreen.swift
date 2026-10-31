@@ -136,6 +136,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		connected = true
 		answeredAt = Date()
 		NSLog("[BeamioInCall] outgoing connected callId=%@", self.callId)
+		BeamioCallKitVideoButton.callDidConnect()
 	}
 
 	func begin(callId: String, sessionId: String, tag: String, address: String) {
