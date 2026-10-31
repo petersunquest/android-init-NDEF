@@ -470,6 +470,12 @@ object BeamioNativeVoiceChannel {
                 }
                 if (t == "voice_end_v1" || t == "voice_call_reject_v1") {
                     stop()
+                    // Peer hung up: close the call page and Telecom call too.
+                    BeamioNativeVoiceSignaling.peerDidEnd(
+                        context,
+                        json.optString("callId").trim(),
+                        json.optString("sessionId").trim(),
+                    )
                     return
                 }
                 // Control frames also take a seq on the sender.

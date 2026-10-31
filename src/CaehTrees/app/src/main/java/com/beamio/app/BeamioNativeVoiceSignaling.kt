@@ -27,6 +27,8 @@ object BeamioNativeVoiceSignaling {
     private val inFlightDecline = ConcurrentHashMap.newKeySet<String>()
     private val inFlightAccept = ConcurrentHashMap.newKeySet<String>()
     private val inFlightHangup = ConcurrentHashMap.newKeySet<String>()
+    /** Calls the peer already ended; the local end must not send `voice_end_v1` back. */
+    private val peerEndedKeys = ConcurrentHashMap.newKeySet<String>()
     private val activeCall = AtomicReference<ActiveCall?>(null)
     /** Second call while the glass window or an active call owns the mic. Uplink waits until both are gone. */
     private data class DeferredStickyDecline(
@@ -226,6 +228,30 @@ object BeamioNativeVoiceSignaling {
         }
     }
 
+    /**
+     * Peer hung up (AES `voice_end_v1` on the media channel). End the call the
+     * same way the local End button does, so the call page, Telecom call and
+     * PWA all close, but without sending a hangup back to the peer.
+     */
+    fun peerDidEnd(context: Context, frameCallId: String, frameSessionId: String) {
+        val cur = activeCall.get()
+        val screen = if (InCallScreenModel.isLive()) InCallScreenModel.snapshot() else null
+        val callId = screen?.callId?.ifBlank { null } ?: cur?.offer?.callId?.ifBlank { null } ?: frameCallId
+        val sessionId = screen?.sessionId?.ifBlank { null }
+            ?: cur?.offer?.sessionId?.ifBlank { null }
+            ?: frameSessionId
+        if (callId.isBlank() && sessionId.isBlank()) {
+            Log.i(TAG, "peer ended — no local call to close")
+            return
+        }
+        listOf(callId, sessionId, frameCallId, frameSessionId)
+            .filter { it.isNotBlank() }
+            .forEach { peerEndedKeys.add(it) }
+        Log.i(TAG, "peer ended callId=${callId.take(12)} → local end")
+        val app = context.applicationContext
+        main.post { BeamioTelecomService.end(app, callId, sessionId) }
+    }
+
     /** Remote reject / timeout on dialer listen. */
     fun dialerDidReceiveReject(context: Context, action: String) {
         val cur = activeCall.get() ?: return
@@ -414,6 +440,13 @@ object BeamioNativeVoiceSignaling {
      */
     fun sendHangup(context: Context, callId: String, sessionId: String) {
         val app = context.applicationContext
+        // `or` (not `||`) so both keys are cleared.
+        val peerGone = (callId.isNotBlank() && peerEndedKeys.remove(callId)) or
+            (sessionId.isNotBlank() && peerEndedKeys.remove(sessionId))
+        if (peerGone) {
+            Log.i(TAG, "hangup skip — peer already ended callId=${callId.take(12)}")
+            return
+        }
         val key = "$callId|$sessionId"
         if (!inFlightHangup.add(key)) {
             Log.i(TAG, "hangup already in-flight key=${key.take(24)}")
