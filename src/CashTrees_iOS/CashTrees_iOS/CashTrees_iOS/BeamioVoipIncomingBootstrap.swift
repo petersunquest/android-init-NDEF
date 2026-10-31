@@ -4872,7 +4872,9 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			// reportCall(updated:) that swaps EOA↔@tag (that collapses bottom chrome).
 			let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: display))
 			action.isVideo = false
+			BeamioCallTiming.mark("callkit-request")
 			self.controller.request(CXTransaction(action: action)) { [weak self] error in
+				BeamioCallTiming.mark("callkit-request-done", error == nil ? "ok" : "error")
 				if error != nil {
 					self?.callIds.removeValue(forKey: uuid)
 				}
@@ -5615,6 +5617,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	}
 
 	func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+		BeamioCallTiming.mark("callkit-perform-start")
 		configureAudioSessionForCall()
 		provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
 		emit("callStarted", action.callUUID)

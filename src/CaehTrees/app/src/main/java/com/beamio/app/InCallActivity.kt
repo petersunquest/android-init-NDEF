@@ -76,6 +76,7 @@ class InCallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        BeamioCallTiming.mark("screen-onCreate")
         instance = WeakReference(this)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         showOverLockScreenAfterAnswer()
@@ -167,6 +168,8 @@ class InCallActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        BeamioCallTiming.mark("screen-onResume")
+        window.decorView.post { BeamioCallTiming.mark("screen-first-frame") }
         if (!routeSynced && InCallScreenModel.isLive()) {
             routeSynced = true
             restoreSpeakerRoute(InCallScreenModel.isSpeakerOn())
@@ -234,6 +237,12 @@ class InCallActivity : ComponentActivity() {
         findViewById<View>(R.id.in_call_minimize).setOnClickListener { minimizeCall() }
         findViewById<View>(R.id.in_call_end).setOnClickListener {
             it.isEnabled = false
+            if (InCallScreenModel.prepareError().isNotEmpty() && InCallScreenModel.isPrepared()) {
+                // The dial already failed; the PWA has nothing left to cancel.
+                InCallScreenModel.cancelPrepared()
+                finishFromCall()
+                return@setOnClickListener
+            }
             if (callId.isBlank() && sessionId.isBlank() && InCallScreenModel.cancelPrepared()) {
                 // Hung up while the PWA was still preparing the dial: no call
                 // exists yet. Tell the PWA to drop the dial it is building.
@@ -552,7 +561,12 @@ class InCallActivity : ComponentActivity() {
 
     private fun bindTimer() {
         if (!InCallScreenModel.isConnected()) {
-            val calling = getString(R.string.in_call_calling)
+            val calling = InCallScreenModel.prepareError().ifEmpty {
+                getString(
+                    if (InCallScreenModel.isPrepared()) R.string.in_call_connecting
+                    else R.string.in_call_calling,
+                )
+            }
             findViewById<TextView>(R.id.in_call_timer)?.text = calling
             findViewById<TextView>(R.id.in_call_collapsed_timer)?.text = calling
             return
@@ -698,7 +712,11 @@ class InCallActivity : ComponentActivity() {
             address: String,
         ) {
             // Always begin so Answer can refresh tag/address on a live session.
-            InCallScreenModel.begin(callId, sessionId, tag, address, presentImmediately = true)
+            // A prepared dial screen has no ids yet; begin() would treat it as
+            // a new connected call and start the timer.
+            if (callId.isNotBlank() || sessionId.isNotBlank() || !InCallScreenModel.isPrepared()) {
+                InCallScreenModel.begin(callId, sessionId, tag, address, presentImmediately = true)
+            }
             val showing = instance?.get()
             if (showing != null && !showing.isFinishing) {
                 showing.render(

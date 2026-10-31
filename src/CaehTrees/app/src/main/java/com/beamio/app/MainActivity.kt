@@ -1271,7 +1271,12 @@ class MainActivity : ComponentActivity() {
          */
         @JavascriptInterface
         fun prepareSystemCall(json: String) {
+            runCatching { JSONObject(json) }.getOrNull()?.let {
+                BeamioCallTiming.begin(it.optString("dialId"), it.optLong("tapAt", 0L))
+            }
+            BeamioCallTiming.mark("prepare-received")
             runOnUiThread {
+                BeamioCallTiming.mark("prepare-main")
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val prepareId = body.optString("prepareId").trim()
                 val peerAddress = body.optString("peerAddress").trim()
@@ -1281,6 +1286,7 @@ class MainActivity : ComponentActivity() {
                 }
                 InCallScreenModel.beginPrepared(prepareId, peerAddress)
                 InCallActivity.present(this@MainActivity, "", "", tag = "", address = peerAddress)
+                BeamioCallTiming.mark("prepared")
                 if (peerAddress.isNotBlank()) {
                     Thread {
                         val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
@@ -1299,7 +1305,21 @@ class MainActivity : ComponentActivity() {
             runOnUiThread {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val prepareId = body.optString("prepareId").trim()
-                if (InCallScreenModel.cancelPrepared(prepareId)) {
+                val error = body.optString("error").trim()
+                BeamioCallTiming.mark("prepare-cancelled", if (error.isEmpty()) "" else "failed")
+                if (error.isNotEmpty()) {
+                    // Show why the dial failed on the call screen; End closes it.
+                    if (InCallScreenModel.failPrepared(prepareId, error)) {
+                        InCallActivity.refreshStateIfShowing()
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (InCallScreenModel.isPrepared() && InCallScreenModel.prepareError() == error &&
+                                InCallScreenModel.cancelPrepared()
+                            ) {
+                                InCallActivity.finishIfShowing()
+                            }
+                        }, 6_000L)
+                    }
+                } else if (InCallScreenModel.cancelPrepared(prepareId)) {
                     Log.i("BeamioVoiceCall", "prepared call screen closed by PWA")
                     InCallActivity.finishIfShowing()
                 }
@@ -1308,7 +1328,9 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun startSystemCall(json: String) {
+            BeamioCallTiming.mark("start-received")
             runOnUiThread {
+                BeamioCallTiming.mark("start-main")
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val callId = body.optString("callId")
                 val sessionId = body.optString("sessionId")

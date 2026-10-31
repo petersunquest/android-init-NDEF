@@ -171,6 +171,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				active.listenSessionId,
 				active.mediaEnabled ? "yes" : "no"
 			)
+			BeamioCallTiming.mark("listen-start")
 			self.startVoiceListenLocked(active: active)
 			if active.mediaEnabled {
 				DispatchQueue.main.async {
@@ -539,6 +540,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			sem.signal()
 		}
 		_ = sem.wait(timeout: .now() + 12)
+		BeamioCallTiming.mark("listen-encrypted")
 		guard let armor = armorOut, armor.contains("BEGIN PGP MESSAGE") else {
 			NSLog("[BeamioNativeVoiceChannel] listen encrypt failed")
 			return
@@ -561,6 +563,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		guard let url = BeamioSiCipherPost.postUrl(for: entryIp) else { return }
 
 		_ = offerIndexed.wait(timeout: .now() + 3)
+		BeamioCallTiming.mark("listen-post")
 		listenEntryIp = entryIp
 		listenStartedAt = Date()
 		NSLog(
@@ -576,6 +579,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			connectTimeout: 12,
 			idleTimeout: 3600,
 			onOpen: {
+				BeamioCallTiming.mark("listen-open")
 				NSLog("[BeamioNativeVoiceChannel] listen open entry=%@", entryIp)
 			},
 			onEvent: { [weak self] payload in
@@ -634,6 +638,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			exclude.insert(own)
 		}
 		let posted = BeamioSiCipherPost.post(armor: armor, nodes: nodes, excludeIps: exclude, maxAttempts: 2, timeout: 6)
+		BeamioCallTiming.mark("native-offer-index", posted.ok ? "ok" : "fail")
 		NSLog(
 			"[BeamioNativeVoiceChannel] offer index callId=%@ ok=%@",
 			wake.callId,

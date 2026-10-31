@@ -19,8 +19,13 @@ final class BeamioInCallVideoCapture: NSObject {
 	/// JPEG frames for uplink (~5 fps, ~320px wide). Main/session queue may call.
 	var onJpegFrame: ((Data, Int, Int) -> Void)?
 
+	/// True once `shared` exists. Creating it builds an `AVCaptureSession` on
+	/// the calling thread, which a call screen that never used video skips.
+	private(set) static var instantiated = false
+
 	override private init() {
 		super.init()
+		Self.instantiated = true
 		output.alwaysDiscardsLateVideoFrames = true
 		output.videoSettings = [
 			kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,

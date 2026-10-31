@@ -408,6 +408,7 @@ object BeamioNativeVoiceChannel {
             if (armor == null && encryptError == null) encryptWait.wait(12_000L)
         }
         val encrypted = armor
+        BeamioCallTiming.mark("listen-encrypted")
         if (encrypted.isNullOrBlank() || !encrypted.contains("BEGIN PGP MESSAGE")) {
             Log.w(TAG, "listen encrypt failed: ${encryptError ?: "timeout"}")
             return
@@ -459,6 +460,7 @@ object BeamioNativeVoiceChannel {
                 return
             }
             BeamioSiCipherPost.scoreEntry(entryIp, reachable = true, latencyMs = latency)
+            BeamioCallTiming.mark("listen-open", "http=$latency")
             val stream = BufferedInputStream(conn.inputStream)
             val buf = ByteArray(4096)
             val sse = StringBuilder()
