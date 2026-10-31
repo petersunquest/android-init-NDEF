@@ -101,6 +101,18 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private var onRemoteVideoFrame: ((UIImage) -> Void)?
 	private var onPeerVideoEnabled: ((Bool) -> Void)?
 
+	// MARK: Voice channel v2 (no per-frame metadata at the node)
+	/// Write key we register with our own `voice_listen`; the peer learns it from caps.
+	private var ownWriteKey = Data()
+	/// Our node answered `voice_ready` with `v: 2`.
+	private var ownChanV2 = false
+	/// Peer's v2 channel (locator + write key) once its caps said `chan: 2`.
+	private var peerV2: BeamioVoiceChannelV2.Peer?
+	/// Set when a v2 chunk was refused; the rest of the call uses v1.
+	private var v2Disabled = false
+	private var v2TxChunks = 0
+	private var v2RxChunks = 0
+
 	private struct UplinkRoute {
 		var routePublicKeyArmor: String
 		var nodes: [BeamioChatPgpKeychain.SiNode]
@@ -198,6 +210,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				active.mediaEnabled ? "yes" : "no"
 			)
 			BeamioCallTiming.mark("listen-start")
+			self.ownWriteKey = BeamioVoiceChannelV2.randomWriteKey()
 			self.startVoiceListenLocked(active: active)
 			if active.mediaEnabled {
 				DispatchQueue.main.async {
@@ -259,6 +272,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 		peerVideoCaps = 0
 		capsSent = 0
 		videoSeqOffset = 0
+		ownChanV2 = false
+		peerV2 = nil
+		v2Disabled = false
+		v2TxChunks = 0
+		v2RxChunks = 0
 		DispatchQueue.main.async { self.videoShownCaptureMs = 0 }
 		stats.reset()
 		statsLastFlush = Date()
@@ -305,19 +323,32 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func sendMediaCapsLocked(active: BeamioNativeVoiceSignaling.ActiveCall, reason: String) {
 		guard !legacyMode, active.mediaEnabled, !active.peerMediaSessionId.isEmpty, uplinkRoute != nil else { return }
 		capsSent += 1
-		let body: [String: Any] = [
+		var body: [String: Any] = [
 			"type": "voice_media_caps_v1",
 			"callId": active.offer.callId,
 			"sessionId": active.listenSessionId,
 			"video": Self.localVideoCaps,
 			"timestamp": Int(Date().timeIntervalSince1970 * 1000),
 		]
+		// v2: our node holds a v2 channel; give the peer its write key (inside AES).
+		if ownChanV2 {
+			body["chan"] = 2
+			body["wk"] = ownWriteKey.base64EncodedString()
+		}
 		sendControlJsonUplink(body, active: active)
-		NSLog("[BeamioNativeVoiceChannel] media caps sent video=%d reason=%@", Self.localVideoCaps, reason)
+		NSLog("[BeamioNativeVoiceChannel] media caps sent video=%d chan=%d reason=%@", Self.localVideoCaps, ownChanV2 ? 2 : 1, reason)
 	}
 
 	/// Peer capability from `voice_media_caps_v1` or a video enable control.
 	private func notePeerCapsLocked(_ json: [String: Any], active: BeamioNativeVoiceSignaling.ActiveCall) {
+		if !legacyMode, peerV2 == nil, Self.intValue(json["chan"]) == 2,
+		   let wkB64 = json["wk"] as? String, let wk = Data(base64Encoded: wkB64), wk.count == 32,
+		   let loc = BeamioVoiceChannelV2.locator(fromSessionId: active.peerMediaSessionId)
+		{
+			peerV2 = BeamioVoiceChannelV2.Peer(locator: loc, writeKey: wk)
+			NSLog("[BeamioNativeVoiceChannel] peer channel v2")
+			BeamioNativeVoiceSignaling.qaTrail("voice chan v2 peer callId=\(active.offer.callId)")
+		}
 		guard !legacyMode, let video = Self.intValue(json["video"]), video > 0 else { return }
 		let first = peerVideoCaps == 0
 		if video != peerVideoCaps {
@@ -386,13 +417,6 @@ final class BeamioNativeVoiceChannel: NSObject {
 				withUnsafeBytes(of: &ts) { framed.append(contentsOf: $0) }
 			}
 			framed.append(jpeg)
-			let payload: String
-			do {
-				let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
-				payload = try BeamioVoiceAesGcm.encrypt(key: key, plain: framed)
-			} catch {
-				return
-			}
 			let seq: Int
 			if split {
 				self.videoSeqOffset += 1
@@ -400,35 +424,16 @@ final class BeamioNativeVoiceChannel: NSObject {
 			} else {
 				seq = self.takeUplinkSeq()
 			}
-			let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-			let uplink: [String: Any] = [
-				// Route command read by the peer's mailbox: no wallet fields.
-				"command": "voice_uplink",
-				"type": "voice_frame_v1",
-				"callId": active.offer.callId,
-				"sessionId": active.listenSessionId,
-				"targetSessionId": active.peerMediaSessionId,
-				"direction": "uplink",
-				"seq": seq,
-				"frameTimestamp": nowMs,
-				"mediaKind": "video",
-				"payload": payload,
-				"timestamp": Int(Date().timeIntervalSince1970),
-			]
-			guard let jsonData = try? JSONSerialization.data(withJSONObject: uplink, options: []),
-			      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
-			else { return }
-			let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 			guard let entryIp = route.entries.next() else { return }
 			self.videoUplinkInFlight += 1
 			let jpegBytes = jpeg.count
 			let encStarted = Date()
-			self.routeEncrypt(
-				plaintext: opaque,
-				routeArmor: route.routePublicKeyArmor
-			) { [weak self] result in
+			self.buildUplinkArmorLocked(
+				active: active, route: route, plain: framed, kind: .video,
+				seq: seq, captureMs: captureMs, frameId: frameId, mediaKind: "video"
+			) { [weak self] armor, usedV2 in
 				guard let self else { return }
-				guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else {
+				guard let armor else {
 					self.queue.async { self.videoUplinkInFlight = max(0, self.videoUplinkInFlight - 1) }
 					return
 				}
@@ -449,6 +454,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 					}
 					self.queue.async {
 						self.videoUplinkInFlight = max(0, self.videoUplinkInFlight - 1)
+						self.noteV2OutcomeLocked(outcome, usedV2: usedV2)
 						self.finishUplink(outcome, ip: entryIp)
 					}
 				}
@@ -463,43 +469,102 @@ final class BeamioNativeVoiceChannel: NSObject {
 			resolveUplinkRouteIfNeeded(peer: peer, callId: active.offer.callId)
 			return
 		}
-		let payload: String
-		do {
-			let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
-			let jsonData = try JSONSerialization.data(withJSONObject: body, options: [])
-			payload = try BeamioVoiceAesGcm.encrypt(key: key, plain: jsonData)
-		} catch {
-			return
-		}
+		guard let jsonData = try? JSONSerialization.data(withJSONObject: body, options: []) else { return }
 		let seq = takeUplinkSeq()
-		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-		let uplink: [String: Any] = [
-			// Route command read by the peer's mailbox: no wallet fields.
-			"command": "voice_uplink",
-			"type": "voice_frame_v1",
-			"callId": active.offer.callId,
-			"sessionId": active.listenSessionId,
-			"targetSessionId": active.peerMediaSessionId,
-			"direction": "uplink",
-			"seq": seq,
-			"frameTimestamp": nowMs,
-			"payload": payload,
-			"timestamp": Int(Date().timeIntervalSince1970),
-		]
-		guard let jsonData = try? JSONSerialization.data(withJSONObject: uplink, options: []),
-		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
-		else { return }
-		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 		guard let entryIp = route.entries.next() else { return }
-		self.routeEncrypt(
-			plaintext: opaque,
-			routeArmor: route.routePublicKeyArmor
-		) { [weak self] result in
-			guard let self else { return }
-			guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else { return }
+		buildUplinkArmorLocked(
+			active: active, route: route, plain: jsonData, kind: .control,
+			seq: seq, captureMs: Int64(Date().timeIntervalSince1970 * 1000)
+		) { [weak self] armor, usedV2 in
+			guard let self, let armor else { return }
 			self.uplinkPostQueue.async {
 				let outcome = Self.postDirect(armor: armor, ip: entryIp)
 				self.noteEntryOutcome(outcome, ip: entryIp, route: route)
+				self.queue.async { self.noteV2OutcomeLocked(outcome, usedV2: usedV2) }
+			}
+		}
+	}
+
+	/// Route armor for one outgoing frame. v2 when the peer opened a v2 channel:
+	/// the node sees only `CVC2 ‖ locator ‖ mac ‖ blob`. Otherwise (or when the
+	/// binary encrypt fails) the v1 `voice_uplink` command. Runs on `queue`;
+	/// `completion` runs on any thread with (armor, usedV2).
+	private func buildUplinkArmorLocked(
+		active: BeamioNativeVoiceSignaling.ActiveCall,
+		route: UplinkRoute,
+		plain: Data,
+		kind: BeamioVoiceChannelV2.Kind,
+		seq: Int,
+		captureMs: Int64,
+		frameId: UInt32 = 0,
+		mediaKind: String? = nil,
+		completion: @escaping (String?, Bool) -> Void
+	) {
+		guard let key = try? BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey) else {
+			completion(nil, false)
+			return
+		}
+		let v1 = { [weak self] in
+			guard let self, let payload = try? BeamioVoiceAesGcm.encrypt(key: key, plain: plain) else {
+				completion(nil, false)
+				return
+			}
+			var uplink: [String: Any] = [
+				// Route command read by the peer's mailbox: no wallet fields.
+				"command": "voice_uplink",
+				"type": "voice_frame_v1",
+				"callId": active.offer.callId,
+				"sessionId": active.listenSessionId,
+				"targetSessionId": active.peerMediaSessionId,
+				"direction": "uplink",
+				"seq": seq,
+				"frameTimestamp": captureMs,
+				"payload": payload,
+				"timestamp": Int(Date().timeIntervalSince1970),
+			]
+			if let mediaKind { uplink["mediaKind"] = mediaKind }
+			guard let jsonData = try? JSONSerialization.data(withJSONObject: uplink, options: []) else {
+				completion(nil, false)
+				return
+			}
+			self.routeEncrypt(
+				plaintext: jsonData.base64EncodedString(),
+				routeArmor: route.routePublicKeyArmor
+			) { result in
+				let armor = try? result.get()
+				completion(armor?.contains("BEGIN PGP MESSAGE") == true ? armor : nil, false)
+			}
+		}
+		guard !legacyMode, !v2Disabled, let peer = peerV2,
+		      let literal = try? BeamioVoiceChannelV2.sealChunk(
+		      	sessionKey: key, peer: peer, kind: kind, seq: seq, captureMs: captureMs, frameId: frameId, data: plain
+		      )
+		else {
+			v1()
+			return
+		}
+		BeamioVoiceRoutePgp.shared.encryptBinary(literal, routeArmor: route.routePublicKeyArmor) { [weak self] result in
+			if let armor = try? result.get() {
+				completion(armor, true)
+			} else {
+				self?.queue.async { v1() }
+			}
+		}
+	}
+
+	/// A v2 chunk the node refused (auth, unknown channel): use v1 for the rest
+	/// of the call. Runs on `queue`.
+	private func noteV2OutcomeLocked(_ outcome: (ok: Bool, status: Int, ms: Int, note: String), usedV2: Bool) {
+		guard usedV2 else { return }
+		if outcome.ok {
+			v2TxChunks += 1
+			if v2TxChunks == 1 { NSLog("[BeamioNativeVoiceChannel] first v2 chunk accepted") }
+			return
+		}
+		if outcome.note == "voice_chunk_auth" || outcome.note == "target_voice_session_not_found" || outcome.note == "invalid_voice_chunk" {
+			if !v2Disabled {
+				v2Disabled = true
+				NSLog("[BeamioNativeVoiceChannel] v2 chunk refused (%@); falling back to v1", outcome.note)
 			}
 		}
 	}
@@ -588,27 +653,37 @@ final class BeamioNativeVoiceChannel: NSObject {
 			"sessionId": active.listenSessionId,
 			"timestamp": Int(Date().timeIntervalSince1970),
 		]
+		if !legacyMode, BeamioVoiceChannelV2.locator(fromSessionId: active.listenSessionId) != nil, ownWriteKey.count == 32 {
+			command["v"] = 2
+			command["wk"] = ownWriteKey.base64EncodedString()
+		}
 		// Per-call relay node (not own mailbox). The PWA already delivered the
 		// offer to the callee's mailbox through a random entry, so the listen
 		// carries no offerArmor and no node is asked to forward it.
 		let relayRoute: String? = active.dialerWake.flatMap {
 			$0.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY") ? $0.relayRouteArmored : nil
 		}
-		// Dialer owns VoIP wake: the node holding the session calls the push API.
+		// Legacy wake: the node holding our session calls the push API, so it
+		// learns the callee wallet. Used only when the callee's mailbox did not
+		// ring the callee itself (`voice_offer_store` push, old node).
+		var legacyWakeCommand: [String: Any]?
 		if let wake = active.dialerWake,
 		   relayRoute != nil || wake.offerArmor.contains("BEGIN PGP MESSAGE"),
 		   !wake.calleeEoa.isEmpty,
 		   !wake.callId.isEmpty {
-			command["callId"] = wake.callId
-			command["targetWallet"] = wake.calleeEoa
-			command["expiresAt"] = wake.expiresAt
-			command["pushTimestamp"] = wake.pushTimestamp
-			if relayRoute == nil { command["offerArmor"] = wake.offerArmor }
+			var withWake = command
+			withWake["callId"] = wake.callId
+			withWake["targetWallet"] = wake.calleeEoa
+			withWake["expiresAt"] = wake.expiresAt
+			withWake["pushTimestamp"] = wake.pushTimestamp
+			if relayRoute == nil { withWake["offerArmor"] = wake.offerArmor }
+			legacyWakeCommand = withWake
 		}
-		guard let jsonData = try? JSONSerialization.data(withJSONObject: command, options: []),
-		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
-		else { return }
-		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
+		guard let jsonData = try? JSONSerialization.data(withJSONObject: command, options: []) else { return }
+		let opaque = jsonData.base64EncodedString()
+		let opaqueWake = legacyWakeCommand
+			.flatMap { try? JSONSerialization.data(withJSONObject: $0, options: []) }?
+			.base64EncodedString()
 
 		// Index the offer on the callee mailbox ourselves, beside the listen
 		// encrypt. The caller mailbox forwards the same armor too, but that leg
@@ -617,34 +692,42 @@ final class BeamioNativeVoiceChannel: NSObject {
 		// call has no name. The listen POST rings the callee, so it waits (capped)
 		// for the index below.
 		let offerIndexed = DispatchSemaphore(value: 0)
+		let pushLock = NSLock()
+		var calleeMailboxRang = false
 		if let wake = active.dialerWake,
 		   wake.offerArmor.contains("BEGIN PGP MESSAGE"),
 		   !wake.calleeEoa.isEmpty,
 		   !wake.callId.isEmpty {
 			let listenSession = active.listenSessionId
+			let askPush = !legacyMode
 			DispatchQueue.global(qos: .userInitiated).async {
-				Self.storeOfferOnCalleeMailbox(wake: wake, sessionId: listenSession)
+				let rang = Self.storeOfferOnCalleeMailbox(wake: wake, sessionId: listenSession, askPush: askPush)
+				pushLock.lock(); calleeMailboxRang = rang; pushLock.unlock()
 				offerIndexed.signal()
 			}
 		} else {
 			offerIndexed.signal()
 		}
 
+		// Encrypt both listen variants at once so waiting for the offer store
+		// adds no time; pick one after it answers.
+		let listenRoute = relayRoute ?? secrets.routePublicKeyArmor
 		let sem = DispatchSemaphore(value: 0)
 		var armorOut: String?
-		BeamioOpenPgpHost.shared.encrypt(
-			plaintext: opaque,
-			publicKeyArmor: relayRoute ?? secrets.routePublicKeyArmor
-		) { result in
+		var armorWakeOut: String?
+		BeamioOpenPgpHost.shared.encrypt(plaintext: opaque, publicKeyArmor: listenRoute) { result in
 			armorOut = try? result.get()
 			sem.signal()
 		}
-		_ = sem.wait(timeout: .now() + 12)
-		BeamioCallTiming.mark("listen-encrypted")
-		guard let armor = armorOut, armor.contains("BEGIN PGP MESSAGE") else {
-			NSLog("[BeamioNativeVoiceChannel] listen encrypt failed")
-			return
+		if let opaqueWake {
+			BeamioOpenPgpHost.shared.encrypt(plaintext: opaqueWake, publicKeyArmor: listenRoute) { result in
+				armorWakeOut = try? result.get()
+				sem.signal()
+			}
 		}
+		_ = sem.wait(timeout: .now() + 12)
+		if opaqueWake != nil { _ = sem.wait(timeout: .now() + 12) }
+		BeamioCallTiming.mark("listen-encrypted")
 
 		let nodes = BeamioChatPgpKeychain.loadSiNodes()
 		var exclude = Set<String>()
@@ -663,6 +746,18 @@ final class BeamioNativeVoiceChannel: NSObject {
 		guard let url = BeamioSiCipherPost.postUrl(for: entryIp) else { return }
 
 		_ = offerIndexed.wait(timeout: .now() + 3)
+		pushLock.lock()
+		let rang = calleeMailboxRang
+		pushLock.unlock()
+		let useLegacyWake = opaqueWake != nil && !rang
+		guard let armor = useLegacyWake ? armorWakeOut : armorOut, armor.contains("BEGIN PGP MESSAGE") else {
+			NSLog("[BeamioNativeVoiceChannel] listen encrypt failed")
+			return
+		}
+		if opaqueWake != nil {
+			NSLog("[BeamioNativeVoiceChannel] callee wake by %@", rang ? "callee-mailbox" : "legacy-listen")
+			BeamioCallTiming.mark("wake-path", rang ? "callee-mailbox" : "legacy-listen")
+		}
 		BeamioCallTiming.mark("listen-post")
 		listenEntryIp = entryIp
 		listenStartedAt = Date()
@@ -695,18 +790,23 @@ final class BeamioNativeVoiceChannel: NSObject {
 	/// the capability), encrypted to that mailbox's route key and posted through an
 	/// entry that is not that mailbox. The mailbox never decrypts `offerArmor`; it
 	/// is callee user-PGP ciphertext. Best effort, and storing twice is harmless.
+	/// With `askPush`, a v2 callee mailbox also rings the callee itself (it finds
+	/// the callee from the offer's recipient key ID) and answers `pushed: true`.
+	/// Returns whether it did; old mailboxes never say so.
+	@discardableResult
 	private static func storeOfferOnCalleeMailbox(
 		wake: BeamioNativeVoiceSignaling.DialerWake,
-		sessionId: String
-	) {
+		sessionId: String,
+		askPush: Bool
+	) -> Bool {
 		let callee = wake.calleeEoa.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 		guard let keys = BeamioAddressPgp.searchKey(address: callee),
 		      keys.routePublicKeyArmored.contains("BEGIN PGP PUBLIC KEY")
 		else {
 			NSLog("[BeamioNativeVoiceChannel] offer index — no callee route key")
-			return
+			return false
 		}
-		let command: [String: Any] = [
+		var command: [String: Any] = [
 			"command": "voice_offer_store",
 			"callId": wake.callId,
 			"sessionId": sessionId,
@@ -714,7 +814,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 			"expiresAt": wake.expiresAt,
 			"timestamp": Int(Date().timeIntervalSince1970),
 		]
-		guard let json = try? JSONSerialization.data(withJSONObject: command, options: []) else { return }
+		if askPush {
+			command["push"] = 1
+			command["pushTimestamp"] = wake.pushTimestamp
+		}
+		guard let json = try? JSONSerialization.data(withJSONObject: command, options: []) else { return false }
 		let sem = DispatchSemaphore(value: 0)
 		var armorOut: String?
 		BeamioOpenPgpHost.shared.encrypt(
@@ -727,7 +831,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		_ = sem.wait(timeout: .now() + 8)
 		guard let armor = armorOut, armor.contains("BEGIN PGP MESSAGE") else {
 			NSLog("[BeamioNativeVoiceChannel] offer index — encrypt failed")
-			return
+			return false
 		}
 		let nodes = BeamioChatPgpKeychain.loadSiNodes()
 		var exclude = Set<String>()
@@ -739,11 +843,19 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 		let posted = BeamioSiCipherPost.post(armor: armor, nodes: nodes, excludeIps: exclude, maxAttempts: 2, timeout: 6)
 		BeamioCallTiming.mark("native-offer-index", posted.ok ? "ok" : "fail")
+		let pushed: Bool = {
+			guard posted.ok, let data = posted.body.data(using: .utf8),
+			      let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+			else { return false }
+			return obj["pushed"] as? Bool == true
+		}()
 		NSLog(
-			"[BeamioNativeVoiceChannel] offer index callId=%@ ok=%@",
+			"[BeamioNativeVoiceChannel] offer index callId=%@ ok=%@ pushed=%@",
 			wake.callId,
-			posted.ok ? "yes" : "no"
+			posted.ok ? "yes" : "no",
+			pushed ? "yes" : "no"
 		)
+		return pushed
 	}
 
 	private func pickEntryIp(nodes: [BeamioChatPgpKeychain.SiNode], exclude: Set<String>) -> String? {
@@ -757,7 +869,17 @@ final class BeamioNativeVoiceChannel: NSObject {
 		      let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
 		else { return }
 		if let kind = obj["kind"] as? String, kind == "udp" || obj["ok"] as? Bool == true {
-			NSLog("[BeamioNativeVoiceChannel] listen handshake ok")
+			let v2 = Self.intValue(obj["v"]) == 2
+			NSLog("[BeamioNativeVoiceChannel] listen handshake ok chan=%d", v2 ? 2 : 1)
+			if v2, !ownChanV2 {
+				ownChanV2 = true
+				// Caps that went out before the handshake said chan 1: resend.
+				if capsSent > 0, let active { sendMediaCapsLocked(active: active, reason: "chan-v2") }
+			}
+			return
+		}
+		if (obj["t"] as? String) == "c", let blob = obj["d"] as? String {
+			handleInboundChunkLocked(blob)
 			return
 		}
 		if (obj["type"] as? String) == "voice_frame_v1" || obj["command"] as? String == "voice_uplink" {
@@ -765,19 +887,59 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 	}
 
+	/// v2 chunk on our own channel: AES with AAD = CVC2 ‖ our locator; seq and
+	/// capture time come from the encrypted header.
+	private func handleInboundChunkLocked(_ blobB64: String) {
+		guard let active, running,
+		      let blob = Data(base64Encoded: blobB64),
+		      let loc = BeamioVoiceChannelV2.locator(fromSessionId: active.listenSessionId)
+		else { return }
+		do {
+			let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
+			let opened = try BeamioVoiceChannelV2.openChunk(sessionKey: key, ownLocator: loc, blob: blob)
+			v2RxChunks += 1
+			if v2RxChunks == 1 { NSLog("[BeamioNativeVoiceChannel] first v2 chunk rx kind=%d", opened.kind) }
+			handleInboundPlainLocked(opened.data, active: active, seq: opened.seq, senderTs: opened.captureMs)
+		} catch {
+			NSLog("[BeamioNativeVoiceChannel] v2 chunk open fail %@", error.localizedDescription)
+		}
+	}
+
 	private func handleInboundFrame(_ frame: [String: Any]) {
 		guard let active, running else { return }
 		guard let payloadB64 = frame["payload"] as? String, !payloadB64.isEmpty else { return }
+		let plain: Data
 		do {
 			let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
-			let plain = try BeamioVoiceAesGcm.decrypt(key: key, payloadBase64: payloadB64)
+			plain = try BeamioVoiceAesGcm.decrypt(key: key, payloadBase64: payloadB64)
+		} catch {
+			NSLog("[BeamioNativeVoiceChannel] decrypt fail %@", error.localizedDescription)
+			return
+		}
+		let senderTs: Int64 = {
+			if let n = frame["frameTimestamp"] as? Int64 { return n }
+			if let n = frame["frameTimestamp"] as? Int { return Int64(n) }
+			if let n = frame["frameTimestamp"] as? Double { return Int64(n) }
+			return 0
+		}()
+		handleInboundPlainLocked(plain, active: active, seq: Self.intValue(frame["seq"]), senderTs: senderTs)
+	}
+
+	/// One decrypted frame (v1 payload or v2 chunk data). Runs on `queue`.
+	private func handleInboundPlainLocked(
+		_ plain: Data,
+		active: BeamioNativeVoiceSignaling.ActiveCall,
+		seq frameSeq: Int?,
+		senderTs: Int64
+	) {
+		do {
 			if let json = try? JSONSerialization.jsonObject(with: plain) as? [String: Any],
 			   let type = json["type"] as? String
 			{
 				NSLog("[BeamioNativeVoiceChannel] control frame type=%@ role=%@", type, active.role.rawValue)
 				// Control frames share the media seq counter; mark the slot so the
 				// jitter buffer does not wait on it.
-				if active.mediaEnabled, let seq = Self.intValue(frame["seq"]) {
+				if active.mediaEnabled, let seq = frameSeq {
 					enqueueRxMedia(seq: seq, plain: Data(), senderTs: 0, controlSlot: true)
 				}
 				if active.role == .dialer {
@@ -831,19 +993,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 			guard active.mediaEnabled else { return }
 			// Split-seq video (peer saw our caps): never enters the audio
 			// reorder buffer, so its loss or delay cannot stall audio.
-			if let seq = Self.intValue(frame["seq"]), seq >= Self.videoSeqBase {
+			if let seq = frameSeq, seq >= Self.videoSeqBase {
 				handleSplitVideoLocked(plain)
 				return
 			}
-			let senderTs: Int64 = {
-				if let n = frame["frameTimestamp"] as? Int64 { return n }
-				if let n = frame["frameTimestamp"] as? Int { return Int64(n) }
-				if let n = frame["frameTimestamp"] as? Double { return Int64(n) }
-				return 0
-			}()
-			enqueueRxMedia(seq: Self.intValue(frame["seq"]), plain: plain, senderTs: senderTs)
-		} catch {
-			NSLog("[BeamioNativeVoiceChannel] decrypt fail %@", error.localizedDescription)
+			enqueueRxMedia(seq: frameSeq, plain: plain, senderTs: senderTs)
 		}
 	}
 
@@ -1568,39 +1722,14 @@ final class BeamioNativeVoiceChannel: NSObject {
 		var rate = UInt32(Self.wireRate).littleEndian
 		withUnsafeBytes(of: &rate) { framed.append(contentsOf: $0) }
 		framed.append(pcm)
-		let payload: String
-		do {
-			let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
-			payload = try BeamioVoiceAesGcm.encrypt(key: key, plain: framed)
-		} catch {
-			return
-		}
-		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-		let uplink: [String: Any] = [
-			// Route command read by the peer's mailbox: no wallet fields.
-			"command": "voice_uplink",
-			"type": "voice_frame_v1",
-			"callId": active.offer.callId,
-			"sessionId": active.listenSessionId,
-			"targetSessionId": active.peerMediaSessionId,
-			"direction": "uplink",
-			"seq": seq,
-			"frameTimestamp": nowMs,
-			"payload": payload,
-			"timestamp": Int(Date().timeIntervalSince1970),
-		]
-		guard let jsonData = try? JSONSerialization.data(withJSONObject: uplink, options: []),
-		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
-		else { return }
-		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 		guard let entryIp = route.entries.next() else { return }
 		uplinkInFlight += 1
-		self.routeEncrypt(
-			plaintext: opaque,
-			routeArmor: route.routePublicKeyArmor
-		) { [weak self] result in
+		buildUplinkArmorLocked(
+			active: active, route: route, plain: framed, kind: .audio,
+			seq: seq, captureMs: Int64(Date().timeIntervalSince1970 * 1000)
+		) { [weak self] armor, usedV2 in
 			guard let self else { return }
-			guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else {
+			guard let armor else {
 				self.queue.async { self.uplinkInFlight = max(0, self.uplinkInFlight - 1) }
 				return
 			}
@@ -1615,6 +1744,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				self.noteEntryOutcome(outcome, ip: entryIp, route: route)
 				self.queue.async {
 					self.uplinkInFlight = max(0, self.uplinkInFlight - 1)
+					self.noteV2OutcomeLocked(outcome, usedV2: usedV2)
 					self.finishUplink(outcome, ip: entryIp)
 				}
 			}
