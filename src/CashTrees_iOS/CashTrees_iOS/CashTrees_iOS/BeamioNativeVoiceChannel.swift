@@ -1365,7 +1365,6 @@ final class BeamioNativeVoiceChannel: NSObject {
 			return
 		}
 		let nowMs = Int(Date().timeIntervalSince1970 * 1000)
-		let localEoa = active.localEoa
 		let uplink: [String: Any] = [
 			// Route command read by the peer's mailbox: no wallet fields.
 			"command": "voice_uplink",
