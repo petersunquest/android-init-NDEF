@@ -23,6 +23,12 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 	private var failed = false
 	private var waiting: [() -> Void] = []
 	private var fallbackLogged = false
+	private var firstEncryptLogged = false
+
+	/// NSLog plus Documents/voice-qa.log (device QA has no console).
+	private func trail(_ line: String) {
+		BeamioNativeVoiceSignaling.qaTrail("voice-pgp \(line)")
+	}
 
 	private override init() {
 		super.init()
@@ -51,15 +57,19 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 					switch outcome {
 					case .success(let value):
 						if let armor = value as? String, armor.contains("BEGIN PGP MESSAGE") {
+							if !self.firstEncryptLogged {
+								self.firstEncryptLogged = true
+								self.trail("first encrypt in=\(plaintext.utf8.count) out=\(armor.utf8.count)")
+							}
 							completion(.success(armor))
 						} else {
+							self.trail("unexpected result type")
 							self.fallback(plaintext: plaintext, routeArmor: routeArmor, completion: completion)
 						}
 					case .failure(let error):
 						let ns = error as NSError
-						NSLog(
-							"[BeamioVoiceRoutePgp] encrypt failed: %@",
-							(ns.userInfo["WKJavaScriptExceptionMessage"] as? String) ?? ns.localizedDescription
+						self.trail(
+							"encrypt failed: \((ns.userInfo["WKJavaScriptExceptionMessage"] as? String) ?? ns.localizedDescription)"
 						)
 						self.fallback(plaintext: plaintext, routeArmor: routeArmor, completion: completion)
 					}
@@ -80,7 +90,7 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 	) {
 		if !fallbackLogged {
 			fallbackLogged = true
-			NSLog("[BeamioVoiceRoutePgp] using shared OpenPGP host")
+			trail("fallback to shared OpenPGP host ready=\(ready) failed=\(failed)")
 		}
 		BeamioOpenPgpHost.shared.encrypt(plaintext: plaintext, publicKeyArmor: routeArmor, completion: completion)
 	}
@@ -89,8 +99,8 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 	private func bootstrapIfNeeded() {
 		guard !bootstrapped else { return }
 		bootstrapped = true
-		guard let openpgpJs = Self.loadOpenPgpScript() else {
-			NSLog("[BeamioVoiceRoutePgp] openpgp.min.js not found")
+		guard let (openpgpJs, scriptUrl) = Self.loadOpenPgpScript() else {
+			trail("openpgp.min.js not found")
 			finishBootstrap(ok: false)
 			return
 		}
@@ -126,10 +136,12 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 		</script>
 		</body></html>
 		"""
-		wv.loadHTMLString(html, baseURL: nil)
+		// A file:// base keeps the page a secure context; with no base URL
+		// `crypto.subtle` is missing and openpgp.js fails to load.
+		wv.loadHTMLString(html, baseURL: scriptUrl.deletingLastPathComponent())
 		DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
 			guard let self, !self.ready, !self.failed else { return }
-			NSLog("[BeamioVoiceRoutePgp] start timeout")
+			self.trail("start timeout")
 			self.finishBootstrap(ok: false)
 		}
 	}
@@ -147,10 +159,10 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 		DispatchQueue.main.async {
 			guard !self.ready, !self.failed else { return }
 			if action == "ready" {
-				NSLog("[BeamioVoiceRoutePgp] ready")
+				self.trail("ready")
 				self.finishBootstrap(ok: true)
 			} else {
-				NSLog("[BeamioVoiceRoutePgp] start error %@", (body["message"] as? String) ?? "")
+				self.trail("start error \((body["message"] as? String) ?? "")")
 				self.finishBootstrap(ok: false)
 			}
 		}
@@ -158,7 +170,7 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 
 	/// The SDK ships `openpgp.min.js` in its SwiftPM resource bundle
 	/// (`ConetChatSDK_ConetChatSDK.bundle` inside the app).
-	private static func loadOpenPgpScript() -> String? {
+	private static func loadOpenPgpScript() -> (String, URL)? {
 		var candidates: [URL] = []
 		if let resources = Bundle.main.resourceURL,
 		   let items = try? FileManager.default.contentsOfDirectory(at: resources, includingPropertiesForKeys: nil)
@@ -174,7 +186,7 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 			candidates.append(url)
 		}
 		for url in candidates {
-			if let js = try? String(contentsOf: url, encoding: .utf8), !js.isEmpty { return js }
+			if let js = try? String(contentsOf: url, encoding: .utf8), !js.isEmpty { return (js, url) }
 		}
 		return nil
 	}
