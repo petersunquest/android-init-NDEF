@@ -6,7 +6,8 @@ import Foundation
 /// `POST http://{entryIp}/post` (shell picks an IP ≠ mailbox B) → decrypt with
 /// Keychain user PGP → EIP-191 `callerSignature` → exact-address BeamioTag.
 enum BeamioVoiceOfferIdentity {
-	struct Resolved: Equatable {
+	/// Plain value; compared off the main thread while an answer waits for its offer.
+	nonisolated struct Resolved: Equatable {
 		var callerEoa: String
 		var beamioTag: String
 		var shortAddress: String

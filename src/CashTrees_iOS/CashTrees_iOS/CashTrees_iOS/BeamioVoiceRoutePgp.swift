@@ -42,8 +42,8 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 	) {
 		DispatchQueue.main.async {
 			self.bootstrapIfNeeded()
-			let run = { [weak self] in
-				guard let self else { return }
+			// `self` is the app-lifetime singleton, so a strong capture is fine.
+			let run = {
 				guard self.ready, let wv = self.webView else {
 					self.fallback(plaintext: plaintext, routeArmor: routeArmor, completion: completion)
 					return
@@ -93,8 +93,8 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 	) {
 		DispatchQueue.main.async {
 			self.bootstrapIfNeeded()
-			let run = { [weak self] in
-				guard let self else { return }
+			// `self` is the app-lifetime singleton, so a strong capture is fine.
+			let run = {
 				guard self.ready, let wv = self.webView else {
 					completion(.failure(NSError(domain: "BeamioVoiceRoutePgp", code: 1)))
 					return
