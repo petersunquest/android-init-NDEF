@@ -39,6 +39,9 @@ object BeamioInCallVideoCapture {
     private var provider: ProcessCameraProvider? = null
     @Volatile private var onFrame: ((ByteArray, Int, Int) -> Unit)? = null
     @Volatile private var lastFrameAt = 0L
+    /** Scale + JPEG time of the frame being handed to the sink (for `[VideoStats]`). */
+    @Volatile var lastEncodeMs = -1L
+        private set
 
     val isRunning: Boolean get() = onFrame != null
 
@@ -114,6 +117,7 @@ object BeamioInCallVideoCapture {
             if (now - lastFrameAt < FRAME_INTERVAL_MS) return
             lastFrameAt = now
             val jpeg = encode(image) ?: return
+            lastEncodeMs = SystemClock.elapsedRealtime() - now
             sink(jpeg.first, jpeg.second.width, jpeg.second.height)
         } catch (e: Exception) {
             Log.w(TAG, "frame encode failed: ${e.message}")

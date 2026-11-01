@@ -61,6 +61,17 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private static let pcmMagic: [UInt8] = [0x42, 0x50, 0x43, 0x4D]
 	/// FaceTime JPEG: `BJPG` + u16-LE width + u16-LE height + u32-LE frameId + JPEG bytes.
 	private static let jpgMagic: [UInt8] = [0x42, 0x4A, 0x50, 0x47]
+	/// FaceTime JPEG v2: `BJP2` + u16-LE width + u16-LE height + u32-LE frameId
+	/// + u64-LE capture time (Unix ms) + JPEG bytes. The relay drops every
+	/// outer field except seq/timestamp/payload, so the capture time rides
+	/// inside the encrypted payload.
+	private static let jp2Magic: [UInt8] = [0x42, 0x4A, 0x50, 0x32]
+	/// Media capabilities this build announces in `voice_media_caps_v1`.
+	/// video 2 = video uses its own seq range (`videoSeqBase`) and `BJP2`.
+	private static let localVideoCaps = 2
+	/// Split-seq video frames use seq ≥ this. Audio and controls count up from 1,
+	/// so the ranges never meet; a lost or late video frame no longer stalls audio.
+	static let videoSeqBase = 1_000_000_000
 	private static let wireRate = 16_000
 	/// 160 ms per packet. Each packet costs a route-PGP encrypt plus a relay POST;
 	/// 80 ms packets could not be sent in real time and were dropped.
@@ -74,6 +85,19 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private static let maxVideoUplinkInFlight = 2
 	private var videoUplinkInFlight = 0
 	private var videoFrameId: UInt32 = 0
+	/// Peer's announced video capability (0 until `voice_media_caps_v1` arrives).
+	private var peerVideoCaps = 0
+	private var capsSent = 0
+	/// Next split-seq video number (offset from `videoSeqBase`).
+	private var videoSeqOffset = 0
+	/// Capture time of the newest remote frame shown (main thread).
+	private var videoShownCaptureMs: Int64 = 0
+	let stats = BeamioVideoStats()
+	/// QA switch for before/after runs: launch with `-beamioVideoLegacy YES` to
+	/// get the previous behaviour (no caps, shared-seq BJPG, shared OpenPGP host)
+	/// while `[VideoStats]` still logs. Read once per call.
+	private var legacyMode = false
+	private var statsLastFlush = Date()
 	private var onRemoteVideoFrame: ((UIImage) -> Void)?
 	private var onPeerVideoEnabled: ((Bool) -> Void)?
 
@@ -187,6 +211,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 			self.stopLocked()
 			self.active = active
 			self.running = true
+			self.legacyMode = UserDefaults.standard.bool(forKey: "beamioVideoLegacy")
+			if self.legacyMode { NSLog("[BeamioNativeVoiceChannel] QA legacy video mode") }
 			self.resetUplinkSeq()
 			self.setMuted(false)
 			self.resetMediaStateLocked()
@@ -258,6 +284,12 @@ final class BeamioNativeVoiceChannel: NSObject {
 		videoDropNoRoute = 0
 		videoDropBusy = 0
 		videoDropAudioFirst = 0
+		peerVideoCaps = 0
+		capsSent = 0
+		videoSeqOffset = 0
+		DispatchQueue.main.async { self.videoShownCaptureMs = 0 }
+		stats.reset()
+		statsLastFlush = Date()
 	}
 
 	/// InCall UI registers remote FaceTime handlers (main thread may call).
@@ -282,6 +314,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 				"callId": active.offer.callId,
 				"sessionId": active.listenSessionId,
 				"from": active.localEoa,
+				// Inside the AES payload: the peer learns our capability even if
+				// the caps frame was lost.
+				"video": self.legacyMode ? 0 : Self.localVideoCaps,
 				"timestamp": Int(Date().timeIntervalSince1970 * 1000),
 			]
 			self.sendControlJsonUplink(body, active: active)
@@ -293,14 +328,51 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 	}
 
-	/// JPEG uplink for FaceTime (BJPG wire). Dropped when peer media session missing.
+	/// Announce what this build can receive (`voice_media_caps_v1`, AES control).
+	/// Old peers log the unknown type and ignore it. Runs on `queue`.
+	private func sendMediaCapsLocked(active: BeamioNativeVoiceSignaling.ActiveCall, reason: String) {
+		guard !legacyMode, active.mediaEnabled, !active.peerMediaSessionId.isEmpty, uplinkRoute != nil else { return }
+		capsSent += 1
+		let body: [String: Any] = [
+			"type": "voice_media_caps_v1",
+			"callId": active.offer.callId,
+			"sessionId": active.listenSessionId,
+			"video": Self.localVideoCaps,
+			"timestamp": Int(Date().timeIntervalSince1970 * 1000),
+		]
+		sendControlJsonUplink(body, active: active)
+		NSLog("[BeamioNativeVoiceChannel] media caps sent video=%d reason=%@", Self.localVideoCaps, reason)
+	}
+
+	/// Peer capability from `voice_media_caps_v1` or a video enable control.
+	private func notePeerCapsLocked(_ json: [String: Any], active: BeamioNativeVoiceSignaling.ActiveCall) {
+		guard !legacyMode, let video = Self.intValue(json["video"]), video > 0 else { return }
+		let first = peerVideoCaps == 0
+		if video != peerVideoCaps {
+			peerVideoCaps = video
+			NSLog("[BeamioNativeVoiceChannel] peer media caps video=%d", video)
+			BeamioNativeVoiceSignaling.qaTrail("video peer caps=\(video) callId=\(active.offer.callId)")
+		}
+		// Reply once so both sides know even if our first announcement was lost.
+		if first, (json["type"] as? String) == "voice_media_caps_v1" {
+			sendMediaCapsLocked(active: active, reason: "reply")
+		}
+	}
+
+	/// Split-seq video with `BJP2` once the peer announced support; else the old
+	/// shared-seq `BJPG` so older builds keep working.
+	private var videoSplitSeq: Bool { peerVideoCaps >= 2 }
+
+	/// JPEG uplink for FaceTime (BJPG / BJP2 wire). Dropped when peer media session missing.
 	func sendVideoJpegFrame(_ jpeg: Data, width: Int, height: Int) {
+		let captureMs = Int64(Date().timeIntervalSince1970 * 1000)
 		queue.async { [weak self] in
 			guard let self, let active = self.active, self.running else { return }
 			guard active.mediaEnabled, !jpeg.isEmpty else { return }
 			guard !active.peerMediaSessionId.isEmpty else { return }
 			let peer = active.peerEoa.lowercased()
 			guard peer.hasPrefix("0x"), peer.count == 42 else { return }
+			self.stats.update { $0.txCap += 1 }
 			self.videoFramesIn += 1
 			if self.videoFramesIn <= 3 || self.videoFramesIn % 25 == 0 {
 				NSLog(
@@ -311,28 +383,36 @@ final class BeamioNativeVoiceChannel: NSObject {
 			}
 			guard let route = self.uplinkRoute else {
 				self.videoDropNoRoute += 1
+				self.stats.update { $0.txDropRoute += 1 }
 				self.resolveUplinkRouteIfNeeded(peer: peer, callId: active.offer.callId)
 				return
 			}
 			// Audio first: skip video while audio has half its send slots in use.
 			if self.uplinkInFlight >= Self.maxUplinkInFlight / 2 {
 				self.videoDropAudioFirst += 1
+				self.stats.update { $0.txDropAudio += 1 }
 				return
 			}
 			if self.videoUplinkInFlight >= Self.maxVideoUplinkInFlight {
 				self.videoDropBusy += 1
+				self.stats.update { $0.txDropBusy += 1 }
 				return
 			}
 			self.videoFramesSent += 1
 			self.videoFrameId &+= 1
 			let frameId = self.videoFrameId
-			var framed = Data(Self.jpgMagic)
+			let split = self.videoSplitSeq
+			var framed = Data(split ? Self.jp2Magic : Self.jpgMagic)
 			var w = UInt16(clamping: width).littleEndian
 			var h = UInt16(clamping: height).littleEndian
 			var fid = frameId.littleEndian
 			withUnsafeBytes(of: &w) { framed.append(contentsOf: $0) }
 			withUnsafeBytes(of: &h) { framed.append(contentsOf: $0) }
 			withUnsafeBytes(of: &fid) { framed.append(contentsOf: $0) }
+			if split {
+				var ts = UInt64(max(0, captureMs)).littleEndian
+				withUnsafeBytes(of: &ts) { framed.append(contentsOf: $0) }
+			}
 			framed.append(jpeg)
 			let payload: String
 			do {
@@ -341,7 +421,13 @@ final class BeamioNativeVoiceChannel: NSObject {
 			} catch {
 				return
 			}
-			let seq = self.takeUplinkSeq()
+			let seq: Int
+			if split {
+				self.videoSeqOffset += 1
+				seq = Self.videoSeqBase + self.videoSeqOffset
+			} else {
+				seq = self.takeUplinkSeq()
+			}
 			let nowMs = Int(Date().timeIntervalSince1970 * 1000)
 			let uplink: [String: Any] = [
 				// Route command read by the peer's mailbox: no wallet fields.
@@ -363,18 +449,32 @@ final class BeamioNativeVoiceChannel: NSObject {
 			let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 			guard let entryIp = route.entries.next() else { return }
 			self.videoUplinkInFlight += 1
-			BeamioOpenPgpHost.shared.encrypt(
+			let jpegBytes = jpeg.count
+			let encStarted = Date()
+			self.routeEncrypt(
 				plaintext: opaque,
-				publicKeyArmor: route.routePublicKeyArmor
+				routeArmor: route.routePublicKeyArmor
 			) { [weak self] result in
 				guard let self else { return }
 				guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else {
 					self.queue.async { self.videoUplinkInFlight = max(0, self.videoUplinkInFlight - 1) }
 					return
 				}
+				let encMs = Int(Date().timeIntervalSince(encStarted) * 1000)
+				self.stats.update {
+					$0.txSent += 1
+					$0.txJpegBytes += jpegBytes
+					$0.txWireBytes += armor.utf8.count
+					$0.txEncMsSum += encMs
+				}
 				self.uplinkPostQueue.async {
 					let outcome = Self.postDirect(armor: armor, ip: entryIp)
 					self.noteEntryOutcome(outcome, ip: entryIp, route: route)
+					self.stats.update {
+						if outcome.ok { $0.txOk += 1 } else { $0.txFail += 1 }
+						$0.txPostMsSum += outcome.ms
+						$0.txPostMsMax = max($0.txPostMsMax, outcome.ms)
+					}
 					self.queue.async {
 						self.videoUplinkInFlight = max(0, self.videoUplinkInFlight - 1)
 						self.finishUplink(outcome, ip: entryIp)
@@ -419,9 +519,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 		else { return }
 		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 		guard let entryIp = route.entries.next() else { return }
-		BeamioOpenPgpHost.shared.encrypt(
+		self.routeEncrypt(
 			plaintext: opaque,
-			publicKeyArmor: route.routePublicKeyArmor
+			routeArmor: route.routePublicKeyArmor
 		) { [weak self] result in
 			guard let self else { return }
 			guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else { return }
@@ -926,7 +1026,15 @@ final class BeamioNativeVoiceChannel: NSObject {
 						return
 					}
 				}
+				if type == "voice_media_caps_v1" {
+					notePeerCapsLocked(json, active: active)
+					return
+				}
 				if type == "voice_video_enable_v1" {
+					notePeerCapsLocked(json, active: active)
+					// The peer is about to send video: make sure it knows what we
+					// can receive (our earlier caps may have been lost).
+					sendMediaCapsLocked(active: active, reason: "peer-video-on")
 					let cb = onPeerVideoEnabled
 					DispatchQueue.main.async { cb?(true) }
 					return
@@ -954,6 +1062,12 @@ final class BeamioNativeVoiceChannel: NSObject {
 				return
 			}
 			guard active.mediaEnabled else { return }
+			// Split-seq video (peer saw our caps): never enters the audio
+			// reorder buffer, so its loss or delay cannot stall audio.
+			if let seq = Self.intValue(frame["seq"]), seq >= Self.videoSeqBase {
+				handleSplitVideoLocked(plain)
+				return
+			}
 			let senderTs: Int64 = {
 				if let n = frame["frameTimestamp"] as? Int64 { return n }
 				if let n = frame["frameTimestamp"] as? Int { return Int64(n) }
@@ -978,9 +1092,14 @@ final class BeamioNativeVoiceChannel: NSObject {
 		if controlSlot {
 			// Empty PCM placeholder: drained as a no-op.
 			rxPendingPcm[seq] = Data()
-		} else if let jpegImage = Self.decodeWireJpeg(plain) {
-			rxPendingJpeg[seq] = (jpegImage, senderTs)
+		} else if let video = Self.decodeWireVideo(plain) {
+			stats.update {
+				$0.rxIn += 1
+				$0.rxBytes += plain.count
+			}
+			rxPendingJpeg[seq] = (video.image, video.captureMs > 0 ? video.captureMs : senderTs)
 		} else if let pcm = Self.decodeWirePcm(plain) {
+			stats.update { $0.audioRx += 1 }
 			rxPendingPcm[seq] = pcm
 		} else {
 			NSLog("[BeamioNativeVoiceChannel] media frame invalid bytes=%d", plain.count)
@@ -1000,9 +1119,26 @@ final class BeamioNativeVoiceChannel: NSObject {
 		scheduleRxJitterIfNeeded()
 	}
 
+	/// One split-seq video frame (`BJP2`, or `BJPG` from a peer mid-upgrade).
+	/// Runs on `queue`.
+	private func handleSplitVideoLocked(_ plain: Data) {
+		guard let video = Self.decodeWireVideo(plain) else {
+			NSLog("[BeamioNativeVoiceChannel] video frame invalid bytes=%d", plain.count)
+			return
+		}
+		stats.update {
+			$0.rxIn += 1
+			$0.rxBytes += plain.count
+		}
+		if video.captureMs > 0 {
+			stats.noteRxTiming(captureMs: video.captureMs, arrivalMs: Int64(Date().timeIntervalSince1970 * 1000))
+		}
+		scheduleVideoFrame(video.image, senderTs: video.captureMs)
+	}
+
 	private func deliverRxPlainImmediate(_ plain: Data, senderTs: Int64) {
-		if let jpegImage = Self.decodeWireJpeg(plain) {
-			scheduleVideoFrame(jpegImage, senderTs: senderTs)
+		if let video = Self.decodeWireVideo(plain) {
+			scheduleVideoFrame(video.image, senderTs: video.captureMs > 0 ? video.captureMs : senderTs)
 			return
 		}
 		guard let pcm = Self.decodeWirePcm(plain) else {
@@ -1062,6 +1198,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			minKey,
 			reason
 		)
+		stats.update { $0.audioGapSkip += 1 }
 		rxJitterWorkItem?.cancel()
 		rxJitterWorkItem = nil
 		// Fill lost audio with short silence so the timeline is not compressed;
@@ -1081,7 +1218,18 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func scheduleVideoFrame(_ image: UIImage, senderTs: Int64) {
 		let cb = onRemoteVideoFrame
 		let enabledCb = onPeerVideoEnabled
-		let show = {
+		let stats = self.stats
+		let show = { [weak self] in
+			guard let self else { return }
+			// Main thread. A newer frame already shown wins: never step back.
+			if senderTs > 0 {
+				if senderTs < self.videoShownCaptureMs {
+					stats.update { $0.rxSuperseded += 1 }
+					return
+				}
+				self.videoShownCaptureMs = senderTs
+			}
+			stats.update { $0.rxShown += 1 }
 			enabledCb?(true)
 			cb?(image)
 		}
@@ -1089,7 +1237,10 @@ final class BeamioNativeVoiceChannel: NSObject {
 			DispatchQueue.main.async(execute: show)
 			return
 		}
-		guard senderTs > videoLastSenderTs else { return }
+		guard senderTs > videoLastSenderTs else {
+			stats.update { $0.rxSuperseded += 1 }
+			return
+		}
 		videoLastSenderTs = senderTs
 		let now = Int64(Date().timeIntervalSince1970 * 1000)
 		let delta = now - senderTs
@@ -1100,13 +1251,28 @@ final class BeamioNativeVoiceChannel: NSObject {
 		DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(Int(waitMs)), execute: show)
 	}
 
-	/// `BJPG` + w + h + frameId + JPEG → UIImage.
-	private static func decodeWireJpeg(_ plain: Data) -> UIImage? {
-		let bytes = [UInt8](plain)
-		guard bytes.count >= 12, Array(bytes[0 ..< 4]) == jpgMagic else { return nil }
-		let jpeg = Data(bytes[12...])
-		guard !jpeg.isEmpty else { return nil }
-		return UIImage(data: jpeg)
+	/// `BJPG` (12-byte header) or `BJP2` (20-byte header with capture time)
+	/// → decoded image. Decodes here, on the channel queue, so the main thread
+	/// only swaps a ready bitmap. `captureMs` is 0 for `BJPG`.
+	private static func decodeWireVideo(_ plain: Data) -> (image: UIImage, captureMs: Int64)? {
+		guard plain.count >= 12 else { return nil }
+		let magic = [UInt8](plain.prefix(4))
+		let headerBytes: Int
+		var captureMs: Int64 = 0
+		if magic == jpgMagic {
+			headerBytes = 12
+		} else if magic == jp2Magic, plain.count > 20 {
+			headerBytes = 20
+			let start = plain.startIndex + 12
+			var ts: UInt64 = 0
+			for i in 0 ..< 8 { ts |= UInt64(plain[start + i]) << (8 * UInt64(i)) }
+			captureMs = Int64(clamping: ts)
+		} else {
+			return nil
+		}
+		let jpeg = plain.subdata(in: (plain.startIndex + headerBytes) ..< plain.endIndex)
+		guard !jpeg.isEmpty, let image = UIImage(data: jpeg) else { return nil }
+		return (image.preparingForDisplay() ?? image, captureMs)
 	}
 
 	private static func intValue(_ any: Any?) -> Int? {
@@ -1290,6 +1456,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		timer.schedule(deadline: .now() + 2, repeating: 2)
 		timer.setEventHandler { [weak self] in
 			guard let self else { return }
+			self.flushVideoStatsLocked()
 			let backlogMs = self.rxBacklogSamples * 1000 / Self.wireRate
 			let prebuffering = self.playPrebuffering
 			// Playout stall: buffers are scheduled but none completes. Recover
@@ -1330,6 +1497,38 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 		timer.resume()
 		diagTimer = timer
+	}
+
+	/// Route-PGP for call frames: the dedicated encryptor, or the shared host in
+	/// QA legacy mode.
+	private func routeEncrypt(
+		plaintext: String,
+		routeArmor: String,
+		completion: @escaping (Result<String, Error>) -> Void
+	) {
+		if legacyMode {
+			BeamioOpenPgpHost.shared.encrypt(plaintext: plaintext, publicKeyArmor: routeArmor, completion: completion)
+		} else {
+			BeamioVoiceRoutePgp.shared.encrypt(plaintext: plaintext, routeArmor: routeArmor, completion: completion)
+		}
+	}
+
+	/// One `[VideoStats]` line per diagnostics tick while video moves. Runs on `queue`.
+	private func flushVideoStatsLocked() {
+		let enc = BeamioInCallVideoCapture.shared.takeEncodeStats()
+		if enc.count > 0 {
+			stats.update {
+				$0.capEncodeN += enc.count
+				$0.capEncodeMsSum += enc.sumMs
+				$0.capEncodeMsMax = max($0.capEncodeMsMax, enc.maxMs)
+			}
+		}
+		let now = Date()
+		let seconds = now.timeIntervalSince(statsLastFlush)
+		statsLastFlush = now
+		let mode = legacyMode ? "legacy" : (videoSplitSeq ? "v2" : "v1")
+		guard let line = stats.flush(mode: mode, peerCaps: peerVideoCaps, seconds: seconds) else { return }
+		BeamioNativeVoiceSignaling.qaTrail(line)
 	}
 
 	private func stopAudioEngine() {
@@ -1495,6 +1694,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 				guard let self, self.running, self.active?.offer.callId == callId else { return }
 				self.uplinkRoute = resolved
 				self.uplinkRouteResolving = false
+				// Announce media caps once a route exists (again after a route
+				// reset until the peer has answered).
+				if resolved != nil, let live = self.active, self.capsSent == 0 || self.peerVideoCaps == 0 {
+					self.sendMediaCapsLocked(active: live, reason: "route")
+				}
 				NSLog(
 					"[BeamioNativeVoiceChannel] uplink route ready=%@ pool=%d",
 					resolved == nil ? "no" : "yes",
@@ -1636,14 +1840,19 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let opaque = Data(jsonUtf8.utf8).base64EncodedString()
 		guard let entryIp = route.entries.next() else { return }
 		uplinkInFlight += 1
-		BeamioOpenPgpHost.shared.encrypt(
+		self.routeEncrypt(
 			plaintext: opaque,
-			publicKeyArmor: route.routePublicKeyArmor
+			routeArmor: route.routePublicKeyArmor
 		) { [weak self] result in
 			guard let self else { return }
 			guard let armor = try? result.get(), armor.contains("BEGIN PGP MESSAGE") else {
 				self.queue.async { self.uplinkInFlight = max(0, self.uplinkInFlight - 1) }
 				return
+			}
+			let wireBytes = armor.utf8.count
+			self.stats.update {
+				$0.audioTx += 1
+				$0.audioTxWireBytes += wireBytes
 			}
 			// Network I/O is blocking; keep it off the OpenPGP callback thread.
 			self.uplinkPostQueue.async {
@@ -1689,6 +1898,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let now = Date()
 		lastUnderrunAt = now
 		lastDecayAt = now
+		stats.update { $0.audioUnderrun += 1 }
 		let next = min(Self.playoutMaxSamples, playoutTargetSamples + Self.playoutStepUpSamples)
 		if next != playoutTargetSamples {
 			playoutTargetSamples = next
