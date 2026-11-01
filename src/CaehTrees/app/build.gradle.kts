@@ -88,7 +88,7 @@ tasks.register<Exec>("launchDebug") {
 dependencies {
     // Native Conet Chat module (listen / send / history / presence / hybrid signing).
     // Same role as the SwiftPM `chat-sdk-ios` package: https://github.com/CoNET-project/chat-sdk-android
-    implementation("network.conet:chat:0.2.3")
+    implementation("network.conet:chat:0.2.4")
     // Native route-key OpenPGP for call frames/control (off the WebView main thread).
     implementation("org.bouncycastle:bcpg-jdk18on:1.79")
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")

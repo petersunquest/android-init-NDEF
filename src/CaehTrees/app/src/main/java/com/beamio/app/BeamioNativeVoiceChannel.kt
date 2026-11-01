@@ -111,6 +111,7 @@ object BeamioNativeVoiceChannel {
     private const val MEDIA_START_GRACE_MS = 12_000L
     const val LINK_LOST_LIMIT_MS = 25_000L
     private const val MUTED_KEEPALIVE_MS = 1_000L
+    private const val V2_PAUSE_MS = 2_000L
     private val linkTimer = Executors.newSingleThreadScheduledExecutor()
     @Volatile private var linkTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val listenGen = AtomicInteger(0)
@@ -131,6 +132,21 @@ object BeamioNativeVoiceChannel {
     private val uplinkSeq = AtomicInteger(1)
     private val uplinkInFlight = AtomicBoolean(false)
     private val uplinkPostOk = AtomicInteger(0)
+
+    /** Per-call audio uplink tally, [0] = v1 frames, [1] = v2 chunks (bytes on the wire, timing). */
+    private class WireTally {
+        var n = 0
+        var fail = 0
+        var bytes = 0L
+        var encMs = 0L
+        var postMs = 0L
+        var postMax = 0L
+        fun line(): String {
+            val d = n.coerceAtLeast(1)
+            return "n=$n fail=$fail avgB=${bytes / d} encAvg=${encMs / d}ms postAvg=${postMs / d}ms postMax=${postMax}ms"
+        }
+    }
+    private val audioTally = arrayOf(WireTally(), WireTally())
     private val uplinkDrop = AtomicInteger(0)
     private val activeRef = AtomicReference<BeamioNativeVoiceSignaling.ActiveCall?>(null)
     private val appCtx = AtomicReference<Context?>(null)
@@ -240,6 +256,24 @@ object BeamioNativeVoiceChannel {
      * still logs. Read once per call.
      */
     @Volatile private var legacyMode = false
+
+    // Voice channel v2: the node sees only `CVC2 ‖ locator ‖ mac ‖ blob` per chunk.
+    /** Write key registered with our own voice_listen; the peer learns it from caps. */
+    @Volatile private var ownWriteKey = ByteArray(0)
+    /** Our node answered voice_ready with `v: 2`. */
+    private val ownChanV2 = AtomicBoolean(false)
+    /** Peer's v2 channel once its caps said `chan: 2`. */
+    private val peerV2 = AtomicReference<BeamioVoiceChannelV2.Peer?>(null)
+    /** A v2 chunk was refused: the rest of the call uses v1. */
+    private val v2Disabled = AtomicBoolean(false)
+    /**
+     * `target_voice_session_not_found`: the peer's listen is down (reconnecting)
+     * or reopened without v2. Frames go as v1 until this time, then v2 again;
+     * the peer re-listens with the same write key.
+     */
+    @Volatile private var v2PausedUntil = 0L
+    private val v2TxOk = AtomicInteger(0)
+    private val v2Rx = AtomicInteger(0)
     private val statsUnderrunsSeen = AtomicInteger(0)
 
     /** Soft mute: keep AudioRecord running but skip AES uplink frames. */
@@ -263,9 +297,11 @@ object BeamioNativeVoiceChannel {
         uplinkInFlight.set(false)
         uplinkPostOk.set(0)
         uplinkDrop.set(0)
+        synchronized(audioTally) { audioTally[0] = WireTally(); audioTally[1] = WireTally() }
         synchronized(pcmPendingLock) { pcmPending = ByteArray(0) }
         resetRxJitter()
         resetVideoState()
+        ownWriteKey = BeamioVoiceChannelV2.randomWriteKey()
         captureStarted.set(false)
         captureMuted.set(false)
         Log.i(
@@ -363,6 +399,9 @@ object BeamioNativeVoiceChannel {
             TAG,
             "stopped uplinkOk=${uplinkPostOk.get()} uplinkDrop=${uplinkDrop.get()} lastSeq=${uplinkSeq.get()}",
         )
+        synchronized(audioTally) {
+            Log.i(TAG, "audio wire v1 ${audioTally[0].line()} | v2 ${audioTally[1].line()}")
+        }
     }
 
     /**
@@ -556,7 +595,14 @@ object BeamioNativeVoiceChannel {
             .put("command", "voice_listen")
             .put("sessionId", active.listenSessionId)
             .put("timestamp", System.currentTimeMillis() / 1000L)
-        // Dialer owns VoIP wake: the node holding the session calls the push API.
+        if (!legacyMode && BeamioVoiceChannelV2.locator(active.listenSessionId) != null && ownWriteKey.size == 32) {
+            commandObj.put("v", 2)
+            commandObj.put("wk", android.util.Base64.encodeToString(ownWriteKey, android.util.Base64.NO_WRAP))
+        }
+        val baseCommand = commandObj.toString()
+        // Legacy wake: the node holding our session calls the push API and so
+        // learns the callee wallet. Used only when the callee's own mailbox did
+        // not ring the callee (`voice_offer_store` push; old nodes never do).
         val wake = active.dialerWake
         // Per-call relay node (not own mailbox). The PWA already delivered the
         // offer to the callee's mailbox through a random entry, so the listen
@@ -575,26 +621,37 @@ object BeamioNativeVoiceChannel {
             commandObj.put("pushTimestamp", wake.pushTimestamp)
             if (relayRoute == null) commandObj.put("offerArmor", wake.offerArmor)
         }
-        val command = commandObj.toString()
+        val wakeCommand = commandObj.toString().takeIf { it != baseCommand }
 
-        val encryptWait = Object()
-        var armor: String? = null
-        var encryptError: String? = null
-        BeamioNativeRoutePgp.encryptToRouteAsync(context, 
-            relayRoute ?: secrets.routePublicKeyArmor,
-            command,
-        ) { result ->
-            result.onSuccess { armor = it }
-                .onFailure { encryptError = it.message }
-            synchronized(encryptWait) { encryptWait.notifyAll() }
+        // Ask the callee's own mailbox to index the offer and ring the callee,
+        // beside the listen encrypts; pick the listen variant from its answer.
+        val calleeRang = java.util.concurrent.CompletableFuture<Boolean>()
+        if (wake != null && wakeCommand != null && wake.offerArmor.contains("BEGIN PGP MESSAGE") && !legacyMode) {
+            io.execute { calleeRang.complete(runCatching { storeOfferOnCalleeMailbox(context, secrets, wake, active.listenSessionId) }.getOrDefault(false)) }
+        } else {
+            calleeRang.complete(false)
         }
-        synchronized(encryptWait) {
-            if (armor == null && encryptError == null) encryptWait.wait(12_000L)
+        val listenRoute = relayRoute ?: secrets.routePublicKeyArmor
+        val baseArmor = java.util.concurrent.CompletableFuture<String?>()
+        val wakeArmor = java.util.concurrent.CompletableFuture<String?>()
+        BeamioNativeRoutePgp.encryptToRouteAsync(context, listenRoute, baseCommand) { baseArmor.complete(it.getOrNull()) }
+        if (wakeCommand != null) {
+            BeamioNativeRoutePgp.encryptToRouteAsync(context, listenRoute, wakeCommand) { wakeArmor.complete(it.getOrNull()) }
+        } else {
+            wakeArmor.complete(null)
         }
-        val encrypted = armor
+        val armorBase = runCatching { baseArmor.get(12, java.util.concurrent.TimeUnit.SECONDS) }.getOrNull()
+        val armorWake = runCatching { wakeArmor.get(12, java.util.concurrent.TimeUnit.SECONDS) }.getOrNull()
         BeamioCallTiming.mark("listen-encrypted")
+        val rang = runCatching { calleeRang.get(3, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(false)
+        val useLegacyWake = wakeCommand != null && !rang
+        if (wakeCommand != null) {
+            Log.i(TAG, "callee wake by ${if (rang) "callee-mailbox" else "legacy-listen"}")
+            BeamioCallTiming.mark("wake-path", if (rang) "callee-mailbox" else "legacy-listen")
+        }
+        val encrypted = if (useLegacyWake) armorWake else armorBase
         if (encrypted.isNullOrBlank() || !encrypted.contains("BEGIN PGP MESSAGE")) {
-            Log.w(TAG, "listen encrypt failed: ${encryptError ?: "timeout"}")
+            Log.w(TAG, "listen encrypt failed")
             return
         }
 
@@ -693,6 +750,46 @@ object BeamioNativeVoiceChannel {
         }
     }
 
+    /**
+     * `voice_offer_store` with `push: 1` to the callee's own mailbox (route key,
+     * entry ≠ that mailbox). A v2 mailbox indexes the offer, finds the callee from
+     * the offer's recipient key ID, rings it, and answers `pushed: true`; then our
+     * listen carries no callee wallet. Old mailboxes never say so.
+     */
+    private fun storeOfferOnCalleeMailbox(
+        context: Context,
+        secrets: BeamioChatPgpStore.Secrets,
+        wake: BeamioNativeVoiceSignaling.DialerWake,
+        sessionId: String,
+    ): Boolean {
+        val keys = BeamioAddressPgp.searchKey(wake.calleeEoa) ?: run {
+            Log.w(TAG, "offer index — no callee route key")
+            return false
+        }
+        val command = JSONObject()
+            .put("command", "voice_offer_store")
+            .put("callId", wake.callId)
+            .put("sessionId", sessionId)
+            .put("offerArmor", wake.offerArmor)
+            .put("expiresAt", wake.expiresAt)
+            .put("push", 1)
+            .put("pushTimestamp", wake.pushTimestamp)
+            .put("timestamp", System.currentTimeMillis() / 1000L)
+            .toString()
+        val armor = runCatching { BeamioNativeRoutePgp.encryptToRoute(keys.routePublicKeyArmored, command) }.getOrNull()
+            ?: return false
+        val roster = BeamioNativeVoiceSignaling.rosterOf(secrets)
+        val exclude = buildSet {
+            BeamioAddressPgp.mailboxIp(keys.routePgpKeyID, roster)?.let { add(it) }
+            BeamioSiCipherPost.normalizeIp(secrets.mailboxIp)?.let { add(it) }
+        }
+        val posted = BeamioSiCipherPost.post(armor, roster, exclude, maxAttempts = 2)
+        val pushed = posted.ok && runCatching { JSONObject(posted.body).optBoolean("pushed", false) }.getOrDefault(false)
+        Log.i(TAG, "offer index callId=${wake.callId.take(12)} ok=${posted.ok} pushed=$pushed")
+        BeamioCallTiming.mark("native-offer-index", if (posted.ok) "ok" else "fail")
+        return pushed
+    }
+
     private fun handleSseBlock(
         context: Context,
         block: String,
@@ -711,8 +808,17 @@ object BeamioNativeVoiceChannel {
             return
         }
         if (obj.optString("kind") == "udp" || obj.optBoolean("ok", false)) {
-            Log.i(TAG, "listen handshake ok")
+            val v2 = obj.optInt("v", 1) == 2
+            Log.i(TAG, "listen handshake ok chan=${if (v2) 2 else 1}")
             listenAlive.set(true)
+            // Caps that went out before the handshake said chan 1: resend.
+            if (v2 && ownChanV2.compareAndSet(false, true) && capsSent.get() > 0) sendMediaCaps("chan-v2")
+            return
+        }
+        if (obj.optString("t") == "c") {
+            // A v2 chunk is a peer frame for the link watchdog too.
+            noteRx()
+            handleInboundChunk(context, obj.optString("d"), started)
             return
         }
         val type = obj.optString("type")
@@ -739,6 +845,36 @@ object BeamioNativeVoiceChannel {
             return
         }
         val seq = if (frame.has("seq")) frame.optInt("seq", -1) else -1
+        handleInboundPlain(context, plain, live, seq, frame.optLong("frameTimestamp", 0L))
+    }
+
+    /** v2 chunk on our own channel: AES with AAD = CVC2 ‖ our locator; seq and time are inside. */
+    private fun handleInboundChunk(context: Context, blobB64: String, started: BeamioNativeVoiceSignaling.ActiveCall) {
+        if (!running.get() || blobB64.isBlank()) return
+        val live = activeRef.get() ?: started
+        val loc = BeamioVoiceChannelV2.locator(live.listenSessionId) ?: return
+        val opened = try {
+            BeamioVoiceChannelV2.openChunk(
+                live.offer.sessionKey,
+                loc,
+                android.util.Base64.decode(blobB64, android.util.Base64.DEFAULT),
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "v2 chunk open fail: ${e.message}")
+            return
+        }
+        if (v2Rx.incrementAndGet() == 1) Log.i(TAG, "first v2 chunk rx kind=${opened.kind}")
+        handleInboundPlain(context, opened.data, live, opened.seq, opened.captureMs)
+    }
+
+    /** One decrypted frame (v1 payload or v2 chunk data). */
+    private fun handleInboundPlain(
+        context: Context,
+        plain: ByteArray,
+        live: BeamioNativeVoiceSignaling.ActiveCall,
+        seq: Int,
+        senderTsMs: Long,
+    ) {
         if (seq >= VIDEO_SEQ_BASE) {
             // Split-seq video (the peer saw our caps): never touches the audio
             // reorder buffer, so its loss or delay cannot stall audio.
@@ -751,7 +887,7 @@ object BeamioNativeVoiceChannel {
             // jitter buffer does not stall waiting for it.
             if (mediaLive.get()) {
                 markRxSeqConsumed(seq)
-                handleInboundVideo(plain, frame.optLong("frameTimestamp", 0L))
+                handleInboundVideo(plain, senderTsMs)
             }
             maybeFlushStats()
             return
@@ -1491,6 +1627,12 @@ object BeamioNativeVoiceChannel {
         peerVideoCaps.set(0)
         capsSent.set(0)
         videoSeqOffset.set(0)
+        ownChanV2.set(false)
+        peerV2.set(null)
+        v2Disabled.set(false)
+        v2PausedUntil = 0L
+        v2TxOk.set(0)
+        v2Rx.set(0)
         stats.reset()
         statsUnderrunsSeen.set(0)
         synchronized(rxLock) {
@@ -1613,9 +1755,30 @@ object BeamioNativeVoiceChannel {
      */
     /** Set by [postDirect] when the entry could not be reached (vs an app-level error). */
     private val lastPostUnreachable = ThreadLocal<Boolean>()
+    /** `error` from the last refused POST on this thread (v2 fallback). */
+    private val lastPostError = ThreadLocal<String>()
+
+    /**
+     * A v2 chunk the node refused. Auth / invalid chunk: v1 for the rest of the
+     * call. Channel not found: v1 for [V2_PAUSE_MS], then v2 again.
+     */
+    private fun noteV2Outcome(ok: Boolean, error: String) {
+        if (ok) {
+            if (v2TxOk.incrementAndGet() == 1) Log.i(TAG, "first v2 chunk accepted")
+            return
+        }
+        if (error == "voice_chunk_auth" || error == "invalid_voice_chunk") {
+            if (v2Disabled.compareAndSet(false, true)) Log.w(TAG, "v2 chunk refused ($error); falling back to v1")
+        } else if (error == "target_voice_session_not_found") {
+            val now = System.currentTimeMillis()
+            if (now >= v2PausedUntil) Log.w(TAG, "v2 chunk target missing; v1 for ${V2_PAUSE_MS}ms")
+            v2PausedUntil = now + V2_PAUSE_MS
+        }
+    }
 
     private fun postDirect(armor: String, ip: String): Boolean {
         lastPostUnreachable.set(false)
+        lastPostError.set("")
         val started = System.currentTimeMillis()
         var conn: HttpURLConnection? = null
         return try {
@@ -1638,6 +1801,7 @@ object BeamioNativeVoiceChannel {
             if (ok) {
                 runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
                     if (obj.has("ok")) ok = obj.optBoolean("ok", false)
+                    if (!ok) lastPostError.set(obj.optString("error"))
                 }
             }
             if (!ok) {
@@ -1752,12 +1916,25 @@ object BeamioNativeVoiceChannel {
             .put("sessionId", active.listenSessionId)
             .put("video", LOCAL_VIDEO_CAPS)
             .put("timestamp", System.currentTimeMillis())
+        // v2: our node holds a v2 channel; give the peer its write key (inside AES).
+        if (ownChanV2.get()) {
+            body.put("chan", 2)
+            body.put("wk", android.util.Base64.encodeToString(ownWriteKey, android.util.Base64.NO_WRAP))
+        }
         postUplink(active, route, body.toString().toByteArray(Charsets.UTF_8), mediaKind = null) {}
-        Log.i(TAG, "media caps sent video=$LOCAL_VIDEO_CAPS reason=$reason")
+        Log.i(TAG, "media caps sent video=$LOCAL_VIDEO_CAPS chan=${if (ownChanV2.get()) 2 else 1} reason=$reason")
     }
 
     /** Peer capability from `voice_media_caps_v1` or a video enable control. */
     private fun notePeerCaps(json: JSONObject) {
+        if (!legacyMode && peerV2.get() == null && json.optInt("chan", 1) == 2) {
+            val wk = runCatching { android.util.Base64.decode(json.optString("wk"), android.util.Base64.DEFAULT) }.getOrNull()
+            val loc = activeRef.get()?.let { BeamioVoiceChannelV2.locator(it.peerMediaSessionId) }
+            if (wk != null && wk.size == 32 && loc != null) {
+                peerV2.set(BeamioVoiceChannelV2.Peer(loc, wk))
+                Log.i(TAG, "peer channel v2")
+            }
+        }
         val video = json.optInt("video", 0)
         if (legacyMode || video <= 0) return
         val prev = peerVideoCaps.getAndSet(video)
@@ -1811,13 +1988,53 @@ object BeamioNativeVoiceChannel {
         val seq = seqOverride ?: uplinkSeq.getAndIncrement()
         val isVideo = mediaKind == "video"
         val isAudio = mediaKind == null && startsWith(plain, PCM_MAGIC)
+        val nowMs = System.currentTimeMillis()
+        val encStarted = System.currentTimeMillis()
+        val onArmor: (String?, Boolean) -> Unit = { armor, usedV2 ->
+            postUplinkArmor(route, armor, usedV2, seq, mediaKind, isVideo, isAudio, jpegBytes, encStarted, done)
+        }
+        val peer = peerV2.get()
+        if (!legacyMode && !v2Disabled.get() && peer != null && nowMs >= v2PausedUntil) {
+            val kind = when {
+                isVideo -> BeamioVoiceChannelV2.KIND_VIDEO
+                isAudio -> BeamioVoiceChannelV2.KIND_AUDIO
+                else -> BeamioVoiceChannelV2.KIND_CONTROL
+            }
+            val literal = runCatching {
+                BeamioVoiceChannelV2.sealChunk(active.offer.sessionKey, peer, kind, seq, nowMs, 0, plain)
+            }.getOrNull()
+            if (literal != null) {
+                BeamioNativeRoutePgp.encryptBinaryAsync(route.routeArmored, literal) { result ->
+                    val armor = result.getOrNull()
+                    if (armor != null) {
+                        onArmor(armor, true)
+                    } else {
+                        postUplinkV1(app, active, route, plain, seq, nowMs, mediaKind, onArmor)
+                    }
+                }
+                return
+            }
+        }
+        postUplinkV1(app, active, route, plain, seq, nowMs, mediaKind, onArmor)
+    }
+
+    /** v1 `voice_uplink` route command (no wallet fields). */
+    private fun postUplinkV1(
+        app: Context,
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        route: UplinkRoute,
+        plain: ByteArray,
+        seq: Int,
+        nowMs: Long,
+        mediaKind: String?,
+        onArmor: (String?, Boolean) -> Unit,
+    ) {
         val payload = try {
             BeamioVoiceAesGcm.encryptBytes(active.offer.sessionKey, plain)
         } catch (e: Exception) {
-            done()
+            onArmor(null, false)
             return
         }
-        val nowMs = System.currentTimeMillis()
         val uplink = JSONObject()
             // Route command read by the peer's mailbox: no wallet fields (the
             // relay needs only session ids).
@@ -1832,13 +2049,29 @@ object BeamioNativeVoiceChannel {
             .put("payload", payload)
             .put("timestamp", nowMs / 1000L)
         if (mediaKind != null) uplink.put("mediaKind", mediaKind)
-        val encStarted = System.currentTimeMillis()
         BeamioNativeRoutePgp.encryptToRouteAsync(app, route.routeArmored, uplink.toString()) { result ->
+            onArmor(result.getOrNull(), false)
+        }
+    }
+
+    /** Stats + entry POST for one built frame. [done] always runs once. */
+    private fun postUplinkArmor(
+        route: UplinkRoute,
+        armor: String?,
+        usedV2: Boolean,
+        seq: Int,
+        mediaKind: String?,
+        isVideo: Boolean,
+        isAudio: Boolean,
+        jpegBytes: Int,
+        encStarted: Long,
+        done: () -> Unit,
+    ) {
+        run {
             val encMs = System.currentTimeMillis() - encStarted
-            val armor = result.getOrNull()
             if (armor.isNullOrBlank() || !armor.contains("BEGIN PGP MESSAGE")) {
                 done()
-                return@encryptToRouteAsync
+                return
             }
             if (isVideo) {
                 stats.update {
@@ -1860,6 +2093,16 @@ object BeamioNativeVoiceChannel {
                     val queueMs = postStarted - encStarted - encMs
                     val ok = entryIp != null && postDirect(armor, entryIp)
                     val postMs = System.currentTimeMillis() - postStarted
+                    if (usedV2) noteV2Outcome(ok, lastPostError.get().orEmpty())
+                    if (isAudio) synchronized(audioTally) {
+                        val t = audioTally[if (usedV2) 1 else 0]
+                        t.n += 1
+                        if (!ok) t.fail += 1
+                        t.bytes += armor.length
+                        t.encMs += encMs
+                        t.postMs += postMs
+                        t.postMax = maxOf(t.postMax, postMs)
+                    }
                     if (isVideo) {
                         stats.update {
                             if (ok) it.txOk += 1 else it.txFail += 1

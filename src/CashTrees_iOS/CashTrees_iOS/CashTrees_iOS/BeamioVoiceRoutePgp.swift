@@ -83,6 +83,43 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 		}
 	}
 
+	/// Armored OpenPGP message whose literal is `bytes` (binary, no compression:
+	/// a v2 voice chunk is AES output). No shared-host fallback: the caller sends
+	/// that frame on the v1 path instead. `completion` runs on the main queue.
+	func encryptBinary(
+		_ bytes: Data,
+		routeArmor: String,
+		completion: @escaping (Result<String, Error>) -> Void
+	) {
+		DispatchQueue.main.async {
+			self.bootstrapIfNeeded()
+			let run = { [weak self] in
+				guard let self else { return }
+				guard self.ready, let wv = self.webView else {
+					completion(.failure(NSError(domain: "BeamioVoiceRoutePgp", code: 1)))
+					return
+				}
+				wv.callAsyncJavaScript(
+					"return await window.beamioVoiceEncryptBinary(armor, b64);",
+					arguments: ["armor": routeArmor, "b64": bytes.base64EncodedString()],
+					in: nil,
+					in: .page
+				) { outcome in
+					if case .success(let value) = outcome, let armor = value as? String, armor.contains("BEGIN PGP MESSAGE") {
+						completion(.success(armor))
+					} else {
+						completion(.failure(NSError(domain: "BeamioVoiceRoutePgp", code: 2)))
+					}
+				}
+			}
+			if self.ready || self.failed {
+				run()
+			} else {
+				self.waiting.append(run)
+			}
+		}
+	}
+
 	private func fallback(
 		plaintext: String,
 		routeArmor: String,
@@ -129,6 +166,19 @@ final class BeamioVoiceRoutePgp: NSObject, WKScriptMessageHandler {
 		      format: 'armored',
 		      config: { preferredCompressionAlgorithm: openpgp.enums.compression.zlib },
 		    });
+		  };
+		  window.beamioVoiceEncryptBinary = async (armor, b64) => {
+		    let key = keys.get(armor);
+		    if (!key) {
+		      key = await openpgp.readKey({ armoredKey: armor });
+		      if (keys.size >= 8) keys.clear();
+		      keys.set(armor, key);
+		    }
+		    const bin = atob(b64);
+		    const bytes = new Uint8Array(bin.length);
+		    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+		    const message = await openpgp.createMessage({ binary: bytes });
+		    return await openpgp.encrypt({ message, encryptionKeys: key, format: 'armored' });
 		  };
 		  const post = (m) => window.webkit.messageHandlers.BeamioVoicePgp.postMessage(m);
 		  post(typeof openpgp === 'undefined' ? { action: 'error', message: 'openpgp missing' } : { action: 'ready' });

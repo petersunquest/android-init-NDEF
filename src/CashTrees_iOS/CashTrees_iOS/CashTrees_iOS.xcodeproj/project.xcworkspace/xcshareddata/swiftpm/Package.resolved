@@ -6,8 +6,8 @@
       "kind": "remoteSourceControl",
       "location": "https://github.com/CoNET-project/chat-sdk-ios.git",
       "state": {
-        "revision": "20df1fe527952b4902be1765e3226df1906ae47a",
-        "version": "0.1.5"
+        "revision": "9fded0f82a93be4d1e50bd64a014fc0bd2e63d07",
+        "version": "0.1.6"
       }
     },
     {
