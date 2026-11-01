@@ -86,6 +86,32 @@ object BeamioNativeVoiceChannel {
      */
     private const val MAX_PACKET_BYTES = 8_000
     private val io = Executors.newCachedThreadPool()
+
+    // ---- Link health (in-call reconnect / connection lost) ----
+    // The media SSE can drop mid-call (entry restart, network switch). Once
+    // media runs, a 1 s watchdog reopens `voice_listen` on the same sessionId
+    // through a new random entry (backoff 1/2/4/8 s; voice_unlisten first when
+    // the node still holds the old socket). Only the session capability goes
+    // out: no wallet, no signature, no wake fields (no re-ring). No peer frame
+    // AND no accepted uplink for LINK_LOST_LIMIT_MS ends the call.
+    private const val RX_STALE_RECONNECT_MS = 8_000L
+    private const val MEDIA_START_GRACE_MS = 12_000L
+    const val LINK_LOST_LIMIT_MS = 25_000L
+    private const val MUTED_KEEPALIVE_MS = 1_000L
+    private val linkTimer = Executors.newSingleThreadScheduledExecutor()
+    @Volatile private var linkTask: java.util.concurrent.ScheduledFuture<*>? = null
+    private val listenGen = AtomicInteger(0)
+    private val listenAlive = AtomicBoolean(false)
+    private val reconnectInFlight = AtomicBoolean(false)
+    @Volatile private var mediaStartedAt = 0L
+    @Volatile private var lastRxAt = 0L
+    @Volatile private var lastTxOkAt = 0L
+    @Volatile private var reconnecting = false
+    @Volatile private var reconnectAttempt = 0
+    @Volatile private var nextReconnectAt = 0L
+    @Volatile private var linkLostFired = false
+    @Volatile private var lastListenEntry: String? = null
+    @Volatile private var lastKeepaliveAt = 0L
     private val rxHandler = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
     private val mediaLive = AtomicBoolean(false)
@@ -218,8 +244,10 @@ object BeamioNativeVoiceChannel {
             TAG,
             "start role=${active.role} callId=${active.offer.callId.take(12)} listen=${active.listenSessionId.take(12)} peerMedia=${active.peerMediaSessionId.take(12)} media=${active.mediaEnabled}",
         )
-        io.execute { startVoiceListen(app, active) }
+        val gen = listenGen.incrementAndGet()
+        io.execute { startVoiceListen(app, active, reconnect = false, gen = gen) }
         if (active.mediaEnabled) {
+            beginLinkWatch()
             io.execute { startCapture(app, active) }
         }
     }
@@ -230,6 +258,7 @@ object BeamioNativeVoiceChannel {
         appCtx.set(app)
         activeRef.set(active)
         mediaLive.set(true)
+        beginLinkWatch()
         // Accept arrived: the ringback must stop before the mic / speaker open.
         BeamioCallTonePlayer.stopRingback("voice-media", mediaStarting = true)
         Log.i(TAG, "enableMedia peerSession=${active.peerMediaSessionId.take(12)}")
@@ -270,6 +299,8 @@ object BeamioNativeVoiceChannel {
         val app = appCtx.get()
         running.set(false)
         mediaLive.set(false)
+        endLinkWatch()
+        listenGen.incrementAndGet()
         captureStarted.set(false)
         captureMuted.set(false)
         uplinkInFlight.set(false)
@@ -362,7 +393,129 @@ object BeamioNativeVoiceChannel {
         }
     }
 
-    private fun startVoiceListen(context: Context, active: BeamioNativeVoiceSignaling.ActiveCall) {
+    // ---- Link health ----
+
+    /** Media just started (callee on Answer, dialer on Accept): arm the watchdog. */
+    private fun beginLinkWatch() {
+        val now = System.currentTimeMillis()
+        mediaStartedAt = now
+        lastRxAt = now
+        lastTxOkAt = now
+        reconnecting = false
+        reconnectAttempt = 0
+        nextReconnectAt = 0L
+        linkLostFired = false
+        linkTask?.cancel(false)
+        linkTask = linkTimer.scheduleWithFixedDelay(
+            { runCatching { linkTick() }.onFailure { Log.w(TAG, "link tick: ${it.message}") } },
+            1, 1, java.util.concurrent.TimeUnit.SECONDS,
+        )
+    }
+
+    private fun endLinkWatch() {
+        linkTask?.cancel(false)
+        linkTask = null
+        reconnectInFlight.set(false)
+        listenAlive.set(false)
+        if (reconnecting) {
+            reconnecting = false
+            InCallScreenModel.setReconnecting(false)
+            InCallActivity.refreshStateIfShowing()
+        }
+    }
+
+    /** A peer frame (media, control or keepalive) arrived. */
+    private fun noteRx() {
+        lastRxAt = System.currentTimeMillis()
+        if (reconnecting) {
+            reconnecting = false
+            reconnectAttempt = 0
+            Log.i(TAG, "link restored")
+            InCallScreenModel.setReconnecting(false)
+            InCallActivity.refreshStateIfShowing()
+        }
+    }
+
+    private fun linkTick() {
+        if (!running.get() || !mediaLive.get() || linkLostFired) return
+        val active = activeRef.get() ?: return
+        val app = appCtx.get() ?: return
+        val now = System.currentTimeMillis()
+        val rxIdle = now - lastRxAt
+        val txIdle = now - lastTxOkAt
+        if (rxIdle >= LINK_LOST_LIMIT_MS && txIdle >= LINK_LOST_LIMIT_MS) {
+            linkLostFired = true
+            Log.w(TAG, "connection lost rxIdle=${rxIdle / 1000}s txIdle=${txIdle / 1000}s attempts=$reconnectAttempt")
+            InCallScreenModel.connectionLost(app, active.offer.callId, active.offer.sessionId)
+            return
+        }
+        val silent = now - mediaStartedAt >= MEDIA_START_GRACE_MS && rxIdle >= RX_STALE_RECONNECT_MS
+        if (listenAlive.get() && !silent) return
+        if (!reconnecting) {
+            reconnecting = true
+            reconnectAttempt = 0
+            nextReconnectAt = now
+            Log.i(TAG, "link reconnecting listenAlive=${listenAlive.get()} rxIdle=${rxIdle / 1000}s")
+            InCallScreenModel.setReconnecting(true)
+            InCallActivity.refreshStateIfShowing()
+        }
+        if (reconnectInFlight.get() || now < nextReconnectAt) return
+        reconnectAttempt += 1
+        val backoff = minOf(8_000L, 1_000L shl (reconnectAttempt - 1).coerceAtMost(3))
+        // A fresh listen needs a few seconds to show peer frames before it is judged again.
+        nextReconnectAt = now + maxOf(backoff, 4_000L)
+        startReconnect(app, active, unlistenFirst = reconnectAttempt > 1)
+    }
+
+    /**
+     * Reopen `voice_listen` for the same session through a new random entry.
+     * The first attempt assumes the node already dropped the old socket; later
+     * ones send `voice_unlisten` first (the node answers session_conflict while
+     * it still holds the old one).
+     */
+    private fun startReconnect(
+        app: Context,
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        unlistenFirst: Boolean,
+    ) {
+        reconnectInFlight.set(true)
+        val gen = listenGen.incrementAndGet()
+        listenAlive.set(false)
+        val stale = listenConn
+        listenConn = null
+        Log.i(TAG, "voice_listen reconnect attempt=$reconnectAttempt unlisten=$unlistenFirst")
+        io.execute {
+            try {
+                runCatching { stale?.disconnect() }
+                if (unlistenFirst) {
+                    postVoiceUnlisten(app, active.listenSessionId, active.dialerWake)
+                    Thread.sleep(1_500L)
+                }
+                if (running.get() && gen == listenGen.get()) {
+                    startVoiceListen(app, active, reconnect = true, gen = gen)
+                }
+            } finally {
+                if (gen == listenGen.get()) reconnectInFlight.set(false)
+            }
+        }
+    }
+
+    private fun sendMutedKeepalive(
+        context: Context,
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        routeArmored: String,
+        roster: List<BeamioChatPgpStore.SiNode>,
+        exclude: Set<String>,
+    ) {
+        uplinkPcmFrame(context, ByteArray(320 * 2), active, routeArmored, roster, exclude, keepalive = true)
+    }
+
+    private fun startVoiceListen(
+        context: Context,
+        active: BeamioNativeVoiceSignaling.ActiveCall,
+        reconnect: Boolean = false,
+        gen: Int = listenGen.get(),
+    ) {
         val secrets = BeamioChatPgpStore.load(context) ?: run {
             Log.w(TAG, "listen — no secrets")
             return
@@ -382,6 +535,7 @@ object BeamioNativeVoiceChannel {
         // carries no offerArmor and no node is asked to forward it.
         val relayRoute = wake?.relayRouteArmored?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }
         if (
+            !reconnect &&
             wake != null &&
             (relayRoute != null || wake.offerArmor.contains("BEGIN PGP MESSAGE")) &&
             wake.calleeEoa.isNotBlank() &&
@@ -422,12 +576,17 @@ object BeamioNativeVoiceChannel {
             // Entry must not be the node that holds the session.
             if (relayRoute != null) BeamioSiCipherPost.normalizeIp(wake.relayIp)?.let { add(it) }
         }
-        val entry = BeamioSiCipherPost.getRandomNode(roster, excludeIps = exclude)
+        // A reconnect avoids the entry that just failed when another is left.
+        val avoid = lastListenEntry
+        val entry = (if (reconnect && avoid != null) {
+            BeamioSiCipherPost.getRandomNode(roster, excludeIps = exclude + avoid)
+        } else null) ?: BeamioSiCipherPost.getRandomNode(roster, excludeIps = exclude)
         val entryIp = entry?.let { BeamioSiCipherPost.normalizeIp(it.ip) }
         if (entryIp == null) {
             Log.w(TAG, "listen — no reachable entry IP")
             return
         }
+        if (gen != listenGen.get() || !running.get()) return
         val url = BeamioSiCipherPost.postUrl(entryIp) ?: return
         val body = JSONObject().put("data", encrypted).toString()
         Log.i(
@@ -463,10 +622,18 @@ object BeamioNativeVoiceChannel {
             }
             BeamioSiCipherPost.scoreEntry(entryIp, reachable = true, latencyMs = latency)
             BeamioCallTiming.mark("listen-open", "http=$latency")
+            if (gen == listenGen.get()) {
+                listenAlive.set(true)
+                lastListenEntry = entryIp
+            }
+            if (reconnect) {
+                reconnectInFlight.set(false)
+                Log.i(TAG, "voice_listen reopened entry=$entryIp")
+            }
             val stream = BufferedInputStream(conn.inputStream)
             val buf = ByteArray(4096)
             val sse = StringBuilder()
-            while (running.get()) {
+            while (running.get() && gen == listenGen.get()) {
                 val n = stream.read(buf)
                 if (n < 0) break
                 sse.append(String(buf, 0, n, Charsets.UTF_8))
@@ -493,6 +660,8 @@ object BeamioNativeVoiceChannel {
             } catch (_: Exception) {
             }
             if (listenConn === conn) listenConn = null
+            if (gen == listenGen.get()) listenAlive.set(false)
+            if (running.get() && gen == listenGen.get()) Log.i(TAG, "voice_listen closed")
         }
     }
 
@@ -515,11 +684,13 @@ object BeamioNativeVoiceChannel {
         }
         if (obj.optString("kind") == "udp" || obj.optBoolean("ok", false)) {
             Log.i(TAG, "listen handshake ok")
+            listenAlive.set(true)
             return
         }
         val type = obj.optString("type")
         val command = obj.optString("command")
         if (type == "voice_frame_v1" || command == "voice_uplink") {
+            noteRx()
             handleInboundFrame(context, obj, started)
         }
     }
@@ -931,7 +1102,17 @@ object BeamioNativeVoiceChannel {
                 break
             }
             if (n <= 0) continue
-            if (captureMuted.get()) continue
+            if (captureMuted.get()) {
+                // No microphone audio while muted. A 20 ms silent packet each
+                // second tells the peer this side is still on the call, and its
+                // accept/fail result tells us whether the peer still is.
+                val now = System.currentTimeMillis()
+                if (now - lastKeepaliveAt >= MUTED_KEEPALIVE_MS) {
+                    lastKeepaliveAt = now
+                    sendMutedKeepalive(context, activeRef.get() ?: active, routeArmored, roster, exclude)
+                }
+                continue
+            }
             val live = activeRef.get() ?: active
             appendAndMaybeUplink(
                 context = context,
@@ -968,6 +1149,10 @@ object BeamioNativeVoiceChannel {
         // Adaptive packetization (any length decodes on every peer): send 160 ms
         // packets while a send slot is free; when all slots are busy keep the
         // audio and send it with the next packet (up to ~250 ms) instead of dropping.
+        // The route is cleared after 3 failed posts (e.g. a network drop). The
+        // packet below is only built once a route exists, so resolution must be
+        // kicked here; otherwise uplink never resumed after the network returned.
+        if (uplinkRoute.get() == null) routeOrResolve(active)
         var packet: ByteArray? = null
         synchronized(pcmPendingLock) {
             val merged = ByteArray(pcmPending.size + pcmChunk.size)
@@ -999,9 +1184,10 @@ object BeamioNativeVoiceChannel {
         routeArmored: String,
         roster: List<BeamioChatPgpStore.SiNode>,
         exclude: Set<String>,
+        keepalive: Boolean = false,
     ) {
         if (!running.get() || !mediaLive.get() || pcm.isEmpty()) return
-        if (captureMuted.get()) return
+        if (captureMuted.get() && !keepalive) return
         if (active.peerMediaSessionId.isBlank()) return
         val route = uplinkRoute.get() ?: routeOrResolve(active) ?: return
         // Up to MAX_AUDIO_IN_FLIGHT posts at once (iOS: 6). Beyond that the
@@ -1513,6 +1699,7 @@ object BeamioNativeVoiceChannel {
                     }
                     if (route.entries.size() < ENTRY_POOL_MIN) refillEntries(route)
                     if (ok) {
+                        lastTxOkAt = System.currentTimeMillis()
                         val n = uplinkPostOk.incrementAndGet()
                         if (n <= 3 || n % 100 == 0) {
                             Log.i(TAG, "uplink post ok seq=$seq kind=${mediaKind ?: "audio/control"} okCount=$n entry=$entryIp pool=${route.entries.size()}")

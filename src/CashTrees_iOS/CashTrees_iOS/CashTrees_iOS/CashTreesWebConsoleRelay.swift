@@ -186,6 +186,10 @@ enum CashTreesWebConsoleRelay {
         if text.contains("[Chat]") || text.contains("[voiceCall]") {
             BeamioCallTiming.appendDebugFile("\(Int64(Date().timeIntervalSince1970 * 1000)) \(text)")
         }
+        // PWA bridge call path (the PWA logs ids/flags only, never keys or text).
+        if text.contains("[voice]") || text.contains("[voiceCall]") || text.contains("voice route") {
+            BeamioQALog.write("pwa \(text.prefix(300))")
+        }
         logPwa(level: resolvedLevel, message: text)
     }
 

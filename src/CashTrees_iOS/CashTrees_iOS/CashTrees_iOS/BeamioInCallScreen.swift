@@ -47,6 +47,42 @@ final class BeamioInCallScreenModel: ObservableObject {
 	/// The PWA could not place a prepared dial; shown in place of the status.
 	@Published private(set) var prepareError = ""
 
+	/// The media link dropped mid-call and the shell is reopening it.
+	@Published private(set) var reconnecting = false
+	/// Shown for a moment before the screen closes on a lost connection.
+	@Published private(set) var endNotice = ""
+
+	/// Replaces the call timer while reconnecting or ending on a lost link.
+	var statusOverride: String? {
+		if !endNotice.isEmpty { return endNotice }
+		if reconnecting && connected { return "Reconnecting…" }
+		return nil
+	}
+
+	func setReconnecting(_ on: Bool) {
+		guard live || !on else { return }
+		if reconnecting != on { reconnecting = on }
+	}
+
+	/// No peer frames and no accepted uplink for the limit: say why, then end
+	/// the call the same way as End (hang-up signal, CallKit end, screen close).
+	func connectionLost(callId: String, sessionId: String) {
+		NSLog("[BeamioInCall] connection lost callId=%@", callId)
+		crumb("incall-connection-lost:\(callId.prefix(8))")
+		reconnecting = false
+		if live {
+			endNotice = "Call ended: connection lost"
+		}
+		DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+			guard let self else { return }
+			if self.live, callId.isEmpty || self.callId.isEmpty || self.callId == callId {
+				self.hangUp()
+			} else {
+				BeamioVoipIncomingBootstrap.shared.callKit.end(callId: callId, sessionId: sessionId)
+			}
+		}
+	}
+
 	/// Status text before the call connects: "Connecting…" while the PWA still
 	/// builds the offer, "Calling…" once the callee is being rung.
 	var pendingLabel: String {
@@ -225,6 +261,10 @@ final class BeamioInCallScreenModel: ObservableObject {
 		// including after lock-screen slide-to-answer + unlock — raise the
 		// dedicated host window (and ContentView fallback) over system Keypad.
 		presented = true
+		if !sameLiveCall {
+			reconnecting = false
+			endNotice = ""
+		}
 		if foregroundDial && UIApplication.shared.applicationState == .active {
 			destroyHostWindow()
 			NSLog("[BeamioInCall] begin callId=%@ presented=yes foreground-dial", callId)
@@ -503,6 +543,8 @@ final class BeamioInCallScreenModel: ObservableObject {
 		videoError = nil
 		videoToggleBusy = false
 		prepareError = ""
+		reconnecting = false
+		endNotice = ""
 		NSLog("[BeamioInCall] end callId=%@", callId)
 	}
 
@@ -701,7 +743,7 @@ struct BeamioInCallReturnPill: View {
 							.font(.system(size: 13, weight: .bold))
 						TimelineView(.periodic(from: .now, by: 1)) { context in
 							let total = max(0, Int(context.date.timeIntervalSince(model.answeredAt)))
-							Text(model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : model.pendingLabel)
+							Text(model.statusOverride ?? (model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : model.pendingLabel))
 								.font(.system(size: 14, weight: .semibold, design: .monospaced))
 						}
 						Text("Return to call")
@@ -758,10 +800,15 @@ struct BeamioInCallScreen: View {
 			// Full-screen peer video when available; otherwise audio-call gradient.
 			Group {
 				if let remote = model.remoteVideoImage {
-					Image(uiImage: remote)
-						.resizable()
-						.scaledToFill()
-						.frame(maxWidth: .infinity, maxHeight: .infinity)
+					// The fill image sits in an overlay so it never sizes the
+					// ZStack: a peer frame wider than the screen used to widen
+					// the layout and push the self-view PiP off the right edge.
+					Color.clear
+						.overlay(
+							Image(uiImage: remote)
+								.resizable()
+								.scaledToFill()
+						)
 						.clipped()
 						.accessibilityLabel("Remote video")
 				} else {
@@ -870,7 +917,7 @@ struct BeamioInCallScreen: View {
 						.foregroundStyle(.white)
 						.lineLimit(1)
 					TimelineView(.periodic(from: .now, by: 1)) { context in
-						Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel)
+						Text(model.statusOverride ?? (model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel))
 							.font(.system(size: 15, weight: .medium).monospacedDigit())
 							.foregroundStyle(Color.white.opacity(0.75))
 					}
@@ -920,7 +967,7 @@ struct BeamioInCallScreen: View {
 					.padding(.horizontal, 24)
 					.accessibilityLabel("Caller \(title)")
 				TimelineView(.periodic(from: .now, by: 1)) { context in
-					Text(model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel)
+					Text(model.statusOverride ?? (model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel))
 						.font(.system(size: 18, weight: .regular).monospacedDigit())
 						.foregroundStyle(Color.white.opacity(0.7))
 				}

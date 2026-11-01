@@ -821,6 +821,16 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     private func probeWebContentLivenessAndRecoverIfNeeded() {
         guard !webContentProcessNeedsReload, let webView else { return }
         guard loadState?.isSplashVisible != true else { return }
+        // Never reload the page during a call. A lock-screen answer brings the
+        // app forward while WebContent is still suspended, the JS ping times
+        // out, and the reload's pagehide tore down the chat module mid-answer:
+        // the offer was lost and the caller kept ringing. Keep `backgroundedAt`
+        // so the check runs on the next foreground after the call.
+        if BeamioInCallScreenModel.shared.live {
+            CashTreesWebConsoleRelay.logNative("WKWebView liveness check deferred: call in progress")
+            BeamioQALog.write("webview liveness check deferred: call live")
+            return
+        }
         guard let started = backgroundedAt else { return }
         backgroundedAt = nil
         let elapsed = Date().timeIntervalSince(started)

@@ -65,6 +65,41 @@ object InCallScreenModel {
     private val prepareError = AtomicReference("")
 
     fun prepareError(): String = prepareError.get()
+
+    /** The media link dropped mid-call and the shell is reopening it. */
+    private val reconnectingFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+    /** Set for a moment before the screen closes on a lost connection. */
+    private val connectionLostFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun isReconnecting(): Boolean = reconnectingFlag.get()
+    fun isConnectionLost(): Boolean = connectionLostFlag.get()
+
+    fun setReconnecting(on: Boolean) {
+        if (on && !liveFlag.get()) return
+        reconnectingFlag.set(on)
+    }
+
+    /**
+     * No peer frames and no accepted uplink for the limit: say why on the call
+     * screen, then end the call the same way as End (hang-up signal, Telecom
+     * disconnect, screen close).
+     */
+    fun connectionLost(context: android.content.Context, callId: String, sessionId: String) {
+        android.util.Log.w("BeamioInCall", "connection lost callId=${callId.take(12)}")
+        reconnectingFlag.set(false)
+        val app = context.applicationContext
+        val snapshot = state.get()
+        val endCallId = if (liveFlag.get() && snapshot.callId.isNotBlank()) snapshot.callId else callId
+        val endSessionId = if (liveFlag.get() && snapshot.sessionId.isNotBlank()) snapshot.sessionId else sessionId
+        if (liveFlag.get()) {
+            connectionLostFlag.set(true)
+            InCallActivity.refreshStateIfShowing()
+        }
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            BeamioTelecomService.end(app, endCallId, endSessionId)
+            InCallActivity.finishIfMatching(endCallId, endSessionId)
+        }, 2_000L)
+    }
     private val cancelledPrepareIds = java.util.Collections.synchronizedSet(LinkedHashSet<String>())
 
     /**
@@ -193,6 +228,8 @@ object InCallScreenModel {
         state.set(next)
         if (!sameLiveCall) {
             connectedFlag.set(true)
+            reconnectingFlag.set(false)
+            connectionLostFlag.set(false)
             mutedFlag.set(false)
             speakerFlag.set(false)
             BeamioNativeVoiceChannel.setCaptureMuted(false)
@@ -267,6 +304,8 @@ object InCallScreenModel {
         presentedFlag.set(false)
         connectedFlag.set(true)
         prepareError.set("")
+        reconnectingFlag.set(false)
+        connectionLostFlag.set(false)
         BeamioCallTonePlayer.stopRingback("ended")
         BeamioCallTonePlayer.resetForNewDial()
         mutedFlag.set(false)

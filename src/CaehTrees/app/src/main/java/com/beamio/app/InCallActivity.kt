@@ -560,6 +560,17 @@ class InCallActivity : ComponentActivity() {
     }
 
     private fun bindTimer() {
+        val override = when {
+            InCallScreenModel.isConnectionLost() -> getString(R.string.in_call_connection_lost)
+            InCallScreenModel.isReconnecting() && InCallScreenModel.isConnected() ->
+                getString(R.string.in_call_reconnecting)
+            else -> null
+        }
+        if (override != null) {
+            findViewById<TextView>(R.id.in_call_timer)?.text = override
+            findViewById<TextView>(R.id.in_call_collapsed_timer)?.text = override
+            return
+        }
         if (!InCallScreenModel.isConnected()) {
             val calling = InCallScreenModel.prepareError().ifEmpty {
                 getString(

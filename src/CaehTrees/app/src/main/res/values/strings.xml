@@ -24,6 +24,8 @@
     <string name="in_call_end_short">End</string>
     <string name="in_call_calling">Calling…</string>
     <string name="in_call_connecting">Connecting…</string>
+    <string name="in_call_reconnecting">Reconnecting…</string>
+    <string name="in_call_connection_lost">Call ended: connection lost</string>
     <string name="in_call_return">Return to call</string>
     <string name="in_call_fallback_title">Beamio call</string>
     <string name="in_call_caller_avatar">Caller avatar</string>

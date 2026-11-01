@@ -56,6 +56,17 @@ class BeamioTelecomService : ConnectionService() {
         // The caller pool keeps the verified PWA identity until Telecom asks
         // for the connection; there is no generic native/FCM caller fallback.
         val lookupKeys = callerLookupKeys(callId, originalCallId, sessionId, request.address)
+        // One Telecom call per offer. A second addNewIncomingCall for the same
+        // offer used to replace the first in activeConnections; the replaced
+        // one was never disconnected and stayed RINGING, which then failed the
+        // next outgoing placeCall (createConnectionFailed, no ringback).
+        val existing = listOf(callId, originalCallId, sessionId)
+            .filter { it.isNotBlank() }
+            .firstNotNullOfOrNull { activeConnections[it] }
+        if (existing != null && existing.isLiveIncoming()) {
+            Log.i(TAG, "createConnection duplicate for a ringing call; returning a failed connection")
+            return Connection.createFailedConnection(DisconnectCause(DisconnectCause.CANCELED))
+        }
         val caller = resolvePendingCaller(this, lookupKeys, requestedCaller)
         Log.i(
             TAG,
@@ -131,6 +142,10 @@ class BeamioTelecomService : ConnectionService() {
         private val incoming: Boolean,
     ) : Connection() {
         private var disconnectAcknowledged = false
+
+        /** An incoming call Telecom still holds (ringing or answered). */
+        fun isLiveIncoming(): Boolean = incoming && state != STATE_DISCONNECTED
+
         init {
             connectionProperties = PROPERTY_SELF_MANAGED
             audioModeIsVoip = true
@@ -1057,11 +1072,17 @@ class BeamioTelecomService : ConnectionService() {
             tearDownInvisibleRingingConnections(context, keepKeys = callKeys.toSet())
             val submitTelecom: Boolean
             synchronized(chromeGate) {
+                // A repeat report of the offer being set up right now (its glass
+                // and Connection do not exist yet) is not an orphan: clearing its
+                // claims here re-submitted it to Telecom on every repeat.
+                val sameCallInFlight = callKeys.any {
+                    submittedIncomingCalls.contains(it) || claimedChromeKeys.contains(it)
+                }
                 // Claim keys alone (no glass / visible RINGING / active signaling)
                 // are orphans from a prior race. Treating them as "busy" made the
                 // next browser dial busy-reject with no window, then stuck that
                 // offer in busyRejectKeys forever.
-                if (claimedChromeKeys.isNotEmpty() && !hasLiveVoiceChrome()) {
+                if (claimedChromeKeys.isNotEmpty() && !hasLiveVoiceChrome() && !sameCallInFlight) {
                     val orphanClaims = claimedChromeKeys.size
                     val orphanBusy = busyRejectKeys.size
                     claimedChromeKeys.clear()
@@ -1135,8 +1156,10 @@ class BeamioTelecomService : ConnectionService() {
                 return
             }
             // Empty local map still allows Telecom orphans (Samsung WAITING_CALL)
-            // that make createConnectionFailed — wipe PhoneAccount first.
-            if (activeConnections.isEmpty()) {
+            // that make createConnectionFailed — wipe PhoneAccount first. Only
+            // for a new submit: a repeat report must not unregister the account
+            // while its own addNewIncomingCall is still pending.
+            if (submitTelecom && activeConnections.isEmpty()) {
                 resetSelfManagedPhoneAccount(context)
             } else {
                 ensurePhoneAccount(context)
@@ -1623,6 +1646,18 @@ class BeamioTelecomService : ConnectionService() {
                 settledCallActions.add(settleKey(action, callId))
             }
             if (!firstSettle) {
+                // A repeat terminal action must still leave no Telecom call behind:
+                // the first settle can run before the Connection exists.
+                if (action == "callEnded" || action == "callTimedOut" || action == "callRejected") {
+                    disconnectIncomingFor(
+                        listOf(callId, endedId, sessionId),
+                        when (action) {
+                            "callTimedOut" -> DisconnectCause.MISSED
+                            "callRejected" -> DisconnectCause.REJECTED
+                            else -> DisconnectCause.LOCAL
+                        },
+                    )
+                }
                 // Decline/timeout must still reach the callee PWA even when settle
                 // already ran (orphan teardown, glass+Telecom race). Otherwise
                 // App.tsx never gossips voice_call_reject_v1 and the caller stays
@@ -1812,6 +1847,25 @@ class BeamioTelecomService : ConnectionService() {
                         activeConnections.remove(endedId, it)
                         if (sessionId.isNotBlank()) activeConnections.remove(sessionId, it)
                     }
+                    // Same sweep as callRejected: no incoming call may stay RINGING
+                    // in Telecom after this offer ended (it blocks the next dial).
+                    activeConnections.entries
+                        .filter { (_, conn) ->
+                            conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
+                        }
+                        .toList()
+                        .forEach { (key, conn) ->
+                            runCatching {
+                                conn.setDisconnected(
+                                    DisconnectCause(
+                                        if (action == "callTimedOut") DisconnectCause.MISSED
+                                        else DisconnectCause.LOCAL,
+                                    ),
+                                )
+                                conn.destroy()
+                            }
+                            activeConnections.remove(key, conn)
+                        }
                     BeamioCallForegroundService.stop(context)
                     cancelIncomingNotifications(context, endedId, sessionId)
                     cancelIncomingNotifications(context, callId, sessionId)
@@ -1836,6 +1890,21 @@ class BeamioTelecomService : ConnectionService() {
             MainActivity.dispatchSystemCallAction(action, callId, sessionId, context)
             if (fromTelecom || action == "callTimedOut") {
                 Log.i(TAG, "Telecom action=$action callIdPresent=${callId.isNotBlank()}")
+            }
+        }
+
+        /** Disconnect and destroy every live incoming Connection held under [ids]. */
+        private fun disconnectIncomingFor(ids: List<String>, cause: Int) {
+            ids.filter { it.isNotBlank() }.distinct().forEach { key ->
+                val conn = activeConnections[key] ?: return@forEach
+                if (!conn.isLiveIncoming()) return@forEach
+                runCatching {
+                    conn.setDisconnected(DisconnectCause(cause))
+                    conn.destroy()
+                }
+                activeConnections.entries.filter { it.value === conn }.toList()
+                    .forEach { activeConnections.remove(it.key, it.value) }
+                Log.i(TAG, "repeat terminal action: disconnected a live incoming call")
             }
         }
 

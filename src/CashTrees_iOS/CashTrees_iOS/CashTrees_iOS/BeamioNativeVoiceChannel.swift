@@ -151,6 +151,32 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private var listenEntryIp: String?
 	private var listenStartedAt: Date?
 
+	// MARK: Link health (in-call reconnect / connection lost)
+	// The media SSE can drop mid-call (entry restart, network switch, suspend).
+	// Once media runs, a 1 s watchdog reopens `voice_listen` on the same
+	// sessionId through a new random entry (backoff 1/2/4/8 s; voice_unlisten
+	// first when the node still holds the old socket). Nothing but the session
+	// capability goes out: no wallet, no signature, no wake fields (no re-ring).
+	// No peer frame AND no accepted uplink for `linkLostLimit` ends the call.
+	static let rxStaleReconnect: TimeInterval = 8
+	static let mediaStartGrace: TimeInterval = 12
+	static let linkLostLimit: TimeInterval = 25
+	private static let mutedKeepaliveInterval: TimeInterval = 1
+	private let reconnectQueue = DispatchQueue(label: "com.beamio.nativeVoiceChannel.reconnect", qos: .userInitiated)
+	private var linkTimer: DispatchSourceTimer?
+	private var mediaStartedAt = Date()
+	private var lastRxAt = Date()
+	private var lastTxOkAt = Date()
+	private var listenGen = 0
+	private var listenAlive = false
+	private var listenReady = false
+	private var reconnecting = false
+	private var reconnectAttempt = 0
+	private var nextReconnectAt = Date.distantPast
+	private var reconnectInFlight = false
+	private var lastKeepaliveAt = Date.distantPast
+	private var linkLostFired = false
+
 	private override init() {
 		super.init()
 	}
@@ -174,6 +200,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			BeamioCallTiming.mark("listen-start")
 			self.startVoiceListenLocked(active: active)
 			if active.mediaEnabled {
+				self.beginLinkWatchLocked()
 				DispatchQueue.main.async {
 					self.startAudioEngine(active: active)
 				}
@@ -186,6 +213,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		queue.async { [weak self] in
 			guard let self, self.running else { return }
 			self.active = active
+			self.beginLinkWatchLocked()
 			DispatchQueue.main.async {
 				self.startAudioEngine(active: active)
 			}
@@ -410,6 +438,8 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let listenSessionId = active?.listenSessionId ?? ""
 		let relayWake = active?.dialerWake
 		running = false
+		endLinkWatchLocked()
+		listenGen += 1
 		listenHandle?.cancel()
 		listenHandle = nil
 		listenEntryIp = nil
@@ -472,6 +502,192 @@ final class BeamioNativeVoiceChannel: NSObject {
 			sessionId,
 			posted.ok ? "yes" : "no"
 		)
+	}
+
+	// MARK: - Link health
+
+	/// Media just started (callee on Answer, dialer on Accept): arm the watchdog.
+	private func beginLinkWatchLocked() {
+		let now = Date()
+		mediaStartedAt = now
+		lastRxAt = now
+		lastTxOkAt = now
+		reconnecting = false
+		reconnectAttempt = 0
+		nextReconnectAt = .distantPast
+		linkLostFired = false
+		linkTimer?.cancel()
+		let timer = DispatchSource.makeTimerSource(queue: queue)
+		timer.schedule(deadline: .now() + 1, repeating: 1)
+		timer.setEventHandler { [weak self] in self?.linkTickLocked() }
+		timer.resume()
+		linkTimer = timer
+	}
+
+	private func endLinkWatchLocked() {
+		linkTimer?.cancel()
+		linkTimer = nil
+		if reconnecting {
+			reconnecting = false
+			DispatchQueue.main.async { BeamioInCallScreenModel.shared.setReconnecting(false) }
+		}
+		reconnectInFlight = false
+		listenAlive = false
+		listenReady = false
+	}
+
+	/// A peer frame (media, control or keepalive) arrived.
+	private func noteRxLocked() {
+		lastRxAt = Date()
+		if reconnecting {
+			reconnecting = false
+			reconnectAttempt = 0
+			BeamioQALog.write("voice link restored")
+			NSLog("[BeamioNativeVoiceChannel] link restored")
+			DispatchQueue.main.async { BeamioInCallScreenModel.shared.setReconnecting(false) }
+		}
+	}
+
+	private func linkTickLocked() {
+		guard running, let live = active, live.mediaEnabled, !linkLostFired else { return }
+		let now = Date()
+		let rxIdle = now.timeIntervalSince(lastRxAt)
+		let txIdle = now.timeIntervalSince(lastTxOkAt)
+		if rxIdle >= Self.linkLostLimit, txIdle >= Self.linkLostLimit {
+			linkLostFired = true
+			BeamioQALog.write("voice link lost rxIdle=\(Int(rxIdle)) txIdle=\(Int(txIdle)) attempts=\(reconnectAttempt)")
+			NSLog("[BeamioNativeVoiceChannel] connection lost rxIdle=%.0f txIdle=%.0f", rxIdle, txIdle)
+			let callId = live.offer.callId
+			let sessionId = live.offer.sessionId
+			DispatchQueue.main.async {
+				BeamioInCallScreenModel.shared.connectionLost(callId: callId, sessionId: sessionId)
+			}
+			return
+		}
+		let silent = now.timeIntervalSince(mediaStartedAt) >= Self.mediaStartGrace
+			&& rxIdle >= Self.rxStaleReconnect
+		guard !listenAlive || silent else { return }
+		if !reconnecting {
+			reconnecting = true
+			reconnectAttempt = 0
+			nextReconnectAt = now
+			BeamioQALog.write("voice link reconnecting listenAlive=\(listenAlive) rxIdle=\(Int(rxIdle))")
+			DispatchQueue.main.async { BeamioInCallScreenModel.shared.setReconnecting(true) }
+		}
+		guard !reconnectInFlight, now >= nextReconnectAt else { return }
+		reconnectAttempt += 1
+		let backoff = min(8, pow(2, Double(reconnectAttempt - 1)))
+		// A fresh listen needs a few seconds to show peer frames before it is
+		// judged again.
+		nextReconnectAt = now.addingTimeInterval(max(backoff, 4))
+		startReconnectLocked(active: live, unlistenFirst: reconnectAttempt > 1)
+	}
+
+	/// Reopen `voice_listen` for the same session through a new random entry.
+	/// The first attempt assumes the node already dropped the old socket; later
+	/// ones send `voice_unlisten` first (the node answers `session_conflict`
+	/// while it still holds the old one).
+	private func startReconnectLocked(active live: BeamioNativeVoiceSignaling.ActiveCall, unlistenFirst: Bool) {
+		reconnectInFlight = true
+		listenGen += 1
+		let gen = listenGen
+		listenHandle?.cancel()
+		listenHandle = nil
+		listenAlive = false
+		listenReady = false
+		let previousEntry = listenEntryIp
+		let attempt = reconnectAttempt
+		BeamioQALog.write("voice listen reconnect attempt=\(attempt) unlisten=\(unlistenFirst)")
+		reconnectQueue.async { [weak self] in
+			guard let self else { return }
+			if unlistenFirst {
+				self.postVoiceUnlistenLocked(sessionId: live.listenSessionId, relay: live.dialerWake)
+				Thread.sleep(forTimeInterval: 1.5)
+			}
+			let opened = self.openReconnectListen(active: live, gen: gen, avoidEntry: previousEntry)
+			self.queue.async {
+				self.reconnectInFlight = false
+				guard self.running, gen == self.listenGen, let opened else {
+					opened?.handle.cancel()
+					return
+				}
+				self.listenHandle = opened.handle
+				self.listenEntryIp = opened.entryIp
+				self.listenStartedAt = Date()
+			}
+		}
+	}
+
+	/// Build and open the reconnect `voice_listen` (off `queue`: PGP encrypt and
+	/// connect can take seconds while the network is down). Same node as the
+	/// original listen: the call's relay for the dialer, own mailbox otherwise.
+	private func openReconnectListen(
+		active live: BeamioNativeVoiceSignaling.ActiveCall,
+		gen: Int,
+		avoidEntry: String?
+	) -> (handle: BeamioSiCipherPost.SseHandle, entryIp: String)? {
+		guard let secrets = BeamioChatPgpKeychain.load(),
+		      secrets.routePublicKeyArmor.contains("BEGIN PGP PUBLIC KEY")
+		else { return nil }
+		let command: [String: Any] = [
+			"command": "voice_listen",
+			"sessionId": live.listenSessionId,
+			"timestamp": Int(Date().timeIntervalSince1970),
+		]
+		guard let jsonData = try? JSONSerialization.data(withJSONObject: command, options: []),
+		      let jsonUtf8 = String(data: jsonData, encoding: .utf8)
+		else { return nil }
+		let relayRoute: String? = live.dialerWake.flatMap {
+			$0.relayRouteArmored.contains("BEGIN PGP PUBLIC KEY") ? $0.relayRouteArmored : nil
+		}
+		let sem = DispatchSemaphore(value: 0)
+		var armorOut: String?
+		BeamioOpenPgpHost.shared.encrypt(
+			plaintext: Data(jsonUtf8.utf8).base64EncodedString(),
+			publicKeyArmor: relayRoute ?? secrets.routePublicKeyArmor
+		) { result in
+			armorOut = try? result.get()
+			sem.signal()
+		}
+		_ = sem.wait(timeout: .now() + 8)
+		guard let armor = armorOut, armor.contains("BEGIN PGP MESSAGE") else { return nil }
+		let nodes = BeamioChatPgpKeychain.loadSiNodes()
+		var exclude = Set<String>()
+		if let mailbox = BeamioSiCipherPost.normalizeIp(secrets.mailboxIp) { exclude.insert(mailbox) }
+		if relayRoute != nil, let relayIp = BeamioSiCipherPost.normalizeIp(live.dialerWake?.relayIp ?? "") {
+			exclude.insert(relayIp)
+		}
+		var avoid = exclude
+		if let previous = avoidEntry { avoid.insert(previous) }
+		guard let entryIp = pickEntryIp(nodes: nodes, exclude: avoid) ?? pickEntryIp(nodes: nodes, exclude: exclude),
+		      let url = BeamioSiCipherPost.postUrl(for: entryIp)
+		else { return nil }
+		let handle = BeamioSiCipherPost.postSse(
+			url: url,
+			armor: armor,
+			connectTimeout: 8,
+			idleTimeout: 3600,
+			onOpen: { [weak self] in
+				BeamioQALog.write("voice listen reopen http-open session=\(live.listenSessionId.prefix(8))")
+				self?.queue.async { if self?.listenGen == gen { self?.listenAlive = true } }
+			},
+			onEvent: { [weak self] payload in
+				self?.queue.async {
+					guard let self, self.listenGen == gen else { return }
+					self.handleSsePayload(payload)
+				}
+			},
+			onClosed: { [weak self] reason in
+				BeamioQALog.write("voice listen reopen closed reason=\(reason ?? "eof")")
+				self?.queue.async {
+					guard let self, self.listenGen == gen else { return }
+					self.listenAlive = false
+					self.listenReady = false
+				}
+			}
+		)
+		guard let handle else { return nil }
+		return (handle, entryIp)
 	}
 
 	// MARK: - voice_listen SSE
@@ -566,6 +782,10 @@ final class BeamioNativeVoiceChannel: NSObject {
 		BeamioCallTiming.mark("listen-post")
 		listenEntryIp = entryIp
 		listenStartedAt = Date()
+		listenGen += 1
+		let gen = listenGen
+		listenAlive = false
+		listenReady = false
 		NSLog(
 			"[BeamioNativeVoiceChannel] voice_listen entry=%@ session=%@",
 			entryIp,
@@ -578,15 +798,25 @@ final class BeamioNativeVoiceChannel: NSObject {
 			armor: armor,
 			connectTimeout: 12,
 			idleTimeout: 3600,
-			onOpen: {
+			onOpen: { [weak self] in
 				BeamioCallTiming.mark("listen-open")
+				BeamioQALog.write("voice listen open role=\(active.role.rawValue) session=\(active.listenSessionId.prefix(8))")
 				NSLog("[BeamioNativeVoiceChannel] listen open entry=%@", entryIp)
+				self?.queue.async { if self?.listenGen == gen { self?.listenAlive = true } }
 			},
 			onEvent: { [weak self] payload in
 				self?.queue.async { self?.handleSsePayload(payload) }
 			},
-			onClosed: { reason in
+			onClosed: { [weak self] reason in
+				BeamioQALog.write(
+					"voice listen closed role=\(active.role.rawValue) session=\(active.listenSessionId.prefix(8)) reason=\(reason ?? "eof")"
+				)
 				NSLog("[BeamioNativeVoiceChannel] listen closed entry=%@ reason=%@", entryIp, reason ?? "eof")
+				self?.queue.async {
+					guard let self, self.listenGen == gen else { return }
+					self.listenAlive = false
+					self.listenReady = false
+				}
 			}
 		)
 	}
@@ -658,9 +888,12 @@ final class BeamioNativeVoiceChannel: NSObject {
 		else { return }
 		if let kind = obj["kind"] as? String, kind == "udp" || obj["ok"] as? Bool == true {
 			NSLog("[BeamioNativeVoiceChannel] listen handshake ok")
+			listenReady = true
+			listenAlive = true
 			return
 		}
 		if (obj["type"] as? String) == "voice_frame_v1" || obj["command"] as? String == "voice_uplink" {
+			noteRxLocked()
 			handleInboundFrame(obj)
 		}
 	}
@@ -1127,8 +1360,19 @@ final class BeamioNativeVoiceChannel: NSObject {
 		let byteCount = Int(converted.frameLength) * MemoryLayout<Int16>.size
 		guard byteCount > 0, let ptr = converted.int16ChannelData?[0] else { return }
 		if isMuted {
-			// Nothing leaves the device while muted, and no stale audio is kept.
+			// No microphone audio leaves the device while muted, and no stale
+			// audio is kept. A 20 ms silent packet each second tells the peer
+			// this side is still on the call (its connection-lost check), and
+			// its accept/fail result tells us whether the peer still is.
 			uplinkAccum = Data()
+			let now = Date()
+			if now.timeIntervalSince(lastKeepaliveAt) >= Self.mutedKeepaliveInterval,
+			   live.mediaEnabled, !live.peerMediaSessionId.isEmpty,
+			   uplinkSlotAvailable(active: live)
+			{
+				lastKeepaliveAt = now
+				sendUplinkFrame(Data(count: 320 * MemoryLayout<Int16>.size), active: live)
+			}
 			return
 		}
 		let data = Data(bytes: ptr, count: byteCount)
@@ -1325,6 +1569,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private func finishUplink(_ outcome: (ok: Bool, status: Int, ms: Int, note: String), ip: String) {
 		if outcome.ok {
 			uplinkFailStreak = 0
+			lastTxOkAt = Date()
 			return
 		}
 		uplinkFailStreak += 1
