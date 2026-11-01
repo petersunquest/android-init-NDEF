@@ -68,8 +68,13 @@ final class DialTimingUITests: XCTestCase {
 		shot2.name = "call-screen-3s"
 		shot2.lifetime = .keepAlways
 		add(shot2)
-		// HOLD=<seconds> keeps the call up longer (device QA of media paths).
-		sleep(UInt32(env["HOLD"] ?? "6") ?? 6)
+		sleep(6)
+		// HOLD_SECONDS: keep the call up (e.g. to reach the ring timeout) before ending it here.
+		if let hold = env["HOLD_SECONDS"].flatMap({ UInt32($0) }), hold > 0 {
+			let deadline = Date().addingTimeInterval(TimeInterval(hold))
+			while Date() < deadline, endButton.exists { sleep(2) }
+			print("[DialTiming] hold ended callScreenStillUp=\(endButton.exists) at \(Int(Date().timeIntervalSince1970 * 1000))")
+		}
 		let shot3 = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
 		shot3.name = "call-screen-9s"
 		shot3.lifetime = .keepAlways

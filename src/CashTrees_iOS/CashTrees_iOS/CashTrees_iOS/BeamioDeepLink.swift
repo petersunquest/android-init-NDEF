@@ -457,7 +457,9 @@ enum BeamioDeepLink {
             case "mute": model.toggleMute()
             case "speaker": model.toggleSpeaker()
             case "minimize": model.minimize()
-            case "show": model.ensureSurfaceVisible(source: "deepLink-incall")
+            case "show":
+                BeamioQALog.write("incall link live=\(model.live ? 1 : 0) appState=\(UIApplication.shared.applicationState.rawValue)")
+                model.ensureSurfaceVisible(source: "deepLink-incall")
             case "end": model.hangUp()
             case "facetime", "video", "video-on", "video-toggle":
                 BeamioVoipIncomingBootstrap.shared.callKit.writeBusyQaBreadcrumb(

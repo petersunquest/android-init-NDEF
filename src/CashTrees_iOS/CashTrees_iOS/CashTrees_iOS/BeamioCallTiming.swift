@@ -42,14 +42,49 @@ enum BeamioCallTiming {
 		appendDebugFile(line)
 	}
 
-	/// Debug builds only: append to `Documents/call-timing.log` (no NSLog).
+	/// Debug and QA builds only: append to `Documents/call-timing.log` (no NSLog).
 	static func appendDebugFile(_ line: String) {
-		#if DEBUG
+		#if DEBUG || BEAMIO_QA
 		guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
 		let url = dir.appendingPathComponent("call-timing.log")
 		let data = Data("\(line)\n".utf8)
 		lock.lock()
 		defer { lock.unlock() }
+		if let handle = try? FileHandle(forWritingTo: url) {
+			defer { try? handle.close() }
+			_ = try? handle.seekToEnd()
+			try? handle.write(contentsOf: data)
+		} else {
+			try? data.write(to: url, options: .atomic)
+		}
+		#endif
+	}
+}
+
+/// Call-path QA log for device builds that cannot be attached to Xcode
+/// (Ad Hoc with production push). Compiled in only with the `BEAMIO_QA` Swift
+/// flag (passed on the xcodebuild command line for QA builds) or in Debug.
+/// Writes `Documents/qa-call.log`. Never pass keys, mnemonics, session keys or
+/// message text: ids, stages and ok/fail only.
+enum BeamioQALog {
+	#if DEBUG || BEAMIO_QA
+	private static let lock = NSLock()
+	private static let formatter: ISO8601DateFormatter = {
+		let f = ISO8601DateFormatter()
+		f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+		return f
+	}()
+	#endif
+
+	static func write(_ message: @autoclosure () -> String) {
+		#if DEBUG || BEAMIO_QA
+		let line = message()
+		NSLog("[BeamioQA] %@", line)
+		guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+		let url = dir.appendingPathComponent("qa-call.log")
+		lock.lock()
+		defer { lock.unlock() }
+		let data = Data("\(formatter.string(from: Date())) \(line)\n".utf8)
 		if let handle = try? FileHandle(forWritingTo: url) {
 			defer { try? handle.close() }
 			_ = try? handle.seekToEnd()

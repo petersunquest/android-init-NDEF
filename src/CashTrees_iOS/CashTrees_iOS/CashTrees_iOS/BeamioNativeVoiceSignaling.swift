@@ -817,6 +817,7 @@ enum BeamioNativeVoiceSignaling {
 		}
 		inFlightAccept.insert(key)
 		lock.unlock()
+		BeamioQALog.write("accept start callId=\(callId.prefix(8)) session=\(sessionId.prefix(8))")
 
 		DispatchQueue.global(qos: .userInitiated).async {
 			defer {
@@ -824,13 +825,34 @@ enum BeamioNativeVoiceSignaling {
 				inFlightAccept.remove(key)
 				lock.unlock()
 			}
-			guard let offer = resolveOfferSync(callId: callId, sessionId: sessionId) else {
+			// The offer can still be on its way: right after a push the native chat
+			// listen may be reconnecting, and it delivers the offer once it is back.
+			var resolvedOffer = resolveOfferSync(callId: callId, sessionId: sessionId)
+			if resolvedOffer == nil {
+				BeamioQALog.write("accept waiting for offer callId=\(callId.prefix(8))")
+				for _ in 0..<20 {
+					Thread.sleep(forTimeInterval: 0.5)
+					if let hit = cachedOffer(callId: callId, sessionId: sessionId), !hit.sessionKey.isEmpty {
+						resolvedOffer = hit
+						break
+					}
+				}
+			}
+			guard let offer = resolvedOffer else {
+				BeamioQALog.write("accept skip: no offer/sessionKey callId=\(callId.prefix(8)); ending local call")
 				NSLog(
 					"[BeamioNativeVoice] accept skip — no offer/sessionKey callId=%@ sessionId=%@",
 					callId,
 					sessionId
 				)
-				DispatchQueue.main.async { completion?("") }
+				// Without the offer no accept can be sent, so the caller keeps
+				// ringing. Do not leave a connected CallKit call and a running call
+				// timer here with nothing behind them (same as a failed uplink).
+				DispatchQueue.main.async {
+					BeamioInCallScreenModel.shared.end(callId: callId)
+					BeamioVoipIncomingBootstrap.shared.callKit.end(callId: callId, sessionId: sessionId)
+					completion?("")
+				}
 				return
 			}
 			guard let secrets = BeamioChatPgpKeychain.load() else {
@@ -845,6 +867,9 @@ enum BeamioNativeVoiceSignaling {
 				return
 			}
 			let acceptSessionId = randomMailboxVoiceSessionId()
+			BeamioQALog.write(
+				"accept resolved callId=\(offer.callId.prefix(8)) relay=\(offer.relayRouteArmored.isEmpty ? "no" : "yes") relayIp=\(offer.relayIp.isEmpty ? "-" : offer.relayIp)"
+			)
 			let nowMs = Int(Date().timeIntervalSince1970 * 1000)
 			let body: [String: Any] = [
 				"type": "voice_call_accept_v1",
@@ -867,6 +892,7 @@ enum BeamioNativeVoiceSignaling {
 					aesBody: body,
 					frameSessionId: offer.sessionId
 				)
+				BeamioQALog.write("accept uplink attempt=\(attempt + 1) ok=\(ok ? "yes" : "no")")
 				if ok { break }
 				NSLog("[BeamioNativeVoice] accept uplink attempt %d failed callId=%@", attempt + 1, offer.callId)
 				if attempt < 3 { Thread.sleep(forTimeInterval: 0.8 * Double(attempt + 1)) }
@@ -1029,6 +1055,9 @@ enum BeamioNativeVoiceSignaling {
 		}
 
 		let posted = BeamioSiCipherPost.post(armor: armor, nodes: nodes, excludeIps: exclude)
+		BeamioQALog.write(
+			"control uplink route=\(relayRoute != nil ? "relay" : "mailbox") seq=\(seq) ok=\(posted.ok ? "yes" : "no")"
+		)
 		return posted.ok
 	}
 }

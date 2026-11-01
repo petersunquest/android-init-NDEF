@@ -5347,6 +5347,9 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			return
 		}
 		NSLog("[BeamioCallKit] Answer uuid=%@", action.callUUID.uuidString)
+		BeamioQALog.write(
+			"callkit answer callId=\(callIds[action.callUUID]?.callId.prefix(8) ?? "-") appState=\(UIApplication.shared.applicationState.rawValue)"
+		)
 		answeredCallUUIDs.insert(action.callUUID)
 		pendingMediaStartUUID = action.callUUID
 		softReassertAttempt = 0
