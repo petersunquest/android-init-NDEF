@@ -210,6 +210,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				active.mediaEnabled ? "yes" : "no"
 			)
 			BeamioCallTiming.mark("listen-start")
+			BeamioNativeVoiceSignaling.qaTrail("voice start role=\(active.role.rawValue) callId=\(active.offer.callId.prefix(8)) listen=\(active.listenSessionId.prefix(8)) media=\(active.mediaEnabled)")
 			self.ownWriteKey = BeamioVoiceChannelV2.randomWriteKey()
 			self.startVoiceListenLocked(active: active)
 			if active.mediaEnabled {
@@ -337,6 +338,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 		sendControlJsonUplink(body, active: active)
 		NSLog("[BeamioNativeVoiceChannel] media caps sent video=%d chan=%d reason=%@", Self.localVideoCaps, ownChanV2 ? 2 : 1, reason)
+		BeamioNativeVoiceSignaling.qaTrail("voice caps sent chan=\(ownChanV2 ? 2 : 1) reason=\(reason) callId=\(active.offer.callId.prefix(8))")
 	}
 
 	/// Peer capability from `voice_media_caps_v1` or a video enable control.
@@ -558,13 +560,17 @@ final class BeamioNativeVoiceChannel: NSObject {
 		guard usedV2 else { return }
 		if outcome.ok {
 			v2TxChunks += 1
-			if v2TxChunks == 1 { NSLog("[BeamioNativeVoiceChannel] first v2 chunk accepted") }
+			if v2TxChunks == 1 {
+				NSLog("[BeamioNativeVoiceChannel] first v2 chunk accepted")
+				BeamioNativeVoiceSignaling.qaTrail("voice v2 first chunk accepted")
+			}
 			return
 		}
 		if outcome.note == "voice_chunk_auth" || outcome.note == "target_voice_session_not_found" || outcome.note == "invalid_voice_chunk" {
 			if !v2Disabled {
 				v2Disabled = true
 				NSLog("[BeamioNativeVoiceChannel] v2 chunk refused (%@); falling back to v1", outcome.note)
+				BeamioNativeVoiceSignaling.qaTrail("voice v2 chunk refused \(outcome.note)")
 			}
 		}
 	}
@@ -766,6 +772,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 			entryIp,
 			active.listenSessionId
 		)
+		BeamioNativeVoiceSignaling.qaTrail("voice listen post session=\(active.listenSessionId.prefix(8)) relay=\(relayRoute != nil)")
 		// `postSse` scores the entry itself: open → reachable, HTTP error → reachable
 		// but slow, connect failure → unreachable (kept out of `getRandomNode`).
 		listenHandle = BeamioSiCipherPost.postSse(
@@ -776,12 +783,14 @@ final class BeamioNativeVoiceChannel: NSObject {
 			onOpen: {
 				BeamioCallTiming.mark("listen-open")
 				NSLog("[BeamioNativeVoiceChannel] listen open entry=%@", entryIp)
+				BeamioNativeVoiceSignaling.qaTrail("voice listen open")
 			},
 			onEvent: { [weak self] payload in
 				self?.queue.async { self?.handleSsePayload(payload) }
 			},
 			onClosed: { reason in
 				NSLog("[BeamioNativeVoiceChannel] listen closed entry=%@ reason=%@", entryIp, reason ?? "eof")
+				BeamioNativeVoiceSignaling.qaTrail("voice listen closed reason=\(reason ?? "eof")")
 			}
 		)
 	}
@@ -867,10 +876,19 @@ final class BeamioNativeVoiceChannel: NSObject {
 		guard !payload.isEmpty,
 		      let jsonData = payload.data(using: .utf8),
 		      let obj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
-		else { return }
-		if let kind = obj["kind"] as? String, kind == "udp" || obj["ok"] as? Bool == true {
+		else {
+			BeamioNativeVoiceSignaling.qaTrail("voice sse non-json len=\(payload.count)")
+			return
+		}
+		if obj["ok"] as? Bool == false {
+			BeamioNativeVoiceSignaling.qaTrail("voice sse error \(obj["error"] as? String ?? "?")")
+		}
+		// The SI handshake is `voice_ready` with `ok: true` and no `kind`, so each
+		// test stands alone (an `if let kind` here hid the handshake, and v2 with it).
+		if (obj["kind"] as? String) == "udp" || (obj["ok"] as? Bool) == true {
 			let v2 = Self.intValue(obj["v"]) == 2
 			NSLog("[BeamioNativeVoiceChannel] listen handshake ok chan=%d", v2 ? 2 : 1)
+			BeamioNativeVoiceSignaling.qaTrail("voice listen handshake chan=\(v2 ? 2 : 1) ownWasV2=\(ownChanV2) capsSent=\(capsSent)")
 			if v2, !ownChanV2 {
 				ownChanV2 = true
 				// Caps that went out before the handshake said chan 1: resend.
@@ -898,10 +916,14 @@ final class BeamioNativeVoiceChannel: NSObject {
 			let key = try BeamioVoiceAesGcm.keyFromBase64(active.offer.sessionKey)
 			let opened = try BeamioVoiceChannelV2.openChunk(sessionKey: key, ownLocator: loc, blob: blob)
 			v2RxChunks += 1
-			if v2RxChunks == 1 { NSLog("[BeamioNativeVoiceChannel] first v2 chunk rx kind=%d", opened.kind) }
+			if v2RxChunks == 1 {
+				NSLog("[BeamioNativeVoiceChannel] first v2 chunk rx kind=%d", opened.kind)
+				BeamioNativeVoiceSignaling.qaTrail("voice v2 first chunk rx kind=\(opened.kind)")
+			}
 			handleInboundPlainLocked(opened.data, active: active, seq: opened.seq, senderTs: opened.captureMs)
 		} catch {
 			NSLog("[BeamioNativeVoiceChannel] v2 chunk open fail %@", error.localizedDescription)
+			BeamioNativeVoiceSignaling.qaTrail("voice v2 chunk open fail \(error.localizedDescription)")
 		}
 	}
 

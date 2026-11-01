@@ -68,7 +68,8 @@ final class DialTimingUITests: XCTestCase {
 		shot2.name = "call-screen-3s"
 		shot2.lifetime = .keepAlways
 		add(shot2)
-		sleep(6)
+		// HOLD=<seconds> keeps the call up longer (device QA of media paths).
+		sleep(UInt32(env["HOLD"] ?? "6") ?? 6)
 		let shot3 = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
 		shot3.name = "call-screen-9s"
 		shot3.lifetime = .keepAlways
