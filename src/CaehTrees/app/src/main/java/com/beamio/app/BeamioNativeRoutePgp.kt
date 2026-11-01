@@ -113,6 +113,35 @@ object BeamioNativeRoutePgp {
         return armored.toString(Charsets.UTF_8.name())
     }
 
+    /**
+     * Voice channel v2 chunk: armored OpenPGP message whose literal is [bytes]
+     * (binary, uncompressed: the chunk is AES output). No WebView fallback; the
+     * caller sends that frame on the v1 path instead. [done] runs on [pool].
+     */
+    fun encryptBinaryAsync(routePublicArmor: String, bytes: ByteArray, done: (Result<String>) -> Unit) {
+        pool.execute { done(runCatching { encryptBinaryToRoute(routePublicArmor, bytes) }) }
+    }
+
+    fun encryptBinaryToRoute(routePublicArmor: String, bytes: ByteArray): String {
+        val key = encryptionKey(routePublicArmor)
+        val literal = ByteArrayOutputStream().use { out ->
+            PGPLiteralDataGenerator().open(out, PGPLiteralData.BINARY, "", bytes.size.toLong(), Date())
+                .use { it.write(bytes) }
+            out.toByteArray()
+        }
+        val armored = ByteArrayOutputStream()
+        ArmoredOutputStream.builder().clearHeaders().build(armored).use { armorOut ->
+            val encryptor = PGPEncryptedDataGenerator(
+                BcPGPDataEncryptorBuilder(SymmetricKeyAlgorithmTags.AES_256)
+                    .setWithIntegrityPacket(true)
+                    .setSecureRandom(random),
+            )
+            encryptor.addMethod(BcPublicKeyKeyEncryptionMethodGenerator(key).setSecureRandom(random))
+            encryptor.open(armorOut, literal.size.toLong()).use { it.write(literal) }
+        }
+        return armored.toString(Charsets.UTF_8.name())
+    }
+
     /** The key's encryption subkey (one recipient only), cached per armor. */
     private fun encryptionKey(armor: String): PGPPublicKey {
         keyCache[armor]?.let { return it }
