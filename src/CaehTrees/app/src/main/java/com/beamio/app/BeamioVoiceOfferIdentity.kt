@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object BeamioVoiceOfferIdentity {
     private const val TAG = "BeamioVoiceOfferId"
+    /** Answer / Decline waiting on an offer re-fetch this often while nothing is in flight. */
+    private const val RESOLVE_RETRY_MS = 1_000L
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val resolveRunning = AtomicBoolean(false)
@@ -489,14 +491,16 @@ object BeamioVoiceOfferIdentity {
         val wait = Object()
         var out: ResolvedIdentity? = null
         var done = false
-        scheduleResolve(context, callId, sessionId) { identity ->
+        val onResolved: (ResolvedIdentity) -> Unit = { identity ->
             synchronized(wait) {
                 out = identity
                 done = true
                 wait.notifyAll()
             }
         }
+        scheduleResolve(context, callId, sessionId, onResolved)
         val deadline = System.currentTimeMillis() + timeoutMs
+        var nextFetchAt = System.currentTimeMillis() + RESOLVE_RETRY_MS
         while (System.currentTimeMillis() < deadline) {
             BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)
                 ?.takeIf { it.sessionKey.isNotEmpty() }
@@ -508,6 +512,15 @@ object BeamioVoiceOfferIdentity {
                 wait.wait(minOf(200L, remain))
             }
             if (done) break
+            // A fetch that came back empty (offer not stored yet, entry or
+            // mailbox briefly down) leaves no fetch running: try again instead
+            // of waiting for the page to deliver the offer.
+            val now = System.currentTimeMillis()
+            if (now >= nextFetchAt && !resolveRunning.get()) {
+                nextFetchAt = now + RESOLVE_RETRY_MS
+                Log.i(TAG, "resolve retry callId=${callId.take(12)}")
+                scheduleResolve(context, callId, sessionId, onResolved)
+            }
         }
         return out?.takeIf { it.sessionKey.isNotEmpty() }
             ?: BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)

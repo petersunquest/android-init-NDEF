@@ -595,6 +595,10 @@ object BeamioNativeVoiceSignaling {
                     )
                     activeCall.set(active)
                     BeamioNativeVoiceChannel.start(app, active)
+                    // Record only, once the accept reached the caller: the PWA keeps
+                    // the call history but must not run its own accept. No context:
+                    // this event must not take the single pending-action slot.
+                    MainActivity.dispatchSystemCallAction("callConnected", offer.callId, offer.sessionId)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "accept failed: ${e.message}")

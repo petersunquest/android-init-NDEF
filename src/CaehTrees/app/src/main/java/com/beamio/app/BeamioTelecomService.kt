@@ -727,6 +727,28 @@ class BeamioTelecomService : ConnectionService() {
             return claimedChromeKeys.isNotEmpty()
         }
 
+        /** A call rings, dials or is up: the chat mailbox listen stays connected meanwhile. */
+        fun isCallInProgress(): Boolean =
+            activeConnections.isNotEmpty() || hasStickyVoiceChrome() ||
+                InCallScreenModel.isLive() || BeamioNativeVoiceSignaling.currentActiveCall() != null
+
+        /** This device still has a Telecom call, call chrome or a native call for one of [ids]. */
+        fun isLiveCall(vararg ids: String): Boolean {
+            val keys = ids.map { it.trim() }.filter { it.isNotEmpty() }
+            if (keys.isEmpty()) return false
+            if (keys.any {
+                    activeConnections.containsKey(it) || claimedChromeKeys.contains(it) ||
+                        submittedIncomingCalls.contains(it)
+                }
+            ) return true
+            if (InCallScreenModel.isLive()) {
+                val st = InCallScreenModel.snapshot()
+                if (keys.any { it == st.callId || it == st.sessionId }) return true
+            }
+            val cur = BeamioNativeVoiceSignaling.currentActiveCall() ?: return false
+            return keys.any { it == cur.offer.callId || it == cur.offer.sessionId || it == cur.listenSessionId }
+        }
+
         /**
          * Keyguard / lock / screen-off: overlay cannot appear above it; CallStyle
          * FSI (USE_FULL_SCREEN_INTENT) must own the lock UI.

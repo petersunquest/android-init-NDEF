@@ -1708,11 +1708,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         case "chatModuleCommand":
             let command = body["command"] as? [String: Any] ?? body
             BeamioNativeVoiceSignaling.qaTrail("chatModuleCommand \((command["type"] as? String) ?? (command["cmd"] as? String) ?? "?")")
+            // Caller cancel / hang-up is acted on natively (module observer), before the page sees it.
+            BeamioNativeChatHooks.install()
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 // Emit may be chatModuleEvent or chatModuleSignRequest (full bridge payload).
                 BeamioConetChatModule.handleCommand(command) { payload in
-                    // Caller cancel / hang-up is acted on here, before the page sees it.
-                    BeamioNativeVoiceSignaling.observeChatEvent(payload)
                     DispatchQueue.main.async {
                         self?.dispatchIOSBridgeJsonToWeb(payload)
                     }

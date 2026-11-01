@@ -1,13 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
--->
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chat keys stay on this device: the wallet key, the PGP key store and its fallback file. -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="beamio_chat_wallet_v1.xml" />
+    <exclude domain="sharedpref" path="beamio_chat_pgp_v1.xml" />
+    <exclude domain="sharedpref" path="beamio_chat_pgp_plain_v1.xml" />
 </full-backup-content>

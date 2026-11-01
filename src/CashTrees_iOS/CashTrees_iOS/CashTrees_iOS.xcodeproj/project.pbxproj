@@ -635,7 +635,7 @@
 			repositoryURL = "https://github.com/CoNET-project/chat-sdk-ios.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 0.1.0;
+				minimumVersion = 0.1.7;
 			};
 		};
 		D0ZP0002FC10000100000002 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {

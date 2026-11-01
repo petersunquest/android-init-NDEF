@@ -2937,6 +2937,7 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        BeamioNativeChatHooks.install(applicationContext)
         // The PWA pushes its own roster; the shell refreshes `getAllNodes` itself instead.
         BeamioChatPgpStore.onRosterUpsertFromWeb = { ctx -> BeamioGuardianRoster.kick(ctx) }
         BeamioGuardianRoster.kick(this)

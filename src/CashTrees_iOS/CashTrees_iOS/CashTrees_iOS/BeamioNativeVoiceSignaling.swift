@@ -186,6 +186,73 @@ enum BeamioNativeVoiceSignaling {
 	/// the offer still arrives as a normal chat message.
 	///
 	/// `payload` is the bridge object the chat module emits (`chatModuleEvent`).
+	/// A verified peer `voice_end_v1` / `voice_call_timeout_v1` that arrived as a
+	/// Chat message (recognised by the chat module, page or not): end the matching call.
+	static func applyPeerCallControl(type: String, callId: String, sessionId: String, from rawFrom: String) {
+		let from = rawFrom.lowercased()
+		let signal = (type: type, callId: callId, sessionId: sessionId)
+
+		qaTrail("caller end signal type=\(signal.type) callId=\(signal.callId.prefix(8))")
+		// The recovered signer must be the caller. The offer cache holds the caller
+		// once the offer is known; without it the secret callId is the only check.
+		if let offer = cachedOffer(callId: signal.callId, sessionId: signal.sessionId),
+		   !offer.callerEoa.isEmpty,
+		   offer.callerEoa.lowercased() != from
+		{
+			NSLog("[BeamioNativeVoice] cancel ignored — signer is not the caller callId=%@", signal.callId)
+			return
+		}
+		let callKit = BeamioVoipIncomingBootstrap.shared.callKit
+		let pushAlias = callKit.lastReportedCallId
+		let aliasLive = !pushAlias.isEmpty && pushAlias != signal.callId
+			&& callKit.cancelAliasesLastReported(
+				callId: signal.callId,
+				sessionId: signal.sessionId
+			)
+		// v83: historyLoad may replay an old voice_end while a newer CallKit
+		// ring is live. Do not mark/end the live PushKit alias for that stale id.
+		if callKit.hasLiveCallKitCall(),
+		   !pushAlias.isEmpty,
+		   signal.callId != pushAlias,
+		   !aliasLive
+		{
+			qaTrail(
+				"stale end ignored live=\(pushAlias.prefix(8)) end=\(signal.callId.prefix(8)) type=\(signal.type)"
+			)
+			NSLog(
+				"[BeamioNativeVoice] stale end ignored — live=%@ end=%@ type=%@",
+				pushAlias,
+				signal.callId,
+				signal.type
+			)
+			callKit.writeBusyQaBreadcrumb(
+				"stale-end-ignored:live=\(pushAlias):end=\(signal.callId):type=\(signal.type)"
+			)
+			// Still remember that call as over: its offer can arrive after
+			// this end (mailbox backlog on a cold listen) and must not ring.
+			markRemoteEnded(callId: signal.callId, sessionId: signal.sessionId)
+			return
+		}
+		markRemoteEnded(callId: signal.callId, sessionId: signal.sessionId)
+		if aliasLive {
+			markRemoteEnded(callId: pushAlias, sessionId: signal.sessionId)
+		}
+		NSLog("[BeamioNativeVoice] caller ended callId=%@ type=%@", signal.callId, signal.type)
+		DispatchQueue.main.async {
+			callKit.end(
+				callId: signal.callId,
+				sessionId: signal.sessionId
+			)
+			if aliasLive {
+				callKit.end(
+					callId: pushAlias,
+					sessionId: signal.sessionId
+				)
+			}
+		}
+		return
+	}
+
 	static func observeChatEvent(_ payload: [String: Any]) {
 		guard payload["action"] as? String == "chatModuleEvent",
 		      let event = payload["event"] as? [String: Any]
@@ -201,64 +268,9 @@ enum BeamioNativeVoiceSignaling {
 		else { return }
 		qaTrail("chat message from=…\(from.suffix(6)) len=\(line.count)")
 
-		if let signal = endSignal(in: line) {
-			qaTrail("caller end signal type=\(signal.type) callId=\(signal.callId.prefix(8))")
-			// The recovered signer must be the caller. The offer cache holds the caller
-			// once the offer is known; without it the secret callId is the only check.
-			if let offer = cachedOffer(callId: signal.callId, sessionId: signal.sessionId),
-			   !offer.callerEoa.isEmpty,
-			   offer.callerEoa.lowercased() != from
-			{
-				NSLog("[BeamioNativeVoice] cancel ignored — signer is not the caller callId=%@", signal.callId)
-				return
-			}
-			let callKit = BeamioVoipIncomingBootstrap.shared.callKit
-			let pushAlias = callKit.lastReportedCallId
-			let aliasLive = !pushAlias.isEmpty && pushAlias != signal.callId
-				&& callKit.cancelAliasesLastReported(
-					callId: signal.callId,
-					sessionId: signal.sessionId
-				)
-			// v83: historyLoad may replay an old voice_end while a newer CallKit
-			// ring is live. Do not mark/end the live PushKit alias for that stale id.
-			if callKit.hasLiveCallKitCall(),
-			   !pushAlias.isEmpty,
-			   signal.callId != pushAlias,
-			   !aliasLive
-			{
-				qaTrail(
-					"stale end ignored live=\(pushAlias.prefix(8)) end=\(signal.callId.prefix(8)) type=\(signal.type)"
-				)
-				NSLog(
-					"[BeamioNativeVoice] stale end ignored — live=%@ end=%@ type=%@",
-					pushAlias,
-					signal.callId,
-					signal.type
-				)
-				callKit.writeBusyQaBreadcrumb(
-					"stale-end-ignored:live=\(pushAlias):end=\(signal.callId):type=\(signal.type)"
-				)
-				return
-			}
-			markRemoteEnded(callId: signal.callId, sessionId: signal.sessionId)
-			if aliasLive {
-				markRemoteEnded(callId: pushAlias, sessionId: signal.sessionId)
-			}
-			NSLog("[BeamioNativeVoice] caller ended callId=%@ type=%@", signal.callId, signal.type)
-			DispatchQueue.main.async {
-				callKit.end(
-					callId: signal.callId,
-					sessionId: signal.sessionId
-				)
-				if aliasLive {
-					callKit.end(
-						callId: pushAlias,
-						sessionId: signal.sessionId
-					)
-				}
-			}
-			return
-		}
+		// Call control (caller cancel / hang-up) is recognised by the chat module
+		// and arrives through `applyPeerCallControl`.
+		if endSignal(in: line) != nil { return }
 
 		// Offer path: verify + BeamioTag, then replace opaque CallKit "Beamio".
 		guard line.contains("voice_call_offer_v1") || line.contains("callerSignature") else {
@@ -285,6 +297,12 @@ enum BeamioNativeVoiceSignaling {
 				// PushKit never reported (empty lastReportedCallId) — soft-report
 				// CallKit while SSE/app is alive so FG/BG with mailbox open still rings.
 				// Lock-screen wake still requires a working PushKit/APNs path.
+				// The caller already ended this call (its end can be replayed before
+				// the offer from a cold listen's backlog): never ring it again.
+				if wasRemoteEnded(callId: resolved.callId, sessionId: resolved.sessionId) {
+					qaTrail("chat offer for an ended call; not reported callId=\(resolved.callId.prefix(8))")
+					return
+				}
 				if pushAlias.isEmpty, !liveSame {
 					let display: String = {
 						let t = tag.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -830,7 +848,15 @@ enum BeamioNativeVoiceSignaling {
 			var resolvedOffer = resolveOfferSync(callId: callId, sessionId: sessionId)
 			if resolvedOffer == nil {
 				BeamioQALog.write("accept waiting for offer callId=\(callId.prefix(8))")
-				for _ in 0..<20 {
+				for tick in 0..<20 {
+					// The first fetch came back empty (offer not stored yet, or the
+					// entry or mailbox was briefly down): fetch again every second
+					// instead of only waiting for the chat listen to deliver it.
+					if tick % 2 == 0 {
+						BeamioVoiceOfferIdentity.resolve(callId: callId, sessionId: sessionId) { resolved in
+							if let resolved, !resolved.sessionKey.isEmpty { rememberOffer(resolved) }
+						}
+					}
 					Thread.sleep(forTimeInterval: 0.5)
 					if let hit = cachedOffer(callId: callId, sessionId: sessionId), !hit.sessionKey.isEmpty {
 						resolvedOffer = hit

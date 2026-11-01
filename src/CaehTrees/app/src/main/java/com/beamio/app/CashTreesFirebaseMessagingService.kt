@@ -40,6 +40,9 @@ class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
                 sessionId,
             )
             if (BeamioTelecomService.wasBusyRejected(callId, sessionId)) return
+            // Open the chat mailbox listen now (stored keys, no page needed): the
+            // caller's cancel and other senders' messages arrive while it rings.
+            BeamioNativeChatHooks.wakeForCallPush(applicationContext)
             // Prefetch offerArmor → sessionKey BEFORE CallStyle so Decline can
             // AES-encrypt voice_call_reject_v1 (same race as iOS PushKit).
             // FCM stays opaque (no caller identity in push); resolve upgrades title.

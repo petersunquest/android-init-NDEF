@@ -5747,7 +5747,12 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			BeamioNativeVoiceSignaling.sendAccept(
 				callId: identity.callId,
 				sessionId: identity.sessionId
-			)
+			) { [weak self] acceptSessionId in
+				// Record only, once the accept reached the caller: the PWA keeps the
+				// call history but must not run its own accept (no callAnswered).
+				guard !acceptSessionId.isEmpty else { return }
+				self?.emitToWeb("callConnected", callId: identity.callId, sessionId: identity.sessionId)
+			}
 		}
 	}
 
@@ -6266,9 +6271,14 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			return
 		}
 		if action == "callAnswered" {
-			BeamioNativeVoiceSignaling.sendAccept(callId: callId, sessionId: sessionId)
+			BeamioNativeVoiceSignaling.sendAccept(callId: callId, sessionId: sessionId) { [weak self] acceptSessionId in
+				// Record only, once the accept reached the caller: the PWA keeps the
+				// call history but must not run its own accept (no callAnswered).
+				guard !acceptSessionId.isEmpty else { return }
+				self?.emitCallActionToWeb("callConnected", callId: callId, sessionId: sessionId)
+			}
 			NSLog(
-				"[BeamioVoip] native accept uplink queued callId=%@ (skip PWA)",
+				"[BeamioVoip] native accept uplink queued callId=%@ (skip PWA accept)",
 				callId
 			)
 			return
@@ -6416,6 +6426,9 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			return
 		}
 
+		// Open the chat mailbox listen now (stored keys, no page needed): the
+		// caller's cancel and other senders' messages arrive while it rings.
+		BeamioNativeChatHooks.wakeForCallPush()
 		// Prefetch offerArmor → sessionKey BEFORE CallKit so a fast Decline can
 		// AES-encrypt voice_call_reject_v1. VoIP budget is short; do not await.
 		prefetchOfferForIncoming(callId: resolvedId, sessionId: sessionId)
