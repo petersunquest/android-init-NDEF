@@ -194,6 +194,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private var listenGen = 0
 	private var listenAlive = false
 	private var listenReady = false
+	/// The call's first listen is still opening (encrypt, entry, HTTP). It is not
+	/// "closed", so the watchdog must not tear it down and show Reconnecting… at
+	/// call start. Cleared when that listen opens or closes; capped at 8 s.
+	private var firstListenOpeningSince: Date?
+	private static let firstListenOpenGrace: TimeInterval = 8
 	private var reconnecting = false
 	private var reconnectAttempt = 0
 	private var nextReconnectAt = Date.distantPast
@@ -224,6 +229,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				active.mediaEnabled ? "yes" : "no"
 			)
 			BeamioCallTiming.mark("listen-start")
+			self.firstListenOpeningSince = Date()
 			self.startVoiceListenLocked(active: active)
 			if active.mediaEnabled {
 				self.beginLinkWatchLocked()
@@ -666,7 +672,10 @@ final class BeamioNativeVoiceChannel: NSObject {
 		}
 		let silent = now.timeIntervalSince(mediaStartedAt) >= Self.mediaStartGrace
 			&& rxIdle >= Self.rxStaleReconnect
-		guard !listenAlive || silent else { return }
+		let firstListenOpening = firstListenOpeningSince.map {
+			now.timeIntervalSince($0) < Self.firstListenOpenGrace
+		} ?? false
+		guard !(listenAlive || firstListenOpening) || silent else { return }
 		if !reconnecting {
 			reconnecting = true
 			reconnectAttempt = 0
@@ -689,6 +698,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 	/// while it still holds the old one).
 	private func startReconnectLocked(active live: BeamioNativeVoiceSignaling.ActiveCall, unlistenFirst: Bool) {
 		reconnectInFlight = true
+		firstListenOpeningSince = nil
 		listenGen += 1
 		let gen = listenGen
 		listenHandle?.cancel()
@@ -902,7 +912,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 				BeamioCallTiming.mark("listen-open")
 				BeamioQALog.write("voice listen open role=\(active.role.rawValue) session=\(active.listenSessionId.prefix(8))")
 				NSLog("[BeamioNativeVoiceChannel] listen open entry=%@", entryIp)
-				self?.queue.async { if self?.listenGen == gen { self?.listenAlive = true } }
+				self?.queue.async {
+					guard let self, self.listenGen == gen else { return }
+					self.listenAlive = true
+					self.firstListenOpeningSince = nil
+				}
 			},
 			onEvent: { [weak self] payload in
 				self?.queue.async { self?.handleSsePayload(payload) }
@@ -914,6 +928,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				NSLog("[BeamioNativeVoiceChannel] listen closed entry=%@ reason=%@", entryIp, reason ?? "eof")
 				self?.queue.async {
 					guard let self, self.listenGen == gen else { return }
+					self.firstListenOpeningSince = nil
 					self.listenAlive = false
 					self.listenReady = false
 				}

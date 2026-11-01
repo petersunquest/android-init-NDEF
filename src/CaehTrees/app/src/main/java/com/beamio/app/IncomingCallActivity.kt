@@ -61,7 +61,10 @@ class IncomingCallActivity : Activity() {
         clearPresentInFlight()
         val openCall = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
         val openSession = intent.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
-        if (matchesPendingFinish(openCall, openSession) || consumeDeferredFinish(openCall, openSession)) {
+        if (BeamioTelecomService.isIncomingClosed(openCall, openSession) ||
+            matchesPendingFinish(openCall, openSession) ||
+            consumeDeferredFinish(openCall, openSession)
+        ) {
             Log.i(TAG, "Incoming window skipped; end arrived before onCreate")
             finish()
             return
@@ -111,6 +114,11 @@ class IncomingCallActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         val nextCall = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
         val nextSession = intent.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
+        if (BeamioTelecomService.isIncomingClosed(nextCall, nextSession)) {
+            Log.i(TAG, "Incoming window intent ignored; call already answered or ended")
+            if (matches(nextCall, nextSession)) finishFromCall()
+            return
+        }
         if (!matches(nextCall, nextSession)) {
             if (!BeamioTelecomService.wasBusyRejected(nextCall, nextSession)) {
                 BeamioTelecomService.rejectSecondaryWhileBusy(this, nextCall, nextSession)
@@ -263,6 +271,10 @@ class IncomingCallActivity : Activity() {
             val callId = launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
             val sessionId = launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
             if (BeamioTelecomService.wasBusyRejected(callId, sessionId)) return
+            if (BeamioTelecomService.isIncomingClosed(callId, sessionId)) {
+                Log.i(TAG, "Incoming present skipped; call already answered or ended")
+                return
+            }
             // A finish that arrived while glass was still launching must not
             // permanently block post-FGS present (browser→Android BAL race).
             if (matchesPendingFinish(callId, sessionId) && !isPresentInFlight()) {
@@ -298,7 +310,17 @@ class IncomingCallActivity : Activity() {
             }
         }
 
+        private fun launchIsClosed(launch: Intent): Boolean {
+            val closed = BeamioTelecomService.isIncomingClosed(
+                launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty(),
+                launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty(),
+            )
+            if (closed) Log.i(TAG, "Incoming present skipped; call already answered or ended")
+            return closed
+        }
+
         private fun presentOnMain(app: Context, launch: Intent) {
+            if (launchIsClosed(launch)) return
             val nextCall = launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
             val nextSession = launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
             val showing = instance?.get()
@@ -357,6 +379,10 @@ class IncomingCallActivity : Activity() {
             val lastRetryMs = retryDelaysMs.last()
             for (delayMs in retryDelaysMs) {
                 Handler(Looper.getMainLooper()).postDelayed({
+                    if (launchIsClosed(opening)) {
+                        clearPresentInFlight()
+                        return@postDelayed
+                    }
                     if (isShowing()) {
                         bringOwnAppTasksToFront(app, preferIncomingOnTop = true)
                         clearPresentInFlight()
@@ -468,6 +494,7 @@ class IncomingCallActivity : Activity() {
          */
         fun presentFromTelecomShowIncomingUi(context: Context, launch: Intent) {
             if (isShowing()) return
+            if (launchIsClosed(launch)) return
             if (BeamioTelecomService.wasBusyRejected(
                     launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty(),
                     launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty(),
@@ -550,6 +577,7 @@ class IncomingCallActivity : Activity() {
          */
         fun scheduleAlarmClockGlassPresent(context: Context, launch: Intent) {
             if (isShowing()) return
+            if (launchIsClosed(launch)) return
             finishStaleIncomingCallTasks(context)
             markPresentInFlight(10_000L)
             val app = context.applicationContext
@@ -650,6 +678,7 @@ class IncomingCallActivity : Activity() {
          */
         fun presentFromPhoneCallFgs(context: Context, launch: Intent) {
             if (isShowing()) return
+            if (launchIsClosed(launch)) return
             finishStaleIncomingCallTasks(context)
             markPresentInFlight(8_000L)
             val app = context.applicationContext

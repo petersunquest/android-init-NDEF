@@ -170,6 +170,30 @@ class BeamioCallForegroundService : Service() {
         val body = glassLaunch
             ?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_BODY)
             .orEmpty()
+        // A start queued before Answer / Decline / caller cancel / timeout is
+        // delivered after it: do not bring back the CallStyle card or banner.
+        // startForegroundService still needs a startForeground, so post a quiet one.
+        if ((callId.isNotBlank() || sessionId.isNotBlank()) &&
+            BeamioTelecomService.isIncomingClosed(callId, sessionId)
+        ) {
+            if (BeamioTelecomService.isIncomingAnsweredAny(callId, sessionId) &&
+                InCallScreenModel.isLive() && InCallScreenModel.matches(callId, sessionId)
+            ) {
+                Log.i(TAG, "Late incoming FGS start after answer; keeping the ongoing call notification")
+                postOngoingCall(callId, sessionId)
+                BeamioTelecomService.cancelIncomingNotifications(this, callId, sessionId)
+            } else if (previous != 0) {
+                Log.i(TAG, "Late incoming FGS start for an ended call; ignored")
+            } else {
+                Log.i(TAG, "Late incoming FGS start for an ended call; stopping")
+                if (postQuietForeground(FOREGROUND_ID, BeamioTelecomService.buildMutedIncomingNotification(this))) {
+                    activeForegroundNotificationId = FOREGROUND_ID
+                }
+                removeCallForeground()
+                BeamioTelecomService.cancelIncomingNotifications(this, callId, sessionId)
+            }
+            return
+        }
         // Critical race: Activity/overlay may already have demoted CallStyle to
         // quiet via NM.notify. If we startForeground with the original CallStyle
         // parcel, Samsung re-posts Decline/Answer HUN *over* Beamio glass.

@@ -67,6 +67,13 @@ class BeamioTelecomService : ConnectionService() {
             Log.i(TAG, "createConnection duplicate for a ringing call; returning a failed connection")
             return Connection.createFailedConnection(DisconnectCause(DisconnectCause.CANCELED))
         }
+        // Caller cancelled / declined / timed out before Telecom got here: no
+        // ringing row (answering it would open a call with no peer).
+        if (isIncomingCancelled(callId, originalCallId, sessionId)) {
+            Log.i(TAG, "createConnection for an incoming call that already ended; returning a failed connection")
+            return Connection.createFailedConnection(DisconnectCause(DisconnectCause.CANCELED))
+        }
+        val answeredBeforeTelecom = isIncomingAnsweredAny(callId, originalCallId, sessionId)
         val caller = resolvePendingCaller(this, lookupKeys, requestedCaller)
         Log.i(
             TAG,
@@ -81,12 +88,24 @@ class BeamioTelecomService : ConnectionService() {
         val claimedTag = caller.claimedTag
         val claimedAddress = caller.claimedAddress
         val identityWarning = caller.identityWarning
-        return BeamioConnection(
+        val connection = BeamioConnection(
             this, callId, displayName, peerAddress, sessionId,
             claimedTag, claimedAddress, identityWarning,
             originalCallId = originalCallId,
             incoming = true,
         )
+        if (answeredBeforeTelecom) {
+            // Answer won the race with Telecom. Promote right after Telecom takes
+            // the connection; onShowIncomingCallUi will not show a banner for it.
+            Log.i(TAG, "createConnection for an already answered call; setActive")
+            Handler(Looper.getMainLooper()).post {
+                if (connection.state == Connection.STATE_RINGING) {
+                    runCatching { connection.setActive() }
+                        .onFailure { Log.w(TAG, "setActive after early answer: ${it.message}") }
+                }
+            }
+        }
+        return connection
     }
 
     /**
@@ -1062,6 +1081,35 @@ class BeamioTelecomService : ConnectionService() {
             identityWarning: String = "",
         ) {
             val nativeCallId = sessionId.ifBlank { callId }
+            // A late report (PWA tag refresh, repeat delivery, push) for an offer
+            // that was already answered, declined, cancelled or timed out must
+            // not re-open the banner, re-arm the ring clock or submit a new
+            // Telecom call (that was the "ghost call" with no peer).
+            if (isIncomingClosed(callId, sessionId, nativeCallId)) {
+                val answered = isIncomingAnsweredAny(callId, sessionId, nativeCallId)
+                Log.i(TAG, "reportIncoming skipped; call already " + if (answered) "answered" else "ended")
+                // Answer can beat the PWA's caller fields. Give the call page the
+                // caller now (title only; no incoming window).
+                if (answered && InCallScreenModel.isLive() && InCallScreenModel.matches(nativeCallId, sessionId)) {
+                    val tag = claimedTag.trim().takeIf(::isBeamioTag)
+                        ?: displayName.trim().takeIf(::isBeamioTag).orEmpty()
+                    val address = peerAddress.trim()
+                    if (tag.isNotBlank() || address.isNotBlank()) {
+                        InCallActivity.refreshIdentityIfShowing(nativeCallId, sessionId, tag = tag, address = address)
+                    }
+                    if (tag.isBlank() && address.isNotBlank()) {
+                        scheduleBeamioTagLookup(
+                            context, address, nativeCallId, sessionId,
+                            claimedTag = "", claimedAddress = claimedAddress,
+                            identityWarning = identityWarning,
+                            aliasCallId = callId.trim().takeIf { it != nativeCallId }.orEmpty(),
+                        )
+                    }
+                }
+                IncomingCallActivity.finishIfMatching(callId, sessionId)
+                IncomingCallActivity.finishIfMatching(nativeCallId, sessionId)
+                return
+            }
             // PWA may fire reportIncomingSystemCall twice on the same bridge
             // thread pool (offer + tag refresh). Claim Telecom submit under the
             // same chromeGate lock so we never open TC@N and TC@N+1 for one call.
@@ -1262,9 +1310,7 @@ class BeamioTelecomService : ConnectionService() {
             incomingRingHandler.postDelayed({
                 val hasConn = keys.any { activeConnections.containsKey(it) }
                 if (hasConn) return@postDelayed
-                if (incomingAnswered(originalCallId, sessionId) ||
-                    incomingAnswered(nativeCallId, sessionId)
-                ) {
+                if (isIncomingClosed(originalCallId, nativeCallId, sessionId)) {
                     return@postDelayed
                 }
                 if (productIncomingChromeVisible(app)) return@postDelayed
@@ -1309,8 +1355,8 @@ class BeamioTelecomService : ConnectionService() {
             synchronized(chromeGate) {
                 keys.forEach { submittedIncomingCalls.remove(it) }
             }
-            if (incomingAnswered(callId, sid) || incomingAnswered(nativeId, sid)) {
-                Log.i(TAG, "fallBackIncomingWithoutTelecom skipped; already answered")
+            if (isIncomingClosed(callId, nativeId, sid)) {
+                Log.i(TAG, "fallBackIncomingWithoutTelecom skipped; call already answered or ended")
                 return
             }
             if (productIncomingChromeVisible(app)) {
@@ -1559,6 +1605,59 @@ class BeamioTelecomService : ConnectionService() {
             }
         }
 
+        private fun settledAny(actions: List<String>, ids: Array<out String>): Boolean =
+            ids.map { it.trim() }.filter { it.isNotEmpty() }.distinct().any { id ->
+                actions.any { action -> settledCallActions.contains(settleKey(action, id)) }
+            }
+
+        /**
+         * Answered, declined, cancelled by the caller or timed out. Once true, no
+         * incoming banner, Activity, CallStyle card or Telecom ringing call may be
+         * shown for this offer again, however late the present request arrives.
+         */
+        fun isIncomingClosed(vararg ids: String): Boolean =
+            settledAny(listOf("callAnswered", "callRejected", "callEnded", "callTimedOut"), ids)
+
+        /** Declined, cancelled or timed out before an answer: it cannot be answered any more. */
+        fun isIncomingCancelled(vararg ids: String): Boolean =
+            !settledAny(listOf("callAnswered"), ids) &&
+                settledAny(listOf("callRejected", "callEnded", "callTimedOut"), ids)
+
+        fun isIncomingAnsweredAny(vararg ids: String): Boolean =
+            settledAny(listOf("callAnswered"), ids)
+
+        /**
+         * Answer tapped on a banner for an offer that already ended (caller
+         * cancelled, timed out, declined). Do not accept or open a call: remove
+         * every incoming surface and any Telecom row left for it.
+         */
+        private fun dropAnswerForClosedCall(context: Context, callId: String, sessionId: String) {
+            val ids = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            Log.i(TAG, "Answer ignored; this incoming call already ended — no call is opened")
+            BeamioIncomingRingtone.stop()
+            ids.forEach { IncomingCallActivity.finishIfMatching(it, sessionId) }
+            IncomingCallOverlay.dismissIfShowing()
+            disconnectIncomingFor(ids, DisconnectCause.LOCAL)
+            // A ghost connection someone else already set ACTIVE for this offer.
+            ids.forEach { key ->
+                val conn = activeConnections[key] ?: return@forEach
+                if (!conn.isIncomingCall()) return@forEach
+                runCatching {
+                    conn.setDisconnected(DisconnectCause(DisconnectCause.LOCAL))
+                    conn.destroy()
+                }
+                activeConnections.entries.filter { it.value === conn }.toList()
+                    .forEach { activeConnections.remove(it.key, it.value) }
+            }
+            ids.forEach { cancelIncomingNotifications(context, it, sessionId) }
+            val otherCallOnScreen = InCallScreenModel.isLive() && !InCallScreenModel.matches(callId, sessionId)
+            if (!otherCallOnScreen) {
+                BeamioCallForegroundService.stop(context)
+                InCallActivity.finishIfMatching(callId, sessionId)
+            }
+            releaseChromeOwner(callId, sessionId)
+        }
+
         private fun armIncomingRingTimeout(context: Context, callId: String, sessionId: String) {
             val keys = incomingRingKeys(callId, sessionId)
             if (keys.isEmpty() || incomingRingClock(callId, sessionId) != null) return
@@ -1627,6 +1726,12 @@ class BeamioTelecomService : ConnectionService() {
         ) {
             val endedId = callId.ifBlank { sessionId }
             if (endedId.isBlank()) return
+            // The caller cancelled (or the ring timed out / was declined) before
+            // this Answer: never accept or start a call with no peer.
+            if (action == "callAnswered" && isIncomingCancelled(callId, sessionId, endedId)) {
+                dropAnswerForClosedCall(context, endedId, sessionId)
+                return
+            }
             // Peer signaling BEFORE settle short-circuit (iOS parity).
             // Telecom REJECTED + glass Decline can race: first attempt may lack
             // offer/sessionKey; a second completeIncomingUserAction must still uplink.
@@ -2028,6 +2133,13 @@ class BeamioTelecomService : ConnectionService() {
             aliasCallId: String = "",
         ) {
             if (callId.isBlank() && sessionId.isBlank() && aliasCallId.isBlank()) return
+            if (isIncomingClosed(callId, sessionId, aliasCallId)) {
+                Log.i(TAG, "Skip incoming window; call already answered or ended")
+                if (!isIncomingAnsweredAny(callId, sessionId, aliasCallId)) {
+                    cancelIncomingNotifications(context, callId, sessionId)
+                }
+                return
+            }
             synchronized(chromeGate) {
                 if (wasBusyRejected(callId, sessionId)) return
                 if (anotherCallOwnsChrome(callId, sessionId, aliasCallId)) {

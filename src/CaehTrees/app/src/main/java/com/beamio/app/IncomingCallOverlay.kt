@@ -111,6 +111,15 @@ object IncomingCallOverlay {
     private fun showOnMain(app: Context, launch: Intent) {
         val nextCall = launch.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty().trim()
         val nextSession = launch.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty().trim()
+        // Answer / Decline / caller cancel / timeout can land before a delayed
+        // present (FGS start, Telecom binder, retry timers). Checked here on the
+        // main thread, after any settle that ran first, so a late request never
+        // brings the banner back over the call page.
+        if (BeamioTelecomService.isIncomingClosed(nextCall, nextSession)) {
+            if (isShowing() && matches(nextCall, nextSession)) dismissInternal(reason = "closed")
+            Log.i(TAG, "Overlay glass skipped; call already answered or ended")
+            return
+        }
         if (isShowing()) {
             val same = (nextCall.isNotEmpty() && nextCall == callId) ||
                 (nextSession.isNotEmpty() && nextSession == sessionId)

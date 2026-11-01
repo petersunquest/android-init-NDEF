@@ -115,6 +115,13 @@ object BeamioNativeVoiceChannel {
     @Volatile private var linkTask: java.util.concurrent.ScheduledFuture<*>? = null
     private val listenGen = AtomicInteger(0)
     private val listenAlive = AtomicBoolean(false)
+    /**
+     * The first listen of the call is still being set up (encrypt, pick entry,
+     * HTTP open). It is not "closed": the watchdog must not tear it down and
+     * show Reconnecting… at call start. Cleared when that listen ends.
+     */
+    @Volatile private var firstListenOpeningSince = 0L
+    private const val FIRST_LISTEN_OPEN_GRACE_MS = 8_000L
     private val reconnectInFlight = AtomicBoolean(false)
     @Volatile private var mediaStartedAt = 0L
     @Volatile private var lastRxAt = 0L
@@ -273,7 +280,14 @@ object BeamioNativeVoiceChannel {
             "start role=${active.role} callId=${active.offer.callId.take(12)} listen=${active.listenSessionId.take(12)} peerMedia=${active.peerMediaSessionId.take(12)} media=${active.mediaEnabled}",
         )
         val gen = listenGen.incrementAndGet()
-        io.execute { startVoiceListen(app, active, reconnect = false, gen = gen) }
+        firstListenOpeningSince = System.currentTimeMillis()
+        io.execute {
+            try {
+                startVoiceListen(app, active, reconnect = false, gen = gen)
+            } finally {
+                firstListenOpeningSince = 0L
+            }
+        }
         if (active.mediaEnabled) {
             beginLinkWatch()
             io.execute { startCapture(app, active) }
@@ -478,7 +492,9 @@ object BeamioNativeVoiceChannel {
             return
         }
         val silent = now - mediaStartedAt >= MEDIA_START_GRACE_MS && rxIdle >= RX_STALE_RECONNECT_MS
-        if (listenAlive.get() && !silent) return
+        val firstListenOpening = firstListenOpeningSince != 0L &&
+            now - firstListenOpeningSince < FIRST_LISTEN_OPEN_GRACE_MS
+        if ((listenAlive.get() || firstListenOpening) && !silent) return
         if (!reconnecting) {
             reconnecting = true
             reconnectAttempt = 0
