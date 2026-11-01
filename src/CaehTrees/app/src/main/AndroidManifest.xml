@@ -166,16 +166,6 @@
                 <action android:name="com.beamio.app.action.HANGUP_CALL" />
             </intent-filter>
         </receiver>
-        <!-- exported=true so adb shell can fire background BAL smoke; production FCM path does not use this. -->
-        <receiver
-            android:name="com.beamio.app.BeamioIncomingCallSmokeReceiver"
-            android:exported="true"
-            android:enabled="true">
-            <intent-filter>
-                <action android:name="com.beamio.app.SMOKE_INCOMING_CALL" />
-                <action android:name="com.beamio.app.SMOKE_ANSWER" />
-            </intent-filter>
-        </receiver>
     </application>
 
     <queries>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: release APKs must not ship an exported receiver that
+     lets any app fake an incoming call or an answer. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- exported=true so adb shell can fire the background incoming-call smoke test. -->
+        <receiver
+            android:name="com.beamio.app.BeamioIncomingCallSmokeReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.beamio.app.SMOKE_INCOMING_CALL" />
+                <action android:name="com.beamio.app.SMOKE_ANSWER" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
