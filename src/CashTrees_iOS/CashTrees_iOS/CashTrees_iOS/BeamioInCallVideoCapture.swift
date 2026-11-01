@@ -38,6 +38,19 @@ final class BeamioInCallVideoCapture: NSObject {
 			kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
 		]
 		output.setSampleBufferDelegate(self, queue: sessionQueue)
+		// Device QA has no console: record why the camera stops delivering frames.
+		let nc = NotificationCenter.default
+		nc.addObserver(forName: AVCaptureSession.wasInterruptedNotification, object: session, queue: nil) { note in
+			let reason = (note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? Int) ?? -1
+			BeamioNativeVoiceSignaling.qaTrail("video capture interrupted reason=\(reason)")
+		}
+		nc.addObserver(forName: AVCaptureSession.interruptionEndedNotification, object: session, queue: nil) { _ in
+			BeamioNativeVoiceSignaling.qaTrail("video capture interruption ended")
+		}
+		nc.addObserver(forName: AVCaptureSession.runtimeErrorNotification, object: session, queue: nil) { note in
+			let err = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+			BeamioNativeVoiceSignaling.qaTrail("video capture runtime error \(err?.code ?? 0)")
+		}
 	}
 
 	func isRunning() -> Bool { running }

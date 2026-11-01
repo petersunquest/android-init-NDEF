@@ -1515,7 +1515,11 @@ final class BeamioNativeVoiceChannel: NSObject {
 
 	/// One `[VideoStats]` line per diagnostics tick while video moves. Runs on `queue`.
 	private func flushVideoStatsLocked() {
-		let enc = BeamioInCallVideoCapture.shared.takeEncodeStats()
+		// Touch the capture object only after video was used: `.shared` builds an
+		// AVCaptureSession, which a voice-only call must not create.
+		let enc = BeamioInCallVideoCapture.instantiated
+			? BeamioInCallVideoCapture.shared.takeEncodeStats()
+			: (count: 0, sumMs: 0, maxMs: 0)
 		if enc.count > 0 {
 			stats.update {
 				$0.capEncodeN += enc.count
