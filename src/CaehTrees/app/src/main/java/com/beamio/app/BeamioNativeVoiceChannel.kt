@@ -132,6 +132,21 @@ object BeamioNativeVoiceChannel {
     private val uplinkSeq = AtomicInteger(1)
     private val uplinkInFlight = AtomicBoolean(false)
     private val uplinkPostOk = AtomicInteger(0)
+
+    /** Per-call audio uplink tally, [0] = v1 frames, [1] = v2 chunks (bytes on the wire, timing). */
+    private class WireTally {
+        var n = 0
+        var fail = 0
+        var bytes = 0L
+        var encMs = 0L
+        var postMs = 0L
+        var postMax = 0L
+        fun line(): String {
+            val d = n.coerceAtLeast(1)
+            return "n=$n fail=$fail avgB=${bytes / d} encAvg=${encMs / d}ms postAvg=${postMs / d}ms postMax=${postMax}ms"
+        }
+    }
+    private val audioTally = arrayOf(WireTally(), WireTally())
     private val uplinkDrop = AtomicInteger(0)
     private val activeRef = AtomicReference<BeamioNativeVoiceSignaling.ActiveCall?>(null)
     private val appCtx = AtomicReference<Context?>(null)
@@ -282,6 +297,7 @@ object BeamioNativeVoiceChannel {
         uplinkInFlight.set(false)
         uplinkPostOk.set(0)
         uplinkDrop.set(0)
+        synchronized(audioTally) { audioTally[0] = WireTally(); audioTally[1] = WireTally() }
         synchronized(pcmPendingLock) { pcmPending = ByteArray(0) }
         resetRxJitter()
         resetVideoState()
@@ -383,6 +399,9 @@ object BeamioNativeVoiceChannel {
             TAG,
             "stopped uplinkOk=${uplinkPostOk.get()} uplinkDrop=${uplinkDrop.get()} lastSeq=${uplinkSeq.get()}",
         )
+        synchronized(audioTally) {
+            Log.i(TAG, "audio wire v1 ${audioTally[0].line()} | v2 ${audioTally[1].line()}")
+        }
     }
 
     /**
@@ -2075,6 +2094,15 @@ object BeamioNativeVoiceChannel {
                     val ok = entryIp != null && postDirect(armor, entryIp)
                     val postMs = System.currentTimeMillis() - postStarted
                     if (usedV2) noteV2Outcome(ok, lastPostError.get().orEmpty())
+                    if (isAudio) synchronized(audioTally) {
+                        val t = audioTally[if (usedV2) 1 else 0]
+                        t.n += 1
+                        if (!ok) t.fail += 1
+                        t.bytes += armor.length
+                        t.encMs += encMs
+                        t.postMs += postMs
+                        t.postMax = maxOf(t.postMax, postMs)
+                    }
                     if (isVideo) {
                         stats.update {
                             if (ok) it.txOk += 1 else it.txFail += 1

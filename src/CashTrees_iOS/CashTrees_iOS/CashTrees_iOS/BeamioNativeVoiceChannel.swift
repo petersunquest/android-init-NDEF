@@ -166,6 +166,15 @@ final class BeamioNativeVoiceChannel: NSObject {
 	private var uplinkRoute: UplinkRoute?
 	private var uplinkRouteResolving = false
 	private var uplinkInFlight = 0
+	/// Per-call audio uplink tally, [0] = v1 frames, [1] = v2 chunks (bytes on the wire, timing). On `queue`.
+	private struct WireTally {
+		var n = 0, fail = 0, bytes = 0, encMs = 0, postMs = 0, postMax = 0
+		var line: String {
+			let d = max(n, 1)
+			return "n=\(n) fail=\(fail) avgB=\(bytes / d) encAvg=\(encMs / d)ms postAvg=\(postMs / d)ms postMax=\(postMax)ms"
+		}
+	}
+	private var audioTally = [WireTally(), WireTally()]
 	private var uplinkFailStreak = 0
 	private var uplinkLogged = 0
 	private let uplinkPostQueue = DispatchQueue(
@@ -312,6 +321,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		v2PausedUntil = .distantPast
 		v2TxChunks = 0
 		v2RxChunks = 0
+		audioTally = [WireTally(), WireTally()]
 		DispatchQueue.main.async { self.videoShownCaptureMs = 0 }
 		stats.reset()
 		statsLastFlush = Date()
@@ -632,6 +642,9 @@ final class BeamioNativeVoiceChannel: NSObject {
 		listenEntryIp = nil
 		listenStartedAt = nil
 		active = nil
+		if audioTally[0].n + audioTally[1].n > 0 {
+			BeamioQALog.write("audio wire v1 \(audioTally[0].line) | v2 \(audioTally[1].line)")
+		}
 		resetMediaStateLocked()
 		if listenSessionId.count >= 16 {
 			postVoiceUnlistenLocked(sessionId: listenSessionId, relay: relayWake)
@@ -2023,6 +2036,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 		framed.append(pcm)
 		guard let entryIp = route.entries.next() else { return }
 		uplinkInFlight += 1
+		let encStarted = Date()
 		buildUplinkArmorLocked(
 			active: active, route: route, plain: framed, kind: .audio,
 			seq: seq, captureMs: Int64(Date().timeIntervalSince1970 * 1000)
@@ -2033,6 +2047,7 @@ final class BeamioNativeVoiceChannel: NSObject {
 				return
 			}
 			let wireBytes = armor.utf8.count
+			let encMs = Int(Date().timeIntervalSince(encStarted) * 1000)
 			self.stats.update {
 				$0.audioTx += 1
 				$0.audioTxWireBytes += wireBytes
@@ -2042,6 +2057,13 @@ final class BeamioNativeVoiceChannel: NSObject {
 				let outcome = Self.postDirect(armor: armor, ip: entryIp)
 				self.noteEntryOutcome(outcome, ip: entryIp, route: route)
 				self.queue.async {
+					let i = usedV2 ? 1 : 0
+					self.audioTally[i].n += 1
+					if !outcome.ok { self.audioTally[i].fail += 1 }
+					self.audioTally[i].bytes += wireBytes
+					self.audioTally[i].encMs += encMs
+					self.audioTally[i].postMs += outcome.ms
+					self.audioTally[i].postMax = max(self.audioTally[i].postMax, outcome.ms)
 					self.uplinkInFlight = max(0, self.uplinkInFlight - 1)
 					self.noteV2OutcomeLocked(outcome, usedV2: usedV2)
 					self.finishUplink(outcome, ip: entryIp)
