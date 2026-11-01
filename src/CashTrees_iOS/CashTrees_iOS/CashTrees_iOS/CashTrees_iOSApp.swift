@@ -107,6 +107,11 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        // "@tag turned on video" during a call → Beamio call screen.
+        if BeamioPeerVideoNotice.handleTap(userInfo: response.notification.request.content.userInfo) {
+            completionHandler()
+            return
+        }
         CashTreesPushRegistration.postIncomingVoiceCallIfPresent(
             from: response.notification.request.content.userInfo
         )

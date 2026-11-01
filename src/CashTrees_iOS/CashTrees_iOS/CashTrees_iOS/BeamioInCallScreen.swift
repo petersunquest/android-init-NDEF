@@ -241,6 +241,9 @@ final class BeamioInCallScreenModel: ObservableObject {
 						guard let self, self.live else { return }
 						self.remoteVideoImage = image
 						self.remoteVideoOn = true
+						// Frames also count (peers that skip or send the enable
+						// control once); the notice dedups per call.
+						BeamioPeerVideoNotice.peerVideoChanged(enabled: true)
 					}
 				},
 				onPeerEnabled: { [weak self] enabled in
@@ -250,6 +253,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 						if !enabled {
 							self.remoteVideoImage = nil
 						}
+						BeamioPeerVideoNotice.peerVideoChanged(enabled: enabled)
 					}
 				}
 			)
@@ -533,6 +537,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		}
 		stopLocalVideo(emitBridge: true, sendControl: false)
 		BeamioNativeVoiceChannel.shared.setRemoteVideoHandlers(onFrame: nil, onPeerEnabled: nil)
+		BeamioPeerVideoNotice.callEnded()
 		live = false
 		presented = false
 		connected = true
