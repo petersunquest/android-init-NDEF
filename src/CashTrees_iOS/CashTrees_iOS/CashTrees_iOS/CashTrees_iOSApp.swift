@@ -22,6 +22,8 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         BeamioOpenPgpHost.diagnostics = { BeamioQALog.write("pgp-host \($0)") }
         #endif
         BeamioVoipIncomingBootstrap.shared.start()
+        // A dial that was still ringing when the app last died: cancel it now.
+        BeamioNativeVoiceSignaling.recoverDialAfterRelaunch()
         BeamioGuardianRoster.kick()
         UNUserNotificationCenter.current().delegate = self
         // Re-register if we already have a bound identity (cold start after prior grant).
