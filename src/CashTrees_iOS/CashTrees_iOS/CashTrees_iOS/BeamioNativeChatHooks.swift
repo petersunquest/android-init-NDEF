@@ -21,6 +21,13 @@ enum BeamioNativeChatHooks {
 	private final class CallEndDelegate: NSObject, CXCallObserverDelegate {
 		func callObserver(_ callObserver: CXCallObserver, callChanged call: CXCall) {
 			if call.hasEnded { BeamioConetChatModule.release(reason: "callEnded") }
+			// Warm entries stay ready while any call rings, dials or is up.
+			if callObserver.calls.contains(where: { !$0.hasEnded }) {
+				BeamioEntryPool.shared.hold("call")
+			} else {
+				BeamioEntryPool.shared.release("call")
+				BeamioEntryPool.shared.release("incomingCall")
+			}
 		}
 	}
 
@@ -28,6 +35,8 @@ enum BeamioNativeChatHooks {
 	static func install() {
 		guard !installed else { return }
 		installed = true
+		// Start the SDK's warm entry pool (foreground / hold driven).
+		_ = BeamioEntryPool.shared
 		callObserver.setDelegate(callDelegate, queue: .main)
 		BeamioConetChatModule.keepListenWhile = {
 			callObserver.calls.contains { !$0.hasEnded }
@@ -43,6 +52,10 @@ enum BeamioNativeChatHooks {
 	/// VoIP ring: open the mailbox listen now, page or not. Main queue.
 	static func wakeForCallPush() {
 		install()
+		// Warm entries from the cached node table now; the chain check runs alongside.
+		BeamioEntryPool.shared.hold("incomingCall")
+		BeamioEntryPool.shared.warmNow()
+		BeamioGuardianNodeWatch.shared.kick()
 		let started = BeamioConetChatModule.wake(reason: "incomingCall")
 		BeamioNativeVoiceSignaling.qaTrail("chat listen for call push started=\(started)")
 	}

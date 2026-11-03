@@ -3,6 +3,8 @@ package com.beamio.app
 import android.content.Context
 import android.util.Log
 import network.conet.chat.BeamioConetChatModule
+import network.conet.chat.BeamioEntryPool
+import network.conet.chat.BeamioGuardianNodeWatch
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -26,6 +28,9 @@ object BeamioNativeChatHooks {
         if (!installed.compareAndSet(false, true)) return
         val app = context.applicationContext
         BeamioConetChatModule.keepListenWhile = { BeamioTelecomService.isCallInProgress() }
+        // Warm entries stay ready while a call rings, dials or is up.
+        BeamioEntryPool.attach(app)
+        BeamioEntryPool.holdWhile = { BeamioTelecomService.isCallInProgress() }
         BeamioConetChatModule.callControlObserver = { type, callId, sessionId, from ->
             onPeerCallControl(app, type, callId, sessionId, from)
         }
@@ -35,6 +40,10 @@ object BeamioNativeChatHooks {
     /** FCM call wake: open the mailbox listen now, page or not. */
     fun wakeForCallPush(context: Context) {
         install(context)
+        // Warm entries from the cached node table now; the chain check runs alongside.
+        BeamioEntryPool.hold("incomingCall")
+        BeamioEntryPool.warmNow()
+        BeamioGuardianNodeWatch.kick(context)
         val started = BeamioConetChatModule.wake(context.applicationContext, "incomingCall")
         Log.i(TAG, "chat listen for call push started=$started")
     }

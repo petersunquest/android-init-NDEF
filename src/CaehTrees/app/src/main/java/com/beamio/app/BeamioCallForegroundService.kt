@@ -550,6 +550,7 @@ class BeamioCallForegroundService : Service() {
         fun stop(context: Context) {
             // Call over: the chat listen may take its owed background pause now.
             network.conet.chat.BeamioConetChatModule.release("callEnded")
+            network.conet.chat.BeamioEntryPool.release("incomingCall")
             val live = instance
             if (live != null) {
                 live.removeCallForeground()
