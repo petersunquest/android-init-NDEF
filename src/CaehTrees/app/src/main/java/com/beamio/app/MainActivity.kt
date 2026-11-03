@@ -1740,11 +1740,14 @@ class MainActivity : ComponentActivity() {
                     }
                     val mailbox = BeamioChatPgpStore.loadMailboxIp(this@MainActivity)
                     if (mailbox.isNotBlank()) exclude.add(mailbox)
+                    BeamioCallTiming.mark("post-pgp-start")
+                    val postStarted = System.currentTimeMillis()
                     val result = BeamioSiCipherPost.post(
                         armor,
                         BeamioChatPgpStore.loadSiNodes(this@MainActivity),
                         exclude,
                     )
+                    BeamioCallTiming.mark("post-pgp-end", "ms=${System.currentTimeMillis() - postStarted} ok=${if (result.ok) 1 else 0}")
                     runOnUiThread {
                         dispatchAndroidBridgeJsonToWeb(
                             JSONObject()

@@ -1702,6 +1702,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let armor = (body["data"] as? String) ?? ""
             let excludeRaw = body["excludeIps"] as? [Any] ?? []
             let exclude = Set(excludeRaw.compactMap { $0 as? String })
+            BeamioCallTiming.mark("post-pgp-start")
+            let postStarted = BeamioCallTiming.nowMs()
             DispatchQueue.global(qos: .utility).async { [weak self] in
                 var blocked = exclude
                 let mailbox = BeamioChatPgpKeychain.loadMailboxIp()
@@ -1711,6 +1713,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     nodes: BeamioChatPgpKeychain.loadSiNodes(),
                     excludeIps: blocked
                 )
+                BeamioCallTiming.mark("post-pgp-end", "ms=\(BeamioCallTiming.nowMs() - postStarted) ok=\(result.ok ? 1 : 0)")
                 DispatchQueue.main.async {
                     self?.dispatchIOSBridgeJsonToWeb([
                         "action": "postPgpCiphertext",
