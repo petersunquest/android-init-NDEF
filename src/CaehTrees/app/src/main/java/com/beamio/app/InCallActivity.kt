@@ -562,6 +562,7 @@ class InCallActivity : ComponentActivity() {
     private fun bindTimer() {
         val override = when {
             InCallScreenModel.isConnectionLost() -> getString(R.string.in_call_connection_lost)
+            InCallScreenModel.isUnreachable() -> getString(R.string.in_call_unreachable)
             InCallScreenModel.isReconnecting() && InCallScreenModel.isConnected() ->
                 getString(R.string.in_call_reconnecting)
             else -> null
@@ -572,14 +573,24 @@ class InCallActivity : ComponentActivity() {
             return
         }
         if (!InCallScreenModel.isConnected()) {
+            val prepared = InCallScreenModel.isPrepared()
+            val wake = if (prepared) InCallScreenModel.PeerWake.WAITING else InCallScreenModel.peerWake()
             val calling = InCallScreenModel.prepareError().ifEmpty {
                 getString(
-                    if (InCallScreenModel.isPrepared()) R.string.in_call_connecting
-                    else R.string.in_call_calling,
+                    when {
+                        prepared -> R.string.in_call_connecting
+                        wake == InCallScreenModel.PeerWake.RINGING -> R.string.in_call_ringing
+                        wake == InCallScreenModel.PeerWake.RESTRICTED -> R.string.in_call_peer_unreachable
+                        else -> R.string.in_call_calling
+                    },
                 )
             }
+            // The collapsed bar has one short line: keep "Calling…" there.
+            val collapsed = if (wake == InCallScreenModel.PeerWake.RESTRICTED &&
+                InCallScreenModel.prepareError().isEmpty()
+            ) getString(R.string.in_call_calling) else calling
             findViewById<TextView>(R.id.in_call_timer)?.text = calling
-            findViewById<TextView>(R.id.in_call_collapsed_timer)?.text = calling
+            findViewById<TextView>(R.id.in_call_collapsed_timer)?.text = collapsed
             return
         }
         val answeredAt = InCallScreenModel.snapshot().answeredAtMs

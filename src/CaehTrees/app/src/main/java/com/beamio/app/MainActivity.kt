@@ -1503,6 +1503,8 @@ class MainActivity : ComponentActivity() {
                         callerRouteArmored = BeamioVoiceOfferIdentity.decodeArmor(body.optString("callerRoute", "")),
                     )
                     BeamioNativeVoiceSignaling.rememberOffer(pageOffer)
+                    // The page reports only offers that still ring: wake receipt to the caller.
+                    BeamioNativeVoiceSignaling.sendRingingIfNeeded(applicationContext, pageOffer)
                 }
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,

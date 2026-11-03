@@ -1571,6 +1571,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     callerRouteArmored: BeamioVoiceOfferIdentity.Resolved.decodeArmor(body["callerRoute"] as? String ?? "")
                 )
                 BeamioNativeVoiceSignaling.rememberOffer(pageOffer)
+                // The page reports only offers that still ring: wake receipt to the caller.
+                BeamioNativeVoiceSignaling.sendRingingIfNeeded(pageOffer)
             }
             DispatchQueue.main.async {
                 BeamioVoipIncomingBootstrap.shared.reportIncomingCallKit(

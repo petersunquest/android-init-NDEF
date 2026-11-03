@@ -47,6 +47,20 @@ final class BeamioInCallScreenModel: ObservableObject {
 	/// The PWA could not place a prepared dial; shown in place of the status.
 	@Published private(set) var prepareError = ""
 
+	/// Dialer wake receipt: `.ringing` once the callee's device sends
+	/// `voice_call_ringing_v1`, `.restricted` after 8 s without one (the call
+	/// keeps ringing). Five rings without one end the call: `showUnreachable`.
+	enum PeerWake { case waiting, ringing, restricted }
+	@Published private(set) var peerWake: PeerWake = .waiting
+
+	/// Main thread. Only for the dial on screen, and only before Accept.
+	func notePeerWake(callId: String, _ wake: PeerWake) {
+		guard !connected, !callId.isEmpty, self.callId == callId else { return }
+		// A receipt that arrives late still wins over the 8 s notice.
+		if wake == .restricted && peerWake != .waiting { return }
+		if peerWake != wake { peerWake = wake }
+	}
+
 	/// The media link dropped mid-call and the shell is reopening it.
 	@Published private(set) var reconnecting = false
 	/// Shown for a moment before the screen closes on a lost connection.
@@ -57,6 +71,13 @@ final class BeamioInCallScreenModel: ObservableObject {
 		if !endNotice.isEmpty { return endNotice }
 		if reconnecting && connected { return "Reconnecting…" }
 		return nil
+	}
+
+	/// No ringing receipt after five rings: the callee's phone never got the
+	/// call. Say so until the screen closes (main thread).
+	func showUnreachable(callId: String) {
+		guard live, !connected, callId.isEmpty || self.callId.isEmpty || self.callId == callId else { return }
+		endNotice = "Unreachable"
 	}
 
 	func setReconnecting(_ on: Bool) {
@@ -87,7 +108,17 @@ final class BeamioInCallScreenModel: ObservableObject {
 	/// builds the offer, "Calling…" once the callee is being rung.
 	var pendingLabel: String {
 		if !prepareError.isEmpty { return prepareError }
-		return isPrepared ? "Connecting…" : "Calling…"
+		if isPrepared { return "Connecting…" }
+		switch peerWake {
+		case .ringing: return "Ringing…"
+		case .restricted: return "Their phone may be restricting Beamio"
+		case .waiting: return "Calling…"
+		}
+	}
+
+	/// One-line status for the return pill and the collapsed bar.
+	var pendingShortLabel: String {
+		peerWake == .restricted && prepareError.isEmpty && !isPrepared ? "Calling…" : pendingLabel
 	}
 
 	private var surfaceRetryWorkItems: [DispatchWorkItem] = []
@@ -116,7 +147,10 @@ final class BeamioInCallScreenModel: ObservableObject {
 			&& self.address.caseInsensitiveCompare(address) == .orderedSame) ? tag : ""
 		preparedId = ""
 		begin(callId: callId, sessionId: sessionId, tag: preparedTag, address: address, foregroundDial: true)
-		if !sameLiveCall { connected = false }
+		if !sameLiveCall {
+			connected = false
+			peerWake = .waiting
+		}
 		lookUpTag(for: address)
 	}
 
@@ -133,6 +167,7 @@ final class BeamioInCallScreenModel: ObservableObject {
 		}
 		begin(callId: "", sessionId: "", tag: "", address: address, foregroundDial: true)
 		connected = false
+		peerWake = .waiting
 		prepareError = ""
 		preparedId = prepareId
 		NSLog("[BeamioInCall] incall-prepared")
@@ -748,7 +783,7 @@ struct BeamioInCallReturnPill: View {
 							.font(.system(size: 13, weight: .bold))
 						TimelineView(.periodic(from: .now, by: 1)) { context in
 							let total = max(0, Int(context.date.timeIntervalSince(model.answeredAt)))
-							Text(model.statusOverride ?? (model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : model.pendingLabel))
+							Text(model.statusOverride ?? (model.connected ? String(format: "%02d:%02d", (total % 3600) / 60, total % 60) : model.pendingShortLabel))
 								.font(.system(size: 14, weight: .semibold, design: .monospaced))
 						}
 						Text("Return to call")
@@ -922,7 +957,7 @@ struct BeamioInCallScreen: View {
 						.foregroundStyle(.white)
 						.lineLimit(1)
 					TimelineView(.periodic(from: .now, by: 1)) { context in
-						Text(model.statusOverride ?? (model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel))
+						Text(model.statusOverride ?? (model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingShortLabel))
 							.font(.system(size: 15, weight: .medium).monospacedDigit())
 							.foregroundStyle(Color.white.opacity(0.75))
 					}
@@ -975,6 +1010,8 @@ struct BeamioInCallScreen: View {
 					Text(model.statusOverride ?? (model.connected ? Self.clock(context.date.timeIntervalSince(model.answeredAt)) : model.pendingLabel))
 						.font(.system(size: 18, weight: .regular).monospacedDigit())
 						.foregroundStyle(Color.white.opacity(0.7))
+						.multilineTextAlignment(.center)
+						.padding(.horizontal, 28)
 				}
 				if let err = model.videoError, !err.isEmpty {
 					Text(err)

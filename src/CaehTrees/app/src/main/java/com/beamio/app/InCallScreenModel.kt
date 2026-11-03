@@ -39,6 +39,27 @@ object InCallScreenModel {
     fun isConnected(): Boolean = connectedFlag.get()
 
     /**
+     * Dialer wake receipt: RINGING once the callee's device sends
+     * `voice_call_ringing_v1`, RESTRICTED after 8 s without one (the call keeps
+     * ringing). Five rings without one end the call: [showUnreachable].
+     */
+    enum class PeerWake { WAITING, RINGING, RESTRICTED }
+
+    private val peerWake = AtomicReference(PeerWake.WAITING)
+
+    fun peerWake(): PeerWake = peerWake.get()
+
+    /** Only for the dial on screen, and only before Accept. A late receipt still wins over the 8 s notice. */
+    fun notePeerWake(callId: String, wake: PeerWake) {
+        if (connectedFlag.get() || callId.isBlank() || state.get().callId != callId) return
+        if (wake == PeerWake.RESTRICTED) {
+            peerWake.compareAndSet(PeerWake.WAITING, PeerWake.RESTRICTED)
+        } else {
+            peerWake.set(wake)
+        }
+    }
+
+    /**
      * Dialer inside the native shell: show the call screen as soon as the call
      * is placed ("Calling…"); [markConnected] starts the timer on Accept.
      */
@@ -54,6 +75,7 @@ object InCallScreenModel {
         begin(callId, sessionId, tag = preparedTag, address = address, presentImmediately = true)
         if (!sameLiveCall) {
             connectedFlag.set(false)
+            peerWake.set(PeerWake.WAITING)
             BeamioCallTonePlayer.resetForNewDial()
         }
     }
@@ -73,6 +95,20 @@ object InCallScreenModel {
 
     fun isReconnecting(): Boolean = reconnectingFlag.get()
     fun isConnectionLost(): Boolean = connectionLostFlag.get()
+
+    /** No ringing receipt after five rings: shown until the screen closes. */
+    private val unreachableFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun isUnreachable(): Boolean = unreachableFlag.get()
+
+    /** Main thread. Only for the dial on screen, before it connects. */
+    fun showUnreachable(callId: String) {
+        val snapshot = state.get()
+        if (!liveFlag.get() || isConnected()) return
+        if (callId.isNotBlank() && snapshot.callId.isNotBlank() && snapshot.callId != callId) return
+        unreachableFlag.set(true)
+        InCallActivity.refreshStateIfShowing()
+    }
 
     fun setReconnecting(on: Boolean) {
         if (on && !liveFlag.get()) return
@@ -111,6 +147,7 @@ object InCallScreenModel {
         // begin() keeps old ids when the new ones are blank; a prepared screen has none.
         state.set(state.get().copy(callId = "", sessionId = ""))
         connectedFlag.set(false)
+        peerWake.set(PeerWake.WAITING)
         prepareError.set("")
         BeamioCallTonePlayer.resetForNewDial()
         preparedId.set(prepareId.trim())
@@ -230,6 +267,7 @@ object InCallScreenModel {
             connectedFlag.set(true)
             reconnectingFlag.set(false)
             connectionLostFlag.set(false)
+            unreachableFlag.set(false)
             mutedFlag.set(false)
             speakerFlag.set(false)
             BeamioNativeVoiceChannel.setCaptureMuted(false)
@@ -306,6 +344,7 @@ object InCallScreenModel {
         prepareError.set("")
         reconnectingFlag.set(false)
         connectionLostFlag.set(false)
+        unreachableFlag.set(false)
         BeamioCallTonePlayer.stopRingback("ended")
         BeamioCallTonePlayer.resetForNewDial()
         mutedFlag.set(false)

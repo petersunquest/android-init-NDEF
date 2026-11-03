@@ -189,6 +189,8 @@ object BeamioVoiceOfferIdentity {
                 identity = resolved
                 if (resolved.answerable) {
                     BeamioNativeVoiceSignaling.rememberOffer(resolved)
+                    // The push already rang this device: wake receipt to the caller.
+                    BeamioNativeVoiceSignaling.sendRingingIfNeeded(app, resolved)
                 }
                 Log.i(
                     TAG,

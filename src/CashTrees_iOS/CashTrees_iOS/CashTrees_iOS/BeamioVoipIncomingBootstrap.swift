@@ -6496,6 +6496,8 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		   hit.answerable
 		{
 			NSLog("[BeamioVoip] offer cache hit callId=%@", callId)
+			// CallKit is ringing: tell the caller (wake receipt, once per call).
+			BeamioNativeVoiceSignaling.sendRingingIfNeeded(hit)
 			if !hit.beamioTag.isEmpty || !hit.shortAddress.isEmpty {
 				DispatchQueue.main.async { [weak self] in
 					self?.callKit.updateVerifiedIdentity(
@@ -6520,6 +6522,7 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 				}
 				if resolved.answerable {
 					BeamioNativeVoiceSignaling.rememberOffer(resolved)
+					BeamioNativeVoiceSignaling.sendRingingIfNeeded(resolved)
 				}
 				NSLog(
 					"[BeamioVoip] offer prefetch OK pushCallId=%@ offerCallId=%@ tag=%@ answerable=%@",
@@ -6556,6 +6559,7 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			}
 			if resolved.answerable {
 				BeamioNativeVoiceSignaling.rememberOffer(resolved)
+				BeamioNativeVoiceSignaling.sendRingingIfNeeded(resolved)
 			}
 			let hasLabel =
 				BeamioIncomingCallPayload.normalizedBeamioTag(resolved.beamioTag) != nil
