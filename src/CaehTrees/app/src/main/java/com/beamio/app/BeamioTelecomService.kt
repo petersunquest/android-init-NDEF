@@ -297,6 +297,18 @@ class BeamioTelecomService : ConnectionService() {
             disconnectAcknowledged = true
         }
 
+        /**
+         * Volume or power key while ringing (Android 10+): Telecom asks a
+         * self-managed app to silence its own ringer, as the system does for
+         * carrier calls. Stop this call's ringtone and vibration; the call keeps
+         * ringing on screen and can still be answered or declined.
+         */
+        override fun onSilence() {
+            if (!incoming || state != STATE_RINGING) return
+            Log.i(TAG, "Ringer silenced by the system (volume / power key)")
+            BeamioIncomingRingtone.silence(listOf(callId, sessionId, originalCallId), "silenced by key")
+        }
+
         override fun onAnswer() {
             completeIncomingUserAction(context, "callAnswered", callId, sessionId, fromTelecom = true)
         }

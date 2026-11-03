@@ -53,6 +53,17 @@ class BeamioRingPolicyTest {
     }
 
     @Test
+    fun silencedCallDoesNotRingAgainButTheNextCallDoes() {
+        // Volume / power key while ringing (Telecom onSilence): this call is latched silent.
+        val silenced = BeamioRingPolicy.callKeys(listOf("call-1", "sess-1", "orig-1"))
+        // A later arm of the same call (re-post, hidden-overlay fallback) uses any of its ids.
+        assertTrue(BeamioRingPolicy.sameCall(silenced, listOf("primary-key", "call-1")))
+        assertTrue(BeamioRingPolicy.sameCall(silenced, listOf("orig-1")))
+        // The next call rings normally.
+        assertFalse(BeamioRingPolicy.sameCall(silenced, listOf("call-2", "sess-2")))
+    }
+
+    @Test
     fun stopMatchesOnlyTheRingingCall() {
         val ringing = BeamioRingPolicy.callKeys(listOf("primary-key", "call-1", "sess-1"))
         // Answer / decline / timeout / caller cancel of this call, by any of its ids.

@@ -42,6 +42,8 @@ internal object BeamioIncomingRingtone {
     private var modeReceiver: BroadcastReceiver? = null
     /** Ids of the call that rings now; empty when nothing rings. */
     private var ringingKeys: Set<String> = emptySet()
+    /** Ids of a call the user silenced (volume / power key): it must not ring again. */
+    private var silencedKeys: Set<String> = emptySet()
 
     /**
      * Ring for one call. [ids] are its call id, session id and aliases.
@@ -66,6 +68,22 @@ internal object BeamioIncomingRingtone {
         }
     }
 
+    /**
+     * The user silenced this call's ringer (volume / power key, Telecom onSilence).
+     * Stops sound and vibration and keeps them off for this call, even if a later
+     * arm (re-post, hidden overlay fallback) asks to start again.
+     */
+    fun silence(ids: Collection<String>, reason: String) {
+        val keys = BeamioRingPolicy.callKeys(ids)
+        if (keys.isEmpty()) return
+        main.post {
+            synchronized(lock) {
+                silencedKeys = keys + if (BeamioRingPolicy.sameCall(ringingKeys, keys)) ringingKeys else emptySet()
+                if (BeamioRingPolicy.sameCall(ringingKeys, keys)) stopLocked(reason)
+            }
+        }
+    }
+
     /** Stop whatever rings. */
     fun stop(reason: String = "stop") {
         main.post { synchronized(lock) { stopLocked(reason) } }
@@ -75,6 +93,10 @@ internal object BeamioIncomingRingtone {
         synchronized(lock) {
             if (!runCatching(stillRinging).getOrDefault(false)) {
                 Log.i(TAG, "System ringtone not started; call already closed or muted")
+                return
+            }
+            if (BeamioRingPolicy.sameCall(silencedKeys, keys)) {
+                Log.i(TAG, "System ringtone not started; this call was silenced")
                 return
             }
             if (BeamioRingPolicy.sameCall(ringingKeys, keys)) {
