@@ -1537,6 +1537,7 @@ class BeamioTelecomService : ConnectionService() {
          */
         fun silenceIncomingWindow(context: Context, callId: String, sessionId: String) {
             incomingRingKeys(callId, sessionId).forEach { mutedIncomingKeys.add(it) }
+            BeamioIncomingRingtone.stopFor(listOf(callId, sessionId), "muted")
             Log.i(TAG, "Incoming window muted callIdPresent=${callId.isNotBlank()} sessionIdPresent=${sessionId.isNotBlank()}")
             if (callId.isNotBlank() || sessionId.isNotBlank()) {
                 BeamioCallForegroundService.holdMutedIncoming(context, callId, sessionId)
@@ -1587,8 +1588,16 @@ class BeamioTelecomService : ConnectionService() {
          * CallStyle heads-up is the system entry when glass BAL-fails; once
          * [IncomingCallActivity] is visible, demote to a quiet FGS keep-alive
          * so Samsung does not leave a second Decline/Answer card over glass.
+         *
+         * v16 (RC3d): channel sound and vibration off. The ringtone comes only
+         * from [BeamioIncomingRingtone], which also rings when glass/overlay is
+         * up and the shade card is the silent keep-alive (v15 rang only with
+         * CallStyle, so an unlocked phone never rang). If Samsung skips the
+         * lock-screen full-screen intent on this silent channel (the v14 note
+         * above), go back to a sounding channel and ring from the player only
+         * in the quiet keep-alive case.
          */
-        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls_v15"
+        private const val INCOMING_CALL_CHANNEL_ID = "beamio_incoming_calls_v16"
         /** Silent FGS keep-alive while glass / overlay is the product UI. Never HUN. */
         private const val GLASS_KEEPALIVE_CHANNEL_ID = "beamio_glass_keepalive_v1"
         private const val NOTIFICATION_ALIAS_PREFS = "beamio_call_notification_keys"
@@ -1797,7 +1806,7 @@ class BeamioTelecomService : ConnectionService() {
         private fun dropAnswerForClosedCall(context: Context, callId: String, sessionId: String) {
             val ids = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
             Log.i(TAG, "Answer ignored; this incoming call already ended — no call is opened")
-            BeamioIncomingRingtone.stop()
+            BeamioIncomingRingtone.stopFor(ids, "answer on closed call")
             ids.forEach { IncomingCallActivity.finishIfMatching(it, sessionId) }
             IncomingCallOverlay.dismissIfShowing()
             disconnectIncomingFor(ids, DisconnectCause.LOCAL)
@@ -2027,6 +2036,7 @@ class BeamioTelecomService : ConnectionService() {
                 // A repeat terminal action must still leave no Telecom call behind:
                 // the first settle can run before the Connection exists.
                 if (action == "callEnded" || action == "callTimedOut" || action == "callRejected") {
+                    BeamioIncomingRingtone.stopFor(listOf(callId, endedId, sessionId), action)
                     disconnectIncomingFor(
                         listOf(callId, endedId, sessionId),
                         when (action) {
@@ -2072,6 +2082,8 @@ class BeamioTelecomService : ConnectionService() {
             }
 
             cancelIncomingRingTimeout(endedId, sessionId)
+            // Answer, decline, timeout, caller cancel, busy: stop this call's ring.
+            BeamioIncomingRingtone.stopFor(listOf(callId, endedId, sessionId), action)
             val answeredCaller = if (action == "callAnswered") {
                 resolvePendingCaller(
                     context,
@@ -2741,7 +2753,12 @@ class BeamioTelecomService : ConnectionService() {
                 // Cancel any leftover CallStyle ids from a prior arm / wrong alias.
                 cancelActiveCallStyleNotifications(context, keepId = postedId)
             }
-            // Channel v15 plays the ringtone; avoid MediaPlayer double-ring.
+            // Ringtone for both the lock-screen CallStyle and the unlocked
+            // glass/overlay (quiet keep-alive) cases. Channel v16 is silent.
+            BeamioIncomingRingtone.start(context, ringKeys) {
+                !isIncomingClosed(callId, sessionId, aliasCallId) &&
+                    !isIncomingMuted(callId, sessionId, aliasCallId)
+            }
             // FGS keep-alive may retry presentFromPhoneCallFgs if glass missing.
             ringKeys.forEach { armedCallStyleKeys.add(it) }
             lastArmedCallStyleTitle[primary] = name
@@ -3067,19 +3084,13 @@ class BeamioTelecomService : ConnectionService() {
         fun ensureIncomingCallChannel(context: Context) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val manager = context.getSystemService(android.app.NotificationManager::class.java) ?: return
-            // v15: HIGH CallStyle + ringtone/vib so Samsung interrupts and can
-            // fire FSI. Delete older channels — Android will not raise an
+            // v16: HIGH CallStyle for heads-up / FSI, but silent — the ringtone
+            // and vibration come from BeamioIncomingRingtone so the two never
+            // ring together. Delete older channels — Android will not change an
             // existing channel's importance / sound after creation.
-            for (old in 7..14) {
+            for (old in 7..15) {
                 runCatching { manager.deleteNotificationChannel("beamio_incoming_calls_v$old") }
             }
-            val ringtone = android.media.RingtoneManager.getDefaultUri(
-                android.media.RingtoneManager.TYPE_RINGTONE,
-            )
-            val audioAttrs = android.media.AudioAttributes.Builder()
-                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
             val channel = android.app.NotificationChannel(
                 INCOMING_CALL_CHANNEL_ID,
                 "Incoming calls",
@@ -3088,9 +3099,8 @@ class BeamioTelecomService : ConnectionService() {
                 description =
                     "Incoming Beamio voice calls. Opens the full-screen incoming window."
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                setSound(ringtone, audioAttrs)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0L, 500L, 500L, 500L)
+                setSound(null, null)
+                enableVibration(false)
                 setShowBadge(false)
             }
             manager.createNotificationChannel(channel)
@@ -3623,6 +3633,8 @@ class BeamioTelecomService : ConnectionService() {
             val aliases = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotBlank() }.distinct()
             val prefs = context.getSharedPreferences(NOTIFICATION_ALIAS_PREFS, Context.MODE_PRIVATE)
             val primary = aliases.firstNotNullOfOrNull { prefs.getString("alias:$it", null) }.orEmpty()
+            // Every caller of this drops the call's incoming chrome for good.
+            BeamioIncomingRingtone.stopFor(aliases + listOf(primary), "incoming chrome cleared")
             val keepForegroundId = BeamioCallForegroundService.activeForegroundNotificationId
             (aliases + listOf(primary)).filter { it.isNotBlank() }.distinct().forEach { key ->
                 val id = notificationId(key)

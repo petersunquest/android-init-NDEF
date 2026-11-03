@@ -1023,7 +1023,7 @@ class IncomingCallActivity : Activity() {
         fun finishIfMatching(callId: String, sessionId: String) {
             if (IncomingCallOverlay.isShowing()) {
                 if (!IncomingCallOverlay.matches(callId, sessionId)) return
-                BeamioIncomingRingtone.stop()
+                BeamioIncomingRingtone.stopFor(listOf(callId, sessionId), "incoming window closed")
                 IncomingCallOverlay.dismiss(callId, sessionId)
                 pendingFinishKeys = emptySet()
                 deferredFinishKeys = emptySet()
@@ -1031,7 +1031,8 @@ class IncomingCallActivity : Activity() {
             }
             val activity = instance?.get()
             if (activity != null && !activity.matches(callId, sessionId)) return
-            BeamioIncomingRingtone.stop()
+            // By id: with no window up, another call's end must not stop this ring.
+            BeamioIncomingRingtone.stopFor(listOf(callId, sessionId), "incoming window closed")
             if (activity == null) {
                 val keys = listOf(callId, sessionId)
                     .map { it.trim() }
