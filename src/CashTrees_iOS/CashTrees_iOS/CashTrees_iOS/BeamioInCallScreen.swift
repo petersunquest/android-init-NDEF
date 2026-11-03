@@ -626,10 +626,30 @@ final class BeamioInCallScreenModel: ObservableObject {
 		speakerOn.toggle()
 		do {
 			try AVAudioSession.sharedInstance().overrideOutputAudioPort(speakerOn ? .speaker : .none)
+			BeamioQALog.write("speaker tap on=\(speakerOn ? "yes" : "no") out=\(Self.currentOutput())")
 		} catch {
 			NSLog("[BeamioInCall] speaker route failed %@", error.localizedDescription)
+			BeamioQALog.write("speaker tap failed on=\(speakerOn ? "yes" : "no")")
 			speakerOn.toggle()
 		}
+	}
+
+	/// CallKit `didActivate`: the dial's `setCategory` and CallKit's activation
+	/// drop an override set while the call was still connecting, so a Speaker
+	/// tapped then showed "on" while the ringback stayed on the receiver (and
+	/// the side button then ended the call). Apply it again once audio is live.
+	func reapplySpeakerAfterActivate() {
+		guard live, speakerOn else { return }
+		do {
+			try AVAudioSession.sharedInstance().overrideOutputAudioPort(.speaker)
+			BeamioQALog.write("speaker reapplied after activate out=\(Self.currentOutput())")
+		} catch {
+			BeamioQALog.write("speaker reapply failed")
+		}
+	}
+
+	private static func currentOutput() -> String {
+		AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType.rawValue ?? "none"
 	}
 
 	func hangUp() {

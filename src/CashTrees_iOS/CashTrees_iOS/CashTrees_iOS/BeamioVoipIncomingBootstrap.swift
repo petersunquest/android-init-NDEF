@@ -5738,6 +5738,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		DispatchQueue.main.async { [weak self] in
 			let model = BeamioInCallScreenModel.shared
 			guard model.live else { return }
+			// A Speaker tap made while the call was connecting was dropped by activation.
+			model.reapplySpeakerAfterActivate()
 			NSLog("[BeamioCallKit] didActivate → reassert shell in-call surface")
 			self?.writeBusyQaBreadcrumb(
 				"lock-answer-reassert:didActivate:callId=\(model.callId.prefix(8)):appState=\(UIApplication.shared.applicationState.rawValue)"
