@@ -36,8 +36,15 @@ final class DialTimingUITests: XCTestCase {
 
 		let endButton = app.buttons["End Call"]
 		let byLabel = callButton.waitForExistence(timeout: 3)
+		// Resolve the button before the clock starts: an element tap first takes
+		// an accessibility snapshot of the whole WebView (1–4 s on the SE).
+		let callFrame = byLabel ? callButton.frame : .zero
 		let tapAt = Date()
-		if byLabel {
+		if byLabel, !callFrame.isEmpty {
+			app.coordinate(withNormalizedOffset: .zero)
+				.withOffset(CGVector(dx: callFrame.midX, dy: callFrame.midY))
+				.tap()
+		} else if byLabel {
 			callButton.tap()
 		} else if let nx = fraction("CALL_NX"), let ny = fraction("CALL_NY") {
 			app.coordinate(withNormalizedOffset: CGVector(dx: nx, dy: ny)).tap()
@@ -58,6 +65,11 @@ final class DialTimingUITests: XCTestCase {
 		let tapMs = Int(tapReturned.timeIntervalSince(tapAt) * 1000)
 		let seenMs = seenAt.map { Int($0.timeIntervalSince(tapAt) * 1000) } ?? -1
 		print("[DialTiming] tapCall=\(Int(tapAt.timeIntervalSince1970 * 1000)) tapReturned=+\(tapMs) callScreenSeen=+\(seenMs)")
+		// Upper bound only: XCTest waits for idle before the touch and takes a
+		// full snapshot for each `exists` check (up to ~5 s with a long chat).
+		// The app's own figure is in Documents/call-timing.log: `tap` →
+		// `native:screen-onAppear` for the same dial id.
+		print("[DialTiming] note: includes XCTest overhead; read call-timing.log for tap→screen-onAppear")
 		let shot1 = XCTAttachment(screenshot: firstShot)
 		shot1.name = "call-screen-first"
 		shot1.lifetime = .keepAlways

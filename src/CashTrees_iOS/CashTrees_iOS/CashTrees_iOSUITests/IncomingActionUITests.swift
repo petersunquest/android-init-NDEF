@@ -56,9 +56,30 @@ final class IncomingActionUITests: XCTestCase {
 		}
 		sleep(4)
 		shot("2-after-action")
+		// TEST_RUNNER_VIDEO_AFTER = seconds after Accept before this side taps Video
+		// (0 = never). Counts inside the hangup wait.
+		let videoAfter = UInt32(env["VIDEO_AFTER"] ?? "0") ?? 0
+		var waited: UInt32 = 4
+		if action == "accept" && videoAfter > 0 {
+			if videoAfter > waited { sleep(videoAfter - waited) }
+			waited = max(waited, videoAfter)
+			let video = app.buttons["Video"]
+			if !video.exists, app.buttons["Show call controls"].exists { app.buttons["Show call controls"].tap() }
+			if video.waitForExistence(timeout: 3) {
+				video.tap()
+				print("[Incoming] video tapped at \(now())")
+			} else {
+				print("[Incoming] Video button not found")
+			}
+			sleep(2)
+			waited += 2
+			shot("2b-after-video")
+		}
 		if action == "accept" && hangupAfter > 0 {
-			sleep(hangupAfter)
+			if hangupAfter + 4 > waited { sleep(hangupAfter + 4 - waited) }
 			let end = app.buttons["End Call"]
+			// With video on, the controls collapse over the peer video.
+			if !end.exists, app.buttons["Show call controls"].exists { app.buttons["Show call controls"].tap() }
 			if end.waitForExistence(timeout: 3) {
 				end.tap()
 				print("[Incoming] hung up at \(now())")
