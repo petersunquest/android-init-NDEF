@@ -5379,6 +5379,20 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			"callkit answer callId=\(callIds[action.callUUID]?.callId.prefix(8) ?? "-") appState=\(UIApplication.shared.applicationState.rawValue)"
 		)
 		answeredCallUUIDs.insert(action.callUUID)
+		// v3 accept first: it is prepared while ringing and runs on a background
+		// queue, needing neither the audio session nor the call screen. Doing it
+		// after both (main.sync screen build) cost 0.4–0.9 s before the accept left.
+		// Only capture waits for didActivate (calleeAudioActivated).
+		if let identity = callIds[action.callUUID], identity.isOutgoing != true {
+			BeamioNativeVoiceSignaling.sendAccept(
+				callId: identity.callId,
+				sessionId: identity.sessionId,
+				mediaDeferred: true
+			) { [weak self] acceptSessionId in
+				guard !acceptSessionId.isEmpty else { return }
+				self?.emitToWeb("callConnected", callId: identity.callId, sessionId: identity.sessionId)
+			}
+		}
 		pendingMediaStartUUID = action.callUUID
 		softReassertAttempt = 0
 		softReassertInFlight = false
@@ -5428,8 +5442,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			"lock-answer-shell-begin:cxAnswer:uuid=\(action.callUUID.uuidString.prefix(8)):callId=\(answeredCallId.prefix(8)):appState=\(UIApplication.shared.applicationState.rawValue)"
 		)
 		// Do NOT reportCall(updated:) here — mid-Answer CXCallUpdate races the
-		// system connected-call layout. Do NOT emit callAnswered yet — native
-		// accept uplink waits until didActivate.
+		// system connected-call layout. Do NOT emit callAnswered (the PWA must
+		// not run its own accept).
 		action.fulfill()
 	}
 
@@ -5770,11 +5784,12 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			      let identity = self.callIds[uuid]
 			else { return }
 			NSLog(
-				"[BeamioCallKit] native accept after didActivate uuid=%@ callId=%@",
+				"[BeamioCallKit] callee media after didActivate uuid=%@ callId=%@",
 				uuid.uuidString,
 				identity.callId
 			)
-			BeamioNativeVoiceSignaling.sendAccept(
+			// The accept went at Answer; this starts capture (or the accept, if Answer never sent it).
+			BeamioNativeVoiceSignaling.calleeAudioActivated(
 				callId: identity.callId,
 				sessionId: identity.sessionId
 			) { [weak self] acceptSessionId in
