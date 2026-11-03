@@ -5070,7 +5070,13 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		// open after browser Hang Up (v71).
 		let snappedIdentity = uuids.compactMap { callIds[$0] }.first
 		let inCallLiveNow = BeamioInCallScreenModel.shared.live
-		let wasAnswered = uuids.contains(where: { answeredCallUUIDs.contains($0) }) || inCallLiveNow
+		// Answered = CallKit answered it, or our call screen reached "connected". A
+		// dial that only rang also has a live call screen: that is not answered (a
+		// declined dial logged answered=true).
+		let wasAnswered = uuids.contains(where: { answeredCallUUIDs.contains($0) })
+			|| (inCallLiveNow && BeamioInCallScreenModel.shared.connected)
+		// Close the shell call screen and media for any live screen, answered or not.
+		let needsShellTearDown = wasAnswered || inCallLiveNow
 		let endCallId: String = {
 			if !cid.isEmpty { return cid }
 			if let id = snappedIdentity?.callId, !id.isEmpty { return id }
@@ -5093,7 +5099,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		func tearDownShellInCall(reason: String) {
 			let run = {
 				let inCallLive = BeamioInCallScreenModel.shared.live
-				guard wasAnswered || inCallLive else { return }
+				guard needsShellTearDown || inCallLive else { return }
 				NSLog(
 					"[BeamioCallKit] end tear InCall reason=%@ callId=%@ answered=%@ live=%@",
 					reason,
