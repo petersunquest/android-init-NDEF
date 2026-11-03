@@ -12,19 +12,25 @@ enum BeamioVoiceOfferIdentity {
 		var beamioTag: String
 		var shortAddress: String
 		var callId: String
+		/// Ring ID of the call (offer index, push handle; not a channel).
 		var sessionId: String
-		/// Offer AES-GCM key (base64 32 bytes) — required for native Decline uplink.
-		var sessionKey: String
 		/// Offer `to` (local callee EOA when present).
 		var to: String
-		/// Caller's per-call relay node (armored route key + IP), signed in the
-		/// offer. Accept / control / media go to the caller's session there.
-		/// Empty for offers from older callers (their own mailbox).
-		var relayRouteArmored: String = ""
-		var relayIp: String = ""
+		/// Voice protocol v3 (the callee creates the paid channels on Answer).
+		var proto: Int = 0
+		/// Caller's user-PGP public key and mailbox route key (armored), signed in the offer.
+		var callerPgpArmored: String = ""
+		var callerRouteArmored: String = ""
 
-		/// base64 armored route key → armor, or "" when absent / not a public key.
-		static func decodeRelayRoute(_ raw: String) -> String {
+		/// Enough to answer or decline: a v3 offer with the caller's keys.
+		var answerable: Bool {
+			proto == 3
+				&& callerPgpArmored.contains("BEGIN PGP PUBLIC KEY")
+				&& callerRouteArmored.contains("BEGIN PGP PUBLIC KEY")
+		}
+
+		/// base64 armored public key → armor, or "".
+		static func decodeArmor(_ raw: String) -> String {
 			let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
 			guard !t.isEmpty, let data = Data(base64Encoded: t, options: .ignoreUnknownCharacters),
 			      let armor = String(data: data, encoding: .utf8),
@@ -239,7 +245,6 @@ enum BeamioVoiceOfferIdentity {
 						eoa
 					)
 				}
-				let sessionKey = (offer["sessionKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 				let toField = (offer["to"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 				let offerCallId = (offer["callId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
 				let offerSessionId = (offer["sessionId"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -250,18 +255,18 @@ enum BeamioVoiceOfferIdentity {
 						shortAddress: BeamioIncomingAddressFormat.short(eoa),
 						callId: (offerCallId?.isEmpty == false ? offerCallId! : callId),
 						sessionId: (offerSessionId?.isEmpty == false ? offerSessionId! : sessionId),
-						sessionKey: sessionKey,
 						to: toField,
-						relayRouteArmored: Resolved.decodeRelayRoute((offer["relayRoute"] as? String) ?? ""),
-						relayIp: ((offer["relayIp"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+						proto: Self.protoOf(offer),
+						callerPgpArmored: Resolved.decodeArmor((offer["callerPgp"] as? String) ?? ""),
+						callerRouteArmored: Resolved.decodeArmor((offer["callerRoute"] as? String) ?? "")
 					)
 					BeamioNativeVoiceSignaling.rememberOffer(resolved)
 					NSLog(
-						"[BeamioVoiceOffer] resolved callId=%@ tag=%@ short=%@ hasSessionKey=%@",
+						"[BeamioVoiceOffer] resolved callId=%@ tag=%@ short=%@ v3=%@",
 						resolved.callId.isEmpty ? callId : resolved.callId,
 						resolved.beamioTag.isEmpty ? "-" : resolved.beamioTag,
 						resolved.shortAddress,
-						sessionKey.isEmpty ? "no" : "yes"
+						resolved.answerable ? "yes" : "no"
 					)
 					completion(resolved)
 				}
@@ -269,7 +274,7 @@ enum BeamioVoiceOfferIdentity {
 		}
 	}
 
-	private static func extractVoiceOffer(from plaintext: String) -> [String: Any]? {
+	static func extractVoiceOffer(from plaintext: String) -> [String: Any]? {
 		func walk(_ value: Any, depth: Int) -> [String: Any]? {
 			guard depth < 8 else { return nil }
 			if let dict = value as? [String: Any] {
@@ -315,6 +320,12 @@ enum BeamioVoiceOfferIdentity {
 		return obj
 	}
 
+	static func protoOf(_ offer: [String: Any]) -> Int {
+		if let i = offer["proto"] as? Int { return i }
+		if let n = offer["proto"] as? NSNumber { return n.intValue }
+		return 0
+	}
+
 	/// Canonical text for `callerSignature` (no from / tag / signature itself).
 	private static func buildCallerCanonicalText(offer: [String: Any]) -> String {
 		func s(_ key: String) -> String {
@@ -329,33 +340,20 @@ enum BeamioVoiceOfferIdentity {
 			if let str = offer[key] as? String { return str }
 			return ""
 		}
-		let entryDomains: String = {
-			if let arr = offer["entryDomains"] as? [String] {
-				return arr.joined(separator: ",")
-			}
-			if let arr = offer["entryDomains"] as? [Any] {
-				return arr.compactMap { $0 as? String }.joined(separator: ",")
-			}
-			return s("entryDomains")
-		}()
-		let to = s("to").lowercased()
-		let temp = s("tempWalletAddress").lowercased()
-		return ([
-			"CoNET voice_call_offer_v1",
+		// Voice protocol v3 only: no channel material in the offer (the callee
+		// creates it on Answer). Older offers do not verify.
+		guard protoOf(offer) == 3 else { return "" }
+		return [
+			"CoNET voice_call_offer_v3",
 			"callId:\(s("callId"))",
 			"sessionId:\(s("sessionId"))",
-			"to:\(to)",
+			"to:\(s("to").lowercased())",
 			"createdAt:\(n("createdAt"))",
 			"expiresAt:\(n("expiresAt"))",
 			"timestamp:\(n("timestamp"))",
-			"sessionKey:\(s("sessionKey"))",
-			"tempWalletAddress:\(temp)",
-			"entryDomains:\(entryDomains)",
 			"codec:\(s("codec"))",
-		] + (s("relayRoute").isEmpty
-			? []
-			// Relay lines are signed only when the offer has them.
-			: ["relayRoute:\(s("relayRoute"))", "relayIp:\(s("relayIp"))"]
-		)).joined(separator: "\n")
+			"callerPgp:\(s("callerPgp"))",
+			"callerRoute:\(s("callerRoute"))",
+		].joined(separator: "\n")
 	}
 }

@@ -4876,10 +4876,22 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: display))
 			action.isVideo = false
 			BeamioCallTiming.mark("callkit-request")
+			BeamioQALog.write(
+				"callkit start request callId=\(callId.prefix(8)) appState=\(BeamioNativeVoiceSignaling.appStateLabel())"
+			)
 			self.controller.request(CXTransaction(action: action)) { [weak self] error in
 				BeamioCallTiming.mark("callkit-request-done", error == nil ? "ok" : "error")
+				let code = (error as NSError?)?.code ?? 0
+				BeamioQALog.write(
+					"callkit start \(error == nil ? "ok" : "failed code=\(code)") callId=\(callId.prefix(8)) appState=\(BeamioNativeVoiceSignaling.appStateLabel())"
+				)
 				if error != nil {
 					self?.callIds.removeValue(forKey: uuid)
+					// Our dial without a system call: it cannot keep running on a
+					// locked or backgrounded phone, so end it and tell the callee.
+					DispatchQueue.main.async {
+						BeamioNativeVoiceSignaling.dialerStartFailed(callId: callId, reason: "callkit-\(code)")
+					}
 				}
 			}
 		}
@@ -6286,6 +6298,8 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		if action == "callEnded" {
 			// Tell the peer before the channel and the call record are torn down.
 			if !BeamioNativeVoiceSignaling.wasRemoteEnded(callId: callId, sessionId: sessionId) {
+				// Still ringing: post the page's ready cancel now (no page round trip).
+				BeamioNativeVoiceSignaling.postDialerCancelIfRinging(callId: callId)
 				BeamioNativeVoiceSignaling.sendHangup(callId: callId)
 			}
 			BeamioNativeVoiceChannel.shared.stop()
@@ -6353,6 +6367,10 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		BeamioNativeVoiceSignaling.qaTrail(
 			"pushkit incoming action=\(action.isEmpty ? "ring" : action) callId=\(callId.prefix(8))"
 		)
+		if action.isEmpty || action == "ring" {
+			// Cold wake: load OpenPGP while it rings, not after Answer (entries: SDK pool hold).
+			BeamioVoiceV3.prepareCallSetup()
+		}
 		let peerAddress = (body["peerAddress"] as? String) ?? ""
 		let displayNameRaw = (body["displayName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 		let displayName: String = {
@@ -6429,7 +6447,7 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		// Open the chat mailbox listen now (stored keys, no page needed): the
 		// caller's cancel and other senders' messages arrive while it rings.
 		BeamioNativeChatHooks.wakeForCallPush()
-		// Prefetch offerArmor → sessionKey BEFORE CallKit so a fast Decline can
+		// Prefetch the offer (caller keys) BEFORE CallKit so a fast Decline can
 		// AES-encrypt voice_call_reject_v1. VoIP budget is short; do not await.
 		prefetchOfferForIncoming(callId: resolvedId, sessionId: sessionId)
 		// Apple: report CallKit and wait for its completion BEFORE PushKit completion().
@@ -6470,12 +6488,12 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		}
 	}
 
-	/// Decrypt offer on a background queue; `rememberOffer` caches sessionKey for Decline.
+	/// Decrypt offer on a background queue; `rememberOffer` caches the caller keys for Decline.
 	/// Soft-seed may already be ringing — push verified @BeamioTag under PushKit keys.
 	private func prefetchOfferForIncoming(callId: String, sessionId: String) {
 		guard !callId.isEmpty || sessionId.count >= 16 else { return }
 		if let hit = BeamioNativeVoiceSignaling.cachedOffer(callId: callId, sessionId: sessionId),
-		   !hit.sessionKey.isEmpty
+		   hit.answerable
 		{
 			NSLog("[BeamioVoip] offer cache hit callId=%@", callId)
 			if !hit.beamioTag.isEmpty || !hit.shortAddress.isEmpty {
@@ -6500,15 +6518,15 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 					)
 					return
 				}
-				if !resolved.sessionKey.isEmpty {
+				if resolved.answerable {
 					BeamioNativeVoiceSignaling.rememberOffer(resolved)
 				}
 				NSLog(
-					"[BeamioVoip] offer prefetch OK pushCallId=%@ offerCallId=%@ tag=%@ hasSessionKey=%@",
+					"[BeamioVoip] offer prefetch OK pushCallId=%@ offerCallId=%@ tag=%@ answerable=%@",
 					callId,
 					resolved.callId,
 					resolved.beamioTag.isEmpty ? "-" : resolved.beamioTag,
-					resolved.sessionKey.isEmpty ? "no" : "yes"
+					resolved.answerable ? "yes" : "no"
 				)
 				// Always update under PushKit registration keys — not offer.callId.
 				if !resolved.beamioTag.isEmpty || !resolved.shortAddress.isEmpty {
@@ -6526,7 +6544,7 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 	}
 
 	/// After opaque CallKit: decrypt offerArmor → `reportCall(updated:)` with BeamioTag.
-	/// Also caches sessionKey so Decline uplink can run without waiting for mailbox again.
+	/// Also caches the caller keys so Decline can run without waiting for the mailbox again.
 	private func scheduleVerifiedIdentityUpdate(callId: String, sessionId: String) {
 		guard !callId.isEmpty || sessionId.count >= 16 else { return }
 		BeamioVoiceOfferIdentity.resolve(callId: callId, sessionId: sessionId) { [weak self] resolved in
@@ -6536,7 +6554,7 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 				self.callKit.noteIdentityResolveFinished(callId: callId, appliedTag: false)
 				return
 			}
-			if !resolved.sessionKey.isEmpty {
+			if resolved.answerable {
 				BeamioNativeVoiceSignaling.rememberOffer(resolved)
 			}
 			let hasLabel =

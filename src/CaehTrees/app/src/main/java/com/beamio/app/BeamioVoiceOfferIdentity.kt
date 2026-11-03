@@ -41,22 +41,25 @@ object BeamioVoiceOfferIdentity {
         val beamioTag: String?,
         val shortAddress: String,
         val callId: String,
+        /** Ring ID of the call (offer index, push handle; not a channel). */
         val sessionId: String,
-        /** Offer AES-GCM key (base64 32 bytes) — required for native Decline uplink. */
-        val sessionKey: String = "",
         /** Offer `to` (local callee EOA when present). */
         val to: String = "",
-        /**
-         * Caller's per-call relay node (armored route key + IP), signed in the
-         * offer. Accept / control / media go to the caller's session there.
-         * Empty for offers from older callers (their own mailbox).
-         */
-        val relayRouteArmored: String = "",
-        val relayIp: String = "",
-    )
+        /** Voice protocol v3 (the callee creates the paid channels on Answer). */
+        val proto: Int = 0,
+        /** Caller's user-PGP public key and mailbox route key (armored), signed in the offer. */
+        val callerPgpArmored: String = "",
+        val callerRouteArmored: String = "",
+    ) {
+        /** Enough to answer or decline: a v3 offer with the caller's keys. */
+        val answerable: Boolean
+            get() = proto == 3 &&
+                callerPgpArmored.contains("BEGIN PGP PUBLIC KEY") &&
+                callerRouteArmored.contains("BEGIN PGP PUBLIC KEY")
+    }
 
-    /** base64 armored route key → armor, or "" when absent / not a public key. */
-    private fun decodeRelayRoute(raw: String): String {
+    /** base64 armored public key → armor, or "" when absent / not a public key. */
+    fun decodeArmor(raw: String): String {
         if (raw.isBlank()) return ""
         return runCatching {
             String(android.util.Base64.decode(raw.trim(), android.util.Base64.DEFAULT), Charsets.UTF_8)
@@ -74,7 +77,7 @@ object BeamioVoiceOfferIdentity {
         if (cid.isEmpty()) return
         // Cache hit — no network.
         BeamioNativeVoiceSignaling.cachedOffer(cid, sessionId)
-            ?.takeIf { it.sessionKey.isNotEmpty() }
+            ?.takeIf { it.answerable }
             ?.let { hit ->
                 main.post { onResolved(hit) }
                 return
@@ -168,7 +171,6 @@ object BeamioVoiceOfferIdentity {
                     Log.w(TAG, "invalid recovered caller")
                     return@execute
                 }
-                val sessionKey = verified.optString("sessionKey", "").trim()
                 val to = verified.optString("to", "").trim().lowercase()
                 val tag = fetchExactTag(caller)
                 val short = shortAddress(caller)
@@ -178,26 +180,26 @@ object BeamioVoiceOfferIdentity {
                     shortAddress = short,
                     callId = verified.optString("callId", cid).ifBlank { cid },
                     sessionId = verified.optString("sessionId", sessionId).ifBlank { sessionId },
-                    sessionKey = sessionKey,
                     to = to,
-                    relayRouteArmored = verified.optString("relayRouteArmored", "").trim(),
-                    relayIp = verified.optString("relayIp", "").trim(),
+                    proto = verified.optInt("proto", 0),
+                    callerPgpArmored = verified.optString("callerPgpArmored", ""),
+                    callerRouteArmored = verified.optString("callerRouteArmored", ""),
                 )
                 identity = resolved
-                if (sessionKey.isNotEmpty()) {
+                if (resolved.answerable) {
                     BeamioNativeVoiceSignaling.rememberOffer(resolved)
                 }
                 Log.i(
                     TAG,
                     "resolved callId=${resolved.callId.take(12)} tag=${tag ?: "-"} eoa=$short " +
-                        "sessionKey=${if (sessionKey.isEmpty()) "no" else "yes"}",
+                        "v3=${if (resolved.answerable) "yes" else "no"}",
                 )
             } catch (error: Exception) {
                 Log.w(TAG, "resolve failed: ${error.message}")
             } finally {
-                val done = identity?.takeIf { it.sessionKey.isNotEmpty() }
+                val done = identity?.takeIf { it.answerable }
                     ?: BeamioNativeVoiceSignaling.cachedOffer(cid, sessionId)
-                        ?.takeIf { it.sessionKey.isNotEmpty() }
+                        ?.takeIf { it.answerable }
                 val callbacks = waiters.toList()
                 waiters.clear()
                 resolveRunning.set(false)
@@ -221,7 +223,7 @@ object BeamioVoiceOfferIdentity {
                         }
                     }
                 } else {
-                    Log.w(TAG, "resolve finished without sessionKey; ${callbacks.size} waiter(s) not notified")
+                    Log.w(TAG, "resolve finished without a v3 offer; ${callbacks.size} waiter(s) not notified")
                 }
             }
         }
@@ -231,7 +233,7 @@ object BeamioVoiceOfferIdentity {
      * Decrypt a `voice_call_offer_v1` armor and verify the caller signature —
      * the same checks as the SDK's `decryptAndVerifyOffer`, built on
      * `decryptInboundArmor` + `verifyMessage`, which return results correctly.
-     * Success JSON: callerEoa, callId, sessionId, sessionKey, to, claimedTag.
+     * Success JSON: callerEoa, callId, sessionId, to, claimedTag, proto, caller keys.
      */
     private fun decryptAndVerifyOfferViaBridge(
         app: Context,
@@ -256,13 +258,6 @@ object BeamioVoiceOfferIdentity {
             val callId = payload.optString("callId")
             val sessionId = payload.optString("sessionId")
             val to = payload.optString("to").trim().lowercase()
-            val sessionKey = payload.optString("sessionKey")
-            val entries = payload.optJSONArray("entryDomains")
-            val entryDomains = if (entries != null) {
-                (0 until entries.length()).joinToString(",") { entries.optString(it) }
-            } else {
-                payload.optString("entryDomains")
-            }
             // Numbers as integers, like JS template strings and iOS.
             fun num(key: String): String = when (val v = payload.opt(key)) {
                 is Number -> if (v.toDouble() == Math.floor(v.toDouble())) v.toLong().toString() else v.toString()
@@ -270,24 +265,24 @@ object BeamioVoiceOfferIdentity {
                 else -> v.toString()
             }
             // Must match the dialer's signed text exactly (PWA `voiceCallOfferSignText`).
+            val proto = payload.optInt("proto", 0)
+            if (proto != 3) {
+                // Voice protocol v3 only: older offers do not verify.
+                callback(Result.failure(IllegalStateException("not_v3")))
+                return@decryptInboundArmor
+            }
             val lines = listOf(
-                "CoNET voice_call_offer_v1",
+                "CoNET voice_call_offer_v3",
                 "callId:$callId",
                 "sessionId:$sessionId",
                 "to:$to",
                 "createdAt:${num("createdAt")}",
                 "expiresAt:${num("expiresAt")}",
                 "timestamp:${num("timestamp")}",
-                "sessionKey:$sessionKey",
-                "tempWalletAddress:${payload.optString("tempWalletAddress").lowercase()}",
-                "entryDomains:$entryDomains",
                 "codec:${payload.optString("codec")}",
-            ).let { base ->
-                // Relay lines are signed only when the offer has them.
-                val relay = payload.optString("relayRoute")
-                if (relay.isBlank()) base
-                else base + listOf("relayRoute:$relay", "relayIp:${payload.optString("relayIp")}")
-            }.joinToString("\n")
+                "callerPgp:${payload.optString("callerPgp")}",
+                "callerRoute:${payload.optString("callerRoute")}",
+            ).joinToString("\n")
             if (signature.isBlank()) {
                 callback(Result.failure(IllegalStateException("missing_signature")))
                 return@decryptInboundArmor
@@ -309,11 +304,11 @@ object BeamioVoiceOfferIdentity {
                             .put("callerEoa", recovered)
                             .put("callId", callId)
                             .put("sessionId", sessionId)
-                            .put("sessionKey", sessionKey)
                             .put("to", to)
                             .put("claimedTag", payload.optString("beamioTag").ifBlank { payload.optString("tag") })
-                            .put("relayRouteArmored", decodeRelayRoute(payload.optString("relayRoute")))
-                            .put("relayIp", payload.optString("relayIp").trim()),
+                            .put("proto", proto)
+                            .put("callerPgpArmored", decodeArmor(payload.optString("callerPgp")))
+                            .put("callerRouteArmored", decodeArmor(payload.optString("callerRoute"))),
                     ),
                 )
             }
@@ -485,7 +480,7 @@ object BeamioVoiceOfferIdentity {
         timeoutMs: Long = 45_000L,
     ): ResolvedIdentity? {
         BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)
-            ?.takeIf { it.sessionKey.isNotEmpty() }
+            ?.takeIf { it.answerable }
             ?.let { return it }
 
         val wait = Object()
@@ -503,7 +498,7 @@ object BeamioVoiceOfferIdentity {
         var nextFetchAt = System.currentTimeMillis() + RESOLVE_RETRY_MS
         while (System.currentTimeMillis() < deadline) {
             BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)
-                ?.takeIf { it.sessionKey.isNotEmpty() }
+                ?.takeIf { it.answerable }
                 ?.let { return it }
             synchronized(wait) {
                 if (done) return@synchronized
@@ -522,8 +517,8 @@ object BeamioVoiceOfferIdentity {
                 scheduleResolve(context, callId, sessionId, onResolved)
             }
         }
-        return out?.takeIf { it.sessionKey.isNotEmpty() }
+        return out?.takeIf { it.answerable }
             ?: BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)
-                ?.takeIf { it.sessionKey.isNotEmpty() }
+                ?.takeIf { it.answerable }
     }
 }

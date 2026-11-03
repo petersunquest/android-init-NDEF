@@ -1083,6 +1083,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             if(!window.webkit||!window.webkit.messageHandlers||!window.webkit.messageHandlers[H])return false;
             if(window.CashTreesIOS&&typeof window.CashTreesIOS.bindPushIdentity==='function')return true;
             window.CashTreesIOS={
+            // startSystemCall answers with callDialerStarted / callDialerFailed.
+            dialerAck:true,
             getNfcStatus:function(){return window.__CT_IOS_NFC_STATUS__||'no_bridge';},
             getEmbeddedPwaVersion:function(){return window.__CT_EMBEDDED_PWA_VER__||'';},
             getEmbeddedPwaPendingVersion:function(){return window.__CT_EMBEDDED_PWA_PENDING_VER__||'';},
@@ -1168,16 +1170,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 prepareId:payload.prepareId||'',
                 callId:payload.callId||'',
                 sessionId:payload.sessionId||'',
-                sessionKey:payload.sessionKey||'',
                 peerAddress:payload.peerAddress||'',
                 displayName:payload.displayName||'',
-                dialerWakeCallId:payload.dialerWakeCallId||'',
-                dialerWakeCalleeEoa:payload.dialerWakeCalleeEoa||'',
-                dialerWakeExpiresAt:payload.dialerWakeExpiresAt||0,
-                dialerWakeTimestamp:payload.dialerWakeTimestamp||0,
-                dialerWakeOfferArmor:payload.dialerWakeOfferArmor||'',
-                dialerRelayRoute:payload.dialerRelayRoute||'',
-                dialerRelayIp:payload.dialerRelayIp||''
+                dialerProto:Number(payload.dialerProto)||0,
+                offerCreatedAt:Number(payload.offerCreatedAt)||0
               });
             },
             reportIncomingSystemCall:function(payload){
@@ -1191,10 +1187,10 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                 claimedTag:payload.claimedTag||'',
                 claimedAddress:payload.claimedAddress||'',
                 identityWarning:payload.identityWarning||'',
-                sessionKey:payload.sessionKey||'',
                 to:payload.to||'',
-                relayRoute:payload.relayRoute||'',
-                relayIp:payload.relayIp||''
+                proto:Number(payload.proto)||0,
+                callerPgp:payload.callerPgp||'',
+                callerRoute:payload.callerRoute||''
               });
             },
             endSystemCall:function(payload){
@@ -1375,6 +1371,15 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         """
     }
 
+    /// Close the keyboard when a call screen takes over.
+    func dismissKeyboardForCall(stage: String) {
+        let hadFocus = UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+        )
+        webView?.endEditing(true)
+        BeamioQALog.write("dial keyboard closed stage=\(stage) responder=\(hadFocus ? "yes" : "no")")
+    }
+
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == CashTreesWebConsoleRelay.handlerName {
             CashTreesWebConsoleRelay.handle(message)
@@ -1453,48 +1458,33 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             BeamioCallTiming.mark("start-received")
             let callId = body["callId"] as? String ?? ""
             let sessionId = body["sessionId"] as? String ?? ""
-            let sessionKey = body["sessionKey"] as? String ?? ""
             let peerAddress = body["peerAddress"] as? String ?? ""
             let prepareId = body["prepareId"] as? String ?? ""
-            let wakeCallId = body["dialerWakeCallId"] as? String ?? callId
-            let wakeCallee = body["dialerWakeCalleeEoa"] as? String ?? peerAddress
-            let wakeExpires: Int64 = {
-                if let n = body["dialerWakeExpiresAt"] as? Int64 { return n }
-                if let n = body["dialerWakeExpiresAt"] as? Int { return Int64(n) }
-                if let n = body["dialerWakeExpiresAt"] as? Double { return Int64(n) }
-                if let s = body["dialerWakeExpiresAt"] as? String, let n = Int64(s) { return n }
-                return 0
-            }()
-            let wakeTs: Int64 = {
-                if let n = body["dialerWakeTimestamp"] as? Int64 { return n }
-                if let n = body["dialerWakeTimestamp"] as? Int { return Int64(n) }
-                if let n = body["dialerWakeTimestamp"] as? Double { return Int64(n) }
-                if let s = body["dialerWakeTimestamp"] as? String, let n = Int64(s) { return n }
-                return 0
-            }()
-            let wakeArmor = body["dialerWakeOfferArmor"] as? String ?? ""
-            let wake: BeamioNativeVoiceSignaling.DialerWake? = {
-                guard wakeArmor.contains("BEGIN PGP MESSAGE"), !wakeCallee.isEmpty else { return nil }
-                return BeamioNativeVoiceSignaling.DialerWake(
-                    callId: wakeCallId.isEmpty ? callId : wakeCallId,
-                    calleeEoa: wakeCallee,
-                    expiresAt: wakeExpires,
-                    pushTimestamp: wakeTs,
-                    offerArmor: wakeArmor,
-                    relayRouteArmored: (body["dialerRelayRoute"] as? String ?? "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines),
-                    relayIp: (body["dialerRelayIp"] as? String ?? "")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                )
+            // The offer's createdAt (ms): the dialer's ring window starts there.
+            let offerCreatedAtMs: Int = (body["offerCreatedAt"] as? Int)
+                ?? Int((body["offerCreatedAt"] as? Double) ?? 0)
+            // A dial (voice v3) carries dialerProto; an in-page answer reuses this
+            // action without it. The dialer opens no channel until the callee's accept.
+            let isDial: Bool = {
+                if let n = body["dialerProto"] as? Int { return n == 3 }
+                if let n = body["dialerProto"] as? Double { return Int(n) == 3 }
+                return false
             }()
             // B35: never pass peer/tag into CallKit — dual EOA/@tag collapses
             // the system in-call bottom bar. Opaque "Beamio" only.
-            // Native owns dialer voice_listen + VoIP wake (no worker listen).
-            DispatchQueue.main.async {
+            if isDial {
+                BeamioQALog.write(
+                    "dial start received callId=\(callId.prefix(8)) ageMs=\(offerCreatedAtMs > 0 ? Int(Date().timeIntervalSince1970 * 1000) - offerCreatedAtMs : -1)"
+                )
+            }
+            DispatchQueue.main.async { [weak self] in
                 if BeamioInCallScreenModel.shared.wasPrepareCancelled(prepareId) {
                     // The user hung up on the prepared screen before the offer
                     // was ready. Do not ring the callee; let the PWA clean up.
                     NSLog("[BeamioInCall] startSystemCall dropped; dial was cancelled while preparing")
+                    if isDial {
+                        BeamioQALog.write("dial start dropped callId=\(callId.prefix(8)): cancelled while preparing")
+                    }
                     BeamioVoipIncomingBootstrap.shared.emitCallActionToWeb(
                         "callEnded",
                         callId: callId,
@@ -1503,22 +1493,36 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     return
                 }
                 BeamioCallTiming.mark("start-main")
+                if isDial {
+                    self?.dismissKeyboardForCall(stage: "start")
+                    // Attach before CallKit: a dial the shell cannot run never
+                    // gets a system call, and its CallKit result finds the dialer.
+                    let attached = BeamioNativeVoiceSignaling.attachOutgoingDialer(
+                        callId: callId,
+                        sessionId: sessionId,
+                        peerEoa: peerAddress,
+                        offerCreatedAtMs: offerCreatedAtMs
+                    )
+                    // The page cancels the offer itself when the dialer did not
+                    // start (or when this answer never comes).
+                    BeamioVoipIncomingBootstrap.shared.emitCallActionToWeb(
+                        attached ? "callDialerStarted" : "callDialerFailed",
+                        callId: callId,
+                        sessionId: sessionId
+                    )
+                    if !attached {
+                        BeamioInCallScreenModel.shared.cancelPrepared(prepareId: prepareId)
+                        return
+                    }
+                }
                 BeamioVoipIncomingBootstrap.shared.callKit.startOutgoing(
                     callId: callId,
                     handle: "Beamio",
                     sessionId: sessionId
                 )
-                BeamioNativeVoiceSignaling.attachOutgoingDialer(
-                    callId: callId,
-                    sessionId: sessionId,
-                    sessionKey: sessionKey,
-                    peerEoa: peerAddress,
-                    wake: wake
-                )
                 // Inside the shell the dialer uses the same native call screen
-                // as the callee; the PWA hides its own call page here. Only a
-                // dial carries sessionKey (an in-page answer reuses this action).
-                if !sessionKey.isEmpty {
+                // as the callee; the PWA hides its own call page here.
+                if isDial {
                     BeamioInCallScreenModel.shared.beginOutgoing(
                         callId: callId,
                         sessionId: sessionId,
@@ -1535,11 +1539,11 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let claimedTag = body["claimedTag"] as? String ?? ""
             let claimedAddress = body["claimedAddress"] as? String ?? ""
             let identityWarning = body["identityWarning"] as? String ?? ""
-            let sessionKey = body["sessionKey"] as? String ?? ""
             let to = body["to"] as? String ?? ""
-            // PWA already decrypted the offer — cache AES key so CallKit Decline
-            // can encrypt voice_call_reject_v1 without waiting for mailbox resolve.
-            if !callId.isEmpty && !sessionKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // The PWA already verified the v3 offer: cache the caller's keys, so
+            // CallKit Answer / Decline need not wait for the mailbox fetch.
+            let offerProto: Int = (body["proto"] as? Int) ?? Int((body["proto"] as? Double) ?? 0)
+            if !callId.isEmpty && offerProto == 3 {
                 let tagHint = claimedTag.trimmingCharacters(in: .whitespacesAndNewlines)
                 let displayHint = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
                 let tag: String = {
@@ -1555,22 +1559,18 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     }
                     return peerAddress
                 }()
-                BeamioNativeVoiceSignaling.rememberOffer(
-                    BeamioVoiceOfferIdentity.Resolved(
-                        callerEoa: peerAddress,
-                        beamioTag: tag,
-                        shortAddress: short,
-                        callId: callId,
-                        sessionId: sessionId,
-                        sessionKey: sessionKey.trimmingCharacters(in: .whitespacesAndNewlines),
-                        to: to.trimmingCharacters(in: .whitespacesAndNewlines),
-                        relayRouteArmored: BeamioVoiceOfferIdentity.Resolved.decodeRelayRoute(
-                            body["relayRoute"] as? String ?? ""
-                        ),
-                        relayIp: (body["relayIp"] as? String ?? "")
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-                    )
+                let pageOffer = BeamioVoiceOfferIdentity.Resolved(
+                    callerEoa: peerAddress,
+                    beamioTag: tag,
+                    shortAddress: short,
+                    callId: callId,
+                    sessionId: sessionId,
+                    to: to.trimmingCharacters(in: .whitespacesAndNewlines),
+                    proto: offerProto,
+                    callerPgpArmored: BeamioVoiceOfferIdentity.Resolved.decodeArmor(body["callerPgp"] as? String ?? ""),
+                    callerRouteArmored: BeamioVoiceOfferIdentity.Resolved.decodeArmor(body["callerRoute"] as? String ?? "")
                 )
+                BeamioNativeVoiceSignaling.rememberOffer(pageOffer)
             }
             DispatchQueue.main.async {
                 BeamioVoipIncomingBootstrap.shared.reportIncomingCallKit(
@@ -1674,6 +1674,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             DispatchQueue.main.async {
                 let ok = BeamioChatPgpKeychain.upsert(fromWeb: body)
                 NSLog("[CashTreesIOS] setNativeChatPgpSecrets ok=%@", ok ? "true" : "false")
+            }
+        case "setNativeVoiceRelayNodes":
+            // Voice v3: route keys of all nodes (public), cached for picking relays.
+            let nodes = body["nodes"] as? [[String: Any]] ?? []
+            DispatchQueue.global(qos: .utility).async {
+                BeamioVoiceV3.RelayNodes.save(fromBridge: nodes)
             }
         case "setNativeSiNodeRoster":
             DispatchQueue.main.async {

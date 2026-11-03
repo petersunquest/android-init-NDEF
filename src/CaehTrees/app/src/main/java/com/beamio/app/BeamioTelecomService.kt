@@ -1756,13 +1756,18 @@ class BeamioTelecomService : ConnectionService() {
             }
             // Peer signaling BEFORE settle short-circuit (iOS parity).
             // Telecom REJECTED + glass Decline can race: first attempt may lack
-            // offer/sessionKey; a second completeIncomingUserAction must still uplink.
+            // v3 offer; a second completeIncomingUserAction must still send.
             // callEnded must uplink voice_end_v1 before forgetOffer so the browser
             // dialer leaves the in-call UI (AES temporary relay).
             when (action) {
                 "callAnswered" -> BeamioNativeVoiceSignaling.sendAccept(context, callId, sessionId)
                 "callRejected" -> BeamioNativeVoiceSignaling.sendDecline(context, callId, sessionId)
-                "callEnded" -> BeamioNativeVoiceSignaling.sendHangup(context, callId, sessionId)
+                "callEnded" -> {
+                    // Our outgoing call still ringing: the prebuilt cancel goes out
+                    // now, before the page hears callEnded (it then sends none).
+                    BeamioNativeVoiceSignaling.postDialerCancelIfRinging(context, callId, sessionId)
+                    BeamioNativeVoiceSignaling.sendHangup(context, callId, sessionId)
+                }
             }
             clearIncomingMute(endedId, sessionId)
             val firstSettle = settledCallActions.add(settleKey(action, endedId))

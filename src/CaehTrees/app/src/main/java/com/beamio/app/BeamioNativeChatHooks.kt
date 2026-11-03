@@ -1,6 +1,8 @@
 package com.beamio.app
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import network.conet.chat.BeamioConetChatModule
 import network.conet.chat.BeamioEntryPool
@@ -34,7 +36,11 @@ object BeamioNativeChatHooks {
         BeamioConetChatModule.callControlObserver = { type, callId, sessionId, from ->
             onPeerCallControl(app, type, callId, sessionId, from)
         }
-        BeamioConetChatModule.nativeObserver = { payload -> logStatus(payload) }
+        BeamioConetChatModule.nativeObserver = { payload ->
+            logStatus(payload)
+            // v3: the callee's accept / decline reaches the dialer as a chat message.
+            BeamioNativeVoiceSignaling.observeChatEvent(app, payload)
+        }
     }
 
     /** FCM call wake: open the mailbox listen now, page or not. */

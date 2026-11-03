@@ -1347,39 +1347,20 @@ class MainActivity : ComponentActivity() {
                 val body = runCatching { JSONObject(json) }.getOrNull() ?: return@runOnUiThread
                 val callId = body.optString("callId")
                 val sessionId = body.optString("sessionId")
-                val sessionKey = body.optString("sessionKey")
                 val peerAddress = body.optString("peerAddress")
                 val prepareId = body.optString("prepareId").trim()
+                // A dial (voice v3) carries dialerProto; the dialer opens no channel
+                // until the callee's accept arrives on our mailbox.
+                if (body.optInt("dialerProto", 0) != 3) {
+                    Log.w("BeamioVoiceCall", "startSystemCall ignored: not a v3 dial")
+                    return@runOnUiThread
+                }
                 if (InCallScreenModel.wasPrepareCancelled(prepareId)) {
                     // The user hung up on the prepared screen before the offer
                     // was ready. Do not ring the callee; let the PWA clean up.
                     Log.i("BeamioVoiceCall", "startSystemCall dropped; dial was cancelled while preparing")
                     MainActivity.dispatchSystemCallAction("callEnded", callId, sessionId, applicationContext)
                     return@runOnUiThread
-                }
-                // Dialer owns voice_listen + VoIP wake (offerArmor). PWA must not
-                // start worker listen on the same sessionId (session_conflict).
-                val wakeArmor = body.optString("dialerWakeOfferArmor", "").trim()
-                val wakeCallee = body.optString("dialerWakeCalleeEoa", "").trim()
-                    .ifBlank { peerAddress.trim() }
-                val wakeExpires = body.optLong("dialerWakeExpiresAt", 0L)
-                val wakeTs = body.optLong("dialerWakeTimestamp", 0L)
-                val wake = if (
-                    wakeArmor.contains("BEGIN PGP MESSAGE") &&
-                    wakeCallee.isNotBlank() &&
-                    wakeExpires > 0L
-                ) {
-                    BeamioNativeVoiceSignaling.DialerWake(
-                        callId = callId.ifBlank { sessionId },
-                        calleeEoa = wakeCallee,
-                        expiresAt = wakeExpires,
-                        pushTimestamp = if (wakeTs > 0L) wakeTs else System.currentTimeMillis() / 1000L,
-                        offerArmor = wakeArmor,
-                        relayRouteArmored = body.optString("dialerRelayRoute", "").trim(),
-                        relayIp = body.optString("dialerRelayIp", "").trim(),
-                    )
-                } else {
-                    null
                 }
                 BeamioTelecomService.startOutgoing(
                     this@MainActivity,
@@ -1391,14 +1372,12 @@ class MainActivity : ComponentActivity() {
                     this@MainActivity,
                     callId = callId,
                     sessionId = sessionId,
-                    sessionKey = sessionKey,
                     peerEoa = peerAddress,
-                    wake = wake,
+                    offerCreatedAtMs = body.optLong("offerCreatedAt", 0L),
                 )
                 // Inside the shell the dialer uses the same native call screen as
-                // the callee (the PWA hides its own call page). Only a dial
-                // carries sessionKey.
-                if (sessionKey.isNotBlank()) {
+                // the callee (the PWA hides its own call page).
+                run {
                     InCallScreenModel.beginOutgoing(callId, sessionId, peerAddress)
                     InCallActivity.present(this@MainActivity, callId, sessionId, tag = "", address = peerAddress)
                     Thread {
@@ -1423,14 +1402,14 @@ class MainActivity : ComponentActivity() {
                 val callId = body.optString("callId").trim()
                 val sessionId = body.optString("sessionId").trim()
                 val peerAddress = body.optString("peerAddress").trim()
-                val sessionKey = body.optString("sessionKey").trim()
                 val to = body.optString("to").trim()
+                val offerProto = body.optInt("proto", 0)
                 Log.i(
                     "BeamioVoiceCall",
                     "WebView incoming call payload parsed callIdPresent=" +
                         callId.isNotBlank() +
                         " sessionIdPresent=" + sessionId.isNotBlank() +
-                        " sessionKey=" + if (sessionKey.isEmpty()) "no" else "yes",
+                        " v3=" + (offerProto == 3),
                 )
                 Log.i(
                     "BeamioVoiceCall",
@@ -1441,33 +1420,28 @@ class MainActivity : ComponentActivity() {
                         " claimedTagPresent=" +
                         body.optString("claimedTag").isNotBlank(),
                 )
-                // PWA already decrypted the offer — cache AES key so Telecom Decline/X
-                // can encrypt voice_call_reject_v1 without waiting for mailbox resolve.
-                if (callId.isNotBlank() && sessionKey.isNotBlank()) {
+                // The PWA already verified the v3 offer: cache the caller's keys, so
+                // Telecom Answer / Decline need not wait for the mailbox fetch.
+                if (callId.isNotBlank() && offerProto == 3) {
                     val tag = body.optString("claimedTag").trim()
                         .ifBlank { body.optString("displayName").trim() }
                         .takeIf { it.isNotBlank() && !it.equals("Beamio", ignoreCase = true) }
-                    BeamioNativeVoiceSignaling.rememberOffer(
-                        BeamioVoiceOfferIdentity.ResolvedIdentity(
-                            callerEoa = peerAddress,
-                            beamioTag = tag,
-                            shortAddress = if (peerAddress.length >= 10) {
-                                peerAddress.take(6) + "…" + peerAddress.takeLast(4)
-                            } else {
-                                peerAddress
-                            },
-                            callId = callId,
-                            sessionId = sessionId,
-                            sessionKey = sessionKey,
-                            to = to,
-                            relayRouteArmored = body.optString("relayRoute", "").trim().let { raw ->
-                                if (raw.isBlank()) "" else runCatching {
-                                    String(android.util.Base64.decode(raw, android.util.Base64.DEFAULT), Charsets.UTF_8)
-                                }.getOrNull()?.takeIf { it.contains("BEGIN PGP PUBLIC KEY") }.orEmpty()
-                            },
-                            relayIp = body.optString("relayIp", "").trim(),
-                        ),
+                    val pageOffer = BeamioVoiceOfferIdentity.ResolvedIdentity(
+                        callerEoa = peerAddress,
+                        beamioTag = tag,
+                        shortAddress = if (peerAddress.length >= 10) {
+                            peerAddress.take(6) + "…" + peerAddress.takeLast(4)
+                        } else {
+                            peerAddress
+                        },
+                        callId = callId,
+                        sessionId = sessionId,
+                        to = to,
+                        proto = offerProto,
+                        callerPgpArmored = BeamioVoiceOfferIdentity.decodeArmor(body.optString("callerPgp", "")),
+                        callerRouteArmored = BeamioVoiceOfferIdentity.decodeArmor(body.optString("callerRoute", "")),
                     )
+                    BeamioNativeVoiceSignaling.rememberOffer(pageOffer)
                 }
                 BeamioTelecomService.reportIncoming(
                     this@MainActivity,
@@ -1644,6 +1618,13 @@ class MainActivity : ComponentActivity() {
         fun setNativeChatPgpSecrets(json: String) {
             val ok = BeamioChatPgpStore.upsertFromWeb(this@MainActivity, json)
             Log.i(TAG, "setNativeChatPgpSecrets ok=$ok")
+        }
+
+        /** Voice v3: route keys of all nodes (public), cached for picking relays. */
+        @JavascriptInterface
+        fun setNativeVoiceRelayNodes(json: String) {
+            val app = applicationContext
+            Thread { BeamioVoiceV3.RelayNodes.saveFromBridge(app, json) }.start()
         }
 
         /** Persist Guardian IP roster without re-sending the user PGP private key. */
