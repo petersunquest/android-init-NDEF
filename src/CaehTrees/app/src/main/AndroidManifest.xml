@@ -156,6 +156,11 @@
             android:name="com.beamio.app.BeamioCallForegroundService"
             android:exported="false"
             android:foregroundServiceType="phoneCall|microphone|shortService" />
+        <!-- Keeps a chat send in progress alive after the user leaves the app (BeamioChatSendHold). -->
+        <service
+            android:name="com.beamio.app.BeamioChatSendHoldJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <receiver
             android:name="com.beamio.app.IncomingCallActionReceiver"
             android:exported="false">

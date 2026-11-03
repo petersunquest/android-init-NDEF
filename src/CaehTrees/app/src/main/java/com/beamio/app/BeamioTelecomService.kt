@@ -1179,7 +1179,12 @@ class BeamioTelecomService : ConnectionService() {
                     return
                 }
                 if (anotherCallOwnsChrome(callId, sessionId, nativeCallId)) {
-                    rejectSecondaryWhileBusy(context, callId, sessionId)
+                    handleSecondaryWhileBusy(context, callId, sessionId, peerAddress) {
+                        reportIncoming(
+                            context, callId, peerAddress, displayName, sessionId,
+                            claimedTag, claimedAddress, identityWarning,
+                        )
+                    }
                     return
                 }
                 rememberChromeOwner(callId, sessionId, nativeCallId)
@@ -1636,6 +1641,8 @@ class BeamioTelecomService : ConnectionService() {
         private class IncomingRingClock(
             val startedAt: Long,
             val runnable: Runnable,
+            val callId: String = "",
+            val sessionId: String = "",
         )
 
         private val incomingRingClocks = ConcurrentHashMap<String, IncomingRingClock>()
@@ -1744,9 +1751,103 @@ class BeamioTelecomService : ConnectionService() {
                     fromTelecom = false,
                 )
             }
-            val clock = IncomingRingClock(startedAt, runnable)
+            val clock = IncomingRingClock(startedAt, runnable, callId, sessionId)
             keys.forEach { incomingRingClocks[it] = clock }
             incomingRingHandler.postDelayed(runnable, INCOMING_RING_TIMEOUT_MS)
+            // The caller's cancel may have missed the current mailbox listen.
+            BeamioNativeChatHooks.startIncomingRingCatchUp(context, callId, sessionId)
+        }
+
+        /** This incoming call still rings: its ring clock runs and it was not answered, declined or ended. */
+        fun isIncomingRinging(callId: String, sessionId: String): Boolean =
+            incomingRingClock(callId, sessionId) != null && !isIncomingClosed(callId, sessionId)
+
+        private class PrimaryRing(val callId: String, val sessionId: String, val caller: String)
+
+        /**
+         * The call that owns the chrome is an incoming call still ringing, not
+         * answered: its ids and its verified caller (lowercase). Null otherwise,
+         * or when the caller is not known.
+         */
+        private fun unansweredPrimaryRing(context: Context): PrimaryRing? {
+            if (BeamioNativeVoiceSignaling.currentActiveCall() != null) return null
+            if (InCallScreenModel.isLive()) return null
+            val keys = primaryVoiceCallKeys()
+            val clock = keys.firstNotNullOfOrNull { incomingRingClocks[it] } ?: return null
+            val callId = clock.callId
+            val sessionId = clock.sessionId
+            if (isIncomingClosed(callId, sessionId)) return null
+            val ids = incomingRingKeys(callId, sessionId)
+            val caller = BeamioNativeVoiceSignaling.cachedOffer(callId, sessionId)?.callerEoa
+                ?.takeIf { it.isNotBlank() }
+                ?: resolvePendingCaller(context, ids).peerAddress
+            val normalized = caller.trim().lowercase()
+            if (!isWalletAddress(normalized)) return null
+            return PrimaryRing(callId, sessionId, normalized)
+        }
+
+        /** Second offers whose busy choice waits for their verified caller (key → since). */
+        private val secondaryAwaitingCaller = ConcurrentHashMap<String, Long>()
+        private const val SECONDARY_CALLER_WAIT_MS = 8_000L
+
+        fun isAwaitingSecondaryCaller(callId: String, sessionId: String): Boolean {
+            val key = busyKey(callId, sessionId)
+            return key.isNotEmpty() && secondaryAwaitingCaller.containsKey(key)
+        }
+
+        /**
+         * A second offer while another call owns the chrome. Busy, unless the
+         * earlier call is an unanswered ring from the same caller: one caller
+         * cannot ring us twice at once, so the earlier call is over even though
+         * its cancel has not reached us. Then the earlier ring ends as cancelled
+         * by the caller and [present] shows the new call. A push carries no
+         * caller, so the choice waits (at most [SECONDARY_CALLER_WAIT_MS]) for
+         * the offer's verified caller; without it the call is busy.
+         */
+        private fun handleSecondaryWhileBusy(
+            context: Context,
+            callId: String,
+            sessionId: String,
+            caller: String,
+            present: () -> Unit,
+        ) {
+            val key = busyKey(callId, sessionId)
+            if (key.isEmpty()) return
+            val primary = unansweredPrimaryRing(context)
+            if (primary == null) {
+                secondaryAwaitingCaller.remove(key)
+                rejectSecondaryWhileBusy(context, callId, sessionId)
+                return
+            }
+            val newCaller = caller.trim().lowercase()
+            if (!isWalletAddress(newCaller)) {
+                if (secondaryAwaitingCaller.putIfAbsent(key, SystemClock.elapsedRealtime()) != null) return
+                Log.i(TAG, "second incoming while an earlier call rings; busy choice waits for its caller")
+                val app = context.applicationContext
+                incomingRingHandler.postDelayed({
+                    if (secondaryAwaitingCaller.remove(key) != null) {
+                        Log.i(TAG, "second incoming caller not known in time; busy")
+                        synchronized(chromeGate) { rejectSecondaryWhileBusy(app, callId, sessionId) }
+                    }
+                }, SECONDARY_CALLER_WAIT_MS)
+                return
+            }
+            secondaryAwaitingCaller.remove(key)
+            if (newCaller != primary.caller) {
+                rejectSecondaryWhileBusy(context, callId, sessionId)
+                return
+            }
+            Log.i(
+                TAG,
+                "same caller rang again while the earlier call rings; earlier call ended as cancelled " +
+                    "earlier=${primary.callId.take(12)} new=${callId.take(12)}",
+            )
+            val app = context.applicationContext
+            incomingRingHandler.post {
+                BeamioNativeVoiceSignaling.peerDidEnd(app, primary.callId, primary.sessionId)
+                // peerDidEnd posts the end to the main thread; this runs after it.
+                incomingRingHandler.post(present)
+            }
         }
 
         private fun cancelIncomingRingTimeout(callId: String, sessionId: String) {
@@ -2230,7 +2331,12 @@ class BeamioTelecomService : ConnectionService() {
             synchronized(chromeGate) {
                 if (wasBusyRejected(callId, sessionId)) return
                 if (anotherCallOwnsChrome(callId, sessionId, aliasCallId)) {
-                    rejectSecondaryWhileBusy(context, callId, sessionId)
+                    handleSecondaryWhileBusy(context, callId, sessionId, peerAddress) {
+                        reportIncoming(
+                            context, callId.ifBlank { aliasCallId }, peerAddress, displayName, sessionId,
+                            claimedTag, claimedAddress, identityWarning,
+                        )
+                    }
                     return
                 }
                 rememberChromeOwner(callId, sessionId, aliasCallId)
@@ -2886,6 +2992,8 @@ class BeamioTelecomService : ConnectionService() {
                 sessionId = sessionId,
             )
             if (wasBusyRejected(callId, sessionId)) return
+            // A second call waiting for its caller (busy or replacing the ring): no raise.
+            if (isAwaitingSecondaryCaller(callId, sessionId)) return
             wakeConsumerShell(context)
         }
 

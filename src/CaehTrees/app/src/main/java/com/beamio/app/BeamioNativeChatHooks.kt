@@ -54,10 +54,69 @@ object BeamioNativeChatHooks {
         Log.i(TAG, "chat listen for call push started=$started")
     }
 
+    private val ringHandler = Handler(Looper.getMainLooper())
+    private var ringCatchUp: Runnable? = null
+    /** Times after the ring starts at which the listen is reopened; then every [RING_CATCH_UP_REPEAT_MS]. */
+    private val RING_CATCH_UP_AT_MS = longArrayOf(5_000L, 10_000L, 16_000L, 24_000L, 35_000L, 50_000L)
+    private const val RING_CATCH_UP_REPEAT_MS = 30_000L
+
+    /**
+     * An incoming call started ringing. The caller's cancel is a chat message to
+     * our mailbox, and the mailbox keeps it until we ACK it and sends it again on
+     * every new listen. A cancel that missed the current listen (stored while the
+     * listen was being set up after a push wake, or written to a dead listen of a
+     * killed process) would otherwise wait for the next reconnect, and the call
+     * would ring to the full ring time. So reopen the listen now and then until
+     * this call stops ringing.
+     */
+    fun startIncomingRingCatchUp(context: Context, callId: String, sessionId: String) {
+        install(context)
+        ringHandler.post {
+            ringCatchUp?.let { ringHandler.removeCallbacks(it) }
+            var step = 0
+            lateinit var tick: Runnable
+            tick = Runnable {
+                if (ringCatchUp !== tick) return@Runnable
+                if (!BeamioTelecomService.isIncomingRinging(callId, sessionId)) {
+                    ringCatchUp = null
+                    return@Runnable
+                }
+                val refreshed = BeamioConetChatModule.refreshListen("incomingRing")
+                Log.i(TAG, "ring catch-up step=$step listenRefreshed=$refreshed")
+                step += 1
+                val next = if (step < RING_CATCH_UP_AT_MS.size) {
+                    RING_CATCH_UP_AT_MS[step] - RING_CATCH_UP_AT_MS[step - 1]
+                } else {
+                    RING_CATCH_UP_REPEAT_MS
+                }
+                ringHandler.postDelayed(tick, next)
+            }
+            ringCatchUp = tick
+            ringHandler.postDelayed(tick, RING_CATCH_UP_AT_MS[0])
+        }
+    }
+
+    /** When the mailbox listen last reported "listening" (it replays stored messages on attach). */
+    @Volatile
+    var listenAttachedAt: Long = 0L
+        private set
+
+    /**
+     * Make the mailbox send its stored messages again now: reopen a connected
+     * listen, or start one. Used when a call push may be stale.
+     */
+    fun pullMailboxNow(context: Context, reason: String) {
+        install(context)
+        val refreshed = BeamioConetChatModule.refreshListen(reason)
+        val started = if (refreshed) false else BeamioConetChatModule.wake(context.applicationContext, reason)
+        Log.i(TAG, "mailbox pull for $reason refreshed=$refreshed started=$started")
+    }
+
     private fun logStatus(payload: JSONObject) {
         val event = payload.optJSONObject("event") ?: return
         if (event.optString("type") != "event:status") return
         val st = event.optJSONObject("payload")
+        if (st?.optString("status") == "listening") listenAttachedAt = System.currentTimeMillis()
         Log.i(TAG, "chat status ${st?.optString("status")} ${st?.optString("detail").orEmpty()}")
     }
 

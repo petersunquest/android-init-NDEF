@@ -1746,7 +1746,10 @@ class MainActivity : ComponentActivity() {
             } catch (_: Exception) {
                 return
             }
+            // A send keeps the process running until the module answers it (see BeamioChatSendHold).
+            BeamioChatSendHold.onCommand(applicationContext, body)
             BeamioConetChatModule.handleCommand(applicationContext, body) { payload ->
+                BeamioChatSendHold.onModuleEvent(payload)
                 runOnUiThread { dispatchAndroidBridgeJsonToWeb(payload) }
             }
         }

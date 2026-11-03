@@ -11,6 +11,13 @@ import com.google.firebase.messaging.RemoteMessage
  * delivery hits [onMessageReceived] and we apply a silent local badge notification.
  */
 class CashTreesFirebaseMessagingService : FirebaseMessagingService() {
+    override fun onCreate() {
+        super.onCreate()
+        // A push cold start reaches here before the FCM SDK posts the offline chat
+        // entry; without the channel it would land in FCM's fallback channel.
+        CashTreesNativeAppStateBridge.ensureOfflineChatChannel(applicationContext)
+    }
+
     override fun onNewToken(token: String) {
         CashTreesPushRegistration.onNewToken(applicationContext, token)
     }

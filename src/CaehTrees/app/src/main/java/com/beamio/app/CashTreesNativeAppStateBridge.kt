@@ -175,6 +175,31 @@ object CashTreesNativeAppStateBridge {
         }
     }
 
+    /**
+     * Channel the server's offline chat FCM names (`offlineChatPush.ts` → `channel_id`).
+     * FCM never creates it: when it is missing, the tray entry falls back to
+     * `fcm_fallback_notification_channel` with the wrong importance. Created when the
+     * FCM service starts (also on a push cold start), before the SDK posts the entry.
+     */
+    fun ensureOfflineChatChannel(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        if (manager.getNotificationChannel(FCM_OFFLINE_CHANNEL_ID) != null) return
+        val channel = NotificationChannel(
+            FCM_OFFLINE_CHANNEL_ID,
+            "New messages",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+            description = "Messages that arrive while Beamio is closed"
+            setShowBadge(true)
+            enableVibration(true)
+        }
+        try {
+            manager.createNotificationChannel(channel)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun ensureBadgeChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
