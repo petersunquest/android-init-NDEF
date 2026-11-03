@@ -49,6 +49,17 @@
             android:textSize="15sp" />
     </LinearLayout>
 
+    <!-- Caller avatar: drawn on this phone from the verified tag (never downloaded). -->
+    <ImageView
+        android:id="@+id/incoming_call_avatar"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginBottom="6dp"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/incoming_call_title"
         android:layout_width="wrap_content"

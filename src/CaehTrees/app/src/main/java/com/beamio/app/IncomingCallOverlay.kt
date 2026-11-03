@@ -14,6 +14,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -220,6 +221,7 @@ object IncomingCallOverlay {
                 claimedTag = nextTitle
             }
             view.findViewById<TextView>(R.id.incoming_call_title)?.text = nextTitle
+            bindAvatar(view, nextTitle)
             bindWarning(view, body)
         }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run()
@@ -242,6 +244,7 @@ object IncomingCallOverlay {
                 claimedTag.trim().ifBlank { peerAddress.trim() }
             }.ifBlank { view.context.getString(R.string.incoming_call_body) }
             view.findViewById<TextView>(R.id.incoming_call_title)?.text = title
+            bindAvatar(view, title)
             view.findViewById<TextView>(R.id.incoming_call_product_line)?.text =
                 view.context.getString(R.string.incoming_call_glass_subtitle)
             bindWarning(view, identityWarning)
@@ -316,6 +319,22 @@ object IncomingCallOverlay {
         icon.post { icon.invalidateOutline() }
     }
 
+    /** Avatar of the verified @tag on the main line; hidden while the caller is unknown. */
+    private fun bindAvatar(root: View, mainLine: String) {
+        val view = root.findViewById<ImageView>(R.id.incoming_call_avatar) ?: return
+        val tag = mainLine.trim().takeIf { it.startsWith("@") && it.length in 2..33 }
+        val bitmap = tag?.let {
+            BeamioTelecomService.cachedCallerAvatar(it) ?: BeamioCallerAvatarStore.avatar(root.context, it)
+        }
+        if (bitmap == null) {
+            view.setImageDrawable(null)
+            view.visibility = View.GONE
+        } else {
+            view.setImageBitmap(bitmap)
+            view.visibility = View.VISIBLE
+        }
+    }
+
     private fun bindContent(root: View, source: Intent) {
         callId = source.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty().trim()
         sessionId = source.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty().trim()
@@ -323,6 +342,7 @@ object IncomingCallOverlay {
         val title = source.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_TITLE).orEmpty()
             .ifBlank { root.context.getString(R.string.incoming_call_body) }
         root.findViewById<TextView>(R.id.incoming_call_title)?.text = title
+        bindAvatar(root, title)
         root.findViewById<TextView>(R.id.incoming_call_product_line)?.text =
             root.context.getString(R.string.incoming_call_glass_subtitle)
         bindWarning(

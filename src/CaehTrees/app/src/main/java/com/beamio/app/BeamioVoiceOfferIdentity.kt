@@ -172,7 +172,8 @@ object BeamioVoiceOfferIdentity {
                     return@execute
                 }
                 val to = verified.optString("to", "").trim().lowercase()
-                val tag = fetchExactTag(caller)
+                // The page's local mirror first: no lookup leaves the phone for a known caller.
+                val tag = BeamioCallerAvatarStore.tagFor(app, caller) ?: fetchExactTag(caller)
                 val short = shortAddress(caller)
                 val resolved = ResolvedIdentity(
                     callerEoa = caller,

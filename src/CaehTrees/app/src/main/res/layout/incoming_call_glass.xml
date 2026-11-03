@@ -12,6 +12,16 @@
     android:paddingEnd="@dimen/incoming_call_glass_pad_end"
     android:paddingBottom="@dimen/incoming_call_glass_pad_vertical">
 
+    <!-- Caller avatar: drawn on this phone from the verified tag (never downloaded). -->
+    <ImageView
+        android:id="@+id/incoming_call_avatar"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginEnd="12dp"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

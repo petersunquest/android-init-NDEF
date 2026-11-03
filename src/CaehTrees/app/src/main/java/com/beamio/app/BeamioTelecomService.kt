@@ -2761,11 +2761,13 @@ class BeamioTelecomService : ConnectionService() {
             if (callerAvatarBitmaps.containsKey(key) || !callerAvatarLoads.add(key)) return
             val app = context.applicationContext
             Thread {
-                val bitmap = fetchCallerAvatar(seed)
+                // Never downloaded during a call: the page's stored avatar, else a drawn initial.
+                val bitmap = BeamioCallerAvatarStore.avatar(app, seed)
                 callerAvatarLoads.remove(key)
                 if (bitmap == null) return@Thread
                 callerAvatarBitmaps[key] = bitmap
                 incomingRingHandler.post {
+                    IncomingCallActivity.refreshAvatarIfShowing()
                     // Avatar may finish after Answer — still paint InCall.
                     if (InCallScreenModel.isLive() &&
                         InCallScreenModel.matches(callId, sessionId)
@@ -2818,7 +2820,8 @@ class BeamioTelecomService : ConnectionService() {
             if (!beamioTagLookups.add(key)) return
             val app = context.applicationContext
             Thread {
-                val lookedUp = fetchBeamioTag(address)
+                // The page's local mirror first: no lookup leaves the phone for a known caller.
+                val lookedUp = BeamioCallerAvatarStore.tagFor(app, address) ?: fetchBeamioTag(address)
                 beamioTagLookups.remove(key)
                 if (lookedUp.isNullOrBlank()) return@Thread
                 incomingRingHandler.post {
@@ -2943,33 +2946,6 @@ class BeamioTelecomService : ConnectionService() {
             )
             if (output !== source) source.recycle()
             return output
-        }
-
-        private fun fetchCallerAvatar(seed: String): Bitmap? {
-            val encoded = URLEncoder.encode(seed, Charsets.UTF_8.name())
-            val connection = (URL(
-                "https://api.dicebear.com/8.x/fun-emoji/png?seed=$encoded&size=192",
-            ).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 4000
-                readTimeout = 4000
-                instanceFollowRedirects = true
-            }
-            return try {
-                if (connection.responseCode !in 200..299) {
-                    Log.w(TAG, "Caller avatar HTTP ${connection.responseCode}")
-                    null
-                } else {
-                    connection.inputStream.use {
-                        val raw = BitmapFactory.decodeStream(it) ?: return@use null
-                        circleCrop(raw)
-                    }
-                }
-            } catch (error: Exception) {
-                Log.w(TAG, "Caller avatar fetch failed ${error.javaClass.simpleName}")
-                null
-            } finally {
-                connection.disconnect()
-            }
         }
 
         /**

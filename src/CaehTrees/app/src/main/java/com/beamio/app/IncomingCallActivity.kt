@@ -17,6 +17,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.TextView
 import android.window.OnBackInvokedDispatcher
 import java.lang.ref.WeakReference
@@ -222,6 +223,23 @@ class IncomingCallActivity : Activity() {
             source?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_BODY).orEmpty(),
         )
         bindAddress(source)
+        bindAvatar(title)
+    }
+
+    /** Avatar of the verified @tag on the main line; hidden while the caller is unknown. */
+    private fun bindAvatar(mainLine: String) {
+        val view = findViewById<ImageView>(R.id.incoming_call_avatar) ?: return
+        val tag = mainLine.trim().takeIf { it.startsWith("@") && it.length in 2..33 }
+        val bitmap = tag?.let {
+            BeamioTelecomService.cachedCallerAvatar(it) ?: BeamioCallerAvatarStore.avatar(this, it)
+        }
+        if (bitmap == null) {
+            view.setImageDrawable(null)
+            view.visibility = View.GONE
+        } else {
+            view.setImageBitmap(bitmap)
+            view.visibility = View.VISIBLE
+        }
     }
 
     private fun bindWarning(raw: String) {
@@ -961,7 +979,12 @@ class IncomingCallActivity : Activity() {
         }
 
         fun refreshAvatarIfShowing() {
-            // Compact iOS banner has no large caller avatar; product mark is static.
+            val activity = instance?.get() ?: return
+            if (activity.isFinishing) return
+            activity.runOnUiThread {
+                val title = activity.findViewById<TextView>(R.id.incoming_call_title)?.text?.toString().orEmpty()
+                activity.bindAvatar(title)
+            }
         }
 
         /** Quiet title/body update after BeamioTag resolve — no second CallStyle notify. */
@@ -981,6 +1004,7 @@ class IncomingCallActivity : Activity() {
                     activity.intent?.putExtra(BeamioTelecomService.EXTRA_CLAIMED_TAG, nextTitle)
                 }
                 activity.findViewById<TextView>(R.id.incoming_call_title)?.text = nextTitle
+                activity.bindAvatar(nextTitle)
                 activity.bindWarning(body)
                 activity.intent?.putExtra(BeamioTelecomService.EXTRA_INCOMING_TITLE, nextTitle)
                 activity.intent?.putExtra(BeamioTelecomService.EXTRA_INCOMING_BODY, body)

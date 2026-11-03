@@ -1302,8 +1302,9 @@ class MainActivity : ComponentActivity() {
                 BeamioCallTiming.mark("prepared")
                 if (peerAddress.isNotBlank()) {
                     Thread {
-                        val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
-                            .getOrNull().orEmpty()
+                        val tag = BeamioCallerAvatarStore.tagFor(applicationContext, peerAddress)
+                            ?: runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
+                                .getOrNull().orEmpty()
                         if (tag.isNotBlank()) {
                             InCallActivity.refreshIdentityIfShowing("", "", tag, peerAddress)
                         }
@@ -1381,14 +1382,26 @@ class MainActivity : ComponentActivity() {
                     InCallScreenModel.beginOutgoing(callId, sessionId, peerAddress)
                     InCallActivity.present(this@MainActivity, callId, sessionId, tag = "", address = peerAddress)
                     Thread {
-                        val tag = runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
-                            .getOrNull().orEmpty()
+                        val tag = BeamioCallerAvatarStore.tagFor(applicationContext, peerAddress)
+                            ?: runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
+                                .getOrNull().orEmpty()
                         if (tag.isNotBlank()) {
                             InCallActivity.refreshIdentityIfShowing(callId, sessionId, tag, peerAddress)
                         }
                     }.start()
                 }
             }
+        }
+
+        /**
+         * The page hands over its contacts' tags and pre-drawn avatars
+         * ({rows:[{address, tag, png}]}), so a call window never looks them up online.
+         */
+        @JavascriptInterface
+        fun cacheCallerAvatars(json: String) {
+            val rows = runCatching { JSONObject(json).optJSONArray("rows") }.getOrNull() ?: return
+            val app = applicationContext
+            Thread { runCatching { BeamioCallerAvatarStore.put(app, rows) } }.start()
         }
 
         @JavascriptInterface
