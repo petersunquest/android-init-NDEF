@@ -110,3 +110,66 @@ export const pickGossipEntryNodesForSend = async (
 	const source = healthy.length >= 2 ? healthy : filtered
 	return getRandomNodes(source, Math.min(n, source.length))
 }
+
+/** Per-attempt wait for an answer, and entries tried, for one delivery. */
+export const POST_ATTEMPT_TIMEOUT_MS = 8_000
+export const POST_MAX_ENTRIES = 4
+const POST_TOTAL_BUDGET_MS = 25_000
+
+/** A 2xx whose JSON body says `{ "ok": false }` is a failure too. */
+export const isExplicitFailureBody = (text: string): boolean => {
+	try {
+		const parsed = JSON.parse(text.trim()) as unknown
+		return !!parsed && typeof parsed === 'object' && (parsed as { ok?: unknown }).ok === false
+	} catch {
+		return false
+	}
+}
+
+/**
+ * Deliver one ciphertext through ONE entry at a time; try the next entry only
+ * when this one clearly failed: connection error or reset before an answer,
+ * non-2xx, a `{ ok: false }` body, or no answer within `timeoutMs`. A
+ * timed-out POST may still have arrived; retrying is safe because the mailbox
+ * keeps one copy per ciphertext and clients dedupe by `sendId`.
+ */
+export async function postArmorOneEntryAtATime(args: {
+	nodes: NodeInfo[]
+	exclude: Set<string>
+	/** JSON body for this entry (e.g. armor wrapped to that entry's key). */
+	buildBody: (node: NodeInfo) => Promise<string>
+	maxAttempts?: number
+	timeoutMs?: number
+}): Promise<{ ok: boolean; body: string; domain?: string; attempts: number }> {
+	const tried = new Set(args.exclude)
+	const maxAttempts = Math.max(1, args.maxAttempts ?? POST_MAX_ENTRIES)
+	const started = Date.now()
+	let attempts = 0
+	while (attempts < maxAttempts && Date.now() - started < POST_TOTAL_BUDGET_MS) {
+		const [node] = await pickGossipEntryNodesForSend(args.nodes, 1, tried)
+		if (!node) break
+		tried.add(node.domain)
+		attempts++
+		try {
+			const body = await args.buildBody(node)
+			const left = POST_TOTAL_BUDGET_MS - (Date.now() - started)
+			const res = await postWithTimeout(postUrl(node.domain), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body,
+				referrerPolicy: 'no-referrer',
+			}, Math.max(1_000, Math.min(args.timeoutMs ?? POST_ATTEMPT_TIMEOUT_MS, left)))
+			if (!res.ok) {
+				markGossipNodeBad(node.domain)
+				continue
+			}
+			const text = await res.text().catch(() => '')
+			if (isExplicitFailureBody(text)) continue
+			markGossipNodeHealthy(node.domain)
+			return { ok: true, body: text, domain: node.domain, attempts }
+		} catch {
+			markGossipNodeBad(node.domain)
+		}
+	}
+	return { ok: false, body: '', attempts }
+}

@@ -21,6 +21,7 @@ export type ChatDeliveryReceiptV1 = {
 	type: typeof BEAMIO_CHAT_DELIVERY_RECEIPT_V1
 	sendId: string
 	armorHash?: string
+	/** Milliseconds since epoch (spec `deliveryReceipt`, chat-daemon vectors). */
 	deliveredAt: number
 	from: string
 }
@@ -50,7 +51,7 @@ export function parseChatDeliveryReceiptV1(displayText: unknown): ChatDeliveryRe
 				type: BEAMIO_CHAT_DELIVERY_RECEIPT_V1,
 				sendId: String(o.sendId),
 				armorHash: typeof o.armorHash === 'string' ? o.armorHash : undefined,
-				deliveredAt: Number.isFinite(deliveredAt) ? deliveredAt : Math.floor(Date.now() / 1000),
+				deliveredAt: Number.isFinite(deliveredAt) ? deliveredAt : Date.now(),
 				from,
 			}
 		}
@@ -105,7 +106,7 @@ export async function postMailboxDeliveryAck(params: {
 			ok = await postArmoredGossipToEntries({
 				innerArmor,
 				mailboxRoutePublicArmored: ctx.routerArmoredPublicKey,
-				noPush: false,
+				alreadyRouted: true,
 			})
 		} catch (ex) {
 			console.warn('[POS Chat] mailbox ACK', (ex as Error)?.message ?? ex)
@@ -134,7 +135,7 @@ export async function sendDeliveryReceiptToSender(params: {
 	const inner: ChatDeliveryReceiptV1 = {
 		type: BEAMIO_CHAT_DELIVERY_RECEIPT_V1,
 		sendId: params.sendId,
-		deliveredAt: Math.floor(Date.now() / 1000),
+		deliveredAt: Date.now(),
 		from: wallet.address,
 	}
 	if (params.armorHash) inner.armorHash = params.armorHash

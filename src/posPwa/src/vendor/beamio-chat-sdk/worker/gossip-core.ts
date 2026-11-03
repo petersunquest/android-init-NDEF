@@ -52,6 +52,8 @@ import {
 	postUrl,
 	postWithTimeout,
 } from '../nodes'
+import { createMailboxStreamKey, isSealedMailboxFrame, openMailboxStreamFrame } from '../mailbox-stream'
+import { postArmorOneEntryAtATime } from '../nodes'
 import { base64ToUtf8, keccakUtf8, utf8ToBase64 } from '../crypto'
 import {
 	GROUP_V1_MAX_MEMBERS,
@@ -122,6 +124,9 @@ export class GossipCore {
 	private pgpPrivateKey: PrivateKey | null = null
 	private _userPgpKeyID = ''
 	private listenController: AbortController | null = null
+	/** This listen's mailbox stream key (memory only, never logged). */
+	private listenStreamKey: CryptoKey | null = null
+	private listenStreamFailures = 0
 	private voiceListenController: AbortController | null = null
 	private readonly voiceReorder = new VoiceFrameReorderBuffer({
 		onEvent: (event) => {
@@ -372,15 +377,21 @@ export class GossipCore {
 				typeof crypto.randomUUID === 'function'
 					? crypto.randomUUID()
 					: utf8ToBase64(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))))
+			// Fresh stream key per listen: B seals every frame with it, so the
+			// entry relaying the SSE cannot read the recipient key ID.
+			const streamKey = await createMailboxStreamKey()
 			const innerArmor = await encryptRouteCommand(
 				this.wallet,
 				{
 					command: 'mailbox_listen',
 					walletAddress: this.wallet.address,
 					instanceId,
+					streamKey: streamKey.base64,
 				},
 				ownRouteKey,
 			)
+			this.listenStreamKey = streamKey.key
+			this.listenStreamFailures = 0
 
 			const listenEntries = pickListenEntryNodes(this.nodes, mailboxDomains)
 			if (!listenEntries.length) {
@@ -533,7 +544,9 @@ export class GossipCore {
 						const dataLines = lines.filter((l) => l.startsWith('data:')).map((l) => l.slice(5).trimStart())
 						const payload = (dataLines.length ? dataLines.join('\n') : block).trim()
 						if (!payload) continue
-						await this.handleInbound(payload, node.domain, rootSignal)
+						const frame = await this.openListenFrame(payload)
+						if (!frame) continue
+						await this.handleInbound(frame, node.domain, rootSignal)
 					}
 				}
 				triggerRelaunch('server_closed')
@@ -572,6 +585,23 @@ export class GossipCore {
 			return (err as Error).message
 		}
 		return 'unknown'
+	}
+
+	/**
+	 * Open one mailbox SSE frame with this listen's stream key. Every mailbox
+	 * seals every frame; anything else (plain JSON, a frame that does not open)
+	 * is dropped. Contents are never logged.
+	 */
+	private async openListenFrame(payload: string): Promise<string | null> {
+		const key = this.listenStreamKey
+		const opened = key && isSealedMailboxFrame(payload) ? await openMailboxStreamFrame(key, payload) : null
+		if (opened === null) {
+			this.listenStreamFailures++
+			this.emit.log('warn', `mailbox frame did not open (${this.listenStreamFailures})`)
+			return null
+		}
+		this.listenStreamFailures = 0
+		return opened
 	}
 
 	private async handleInbound(rawData: string, viaDomain: string, rootSignal: AbortSignal): Promise<void> {
@@ -653,20 +683,20 @@ export class GossipCore {
 			this.emit.log('error', `send encrypt error: ${(ex as Error)?.message ?? String(ex)}`)
 			return false
 		}
-		if (opts?.beamioNoPush) {
-			const mailboxKey = to.routerArmoredPublicKey?.trim()
-			if (!mailboxKey) {
-				this.emit.log('error', 'send: NoPush requires recipient mailbox routerArmoredPublicKey')
-				return false
-			}
-			try {
-				innerArmor = await wrapArmorToMailboxWork(innerArmor, mailboxKey, { NoPush: true })
-			} catch (ex: unknown) {
-				this.emit.log('error', `send mailbox wrap error: ${(ex as Error)?.message ?? String(ex)}`)
-				return false
-			}
+		// Always wrap to the recipient's mailbox B: the entry then sees only B's
+		// route key ID, never the recipient's key ID. No route, no send.
+		const mailboxKey = to.routerArmoredPublicKey?.trim()
+		if (!mailboxKey) {
+			this.emit.log('error', 'send: recipient mailbox unknown (routerArmoredPublicKey); not sent')
+			return false
 		}
-		const mailboxDomains = new Set(pickRouteNodesByArmoredKey(this.nodes, to.routerArmoredPublicKey || '').map((n) => n.domain))
+		try {
+			innerArmor = await wrapArmorToMailboxWork(innerArmor, mailboxKey, opts?.beamioNoPush ? { NoPush: true } : undefined)
+		} catch (ex: unknown) {
+			this.emit.log('error', `send mailbox wrap error: ${(ex as Error)?.message ?? String(ex)}`)
+			return false
+		}
+		const mailboxDomains = new Set(pickRouteNodesByArmoredKey(this.nodes, mailboxKey).map((n) => n.domain))
 		return this.postToEntries(innerArmor, mailboxDomains)
 	}
 
@@ -752,60 +782,50 @@ export class GossipCore {
 		}
 		const signMessage = await this.wallet.signMessage(payload)
 		const envelope = { timestamp: Date.now(), text: payload, from: this.wallet.address, signMessage }
-		const innerArmor = await encrypt({
+		const routeKey = to.routerArmoredPublicKey?.trim()
+		if (!routeKey) throw new Error('group recipient mailbox route unavailable')
+		const userArmor = await encrypt({
 			message: await createMessage({ text: utf8ToBase64(JSON.stringify(envelope)) }),
 			encryptionKeys: key,
 			// Compression would defeat fixed-bucket padding and amplify length leaks.
 			config: { preferredCompressionAlgorithm: enums.compression.uncompressed },
 		})
-		const mailboxDomains = new Set(pickRouteNodesByArmoredKey(this.nodes, to.routerArmoredPublicKey || '').map((n) => n.domain))
+		// Wrapped to the member's mailbox: the entry never sees the member's key ID.
+		const innerArmor = await wrapArmorToMailboxWork(userArmor, routeKey)
+		const mailboxDomains = new Set(pickRouteNodesByArmoredKey(this.nodes, routeKey).map((n) => n.domain))
 		return this.postToEntries(innerArmor, mailboxDomains)
 	}
 
+	/**
+	 * POST armor through one entry at a time (never the same ciphertext to
+	 * several entries at once); the next entry only after a clear failure.
+	 * Voice frames pass `{ fanout: 1 }`: at most two entries.
+	 */
 	private async postToEntries(
 		innerArmor: string,
 		excludeDomains: Set<string>,
+		options?: { fanout?: number },
 	): Promise<boolean> {
-		const send = async (targets: NodeInfo[]): Promise<boolean> => {
-			if (!targets.length) return false
-			const results = await Promise.all(
-				targets.map(async (node) => {
-					const url = postUrl(node.domain)
-					try {
-						const armored =
-							this.cfg?.runtime.outerWrap === false
-								? innerArmor
-								: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
-						const res = await postWithTimeout(
-							url,
-							{
-								method: 'POST',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify(buildPostBody(armored)),
-								referrerPolicy: 'no-referrer',
-							},
-							12_000,
-						)
-						if (!res.ok) {
-							markGossipNodeBad(node.domain)
-							return false
-						}
-						markGossipNodeHealthy(node.domain)
-						return true
-					} catch {
-						markGossipNodeBad(node.domain)
-						return false
-					}
-				}),
-			)
-			return results.some(Boolean)
-		}
-		const fanout = this.cfg?.runtime.sendFanout ?? 3
-		const wave1 = await pickGossipEntryNodesForSend(this.nodes, Math.min(fanout + 1, this.nodes.length), excludeDomains)
-		if (await send(wave1)) return true
-		const tried = new Set([...excludeDomains, ...wave1.map((n) => n.domain)])
-		const wave2 = await pickGossipEntryNodesForSend(this.nodes, Math.min(fanout + 1, this.nodes.length), tried)
-		return send(wave2)
+		// Rule 19: never the recipient's mailbox, never our own mailbox.
+		const ownRoute = this.cfg?.identity.ownRouteArmoredPublicKey || ''
+		const exclude = new Set([
+			...excludeDomains,
+			...(ownRoute ? pickRouteNodesByArmoredKey(this.nodes, ownRoute).map((n) => n.domain) : []),
+		])
+		const result = await postArmorOneEntryAtATime({
+			nodes: this.nodes,
+			exclude,
+			maxAttempts: (options?.fanout ?? 2) <= 1 ? 2 : undefined,
+			buildBody: async (node) => {
+				const armored =
+					this.cfg?.runtime.outerWrap === false
+						? innerArmor
+						: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+				return JSON.stringify(buildPostBody(armored))
+			},
+		})
+		if (!result.ok) this.emit.log('warn', `post failed after ${result.attempts} entr${result.attempts === 1 ? 'y' : 'ies'}`)
+		return result.ok
 	}
 
 	// ---- Presence (wallet_online_query, encrypt to mailbox B, POST via C ≠ B) --

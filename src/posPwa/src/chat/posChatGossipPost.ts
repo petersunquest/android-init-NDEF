@@ -1,24 +1,22 @@
 /**
  * Main-thread gossip POST (onboarding / worker-not-ready fallback).
  *
- * Delivery packet must be recipient **user-PGP** armor posted to entry A ≠ B
- * (same shape as `scripts/testConetDepinMessage.ts probe`).
- *
- * Do **not** route mailbox-work (encrypted to B's route key) through A:
- * SI `forwardEncryptedSocket` → `getRoute(nodeKey)` often misses and still
- * returns HTTP 200 `{}`. POS shows success; mailbox B never sees the packet.
- * 0.1.8 Resend hit that path (`noPush` wrap then wrap-to-entry).
+ * A chat delivery (recipient user-PGP armor) is always wrapped to the
+ * recipient's mailbox B (mailbox work `{ data, NoPush? }`), so the entry sees
+ * only B's route key ID, never the recipient's key ID; without B's route key
+ * it is not sent. A command already encrypted to a mailbox route key (e.g. the
+ * mailbox ACK) is posted as is (`alreadyRouted`). Each armor is wrapped to the
+ * entry's key and posted through one entry at a time; the next entry only
+ * after a clear failure (network error, non-2xx, `{ ok: false }`, 8 s timeout).
  */
 import { readKey } from 'openpgp'
-import { GOSSIP_POST_DOMAIN_HEX_IDS } from '@/conet/constants'
-import { shuffleTake } from '@/conet/crypto'
-import { fetchCoNETGossipNodes, pickGossipNodes, type GossipNodeInfo } from '@/conet/guardianNodes'
+import { fetchCoNETGossipNodes, type GossipNodeInfo } from '@/conet/guardianNodes'
 import {
 	pickGossipEntryNodesForSend,
 	pickRouteNodesByArmoredKey,
 	postUrl,
 } from '@conet.project/chat-sdk/nodes'
-import { wrapArmorToEntryRoute } from '@conet.project/chat-sdk/envelope'
+import { wrapArmorToEntryRoute, wrapArmorToMailboxWork } from '@conet.project/chat-sdk/envelope'
 import type { NodeInfo } from '@conet.project/chat-sdk/types'
 
 function asNodeInfo(nodes: GossipNodeInfo[]): NodeInfo[] {
@@ -45,7 +43,7 @@ async function mailboxDomainHexesFromArmored(armored: string): Promise<string[]>
 	}
 }
 
-async function postWithTimeout(url: string, armored: string, timeoutMs = 12_000): Promise<boolean> {
+async function postWithTimeout(url: string, armored: string, timeoutMs = 8_000): Promise<boolean> {
 	const ctrl = new AbortController()
 	const t = setTimeout(() => ctrl.abort(), timeoutMs)
 	try {
@@ -56,7 +54,9 @@ async function postWithTimeout(url: string, armored: string, timeoutMs = 12_000)
 			referrerPolicy: 'no-referrer',
 			signal: ctrl.signal,
 		})
-		return res.ok
+		if (!res.ok) return false
+		const answer = await res.text().catch(() => '')
+		return !/"ok"\s*:\s*false/.test(answer)
 	} catch {
 		return false
 	} finally {
@@ -67,14 +67,21 @@ async function postWithTimeout(url: string, armored: string, timeoutMs = 12_000)
 export async function postArmoredGossipToEntries(params: {
 	innerArmor: string
 	mailboxRoutePublicArmored?: string | null
-	/** Kept for callers; mailbox-work is not used as the routed packet (see file header). */
+	/** Chat delivery: the mailbox stores it without a push (delivery receipts). */
 	noPush?: boolean
+	/** `innerArmor` is already encrypted to a mailbox route key (mailbox command). */
+	alreadyRouted?: boolean
 }): Promise<boolean> {
-	const innerArmor = params.innerArmor
-	if (!innerArmor.includes('BEGIN PGP')) return false
-	void params.noPush
-
+	if (!params.innerArmor.includes('BEGIN PGP')) return false
 	const mailboxKey = params.mailboxRoutePublicArmored?.trim() || ''
+	if (!mailboxKey) {
+		console.warn('[POS Chat] gossip POST: recipient mailbox unknown; not sent')
+		return false
+	}
+	const innerArmor = params.alreadyRouted
+		? params.innerArmor
+		: await wrapArmorToMailboxWork(params.innerArmor, mailboxKey, params.noPush ? { NoPush: true } : undefined)
+
 	const live = await fetchCoNETGossipNodes()
 	const nodes = asNodeInfo(live)
 	const mailboxDomains = new Set(
@@ -83,47 +90,19 @@ export async function postArmoredGossipToEntries(params: {
 	for (const hex of await mailboxDomainHexesFromArmored(mailboxKey)) {
 		mailboxDomains.add(hex)
 	}
-
-	const liveWithoutMailbox = live.filter((n) => !mailboxDomains.has(normDomainHex(n.domain)))
-	const entries = await pickGossipEntryNodesForSend(asNodeInfo(liveWithoutMailbox), 4)
-	const targets = entries.length ? entries : asNodeInfo(pickGossipNodes(liveWithoutMailbox, 4))
-
-	if (targets.length) {
-		const results = await Promise.all(
-			targets.map(async (node) => {
-				try {
-					if (!node.armoredPublicKey?.includes('BEGIN PGP')) return false
-					const wrapped = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
-					const ok = await postWithTimeout(postUrl(node.domain), wrapped)
-					if (ok) {
-						console.log('[POS Chat] gossip POST user-PGP wrap-to-entry', node.domain)
-					}
-					return ok
-				} catch (ex) {
-					console.warn('[POS Chat] wrap-to-entry failed', node.domain, (ex as Error)?.message ?? ex)
-					return false
-				}
-			}),
-		)
-		if (results.some(Boolean)) return true
+	const tried = new Set<string>(mailboxDomains)
+	for (let attempt = 0; attempt < 4; attempt++) {
+		const pool = live.filter((n) => !tried.has(normDomainHex(n.domain)) && n.armoredPublicKey?.includes('BEGIN PGP'))
+		const [node] = await pickGossipEntryNodesForSend(asNodeInfo(pool), 1)
+		if (!node) break
+		tried.add(normDomainHex(node.domain))
+		try {
+			const wrapped = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+			if (await postWithTimeout(postUrl(node.domain), wrapped)) return true
+		} catch (ex) {
+			console.warn('[POS Chat] wrap-to-entry failed', node.domain, (ex as Error)?.message ?? ex)
+		}
 	}
-
-	const fallbackDomains = shuffleTake(
-		GOSSIP_POST_DOMAIN_HEX_IDS.filter((d) => !mailboxDomains.has(normDomainHex(d))),
-		6,
-	)
-	if (!fallbackDomains.length) {
-		console.warn('[POS Chat] gossip POST: no entry A ≠ B available')
-		return false
-	}
-	const fallback = await Promise.all(
-		fallbackDomains.map((d) =>
-			postWithTimeout(`https://${d.toLowerCase()}.conet.network/post`, innerArmor),
-		),
-	)
-	if (fallback.some(Boolean)) {
-		console.warn('[POS Chat] gossip POST used keyless entry fallback (user-PGP)')
-		return true
-	}
+	console.warn('[POS Chat] gossip POST failed on every entry')
 	return false
 }
