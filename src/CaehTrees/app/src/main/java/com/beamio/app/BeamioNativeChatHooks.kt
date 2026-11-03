@@ -132,6 +132,11 @@ object BeamioNativeChatHooks {
         }
         // A redelivered end for a call that is already over must not touch the current one.
         if (!BeamioTelecomService.isLiveCall(callId, sessionId)) {
+            if (type == "voice_end_v1") {
+                // A late call push may still be waiting to ring this call: settle it,
+                // so the ring never starts. A call already over keeps its record.
+                BeamioTelecomService.notePeerEndedBeforeRing(app, callId, sessionId)
+            }
             Log.i(TAG, "chat end for no live call; ignored")
             return
         }

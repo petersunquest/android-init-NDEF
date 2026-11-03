@@ -1115,6 +1115,14 @@ class BeamioTelecomService : ConnectionService() {
             if (isIncomingClosed(callId, sessionId, nativeCallId)) {
                 val answered = isIncomingAnsweredAny(callId, sessionId, nativeCallId)
                 Log.i(TAG, "reportIncoming skipped; call already " + if (answered) "answered" else "ended")
+                if (!answered) {
+                    // The page rebuilds a call record from the replayed offer after the
+                    // process that ended the call was killed; its callEnded never reached
+                    // the page. Tell the page how the call ended (record only).
+                    unansweredSettledAction(callId, sessionId, nativeCallId)?.let { settled ->
+                        MainActivity.dispatchIncomingCallSettled(settled, callId, sessionId)
+                    }
+                }
                 // Answer can beat the PWA's caller fields. Give the call page the
                 // caller now (title only; no incoming window).
                 if (answered && InCallScreenModel.isLive() && InCallScreenModel.matches(nativeCallId, sessionId)) {
@@ -1218,6 +1226,7 @@ class BeamioTelecomService : ConnectionService() {
                 )
             }
             armIncomingRingTimeout(context, callId, sessionId)
+            noteIncomingRang(context, listOf(callId, sessionId, nativeCallId))
             Log.i(
                 TAG,
                 "reportIncoming called callIdPresent=${callId.isNotBlank()} " +
@@ -1703,6 +1712,82 @@ class BeamioTelecomService : ConnectionService() {
 
         fun isIncomingAnsweredAny(vararg ids: String): Boolean =
             settledAny(listOf("callAnswered"), ids)
+
+        /**
+         * The caller's signed end arrived before this call rang (late push: the
+         * mailbox replayed the cancel while the ring waited). Settle it as ended so
+         * no later push, page report or offer resolve rings it. Nothing else runs:
+         * there is no call, notification or Telecom row for it yet.
+         */
+        fun notePeerEndedBeforeRing(context: Context, callId: String, sessionId: String) {
+            restoreSettledIncoming(context)
+            val ids = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            if (ids.isEmpty() || isIncomingAnsweredAny(*ids.toTypedArray())) return
+            val keys = ids.map { settleKey("callEnded", it) }.filter { settledCallActions.add(it) }
+            if (keys.isEmpty()) return
+            persistSettled(context, keys)
+            Log.i(TAG, "caller ended before the ring; call settled as ended (no ring)")
+        }
+
+        /**
+         * Incoming calls that rang on this phone, kept for a few days. The page
+         * shows a call the caller ended as "Call cancelled" when it rang here and
+         * as "Missed call" when it never did (app force stopped, deep sleep, a
+         * push too late). A killed process forgets, so it is on disk.
+         */
+        private const val RANG_PREFS = "beamio_rang_incoming_v1"
+        private const val RANG_SINCE_KEY = "__since"
+        private const val RANG_KEEP_MS = 3L * 24 * 60 * 60_000L
+        private const val RANG_MAX = 300
+
+        private fun noteIncomingRang(context: Context, ids: List<String>) {
+            val keys = ids.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            if (keys.isEmpty()) return
+            runCatching {
+                val prefs = context.applicationContext.getSharedPreferences(RANG_PREFS, Context.MODE_PRIVATE)
+                val now = System.currentTimeMillis()
+                val edit = prefs.edit()
+                if (!prefs.contains(RANG_SINCE_KEY)) edit.putLong(RANG_SINCE_KEY, now)
+                keys.forEach { edit.putLong(it, now) }
+                val entries = prefs.all.filterKeys { it != RANG_SINCE_KEY }
+                if (entries.size + keys.size > RANG_MAX) {
+                    val cutoff = now - RANG_KEEP_MS
+                    entries.filter { ((it.value as? Long) ?: 0L) < cutoff }.keys.forEach { edit.remove(it) }
+                    val left = entries.filter { ((it.value as? Long) ?: 0L) >= cutoff }
+                    if (left.size + keys.size > RANG_MAX) {
+                        left.entries.sortedBy { (it.value as? Long) ?: 0L }
+                            .take(left.size + keys.size - RANG_MAX)
+                            .forEach { edit.remove(it.key) }
+                    }
+                }
+                edit.apply()
+            }
+        }
+
+        /**
+         * Whether an incoming call rang on this phone: true, false, or null when
+         * this phone cannot know (the call is older than the record, or than the
+         * first ring this version recorded).
+         */
+        fun incomingRang(context: Context, callId: String, sessionId: String, createdAtMs: Long): Boolean? {
+            val keys = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }
+            if (keys.isEmpty()) return null
+            val prefs = context.applicationContext.getSharedPreferences(RANG_PREFS, Context.MODE_PRIVATE)
+            return BeamioIncomingPushGate.rangAnswer(
+                recorded = keys.any { prefs.contains(it) },
+                sinceMs = prefs.getLong(RANG_SINCE_KEY, 0L),
+                createdAtMs = createdAtMs,
+                nowMs = System.currentTimeMillis(),
+                keepMs = RANG_KEEP_MS,
+            )
+        }
+
+        /** How an incoming call ended before anyone answered it, or null. */
+        private fun unansweredSettledAction(vararg ids: String): String? {
+            if (settledAny(listOf("callAnswered"), ids)) return null
+            return listOf("callRejected", "callTimedOut", "callEnded")
+                .firstOrNull { settledAny(listOf(it), ids) }
+        }
 
         /**
          * Answer tapped on a banner for an offer that already ended (caller

@@ -243,6 +243,26 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /**
+         * An offer the page reported had already ended before anyone answered it
+         * (settledAs: callEnded, callTimedOut or callRejected). The page only fixes
+         * its call record; nothing is sent to the caller. Not queued: the page
+         * reports the offer again on its next replay.
+         */
+        fun dispatchIncomingCallSettled(settledAs: String, callId: String, sessionId: String) {
+            val activity = activeInstance ?: return
+            activity.runOnUiThread {
+                if (!activity::webView.isInitialized) return@runOnUiThread
+                activity.dispatchAndroidBridgeJsonToWeb(
+                    JSONObject()
+                        .put("action", "incomingCallSettled")
+                        .put("settledAs", settledAs)
+                        .put("callId", callId)
+                        .put("sessionId", sessionId),
+                )
+            }
+        }
+
         private val ALLOWED_EXTERNAL_URL_SCHEMES = setOf(
             "http", "https", "mailto", "tel",
             "ethereum",
@@ -1394,6 +1414,11 @@ class MainActivity : ComponentActivity() {
         }
 
         /**
+         * The page asks whether incoming calls the caller ended rang on this phone
+         * ({calls:[{callId, sessionId, createdAt}]}). One incomingCallOutcome event
+         * per call: rang true / false, or no rang field when this phone cannot know.
+         */
+        /**
          * The page hands over its contacts' tags and pre-drawn avatars
          * ({rows:[{address, tag, png}]}), so a call window never looks them up online.
          */
@@ -1402,6 +1427,29 @@ class MainActivity : ComponentActivity() {
             val rows = runCatching { JSONObject(json).optJSONArray("rows") }.getOrNull() ?: return
             val app = applicationContext
             Thread { runCatching { BeamioCallerAvatarStore.put(app, rows) } }.start()
+        }
+
+        @JavascriptInterface
+        fun queryIncomingCallOutcome(json: String) {
+            val calls = runCatching { JSONObject(json).optJSONArray("calls") }.getOrNull() ?: return
+            val replies = ArrayList<JSONObject>()
+            for (i in 0 until minOf(calls.length(), 50)) {
+                val call = calls.optJSONObject(i) ?: continue
+                val callId = call.optString("callId").trim()
+                val sessionId = call.optString("sessionId").trim()
+                if (callId.isEmpty() && sessionId.isEmpty()) continue
+                val reply = JSONObject()
+                    .put("action", "incomingCallOutcome")
+                    .put("callId", callId)
+                    .put("sessionId", sessionId)
+                BeamioTelecomService.incomingRang(
+                    applicationContext, callId, sessionId, call.optLong("createdAt", 0L),
+                )?.let { reply.put("rang", it) }
+                replies.add(reply)
+            }
+            if (replies.isEmpty()) return
+            Log.i("BeamioVoiceCall", "incoming call outcome query calls=${replies.size}")
+            runOnUiThread { replies.forEach { dispatchAndroidBridgeJsonToWeb(it) } }
         }
 
         @JavascriptInterface
