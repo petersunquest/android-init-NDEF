@@ -61,6 +61,44 @@ object BeamioCallTonePlayer {
         }
     }
 
+    /** Busy tone length: three 0.5 s tones (the platform's local busy pattern). */
+    const val BUSY_MS = 3_000L
+
+    /**
+     * The callee is in another call: stop the ringback and play the platform
+     * busy tone (`TONE_SUP_BUSY`, the SIM country's variant like the ringback)
+     * on the voice-call stream for about 3 s, then [onDone] (end the call).
+     */
+    fun playBusy(onDone: () -> Unit) {
+        stopRingback("busy", mediaStarting = true)
+        val generator = runCatching { ToneGenerator(AudioManager.STREAM_VOICE_CALL, VOLUME) }
+            .onFailure { Log.w(TAG, "busy ToneGenerator failed: ${it.message}") }
+            .getOrNull()
+        if (generator != null && generator.startTone(ToneGenerator.TONE_SUP_BUSY, BUSY_MS.toInt())) {
+            Log.i(TAG, "busy start")
+        } else {
+            Log.w(TAG, "busy tone refused")
+        }
+        synchronized(lock) { busyTone = generator }
+        main.postDelayed({
+            stopBusy("done")
+            onDone()
+        }, BUSY_MS)
+    }
+
+    /** The busy tone now playing (only between [playBusy] and its end). */
+    private var busyTone: ToneGenerator? = null
+
+    /** Stop the busy tone early: the user hung up during it. Idempotent. */
+    fun stopBusy(reason: String) {
+        val generator = synchronized(lock) { busyTone.also { busyTone = null } } ?: return
+        runCatching {
+            generator.stopTone()
+            generator.release()
+        }
+        Log.i(TAG, "busy stop reason=$reason")
+    }
+
     /**
      * Stop now. [mediaStarting] = the voice channel is about to open the mic and
      * speaker for this call: keep the ringback off until the next dial.

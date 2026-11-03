@@ -5974,7 +5974,8 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			reason: "busy",
 			protectStickyChrome: true
 		)
-		callKit.emitToWebWhenForeground("callRejected", callId: callId, sessionId: sessionId)
+		BeamioNativeVoiceSignaling.markBusyRejected(callId: callId, sessionId: sessionId)
+		callKit.emitToWebWhenForeground("callBusyRejected", callId: callId, sessionId: sessionId)
 		DispatchQueue.main.async { completion?(nil) }
 	}
 
@@ -6020,6 +6021,11 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 		{
 			NSLog("[BeamioVoip] soft report SKIP — already ended on this device callId=%@", callId)
 			callKit.writeBusyQaBreadcrumb("soft-skip-locally-ended:\(callId)")
+			// A busy reject: the page (back after a cold start) records it as
+			// "Missed call · While on another call". Record only.
+			if BeamioNativeVoiceSignaling.wasBusyRejected(callId: callId, sessionId: sessionId) {
+				emitCallActionToWeb("callBusyRejected", callId: callId, sessionId: sessionId)
+			}
 			DispatchQueue.main.async { completion?(nil) }
 			return
 		}
@@ -6149,7 +6155,8 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 				reason: "busy",
 				protectStickyChrome: true
 			)
-			callKit.emitToWebWhenForeground("callRejected", callId: callId, sessionId: sessionId)
+			BeamioNativeVoiceSignaling.markBusyRejected(callId: callId, sessionId: sessionId)
+			callKit.emitToWebWhenForeground("callBusyRejected", callId: callId, sessionId: sessionId)
 			DispatchQueue.main.async { completion?(nil) }
 			return
 		}
@@ -6185,8 +6192,9 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 					reason: "busy",
 					protectStickyChrome: true
 				)
+				BeamioNativeVoiceSignaling.markBusyRejected(callId: callId, sessionId: sessionId)
 				self.callKit.emitToWebWhenForeground(
-					"callRejected",
+					"callBusyRejected",
 					callId: callId,
 					sessionId: sessionId
 				)

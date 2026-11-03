@@ -904,8 +904,13 @@ class BeamioTelecomService : ConnectionService() {
                 reason = "busy",
                 protectStickyChrome = true,
             )
+            // On disk: the page records "Missed call · While on another call" even
+            // when it only sees the offer later (cold start replays it, the shell
+            // answers with incomingCallSettled settledAs=callBusyRejected).
+            settleBusyRejected(context.applicationContext, callId, sessionId)
+            // Record only: the busy reject already went to the caller.
             MainActivity.dispatchSystemCallAction(
-                "callRejected",
+                "callBusyRejected",
                 callId,
                 sessionId,
                 context.applicationContext,
@@ -1813,8 +1818,18 @@ class BeamioTelecomService : ConnectionService() {
         /** How an incoming call ended before anyone answered it, or null. */
         private fun unansweredSettledAction(vararg ids: String): String? {
             if (settledAny(listOf("callAnswered"), ids)) return null
-            return listOf("callRejected", "callTimedOut", "callEnded")
+            // Busy first: it is also settled as callRejected (so it counts as closed).
+            return listOf("callBusyRejected", "callRejected", "callTimedOut", "callEnded")
                 .firstOrNull { settledAny(listOf(it), ids) }
+        }
+
+        /** Busy reject of a second incoming call: closed (callRejected) and marked busy, on disk. */
+        private fun settleBusyRejected(context: Context, callId: String, sessionId: String) {
+            restoreSettledIncoming(context)
+            val ids = listOf(callId, sessionId).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+            val keys = ids.flatMap { listOf(settleKey("callRejected", it), settleKey("callBusyRejected", it)) }
+                .filter { settledCallActions.add(it) }
+            persistSettled(context, keys)
         }
 
         /**

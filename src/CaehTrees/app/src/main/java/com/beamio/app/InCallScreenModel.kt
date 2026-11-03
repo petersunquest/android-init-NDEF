@@ -93,8 +93,12 @@ object InCallScreenModel {
     /** Set for a moment before the screen closes on a lost connection. */
     private val connectionLostFlag = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    /** The callee is in another call: shown while the busy tone plays. */
+    private val busyFlag = java.util.concurrent.atomic.AtomicBoolean(false)
+
     fun isReconnecting(): Boolean = reconnectingFlag.get()
     fun isConnectionLost(): Boolean = connectionLostFlag.get()
+    fun isBusy(): Boolean = busyFlag.get()
 
     /** No ringing receipt after five rings: shown until the screen closes. */
     private val unreachableFlag = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -107,6 +111,15 @@ object InCallScreenModel {
         if (!liveFlag.get() || isConnected()) return
         if (callId.isNotBlank() && snapshot.callId.isNotBlank() && snapshot.callId != callId) return
         unreachableFlag.set(true)
+        InCallActivity.refreshStateIfShowing()
+    }
+
+    /** Main thread. Only for the dial on screen, before it connects. */
+    fun showBusy(callId: String) {
+        val snapshot = state.get()
+        if (!liveFlag.get() || isConnected()) return
+        if (callId.isNotBlank() && snapshot.callId.isNotBlank() && snapshot.callId != callId) return
+        busyFlag.set(true)
         InCallActivity.refreshStateIfShowing()
     }
 
@@ -267,6 +280,7 @@ object InCallScreenModel {
             connectedFlag.set(true)
             reconnectingFlag.set(false)
             connectionLostFlag.set(false)
+            busyFlag.set(false)
             unreachableFlag.set(false)
             mutedFlag.set(false)
             speakerFlag.set(false)
@@ -339,11 +353,14 @@ object InCallScreenModel {
             speakerFlag.set(false)
         }
         liveFlag.set(false)
+        // Hang-up during the busy tone: stop it with the screen.
+        BeamioCallTonePlayer.stopBusy("screen closed")
         presentedFlag.set(false)
         connectedFlag.set(true)
         prepareError.set("")
         reconnectingFlag.set(false)
         connectionLostFlag.set(false)
+        busyFlag.set(false)
         unreachableFlag.set(false)
         BeamioCallTonePlayer.stopRingback("ended")
         BeamioCallTonePlayer.resetForNewDial()

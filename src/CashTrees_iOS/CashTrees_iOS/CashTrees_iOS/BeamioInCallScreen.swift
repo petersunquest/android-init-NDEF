@@ -73,6 +73,12 @@ final class BeamioInCallScreenModel: ObservableObject {
 		return nil
 	}
 
+	/// The callee is in another call: say so while the busy tone plays (main thread).
+	func showBusy(callId: String) {
+		guard live, !connected, callId.isEmpty || self.callId.isEmpty || self.callId == callId else { return }
+		endNotice = "On another call"
+	}
+
 	/// No ringing receipt after five rings: the callee's phone never got the
 	/// call. Say so until the screen closes (main thread).
 	func showUnreachable(callId: String) {

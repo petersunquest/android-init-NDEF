@@ -28,6 +28,7 @@
     <string name="in_call_connecting">Connecting…</string>
     <string name="in_call_reconnecting">Reconnecting…</string>
     <string name="in_call_connection_lost">Call ended: connection lost</string>
+    <string name="in_call_busy">On another call</string>
     <string name="in_call_unreachable">Unreachable</string>
     <string name="in_call_return">Return to call</string>
     <string name="in_call_fallback_title">Beamio call</string>

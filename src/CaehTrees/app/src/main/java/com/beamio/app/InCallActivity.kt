@@ -562,6 +562,7 @@ class InCallActivity : ComponentActivity() {
     private fun bindTimer() {
         val override = when {
             InCallScreenModel.isConnectionLost() -> getString(R.string.in_call_connection_lost)
+            InCallScreenModel.isBusy() -> getString(R.string.in_call_busy)
             InCallScreenModel.isUnreachable() -> getString(R.string.in_call_unreachable)
             InCallScreenModel.isReconnecting() && InCallScreenModel.isConnected() ->
                 getString(R.string.in_call_reconnecting)
