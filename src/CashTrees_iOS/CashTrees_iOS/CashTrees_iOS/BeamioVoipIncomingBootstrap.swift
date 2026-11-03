@@ -2722,6 +2722,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 								return
 							}
 							self.rememberOwnedIncoming(uuid: retryUuid, callId: callId)
+							BeamioNativeVoiceSignaling.noteIncomingRingStarted(callId: callId)
 							NSLog(
 								"[BeamioCallKit] reportIncoming RETRY OK callId=%@ uuid=%@",
 								callId,
@@ -2767,6 +2768,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 					callId: callId,
 					sessionId: sessionId
 				) || BeamioNativeVoiceSignaling.wasLocallyEnded(callId: callId, sessionId: sessionId)
+				BeamioNativeVoiceSignaling.noteIncomingRingStarted(callId: callId)
 				BeamioNativeVoiceSignaling.qaTrail(
 					"call reported callId=\(callId.prefix(8)) remoteEnded=\(remoteEnded)"
 				)
@@ -6273,11 +6275,29 @@ final class BeamioVoipIncomingBootstrap: NSObject, PKPushRegistryDelegate {
 			BeamioNativeVoiceSignaling.markLocallyEnded(callId: callId, sessionId: sessionId)
 		}
 		if action == "callRejected" {
+			// iOS ends an unanswered incoming call by itself after about 60 s, with
+			// the same End a Decline makes. A ring that long is a timeout.
+			let rang = BeamioNativeVoiceSignaling.takeIncomingRingSeconds(callId: callId)
+			let timedOut = (rang ?? 0) >= BeamioNativeVoiceSignaling.systemRingTimeoutSeconds
+			let rangText = rang.map { String(Int($0)) } ?? "?"
 			if BeamioNativeVoiceSignaling.wasRemoteEnded(callId: callId, sessionId: sessionId) {
 				// The caller cancelled: nothing to decline, and no uplink is needed.
 				lastReportedCallId = ""
 				lastReportedAt = .distantPast
+				BeamioNativeVoiceSignaling.qaTrail("incoming ended callId=\(callId.prefix(8)) as=caller-cancelled rang=\(rangText)s")
 				NSLog("[BeamioVoip] caller cancelled callId=%@ — no decline sent", callId)
+				return
+			}
+			BeamioNativeVoiceSignaling.qaTrail(
+				"incoming ended callId=\(callId.prefix(8)) as=\(timedOut ? "timeout" : "decline") rang=\(rangText)s"
+			)
+			if timedOut {
+				// Tell the caller it timed out (it would ring up to 180 s), and let the
+				// page record it as missed without sending its own.
+				BeamioNativeVoiceSignaling.sendDecline(callId: callId, sessionId: sessionId, reason: "timeout")
+				emitCallActionToWeb("callTimedOutNative", callId: callId, sessionId: sessionId)
+				lastReportedCallId = ""
+				lastReportedAt = .distantPast
 				return
 			}
 			BeamioNativeVoiceSignaling.sendDecline(callId: callId, sessionId: sessionId)

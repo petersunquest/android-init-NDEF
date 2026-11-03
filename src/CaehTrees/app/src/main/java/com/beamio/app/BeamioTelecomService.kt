@@ -326,7 +326,7 @@ class BeamioTelecomService : ConnectionService() {
             }
             if (incomingActionAlreadySettled(callId, sessionId)) return
             // Telecom drops an unanswered self-managed call at about 120s.
-            // Keep the banner up until the 180s app clock, then tell the caller.
+            // Keep the banner up until the app ring clock, then tell the caller.
             if (incomingRingShouldRearm(callId, sessionId)) {
                 activeConnections.remove(callId, this)
                 setDisconnected(DisconnectCause(DisconnectCause.MISSED))
@@ -1633,7 +1633,6 @@ class BeamioTelecomService : ConnectionService() {
         const val ACTION_MUTE = "com.beamio.app.action.MUTE_CALL"
         const val ACTION_HANGUP = "com.beamio.app.action.HANGUP_CALL"
         private val settledCallActions = ConcurrentHashMap.newKeySet<String>()
-        private const val INCOMING_RING_TIMEOUT_MS = 180_000L
 
         /**
          * Settled actions also go to disk. The page can re-report an offer after
@@ -1678,6 +1677,8 @@ class BeamioTelecomService : ConnectionService() {
                     .apply()
             }
         }
+        /** Ring window for every call (PWA `INCOMING_CALL_RING_TIMEOUT_MS`, iOS `ringWindowMs`): 60 s. */
+        private const val INCOMING_RING_TIMEOUT_MS = 60_000L
         private const val INCOMING_RING_REARM_SLACK_MS = 3_000L
 
         private class IncomingRingClock(

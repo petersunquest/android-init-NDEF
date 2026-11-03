@@ -31,7 +31,8 @@ import androidx.core.content.ContextCompat
  */
 internal object BeamioIncomingRingtone {
     private const val TAG = "BeamioVoiceCall"
-    private const val WAKE_MS = 180_000L
+    /** Ring window (60 s) plus a few seconds. */
+    private const val WAKE_MS = 65_000L
     private val main = Handler(Looper.getMainLooper())
     private val lock = Any()
     private var appContext: Context? = null
