@@ -41,6 +41,43 @@ object BeamioNativeChatHooks {
             // v3: the callee's accept / decline reaches the dialer as a chat message.
             BeamioNativeVoiceSignaling.observeChatEvent(app, payload)
         }
+        trackAppForeground(app)
+    }
+
+    /** Activities of this app that are started (visible). Main thread. */
+    private var startedActivities = 0
+
+    /**
+     * The app does not run in the background: tell the chat module when the
+     * app goes to the background (no activity visible) and comes back. The
+     * module pauses the mailbox listen in the background unless a call rings,
+     * dials or is up, and reconnects at once in the foreground.
+     */
+    private fun trackAppForeground(app: Context) {
+        val application = app as? android.app.Application ?: return
+        application.registerActivityLifecycleCallbacks(object : android.app.Application.ActivityLifecycleCallbacks {
+            override fun onActivityStarted(activity: android.app.Activity) {
+                startedActivities += 1
+                if (startedActivities == 1) BeamioConetChatModule.appForeground(app, activity.javaClass.simpleName)
+            }
+
+            override fun onActivityStopped(activity: android.app.Activity) {
+                startedActivities = (startedActivities - 1).coerceAtLeast(0)
+                // A rotation stops and starts the activity: the module waits
+                // before pausing, and the start cancels it.
+                if (startedActivities == 0) BeamioConetChatModule.appBackground(activity.javaClass.simpleName)
+            }
+
+            override fun onActivityCreated(activity: android.app.Activity, savedInstanceState: android.os.Bundle?) = Unit
+            override fun onActivityResumed(activity: android.app.Activity) = Unit
+            override fun onActivityPaused(activity: android.app.Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: android.app.Activity, outState: android.os.Bundle) = Unit
+            override fun onActivityDestroyed(activity: android.app.Activity) = Unit
+        })
+        // Installed by a call push with no activity on screen: the app is in the background.
+        ringHandler.postDelayed({
+            if (startedActivities == 0) BeamioConetChatModule.appBackground("launchedInBackground")
+        }, 2_000L)
     }
 
     /** FCM call wake: open the mailbox listen now, page or not. */

@@ -1,6 +1,7 @@
 import CallKit
 import ConetChatSDK
 import Foundation
+import UIKit
 
 /// Call layer side of the native chat module's mailbox listen.
 ///
@@ -46,6 +47,25 @@ enum BeamioNativeChatHooks {
 		}
 		BeamioConetChatModule.nativeObserver = { payload in
 			BeamioNativeVoiceSignaling.observeChatEvent(payload)
+		}
+		trackAppForeground()
+	}
+
+	/// The app does not run in the background: tell the chat module when the
+	/// app goes to the background and comes back. The module pauses the
+	/// mailbox listen in the background unless a call rings, dials or is up,
+	/// and reconnects at once in the foreground. Main queue.
+	private static func trackAppForeground() {
+		let center = NotificationCenter.default
+		center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+			BeamioConetChatModule.appDidEnterBackground(reason: "didEnterBackground")
+		}
+		center.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { _ in
+			BeamioConetChatModule.appWillEnterForeground(reason: "willEnterForeground")
+		}
+		// Launched by a VoIP push with no scene on screen: the app is in the background.
+		if UIApplication.shared.applicationState == .background {
+			BeamioConetChatModule.appDidEnterBackground(reason: "launchedInBackground")
 		}
 	}
 
