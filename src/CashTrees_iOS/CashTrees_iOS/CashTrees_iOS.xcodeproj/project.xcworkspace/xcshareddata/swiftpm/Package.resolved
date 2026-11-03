@@ -6,8 +6,17 @@
       "kind": "remoteSourceControl",
       "location": "https://github.com/CoNET-project/chat-sdk-ios.git",
       "state": {
-        "revision": "4042c161feca48e3eaf5317316fc1934c7cb9676",
-        "version": "0.1.7"
+        "revision": "a4be9d171f7c62f41c3904557eb50fc51bfa4ee7",
+        "version": "0.1.8"
+      }
+    },
+    {
+      "identity": "swift-secp256k1",
+      "kind": "remoteSourceControl",
+      "location": "https://github.com/21-DOT-DEV/swift-secp256k1",
+      "state": {
+        "revision": "bcd6dd8e615ce243eab7097f213c8c4b39305a2e",
+        "version": "0.24.0"
       }
     },
     {

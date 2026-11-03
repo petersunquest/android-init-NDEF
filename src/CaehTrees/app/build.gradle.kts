@@ -25,8 +25,8 @@ android {
         applicationId = "com.beamio.app"
         minSdk = 24
         targetSdk = 36
-        versionCode = 163
-        versionName = "1.0.159"
+        versionCode = 164
+        versionName = "1.0.160"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -88,7 +88,7 @@ tasks.register<Exec>("launchDebug") {
 dependencies {
     // Native Conet Chat module (listen / send / history / presence / hybrid signing).
     // Same role as the SwiftPM `chat-sdk-ios` package: https://github.com/CoNET-project/chat-sdk-android
-    implementation("network.conet:chat:0.2.5")
+    implementation("network.conet:chat:0.2.6")
     // Native route-key OpenPGP for call frames/control (off the WebView main thread).
     implementation("org.bouncycastle:bcpg-jdk18on:1.79")
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
