@@ -1374,6 +1374,51 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     /// Close the keyboard when a call screen takes over (see `prepareSystemCall`).
+    /// Dial screen waiting for the page's offer (main thread only).
+    private var pendingPreparedScreen: (prepareId: String, address: String, work: DispatchWorkItem)?
+    /// Longest the call screen waits for the offer before it shows anyway.
+    static let preparedScreenMaxWait: TimeInterval = 0.6
+
+    func schedulePreparedScreen(prepareId: String, address: String) {
+        pendingPreparedScreen?.work.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.presentPreparedScreen(reason: "timeout")
+        }
+        pendingPreparedScreen = (prepareId, address, work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.preparedScreenMaxWait, execute: work)
+    }
+
+    /// Show the waiting dial screen now. `reason`: offer (signal came), timeout,
+    /// start (startSystemCall came first) or failed. A `prepareId` must match.
+    func presentPreparedScreen(reason: String, prepareId: String = "") {
+        guard let pending = pendingPreparedScreen else { return }
+        if !prepareId.isEmpty, !pending.prepareId.isEmpty, prepareId != pending.prepareId { return }
+        pendingPreparedScreen = nil
+        pending.work.cancel()
+        BeamioInCallScreenModel.shared.beginPrepared(prepareId: pending.prepareId, address: pending.address)
+        BeamioCallTiming.mark("prepared")
+        BeamioCallTiming.mark("ui-presented", "by=\(reason)")
+        // Then close the keyboard, on the next main-queue turn so the call
+        // screen is drawn first (closing it takes ~0.2 s). With it open, a
+        // lock during the dial makes iOS rebuild the keyboard for the app
+        // snapshot, which hung the main thread past the 10 s watchdog
+        // (0x8BADF00D) and killed the dial mid-ring. `startSystemCall`
+        // closes it again before CallKit starts.
+        DispatchQueue.main.async { [weak self] in
+            self?.dismissKeyboardForCall(stage: "prepare")
+        }
+    }
+
+    /// Drop a dial screen that was never shown. True when one was waiting.
+    func dropPreparedScreen(prepareId: String) -> Bool {
+        guard let pending = pendingPreparedScreen else { return false }
+        if !prepareId.isEmpty, !pending.prepareId.isEmpty, prepareId != pending.prepareId { return false }
+        pendingPreparedScreen = nil
+        pending.work.cancel()
+        BeamioCallTiming.mark("ui-presented", "by=cancelled")
+        return true
+    }
+
     func dismissKeyboardForCall(stage: String) {
         let hadFocus = UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
@@ -1439,23 +1484,23 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             BeamioCallTiming.mark("prepare-received")
             DispatchQueue.main.async { [weak self] in
                 BeamioCallTiming.mark("prepare-main")
-                BeamioInCallScreenModel.shared.beginPrepared(prepareId: prepareId, address: peerAddress)
-                BeamioCallTiming.mark("prepared")
-                // Then close the keyboard, on the next main-queue turn so the call
-                // screen is drawn first (closing it takes ~0.2 s). With it open, a
-                // lock during the dial makes iOS rebuild the keyboard for the app
-                // snapshot, which hung the main thread past the 10 s watchdog
-                // (0x8BADF00D) and killed the dial mid-ring. `startSystemCall`
-                // closes it again before CallKit starts.
-                DispatchQueue.main.async {
-                    self?.dismissKeyboardForCall(stage: "prepare")
-                }
+                // The screen waits until the page has handed the signed, encrypted
+                // offer to us (`postPgpCiphertext` purpose voice-offer), at most
+                // 0.6 s: covering the WebView at once slowed the page's offer work
+                // (RC3b V5: dial → mailbox 5.6 s median, 1.4 s when it finished first).
+                self?.schedulePreparedScreen(prepareId: prepareId, address: peerAddress)
             }
         case "cancelPreparedSystemCall":
             let prepareId = body["prepareId"] as? String ?? ""
             let error = (body["error"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             BeamioCallTiming.mark("prepare-cancelled", error.isEmpty ? "" : "failed")
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                if error.isEmpty, self?.dropPreparedScreen(prepareId: prepareId) == true {
+                    // Cancelled before the screen was shown: nothing to close.
+                    return
+                }
+                // A failure still shows its reason, so show a screen still waiting first.
+                if !error.isEmpty { self?.presentPreparedScreen(reason: "failed", prepareId: prepareId) }
                 if !error.isEmpty {
                     // Show why the dial failed on the call screen; End closes it.
                     if BeamioInCallScreenModel.shared.failPrepared(prepareId: prepareId, message: error) {
@@ -1504,6 +1549,8 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
                     return
                 }
                 BeamioCallTiming.mark("start-main")
+                // No offer signal came (older page): show the waiting screen now.
+                self?.presentPreparedScreen(reason: "start", prepareId: prepareId)
                 if isDial {
                     self?.dismissKeyboardForCall(stage: "start")
                     // Attach before CallKit: a dial the shell cannot run never
@@ -1704,6 +1751,13 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let armor = (body["data"] as? String) ?? ""
             let excludeRaw = body["excludeIps"] as? [Any] ?? []
             let exclude = Set(excludeRaw.compactMap { $0 as? String })
+            if (body["purpose"] as? String) == "voice-offer" {
+                // The page handed us the dial's offer: the call screen may cover it now.
+                BeamioCallTiming.mark("offer-handed")
+                DispatchQueue.main.async { [weak self] in
+                    self?.presentPreparedScreen(reason: "offer")
+                }
+            }
             BeamioCallTiming.mark("post-pgp-start")
             let postStarted = BeamioCallTiming.nowMs()
             DispatchQueue.global(qos: .utility).async { [weak self] in

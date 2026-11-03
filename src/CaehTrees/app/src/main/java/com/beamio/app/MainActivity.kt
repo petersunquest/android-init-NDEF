@@ -96,6 +96,8 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        /** Longest the dial screen waits for the page's offer before it shows anyway. */
+        private const val PREPARED_SCREEN_MAX_WAIT_MS = 600L
 
         @Volatile
         private var activeInstance: MainActivity? = null
@@ -1236,6 +1238,46 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /** Dial screen waiting for the page's offer (main thread only). */
+    private var pendingPreparedScreen: Pair<String, String>? = null
+    @Volatile private var preparedScreenTag = ""
+    private val preparedScreenHandler = Handler(Looper.getMainLooper())
+    private val preparedScreenTimeout = Runnable { presentPreparedScreen("timeout") }
+
+    private fun schedulePreparedScreen(prepareId: String, address: String) {
+        preparedScreenHandler.removeCallbacks(preparedScreenTimeout)
+        preparedScreenTag = ""
+        pendingPreparedScreen = prepareId to address
+        preparedScreenHandler.postDelayed(preparedScreenTimeout, PREPARED_SCREEN_MAX_WAIT_MS)
+    }
+
+    /**
+     * Show the waiting dial screen now. [reason]: offer (signal came), timeout or
+     * failed. Skipped when the prepared dial was cancelled meanwhile.
+     */
+    private fun presentPreparedScreen(reason: String, prepareId: String = "") {
+        val pending = pendingPreparedScreen ?: return
+        if (prepareId.isNotEmpty() && pending.first.isNotEmpty() && prepareId != pending.first) return
+        pendingPreparedScreen = null
+        preparedScreenHandler.removeCallbacks(preparedScreenTimeout)
+        if (!InCallScreenModel.isPrepared()) {
+            BeamioCallTiming.mark("ui-presented", "by=$reason skipped=not-prepared")
+            return
+        }
+        InCallActivity.present(this, "", "", tag = preparedScreenTag, address = pending.second)
+        BeamioCallTiming.mark("ui-presented", "by=$reason")
+    }
+
+    /** Drop a dial screen that was never shown. True when one was waiting. */
+    private fun dropPreparedScreen(prepareId: String, reason: String = "cancelled"): Boolean {
+        val pending = pendingPreparedScreen ?: return false
+        if (prepareId.isNotEmpty() && pending.first.isNotEmpty() && prepareId != pending.first) return false
+        pendingPreparedScreen = null
+        preparedScreenHandler.removeCallbacks(preparedScreenTimeout)
+        BeamioCallTiming.mark("ui-presented", "by=$reason")
+        return true
+    }
+
     private inner class CashTreesJsBridge {
         @JavascriptInterface
         fun getNfcStatus(): String = queryNfcStatus()
@@ -1318,14 +1360,19 @@ class MainActivity : ComponentActivity() {
                     return@runOnUiThread
                 }
                 InCallScreenModel.beginPrepared(prepareId, peerAddress)
-                InCallActivity.present(this@MainActivity, "", "", tag = "", address = peerAddress)
                 BeamioCallTiming.mark("prepared")
+                // The screen waits until the page has handed the signed, encrypted
+                // offer to us (`postPgpCiphertext` purpose voice-offer), at most
+                // 0.6 s: covering the WebView at once slowed the page's offer work
+                // (RC3b V5: dial → mailbox 5.6 s median, 1.4 s when it finished first).
+                schedulePreparedScreen(prepareId, peerAddress)
                 if (peerAddress.isNotBlank()) {
                     Thread {
                         val tag = BeamioCallerAvatarStore.tagFor(applicationContext, peerAddress)
                             ?: runCatching { BeamioVoiceOfferIdentity.fetchExactTag(peerAddress) }
                                 .getOrNull().orEmpty()
                         if (tag.isNotBlank()) {
+                            preparedScreenTag = tag
                             InCallActivity.refreshIdentityIfShowing("", "", tag, peerAddress)
                         }
                     }.start()
@@ -1341,6 +1388,8 @@ class MainActivity : ComponentActivity() {
                 val prepareId = body.optString("prepareId").trim()
                 val error = body.optString("error").trim()
                 BeamioCallTiming.mark("prepare-cancelled", if (error.isEmpty()) "" else "failed")
+                // A failure still shows its reason, so show a screen still waiting first.
+                if (error.isNotEmpty()) presentPreparedScreen("failed", prepareId) else dropPreparedScreen(prepareId)
                 if (error.isNotEmpty()) {
                     // Show why the dial failed on the call screen; End closes it.
                     if (InCallScreenModel.failPrepared(prepareId, error)) {
@@ -1399,6 +1448,8 @@ class MainActivity : ComponentActivity() {
                 // Inside the shell the dialer uses the same native call screen as
                 // the callee (the PWA hides its own call page).
                 run {
+                    // This shows the screen itself; a waiting prepared screen is no longer needed.
+                    dropPreparedScreen(prepareId, reason = "start")
                     InCallScreenModel.beginOutgoing(callId, sessionId, peerAddress)
                     InCallActivity.present(this@MainActivity, callId, sessionId, tag = "", address = peerAddress)
                     Thread {
@@ -1740,6 +1791,11 @@ class MainActivity : ComponentActivity() {
                     }
                     val mailbox = BeamioChatPgpStore.loadMailboxIp(this@MainActivity)
                     if (mailbox.isNotBlank()) exclude.add(mailbox)
+                    if (body.optString("purpose") == "voice-offer") {
+                        // The page handed us the dial's offer: the call screen may cover it now.
+                        BeamioCallTiming.mark("offer-handed")
+                        runOnUiThread { presentPreparedScreen("offer") }
+                    }
                     BeamioCallTiming.mark("post-pgp-start")
                     val postStarted = System.currentTimeMillis()
                     val result = BeamioSiCipherPost.post(
