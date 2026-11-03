@@ -2693,9 +2693,7 @@ class BeamioTelecomService : ConnectionService() {
                 .setContentIntent(fullScreen)
                 .setLargeIcon(avatar)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setStyle(
-                    NotificationCompat.CallStyle.forIncomingCall(person, decline, answer),
-                )
+                applyGlassCallStyle(builder, person, decline, answer)
             } else {
                 builder
                     .addAction(0, context.getString(R.string.incoming_call_decline), decline)
@@ -3210,6 +3208,27 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         /**
+         * CallStyle in the Glass look: dark colorized card (CallStyle may be
+         * colorized), Glass red decline and blue answer. The buttons themselves
+         * (pill with icon + label) are drawn by the system and cannot be round.
+         */
+        private fun applyGlassCallStyle(
+            builder: NotificationCompat.Builder,
+            person: Person,
+            decline: PendingIntent,
+            answer: PendingIntent,
+        ) {
+            builder
+                .setColor(BeamioIncomingGlassStyle.CARD_COLOR)
+                .setColorized(true)
+                .setStyle(
+                    NotificationCompat.CallStyle.forIncomingCall(person, decline, answer)
+                        .setDeclineButtonColorHint(BeamioIncomingGlassStyle.DECLINE_COLOR)
+                        .setAnswerButtonColorHint(BeamioIncomingGlassStyle.ANSWER_COLOR),
+                )
+        }
+
+        /**
          * Incoming CallStyle card (Answer / Decline, full-screen intent) on the
          * silent v16 channel. [onlyAlertOnce] false makes a re-post alert again
          * (heads-up / full-screen) instead of a quiet update.
@@ -3272,9 +3291,7 @@ class BeamioTelecomService : ConnectionService() {
                 .setContentIntent(fullScreen)
                 .setLargeIcon(avatar)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setStyle(
-                    NotificationCompat.CallStyle.forIncomingCall(person, decline, answer),
-                )
+                applyGlassCallStyle(builder, person, decline, answer)
             } else {
                 builder
                     .addAction(0, context.getString(R.string.incoming_call_decline), decline)

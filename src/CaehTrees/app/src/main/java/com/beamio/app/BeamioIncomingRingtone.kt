@@ -177,6 +177,10 @@ internal object BeamioIncomingRingtone {
         if (modeReceiver != null) return
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                // RINGER_MODE_CHANGED is sticky: registering delivers the current
+                // mode at once. The plan was just applied for it — skip, or the
+                // player is torn down and rebuilt right after it starts.
+                if (isInitialStickyBroadcast) return
                 synchronized(lock) {
                     if (ringingKeys.isEmpty()) return
                     Log.i(TAG, "System ringtone follows ringer mode change")
