@@ -4,7 +4,9 @@ package com.beamio.app
  * Window of [IncomingCallActivity]. Pure choices, unit-tested.
  *
  * Lock screen: opaque full screen (Slide to answer) — unchanged, it must cover
- * the keyguard. Unlocked: only the Glass card at the top on a transparent,
+ * the keyguard. Also opaque full screen when unlocked but a system page hid the
+ * overlay (RC3h, user: "jump to the full-screen Beamio call page with Decline").
+ * Other unlocked cases: only the Glass card at the top on a transparent,
  * non-dimming window, so the page below (e.g. Settings) stays visible and
  * touchable. Before this (RC3d, 2026-11-02 Samsung), the system fired the
  * full-screen intent over Settings and the opaque theme drew a black screen
@@ -13,8 +15,17 @@ package com.beamio.app
 internal object BeamioIncomingWindowPolicy {
     enum class Window { OPAQUE_FULL_SCREEN, TRANSPARENT_TOP_CARD }
 
-    fun window(keyguardLocked: Boolean): Window =
-        if (keyguardLocked) Window.OPAQUE_FULL_SCREEN else Window.TRANSPARENT_TOP_CARD
+    fun window(keyguardLocked: Boolean, fullScreenRequested: Boolean = false): Window =
+        if (keyguardLocked || fullScreenRequested) Window.OPAQUE_FULL_SCREEN else Window.TRANSPARENT_TOP_CARD
+
+    /**
+     * Unlocked full-screen page opened because a system page hid the overlay:
+     * the page covers that system page, so the overlay would show again on top
+     * of it. Keep the overlay out of sight while the page is on screen; it takes
+     * over again when the page goes to the background (Home).
+     */
+    fun suppressOverlayWhileShown(keyguardLocked: Boolean, fullScreenRequested: Boolean): Boolean =
+        fullScreenRequested && !keyguardLocked
 
     /**
      * Unlocked card: the window is only as tall as the card (set after

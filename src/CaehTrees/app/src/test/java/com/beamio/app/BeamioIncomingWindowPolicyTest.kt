@@ -23,6 +23,29 @@ class BeamioIncomingWindowPolicyTest {
     }
 
     @Test
+    fun hiddenOverlayOpensTheFullScreenPageWhenUnlocked() {
+        // RC3h (user): over Settings, the full-screen Beamio page with Decline, not a top card.
+        assertEquals(
+            Window.OPAQUE_FULL_SCREEN,
+            BeamioIncomingWindowPolicy.window(keyguardLocked = false, fullScreenRequested = true),
+        )
+        assertEquals(
+            Window.OPAQUE_FULL_SCREEN,
+            BeamioIncomingWindowPolicy.window(keyguardLocked = true, fullScreenRequested = true),
+        )
+    }
+
+    @Test
+    fun overlaySuppressedOnlyUnderTheUnlockedFullScreenPage() {
+        // The page covers Settings, so the overlay would show on top: keep it out of sight.
+        assertTrue(BeamioIncomingWindowPolicy.suppressOverlayWhileShown(keyguardLocked = false, fullScreenRequested = true))
+        // Lock screen: the overlay cannot draw there anyway; no change to that path.
+        assertFalse(BeamioIncomingWindowPolicy.suppressOverlayWhileShown(keyguardLocked = true, fullScreenRequested = true))
+        // Unlocked top card (other entries): no suppression.
+        assertFalse(BeamioIncomingWindowPolicy.suppressOverlayWhileShown(keyguardLocked = false, fullScreenRequested = false))
+    }
+
+    @Test
     fun onlyTheUnlockedCardLetsTouchesThroughOutsideIt() {
         // RC3f E7a (2026-11-02): taps on Settings outside the card did nothing.
         assertTrue(BeamioIncomingWindowPolicy.passesTouchesOutsideCard(Window.TRANSPARENT_TOP_CARD))

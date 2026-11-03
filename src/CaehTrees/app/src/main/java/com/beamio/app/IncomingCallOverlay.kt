@@ -46,6 +46,10 @@ object IncomingCallOverlay {
     private var presenceListener: java.util.function.Consumer<Boolean>? = null
     private var presenceDeadline: Runnable? = null
 
+    /** Kept out of sight while the full-screen incoming page covers the screen. */
+    @Volatile
+    private var suppressed = false
+
     fun canPresent(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.canDrawOverlays(context.applicationContext)
@@ -64,7 +68,35 @@ object IncomingCallOverlay {
      * counts as visible.
      */
     fun isVisibleOnScreen(): Boolean =
-        isShowing() && BeamioOverlayPresence.countsAsVisible(presence)
+        isShowing() && !suppressed && BeamioOverlayPresence.countsAsVisible(presence)
+
+    /**
+     * Hide (and stop touches to) the attached overlay while the full-screen
+     * incoming page is on screen, so the two never show together; show it
+     * again when that page goes to the background (Home). It stays attached,
+     * so the call keeps its card the moment the page is gone.
+     */
+    fun setSuppressed(suppress: Boolean) {
+        main.post {
+            val view = windowView ?: run { suppressed = false; return@post }
+            if (suppressed == suppress) return@post
+            suppressed = suppress
+            view.visibility = if (suppress) View.INVISIBLE else View.VISIBLE
+            val params = view.layoutParams as? WindowManager.LayoutParams
+            if (params != null) {
+                params.flags = if (suppress) {
+                    params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                } else {
+                    params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                }
+                runCatching {
+                    view.context.applicationContext.getSystemService(WindowManager::class.java)
+                        ?.updateViewLayout(view, params)
+                }
+            }
+            Log.i(TAG, "Overlay glass ${if (suppress) "suppressed under the full-screen page" else "shown again"}")
+        }
+    }
 
     fun shownCallKeys(): Set<String> {
         if (!isShowing()) return emptySet()
@@ -222,6 +254,7 @@ object IncomingCallOverlay {
         runCatching { wm?.removeViewImmediate(view) }
             .onFailure { runCatching { wm?.removeView(view) } }
         unwatchPresence(app)
+        suppressed = false
         windowView = null
         attached = false
         callId = ""

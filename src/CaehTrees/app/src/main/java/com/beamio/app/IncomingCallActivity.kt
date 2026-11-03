@@ -48,8 +48,15 @@ class IncomingCallActivity : Activity() {
         }
         // Same flow as iOS: full screen with Slide to answer on the lock screen,
         // compact banner when the device is in use.
-        lockedLayout = BeamioTelecomService.isDeviceKeyguardLocked(this)
-        windowKind = BeamioIncomingWindowPolicy.window(lockedLayout)
+        val keyguardLocked = BeamioTelecomService.isDeviceKeyguardLocked(this)
+        // A system page hid the overlay: the full-screen page (lock-screen layout) unlocked too.
+        val fullScreenRequested = intent.getBooleanExtra(EXTRA_FULL_SCREEN_INCOMING, false)
+        lockedLayout = keyguardLocked || fullScreenRequested
+        windowKind = BeamioIncomingWindowPolicy.window(keyguardLocked, fullScreenRequested)
+        suppressOverlay = BeamioIncomingWindowPolicy.suppressOverlayWhileShown(keyguardLocked, fullScreenRequested)
+        if (fullScreenRequested && !keyguardLocked) {
+            Log.i(TAG, "Incoming full-screen page over a system page (unlocked)")
+        }
         if (lockedLayout) {
             window.setBackgroundDrawableResource(R.drawable.bg_in_call_gradient)
             setContentView(R.layout.activity_incoming_call_locked)
@@ -85,6 +92,9 @@ class IncomingCallActivity : Activity() {
             return
         }
         render(intent)
+        // Visible before the demote below, so it counts as the on-screen glass and
+        // withdraws a fallback card that may already be posted for this call.
+        windowVisible = true
         raiseIncomingTask()
         BeamioTelecomService.demoteIncomingChromeAfterGlass(
             this,
@@ -96,8 +106,41 @@ class IncomingCallActivity : Activity() {
         Log.i(TAG, "Incoming window showing titlePresent=${titlePresent(intent)} taskId=$taskId")
     }
 
+    /** On screen now (started, not finishing). False while stopped in the background. */
+    @Volatile
+    private var windowVisible = false
+
+    /** Full-screen page opened over a hidden overlay: keep the overlay out of sight while shown. */
+    private var suppressOverlay = false
+
+    override fun onStart() {
+        super.onStart()
+        if (!isFinishing) windowVisible = true
+        if (suppressOverlay) IncomingCallOverlay.setSuppressed(true)
+    }
+
+    override fun onStop() {
+        windowVisible = false
+        // Home / another app: the overlay card takes over again.
+        if (suppressOverlay) IncomingCallOverlay.setSuppressed(false)
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
+        // Unlocked card: if the overlay glass shows this call again (no system
+        // page hides it any more), it is the one card — close this one.
+        val call = intent.getStringExtra(BeamioTelecomService.EXTRA_CALL_ID).orEmpty()
+        val session = intent.getStringExtra(BeamioTelecomService.EXTRA_SESSION_ID).orEmpty()
+        if (BeamioIncomingWindowPolicy.skipBecauseOverlayShows(
+                windowKind,
+                IncomingCallOverlay.isVisibleOnScreen() && IncomingCallOverlay.matches(call, session),
+            )
+        ) {
+            Log.i(TAG, "Incoming window closed; overlay glass shows this call again")
+            finishFromCall()
+            return
+        }
         raiseIncomingTask()
     }
 
@@ -198,6 +241,8 @@ class IncomingCallActivity : Activity() {
     }
 
     override fun onDestroy() {
+        windowVisible = false
+        if (suppressOverlay) IncomingCallOverlay.setSuppressed(false)
         if (instance?.get() === this) instance = null
         super.onDestroy()
         // Answer keeps the Telecom connection ACTIVE, so this flush no-ops
@@ -1015,6 +1060,49 @@ class IncomingCallActivity : Activity() {
         fun isWindowShowing(): Boolean {
             val activity = instance?.get() ?: return false
             return !activity.isFinishing
+        }
+
+        /** This Activity is on screen (not merely alive in the background). */
+        fun isWindowVisible(): Boolean {
+            val activity = instance?.get() ?: return false
+            return !activity.isFinishing && activity.windowVisible
+        }
+
+        fun isWindowVisibleFor(callId: String, sessionId: String): Boolean {
+            val activity = instance?.get() ?: return false
+            return !activity.isFinishing && activity.windowVisible && activity.matches(callId, sessionId)
+        }
+
+        /** Open the full-screen layout (as on the lock screen) even when unlocked. */
+        const val EXTRA_FULL_SCREEN_INCOMING = "com.beamio.app.extra.FULL_SCREEN_INCOMING"
+
+        /**
+         * A system page (Settings, permission dialog) hides the overlay glass:
+         * open this Activity as the full-screen incoming page (lock-screen
+         * layout: Decline / Slide to answer), covering that page. Allowed from
+         * the background on Samsung via SYSTEM_ALERT_WINDOW (RC3e E2:
+         * BAL_ALLOW_SAW_PERMISSION). Returns whether startActivity was
+         * dispatched; the caller confirms it showed.
+         */
+        fun presentOverHiddenOverlay(context: Context, launch: Intent): Boolean {
+            if (launchIsClosed(launch)) return false
+            val app = context.applicationContext
+            markPresentInFlight(2_000L)
+            val opening = Intent(launch).apply {
+                setClass(app, IncomingCallActivity::class.java)
+                putExtra(EXTRA_FULL_SCREEN_INCOMING, true)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_NO_USER_ACTION,
+                )
+            }
+            return runCatching { app.startActivity(opening) }
+                .onFailure {
+                    clearPresentInFlight()
+                    Log.w(TAG, "Glass window over a system page failed: ${it.javaClass.simpleName}")
+                }
+                .isSuccess
         }
 
         /**
