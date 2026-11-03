@@ -38,6 +38,13 @@ object IncomingCallOverlay {
     private var callId: String = ""
     private var sessionId: String = ""
     private var claimedTag: String = ""
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Whether the attached window is really on screen ([BeamioOverlayPresence]). */
+    @Volatile
+    private var presence: BeamioOverlayPresence.State = BeamioOverlayPresence.State.ON_SCREEN
+    private var presenceListener: java.util.function.Consumer<Boolean>? = null
+    private var presenceDeadline: Runnable? = null
 
     fun canPresent(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -47,7 +54,17 @@ object IncomingCallOverlay {
         }
     }
 
+    /** The window is added. It may still be hidden by the system: see [isVisibleOnScreen]. */
     fun isShowing(): Boolean = attached && windowView != null
+
+    /**
+     * Added and not hidden by the system. Android hides third-party overlays
+     * over Settings and permission dialogs; then the system incoming banner
+     * must show instead. Unconfirmed (first [BeamioOverlayPresence.CONFIRM_MS])
+     * counts as visible.
+     */
+    fun isVisibleOnScreen(): Boolean =
+        isShowing() && BeamioOverlayPresence.countsAsVisible(presence)
 
     fun shownCallKeys(): Set<String> {
         if (!isShowing()) return emptySet()
@@ -127,7 +144,9 @@ object IncomingCallOverlay {
             if (same) {
                 bindContent(windowView ?: return, launch)
                 // Refresh must still demote CallStyle — a prior arm may have
-                // posted Decline/Answer that FGS later resurrected.
+                // posted Decline/Answer that FGS later resurrected. Not while the
+                // system hides this overlay: then the banner is the only UI.
+                if (!isVisibleOnScreen()) return
                 BeamioTelecomService.demoteIncomingChromeAfterGlass(
                     app,
                     nextCall,
@@ -157,6 +176,7 @@ object IncomingCallOverlay {
             callId = nextCall
             sessionId = nextSession
             claimedTag = launch.getStringExtra(BeamioTelecomService.EXTRA_CLAIMED_TAG).orEmpty().trim()
+            watchPresence(app, wm, root, nextCall, nextSession)
             BeamioTelecomService.demoteIncomingChromeAfterGlass(
                 app,
                 nextCall,
@@ -201,12 +221,109 @@ object IncomingCallOverlay {
         val wm = app.getSystemService(WindowManager::class.java)
         runCatching { wm?.removeViewImmediate(view) }
             .onFailure { runCatching { wm?.removeView(view) } }
+        unwatchPresence(app)
         windowView = null
         attached = false
         callId = ""
         sessionId = ""
         claimedTag = ""
         Log.i(TAG, "Overlay glass removed reason=$reason")
+    }
+
+    /**
+     * Confirm the new overlay is really on screen. Android 15+ reports it with a
+     * trusted presentation listener; no report within the confirm time, or a
+     * later "not presented", hands the call to the system banner.
+     * Below Android 15 there is no such report: keep treating it as visible.
+     */
+    private fun watchPresence(app: Context, wm: WindowManager, root: View, call: String, session: String) {
+        unwatchPresence(app)
+        val canVerify = Build.VERSION.SDK_INT >= 35
+        presence = BeamioOverlayPresence.initial(canVerify)
+        if (!canVerify) return
+        val deadline = Runnable {
+            if (windowView !== root) return@Runnable
+            applyPresence(app, BeamioOverlayPresence.onDeadline(presence), call, session, "not confirmed on screen")
+        }
+        presenceDeadline = deadline
+        main.postDelayed(deadline, BeamioOverlayPresence.CONFIRM_MS)
+        // windowToken exists once the view is attached; post runs after that.
+        root.post {
+            if (windowView !== root) return@post
+            val token = root.windowToken ?: return@post
+            if (Build.VERSION.SDK_INT >= 35) registerPresence(app, wm, root, token, call, session)
+        }
+    }
+
+    @androidx.annotation.RequiresApi(35)
+    private fun registerPresence(
+        app: Context,
+        wm: WindowManager,
+        root: View,
+        token: android.os.IBinder,
+        call: String,
+        session: String,
+    ) {
+        val listener = java.util.function.Consumer<Boolean> { visible ->
+            if (windowView !== root) return@Consumer
+            applyPresence(
+                app,
+                BeamioOverlayPresence.onPresentation(presence, visible),
+                call,
+                session,
+                "presented=$visible",
+            )
+        }
+        runCatching {
+            wm.registerTrustedPresentationListener(
+                token,
+                android.window.TrustedPresentationThresholds(0.5f, 0.25f, 100),
+                app.mainExecutor,
+                listener,
+            )
+            presenceListener = listener
+        }.onFailure {
+            // Cannot verify: the confirm deadline hands the call to the banner.
+            Log.w(TAG, "Overlay presence watch failed: ${it.javaClass.simpleName}")
+        }
+    }
+
+    private fun applyPresence(
+        app: Context,
+        step: BeamioOverlayPresence.Step,
+        call: String,
+        session: String,
+        why: String,
+    ) {
+        val before = presence
+        presence = step.state
+        if (step.state != BeamioOverlayPresence.State.PENDING) {
+            presenceDeadline?.let { main.removeCallbacks(it) }
+            presenceDeadline = null
+        }
+        if (before != step.state) {
+            Log.i(TAG, "Overlay presence $before -> ${step.state} ($why) banner=${step.banner}")
+        }
+        when (step.banner) {
+            BeamioOverlayPresence.Banner.POST ->
+                BeamioTelecomService.onIncomingOverlayHidden(app, call, session)
+            BeamioOverlayPresence.Banner.WITHDRAW ->
+                BeamioTelecomService.onIncomingOverlayVisible(app, call, session)
+            BeamioOverlayPresence.Banner.NONE -> Unit
+        }
+    }
+
+    private fun unwatchPresence(app: Context) {
+        presenceDeadline?.let { main.removeCallbacks(it) }
+        presenceDeadline = null
+        val listener = presenceListener
+        presenceListener = null
+        if (listener != null && Build.VERSION.SDK_INT >= 35) {
+            runCatching {
+                app.getSystemService(WindowManager::class.java)?.unregisterTrustedPresentationListener(listener)
+            }
+        }
+        presence = BeamioOverlayPresence.State.ON_SCREEN
     }
 
     fun refreshCallerChrome(title: String, body: String) {

@@ -935,6 +935,11 @@ class IncomingCallActivity : Activity() {
 
         fun isShowing(): Boolean {
             if (IncomingCallOverlay.isShowing()) return true
+            return isWindowShowing()
+        }
+
+        /** This Activity only (not the overlay glass). */
+        fun isWindowShowing(): Boolean {
             val activity = instance?.get() ?: return false
             return !activity.isFinishing
         }

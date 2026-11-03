@@ -791,9 +791,16 @@ class BeamioTelecomService : ConnectionService() {
         private fun productIncomingChromeVisible(context: Context? = null): Boolean {
             val app = context?.applicationContext
             if (app != null && isDeviceKeyguardLocked(app)) return false
-            if (IncomingCallActivity.isShowing()) return true
-            return IncomingCallOverlay.isShowing()
+            return incomingGlassOnScreen()
         }
+
+        /**
+         * Beamio's own incoming window is on screen: the glass Activity, or the
+         * overlay glass when the system does not hide it (Settings and permission
+         * pages hide third-party overlays). False → the system banner must show.
+         */
+        fun incomingGlassOnScreen(): Boolean =
+            IncomingCallActivity.isWindowShowing() || IncomingCallOverlay.isVisibleOnScreen()
 
         /**
          * Debug / smoke only: wipe sticky chrome so the next dial is not
@@ -2082,8 +2089,10 @@ class BeamioTelecomService : ConnectionService() {
             }
 
             cancelIncomingRingTimeout(endedId, sessionId)
-            // Answer, decline, timeout, caller cancel, busy: stop this call's ring.
+            // Answer, decline, timeout, caller cancel, busy: stop this call's ring
+            // and drop the overlay-fallback banner.
             BeamioIncomingRingtone.stopFor(listOf(callId, endedId, sessionId), action)
+            cancelOverlayFallbackBanner(context, listOf(callId, endedId, sessionId))
             val answeredCaller = if (action == "callAnswered") {
                 resolvePendingCaller(
                     context,
@@ -2709,8 +2718,9 @@ class BeamioTelecomService : ConnectionService() {
             if (!IncomingCallActivity.isShowing()) {
                 IncomingCallActivity.presentFromTelecomShowIncomingUi(context, window)
             }
-            val glassUp = IncomingCallActivity.isShowing()
-            val overlayUp = IncomingCallOverlay.isShowing()
+            val glassUp = IncomingCallActivity.isWindowShowing()
+            // On screen, not merely added: the system hides overlays over Settings.
+            val overlayUp = IncomingCallOverlay.isVisibleOnScreen()
             val keyguardLocked = isDeviceKeyguardLocked(context)
             // Lock / screen-off: always post CallStyle + FSI. Never quietOnly —
             // Activity/overlay "showing" under occluded keyguard is a lie and
@@ -3200,24 +3210,20 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         /**
-         * Quietly refresh an already-armed CallStyle Person/title under lock
-         * after BeamioTag resolve. [NotificationCompat.Builder.setOnlyAlertOnce]
-         * keeps ringtone/FSI; same notification id so Samsung does not treat
-         * this as a second incoming call.
+         * Incoming CallStyle card (Answer / Decline, full-screen intent) on the
+         * silent v16 channel. [onlyAlertOnce] false makes a re-post alert again
+         * (heads-up / full-screen) instead of a quiet update.
          */
-        private fun quietlyRefreshArmedCallStyle(
+        private fun buildIncomingCallStyle(
             context: Context,
-            primary: String,
+            postedId: Int,
             callId: String,
             sessionId: String,
-            name: String,
+            title: String,
             body: String,
             claimedTag: String,
-            aliasCallId: String,
-        ) {
-            val postedId = notificationId(primary)
-            if (postedId == 0 || name.isBlank()) return
-            val title = name.trim()
+            onlyAlertOnce: Boolean,
+        ): Notification {
             val text = body.ifBlank { context.getString(R.string.incoming_call_glass_subtitle) }
             val avatar = callerAvatarBitmap(claimedTag.ifBlank { title })
             val personIcon = if (avatar != null) {
@@ -3258,7 +3264,7 @@ class BeamioTelecomService : ConnectionService() {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setOngoing(true)
                 .setAutoCancel(false)
-                .setOnlyAlertOnce(true)
+                .setOnlyAlertOnce(onlyAlertOnce)
                 .setTimeoutAfter(INCOMING_RING_TIMEOUT_MS)
                 .setColor(0xFF1562F0.toInt())
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
@@ -3274,7 +3280,95 @@ class BeamioTelecomService : ConnectionService() {
                     .addAction(0, context.getString(R.string.incoming_call_decline), decline)
                     .addAction(0, context.getString(R.string.incoming_call_answer), answer)
             }
-            val notification = builder.build()
+            return builder.build()
+        }
+
+        /** Primary notification keys that have an overlay-fallback banner posted. */
+        private val overlayFallbackKeys = ConcurrentHashMap.newKeySet<String>()
+
+        /** Own id, so the banner posts as a new alerting card, not a quiet update of the keep-alive. */
+        private fun overlayFallbackNotificationId(primary: String): Int =
+            notificationId("overlay-fallback:$primary")
+
+        /**
+         * The overlay glass is added but the system keeps it off screen (Settings,
+         * permission dialog), or it never showed within the confirm time. Post the
+         * system incoming banner so the user sees the call. The ringtone already
+         * plays from [BeamioIncomingRingtone] (deduped per call); the v16 channel
+         * is silent, so this adds no second ring.
+         */
+        fun onIncomingOverlayHidden(context: Context, callId: String, sessionId: String) {
+            val app = context.applicationContext
+            if (isDeviceKeyguardLocked(app)) {
+                Log.i(TAG, "Overlay hidden under keyguard; lock-screen CallStyle owns the UI")
+                return
+            }
+            if (isIncomingClosed(callId, sessionId) || isIncomingMuted(callId, sessionId)) return
+            if (IncomingCallActivity.isWindowShowing()) return
+            val primary = primaryNotificationKey(app, callId, sessionId)
+            if (primary.isBlank()) return
+            ensureIncomingCallChannel(app)
+            val id = overlayFallbackNotificationId(primary)
+            val title = lastArmedCallStyleTitle[primary].orEmpty().ifBlank {
+                listOf(callId, sessionId).firstNotNullOfOrNull { lastArmedCallStyleTitle[it] }.orEmpty()
+            }.ifBlank { "Incoming call" }
+            val claimed = title.trim().takeIf(::isBeamioTag).orEmpty()
+            val notification = buildIncomingCallStyle(
+                app, id, callId, sessionId, title, "", claimed, onlyAlertOnce = false,
+            )
+            runCatching {
+                NotificationManagerCompat.from(app).notify(id, notification)
+                overlayFallbackKeys.add(primary)
+                Log.i(TAG, "Overlay hidden by the system; CallStyle banner posted id=$id")
+            }.onFailure { Log.w(TAG, "Overlay fallback banner failed id=$id", it) }
+            BeamioIncomingRingtone.start(app, listOf(primary, callId, sessionId)) {
+                !isIncomingClosed(callId, sessionId) && !isIncomingMuted(callId, sessionId)
+            }
+        }
+
+        /** The overlay is back on screen: withdraw the banner so only one incoming window shows. */
+        fun onIncomingOverlayVisible(context: Context, callId: String, sessionId: String) {
+            val app = context.applicationContext
+            cancelOverlayFallbackBanner(app, listOf(callId, sessionId))
+            if (isIncomingClosed(callId, sessionId)) return
+            // A CallStyle posted on the primary id while hidden goes back to keep-alive.
+            demoteIncomingChromeAfterGlass(app, callId, sessionId)
+            Log.i(TAG, "Overlay back on screen; CallStyle banner withdrawn")
+        }
+
+        private fun cancelOverlayFallbackBanner(context: Context, ids: Collection<String>) {
+            val raw = BeamioRingPolicy.callKeys(ids)
+            if (raw.isEmpty() || overlayFallbackKeys.isEmpty()) return
+            val primary = primaryNotificationKey(context, *raw.toTypedArray())
+            val manager = NotificationManagerCompat.from(context)
+            (raw + primary).filter { it.isNotBlank() }.forEach { key ->
+                if (overlayFallbackKeys.remove(key)) manager.cancel(overlayFallbackNotificationId(key))
+            }
+        }
+
+        /**
+         * Quietly refresh an already-armed CallStyle Person/title under lock
+         * after BeamioTag resolve. [NotificationCompat.Builder.setOnlyAlertOnce]
+         * keeps ringtone/FSI; same notification id so Samsung does not treat
+         * this as a second incoming call.
+         */
+        private fun quietlyRefreshArmedCallStyle(
+            context: Context,
+            primary: String,
+            callId: String,
+            sessionId: String,
+            name: String,
+            body: String,
+            claimedTag: String,
+            aliasCallId: String,
+        ) {
+            val postedId = notificationId(primary)
+            if (postedId == 0 || name.isBlank()) return
+            val title = name.trim()
+            val avatar = callerAvatarBitmap(claimedTag.ifBlank { title })
+            val notification = buildIncomingCallStyle(
+                context, postedId, callId, sessionId, title, body, claimedTag, onlyAlertOnce = true,
+            )
             runCatching {
                 NotificationManagerCompat.from(context).notify(postedId, notification)
                 BeamioCallForegroundService.refreshIncomingCallStyle(
@@ -3310,6 +3404,12 @@ class BeamioTelecomService : ConnectionService() {
                     "Skip CallStyle demote; keyguard/screen-off — CallStyle FSI owns lock UI " +
                         "activityUp=${IncomingCallActivity.isShowing()}",
                 )
+                return
+            }
+            // Overlay added but hidden by the system (Settings, permission page):
+            // the CallStyle banner is the only incoming UI the user can see.
+            if (!incomingGlassOnScreen()) {
+                Log.i(TAG, "Skip CallStyle demote; overlay hidden by the system — banner stays")
                 return
             }
             val keys = listOf(callId, sessionId, aliasCallId)
@@ -3635,6 +3735,7 @@ class BeamioTelecomService : ConnectionService() {
             val primary = aliases.firstNotNullOfOrNull { prefs.getString("alias:$it", null) }.orEmpty()
             // Every caller of this drops the call's incoming chrome for good.
             BeamioIncomingRingtone.stopFor(aliases + listOf(primary), "incoming chrome cleared")
+            cancelOverlayFallbackBanner(context, aliases + listOf(primary))
             val keepForegroundId = BeamioCallForegroundService.activeForegroundNotificationId
             (aliases + listOf(primary)).filter { it.isNotBlank() }.distinct().forEach { key ->
                 val id = notificationId(key)

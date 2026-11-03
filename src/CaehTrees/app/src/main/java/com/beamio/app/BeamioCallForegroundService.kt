@@ -263,9 +263,9 @@ class BeamioCallForegroundService : Service() {
         // Lock / screen-off: never preferQuiet — CallStyle FSI owns lock UI even
         // when IncomingCallActivity reports isShowing behind an occluded keyguard.
         val keyguardLocked = BeamioTelecomService.isDeviceKeyguardLocked(this)
+        // On screen, not merely added: Settings / permission pages hide overlays.
         val preferQuiet =
-            !keyguardLocked &&
-                (IncomingCallActivity.isShowing() || IncomingCallOverlay.isShowing())
+            !keyguardLocked && BeamioTelecomService.incomingGlassOnScreen()
         // Never startForeground with CallStyle when glass/overlay is the product
         // UI — that resurrects Decline/Answer HUN over TYPE_APPLICATION_OVERLAY.
         val forFgs = if (preferQuiet) {
@@ -331,9 +331,8 @@ class BeamioCallForegroundService : Service() {
                             ) {
                                 return@postDelayed
                             }
-                            val activityUp = IncomingCallActivity.isShowing()
-                            val overlayUp = IncomingCallOverlay.isShowing()
-                            if (activityUp || overlayUp) {
+                            // Overlay hidden by the system: keep the banner.
+                            if (BeamioTelecomService.incomingGlassOnScreen()) {
                                 demoteIncomingAfterGlass(
                                     this@BeamioCallForegroundService,
                                     callId = callId,
