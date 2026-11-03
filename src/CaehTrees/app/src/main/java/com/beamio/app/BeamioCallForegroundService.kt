@@ -12,6 +12,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Keeps a phoneCall / shortService foreground notification alive while a call
@@ -32,7 +33,40 @@ class BeamioCallForegroundService : Service() {
         instance = this
     }
 
+    /** Start id of the last command delivered; stopping with it never drops a start still queued. */
+    private var lastStartId = 0
+
+    /**
+     * True while handling a startForegroundService command that has not yet
+     * called startForeground. Android kills the app if such a start ends (or the
+     * service stops) without one, so any stop in that window posts a quiet
+     * foreground first.
+     */
+    private var foregroundOwed = false
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        lastStartId = startId
+        val foregroundRequired = intent?.getBooleanExtra(EXTRA_FOREGROUND_REQUIRED, false) == true
+        if (foregroundRequired) {
+            pendingForegroundStarts.updateAndGet { if (it > 0) it - 1 else 0 }
+            foregroundOwed = true
+        }
+        try {
+            return handleCommand(intent)
+        } finally {
+            if (foregroundOwed) {
+                // The handler neither showed anything nor stopped (e.g. a muted
+                // hold that was denied). Satisfy the start, then stop if idle.
+                if (activeForegroundNotificationId == 0) {
+                    Log.i(TAG, "FGS start left nothing to show; posting a quiet foreground, then stopping")
+                    removeCallForeground()
+                }
+                foregroundOwed = false
+            }
+        }
+    }
+
+    private fun handleCommand(intent: Intent?): Int {
         when (intent?.action) {
             ACTION_STOP -> {
                 removeCallForeground()
@@ -50,7 +84,7 @@ class BeamioCallForegroundService : Service() {
                 val notification = readNotification(intent)
                 if (id == 0 || notification == null) {
                     Log.e(TAG, "Incoming FGS missing notification")
-                    if (activeForegroundNotificationId == 0) stopSelf()
+                    if (activeForegroundNotificationId == 0) removeCallForeground()
                     return START_NOT_STICKY
                 }
                 val glass = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -93,6 +127,7 @@ class BeamioCallForegroundService : Service() {
      * process. An exported Decline broadcast is not required.
      */
     fun removeCallForeground() {
+        settleOwedForeground()
         val previous = activeForegroundNotificationId
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
@@ -105,7 +140,32 @@ class BeamioCallForegroundService : Service() {
             NotificationManagerCompat.from(this).cancel(previous)
         }
         Log.i(TAG, "Incoming window removed")
-        stopSelf()
+        stopIfNoStartQueued()
+    }
+
+    /**
+     * Inside a startForegroundService command that has not posted yet: post a
+     * quiet foreground now, so a stop right after it does not crash the app
+     * (ForegroundServiceDidNotStartInTimeException).
+     */
+    private fun settleOwedForeground() {
+        if (!foregroundOwed) return
+        if (postQuietForeground(FOREGROUND_ID, BeamioTelecomService.buildMutedIncomingNotification(this))) {
+            activeForegroundNotificationId = FOREGROUND_ID
+        }
+    }
+
+    /**
+     * stopSelf() would also drop a startForegroundService that is queued but not
+     * delivered yet, and Android then kills the app. Stopping with the last
+     * delivered start id leaves the service running when a newer start is queued;
+     * that start then decides what to show (or stops itself).
+     */
+    private fun stopIfNoStartQueued() {
+        val stopped = stopSelfResult(lastStartId)
+        if (!stopped) {
+            Log.i(TAG, "FGS stop deferred; a newer start is queued")
+        }
     }
 
     /** Drop the ringing card. Keep this process alive so the ring timeout can still fire. */
@@ -170,6 +230,7 @@ class BeamioCallForegroundService : Service() {
         val body = glassLaunch
             ?.getStringExtra(BeamioTelecomService.EXTRA_INCOMING_BODY)
             .orEmpty()
+        BeamioTelecomService.restoreSettledIncoming(this)
         // A start queued before Answer / Decline / caller cancel / timeout is
         // delivered after it: do not bring back the CallStyle card or banner.
         // startForegroundService still needs a startForeground, so post a quiet one.
@@ -289,7 +350,7 @@ class BeamioCallForegroundService : Service() {
             }
         } catch (error: Exception) {
             Log.e(TAG, "Incoming FGS denied", error)
-            if (activeForegroundNotificationId == 0) stopSelf()
+            if (activeForegroundNotificationId == 0) removeCallForeground()
         }
     }
 
@@ -301,6 +362,7 @@ class BeamioCallForegroundService : Service() {
     private fun startIncomingForeground(id: Int, notification: Notification) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(id, notification)
+            foregroundOwed = false
             return
         }
         try {
@@ -319,12 +381,15 @@ class BeamioCallForegroundService : Service() {
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE,
             )
         }
+        foregroundOwed = false
     }
 
     /** phoneCall after Telecom setActive(); shortService if that type is denied. */
     private fun postQuietForeground(id: Int, notification: Notification): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            return runCatching { startForeground(id, notification) }.isSuccess
+            val ok = runCatching { startForeground(id, notification) }.isSuccess
+            if (ok) foregroundOwed = false
+            return ok
         }
         val types = intArrayOf(
             ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
@@ -333,6 +398,7 @@ class BeamioCallForegroundService : Service() {
         for (type in types) {
             try {
                 ServiceCompat.startForeground(this, id, notification, type)
+                foregroundOwed = false
                 return true
             } catch (error: Exception) {
                 Log.w(TAG, "Quiet FGS denied type=$type", error)
@@ -364,6 +430,34 @@ class BeamioCallForegroundService : Service() {
         private const val EXTRA_NOTIFICATION_ID = "notificationId"
         private const val EXTRA_NOTIFICATION = "notification"
         private const val EXTRA_GLASS_LAUNCH = "glassLaunch"
+        private const val EXTRA_FOREGROUND_REQUIRED = "foregroundRequired"
+
+        /**
+         * startForegroundService calls not yet delivered to onStartCommand. While
+         * one is queued the service must not be stopped from outside: Android
+         * then throws ForegroundServiceDidNotStartInTimeException and kills the app.
+         */
+        private val pendingForegroundStarts = AtomicInteger(0)
+
+        /** Every foreground start goes through here, so the queued count stays right. */
+        private fun startForegroundRequired(context: Context, intent: Intent, failure: String) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                try {
+                    context.startService(intent)
+                } catch (error: Exception) {
+                    Log.e(TAG, failure, error)
+                }
+                return
+            }
+            intent.putExtra(EXTRA_FOREGROUND_REQUIRED, true)
+            pendingForegroundStarts.incrementAndGet()
+            try {
+                context.startForegroundService(intent)
+            } catch (error: Exception) {
+                pendingForegroundStarts.updateAndGet { if (it > 0) it - 1 else 0 }
+                Log.e(TAG, failure, error)
+            }
+        }
 
         @Volatile
         var activeForegroundNotificationId: Int = 0
@@ -471,15 +565,7 @@ class BeamioCallForegroundService : Service() {
                     putExtra(EXTRA_GLASS_LAUNCH, glassLaunch)
                 }
             }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "startForegroundService failed for incoming call", error)
-            }
+            startForegroundRequired(context, intent, "startForegroundService failed for incoming call")
         }
 
         /**
@@ -519,15 +605,7 @@ class BeamioCallForegroundService : Service() {
                 putExtra(BeamioTelecomService.EXTRA_CALL_ID, callId)
                 putExtra(BeamioTelecomService.EXTRA_SESSION_ID, sessionId)
             }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "Ongoing call status bar failed to start", error)
-            }
+            startForegroundRequired(context, intent, "Ongoing call status bar failed to start")
         }
 
         fun start(context: Context, callId: String, sessionId: String) {
@@ -536,15 +614,7 @@ class BeamioCallForegroundService : Service() {
                 putExtra(BeamioTelecomService.EXTRA_CALL_ID, callId)
                 putExtra(BeamioTelecomService.EXTRA_SESSION_ID, sessionId)
             }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "startForegroundService failed", error)
-            }
+            startForegroundRequired(context, intent, "startForegroundService failed")
         }
 
         fun stop(context: Context) {
@@ -560,6 +630,13 @@ class BeamioCallForegroundService : Service() {
                 action = ACTION_STOP
             }
             runCatching { context.startService(intent) }
+            // A foreground start still queued (the service is not created yet):
+            // stopService now would crash the app. The STOP above is delivered
+            // after that start and stops the service once it has posted.
+            if (pendingForegroundStarts.get() > 0) {
+                Log.i(TAG, "FGS stop queued behind a pending foreground start")
+                return
+            }
             runCatching { context.stopService(Intent(context, BeamioCallForegroundService::class.java)) }
         }
 
@@ -575,15 +652,7 @@ class BeamioCallForegroundService : Service() {
                 putExtra(BeamioTelecomService.EXTRA_CALL_ID, callId)
                 putExtra(BeamioTelecomService.EXTRA_SESSION_ID, sessionId)
             }
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "Muted incoming hold failed to start", error)
-            }
+            startForegroundRequired(context, intent, "Muted incoming hold failed to start")
         }
     }
 }

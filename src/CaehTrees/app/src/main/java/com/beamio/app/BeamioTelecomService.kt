@@ -45,6 +45,7 @@ class BeamioTelecomService : ConnectionService() {
         val callId = request.extras?.getString(EXTRA_CALL_ID).orEmpty()
         val originalCallId = request.extras?.getString(EXTRA_ORIGINAL_CALL_ID).orEmpty()
         val sessionId = request.extras?.getString(EXTRA_SESSION_ID).orEmpty()
+        restoreSettledIncoming(this)
         val requestedCaller = ShownCaller(
             peerAddress = request.extras?.getString(EXTRA_PEER_ADDRESS).orEmpty(),
             displayName = request.extras?.getString(EXTRA_DISPLAY_NAME).orEmpty(),
@@ -815,6 +816,9 @@ class BeamioTelecomService : ConnectionService() {
             busyRejectKeys.clear()
             submittedIncomingCalls.clear()
             settledCallActions.clear()
+            runCatching {
+                app.getSharedPreferences(SETTLED_PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+            }
             armedCallStyleKeys.clear()
             lastArmedCallStyleTitle.clear()
             mutedIncomingKeys.clear()
@@ -1103,6 +1107,7 @@ class BeamioTelecomService : ConnectionService() {
             identityWarning: String = "",
         ) {
             val nativeCallId = sessionId.ifBlank { callId }
+            restoreSettledIncoming(context)
             // A late report (PWA tag refresh, repeat delivery, push) for an offer
             // that was already answered, declined, cancelled or timed out must
             // not re-open the banner, re-arm the ring clock or submit a new
@@ -1582,6 +1587,50 @@ class BeamioTelecomService : ConnectionService() {
         const val ACTION_HANGUP = "com.beamio.app.action.HANGUP_CALL"
         private val settledCallActions = ConcurrentHashMap.newKeySet<String>()
         private const val INCOMING_RING_TIMEOUT_MS = 180_000L
+
+        /**
+         * Settled actions also go to disk. The page can re-report an offer after
+         * the process that saw it end was killed (cold start replays the native
+         * inbox); without this the new process opens a Telecom call for it.
+         */
+        private const val SETTLED_PREFS = "beamio_settled_incoming_v1"
+        /** Longer than the PWA's ring window (3 min + 15 s), after which it stops reporting an offer. */
+        private const val SETTLED_KEEP_MS = 15 * 60_000L
+        private val settledRestored = java.util.concurrent.atomic.AtomicBoolean(false)
+
+        /** Load the settled actions of earlier processes once per process. */
+        fun restoreSettledIncoming(context: Context) {
+            if (!settledRestored.compareAndSet(false, true)) return
+            runCatching {
+                val prefs = context.applicationContext.getSharedPreferences(SETTLED_PREFS, Context.MODE_PRIVATE)
+                val cutoff = System.currentTimeMillis() - SETTLED_KEEP_MS
+                val stale = ArrayList<String>()
+                var restored = 0
+                for ((key, value) in prefs.all) {
+                    val at = (value as? Long) ?: 0L
+                    if (at < cutoff) {
+                        stale.add(key)
+                    } else if (settledCallActions.add(key)) {
+                        restored++
+                    }
+                }
+                if (stale.isNotEmpty()) {
+                    prefs.edit().apply { stale.forEach { remove(it) } }.apply()
+                }
+                Log.i(TAG, "settled incoming restored=$restored pruned=${stale.size}")
+            }.onFailure { Log.w(TAG, "settled incoming restore failed", it) }
+        }
+
+        private fun persistSettled(context: Context, keys: Collection<String>) {
+            if (keys.isEmpty()) return
+            runCatching {
+                val now = System.currentTimeMillis()
+                context.applicationContext.getSharedPreferences(SETTLED_PREFS, Context.MODE_PRIVATE)
+                    .edit()
+                    .apply { keys.forEach { putLong(it, now) } }
+                    .apply()
+            }
+        }
         private const val INCOMING_RING_REARM_SLACK_MS = 3_000L
 
         private class IncomingRingClock(
@@ -1748,6 +1797,7 @@ class BeamioTelecomService : ConnectionService() {
         ) {
             val endedId = callId.ifBlank { sessionId }
             if (endedId.isBlank()) return
+            restoreSettledIncoming(context)
             // The caller cancelled (or the ring timed out / was declined) before
             // this Answer: never accept or start a call with no peer.
             if (action == "callAnswered" && isIncomingCancelled(callId, sessionId, endedId)) {
@@ -1776,6 +1826,16 @@ class BeamioTelecomService : ConnectionService() {
             }
             if (callId.isNotBlank() && callId != endedId) {
                 settledCallActions.add(settleKey(action, callId))
+            }
+            if (firstSettle) {
+                persistSettled(
+                    context,
+                    listOf(endedId, sessionId, callId)
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
+                        .map { settleKey(action, it) },
+                )
             }
             if (!firstSettle) {
                 // A repeat terminal action must still leave no Telecom call behind:
