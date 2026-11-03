@@ -49,11 +49,16 @@ class IncomingCallActivity : Activity() {
         // Same flow as iOS: full screen with Slide to answer on the lock screen,
         // compact banner when the device is in use.
         lockedLayout = BeamioTelecomService.isDeviceKeyguardLocked(this)
+        windowKind = BeamioIncomingWindowPolicy.window(lockedLayout)
         if (lockedLayout) {
             window.setBackgroundDrawableResource(R.drawable.bg_in_call_gradient)
             setContentView(R.layout.activity_incoming_call_locked)
         } else {
+            useTransparentTopCardWindow()
             setContentView(R.layout.activity_incoming_call)
+            // After setContentView: installing the decor resets a non-floating
+            // window to MATCH_PARENT x MATCH_PARENT, which swallowed every touch.
+            if (BeamioIncomingWindowPolicy.passesTouchesOutsideCard(windowKind)) applyTopCardWindowSize()
             applyBannerEdgeInsets()
         }
         clipAppIcon()
@@ -67,6 +72,15 @@ class IncomingCallActivity : Activity() {
             consumeDeferredFinish(openCall, openSession)
         ) {
             Log.i(TAG, "Incoming window skipped; end arrived before onCreate")
+            finish()
+            return
+        }
+        if (BeamioIncomingWindowPolicy.skipBecauseOverlayShows(
+                windowKind,
+                IncomingCallOverlay.isVisibleOnScreen() && IncomingCallOverlay.matches(openCall, openSession),
+            )
+        ) {
+            Log.i(TAG, "Incoming window skipped; overlay glass already shows this call")
             finish()
             return
         }
@@ -97,7 +111,59 @@ class IncomingCallActivity : Activity() {
         val now = android.os.SystemClock.elapsedRealtime()
         if (now - lastRaiseElapsedMs < 400L) return
         lastRaiseElapsedMs = now
-        bringOwnAppTasksToFront(this, preferIncomingOnTop = true)
+        bringOwnAppTasksToFront(
+            this,
+            preferIncomingOnTop = true,
+            withHome = BeamioIncomingWindowPolicy.moveWithHome(windowKind),
+        )
+    }
+
+    /** Lock-screen layout → opaque full screen; banner → transparent top card. */
+    private var windowKind: BeamioIncomingWindowPolicy.Window =
+        BeamioIncomingWindowPolicy.Window.OPAQUE_FULL_SCREEN
+
+    /**
+     * Unlocked: only the Glass card at the top. Transparent, no dim, no system
+     * bar colors; the window wraps the card and lets touches outside it reach
+     * the page below. setTranslucent(true) keeps that page (e.g. Settings)
+     * drawn instead of the opaque theme's black. The lock-screen path never
+     * comes here.
+     */
+    private fun useTransparentTopCardWindow() {
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
+        window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+        window.setDimAmount(0f)
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        // Public from Android 11; below that the page under the card may stay black.
+        val translucent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching { setTranslucent(true) }.getOrDefault(false)
+        } else {
+            false
+        }
+        Log.i(TAG, "Incoming banner window: transparent top card translucent=$translucent")
+    }
+
+    /**
+     * Window only as tall as the card, at the top. With FLAG_NOT_TOUCH_MODAL,
+     * touches outside the window (the rest of the screen) reach the page below;
+     * the card's own buttons stay in this window.
+     */
+    private fun applyTopCardWindowSize() {
+        window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT)
+        window.setGravity(android.view.Gravity.TOP)
+        window.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        window.decorView.post {
+            Log.i(
+                TAG,
+                "Incoming banner window size: height=${window.decorView.height}px " +
+                    "screen=${resources.displayMetrics.heightPixels}px " +
+                    "wrap=${window.attributes.height == WindowManager.LayoutParams.WRAP_CONTENT} " +
+                    "notTouchModal=${window.attributes.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL != 0}",
+            )
+        }
     }
 
     /**
@@ -734,7 +800,11 @@ class IncomingCallActivity : Activity() {
          * otherwise resumes opaque Main first, covers glass, then
          * onResume→raise loops (Main ↔ Incoming fight).
          */
-        fun bringOwnAppTasksToFront(context: Context, preferIncomingOnTop: Boolean = true) {
+        fun bringOwnAppTasksToFront(
+            context: Context,
+            preferIncomingOnTop: Boolean = true,
+            withHome: Boolean = true,
+        ) {
             val app = context.applicationContext
             val am = app.getSystemService(ActivityManager::class.java) ?: return
             val tasks = runCatching { am.appTasks.toList() }.getOrElse { emptyList() }
@@ -768,6 +838,9 @@ class IncomingCallActivity : Activity() {
                     Log.w(TAG, "AppTask.moveToFront failed: ${it.message}")
                 }
             }
+            // MOVE_TASK_WITH_HOME would put Home right under a transparent banner
+            // and hide the page the user was on (e.g. Settings).
+            if (!withHome) return
             for (task in incoming) {
                 val id = runCatching { task.taskInfo.taskId }.getOrNull() ?: continue
                 @Suppress("DEPRECATION")
@@ -1032,6 +1105,11 @@ class IncomingCallActivity : Activity() {
                 IncomingCallOverlay.dismiss(callId, sessionId)
                 pendingFinishKeys = emptySet()
                 deferredFinishKeys = emptySet()
+                // The Activity can be up for the same call too (full-screen intent
+                // over a page that hid the overlay): close it as well, or it stays
+                // in the background and comes back later with an ended call.
+                val sameCallActivity = instance?.get()?.takeIf { it.matches(callId, sessionId) }
+                sameCallActivity?.finishFromCall()
                 return
             }
             val activity = instance?.get()
