@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider } from 'ethers'
+import { Contract, JsonRpcProvider, keccak256, toUtf8Bytes } from 'ethers'
 import { CONET_RPC } from '@/constants'
 import { CONET_ADDRESS_PGP_MANAGER } from '@/conet/constants'
 import { fromBase64Utf8, normalizeEoaLower40 } from '@/conet/crypto'
@@ -13,6 +13,15 @@ export type RecipientChatKeys = {
 }
 
 const SEARCH_KEY_SELECTOR = '052f2778'
+
+/**
+ * AddressPGP has recorded this node as a mailbox (`nodeKeyExists`). Throws on RPC
+ * error: a new mailbox is picked only among recorded nodes (chatOwnRoutePlan.ts).
+ */
+export async function isMailboxNodeRecorded(routeKeyID: string): Promise<boolean> {
+	const sc = new Contract(CONET_ADDRESS_PGP_MANAGER, ['function nodeKeyExists(bytes32) view returns (bool)'], new JsonRpcProvider(CONET_RPC))
+	return Boolean(await sc.nodeKeyExists(keccak256(toUtf8Bytes(routeKeyID))))
+}
 
 function hexToBytes(hex: string): Uint8Array | null {
 	const s = hex.trim().replace(/^0x/i, '')
@@ -128,4 +137,34 @@ export async function fetchRecipientPublicArmored(recipientEoa: string): Promise
 export async function hasOnChainUserPgpPublic(walletEoa: string): Promise<boolean> {
 	const armored = await fetchRecipientPublicArmored(walletEoa)
 	return Boolean(armored)
+}
+
+/**
+ * Own AddressPGP user key: 'present', 'empty' (read worked, no key), or 'error'
+ * (every read failed or timed out). Callers must not register on 'error':
+ * a failed read is not an empty record.
+ */
+export async function readOwnUserPgpPresence(walletEoa: string): Promise<'present' | 'empty' | 'error'> {
+	const h = normalizeEoaLower40(walletEoa)
+	if (!h) return 'error'
+	const provider = new JsonRpcProvider(CONET_RPC, 224422, { staticNetwork: true })
+	const sc = new Contract(CONET_ADDRESS_PGP_MANAGER, SEARCH_KEY_ABI, provider)
+	for (let attempt = 0; attempt < 2; attempt++) {
+		let timer: ReturnType<typeof setTimeout> | undefined
+		try {
+			const info = (await Promise.race([
+				sc.searchKey(`0x${h}`),
+				new Promise<never>((_, reject) => {
+					timer = setTimeout(() => reject(new Error('searchKey timeout')), 8_000)
+				}),
+			])) as { userPublicKeyArmored?: string }
+			const armored = info.userPublicKeyArmored ? fromBase64Utf8(info.userPublicKeyArmored) : ''
+			return armored.includes('BEGIN PGP') ? 'present' : 'empty'
+		} catch (ex) {
+			console.warn('[readOwnUserPgpPresence] read failed', attempt + 1, ex instanceof Error ? ex.message : ex)
+		} finally {
+			clearTimeout(timer)
+		}
+	}
+	return 'error'
 }
