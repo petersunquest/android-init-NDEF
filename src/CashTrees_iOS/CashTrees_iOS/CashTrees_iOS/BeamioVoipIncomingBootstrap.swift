@@ -593,13 +593,20 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		)
 	}
 
-	/// Append one line to Documents/busy-qa-breadcrumb.log for QA (syslog often empty).
+	/// QA breadcrumb: NSLog always; QA builds also append to Documents/busy-qa-breadcrumb.log (syslog often empty).
 	/// v41: `synchronizeFile` so a mid-write process suspend still leaves the line.
 	/// Shared with `BeamioVoipIncomingBootstrap` (PushKit / soft cancel paths).
 	func writeBusyQaBreadcrumb(_ line: String) {
-		let stamp = ISO8601DateFormatter().string(from: Date())
-		let text = "\(stamp) \(line)\n"
 		NSLog("[BeamioCallKit] qa-breadcrumb %@", line)
+		#if DEBUG || BEAMIO_QA
+		writeBusyQaBreadcrumbFile(line)
+		#endif
+	}
+
+	#if DEBUG || BEAMIO_QA
+	/// QA builds only: the file never ships in Release (nothing in the app reads it).
+	private func writeBusyQaBreadcrumbFile(_ line: String) {
+		let text = "\(ISO8601DateFormatter().string(from: Date())) \(line)\n"
 		guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
 			return
 		}
@@ -619,6 +626,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			}
 		}
 	}
+	#endif
 
 	func clearBusyChromeGuard(reason: String) {
 		guard busyChromeGuardUntil > 0 else { return }

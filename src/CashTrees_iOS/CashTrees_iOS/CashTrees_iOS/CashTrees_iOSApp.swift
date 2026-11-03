@@ -5,6 +5,7 @@
 //  Created by peter on 2026-03-27.
 //
 
+import ConetChatSDK
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -16,6 +17,10 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     ) -> Bool {
         // PushKit + CallKit must be ready before WebView — same as Android MessagingService
         // so a force-quit app still shows the system incoming-call UI and wakes Beamio.
+        #if DEBUG || BEAMIO_QA
+        // QA builds: the SDK crypto host's recovery events (times and states only).
+        BeamioOpenPgpHost.diagnostics = { BeamioQALog.write("pgp-host \($0)") }
+        #endif
         BeamioVoipIncomingBootstrap.shared.start()
         BeamioGuardianRoster.kick()
         UNUserNotificationCenter.current().delegate = self
