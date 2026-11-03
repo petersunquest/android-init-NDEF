@@ -1285,12 +1285,14 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             },
             postPgpCiphertext:function(payload){
               payload=payload||{};
-              window.webkit.messageHandlers[H].postMessage({
+              var m={
                 action:'postPgpCiphertext',
                 requestId:payload.requestId||'',
                 data:payload.data||'',
                 excludeIps:Array.isArray(payload.excludeIps)?payload.excludeIps:[]
-              });
+              };
+              if(payload.purpose==='voice-offer'){m.purpose='voice-offer';}
+              window.webkit.messageHandlers[H].postMessage(m);
             },
             chatModuleCommand:function(payload){
               payload=payload||{};
