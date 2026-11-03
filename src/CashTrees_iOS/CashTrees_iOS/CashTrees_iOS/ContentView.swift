@@ -1371,7 +1371,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         """
     }
 
-    /// Close the keyboard when a call screen takes over.
+    /// Close the keyboard when a call screen takes over (see `prepareSystemCall`).
     func dismissKeyboardForCall(stage: String) {
         let hadFocus = UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
@@ -1435,10 +1435,19 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             let tapAt: Int64 = (body["tapAt"] as? NSNumber)?.int64Value ?? 0
             BeamioCallTiming.begin(dialId: body["dialId"] as? String ?? "", tapAt: tapAt)
             BeamioCallTiming.mark("prepare-received")
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 BeamioCallTiming.mark("prepare-main")
                 BeamioInCallScreenModel.shared.beginPrepared(prepareId: prepareId, address: peerAddress)
                 BeamioCallTiming.mark("prepared")
+                // Then close the keyboard, on the next main-queue turn so the call
+                // screen is drawn first (closing it takes ~0.2 s). With it open, a
+                // lock during the dial makes iOS rebuild the keyboard for the app
+                // snapshot, which hung the main thread past the 10 s watchdog
+                // (0x8BADF00D) and killed the dial mid-ring. `startSystemCall`
+                // closes it again before CallKit starts.
+                DispatchQueue.main.async {
+                    self?.dismissKeyboardForCall(stage: "prepare")
+                }
             }
         case "cancelPreparedSystemCall":
             let prepareId = body["prepareId"] as? String ?? ""
