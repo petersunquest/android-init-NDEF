@@ -3166,8 +3166,13 @@ class BeamioTelecomService : ConnectionService() {
                 window,
                 IncomingCallActivity.fullScreenIntentRequestCode(window),
             )
+            // Unlocked with the glass banner up, this card replaces the CallStyle
+            // card in the shade: show the same caller avatar as the banner.
+            val tag = title.trim().takeIf(::isBeamioTag)
+            val avatar = tag?.let { callerAvatarBitmap(it) ?: BeamioCallerAvatarStore.avatar(context, it) }
             return NotificationCompat.Builder(context, GLASS_KEEPALIVE_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_incoming_call_status)
+                .setLargeIcon(avatar)
                 .setContentTitle(title.ifBlank { "Incoming call" })
                 .setContentText(body.ifBlank { context.getString(R.string.incoming_call_glass_subtitle) })
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
