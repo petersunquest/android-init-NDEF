@@ -1519,6 +1519,28 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        /** PWA banner: re-send the push delivery check (its listener just mounted). */
+        @JavascriptInterface
+        fun requestDeliveryHealth() {
+            runOnUiThread { publishDeliveryHealth() }
+        }
+
+        /** PWA banner "Fix in Settings": Samsung Never sleeping apps, or the app info page. */
+        @JavascriptInterface
+        fun openDeliverySettings() {
+            runOnUiThread {
+                val opened = BeamioDeliveryHealth.openFixSettings(this@MainActivity)
+                Log.i("BeamioDeliveryHealth", "open settings -> $opened")
+            }
+        }
+
+        /** PWA banner closed: hide the force-stop notice for this stop. */
+        @JavascriptInterface
+        fun dismissDeliveryHealthNotice() {
+            BeamioDeliveryHealth.dismissForceStop(applicationContext)
+            runOnUiThread { publishDeliveryHealth() }
+        }
+
         /** Called by the PWA after its cashtreesandroid listener is mounted. */
         @JavascriptInterface
         fun requestPendingSystemCallAction() {
@@ -3554,6 +3576,16 @@ class MainActivity : ComponentActivity() {
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "active"),
         )
+        publishDeliveryHealth()
+    }
+
+    /** Push delivery check (background restriction, last force stop) → PWA banner. */
+    private fun publishDeliveryHealth() {
+        val app = applicationContext
+        Thread {
+            val report = runCatching { BeamioDeliveryHealth.check(app) }.getOrNull() ?: return@Thread
+            runOnUiThread { dispatchAndroidBridgeJsonToWeb(report.toJson()) }
+        }.start()
     }
 
     private fun showInCallReturnPill() {
