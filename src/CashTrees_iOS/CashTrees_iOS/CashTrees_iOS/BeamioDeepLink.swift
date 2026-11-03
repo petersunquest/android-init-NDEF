@@ -55,6 +55,9 @@ enum BeamioDeepLink {
         return coldOpenURL
     }
 
+    /// A cold-start URL is still waiting for the web view (peek, does not take it).
+    static var hasColdOpenURL: Bool { coldOpenURL != nil }
+
     static let customScheme = "beamio"
     static let customOpenHost = "open"
     /// Device QA: `beamio://debug-incoming?callId=…&peerAddress=0x…&claimedTag=@rrr12`
@@ -753,15 +756,46 @@ final class CashTreesDeepLinkStore: ObservableObject {
     }
 
     /// After App Store install: landing copied `https://beamio.app/app/?beamiocard=…` or `…?invite=0x…` to the pasteboard.
-    /// Consume once on cold start when no Universal Link / custom scheme arrived.
+    /// Tried once per install (UserDefaults flag), never for an existing user, and the
+    /// text is read only after a prompt-free check says it looks like a web URL: reading
+    /// `UIPasteboard.string` shows iOS's "paste from …" prompt (it ran on every cold start).
+    /// The link arrives asynchronously through `deepLinkNonce`.
     func consumeDeferredDeepLinkFromPasteboardIfNeeded() {
-        // v57: busy-chrome-rescue openURL must not trigger paste sheet.
-        if BeamioDeepLink.isPasteboardDeferredDeepLinkSuppressed {
-            BeamioDeepLink.accept("ACCEPT pasteboard-skip-suppressed")
+        guard !didAttemptPasteboardDeferredDeepLink else { return }
+        let defaults = UserDefaults.standard
+        let decision = BeamioPasteboardDeepLinkGate.decide(
+            attemptedBefore: defaults.bool(forKey: BeamioPasteboardDeepLinkGate.attemptedKey),
+            existingUser: CashTreesPushRegistration.boundEoa != nil
+                || CashTreesPushRegistration.lastDeviceTokenHex != nil
+                || CashTreesPushRegistration.lastVoipDeviceTokenHex != nil,
+            // v57: busy-chrome-rescue openURL must not trigger paste sheet.
+            suppressed: BeamioDeepLink.isPasteboardDeferredDeepLinkSuppressed,
+            hasPendingLink: pendingWebURLStorage != nil || BeamioDeepLink.hasColdOpenURL
+        )
+        if decision.markAttempted {
+            defaults.set(true, forKey: BeamioPasteboardDeepLinkGate.attemptedKey)
+        }
+        guard case .checkForURL = decision.step else {
+            if case .skip(let why) = decision.step, why == "suppressed" {
+                BeamioDeepLink.accept("ACCEPT pasteboard-skip-suppressed")
+            } else {
+                didAttemptPasteboardDeferredDeepLink = true
+            }
             return
         }
-        guard !didAttemptPasteboardDeferredDeepLink else { return }
         didAttemptPasteboardDeferredDeepLink = true
+        // No prompt: only asks whether the pasteboard holds something URL-like.
+        let urlKey: PartialKeyPath<UIPasteboard.DetectedValues> = \.probableWebURL
+        UIPasteboard.general.detectPatterns(for: [urlKey]) { [weak self] result in
+            guard case .success(let found) = result, found.contains(urlKey) else { return }
+            DispatchQueue.main.async {
+                self?.readDeferredDeepLinkFromPasteboard()
+            }
+        }
+    }
+
+    /// Main thread, after the URL check: read, keep only a beamio invite or merchant link.
+    private func readDeferredDeepLinkFromPasteboard() {
         guard pendingWebURLStorage == nil else { return }
         guard let raw = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
               !raw.isEmpty,
@@ -769,7 +803,7 @@ final class CashTreesDeepLinkStore: ObservableObject {
         else { return }
         guard let resolved = BeamioDeepLink.resolveDeferredInstallDeepLink(from: candidate) else { return }
         pendingWebURLStorage = BeamioDeepLink.mapResolvedWebAppURLToLocal(resolved)
-        // Avoid re-opening the same merchant/coupon on every cold start.
+        // Avoid re-opening the same merchant/coupon on a later start.
         if UIPasteboard.general.string == raw {
             UIPasteboard.general.string = ""
         }

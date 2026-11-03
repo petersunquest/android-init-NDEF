@@ -2721,9 +2721,10 @@ struct CashTreesWebView: UIViewRepresentable {
         sv.showsHorizontalScrollIndicator = false
         sv.bounces = false
 
+        // The pasteboard deferred link is tried once, from the app's onAppear, and
+        // arrives through deepLinkNonce (it waits for a prompt-free URL check).
         let pendingRemote: URL? = {
             deepLinkStore.consumeColdOpenURLIfNeeded()
-            deepLinkStore.consumeDeferredDeepLinkFromPasteboardIfNeeded()
             return deepLinkStore.takePendingWebURL()
         }()
         let initialURL = pendingRemote ?? defaultLocalWebAppURL(from: localPWAHost)
