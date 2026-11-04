@@ -84,6 +84,8 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     /// but still apply `.badge` so the home-screen icon updates if the user backgrounds/force-quits
     /// before the next offline notify (empty options previously dropped badge entirely).
     /// `type=voiceCall` alert fallback must wake CallKit even while the app is active.
+    /// CallKit then shows the call, so the alert itself is not shown or kept in
+    /// Notification Center (it stayed there after the caller cancelled).
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -91,11 +93,7 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
     ) {
         let userInfo = notification.request.content.userInfo
         if CashTreesPushRegistration.postIncomingVoiceCallIfPresent(from: userInfo) {
-            if #available(iOS 14.0, *) {
-                completionHandler([.banner, .sound, .badge, .list])
-            } else {
-                completionHandler([.alert, .sound, .badge])
-            }
+            completionHandler([])
             return
         }
         if applicationIsActive {
@@ -131,7 +129,16 @@ final class CashTreesAppDelegate: NSObject, UIApplicationDelegate, UNUserNotific
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
         let handled = CashTreesPushRegistration.postIncomingVoiceCallIfPresent(from: userInfo)
-        completionHandler(handled ? .newData : .noData)
+        guard handled else {
+            completionHandler(.noData)
+            return
+        }
+        // A late alert for a call that is already over would stay in the tray:
+        // sweep once the report or teardown above has run, then let iOS suspend us.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            BeamioVoipIncomingBootstrap.shared.callKit.sweepStaleCallAlerts(reason: "push-wake")
+            completionHandler(.newData)
+        }
     }
 
     private var applicationIsActive: Bool {

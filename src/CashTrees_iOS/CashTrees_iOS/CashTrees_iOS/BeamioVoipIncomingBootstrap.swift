@@ -565,6 +565,29 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		return false
 	}
 
+	/// Call ids CallKit still shows (ringing or connected), plus reports still
+	/// waiting on CallKit. Main queue.
+	func liveCallIds() -> Set<String> {
+		assert(Thread.isMainThread)
+		var ids = Set<String>()
+		for call in controller.callObserver.calls where !call.hasEnded {
+			if let id = callIds[call.uuid]?.callId, !id.isEmpty { ids.insert(id) }
+			if let id = ownedIncomingCallIds[call.uuid], !id.isEmpty { ids.insert(id) }
+			if lastReportedUUID == call.uuid, !lastReportedCallId.isEmpty { ids.insert(lastReportedCallId) }
+			if stickyPrimaryUUID == call.uuid, !stickyPrimaryCallId.isEmpty { ids.insert(stickyPrimaryCallId) }
+		}
+		for uuid in pendingIncomingReportStartedAt.keys {
+			if let id = callIds[uuid]?.callId, !id.isEmpty { ids.insert(id) }
+		}
+		ids.formUnion(inflightIncomingReports.keys.filter { !$0.isEmpty })
+		return ids
+	}
+
+	/// Drop "Incoming call" APNs alerts whose call is over. Main queue.
+	func sweepStaleCallAlerts(reason: String) {
+		BeamioCallAlertTray.removeStale(liveCallIds: liveCallIds(), reason: reason)
+	}
+
 	/// True when this callId was already pinned to a CallKit UUID (report succeeded
 	/// or in-flight pin). Soft FG must still report when `voice_end` gossip-reordered
 	/// *before* any report (`end skip — no uuid` + `soft-skip-remote-ended`); after a
@@ -5744,6 +5767,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	/// (DEAD only). Never ring-keepalive / PRE-END (v52 self-destruct).
 	func callObserver(_ callObserver: CXCallObserver, callChanged call: CXCall) {
 		guard call.hasEnded else { return }
+		sweepStaleCallAlerts(reason: "call-ended")
 		let uuid = call.uuid
 		let isSticky = stickyPrimaryUUID == uuid
 		let wasAnswered = answeredCallUUIDs.contains(uuid)

@@ -435,6 +435,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         }
         // Drop stale offline push tray + badge; PWA re-publishes unread via publishAppState.
         CashTreesNativeAppStateBridge.clearOfflineChatAlerts()
+        ck.sweepStaleCallAlerts(reason: "became-active")
         // Recovery is latency-sensitive. Never await the network-backed OTA check
         // before replacing a dead WKWebView content process.
         if webContentProcessNeedsReload {
