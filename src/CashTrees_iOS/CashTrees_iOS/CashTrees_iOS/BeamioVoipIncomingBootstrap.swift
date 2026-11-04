@@ -2507,10 +2507,20 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			// After completion + CallKit dead (flash-hide / system dismiss), soft
 			// re-delivery must clear the map and fall through to a fresh report —
 			// otherwise soft-recent-dead-rereport crumbs forever with ck=false.
+			//
+			// "Still pending" uses the in-flight join window, not 1.5 s: a slow
+			// report (app just foregrounded, page reloading) must not lose its
+			// map entry and then be joined below with nothing left to answer.
 			if sameCallId, !observerAlive, !anyLiveSame {
-				let pendingAge = pendingIncomingReportStartedAt[existing.key]
-					.map { CFAbsoluteTimeGetCurrent() - $0 }
-				if let age = pendingAge, age < 1.5 {
+				let now = CFAbsoluteTimeGetCurrent()
+				let pendingAge = pendingIncomingReportStartedAt[existing.key].map { now - $0 }
+				let inflightAge = inflightIncomingReports[callId].map { now - $0.startedAt }
+				let decision = BeamioSameCallRedelivery.decide(
+					pendingReportAge: pendingAge,
+					inflightReportAge: inflightAge
+				)
+				if decision == .keepPending {
+					let age = pendingAge ?? inflightAge ?? 0
 					rememberOwnedIncoming(uuid: existing.key, callId: callId)
 					writeBusyQaBreadcrumb(
 						"stale-map-keep-inflight:\(callId):uuid=\(existing.key.uuidString):age=\(String(format: "%.2f", age))"
@@ -2524,7 +2534,12 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 					if stickyPrimaryUUID == nil {
 						adoptStickyPrimary(uuid: existing.key, callId: callId)
 					}
-					DispatchQueue.main.async { completion?(nil) }
+					// A PushKit delivery completes only once CallKit has the call.
+					if inflightAge != nil {
+						inflightIncomingReports[callId]?.waiters.append(completion)
+					} else {
+						DispatchQueue.main.async { completion?(nil) }
+					}
 					return
 				}
 				writeBusyQaBreadcrumb(
@@ -2580,7 +2595,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 		let inflightKey = callId.isEmpty ? sessionId : callId
 		if !inflightKey.isEmpty {
 			if let running = inflightIncomingReports[inflightKey],
-			   CFAbsoluteTimeGetCurrent() - running.startedAt < 10
+			   CFAbsoluteTimeGetCurrent() - running.startedAt < BeamioSameCallRedelivery.inflightWindow
 			{
 				inflightIncomingReports[inflightKey]?.waiters.append(completion)
 				NSLog(
@@ -2750,6 +2765,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 								completion?(nil)
 								return
 							}
+							self.restoreIdentityIfDropped(uuid: retryUuid, identity: retryIdentity)
 							self.adoptStickyPrimary(uuid: retryUuid, callId: callId)
 							if !self.isBusyChromeGuardActive() {
 								self.chromeSuspendConsumed = false
@@ -2797,6 +2813,7 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 					}
 					return
 				}
+				self.restoreIdentityIfDropped(uuid: uuid, identity: firstIdentity)
 				self.adoptStickyPrimary(uuid: uuid, callId: callId)
 				// New primary report needs a fresh chrome suspend. Busy-cancel
 				// and debug-end-all set chromeSuspendConsumed=true; without a
@@ -5309,6 +5326,26 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 				NSLog("[BeamioCallKit] re-suspend after answer")
 			}
 		}
+	}
+
+	/// A reported, ringing call must keep its map entry, or Answer is refused
+	/// ("Call failed") and the end goes out as a decline. Main queue.
+	private func restoreIdentityIfDropped(uuid: UUID, identity: CallIdentity) {
+		let otherEntry = callIds.contains {
+			$0.key != uuid && matches($0.value, callId: identity.callId, sessionId: identity.sessionId)
+		}
+		guard BeamioSameCallRedelivery.shouldRestoreIdentity(
+			stillMapped: callIds[uuid] != nil,
+			otherEntryForCall: otherEntry,
+			endingThisUUID: intentionallyEndingUUIDs.contains(uuid)
+		) else { return }
+		callIds[uuid] = identity
+		writeBusyQaBreadcrumb("report-ok-remap:\(identity.callId):uuid=\(uuid.uuidString)")
+		NSLog(
+			"[BeamioCallKit] reported call had lost its map entry — restored callId=%@ uuid=%@",
+			identity.callId,
+			uuid.uuidString
+		)
 	}
 
 	private func matches(_ identity: CallIdentity, callId: String, sessionId: String) -> Bool {
