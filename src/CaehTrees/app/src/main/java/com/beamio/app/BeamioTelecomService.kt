@@ -723,6 +723,20 @@ class BeamioTelecomService : ConnectionService() {
         }
 
         /**
+         * A call is in progress: the native voice call exists, or Telecom holds
+         * a connection that is dialing, connected or on hold. Ringing is not
+         * counted here (its own rules apply).
+         */
+        fun hasLiveCall(): Boolean {
+            if (BeamioNativeVoiceSignaling.currentActiveCall() != null) return true
+            return activeConnections.values.any {
+                it.state == Connection.STATE_DIALING ||
+                    it.state == Connection.STATE_ACTIVE ||
+                    it.state == Connection.STATE_HOLDING
+            }
+        }
+
+        /**
          * True when a connection should block a second dial: active/holding always,
          * ringing/dialing only while the glass window is actually showing.
          */
@@ -3570,26 +3584,40 @@ class BeamioTelecomService : ConnectionService() {
          * CATEGORY_CALL shade stacked as a second "window".
          */
         fun dismissStaleIncomingUi(context: Context) {
-            val glassShowing = IncomingCallActivity.isShowing()
             // Live glass must never be torn down from MainActivity.onResume —
             // Telecom RINGING can lag a beat, and same-process multi-resume used
             // to finish the window while the user still needed it.
-            if (glassShowing) return
             // bringAppTaskForward raises opaque MainActivity so same-task glass
             // can become visible. That resume used to tear down RINGING + FGS
             // before BAL retries could show IncomingCallActivity — browser dial
             // then never showed a window. Skip while present is in flight or
             // Telecom is still RINGING; onIncomingGlassPresentFailed cleans up.
-            if (IncomingCallActivity.isPresentInFlight()) {
-                Log.i(TAG, "Stale dismiss skipped; glass present in flight")
-                return
-            }
-            val hasRinging = activeConnections.values.any { conn ->
-                conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
-            }
-            if (hasRinging) {
-                Log.i(TAG, "Stale dismiss skipped; RINGING without glass (present pending)")
-                return
+            // A live call (dialing, connected, on hold) is never stale: on
+            // 1.0.160 this stopped the call service and its notification on
+            // every return to MainActivity mid-call (Samsung, 2026-11-03).
+            val step = BeamioCallFgsPolicy.staleDismiss(
+                glassShowing = IncomingCallActivity.isShowing(),
+                presentInFlight = IncomingCallActivity.isPresentInFlight(),
+                ringing = activeConnections.values.any { conn ->
+                    conn.isIncomingCall() && conn.state == Connection.STATE_RINGING
+                },
+                liveCall = hasLiveCall(),
+            )
+            when (step) {
+                BeamioCallFgsPolicy.StaleDismiss.SKIP_GLASS_SHOWING -> return
+                BeamioCallFgsPolicy.StaleDismiss.SKIP_PRESENT_IN_FLIGHT -> {
+                    Log.i(TAG, "Stale dismiss skipped; glass present in flight")
+                    return
+                }
+                BeamioCallFgsPolicy.StaleDismiss.SKIP_RINGING -> {
+                    Log.i(TAG, "Stale dismiss skipped; RINGING without glass (present pending)")
+                    return
+                }
+                BeamioCallFgsPolicy.StaleDismiss.SKIP_LIVE_CALL -> {
+                    Log.i(TAG, "Stale dismiss skipped; a call is live")
+                    return
+                }
+                BeamioCallFgsPolicy.StaleDismiss.DISMISS -> Unit
             }
 
             BeamioCallForegroundService.stop(context)

@@ -44,6 +44,14 @@ class BeamioCallForegroundService : Service() {
      */
     private var foregroundOwed = false
 
+    /** Types of the last successful typed startForeground (Android 14+; 0 before). */
+    private var currentForegroundTypes = 0
+
+    /** The foreground entry is the call-in-progress notification (not ringing / hold). */
+    private var ongoingShown = false
+    private var ongoingCallId = ""
+    private var ongoingSessionId = ""
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         lastStartId = startId
         val foregroundRequired = intent?.getBooleanExtra(EXTRA_FOREGROUND_REQUIRED, false) == true
@@ -122,6 +130,12 @@ class BeamioCallForegroundService : Service() {
         super.onDestroy()
     }
 
+    private fun micGranted(context: Context): Boolean =
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.RECORD_AUDIO,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
     /**
      * Caller hung up. Drop the incoming foreground notification from this
      * process. An exported Decline broadcast is not required.
@@ -136,6 +150,8 @@ class BeamioCallForegroundService : Service() {
             runCatching { stopForeground(true) }
         }
         activeForegroundNotificationId = 0
+        currentForegroundTypes = 0
+        ongoingShown = false
         if (previous != 0) {
             NotificationManagerCompat.from(this).cancel(previous)
         }
@@ -207,12 +223,33 @@ class BeamioCallForegroundService : Service() {
 
     fun postOngoingCall(callId: String, sessionId: String) {
         val notification = BeamioTelecomService.buildOngoingCallNotification(this, callId, sessionId)
-        if (!postQuietForeground(FOREGROUND_ID, notification)) {
+        val types = BeamioCallFgsPolicy.ongoingTypes(micGranted(this))
+        if (!postForegroundWithTypes(FOREGROUND_ID, notification, types)) {
             Log.e(TAG, "Ongoing call status bar denied")
             return
         }
         activeForegroundNotificationId = FOREGROUND_ID
-        Log.i(TAG, "Ongoing call status bar posted")
+        ongoingCallId = callId
+        ongoingSessionId = sessionId
+        ongoingShown = true
+        Log.i(
+            TAG,
+            "Ongoing call status bar posted types=$currentForegroundTypes " +
+                "mic=${BeamioCallFgsPolicy.hasMicrophone(currentForegroundTypes)}",
+        )
+    }
+
+    /** An app screen is in front: add the microphone type the background start could not get. */
+    fun upgradeMicrophoneIfNeeded(reason: String) {
+        val needed = BeamioCallFgsPolicy.needsMicrophoneUpgrade(
+            sdk = Build.VERSION.SDK_INT,
+            ongoingShown = ongoingShown && activeForegroundNotificationId == FOREGROUND_ID,
+            currentTypes = currentForegroundTypes,
+            micGranted = micGranted(this),
+        )
+        if (!needed) return
+        Log.i(TAG, "Ongoing call FGS microphone upgrade reason=$reason")
+        postOngoingCall(ongoingCallId, ongoingSessionId)
     }
 
     private fun postIncoming(id: Int, notification: Notification, glassLaunch: Intent?) {
@@ -359,6 +396,7 @@ class BeamioCallForegroundService : Service() {
      * is enough for a CATEGORY_CALL FGS notification.
      */
     private fun startIncomingForeground(id: Int, notification: Notification) {
+        ongoingShown = false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(id, notification)
             foregroundOwed = false
@@ -371,6 +409,7 @@ class BeamioCallForegroundService : Service() {
                 notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
             )
+            currentForegroundTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
         } catch (phoneCallDenied: Exception) {
             Log.w(TAG, "phoneCall FGS denied; using shortService for incoming", phoneCallDenied)
             ServiceCompat.startForeground(
@@ -379,28 +418,39 @@ class BeamioCallForegroundService : Service() {
                 notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE,
             )
+            currentForegroundTypes = ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
         }
         foregroundOwed = false
     }
 
-    /** phoneCall after Telecom setActive(); shortService if that type is denied. */
+    /** Ringing keep-alive / muted hold: phoneCall, or shortService if that type is denied. */
     private fun postQuietForeground(id: Int, notification: Notification): Boolean {
+        val ok = postForegroundWithTypes(id, notification, BeamioCallFgsPolicy.ringingTypes())
+        // Not the call-in-progress entry any more (a new ring took the service).
+        if (ok && id == FOREGROUND_ID) ongoingShown = false
+        return ok
+    }
+
+    /**
+     * startForeground with the first type Android accepts. Before Android 14
+     * the manifest types apply (phoneCall | microphone), so no type is passed.
+     */
+    private fun postForegroundWithTypes(id: Int, notification: Notification, types: IntArray): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             val ok = runCatching { startForeground(id, notification) }.isSuccess
             if (ok) foregroundOwed = false
             return ok
         }
-        val types = intArrayOf(
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE,
-        )
         for (type in types) {
             try {
                 ServiceCompat.startForeground(this, id, notification, type)
                 foregroundOwed = false
+                currentForegroundTypes = type
                 return true
             } catch (error: Exception) {
-                Log.w(TAG, "Quiet FGS denied type=$type", error)
+                // microphone from the background (Android 14+) lands here; the
+                // next type keeps the call alive, and the next app screen upgrades it.
+                Log.w(TAG, "FGS denied type=$type: ${error.javaClass.simpleName}")
             }
         }
         return false
@@ -605,6 +655,16 @@ class BeamioCallForegroundService : Service() {
                 putExtra(BeamioTelecomService.EXTRA_SESSION_ID, sessionId)
             }
             startForegroundRequired(context, intent, "Ongoing call status bar failed to start")
+        }
+
+        /**
+         * Call from an app screen's onResume: if the call-in-progress service
+         * started without the microphone type (answered in the background on
+         * Android 14+), add it now so the call keeps its microphone when the
+         * user leaves the app again.
+         */
+        fun upgradeMicrophoneIfNeeded(reason: String) {
+            instance?.upgradeMicrophoneIfNeeded(reason)
         }
 
         fun start(context: Context, callId: String, sessionId: String) {

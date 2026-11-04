@@ -3611,6 +3611,8 @@ class MainActivity : ComponentActivity() {
         } else {
             BeamioTelecomService.dismissStaleIncomingUi(this)
         }
+        // A call answered in the background has no microphone FGS type yet (Android 14+).
+        BeamioCallForegroundService.upgradeMicrophoneIfNeeded("MainActivity.onResume")
         if (::rootLayout.isInitialized) {
             rootLayout.setBackgroundColor(Color.parseColor("#f8f9fa"))
         }

@@ -180,6 +180,9 @@ class InCallActivity : ComponentActivity() {
         refreshSpeakerUi()
         startTimer()
         ensureMicForVoiceUplink()
+        // Answered in the background (Android 14+): the call service lacks the
+        // microphone type; add it while this screen is in front.
+        BeamioCallForegroundService.upgradeMicrophoneIfNeeded("InCallActivity.onResume")
     }
 
     /** Prompt RECORD_AUDIO so Accept-path PCM uplink can start (no WebView getUserMedia). */
