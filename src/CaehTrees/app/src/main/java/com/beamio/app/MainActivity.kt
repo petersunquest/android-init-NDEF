@@ -539,6 +539,8 @@ class MainActivity : ComponentActivity() {
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA / RECORD_AUDIO */
     private var pendingWebPermissionRequest: PermissionRequest? = null
+    /** Resources of [pendingWebPermissionRequest] the shell allows ([BeamioWebMicGate]). */
+    private var pendingWebPermissionResources: Array<String> = emptyArray()
     private var pendingFileBytes: ByteArray? = null
     private var pendingFileRequestId: String = ""
     private var pendingFileChooserCallback: ValueCallback<Array<Uri>>? = null
@@ -587,9 +589,11 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { _ ->
         val req = pendingWebPermissionRequest
+        val resources = pendingWebPermissionResources
         pendingWebPermissionRequest = null
+        pendingWebPermissionResources = emptyArray()
         if (req == null) return@registerForActivityResult
-        grantWebViewMediaRequest(req)
+        grantWebViewMediaRequest(req, resources)
     }
 
     /** Native Accept path (no WebView getUserMedia) — mic for PCM uplink. */
@@ -741,9 +745,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun androidPermissionsForWebMedia(request: PermissionRequest): List<String> {
+    private fun androidPermissionsForWebMedia(resources: Array<String>): List<String> {
         val perms = linkedSetOf<String>()
-        for (res in request.resources) {
+        for (res in resources) {
             when (res) {
                 PermissionRequest.RESOURCE_VIDEO_CAPTURE -> perms.add(Manifest.permission.CAMERA)
                 PermissionRequest.RESOURCE_AUDIO_CAPTURE -> perms.add(Manifest.permission.RECORD_AUDIO)
@@ -756,8 +760,8 @@ class MainActivity : ComponentActivity() {
         return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun grantWebViewMediaRequest(request: PermissionRequest) {
-        val allow = request.resources.filter { res ->
+    private fun grantWebViewMediaRequest(request: PermissionRequest, resources: Array<String>) {
+        val allow = resources.filter { res ->
             when (res) {
                 PermissionRequest.RESOURCE_VIDEO_CAPTURE -> hasOsPermission(Manifest.permission.CAMERA)
                 PermissionRequest.RESOURCE_AUDIO_CAPTURE -> hasOsPermission(Manifest.permission.RECORD_AUDIO)
@@ -815,7 +819,26 @@ class MainActivity : ComponentActivity() {
 
         override fun onPermissionRequest(request: PermissionRequest) {
             runOnUiThread {
-                val needed = androidPermissionsForWebMedia(request)
+                // The shell records its calls itself: the WebView microphone is
+                // only for a call the PWA runs (it used to stay open after
+                // ringing, blocking the camera's recorder).
+                val resources = BeamioWebMicGate.allowedResources(
+                    request.resources,
+                    BeamioWebMicGate.pwaCallLive(
+                        telecomCallLive = BeamioTelecomService.hasLiveCall(),
+                        nativeCallLive = InCallScreenModel.isLive(),
+                    ),
+                )
+                if (BeamioWebMicGate.refusesMicrophone(request.resources, resources)) {
+                    CashTreesWebConsoleRelay.logNative(
+                        "PermissionRequest mic refused; no PWA-owned call resources=${request.resources.joinToString()}",
+                    )
+                }
+                if (resources.isEmpty()) {
+                    request.deny()
+                    return@runOnUiThread
+                }
+                val needed = androidPermissionsForWebMedia(resources)
                 if (needed.isEmpty()) {
                     CashTreesWebConsoleRelay.logNative(
                         "PermissionRequest deny empty-needed resources=${request.resources.joinToString()}",
@@ -825,13 +848,14 @@ class MainActivity : ComponentActivity() {
                 }
                 val missing = needed.filterNot(::hasOsPermission)
                 if (missing.isEmpty()) {
-                    grantWebViewMediaRequest(request)
+                    grantWebViewMediaRequest(request, resources)
                 } else {
                     CashTreesWebConsoleRelay.logNative(
                         "PermissionRequest requesting OS perms missing=${missing.joinToString()} " +
                             "resources=${request.resources.joinToString()}",
                     )
                     pendingWebPermissionRequest = request
+                    pendingWebPermissionResources = resources
                     requestWebViewMediaPermissions.launch(missing.toTypedArray())
                 }
             }
