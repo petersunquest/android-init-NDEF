@@ -132,6 +132,7 @@ object IncomingCallOverlay {
         }
         if (!canPresent(app)) {
             Log.i(TAG, "Overlay glass skipped; SYSTEM_ALERT_WINDOW not granted")
+            BeamioOverlayAccess.noteFallback(app)
             return false
         }
         if (BeamioTelecomService.wasBusyRejected(

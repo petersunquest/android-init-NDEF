@@ -37,4 +37,9 @@
     <string name="in_call_local_preview">Your camera preview</string>
     <string name="in_call_show_controls">Show call controls</string>
     <string name="in_call_hide_controls">Hide call controls</string>
+
+    <string name="overlay_access_title">Show calls full screen</string>
+    <string name="overlay_access_message">To show an incoming call full screen while you use another app, turn on \"Appear on top\" (also called \"Display over other apps\") for Beamio on the next screen.</string>
+    <string name="overlay_access_allow">Turn on</string>
+    <string name="overlay_access_later">Not now</string>
 </resources>

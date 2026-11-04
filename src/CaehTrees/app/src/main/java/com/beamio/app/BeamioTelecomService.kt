@@ -736,6 +736,11 @@ class BeamioTelecomService : ConnectionService() {
             }
         }
 
+        /** An incoming call is ringing in Telecom. */
+        fun hasRingingCall(): Boolean = activeConnections.values.any {
+            it.isIncomingCall() && it.state == Connection.STATE_RINGING
+        }
+
         /**
          * True when a connection should block a second dial: active/holding always,
          * ringing/dialing only while the glass window is actually showing.

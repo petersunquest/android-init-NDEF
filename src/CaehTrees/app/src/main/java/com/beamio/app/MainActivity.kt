@@ -522,6 +522,7 @@ class MainActivity : ComponentActivity() {
     private val bootstrapExecutor = Executors.newSingleThreadExecutor()
 
     private var fullScreenIntentSettingsLaunched = false
+    private var overlayAccessDialog: androidx.appcompat.app.AlertDialog? = null
 
     /** WebView getUserMedia 与 [onPermissionRequest] 同时到达时需先跑完系统 CAMERA / RECORD_AUDIO */
     private var pendingWebPermissionRequest: PermissionRequest? = null
@@ -3009,6 +3010,42 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Ask for "Appear on top" so a call that rings while another app is open
+     * gets the full-screen page instead of the small system card
+     * ([BeamioOverlayAccess]). Never during a ringing or live call.
+     */
+    private fun maybeAskOverlayAccess() {
+        if (overlayAccessDialog?.isShowing == true || isFinishing) return
+        val fsiReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
+            getSystemService(android.app.NotificationManager::class.java)?.canUseFullScreenIntent() == true
+        val callBusy = BeamioTelecomService.hasLiveCall() ||
+            BeamioTelecomService.hasRingingCall() ||
+            InCallScreenModel.isLive() ||
+            IncomingCallActivity.isShowing() ||
+            IncomingCallActivity.isPresentInFlight()
+        if (!BeamioOverlayAccess.shouldAskNow(this, fsiReady, callBusy)) return
+        BeamioOverlayAccess.markAsked(this)
+        Log.i("BeamioOverlayAccess", "Asking for overlay access")
+        overlayAccessDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.overlay_access_title)
+            .setMessage(R.string.overlay_access_message)
+            .setPositiveButton(R.string.overlay_access_allow) { _, _ -> openOverlayAccessSettings() }
+            .setNegativeButton(R.string.overlay_access_later, null)
+            .setOnDismissListener { overlayAccessDialog = null }
+            .show()
+    }
+
+    private fun openOverlayAccessSettings() {
+        val pkg = Uri.parse("package:$packageName")
+        val opened = runCatching {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkg))
+        }.recoverCatching {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg))
+        }
+        Log.i("BeamioOverlayAccess", "Overlay settings opened=${opened.isSuccess}")
+    }
+
     private fun applyEmbeddedPwaUpdateFromBridge() {
         if (!useEmbeddedPwa || !::webView.isInitialized || !::embeddedPwaHost.isInitialized) {
             dispatchAndroidBridgeJsonToWeb(
@@ -3618,6 +3655,7 @@ class MainActivity : ComponentActivity() {
         }
         applyTransparentStatusBar()
         maybeOpenFullScreenIntentSettings()
+        maybeAskOverlayAccess()
         if (nfcBindKeepAlive) {
             armNfcPhysicalCardRead()
         } else {
