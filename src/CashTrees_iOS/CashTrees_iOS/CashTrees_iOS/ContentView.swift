@@ -232,6 +232,16 @@ final class CashTreesWebLoadState: ObservableObject {
         }
     }
 
+    /// The call screen closed. The splash is left out of the view while a call
+    /// screen is up, so a handoff asked for during the call (PushKit cold launch,
+    /// the page rendered under the call screen) never ran its fade-out; without
+    /// this the splash would cover the ready page for good. Before the page has
+    /// rendered, keep the splash.
+    func callScreenDismissed() {
+        guard isSplashVisible, shouldAnimateOut else { return }
+        finishSplashHandoff()
+    }
+
     /// Cover a terminated WKWebView process while the replacement document renders.
     /// The OTA check must never be allowed to expose an empty WebView surface.
     func beginRecovery() {
@@ -2847,6 +2857,11 @@ private struct CashTreesSplashOverlay: View {
             }
         }
         .ignoresSafeArea()
+        // Back in the view after a call screen with the handoff already asked
+        // for: onChange never fires for that, so start the fade-out here.
+        .onAppear {
+            if animateOut { startLogoBurst() }
+        }
         .onChange(of: animateOut) { _, newValue in
             guard newValue else { return }
             startLogoBurst()
@@ -2942,6 +2957,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeOut(duration: 0.3), value: inCall.presented)
+        .onChange(of: inCall.presented) { _, presented in
+            if !presented { webLoadState.callScreenDismissed() }
+        }
         .onAppear {
             localPWAHost.startIfNeeded()
             webLoadState.scheduleSplashFallback()
