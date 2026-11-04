@@ -168,6 +168,7 @@ class InCallActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        resumedNow = true
         BeamioCallTiming.mark("screen-onResume")
         window.decorView.post { BeamioCallTiming.mark("screen-first-frame") }
         if (!routeSynced && InCallScreenModel.isLive()) {
@@ -201,18 +202,35 @@ class InCallActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        resumedNow = false
         stopTimer()
         super.onPause()
     }
+
+    /** Between onResume and onPause: on top of its task and visible. */
+    private var resumedNow = false
 
     override fun onDestroy() {
         stopTimer()
         // The camera is bound to this activity; minimizing or ending turns it off.
         stopLocalVideo(sendControl = true)
         if (instance?.get() === this) instance = null
-        // Minimizing finishes this activity while the call stays live.
-        if (!InCallScreenModel.isLive() || InCallScreenModel.isPresented()) {
-            restoreSpeakerRoute(false)
+        // Minimizing finishes this activity while the call stays live. Any other
+        // way out of a live call (e.g. a task change) counts as minimized too,
+        // so the return pill and the notification can bring it back.
+        when (
+            BeamioActiveCallRoute.onDestroyed(
+                callLive = InCallScreenModel.isLive(),
+                presented = InCallScreenModel.isPresented(),
+                changingConfigurations = isChangingConfigurations,
+            )
+        ) {
+            BeamioActiveCallRoute.Destroyed.RESTORE_ROUTE -> restoreSpeakerRoute(false)
+            BeamioActiveCallRoute.Destroyed.MARK_MINIMIZED -> {
+                InCallScreenModel.minimize()
+                Log.i(TAG, "InCall screen gone while the call is live; marked minimized")
+            }
+            BeamioActiveCallRoute.Destroyed.KEEP -> Unit
         }
         super.onDestroy()
     }
@@ -743,8 +761,12 @@ class InCallActivity : ComponentActivity() {
             if (callId.isNotBlank() || sessionId.isNotBlank() || !InCallScreenModel.isPrepared()) {
                 InCallScreenModel.begin(callId, sessionId, tag, address, presentImmediately = true)
             }
-            val showing = instance?.get()
-            if (showing != null && !showing.isFinishing) {
+            val showing = instance?.get()?.takeIf { !it.isFinishing }
+            val step = BeamioActiveCallRoute.present(
+                instanceAlive = showing != null,
+                instanceResumed = showing?.resumedNow == true,
+            )
+            if (showing != null && step == BeamioActiveCallRoute.Present.RENDER_IN_PLACE) {
                 showing.render(
                     Intent().apply {
                         putExtra(BeamioTelecomService.EXTRA_CALL_ID, callId)

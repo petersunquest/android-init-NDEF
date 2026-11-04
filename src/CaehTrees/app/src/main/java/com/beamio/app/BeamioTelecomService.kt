@@ -2429,10 +2429,8 @@ class BeamioTelecomService : ConnectionService() {
             }
             val intent = Intent(context, MainActivity::class.java).apply {
                 action = "com.beamio.app.action.SHOW_ACTIVE_CALL"
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // No CLEAR_TOP: it destroyed InCallActivity above MainActivity.
+                flags = BeamioActiveCallRoute.OPEN_MAIN_FLAGS
                 putExtra(EXTRA_SHOW_ACTIVE_CALL, true)
                 putExtra(EXTRA_CALL_ID, callId)
                 putExtra(EXTRA_SESSION_ID, sessionId)
@@ -3795,8 +3793,9 @@ class BeamioTelecomService : ConnectionService() {
         private fun activeCallPendingIntent(context: Context, callId: String, sessionId: String): PendingIntent {
             val openIntent = Intent(context, MainActivity::class.java).apply {
                 action = "com.beamio.app.action.SHOW_ACTIVE_CALL"
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                // Status-bar call pill and notification tap. No CLEAR_TOP: it
+                // destroyed InCallActivity above MainActivity.
+                flags = BeamioActiveCallRoute.OPEN_MAIN_FLAGS
                 putExtra(EXTRA_SHOW_ACTIVE_CALL, true)
                 putExtra(EXTRA_CALL_ID, callId)
                 putExtra(EXTRA_SESSION_ID, sessionId)

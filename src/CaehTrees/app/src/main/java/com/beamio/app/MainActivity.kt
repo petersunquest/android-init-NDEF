@@ -473,6 +473,19 @@ class MainActivity : ComponentActivity() {
 
     private fun requestShowActiveCall(source: Intent?) {
         if (source?.getBooleanExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL, false) != true) return
+        if (BeamioActiveCallRoute.target(InCallScreenModel.isLive()) ==
+            BeamioActiveCallRoute.Target.NATIVE_IN_CALL
+        ) {
+            // The shell owns this call: the PWA has no screen for it.
+            intent.removeExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL)
+            source.removeExtra(BeamioTelecomService.EXTRA_SHOW_ACTIVE_CALL)
+            pendingSystemCallHandler.removeCallbacks(showActiveCallRunnable)
+            val snap = InCallScreenModel.snapshot()
+            Log.i("BeamioVoiceCall", "Show active call -> native call screen callIdPresent=${snap.callId.isNotBlank()}")
+            InCallActivity.present(this, snap.callId, snap.sessionId, tag = snap.tag, address = snap.address)
+            hideInCallReturnPillInternal()
+            return
+        }
         val now = SystemClock.elapsedRealtime()
         if (now - lastShowActiveCallRequestAt < 1500L) return
         lastShowActiveCallRequestAt = now
