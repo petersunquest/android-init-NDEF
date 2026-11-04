@@ -584,8 +584,40 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	}
 
 	/// Drop "Incoming call" APNs alerts whose call is over. Main queue.
+	///
+	/// After a PushKit cold launch on a locked phone, iOS suspends the app soon
+	/// after the call ends; the delivered-notification query answers
+	/// asynchronously and never ran (SE 2026-11-04 R3: the alert stayed on the
+	/// lock screen). Hold a background task until the removal was requested.
 	func sweepStaleCallAlerts(reason: String) {
-		BeamioCallAlertTray.removeStale(liveCallIds: liveCallIds(), reason: reason)
+		let live = liveCallIds()
+		let task = BackgroundTaskBox(name: "call-alert-sweep")
+		BeamioCallAlertTray.removeStale(liveCallIds: live) { [weak self] callAlerts, removed in
+			DispatchQueue.main.async {
+				self?.writeBusyQaBreadcrumb(
+					"call-alert-sweep:\(reason):alerts=\(callAlerts):removed=\(removed):live=\(live.count):state=\(UIApplication.shared.applicationState.rawValue)"
+				)
+				// Let the removal request leave before iOS may suspend us.
+				DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { task.end() }
+			}
+		}
+	}
+
+	/// One background task, ended once (by the caller or on expiry). Main queue.
+	private final class BackgroundTaskBox {
+		private var id: UIBackgroundTaskIdentifier = .invalid
+
+		init(name: String) {
+			id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak self] in
+				self?.end()
+			}
+		}
+
+		func end() {
+			guard id != .invalid else { return }
+			UIApplication.shared.endBackgroundTask(id)
+			id = .invalid
+		}
 	}
 
 	/// True when this callId was already pinned to a CallKit UUID (report succeeded
@@ -5253,6 +5285,8 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 			lastReportedCallId = ""
 			lastReportedUUID = nil
 		}
+		// Do not rely only on the CallKit observer for the alert cleanup.
+		sweepStaleCallAlerts(reason: "end-remote")
 	}
 
 	/// Device QA: programmatically Answer the ringing CallKit call
@@ -5768,6 +5802,13 @@ final class BeamioCallKitManager: NSObject, CXProviderDelegate, CXCallObserverDe
 	func callObserver(_ callObserver: CXCallObserver, callChanged call: CXCall) {
 		guard call.hasEnded else { return }
 		sweepStaleCallAlerts(reason: "call-ended")
+		// Again shortly after, for an alert that lands after the end. The task
+		// keeps a suspended-soon app (locked, cold-launched) alive until then.
+		let resweep = BackgroundTaskBox(name: "call-alert-resweep")
+		DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+			self?.sweepStaleCallAlerts(reason: "call-ended-3s")
+			resweep.end()
+		}
 		let uuid = call.uuid
 		let isSticky = stickyPrimaryUUID == uuid
 		let wasAnswered = answeredCallUUIDs.contains(uuid)

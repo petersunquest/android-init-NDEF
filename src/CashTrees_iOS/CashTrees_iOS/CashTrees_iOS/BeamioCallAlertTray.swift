@@ -30,16 +30,17 @@ nonisolated enum BeamioCallAlertTray {
 	}
 
 	/// Remove call alerts for calls that are not live. `liveCallIds` is read on
-	/// the main queue by the caller.
-	static func removeStale(liveCallIds: Set<String>, reason: String) {
+	/// the main queue by the caller. `done(callAlerts, removed)` runs on the
+	/// notification center's queue once the removal was requested.
+	static func removeStale(liveCallIds: Set<String>, done: @escaping @Sendable (Int, Int) -> Void) {
 		UNUserNotificationCenter.current().getDeliveredNotifications { notes in
-			let ids = staleIdentifiers(
-				notes.map { delivered(identifier: $0.request.identifier, userInfo: $0.request.content.userInfo) },
-				liveCallIds: liveCallIds
-			)
-			guard !ids.isEmpty else { return }
-			UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
-			NSLog("[BeamioCallAlertTray] removed %ld call alert(s) reason=%@", ids.count, reason)
+			let all = notes.map { delivered(identifier: $0.request.identifier, userInfo: $0.request.content.userInfo) }
+			let callAlerts = all.filter { $0.type == "voiceCall" }.count
+			let ids = staleIdentifiers(all, liveCallIds: liveCallIds)
+			if !ids.isEmpty {
+				UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+			}
+			done(callAlerts, ids.count)
 		}
 	}
 }
