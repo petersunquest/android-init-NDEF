@@ -1,0 +1,14 @@
+{
+  "name": "depin-node-seal-daemon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Dry-run CoNET DePIN node-case seal monitor. Does not deploy or broadcast.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/test/seal.test.js"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

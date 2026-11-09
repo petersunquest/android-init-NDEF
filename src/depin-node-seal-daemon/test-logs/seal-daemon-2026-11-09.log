@@ -1,0 +1,164 @@
+
+> depin-node-seal-daemon@0.1.0 test
+> npm run build && node --test dist/test/seal.test.js
+
+
+> depin-node-seal-daemon@0.1.0 build
+> tsc -p tsconfig.json
+
+TAP version 13
+# Subtest: seal policy
+    # Subtest: does not seal at 599 seconds when participation is not over half
+    ok 1 - does not seal at 599 seconds when participation is not over half
+      ---
+      duration_ms: 0.379458
+      type: 'test'
+      ...
+    # Subtest: seals at 600 seconds when the margin is met
+    ok 2 - seals at 600 seconds when the margin is met
+      ---
+      duration_ms: 0.051125
+      type: 'test'
+      ...
+    # Subtest: does not seal at exactly 50 percent
+    ok 3 - does not seal at exactly 50 percent
+      ---
+      duration_ms: 0.039542
+      type: 'test'
+      ...
+    # Subtest: seals when participation is strictly over 50 percent and the margin is met
+    ok 4 - seals when participation is strictly over 50 percent and the margin is met
+      ---
+      duration_ms: 0.038583
+      type: 'test'
+      ...
+    # Subtest: uses the tally at call time, not an earlier tally that once met the margin
+    ok 5 - uses the tally at call time, not an earlier tally that once met the margin
+      ---
+      duration_ms: 0.073791
+      type: 'test'
+      ...
+    # Subtest: seals a frozen tally that still meets the margin after 7200 seconds
+    ok 6 - seals a frozen tally that still meets the margin after 7200 seconds
+      ---
+      duration_ms: 0.032541
+      type: 'test'
+      ...
+    # Subtest: alerts when the frozen tally misses the margin and does not ask for a seal
+    ok 7 - alerts when the frozen tally misses the margin and does not ask for a seal
+      ---
+      duration_ms: 0.4025
+      type: 'test'
+      ...
+    1..7
+ok 1 - seal policy
+  ---
+  duration_ms: 1.766042
+  type: 'suite'
+  ...
+# Subtest: daemon
+    # Subtest: dry-run records one pending seal at 600 seconds and none at 599
+    ok 1 - dry-run records one pending seal at 600 seconds and none at 599
+      ---
+      duration_ms: 0.652167
+      type: 'test'
+      ...
+    # Subtest: does not create a pending seal when the margin is not met
+    ok 2 - does not create a pending seal when the margin is not met
+      ---
+      duration_ms: 0.161125
+      type: 'test'
+      ...
+    # Subtest: seals early only when participation is strictly over half
+    ok 3 - seals early only when participation is strictly over half
+      ---
+      duration_ms: 0.242166
+      type: 'test'
+      ...
+    # Subtest: does not send again when another party already sealed
+    ok 4 - does not send again when another party already sealed
+      ---
+      duration_ms: 0.13075
+      type: 'test'
+      ...
+    # Subtest: late-seals a frozen tally that still meets the margin
+    ok 5 - late-seals a frozen tally that still meets the margin
+      ---
+      duration_ms: 0.077959
+      type: 'test'
+      ...
+    # Subtest: after the deadline, a miss only alerts and does not send a cleanup transaction
+    ok 6 - after the deadline, a miss only alerts and does not send a cleanup transaction
+      ---
+      duration_ms: 0.11375
+      type: 'test'
+      ...
+    # Subtest: does not let votes after the freeze change the frozen tally
+    ok 7 - does not let votes after the freeze change the frozen tally
+      ---
+      duration_ms: 0.103
+      type: 'test'
+      ...
+    # Subtest: rescans a missed case after restart and does not double-send
+    ok 8 - rescans a missed case after restart and does not double-send
+      ---
+      duration_ms: 0.861
+      type: 'test'
+      ...
+    # Subtest: does not send a second transaction for an in-flight idempotency key after restart
+    ok 9 - does not send a second transaction for an in-flight idempotency key after restart
+      ---
+      duration_ms: 0.177458
+      type: 'test'
+      ...
+    # Subtest: a simulated revert does not mark the case settled
+    ok 10 - a simulated revert does not mark the case settled
+      ---
+      duration_ms: 0.178042
+      type: 'test'
+      ...
+    # Subtest: refuses to build a sendable transaction when the selector is not confirmed
+    ok 11 - refuses to build a sendable transaction when the selector is not confirmed
+      ---
+      duration_ms: 0.127333
+      type: 'test'
+      ...
+    # Subtest: refuses admission and recovery selectors aimed at the extension
+    ok 12 - refuses admission and recovery selectors aimed at the extension
+      ---
+      duration_ms: 0.074709
+      type: 'test'
+      ...
+    # Subtest: keeps the last trusted tally when the RPC read fails
+    ok 13 - keeps the last trusted tally when the RPC read fails
+      ---
+      duration_ms: 0.086125
+      type: 'test'
+      ...
+    # Subtest: alerts on gas cap and low balance without sending
+    ok 14 - alerts on gas cap and low balance without sending
+      ---
+      duration_ms: 0.194791
+      type: 'test'
+      ...
+    # Subtest: schedules the next pass with setTimeout and does not use setInterval
+    ok 15 - schedules the next pass with setTimeout and does not use setInterval
+      ---
+      duration_ms: 22.2975
+      type: 'test'
+      ...
+    1..15
+ok 2 - daemon
+  ---
+  duration_ms: 25.818583
+  type: 'suite'
+  ...
+1..2
+# tests 22
+# suites 2
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 66.912958
