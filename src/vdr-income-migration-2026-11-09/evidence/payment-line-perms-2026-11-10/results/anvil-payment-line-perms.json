@@ -1,0 +1,173 @@
+{
+  "ok": true,
+  "passed": 24,
+  "failed": 0,
+  "total": 24,
+  "anvilPort": 18549,
+  "contracts": {
+    "mockVdr": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "execA": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+    "execB": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "sinkA": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "sinkB": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
+  },
+  "roles": {
+    "owner": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "pm": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "memberA": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    "memberB": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    "stranger": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"
+  },
+  "lineIds": {
+    "A": "0xeedcb832aa0d2b1075885ff6050891b333d8b4021fb25690673cc43870aede73",
+    "B": "0xdb999f3442758f2545be87863b0770069df24d521a1f2dd0cdbcf602165dac55"
+  },
+  "results": [
+    {
+      "id": "H1",
+      "title": "memberA payoutBatch on ExecA",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "id": "E1",
+      "title": "PM addAdmin on MockVDR → FAIL",
+      "ok": true,
+      "detail": "NotAdmin()"
+    },
+    {
+      "id": "E2",
+      "title": "PM setRedeemAdmin on MockVDR → FAIL",
+      "ok": true,
+      "detail": "NotAdmin()"
+    },
+    {
+      "id": "E3",
+      "title": "PM withdrawNative on MockVDR → FAIL",
+      "ok": true,
+      "detail": "NotAdmin()"
+    },
+    {
+      "id": "E4",
+      "title": "PM setCaps on ExecA → FAIL",
+      "ok": true,
+      "detail": "NotOwner()"
+    },
+    {
+      "id": "E5",
+      "title": "PM transferOwnership ExecA → FAIL",
+      "ok": true,
+      "detail": "NotOwner()"
+    },
+    {
+      "id": "E6",
+      "title": "memberA setMemberManager → FAIL",
+      "ok": true,
+      "detail": "NotOwner()"
+    },
+    {
+      "id": "E7",
+      "title": "stranger setMember → FAIL",
+      "ok": true,
+      "detail": "NotMemberManager()"
+    },
+    {
+      "id": "X1",
+      "title": "memberA payoutBatch on ExecB → FAIL",
+      "ok": true,
+      "detail": "NotExecutor()"
+    },
+    {
+      "id": "X2",
+      "title": "memberB payoutBatch on ExecA → FAIL",
+      "ok": true,
+      "detail": "NotExecutor()"
+    },
+    {
+      "id": "X3",
+      "title": "PM setMember on ExecB (same PM, other line)",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "id": "G1",
+      "title": "PM topUpMemberGas(memberA) → PASS",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "id": "G1b",
+      "title": "gas purse decreased + member credited",
+      "ok": true,
+      "detail": "purseDelta=50000000000000000 memberDelta=50000000000000000 evtAmt=50000000000000000 viewPurse=18950000000000000000 block=15"
+    },
+    {
+      "id": "G2",
+      "title": "PM topUpMemberGas(stranger) → FAIL",
+      "ok": true,
+      "detail": "NotMember()"
+    },
+    {
+      "id": "G3",
+      "title": "PM topUp > maxGasTopUpWei → FAIL",
+      "ok": true,
+      "detail": "GasTopUpTooLarge()"
+    },
+    {
+      "id": "G4",
+      "title": "memberA topUpMemberGas → FAIL",
+      "ok": true,
+      "detail": "NotMemberManager()"
+    },
+    {
+      "id": "R0",
+      "title": "payout before revoke credited sinkA",
+      "ok": true,
+      "detail": "sinkBefore=1000000000000000000 sinkMid=1500000000000000000 execDelta=500000000000000000 evtTotal=500000000000000000 block=16"
+    },
+    {
+      "id": "R1",
+      "title": "memberA revoked (members=false)",
+      "ok": true,
+      "detail": "members=false"
+    },
+    {
+      "id": "R2",
+      "title": "memberA payoutBatch after revoke → FAIL",
+      "ok": true,
+      "detail": "NotExecutor()"
+    },
+    {
+      "id": "R3",
+      "title": "sinkA unchanged after failed post-revoke payout",
+      "ok": true,
+      "detail": "sink=1500000000000000000"
+    },
+    {
+      "id": "O1",
+      "title": "PM setMemberManager → FAIL",
+      "ok": true,
+      "detail": "NotOwner()"
+    },
+    {
+      "id": "O2",
+      "title": "owner setPaused(true)",
+      "ok": true,
+      "detail": "ok"
+    },
+    {
+      "id": "O3",
+      "title": "member payout while paused → FAIL",
+      "ok": true,
+      "detail": "Paused()"
+    },
+    {
+      "id": "E8",
+      "title": "memberA MockVDR addAdmin → FAIL",
+      "ok": true,
+      "detail": "NotAdmin()"
+    }
+  ],
+  "generatedAt": "2026-11-11T03:24:18.522Z",
+  "note": "Lab/Anvil only. Production STATUS QUO — see PROD-PENDING-REVIEW-STATUS-QUO.md"
+}

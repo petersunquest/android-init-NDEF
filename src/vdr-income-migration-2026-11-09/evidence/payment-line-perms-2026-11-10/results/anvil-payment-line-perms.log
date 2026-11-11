@@ -1,0 +1,488 @@
+forge build…
+[anvil.out] 
+
+                             _   _
+                            (_) | |
+      __ _   _ __   __   __  _  | |
+     / _` | | '_ \  \ \ / / | | | |
+    | (_| | | | | |  \ V /  | | | |
+     \__,_| |_| |_|   \_/   |_| |_|
+
+    1.8.5-Homebrew (51a52c59cf 2026-10-05T16:19:21.000000000Z)
+    https://github.com/foundry-rs/foundry
+
+Available Accounts
+==================
+
+(0) 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000.000000000000000000 ETH)
+(1) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000.000000000000000000 ETH)
+(2) 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000.000000000000000000 ETH)
+(3) 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (10000.000000000000000000 ETH)
+(4) 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (10000.000000000000000000 ETH)
+(5) 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (10000.000000000000000000 ETH)
+(6) 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (10000.000000000000000000 ETH)
+(7) 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000.000000000000000000 ETH)
+(8) 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000.000000000000000000 ETH)
+(9) 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000.000000000000000000 ETH)
+(10) 0xBcd4042DE499D14e55001CcbB24a551F3b954096 (10000.000000000000000000 ETH)
+(11) 0x71bE63f3384f5fb98995898A86B02Fb2426c5788 (10000.000000000000000000 ETH)
+
+Private Keys
+==================
+
+(0) 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+(1) 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+(2) 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+(3) 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+(4) 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+(5) 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+(6) 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+(7) 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+(8) 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+(9) 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+(10) 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
+(11) 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
+
+Wallet
+==================
+Mnemonic:          test test test test test test test test test test test junk
+Derivation path:   m/44'/60'/0'/0/
+
+
+Chain ID
+==================
+
+31337
+
+Base Fee
+==================
+
+1000000000
+
+Gas Limit
+==================
+
+30000000
+
+Genesis Timestamp
+==================
+
+1794367456
+
+Genesis Number
+==================
+
+0
+
+[anvil.out] Listening on 127.0.0.1:18549
+[anvil.out] eth_blockNumber
+[anvil.out] eth_accounts
+[anvil.out] eth_accounts
+[anvil.out] eth_accounts
+[anvil.out] eth_accounts
+[anvil.out] eth_accounts
+[anvil.out] eth_accounts
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+[anvil.out] eth_accounts
+[anvil.out] 
+    Transaction: 0x454dab0e49eb428af08c8b6f56a99ce70f0536192ffdaa0fd1b01ec9d74e409d
+    Contract created: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+    Gas used: 381372
+
+    Block Number: 1
+    Block Hash: 0x973bffca60d6dd1dbaae0ec16e61a9271be0030a0a2214bc32ff43697c5efdef
+[anvil.out]     Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x5fadb369f1931f365d036b781d2809c4eea6850f1d1f1dd5852be8c1dc5c1aa1
+    Contract created: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+    Gas used: 91703
+
+    Block Number: 2
+    Block Hash: 0x723d7a05859fcce77da782fbff0ddbb33845477f3edff4280869aa78805f9d90
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x11dbc76dbd9542e04071ba0367100de8ba5f22133150d0dd4979890e401a617b
+    Contract created: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+    Gas used: 91703
+
+    Block Number: 3
+    Block Hash: 0xc92ea6e09ccc5855d9510f278ee5b6090b6d22f87ade6f91be01a2d8c934605c
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_blockNumber
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x13cea02c74140c9dbb63e93788eac8ce31b0d95e36a0c7c8ac85c285304f525b
+    Contract created: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+    Gas used: 1029389
+
+    Block Number: 4
+    Block Hash: 0xccd2d190f002ee70804173b6bce1ae7e0563f6c9a127beb144491d0b648e4272
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xb1007db10d57e9e6b10c1888c4456a7cdf89714be70522e6c58d0e9043ecd419
+    Contract created: 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+    Gas used: 1029389
+
+    Block Number: 5
+    Block Hash: 0x38607dc1c301bdc12798dcdb6bc853f6b3d196faa253878882eccb26d088bfa7
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+[anvil.out]     Transaction: 0xa27adcfe775eb6d733cfa6c0514c39a49a96bcd2b83f834465abfd53a3b61c8c
+    Gas used: 21055
+
+    Block Number: 6
+    Block Hash: 0xe4ab0b3d9f0fc3f8f88562bfa60b5a19e276fc69b6e61dae3e7046d58c137799
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xfd1829a4317228d6b665c722aea42c410016a000f0fe3ffc1c1dc14248fff34f
+    Gas used: 21055
+
+    Block Number: 7
+    Block Hash: 0x972eaea4077306cc2e9ef90b50c27d2dec15e810a3a66b961bf85e47a8f883f3
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xb307ce8c12f8eade49feda00c21bb4e74cfb3a31ae81de2f565f12989607f1d8
+    Gas used: 47833
+
+[anvil.out]     Block Number: 8
+    Block Hash: 0x7a122d7a51a5f7a9096df30d3e676dd3ee4b987e1ac3d886094dfe897fdcd0d3
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_blockNumber
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x3ccdefa7c299f476008b9075d4ad94491e48e83e99c22e2f5f602678ac8a1bbb
+    Gas used: 47833
+
+    Block Number: 9
+    Block Hash: 0xfa28e1036738dc5b92647162ae95096eed7cbf94ecabbe38366c62c39844936f
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x4f276341f8c61f51df21c96dff93e9d6970e4ab31ec4d3c012354b44c008d5a6
+    Gas used: 47834
+
+    Block Number: 10
+    Block Hash: 0xa25524b9c0ba7595c4eb6dd9b8af566d6442476adcd55c13f380c0e4227f075c
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+[anvil.out] eth_accounts
+[anvil.out] 
+    Transaction: 0xcaec90a1658c27ff41e1c905a568f4769319ccd032e448362bdf4c1f6a18fecf
+    Gas used: 47846
+
+    Block Number: 11
+    Block Hash: 0x504f37abd790d3a1cfcf90c7a0a9bfa8ec09f3173502dae28360dced7865c44b
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+deployed vdr=0x5FbDB2315678afecb367f032d93F642f64180aa3 execA=0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 execB=0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+roles owner=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 pm=0x70997970C51812dc3A010C7d01b50e0d17dc79C8 memberA=0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC memberB=0x90F79bf6EB2c4f870365E785982E1f101E93b906 stranger=0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x5f784da670db81110429f06471eb246b5a0eb602054b9d1fb29bdf2f4ec58d19
+    Gas used: 90232
+
+    Block Number: 12
+    Block Hash: 0x12d4474fe0871b644c76d8081aa43a7d6537ae1dc8f513a0fc4b6d834894ebb8
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[PASS] H1 memberA payoutBatch on ExecA — ok
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0x5fbdb2315678afecb367f032d93f642f64180aa3)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x7048027500000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x7bfa4b9f
+
+[PASS] E1 PM addAdmin on MockVDR → FAIL — NotAdmin()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+    Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0x5fbdb2315678afecb367f032d93f642f64180aa3)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x12d8cf3500000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c80000000000000000000000000000000000000000000000000000000000000001) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x7bfa4b9f
+
+[PASS] E2 PM setRedeemAdmin on MockVDR → FAIL — NotAdmin()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0x5fbdb2315678afecb367f032d93f642f64180aa3)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x07b18bde00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c80000000000000000000000000000000000000000000000000000000000000001) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x7bfa4b9f
+
+[PASS] E3 PM withdrawNative on MockVDR → FAIL — NotAdmin()
+[anvil.out] eth_blockNumber
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0xca35bff20000000000000000000000000000000000000000000000001bc16d674ec80000000000000000000000000000000000000000000000000002b5e3af16b1880000000000000000000000000000000000000000000000000000016345785d8a000000000000000000000000000000000000000000000000000006f05b59d3b200000000000000000000000000000000000000000000000000000000000000015180) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x30cd7471
+
+[PASS] E4 PM setCaps on ExecA → FAIL — NotOwner()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0xf2fde38b00000000000000000000000070997970c51812dc3a010c7d01b50e0d17dc79c8) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x30cd7471
+
+[PASS] E5 PM transferOwnership ExecA → FAIL — NotOwner()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x5b98e7fd0000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x30cd7471
+
+[PASS] E6 memberA setMemberManager → FAIL — NotOwner()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x15d34aaf54267db7d7c367839aaf71a00a2c6a65), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x744cd69c00000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a650000000000000000000000000000000000000000000000000000000000000001) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x4f02c08f
+
+[PASS] E7 stranger setMember → FAIL — NotMemberManager()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0xdc64a140aa3e981100a9beca4e685f962f0cf6c9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x93efa6bead6c049bc1216375db7da7d13bc4db87f8d74bd3110f9dcfeafba247d0ffe22929e283c134c9b6231c1377af9d9f338383dd0c75bbb074dba690d03ac22e2aac000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0xc32d1d76
+
+[PASS] X1 memberA payoutBatch on ExecB → FAIL — NotExecutor()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+    Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x90f79bf6eb2c4f870365e785982e1f101e93b906), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x93efa6be2bdc00b2806456054f8fd9b1fe8d0a459faaa22edeffdad266167b36780370a98a1de7ff625c8e3e2b99352d88c2617d507d94bf43f126c2a7c19dd3f238d3cb000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000de0b6b3a7640000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+[anvil.out]     Error: Execution error: execution reverted: custom error 0xc32d1d76
+
+[PASS] X2 memberB payoutBatch on ExecA → FAIL — NotExecutor()
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x7a4ae6136ff54fc3b5fdb791bae9cc467527a966594730673ad658698633fc09
+    Gas used: 47846
+
+    Block Number: 13
+    Block Hash: 0xa1d2700703c408f1f5883e686059b2232ef3dbfc7ecf7e76fc5080ebddb97df3
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[PASS] X3 PM setMember on ExecB (same PM, other line) — ok
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x300e7071c223ccd4a7c09debf521c98424f2dd13e11bf3c168e847d38ae47ea7
+    Gas used: 25934
+
+    Block Number: 14
+    Block Hash: 0x4bf38c5e279772b7ced853a52dbe79d74d29b275264aa7281047dd014ff993d0
+    Block Time: "Wed, 11 Nov 2026 03:24:17 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_getBalance
+[anvil.out] eth_getBalance
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xbd76bcf0587adc0248b96812f8cb0e3ac299d03d4720c6e72c26ed89fe4341b8
+    Gas used: 70696
+
+[anvil.out]     Block Number: 15
+    Block Hash: 0x71e81c42cc7261e2cc6d337b933178cf2eed70a2575c7ff3451a94c06e3004b7
+    Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[PASS] G1 PM topUpMemberGas(memberA) → PASS — ok
+[anvil.out] eth_getBalance
+[anvil.out] eth_getBalance
+[anvil.out] eth_call
+[PASS] G1b gas purse decreased + member credited — purseDelta=50000000000000000 memberDelta=50000000000000000 evtAmt=50000000000000000 viewPurse=18950000000000000000 block=15
+[anvil.out] eth_blockNumber
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x1067dfda00000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a65000000000000000000000000000000000000000000000000002386f26fc10000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x291fc442
+
+[PASS] G2 PM topUpMemberGas(stranger) → FAIL — NotMember()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x1067dfda0000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc00000000000000000000000000000000000000000000000002c68af0bb140000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x5292bf7b
+
+[PASS] G3 PM topUp > maxGasTopUpWei → FAIL — GasTopUpTooLarge()
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x1067dfda0000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc000000000000000000000000000000000000000000000000002386f26fc10000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x4f02c08f
+
+[PASS] G4 memberA topUpMemberGas → FAIL — NotMemberManager()
+[anvil.out] eth_getBalance
+[anvil.out] eth_getBalance
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xa3bbfac5e885fb422e7ccb78caf0be1e0c5ee8a08e718262a188628c636b2173
+    Gas used: 90232
+
+    Block Number: 16
+    Block Hash: 0x009cbc6ed8d46e96a164a7d7b2783985d92c7690ef8fe9b438694446b43b6990
+    Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_getBalance
+[anvil.out] eth_getBalance
+[PASS] R0 payout before revoke credited sinkA — sinkBefore=1000000000000000000 sinkMid=1500000000000000000 execDelta=500000000000000000 evtTotal=500000000000000000 block=16
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x74020212b9b488304951ebae7d56e45b29c677d1bb88f5818e1ecd0d745ae4f2
+    Gas used: 25922
+
+    Block Number: 17
+    Block Hash: 0x13bb5fc84a003ac5b2ef41c3631ee75c197f1b61cfdd524ee5fe5116096346b8
+    Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_call
+[PASS] R1 memberA revoked (members=false) — members=false
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x93efa6be5eb12cf6acf5c8b9ba97bcef12750e6e1c8521da848bc866b9b79278c5677acb60116ea827589b258fd6b290d1e1be70d31ee3a069fabc397078ed7305e7d50a0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000006f05b59d3b20000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0xc32d1d76
+
+[PASS] R2 memberA payoutBatch after revoke → FAIL — NotExecutor()
+[anvil.out] eth_getBalance
+[PASS] R3 sinkA unchanged after failed post-revoke payout — sink=1500000000000000000
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xad14ef313f57e2534ff802b8fc1b6d3249f309e6be5bf236be547add29acd0eb
+    Gas used: 47834
+
+    Block Number: 18
+    Block Hash: 0xf219a1e5c84fe5f149cad8c9a8bdc1c9bb9b5a84f04a8918cfcb07a4e45cd736
+[anvil.out]     Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_blockNumber
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x70997970c51812dc3a010c7d01b50e0d17dc79c8), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x5b98e7fd00000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a65) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x30cd7471
+
+[PASS] O1 PM setMemberManager → FAIL — NotOwner()
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0xabe31bd0afbc335ad3d6cf902c1b6ad12809794f7d32ecb9224943a9d4ff3ad1
+    Gas used: 46963
+
+    Block Number: 19
+    Block Hash: 0xa63b5989e77cbf9f7ade3770c4f692b90a4b276efa32cf23d41f6f150a7eff9a
+[anvil.out]     Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[PASS] O2 owner setPaused(true) — ok
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x93efa6be3fa707283d1f8b503c9c08ed7fe77c81dd6ecae28c19bd2fbe1b31f7ba678cb0bfbee0828189ac69413988ae45a91a958596185c2ee484b7db4be36f9d54b86500000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000016345785d8a0000) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x9e87fac8
+
+[PASS] O3 member payout while paused → FAIL — Paused()
+[anvil.out] eth_estimateGas
+[anvil.out] eth_sendTransaction
+eth_accounts
+[anvil.out] 
+    Transaction: 0x9569b325b9b38c550d5bd8083b3bae7f5ba8d5df1406f56218bd3d5ae486737c
+    Gas used: 25051
+
+    Block Number: 20
+    Block Hash: 0x503969a0349c5d70ba249c35aa0c3ff6986f5d28f00d014cfcaf52faf3470804
+[anvil.out]     Block Time: "Wed, 11 Nov 2026 03:24:18 +0000"
+
+[anvil.out] eth_getTransactionByHash
+[anvil.out] eth_getTransactionReceipt
+[anvil.out] eth_estimateGas
+[anvil.out] 
+RPC request failed:
+[anvil.out]     Request: EthEstimateGas(WithOtherFields { inner: TransactionRequest { from: Some(0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc), to: Some(Call(0x5fbdb2315678afecb367f032d93f642f64180aa3)), gas_price: None, max_fee_per_gas: None, max_priority_fee_per_gas: None, max_fee_per_blob_gas: None, gas: None, value: None, input: TransactionInput { input: None, data: Some(0x704802750000000000000000000000003c44cdddb6a900fa2b585dd299e03d12fa4293bc) }, nonce: None, chain_id: None, access_list: None, transaction_type: None, blob_versioned_hashes: None, sidecar: None, authorization_list: None }, other: OtherFields {} }, None, None, None)
+    Error: Execution error: execution reverted: custom error 0x7bfa4b9f
+
+[PASS] E8 memberA MockVDR addAdmin → FAIL — NotAdmin()
+
+summary passed=24 failed=0 → /Users/peter/Downloads/BeamioContract/src/vdr-income-migration-2026-11-09/evidence/payment-line-perms-2026-11-10/results/anvil-payment-line-perms.json
