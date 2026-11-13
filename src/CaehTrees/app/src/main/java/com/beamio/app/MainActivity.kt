@@ -1343,15 +1343,14 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        /** Recovery-code-only filter — mirrors iOS `CashTreesIOS.scanRecoveryQr`. */
+        /**
+         * Interim stop (matrix GAP-28, spec r3m 25.31.1): the recovery-code return path is disabled. The scanner is not opened
+         * and no recovery code reaches the page; the answer is `not_supported`. The native recovery page replaces this (NC-8).
+         */
         @JavascriptInterface
         fun scanRecoveryQr(requestId: String) {
             runOnUiThread {
-                launchGeneralQrScanner(
-                    requestId = requestId.trim(),
-                    bridgeAction = "scanRecoveryQr",
-                    filter = GeneralQRScannerActivity.FILTER_RECOVERY,
-                )
+                dispatchAndroidBridgeScanError(requestId.trim(), "scanRecoveryQr", "not_supported")
             }
         }
 
