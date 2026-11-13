@@ -12,8 +12,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import android.nfc.NfcAdapter
-import android.nfc.Tag
-import android.nfc.tech.Ndef
 import android.os.Environment
 import android.os.Build
 import android.os.Bundle
@@ -61,9 +59,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import com.beamio.app.embedded.EmbeddedPwaConstants
 import com.beamio.app.embedded.EmbeddedPwaHost
-import java.util.concurrent.Callable
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
@@ -76,12 +72,6 @@ private val HOME_DOCUMENT_REQUEST_HEADERS = mapOf(
     "Cache-Control" to "no-cache",
     "Pragma" to "no-cache",
 )
-
-/**
- * SUN params from NDEF URL（与 android-NDEF MainActivity.readSunParamsFromNdef 一致）.
- * Template（e/c/m 全 0）返回 null。
- */
-private data class SunParams(val uid: String, val e: String, val c: String, val m: String)
 
 /** Return values for [CashTreesJsBridge.getNfcStatus] — consumed by PWA */
 private object NfcStatusStrings {
@@ -554,23 +544,6 @@ class MainActivity : ComponentActivity() {
     private var nfcForegroundPendingIntent: PendingIntent? = null
 
     @Volatile
-    private var nfcBindSessionActive: Boolean = false
-
-    /**
-     * PWA asked to link an NFC card. [onPause] drops the radio (required while
-     * not resumed) but must not tell the page the scan ended — that callback is
-     * often dropped while the WebView is pausing, which left “Waiting...” up
-     * forever with the reader already off. [onResume] re-arms until a tag,
-     * cancel, or [onStop].
-     */
-    @Volatile
-    private var nfcBindKeepAlive: Boolean = false
-
-    private var nfcRearmBurst: Int = 0
-    private var nfcLastArmElapsedMs: Long = 0L
-    private val nfcReadExecutor = Executors.newSingleThreadExecutor()
-
-    @Volatile
     private var pendingQrScanRequestId: String? = null
 
     @Volatile
@@ -1008,7 +981,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun maybeEnableNfcForegroundDispatch() {
         if (!hasNfcPermission()) return
-        if (nfcBindSessionActive) return
         if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
         val adapter = nfcAdapter ?: NfcAdapter.getDefaultAdapter(this) ?: return
         if (!adapter.isEnabled) return
@@ -1021,216 +993,6 @@ class MainActivity : ComponentActivity() {
             )
         } catch (_: Exception) {
         }
-    }
-
-    /**
-     * Reader 结束后立刻重新注册前台分发（下一消息循环即执行），避免出现「Reader 已关、FD 尚未开」的空窗：
-     * 该窗口内系统 Tag Dispatcher 会处理 NDEF https URI，常表现为**外部浏览器**打开 beamio.app。
-     * 再在稍晚补一次 enable，减轻部分机型 HAL 释放 RF 与 enableForegroundDispatch 的竞态。
-     */
-    private fun reclaimNfcForegroundDispatchAfterReader() {
-        mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
-        mainHandler.post {
-            maybeEnableNfcForegroundDispatch()
-            mainHandler.postDelayed(enableNfcForegroundDispatchRunnable, 450L)
-        }
-    }
-
-    /** Called from JS on UI thread */
-    private fun armNfcPhysicalCardRead() {
-        Log.i("BeamioNfc", "arm keepAlive=$nfcBindKeepAlive session=$nfcBindSessionActive")
-        val now = SystemClock.elapsedRealtime()
-        nfcRearmBurst = if (now - nfcLastArmElapsedMs < 500L) nfcRearmBurst + 1 else 0
-        nfcLastArmElapsedMs = now
-        if (nfcRearmBurst > 3) {
-            Log.i("BeamioNfc", "arm aborted rearm burst=$nfcRearmBurst")
-            nfcBindKeepAlive = false
-            nfcBindSessionActive = false
-            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_reader_failed"))
-            reclaimNfcForegroundDispatchAfterReader()
-            return
-        }
-        val adapter = NfcAdapter.getDefaultAdapter(this)
-        if (adapter == null) {
-            nfcBindKeepAlive = false
-            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "no_hardware"))
-            return
-        }
-        if (!adapter.isEnabled) {
-            nfcBindKeepAlive = false
-            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_disabled"))
-            return
-        }
-        if (!hasNfcPermission()) {
-            nfcBindKeepAlive = false
-            dispatchNfcJsonToWeb(
-                JSONObject().put("ok", false).put("error", "nfc_permission_denied"),
-            )
-            return
-        }
-        nfcBindKeepAlive = true
-        nfcBindSessionActive = true
-        disableNfcForegroundDispatchQuiet()
-        // 不得使用 FLAG_READER_SKIP_NDEF_CHECK：该标志会使标签像无 NDEF 一样交付，
-        // Ndef.get(tag) 读不到 SUN（e,c,m），仅余硬件 UID；getUIDAssets 对 NTAG 类 UID 需 SUN，会与 android-NDEF 前台分发行为不一致。
-        var readerFlags =
-            NfcAdapter.FLAG_READER_NFC_A or
-                NfcAdapter.FLAG_READER_NFC_B or
-                NfcAdapter.FLAG_READER_NFC_F or
-                NfcAdapter.FLAG_READER_NFC_V
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            readerFlags = readerFlags or NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
-        }
-        val extras = Bundle().apply {
-            putInt(NfcAdapter.EXTRA_READER_PRESENCE_CHECK_DELAY, 250)
-        }
-        try {
-            adapter.enableReaderMode(
-                this,
-                { tag -> onNfcTagForBind(tag) },
-                readerFlags,
-                extras,
-            )
-        } catch (t: Throwable) {
-            Log.i("BeamioNfc", "enableReaderMode failed", t)
-            nfcBindKeepAlive = false
-            nfcBindSessionActive = false
-            dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "nfc_reader_failed"))
-            reclaimNfcForegroundDispatchAfterReader()
-        }
-    }
-
-    private fun onNfcTagForBind(tag: Tag) {
-        Log.i("BeamioNfc", "tag callback session=$nfcBindSessionActive keepAlive=$nfcBindKeepAlive")
-        if (!nfcBindSessionActive && !nfcBindKeepAlive) return
-        // Stop re-arm before the NDEF read. A pause during connect must not
-        // start a second reader session and drop this tag.
-        nfcBindKeepAlive = false
-        nfcBindSessionActive = false
-        // 在 Reader 回调线程立刻读 NDEF；若推迟到主线程，部分机型上标签已 deactivate，SUN 丢失并触发 logcat「tag already deactivated」。
-        val tagUidHex = tag.id?.joinToString("") { b -> "%02X".format(b) }.orEmpty()
-        val (ndefUri, sun) =
-            if (tagUidHex.isNotEmpty()) {
-                readNdefUriAndSun(tag)
-            } else {
-                null to null
-            }
-        runOnUiThread {
-            nfcAdapter?.disableReaderMode(this@MainActivity)
-            try {
-                if (tagUidHex.isEmpty()) {
-                    dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", "empty_tag_uid"))
-                    return@runOnUiThread
-                }
-                val queryUid = sun?.uid ?: tagUidHex
-                val json = JSONObject()
-                    .put("ok", true)
-                    .put("tagUidHex", tagUidHex)
-                    .put("queryUid", queryUid)
-                if (ndefUri != null) {
-                    json.put("ndefUri", ndefUri)
-                }
-                if (sun != null) {
-                    json.put(
-                        "sun",
-                        JSONObject()
-                            .put("uid", sun.uid)
-                            .put("e", sun.e)
-                            .put("c", sun.c)
-                            .put("m", sun.m),
-                    )
-                }
-                dispatchNfcJsonToWeb(json)
-            } finally {
-                reclaimNfcForegroundDispatchAfterReader()
-            }
-        }
-    }
-
-    /** 从 NDEF URI 记录解析 SUN；模板（e/c/m 全 0）返回 null。 */
-    private fun parseSunParamsFromNdefUrl(url: String): SunParams? {
-        val uri = Uri.parse(url)
-        val uid = uri.getQueryParameter("uid")?.trim() ?: return null
-        val e = uri.getQueryParameter("e")?.trim() ?: return null
-        val c = uri.getQueryParameter("c")?.trim() ?: return null
-        val m = uri.getQueryParameter("m")?.trim() ?: return null
-        if (e.length != 64 || c.length != 6 || m.length != 16) return null
-        if (!e.matches(Regex("^[0-9a-fA-F]+$")) ||
-            !c.matches(Regex("^[0-9a-fA-F]+$")) ||
-            !m.matches(Regex("^[0-9a-fA-F]+$"))
-        ) {
-            return null
-        }
-        if (e.all { it == '0' } && c.all { it == '0' } && m.all { it == '0' }) {
-            return null
-        }
-        return SunParams(uid, e, c, m)
-    }
-
-    /** Prefer the message already cached by reader mode. `Ndef.connect()` can hang and leave the link sheet on “Waiting...”. */
-    private fun readNdefUriAndSun(tag: Tag): Pair<String?, SunParams?> {
-        val ndef = Ndef.get(tag) ?: return null to null
-        val cachedUrl = ndefRecordUrl(try { ndef.cachedNdefMessage } catch (_: Exception) { null })
-        if (cachedUrl != null) return cachedUrl to parseSunParamsFromNdefUrl(cachedUrl)
-        val future = nfcReadExecutor.submit(Callable { readConnectedNdef(ndef) })
-        return try {
-            future.get(1200, TimeUnit.MILLISECONDS)
-        } catch (_: Exception) {
-            future.cancel(true)
-            null to null
-        }
-    }
-
-    private fun readConnectedNdef(ndef: Ndef): Pair<String?, SunParams?> {
-        return try {
-            ndef.connect()
-            val url = ndefRecordUrl(ndef.ndefMessage) ?: return null to null
-            url to parseSunParamsFromNdefUrl(url)
-        } catch (_: Exception) {
-            null to null
-        } finally {
-            try {
-                ndef.close()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private fun ndefRecordUrl(message: android.nfc.NdefMessage?): String? {
-        return message?.records?.firstNotNullOfOrNull { record ->
-            try {
-                record.toUri()?.toString()
-            } catch (_: Exception) {
-                null
-            }
-        }
-    }
-
-    private fun disarmNfcReader(notifyWeb: Boolean, error: String?) {
-        Log.i("BeamioNfc", "disarm notify=$notifyWeb error=$error")
-        nfcBindKeepAlive = false
-        nfcBindSessionActive = false
-        runOnUiThread {
-            try {
-                NfcAdapter.getDefaultAdapter(this@MainActivity)?.disableReaderMode(this@MainActivity)
-                if (notifyWeb && error != null) {
-                    dispatchNfcJsonToWeb(JSONObject().put("ok", false).put("error", error))
-                }
-            } finally {
-                reclaimNfcForegroundDispatchAfterReader()
-            }
-        }
-    }
-
-    private fun dispatchNfcJsonToWeb(json: JSONObject) {
-        if (!::webView.isInitialized) return
-        val payload = json.toString()
-        val js =
-            "(function(){try{var d=" + payload + ";" +
-                "try{if(typeof window.__cashTreesNfcBindResult==='function'){window.__cashTreesNfcBindResult(d);}}catch(e){}" +
-                "window.dispatchEvent(new CustomEvent('cashtreesnfc',{detail:d}));" +
-                "}catch(e){}})();"
-        webView.evaluateJavascript(js, null)
     }
 
     private fun dispatchAndroidBridgeScanError(requestId: String, action: String, error: String) {
@@ -1319,17 +1081,6 @@ class MainActivity : ComponentActivity() {
     private inner class CashTreesJsBridge {
         @JavascriptInterface
         fun getNfcStatus(): String = queryNfcStatus()
-
-        @JavascriptInterface
-        fun startPhysicalCardBind() {
-            Log.i("BeamioNfc", "js startPhysicalCardBind")
-            runOnUiThread { armNfcPhysicalCardRead() }
-        }
-
-        @JavascriptInterface
-        fun cancelPhysicalCardBind() {
-            disarmNfcReader(true, "cancelled")
-        }
 
         /** Raw QR payload for global search / deep links — mirrors iOS `CashTreesIOS.scanQr`. */
         @JavascriptInterface
@@ -3165,10 +2916,6 @@ class MainActivity : ComponentActivity() {
                         }
                         return
                     }
-                    if (nfcBindSessionActive) {
-                        disarmNfcReader(true, "cancelled")
-                        return
-                    }
                     if (::webView.isInitialized && webView.canGoBack()) {
                         webView.goBack()
                     } else {
@@ -3692,11 +3439,7 @@ class MainActivity : ComponentActivity() {
         applyTransparentStatusBar()
         maybeOpenFullScreenIntentSettings()
         maybeAskOverlayAccess()
-        if (nfcBindKeepAlive) {
-            armNfcPhysicalCardRead()
-        } else {
-            maybeEnableNfcForegroundDispatch()
-        }
+        maybeEnableNfcForegroundDispatch()
         // Launcher badge follows active notifications: drop stale offline alerts so the
         // PWA unread count (publishAppState) is the only badge source once we are visible.
         CashTreesNativeAppStateBridge.clearOfflineChatAlerts(this)
@@ -3853,25 +3596,7 @@ class MainActivity : ComponentActivity() {
             pendingSystemCallHandler.post(mailboxWakeDispatchRunnable)
         }
         requestShowActiveCall(intent)
-        val action = intent.action ?: return
-        if (
-            action != NfcAdapter.ACTION_TAG_DISCOVERED &&
-            action != NfcAdapter.ACTION_TECH_DISCOVERED &&
-            action != NfcAdapter.ACTION_NDEF_DISCOVERED
-        ) {
-            return
-        }
-        if (nfcBindKeepAlive || nfcBindSessionActive) {
-            val tag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG, Tag::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
-            }
-            if (tag != null) onNfcTagForBind(tag)
-            return
-        }
-        // 未由 PWA 调用 startPhysicalCardBind：消费 Intent，不向系统/other app 冒泡。
+        // 前台分发期间的 NFC Intent 在此消费，不向系统或其他应用冒泡（见 maybeEnableNfcForegroundDispatch）。
     }
 
     override fun onPause() {
@@ -3880,16 +3605,6 @@ class MainActivity : ComponentActivity() {
         try {
             NfcAdapter.getDefaultAdapter(this)?.disableForegroundDispatch(this)
         } catch (_: Exception) {
-        }
-        if (nfcBindKeepAlive) {
-            Log.i("BeamioNfc", "onPause release reader")
-            // Release the radio while not resumed. Keep the link request so
-            // onResume can arm the reader again. Do not notify the page here.
-            nfcBindSessionActive = false
-            try {
-                NfcAdapter.getDefaultAdapter(this)?.disableReaderMode(this)
-            } catch (_: Exception) {
-            }
         }
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "inactive"),
@@ -3900,9 +3615,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         uiVisible = false
         showCallCoverSnapshot()
-        if (nfcBindKeepAlive) {
-            disarmNfcReader(true, "paused")
-        }
         dispatchAndroidBridgeJsonToWeb(
             JSONObject().put("action", "appLifecycle").put("phase", "background"),
         )
@@ -3923,7 +3635,6 @@ class MainActivity : ComponentActivity() {
         }
         nativeVoiceMic?.stop()
         nativeVoiceMic = null
-        nfcReadExecutor.shutdownNow()
         bootstrapExecutor.shutdownNow()
         super.onDestroy()
     }
