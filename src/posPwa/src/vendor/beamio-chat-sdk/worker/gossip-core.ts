@@ -473,10 +473,7 @@ export class GossipCore {
 			let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
 			let pendingRead: Promise<ReadableStreamReadResult<Uint8Array>> | null = null
 			try {
-				const armored =
-					this.cfg?.runtime.outerWrap === false
-						? innerArmor
-						: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+				const armored = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
 				connectTimer = setTimeout(() => controller.abort('connect_timeout'), config.connectTimeout)
 				const res = await fetch(url, {
 					method: 'POST',
@@ -817,10 +814,7 @@ export class GossipCore {
 			exclude,
 			maxAttempts: (options?.fanout ?? 2) <= 1 ? 2 : undefined,
 			buildBody: async (node) => {
-				const armored =
-					this.cfg?.runtime.outerWrap === false
-						? innerArmor
-						: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+				const armored = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
 				return JSON.stringify(buildPostBody(armored))
 			},
 		})
@@ -869,10 +863,7 @@ export class GossipCore {
 				targets.map(async (node) => {
 					const url = postUrl(node.domain)
 					try {
-						const armored =
-							this.cfg?.runtime.outerWrap === false
-								? innerArmor
-								: await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
+						const armored = await wrapArmorToEntryRoute(innerArmor, node.armoredPublicKey)
 						const res = await postWithTimeout(
 							url,
 							{

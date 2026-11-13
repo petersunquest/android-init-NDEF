@@ -20,7 +20,7 @@ import {
 import type { Wallet } from 'ethers'
 
 import { utf8ToBase64 } from './crypto'
-import { normalizeArmoredKey } from './nodes'
+import { hasEntryPgpKey, normalizeArmoredKey } from './nodes'
 
 export function armorToString(armored: unknown): string {
 	if (typeof armored === 'string') return armored
@@ -94,18 +94,34 @@ export async function wrapWouldHitSameNode(
 	}
 }
 
+/** Why the outer entry wrap was refused. The inner armor is never sent instead (§50). */
+export type EntryWrapFailure = 'no_entry_key' | 'not_pgp' | 'unsafe_route' | 'encrypt_failed'
+
+export class EntryWrapError extends Error {
+	readonly reason: EntryWrapFailure
+
+	constructor(reason: EntryWrapFailure, cause?: unknown) {
+		super(`wrapArmorToEntryRoute: ${reason}`)
+		this.name = 'EntryWrapError'
+		this.reason = reason
+		if (cause !== undefined) (this as { cause?: unknown }).cause = cause
+	}
+}
+
 /**
  * Encrypt already-built inner OpenPGP armor to an entry route public key.
  * Literal plaintext is the **raw inner armor** (SI `tryReadInnerPgpMessage`).
- * Returns the inner armor unchanged when wrap is unsafe or encrypt fails.
+ * Throws `EntryWrapError` when the entry has no PGP key, the input is not armor,
+ * the wrap would hit the same node, or encryption fails. Callers skip that entry;
+ * they never fall back to posting the inner armor unwrapped.
  */
 export async function wrapArmorToEntryRoute(
 	innerArmor: string,
 	entryRoutePublicKeyArmored: string,
 ): Promise<string> {
-	const entryKey = normalizeArmoredKey(entryRoutePublicKeyArmored)
-	if (!entryKey || !innerArmor.includes('BEGIN PGP')) return innerArmor
-	if (await wrapWouldHitSameNode(innerArmor, entryRoutePublicKeyArmored)) return innerArmor
+	if (!hasEntryPgpKey({ armoredPublicKey: entryRoutePublicKeyArmored })) throw new EntryWrapError('no_entry_key')
+	if (!innerArmor.includes('BEGIN PGP')) throw new EntryWrapError('not_pgp')
+	if (await wrapWouldHitSameNode(innerArmor, entryRoutePublicKeyArmored)) throw new EntryWrapError('unsafe_route')
 	try {
 		const encryptionKeys = await readKey({ armoredKey: entryRoutePublicKeyArmored })
 		const pgpMsg = await createMessage({ text: innerArmor })
@@ -116,8 +132,8 @@ export async function wrapArmorToEntryRoute(
 				config: { preferredCompressionAlgorithm: enums.compression.zlib },
 			}),
 		)
-	} catch {
-		return innerArmor
+	} catch (ex) {
+		throw new EntryWrapError('encrypt_failed', ex)
 	}
 }
 

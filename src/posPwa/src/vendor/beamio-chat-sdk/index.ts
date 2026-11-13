@@ -20,6 +20,7 @@ export { createBeamioChatClient } from './client'
 export type { BeamioChatClientOptions } from './client'
 
 export {
+	EntryWrapError,
 	armorToString,
 	buildPostBody,
 	encryptRouteCommand,
@@ -27,8 +28,8 @@ export {
 	wrapArmorToMailboxWork,
 	wrapWouldHitSameNode,
 } from './envelope'
-export type { MailboxWorkEnvelope } from './envelope'
-export { postUrl } from './nodes'
+export type { EntryWrapFailure, MailboxWorkEnvelope } from './envelope'
+export { hasEntryPgpKey, postUrl } from './nodes'
 export {
 	GROUP_V1_DEFAULT_PADDING_BUCKET_BYTES,
 	GROUP_V1_MAX_BODY_BYTES,

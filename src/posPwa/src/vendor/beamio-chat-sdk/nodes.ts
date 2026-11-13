@@ -29,6 +29,13 @@ export const getRandomNodes = (allNodes: NodeInfo[], n: number): NodeInfo[] => {
 
 export const normalizeArmoredKey = (v?: string): string => (v || '').replace(/\r/g, '').trim()
 
+/**
+ * True when the node carries a PGP public key. An entry without one cannot take
+ * the outer wrap, so it is never a listen or send target (§50 2.4).
+ */
+export const hasEntryPgpKey = (node: { armoredPublicKey?: string } | null | undefined): boolean =>
+	normalizeArmoredKey(node?.armoredPublicKey).includes('BEGIN PGP PUBLIC KEY BLOCK')
+
 /** Mailbox B nodes = nodes whose armored public key equals the contact route key. */
 export const pickRouteNodesByArmoredKey = (
 	nodes: NodeInfo[],
@@ -85,8 +92,10 @@ const probeGossipNode = async (node: NodeInfo, timeoutMs = 4_000): Promise<boole
 
 /** Entry C pool for listen. Never require GET / health — that homepage has no CORS. */
 export function pickListenEntryNodes(pool: NodeInfo[], excludeDomains?: Set<string>): NodeInfo[] {
-	const filtered = excludeDomains?.size ? pool.filter((n) => !excludeDomains.has(n.domain)) : pool
-	return filtered.length ? filtered : pool
+	// Entries without a PGP key cannot take the outer wrap: never a listen target (§50 2.4).
+	const keyed = pool.filter(hasEntryPgpKey)
+	const filtered = excludeDomains?.size ? keyed.filter((n) => !excludeDomains.has(n.domain)) : keyed
+	return filtered.length ? filtered : keyed
 }
 
 export const pickHealthyGossipNodes = async (nodes: NodeInfo[]): Promise<NodeInfo[]> => {
@@ -104,7 +113,9 @@ export const pickGossipEntryNodesForSend = async (
 	n = 4,
 	excludeDomains?: Set<string>,
 ): Promise<NodeInfo[]> => {
-	const filtered = excludeDomains?.size ? pool.filter((node) => !excludeDomains.has(node.domain)) : pool
+	// Entries without a PGP key are skipped: they cannot be wrapped to (§50 2.4).
+	const keyed = pool.filter(hasEntryPgpKey)
+	const filtered = excludeDomains?.size ? keyed.filter((node) => !excludeDomains.has(node.domain)) : keyed
 	if (!filtered.length) return []
 	const healthy = await pickHealthyGossipNodes(filtered)
 	const source = healthy.length >= 2 ? healthy : filtered

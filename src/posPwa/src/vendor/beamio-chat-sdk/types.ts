@@ -209,8 +209,9 @@ export interface ChatRuntimeOptions {
 	/** Max reconnect backoff ms. Default 30000. */
 	reconnectMaxMs?: number
 	/**
-	 * Encrypt already-built inner armor to each entry's route public key before
-	 * `POST /post` (SI peel). Default `true`. One-layer user-PGP still works if false.
+	 * Locked (§50 2.4): every `POST /post` is wrapped to the entry's route public key.
+	 * The value is accepted for wire compatibility and ignored: a failed wrap skips
+	 * that entry, and the inner armor is never sent unwrapped.
 	 */
 	outerWrap?: boolean
 }
