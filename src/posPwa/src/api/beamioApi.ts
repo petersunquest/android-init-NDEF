@@ -266,12 +266,16 @@ export async function addUser(params: {
 	}
 }
 
+/** Deterministic "no card" answer for an unbound terminal (HTTP 404, exact server message). */
+export const POS_NO_MERCHANT_CARD_ERROR = 'No merchant card registered for this terminal in DB'
+
 /**
- * Throws [PosBackendUnavailableError] on network / timeout / HTTP / JSON failure.
- * Must NOT return null for failures: null here used to mean "no bound card" and sent
- * an outage to the Workspaces screen as if the terminal were unbound.
+ * Returns null ONLY for the deterministic "terminal has no merchant card" answer
+ * (HTTP 404 with the exact server error). Any other HTTP error, non-JSON body, network
+ * failure or timeout throws [PosBackendUnavailableError]: an outage must never read as
+ * "not bound".
  */
-export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressResponse> {
+export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressResponse | null> {
 	const params = new URLSearchParams({ wallet })
 	let res: Response
 	try {
@@ -279,7 +283,18 @@ export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressRes
 	} catch (e) {
 		throw new PosBackendUnavailableError(`myPosAddress: ${e instanceof Error ? e.message : String(e)}`)
 	}
-	if (!res.ok) throw new PosBackendUnavailableError(`myPosAddress: HTTP ${res.status}`)
+	if (!res.ok) {
+		if (res.status === 404) {
+			let body: { ok?: boolean; error?: unknown } | null = null
+			try {
+				body = (await res.json()) as { ok?: boolean; error?: unknown }
+			} catch {
+				body = null
+			}
+			if (body?.ok === false && body.error === POS_NO_MERCHANT_CARD_ERROR) return null
+		}
+		throw new PosBackendUnavailableError(`myPosAddress: HTTP ${res.status}`)
+	}
 	try {
 		return (await res.json()) as MyPosAddressResponse
 	} catch {
