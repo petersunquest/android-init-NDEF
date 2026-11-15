@@ -245,6 +245,9 @@ final class CashTreesWebLoadState: ObservableObject {
 final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NFCTagReaderSessionDelegate {
     weak var webView: WKWebView?
     weak var loadState: CashTreesWebLoadState?
+    #if DEBUG
+    private var qaNavObserver: NSObjectProtocol?
+    #endif
 
     private var nfcSession: NFCTagReaderSession?
     var stripeTerminalBridge: StripeTerminalPosBridge?
@@ -260,6 +263,15 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
 
     override init() {
         super.init()
+        #if DEBUG
+        qaNavObserver = NotificationCenter.default.addObserver(
+            forName: QaNavTrigger.notificationName, object: nil, queue: .main
+        ) { [weak self] note in
+            guard let target = note.userInfo?["url"] as? URL else { return }
+            let js = "window.location.href='\(target.absoluteString.replacingOccurrences(of: "'", with: "\\'"))'"
+            self?.webView?.evaluateJavaScript(js, completionHandler: nil)
+        }
+        #endif
         becameActiveObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
@@ -361,6 +373,12 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             decisionHandler(.allow)
             return
         }
+        #if DEBUG
+        if navigationAction.targetFrame?.isMainFrame ?? false {
+            let d = BeamioHostPolicy.decide(host: url.host ?? "", path: url.path)
+            QaNavTrigger.logMainFrame(url: url, policy: d)
+        }
+        #endif
         if shouldBlockBeamioNdefTopLevelNavigation(url, isMainFrame: navigationAction.targetFrame?.isMainFrame ?? false) {
             decisionHandler(.cancel)
             return

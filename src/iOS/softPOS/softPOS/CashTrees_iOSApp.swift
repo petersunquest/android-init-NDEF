@@ -81,6 +81,9 @@ struct CashTrees_iOSApp: App {
         WindowGroup {
             ContentView(deepLinkStore: deepLinkStore)
                 .onOpenURL { url in
+                    #if DEBUG
+                    if QaNavTrigger.handle(url) { return }
+                    #endif
                     Task { @MainActor in
                         deepLinkStore.handleIncomingURL(url)
                     }
