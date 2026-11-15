@@ -586,7 +586,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const refreshHome = useCallback(async () => {
 		/*
 		 * inner bumps refreshGen once, right before its first await. If a newer refresh has started
-		 * since (or the boot ceiling gave up on this one), this late result must not write state.
+		 * since, or the boot ceiling gave up on this one (which also bumps refreshGen), this late
+		 * result must not write state.
 		 */
 		const genBefore = refreshGen.current
 		try {
@@ -800,6 +801,11 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 					await withPosBootCeiling(refreshHomeRef.current())
 				} catch (e) {
 					if (!cancelled) {
+						/*
+						 * Give up on the in-flight boot refresh: bump the generation so its late
+						 * results (success or failure) are discarded by every gen guard.
+						 */
+						refreshGen.current += 1
 						setBackendUnavailable(true)
 						setBackendUnavailableNoCache(!posHomeTrustedCache.loadInfraCard(addr, activeUpper))
 					}
