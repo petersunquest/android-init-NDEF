@@ -6,7 +6,7 @@
 //
 
 import Testing
-@testable import CashTrees_iOS
+@testable import softPOS
 
 struct CashTrees_iOSTests {
 

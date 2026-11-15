@@ -13,13 +13,13 @@
 
 import Foundation
 
-enum BeamioNavDecision: Equatable {
+nonisolated enum BeamioNavDecision: Equatable {
     case cancel
     case mapLocal
     case pass
 }
 
-enum BeamioHostPolicy {
+nonisolated enum BeamioHostPolicy {
     /// Consumer Beamio hosts (old and new). Never loaded in the POS WebView.
     static let consumerHosts: Set<String> = ["beamio.ca", "www.beamio.ca", "beamio.app", "www.beamio.app"]
 

@@ -4,7 +4,7 @@
 //
 
 import Testing
-@testable import CashTrees_iOS
+@testable import softPOS
 
 struct BeamioHostPolicyTests {
     private let legacyAndConsumerPaths = ["/", "/app", "/app/", "/app/?beamiocard=x", "/app-download", "/api/sun", "/sun", "/pos-foo"]
