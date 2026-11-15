@@ -584,10 +584,16 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	 * It never falls through to Workspaces ("not bound") and never clears cached data.
 	 */
 	const refreshHome = useCallback(async () => {
+		/*
+		 * inner bumps refreshGen once, right before its first await. If a newer refresh has started
+		 * since (or the boot ceiling gave up on this one), this late result must not write state.
+		 */
+		const genBefore = refreshGen.current
 		try {
 			await refreshHomeInner()
 		} catch (e) {
 			if (!(e instanceof PosBackendUnavailableError)) throw e
+			if (refreshGen.current !== genBefore + 1) return
 			const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
 			const upper = wallet ? posHomeTrustedCache.loadActiveUpper(wallet) : null
 			const hasCache = Boolean(wallet && upper && posHomeTrustedCache.loadInfraCard(wallet, upper))
