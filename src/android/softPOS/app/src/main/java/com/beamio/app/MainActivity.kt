@@ -909,9 +909,9 @@ class MainActivity : ComponentActivity() {
      */
     private fun isBeamioConsumerNonPosPage(u: Uri): Boolean {
         val h = u.host?.lowercase().orEmpty()
-        if (h !in setOf("beamio.app", "www.beamio.app", "beamio.ca", "www.beamio.ca")) return false
-        val path = u.path?.lowercase().orEmpty()
-        return !(path == "/pos" || path == "/pos/" || path.startsWith("/pos/"))
+        if (h !in com.beamio.app.embedded.BeamioHostPolicy.CONSUMER_HOSTS) return false
+        return com.beamio.app.embedded.BeamioHostPolicy.decideMainFrameNavigation(h, u.path.orEmpty()) ==
+            com.beamio.app.embedded.NavDecision.CANCEL
     }
 
     private fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {

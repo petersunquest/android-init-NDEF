@@ -365,17 +365,21 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
             decisionHandler(.cancel)
             return
         }
-        // Consumer share / PWA URLs must never load in the POS WebView.
+        // Main-frame policy (shared with Android BeamioHostPolicy): consumer pages and unmapped legacy
+        // paths are cancelled locally; POS paths on old/new POS hosts are loaded from the embedded scheme.
+        // Nothing is ever handed to WebKit for a beamio.app request.
         if navigationAction.targetFrame?.isMainFrame ?? false {
-            let host = url.host?.lowercased() ?? ""
-            let path = url.path
-            let isConsumerHost = host == "beamio.ca" || host == "www.beamio.ca" || host == "beamio.app" || host == "www.beamio.app"
-            let isConsumerPath =
-                path == "/app" || path.hasPrefix("/app/")
-                || path == "/app-download" || path.hasPrefix("/app-download/")
-            if isConsumerHost && isConsumerPath {
+            let decision = BeamioHostPolicy.decide(host: url.host ?? "", path: url.path)
+            switch decision {
+            case .cancel:
                 decisionHandler(.cancel)
                 return
+            case .mapLocal:
+                decisionHandler(.cancel)
+                webView.load(URLRequest(url: BeamioDeepLink.mapResolvedWebAppURLToLocal(url)))
+                return
+            case .pass:
+                break
             }
         }
         decisionHandler(.allow)
