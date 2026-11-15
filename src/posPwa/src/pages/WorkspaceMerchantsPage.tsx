@@ -13,8 +13,8 @@ import { profileBeamioTag, profileDisplayName, shortAddress } from '@/utils/disp
 import { resolveParentWorkspaceProfile } from '@/utils/posHomeAdminProfile'
 import { POS_HOME_ROUTES } from '@/utils/posHomeActionRoutes'
 import { APP_VERSION } from '@/version'
+import { MERCHANT_OS_BIZ_URL } from '@/utils/merchantOsBizUrl'
 
-const MERCHANT_OS_BIZ_URL = 'https://biz.beamio.app/biz/'
 
 export function WorkspaceMerchantsPage() {
 	const navigate = useNavigate()
