@@ -16,11 +16,17 @@ export class PosBackendUnavailableError extends Error {
 	}
 }
 
+/**
+ * One timer covers the whole request: headers AND body. The body is read inside the
+ * timer and returned as a fresh Response, so callers' res.json() cannot hang past the limit.
+ */
 export async function posReadFetch(input: string, init?: RequestInit): Promise<Response> {
 	const ctrl = new AbortController()
 	const timer = setTimeout(() => ctrl.abort(), POS_READ_TIMEOUT_MS)
 	try {
-		return await fetch(input, { ...init, signal: ctrl.signal })
+		const res = await fetch(input, { ...init, signal: ctrl.signal })
+		const text = await res.text()
+		return new Response(text, { status: res.status, statusText: res.statusText, headers: res.headers })
 	} finally {
 		clearTimeout(timer)
 	}

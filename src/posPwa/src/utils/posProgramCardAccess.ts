@@ -1,7 +1,7 @@
 import { fetchCardAdminInfo } from '@/api/beamioApi'
 import { CONET_RPC } from '@/constants'
 import type { CardAdminInfoResponse, MyPosAddressResponse } from '@/types/pos'
-import { posReadFetch } from '@/api/posReadFetch'
+import { posReadFetch, PosBackendUnavailableError } from '@/api/posReadFetch'
 
 const OWNER_SELECTOR = '0x8da5cb5b'
 const IS_ADMIN_SELECTOR = '0x24d7806c'
@@ -66,40 +66,54 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 	const walBody = wal.slice(2).toLowerCase()
 	if (walBody.length !== 40 || !/^[0-9a-f0-9]+$/.test(walBody)) return null
 
-	try {
-		const ownerRes = await ethCallConet(cardHex, OWNER_SELECTOR)
-		if (!ownerRes) return null
-		const owner40 = decodeAbiAddressWord(ownerRes)?.slice(2)
-		if (owner40 && owner40 === walBody) return true
+	/* RPC failures throw PosBackendUnavailableError (not null): callers must show "unavailable". */
+	const ownerRes = await ethCallConet(cardHex, OWNER_SELECTOR)
+	if (!ownerRes) return null
+	const owner40 = decodeAbiAddressWord(ownerRes)?.slice(2)
+	if (owner40 && owner40 === walBody) return true
 
-		const isAdminData = IS_ADMIN_SELECTOR + walBody.padStart(64, '0')
-		const isAdminRes = await ethCallConet(cardHex, isAdminData)
-		if (!isAdminRes) return null
-		const isAdm = decodeAbiBoolWord(isAdminRes)
-		return isAdm ?? null
-	} catch {
-		return null
-	}
+	const isAdminData = IS_ADMIN_SELECTOR + walBody.padStart(64, '0')
+	const isAdminRes = await ethCallConet(cardHex, isAdminData)
+	if (!isAdminRes) return null
+	const isAdm = decodeAbiBoolWord(isAdminRes)
+	return isAdm ?? null
 }
 
+/**
+ * eth_call with three states:
+ * - returns a hex result: trusted data;
+ * - returns null: the chain answered with no data ('0x' / empty) — a legitimate "no result";
+ * - throws PosBackendUnavailableError: transport, timeout, HTTP, invalid JSON or JSON-RPC error.
+ * Failures must never be folded into null (that reads as "not admin" / "no card").
+ */
 async function ethCallConet(to: string, data: string): Promise<string | null> {
+	const res = await posReadFetchOrUnavailable(CONET_RPC, {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({
+			jsonrpc: '2.0',
+			method: 'eth_call',
+			params: [{ to, data }, 'latest'],
+			id: 1,
+		}),
+	})
+	if (!res.ok) throw new PosBackendUnavailableError(`eth_call HTTP ${res.status}`)
+	let json: { error?: unknown; result?: string }
 	try {
-		const res = await posReadFetch(CONET_RPC, {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_call',
-				params: [{ to, data }, 'latest'],
-				id: 1,
-			}),
-		})
-		if (!res.ok) return null
-		const json = (await res.json()) as { error?: unknown; result?: string }
-		if (json.error || !json.result || json.result === '0x') return null
-		return json.result
+		json = (await res.json()) as { error?: unknown; result?: string }
 	} catch {
-		return null
+		throw new PosBackendUnavailableError('eth_call invalid JSON')
+	}
+	if (json.error) throw new PosBackendUnavailableError('eth_call JSON-RPC error')
+	if (!json.result || json.result === '0x') return null
+	return json.result
+}
+
+async function posReadFetchOrUnavailable(input: string, init: RequestInit): Promise<Response> {
+	try {
+		return await posReadFetch(input, init)
+	} catch (e) {
+		throw new PosBackendUnavailableError(`eth_call transport: ${e instanceof Error ? e.message : String(e)}`)
 	}
 }
 
@@ -178,13 +192,23 @@ export async function resolvePosTerminalAccessAllowed(
 	wallet: string,
 	adminInfo?: CardAdminInfoResponse | null,
 ): Promise<boolean | null> {
-	const chain = await fetchPosProgramCardHomeAccessAllowed(cardAddress, wallet)
+	let chainErr: unknown = null
+	let chain: boolean | null = null
+	try {
+		chain = await fetchPosProgramCardHomeAccessAllowed(cardAddress, wallet)
+	} catch (e) {
+		chainErr = e
+	}
 	if (chain !== null) return chain
 
 	let info = adminInfo
 	if (info === undefined) {
 		info = await fetchCardAdminInfo(cardAddress, wallet)
 	}
-	if (!info?.ok) return null
+	if (!info?.ok) {
+		/* RPC failed and API gave nothing usable: unknown, not "denied". Surface as unavailable. */
+		if (chainErr) throw chainErr
+		return null
+	}
 	return walletHasTrustedInfraPosHomeAccess(info, wallet)
 }

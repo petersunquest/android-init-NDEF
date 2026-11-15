@@ -80,7 +80,7 @@ function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
 function BootRouter() {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { isBootLoading, bootPhase, backendUnavailable, backendUnavailableNoCache, refreshHome } = usePosSession()
+	const { isBootLoading, bootPhase, backendUnavailable, backendUnavailableNoCache, bootError, refreshHome } = usePosSession()
 
 	useEffect(() => {
 		if (isBootLoading || bootPhase == null) return
@@ -137,6 +137,11 @@ function BootRouter() {
 	 * Keep splash until URL matches boot phase. Otherwise a restored WebView URL
 	 * (/recover, /onboarding) can paint setup UI for a frame before redirect to /home.
 	 */
+	/* Unexpected boot failure: explicit error + retry (reload), never a silent splash or a guessed phase. */
+	if (bootError) {
+		return <BootErrorScreen />
+	}
+
 	if (isBootLoading || bootPhase == null) {
 		return <RouteFallback />
 	}
@@ -175,6 +180,23 @@ function BootRouter() {
 			</Routes>
 		</Suspense>
 		</>
+	)
+}
+
+/** Unexpected boot failure. Retry reloads the app (fresh boot). */
+function BootErrorScreen() {
+	return (
+		<div
+			role="alert"
+			className="flex h-dvh max-h-dvh w-full flex-col items-center justify-center gap-4 px-6 text-center"
+			style={{ backgroundColor: '#000414', color: '#f5f5f7' }}
+		>
+			<p className="text-base font-semibold">Could not start this terminal</p>
+			<p className="max-w-sm text-sm opacity-80">An unexpected error stopped startup. Nothing was changed.</p>
+			<button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-white/15 px-5 py-2 text-sm font-semibold">
+				Retry
+			</button>
+		</div>
 	)
 }
 

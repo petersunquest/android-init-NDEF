@@ -47,6 +47,28 @@ async function main() {
 	await withPosBootCeiling(Promise.resolve(), 60_000)
 	console.log('ok success path resolves; no leftover timers')
 
+	// 5. Body hang: headers arrive, body never completes. The same timer must abort it.
+	globalThis.fetch = ((_url: string, init?: RequestInit) => {
+		const hangingBody = new ReadableStream({
+			start(controller) {
+				init?.signal?.addEventListener('abort', () => controller.error(new Error('body aborted')))
+			},
+		})
+		return Promise.resolve(new Response(hangingBody, { status: 200 }))
+	}) as typeof fetch
+	const t2 = Date.now()
+	await assert.rejects(posReadFetch('https://example.invalid/body-hang'), /body aborted/)
+	const bodyElapsed = Date.now() - t2
+	assert.ok(bodyElapsed >= POS_READ_TIMEOUT_MS - 50, `body abort after ${bodyElapsed} ms`)
+	console.log(`ok body hang aborted after ${bodyElapsed} ms`)
+
+	// 6. Successful body is re-readable as JSON with the original status.
+	globalThis.fetch = (async () => new Response('{"ok":true}', { status: 201 })) as typeof fetch
+	const okRes = await posReadFetch('https://example.invalid/json')
+	assert.equal(okRes.status, 201)
+	assert.deepEqual(await okRes.json(), { ok: true })
+	console.log('ok body is returned intact (status and JSON)')
+
 	globalThis.fetch = realFetch
 	console.log('ALL PASS')
 }

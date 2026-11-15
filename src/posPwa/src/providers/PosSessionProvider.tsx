@@ -105,6 +105,8 @@ interface PosContextValue {
 	backendUnavailable: boolean
 	/** Unavailable AND no cached merchant workspace: show an explicit unavailable screen, never Workspaces. */
 	backendUnavailableNoCache: boolean
+	/** Boot hit an unexpected error: show an explicit error screen with retry. */
+	bootError: boolean
 	refreshHome: () => Promise<void>
 	refreshStripeTapToPayStatus: (cardAddress?: string | null) => Promise<void>
 	admitProgramCardAccess: () => void
@@ -215,6 +217,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [bootPhase, setBootPhase] = useState<PosBootPhase | null>(null)
 	const [backendUnavailable, setBackendUnavailable] = useState(false)
 	const [backendUnavailableNoCache, setBackendUnavailableNoCache] = useState(false)
+	const [bootError, setBootError] = useState(false)
 	const refreshGen = useRef(0)
 	const refreshHomeRef = useRef<() => Promise<void>>(async () => {})
 	const activeUpperRef = useRef<string | null>(null)
@@ -327,7 +330,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		setOutboundJoinPending(pending)
 	}, [walletAddress])
 
-	const refreshHome = useCallback(async () => {
+	const refreshHomeInner = useCallback(async () => {
 		const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
 		if (!wallet) return
 		setWalletAddress(wallet)
@@ -576,6 +579,23 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 		forceWalletGateForMissingSigningKey,
 	])
 
+	/**
+	 * Any backend / RPC failure inside the home refresh becomes an explicit unavailable state.
+	 * It never falls through to Workspaces ("not bound") and never clears cached data.
+	 */
+	const refreshHome = useCallback(async () => {
+		try {
+			await refreshHomeInner()
+		} catch (e) {
+			if (!(e instanceof PosBackendUnavailableError)) throw e
+			const wallet = walletAddress ?? (await posNativeBridge.getWalletAddress())
+			const upper = wallet ? posHomeTrustedCache.loadActiveUpper(wallet) : null
+			const hasCache = Boolean(wallet && upper && posHomeTrustedCache.loadInfraCard(wallet, upper))
+			setBackendUnavailable(true)
+			setBackendUnavailableNoCache(!hasCache)
+		}
+	}, [refreshHomeInner, walletAddress])
+
 	const refreshStripeTapToPayStatus = useCallback(
 		async (cardAddress?: string | null): Promise<void> => {
 			const card = (cardAddress ?? merchantInfraCard)?.trim()
@@ -802,7 +822,8 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			} catch (e) {
 				/* Last resort: never leave bootPhase null, which keeps the splash up forever. */
 				console.error('[pos-boot] boot failed', e)
-				if (!cancelled) setBootPhase((prev) => prev ?? 'workspace')
+				/* Unknown failure: explicit error screen with retry. Never guess a phase (that read as "not bound"). */
+				if (!cancelled) setBootError(true)
 			} finally {
 				if (!cancelled) setIsBootLoading(false)
 			}
@@ -879,6 +900,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			bootPhase,
 			backendUnavailable,
 			backendUnavailableNoCache,
+			bootError,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
@@ -915,6 +937,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			bootPhase,
 			backendUnavailable,
 			backendUnavailableNoCache,
+			bootError,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
