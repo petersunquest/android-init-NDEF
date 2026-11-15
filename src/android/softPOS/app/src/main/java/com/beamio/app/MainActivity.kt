@@ -902,6 +902,18 @@ class MainActivity : ComponentActivity() {
      * 主框架导航：拦截会被 NDEF 写入的 beamio SUN URL，防止 WebView 或外链拾取后跳出到系统浏览器。
      * [cashtrees.beamio.app] 为 PWA 宿主，必须放行。
      */
+    /**
+     * Consumer Beamio pages (beamio.app / beamio.ca and www., any path that is not /pos) must never
+     * load in the POS WebView, and legacy beamio.app navigations must not reach the network.
+     * Cancelled navigations are handled locally; nothing is requested from the old domain.
+     */
+    private fun isBeamioConsumerNonPosPage(u: Uri): Boolean {
+        val h = u.host?.lowercase().orEmpty()
+        if (h !in setOf("beamio.app", "www.beamio.app", "beamio.ca", "www.beamio.ca")) return false
+        val path = u.path?.lowercase().orEmpty()
+        return !(path == "/pos" || path == "/pos/" || path.startsWith("/pos/"))
+    }
+
     private fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {
         if (!isMainFrame) return false
         val host = u.host?.lowercase().orEmpty()
@@ -970,11 +982,14 @@ class MainActivity : ComponentActivity() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     val u = request.url ?: return false
                     if (shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)) return true
+                    if (request.isForMainFrame && isBeamioConsumerNonPosPage(u)) return true
                     if (request.isForMainFrame) {
                         host.mapPosUrlToLocal(u)?.let { local ->
                             view.loadUrl(local.toString())
                             return true
                         }
+                        // Legacy pos.beamio.app paths that are not mapped (e.g. /api) must not load remotely.
+                        if (u.host?.lowercase() == "pos.beamio.app") return true
                     }
                     return false
                 }
@@ -984,10 +999,12 @@ class MainActivity : ComponentActivity() {
                     if (url.isNullOrEmpty()) return false
                     val u = Uri.parse(url)
                     if (shouldBlockBeamioNdefTopLevelNavigation(u, true)) return true
+                    if (isBeamioConsumerNonPosPage(u)) return true
                     host.mapPosUrlToLocal(u)?.let { local ->
                         view?.loadUrl(local.toString())
                         return true
                     }
+                    if (u.host?.lowercase() == "pos.beamio.app") return true
                     return false
                 }
 
