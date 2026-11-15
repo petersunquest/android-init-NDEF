@@ -80,7 +80,7 @@ function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
 function BootRouter() {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { isBootLoading, bootPhase, backendUnavailable } = usePosSession()
+	const { isBootLoading, bootPhase, backendUnavailable, backendUnavailableNoCache, refreshHome } = usePosSession()
 
 	useEffect(() => {
 		if (isBootLoading || bootPhase == null) return
@@ -141,6 +141,11 @@ function BootRouter() {
 		return <RouteFallback />
 	}
 
+	/* No cached merchant workspace and the server cannot be reached: say so; do not show "not bound". */
+	if (backendUnavailableNoCache) {
+		return <BackendUnavailableScreen onRetry={() => void refreshHome()} />
+	}
+
 	if (!pathAllowedForBootPhase(bootPhase, location.pathname)) {
 		return <RouteFallback />
 	}
@@ -170,6 +175,25 @@ function BootRouter() {
 			</Routes>
 		</Suspense>
 		</>
+	)
+}
+
+/** Full-screen unavailable state (no cached workspace). Retry re-runs the home refresh. */
+function BackendUnavailableScreen({ onRetry }: { onRetry: () => void }) {
+	return (
+		<div
+			role="alert"
+			className="flex h-dvh max-h-dvh w-full flex-col items-center justify-center gap-4 px-6 text-center"
+			style={{ backgroundColor: '#000414', color: '#f5f5f7' }}
+		>
+			<p className="text-base font-semibold">Server unavailable</p>
+			<p className="max-w-sm text-sm opacity-80">
+				Terminal permissions and merchant workspaces could not be verified. This is not a “not bound” result.
+			</p>
+			<button type="button" onClick={onRetry} className="rounded-lg bg-white/15 px-5 py-2 text-sm font-semibold">
+				Retry
+			</button>
+		</div>
 	)
 }
 

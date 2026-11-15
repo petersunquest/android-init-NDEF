@@ -52,7 +52,19 @@ final class CashTreesPWABundleStore {
             try? fileManager.removeItem(at: bundledDir)
         }
         try fileManager.createDirectory(at: bundledDir, withIntermediateDirectories: true)
-        try fileManager.unzipItem(at: zipPath, to: bundledDir)
+        do {
+            try fileManager.unzipItem(at: zipPath, to: bundledDir)
+        } catch {
+            // Unzip failure must not hide a usable installed bundle: keep active, else
+            // adopt a complete staged OTA bundle, else surface the error.
+            try? fileManager.removeItem(at: bundledDir)
+            if hasValidBundle(at: activeDir) { return }
+            if hasValidBundle(at: stagingDir) {
+                try promoteStagingToActiveLocked()
+                return
+            }
+            throw error
+        }
         removeMacOsMetadata(from: bundledDir)
         guard hasValidBundle(at: bundledDir) else {
             try? fileManager.removeItem(at: bundledDir)
@@ -136,6 +148,11 @@ final class CashTreesPWABundleStore {
     func promoteStagingToActive() throws {
         lock.lock()
         defer { lock.unlock() }
+        try promoteStagingToActiveLocked()
+    }
+
+    /// Caller must hold `lock` (NSLock is not recursive).
+    private func promoteStagingToActiveLocked() throws {
         guard hasValidBundle(at: stagingDir) else {
             throw NSError(
                 domain: "CashTreesPWABundleStore",

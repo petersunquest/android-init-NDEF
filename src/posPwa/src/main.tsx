@@ -7,8 +7,14 @@ import './index.css'
 lockPosAppColorScheme()
 
 void (async () => {
-	// Await clear so leftover SW cannot race the first navigation / fetch.
-	await unregisterPosServiceWorkers()
+	/*
+	 * Bounded wait: getRegistrations / caches.keys can hang on some WebViews. A hung cleanup
+	 * must not block React mount (otherwise the page stays an empty dark surface).
+	 */
+	await Promise.race([
+		unregisterPosServiceWorkers(),
+		new Promise<void>((resolve) => window.setTimeout(resolve, 1500)),
+	])
 
 	const rootEl = document.getElementById('root')
 	if (!rootEl) {

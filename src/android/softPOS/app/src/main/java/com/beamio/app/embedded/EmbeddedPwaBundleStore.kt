@@ -25,8 +25,20 @@ class EmbeddedPwaBundleStore(context: Context) {
                 bundledDir.deleteRecursively()
             }
             bundledDir.mkdirs()
-            appContext.assets.open(EmbeddedPwaConstants.BUNDLE_ASSET_NAME).use { input ->
-                EmbeddedPwaZip.unzip(input, bundledDir)
+            try {
+                appContext.assets.open(EmbeddedPwaConstants.BUNDLE_ASSET_NAME).use { input ->
+                    EmbeddedPwaZip.unzip(input, bundledDir)
+                }
+            } catch (e: Exception) {
+                // Asset read/unzip failure must not hide a usable installed bundle: check
+                // active (and a complete staged OTA bundle) BEFORE giving up.
+                bundledDir.deleteRecursively()
+                if (hasValidBundle(activeDir)) return
+                if (hasValidBundle(stagingDir)) {
+                    promoteStagingToActive()
+                    return
+                }
+                throw e
             }
             if (!hasValidBundle(bundledDir)) {
                 bundledDir.deleteRecursively()

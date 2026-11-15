@@ -103,6 +103,8 @@ interface PosContextValue {
 	bootPhase: PosBootPhase | null
 	/** True when a backend read failed or timed out; UI shows cached data and a banner. Not a "no record" result. */
 	backendUnavailable: boolean
+	/** Unavailable AND no cached merchant workspace: show an explicit unavailable screen, never Workspaces. */
+	backendUnavailableNoCache: boolean
 	refreshHome: () => Promise<void>
 	refreshStripeTapToPayStatus: (cardAddress?: string | null) => Promise<void>
 	admitProgramCardAccess: () => void
@@ -212,6 +214,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [isBootLoading, setIsBootLoading] = useState(true)
 	const [bootPhase, setBootPhase] = useState<PosBootPhase | null>(null)
 	const [backendUnavailable, setBackendUnavailable] = useState(false)
+	const [backendUnavailableNoCache, setBackendUnavailableNoCache] = useState(false)
 	const refreshGen = useRef(0)
 	const refreshHomeRef = useRef<() => Promise<void>>(async () => {})
 	const activeUpperRef = useRef<string | null>(null)
@@ -350,13 +353,17 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			 * banner; never route an outage to Workspaces as "no bound card".
 			 */
 			if (e instanceof PosBackendUnavailableError) {
-				if (gen === refreshGen.current) setBackendUnavailable(true)
+				if (gen === refreshGen.current) {
+					setBackendUnavailable(true)
+					setBackendUnavailableNoCache(!infra)
+				}
 				return
 			}
 			throw e
 		}
 		if (gen !== refreshGen.current) return
 		setBackendUnavailable(false)
+		setBackendUnavailableNoCache(false)
 		const apiInfra = parseMerchantInfraCardFromMyPos(posRes)
 
 		if (preferredUpper && infra && apiInfra && normEoa(apiInfra) !== normEoa(infra)) {
@@ -766,7 +773,10 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				try {
 					await withPosBootCeiling(refreshHomeRef.current())
 				} catch (e) {
-					if (!cancelled) setBackendUnavailable(true)
+					if (!cancelled) {
+						setBackendUnavailable(true)
+						setBackendUnavailableNoCache(!posHomeTrustedCache.loadInfraCard(addr, activeUpper))
+					}
 					if (!(e instanceof PosBackendUnavailableError)) {
 						console.error('[pos-boot] refreshHome failed', e)
 					}
@@ -868,6 +878,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			isBootLoading,
 			bootPhase,
 			backendUnavailable,
+			backendUnavailableNoCache,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
@@ -903,6 +914,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			isBootLoading,
 			bootPhase,
 			backendUnavailable,
+			backendUnavailableNoCache,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
