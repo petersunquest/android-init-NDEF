@@ -35,7 +35,7 @@ import {
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { PosTerminalChargePolicy } from '@/utils/chargePaymentMethod'
 import { resolveNfcTopupSubmitIdentity } from '@/utils/deductPointsExecute'
-import { fetchCardCurrencyAndPointsPriceE6 } from '@/utils/posProgramCardAccess'
+import { fetchCardCurrencyAndPointsPriceE6, fetchChargeCardCurrency } from '@/utils/posProgramCardAccess'
 import { memberNoPrimaryFromSortedCards } from '@/utils/readBalanceAssets'
 import {
 	buildSuccessPassHeroProps,
@@ -72,6 +72,10 @@ export interface ChargeExecuteSuccess {
 	customerWalletAddress?: string
 	passHero?: PosSuccessPassHeroProps
 }
+
+/** Shown when the card-currency RPC is unavailable. Nothing has been charged at this point. */
+export const CHARGE_CARD_NETWORK_UNAVAILABLE =
+	'Card network check unavailable. Nothing was charged; please try again.'
 
 export type ChargeExecuteResult =
 	| { status: 'success'; result: ChargeExecuteSuccess }
@@ -306,7 +310,12 @@ export async function executeNfcCharge(params: {
 	 * fiat6-only: amount currency MUST be the merchant program card on-chain currency,
 	 * not the customer pay-card / profile default (often CAD while card is USDC).
 	 */
-	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
+	const merchantCc = await fetchChargeCardCurrency(infra)
+	if (!merchantCc.ok) {
+		patch?.('analyzingAssets', 'error', 'Card network unavailable')
+		return { status: 'error', message: CHARGE_CARD_NETWORK_UNAVAILABLE }
+	}
+	const merchantChain = merchantCc.chain
 	const payCurrency = (
 		merchantChain?.code ||
 		payCard?.cardCurrency ||
@@ -635,7 +644,12 @@ export async function executeQrCharge(params: {
 	const oracleRes = (await fetchOracle()) ?? DEFAULT_ORACLE
 	const tip = chargeTipFromRequestAndBps(subtotal, params.tipBps)
 	const total = chargeTotalInCurrency(subtotal, routing.taxPercent, disc, tip)
-	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
+	const merchantCc = await fetchChargeCardCurrency(infra)
+	if (!merchantCc.ok) {
+		patch?.('analyzingAssets', 'error', 'Card network unavailable')
+		return { status: 'error', message: CHARGE_CARD_NETWORK_UNAVAILABLE }
+	}
+	const merchantChain = merchantCc.chain
 	const payCurrency = (
 		merchantChain?.code ||
 		payCard?.cardCurrency ||
@@ -659,7 +673,15 @@ export async function executeQrCharge(params: {
 	}
 
 	const cardAddr = payCard?.cardAddress?.trim() || assets.cardAddress?.trim() || ''
-	const cardChainInfo = cardAddr ? await fetchCardCurrencyAndPointsPriceE6(cardAddr) : null
+	let cardChainInfo: Awaited<ReturnType<typeof fetchCardCurrencyAndPointsPriceE6>> = null
+	if (cardAddr) {
+		const cardCc = await fetchChargeCardCurrency(cardAddr)
+		if (!cardCc.ok) {
+			patch?.('analyzingAssets', 'error', 'Card network unavailable')
+			return { status: 'error', message: CHARGE_CARD_NETWORK_UNAVAILABLE }
+		}
+		cardChainInfo = cardCc.chain
+	}
 	const unitPrice = Number(assets.unitPriceUSDC6 ?? '0') || 0
 	const cards = chargeableCards(assets, infra)
 	const part = partitionPointsForMerchantCharge(cards, infra)

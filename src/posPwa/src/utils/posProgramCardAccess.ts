@@ -80,6 +80,21 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 }
 
 /**
+ * Charge-path read with an explicit failure result (never a silent CAD / null default).
+ * Returns ok:false only when the RPC is unavailable; the caller must stop before any payment step.
+ */
+export async function fetchChargeCardCurrency(
+	cardAddress: string,
+): Promise<{ ok: true; chain: Awaited<ReturnType<typeof fetchCardCurrencyAndPointsPriceE6>> } | { ok: false }> {
+	try {
+		return { ok: true, chain: await fetchCardCurrencyAndPointsPriceE6(cardAddress) }
+	} catch (e) {
+		if (e instanceof PosBackendUnavailableError) return { ok: false }
+		throw e
+	}
+}
+
+/**
  * eth_call with three states:
  * - returns a hex result: trusted data;
  * - returns null: the chain answered with no data ('0x' / empty) — a legitimate "no result";

@@ -25,6 +25,8 @@ export async function posReadFetch(input: string, init?: RequestInit): Promise<R
 	const timer = setTimeout(() => ctrl.abort(), POS_READ_TIMEOUT_MS)
 	try {
 		const res = await fetch(input, { ...init, signal: ctrl.signal })
+		/* Null-body statuses cannot carry a body: return the original response untouched. */
+		if (res.status === 204 || res.status === 205 || res.status === 304) return res
 		const text = await res.text()
 		return new Response(text, { status: res.status, statusText: res.statusText, headers: res.headers })
 	} finally {

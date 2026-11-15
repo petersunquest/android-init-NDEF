@@ -69,6 +69,14 @@ async function main() {
 	assert.deepEqual(await okRes.json(), { ok: true })
 	console.log('ok body is returned intact (status and JSON)')
 
+	// 7. Null-body statuses (204/205/304) must not throw when re-wrapped.
+	for (const status of [204, 205, 304]) {
+		globalThis.fetch = (async () => new Response(null, { status })) as typeof fetch
+		const nb = await posReadFetch('https://example.invalid/null-body')
+		assert.equal(nb.status, status)
+	}
+	console.log('ok null-body statuses 204/205/304 returned intact')
+
 	globalThis.fetch = realFetch
 	console.log('ALL PASS')
 }

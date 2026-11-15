@@ -10,7 +10,7 @@ import {
 } from '@/utils/beamioPaymentRouting'
 import { fetchChargeTierRoutingDetails } from '@/utils/chargeTierRouting'
 import type { ChargePaymentMethodRaw } from '@/utils/chargePaymentMethod'
-import { fetchCardCurrencyAndPointsPriceE6 } from '@/utils/posProgramCardAccess'
+import { fetchChargeCardCurrency } from '@/utils/posProgramCardAccess'
 import { getPosPrivateKeyHex } from '@/wallet/getPosPrivateKeyHex'
 import { signExecuteForAdmin } from '@/wallet/signExecuteForAdmin'
 import {
@@ -95,8 +95,15 @@ export async function prepareUsdcChargeQr(params: {
 	const tipAmt = chargeTipFromRequestAndBps(params.subtotal, params.tipBps)
 	const total = chargeTotalInCurrency(params.subtotal, routing.taxPercent, 0, tipAmt)
 	const subtotalStr = params.subtotal.toFixed(2)
-	const merchantChain = await fetchCardCurrencyAndPointsPriceE6(infra)
-	const chargeCurrency = (merchantChain?.code ?? 'CAD').trim().toUpperCase()
+	const merchantCc = await fetchChargeCardCurrency(infra)
+	if (!merchantCc.ok) {
+		return { ok: false, message: 'Card network check unavailable. Nothing was charged; please try again.' }
+	}
+	const merchantChain = merchantCc.chain
+	const chargeCurrency = (merchantChain?.code ?? '').trim().toUpperCase()
+	if (!chargeCurrency) {
+		return { ok: false, message: 'Merchant card currency unavailable. Please refresh Home and try again.' }
+	}
 
 	const pre = await fetchUsdcChargePreCheck({
 		cardAddress: infra,

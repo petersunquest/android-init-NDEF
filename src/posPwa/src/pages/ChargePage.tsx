@@ -164,13 +164,20 @@ export function ChargePage() {
 				return
 			}
 			setPhase('executing')
-			const prepared = await prepareUsdcChargeQr({
-				subtotal: Number(chargeDraft.subtotal) || 0,
-				tipBps: chargeDraft.tipBps,
-				merchantInfraCard: merchantInfraCard?.trim() ?? '',
-				posWallet: walletAddress,
-				paymentMethodRaw: chargeDraft.methodRaw,
-			})
+			let prepared: Awaited<ReturnType<typeof prepareUsdcChargeQr>>
+			try {
+				prepared = await prepareUsdcChargeQr({
+					subtotal: Number(chargeDraft.subtotal) || 0,
+					tipBps: chargeDraft.tipBps,
+					merchantInfraCard: merchantInfraCard?.trim() ?? '',
+					posWallet: walletAddress,
+					paymentMethodRaw: chargeDraft.methodRaw,
+				})
+			} catch {
+				/* Prepare does not charge; leave the terminal operable. */
+				goHome('Payment could not start. Nothing was charged; please try again.')
+				return
+			}
 			if (!prepared.ok) {
 				goHome(prepared.message)
 				return
@@ -292,16 +299,23 @@ export function ChargePage() {
 			}
 			setPhase('executing')
 			setRoutingSteps(makeInitialPaymentRoutingSteps())
-			const outcome = await executeNfcCharge({
-				target: { uid, sun },
-				subtotal: Number(draft.subtotal) || 0,
-				tipBps: draft.tipBps,
-				merchantInfraCard: chargeCard,
-				posWallet: walletAddress,
-				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
-				pointSystemEnabled,
-				onRoutingStep: patchRoutingStep,
-			})
+			let outcome: Awaited<ReturnType<typeof executeNfcCharge>>
+			try {
+				outcome = await executeNfcCharge({
+					target: { uid, sun },
+					subtotal: Number(draft.subtotal) || 0,
+					tipBps: draft.tipBps,
+					merchantInfraCard: chargeCard,
+					posWallet: walletAddress,
+					chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
+					pointSystemEnabled,
+					onRoutingStep: patchRoutingStep,
+				})
+			} catch {
+				/* May have passed the payment step: do not claim "nothing charged". */
+				goHome('Payment status unknown. Check transaction history before retrying.')
+				return
+			}
 			if (outcome.status === 'success') {
 				setSuccess(outcome.result)
 				setPhase('success')
@@ -335,16 +349,23 @@ export function ChargePage() {
 			}
 			setPhase('executing')
 			setRoutingSteps(makeInitialPaymentRoutingSteps())
-			const outcome = await executeQrCharge({
-				openContainerPayload,
-				subtotal: Number(draft.subtotal) || 0,
-				tipBps: draft.tipBps,
-				merchantInfraCard: chargeCard,
-				posWallet: walletAddress,
-				chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
-				pointSystemEnabled,
-				onRoutingStep: patchRoutingStep,
-			})
+			let outcome: Awaited<ReturnType<typeof executeQrCharge>>
+			try {
+				outcome = await executeQrCharge({
+					openContainerPayload,
+					subtotal: Number(draft.subtotal) || 0,
+					tipBps: draft.tipBps,
+					merchantInfraCard: chargeCard,
+					posWallet: walletAddress,
+					chargePolicy: POS_TERMINAL_CHARGE_POLICY_ALL,
+					pointSystemEnabled,
+					onRoutingStep: patchRoutingStep,
+				})
+			} catch {
+				/* May have passed the payment step: do not claim "nothing charged". */
+				goHome('Payment status unknown. Check transaction history before retrying.')
+				return
+			}
 			if (outcome.status === 'success') {
 				setSuccess(outcome.result)
 				setPhase('success')
