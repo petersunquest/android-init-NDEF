@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug/QA build only: navigation trigger receiver. Not present in release or store builds. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="com.beamio.app.qa.QaNavReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.beamio.app.QA_NAV" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

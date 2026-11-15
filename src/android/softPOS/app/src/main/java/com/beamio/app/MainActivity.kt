@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.util.Base64
+import android.util.Log
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -74,6 +75,30 @@ private object NfcStatusStrings {
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
+
+    companion object {
+        /** Debug/QA navigation hook (debug receiver only calls it). Null while the activity is not alive. */
+        @Volatile
+        internal var devActivity: MainActivity? = null
+    }
+
+    /** Debug/QA only: evaluates a main-frame navigation in the page, so it goes through shouldOverrideUrlLoading. */
+    internal fun devNavigateMainFrame(url: String) {
+        runOnUiThread {
+            if (::webView.isInitialized) {
+                webView.evaluateJavascript("window.location.href=" + JSONObject.quote(url), null)
+            }
+        }
+    }
+
+    /** Debug-build logging only; release builds compile these calls out (isDebuggableBuild is a constant). */
+    private fun qaLog(msg: String) {
+        if (isDebuggableBuild) Log.i("BeamioPOS-QA", msg)
+    }
+
+    /** True only for debuggable (debug/QA) builds at runtime; release builds are not debuggable. */
+    private val isDebuggableBuild: Boolean
+        get() = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
     private lateinit var embeddedPwaHost: EmbeddedPwaHost
     private lateinit var rootLayout: FrameLayout
     private lateinit var jsBridge: CashTreesJsBridge
@@ -788,6 +813,7 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        devActivity = this
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         enableEdgeToEdge()
         nfcAdapter = NfcAdapter.getDefaultAdapter(this)
@@ -967,6 +993,7 @@ class MainActivity : ComponentActivity() {
                     request: WebResourceRequest,
                 ): android.webkit.WebResourceResponse? {
                     val u = request.url ?: return null
+                    qaLog("request ${u.scheme}://${u.host}${u.path}")
                     if (host.shouldBypassEmbeddedAssetLoader(u)) {
                         return null
                     }
@@ -980,6 +1007,14 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val cancelled = embeddedNavDecisionInner(view, request)
+                    if (isDebuggableBuild && request.isForMainFrame) {
+                        qaLog("main-frame host=${request.url?.host} path=${request.url?.path} cancelled=$cancelled")
+                    }
+                    return cancelled
+                }
+
+                private fun embeddedNavDecisionInner(view: WebView, request: WebResourceRequest): Boolean {
                     val u = request.url ?: return false
                     if (shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)) return true
                     if (request.isForMainFrame && isBeamioConsumerNonPosPage(u)) return true
@@ -1151,6 +1186,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (devActivity === this) devActivity = null
         hideQrScanOverlay()
         hideNfcScanOverlay()
         mainHandler.removeCallbacks(enableNfcForegroundDispatchRunnable)
