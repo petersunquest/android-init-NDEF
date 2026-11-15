@@ -29,6 +29,7 @@ import {
 	type PosBootPhase,
 } from '@/boot/posBootInit'
 import { posNativeBridge } from '@/bridge/nativeBridge'
+import { PosBackendUnavailableError, withPosBootCeiling } from '@/api/posReadFetch'
 import { sendPosTerminalPermissionRequest } from '@/conet/posTerminalPermissionChat'
 import type { MerchantActiveIssuedCoupon } from '@/utils/couponMetadata'
 import type { TerminalProfile } from '@/types/pos'
@@ -100,6 +101,8 @@ interface PosContextValue {
 	/** SilentPassUI `isInitialLoading` — true until first `checkStorage` boot finishes. */
 	isBootLoading: boolean
 	bootPhase: PosBootPhase | null
+	/** True when a backend read failed or timed out; UI shows cached data and a banner. Not a "no record" result. */
+	backendUnavailable: boolean
 	refreshHome: () => Promise<void>
 	refreshStripeTapToPayStatus: (cardAddress?: string | null) => Promise<void>
 	admitProgramCardAccess: () => void
@@ -208,6 +211,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 	const [showPermissionGate, setShowPermissionGate] = useState(false)
 	const [isBootLoading, setIsBootLoading] = useState(true)
 	const [bootPhase, setBootPhase] = useState<PosBootPhase | null>(null)
+	const [backendUnavailable, setBackendUnavailable] = useState(false)
 	const refreshGen = useRef(0)
 	const refreshHomeRef = useRef<() => Promise<void>>(async () => {})
 	const activeUpperRef = useRef<string | null>(null)
@@ -337,8 +341,22 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			? posHomeTrustedCache.loadInfraCard(wallet, preferredUpper)
 			: null
 
-		const posRes = await fetchMyPosAddress(wallet)
+		let posRes: Awaited<ReturnType<typeof fetchMyPosAddress>>
+		try {
+			posRes = await fetchMyPosAddress(wallet)
+		} catch (e) {
+			/*
+			 * Outage is not an unbound terminal. Keep cached workspace/phase and flag the
+			 * banner; never route an outage to Workspaces as "no bound card".
+			 */
+			if (e instanceof PosBackendUnavailableError) {
+				if (gen === refreshGen.current) setBackendUnavailable(true)
+				return
+			}
+			throw e
+		}
 		if (gen !== refreshGen.current) return
+		setBackendUnavailable(false)
 		const apiInfra = parseMerchantInfraCardFromMyPos(posRes)
 
 		if (preferredUpper && infra && apiInfra && normEoa(apiInfra) !== normEoa(infra)) {
@@ -741,7 +759,18 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				}
 				if (cancelled) return
 
-				await refreshHomeRef.current()
+				/*
+				 * Bounded: a hung or failed backend must not leave bootPhase null (splash forever).
+				 * On failure we continue with the local cache phase and flag backendUnavailable.
+				 */
+				try {
+					await withPosBootCeiling(refreshHomeRef.current())
+				} catch (e) {
+					if (!cancelled) setBackendUnavailable(true)
+					if (!(e instanceof PosBackendUnavailableError)) {
+						console.error('[pos-boot] refreshHome failed', e)
+					}
+				}
 				if (cancelled) return
 
 				if (!(await getPosPrivateKeyHex())) {
@@ -760,6 +789,10 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				})
 				setBootPhase(phase)
 				setShowPermissionGate(false)
+			} catch (e) {
+				/* Last resort: never leave bootPhase null, which keeps the splash up forever. */
+				console.error('[pos-boot] boot failed', e)
+				if (!cancelled) setBootPhase((prev) => prev ?? 'workspace')
 			} finally {
 				if (!cancelled) setIsBootLoading(false)
 			}
@@ -834,6 +867,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			showPermissionGate,
 			isBootLoading,
 			bootPhase,
+			backendUnavailable,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,
@@ -868,6 +902,7 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 			showPermissionGate,
 			isBootLoading,
 			bootPhase,
+			backendUnavailable,
 			refreshHome,
 			refreshStripeTapToPayStatus,
 			admitProgramCardAccess,

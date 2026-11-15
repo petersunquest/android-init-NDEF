@@ -16,10 +16,15 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.JavascriptInterface
+import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -830,14 +835,56 @@ class MainActivity : ComponentActivity() {
         requestPostNotificationsIfNeeded()
         CashTreesPushRegistration.fetchAndPublishToken(this)
 
+        startEmbeddedBootstrap()
+    }
+
+    /**
+     * Local bundle bootstrap. Failure never falls back to the remote host: a broken
+     * local bundle must not send the POS to a network page (offline / outage). The
+     * user gets a local error panel with Retry instead.
+     */
+    private fun startEmbeddedBootstrap() {
         bootstrapExecutor.execute {
             try {
                 embeddedPwaHost.bootstrapIfNeeded()
                 runOnUiThread { mountEmbeddedWebView(jsBridge) }
-            } catch (_: Exception) {
-                runOnUiThread { mountRemoteFallbackWebView(jsBridge) }
+            } catch (e: Exception) {
+                android.util.Log.e("BeamioPOS", "embedded PWA bootstrap failed", e)
+                runOnUiThread { mountBootErrorView(e) }
             }
         }
+    }
+
+    private var bootErrorView: View? = null
+
+    private fun mountBootErrorView(error: Throwable) {
+        useEmbeddedPwa = false
+        bootErrorView?.let { rootLayout.removeView(it) }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.parseColor("#000414"))
+            setPadding(48, 48, 48, 48)
+        }
+        column.addView(
+            TextView(this).apply {
+                text = "The local POS app could not start.\nNo remote page is loaded.\n\n(${error.javaClass.simpleName})"
+                setTextColor(Color.parseColor("#F5F5F7"))
+                gravity = Gravity.CENTER
+            },
+        )
+        column.addView(
+            Button(this).apply {
+                text = "Retry"
+                setOnClickListener {
+                    rootLayout.removeView(column)
+                    bootErrorView = null
+                    startEmbeddedBootstrap()
+                }
+            },
+        )
+        bootErrorView = column
+        rootLayout.addView(column, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
     }
 
     private fun requestPostNotificationsIfNeeded() {
@@ -880,15 +927,9 @@ class MainActivity : ComponentActivity() {
 
     private fun mountEmbeddedWebView(jsBridge: CashTreesJsBridge) {
         useEmbeddedPwa = true
+        bootErrorView?.let { rootLayout.removeView(it) }
+        bootErrorView = null
         val wv = createEmbeddedWebView(jsBridge, embeddedPwaHost)
-        webView = wv
-        rootLayout.addView(wv)
-        startOtaDaemonIfNeeded()
-    }
-
-    private fun mountRemoteFallbackWebView(jsBridge: CashTreesJsBridge) {
-        useEmbeddedPwa = false
-        val wv = createRemoteWebView(jsBridge, EmbeddedPwaConstants.REMOTE_FALLBACK_URL)
         webView = wv
         rootLayout.addView(wv)
         startOtaDaemonIfNeeded()
@@ -961,32 +1002,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
             loadUrl(EmbeddedPwaConstants.entryUrl, HOME_DOCUMENT_REQUEST_HEADERS)
-        }
-    }
-
-    @SuppressLint("SetJavaScriptEnabled")
-    private fun createRemoteWebView(jsBridge: CashTreesJsBridge, startUrl: String): WebView {
-        return createBaseWebView(jsBridge).apply {
-            webViewClient = object : WebViewClient() {
-                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                    val u = request.url ?: return false
-                    return shouldBlockBeamioNdefTopLevelNavigation(u, request.isForMainFrame)
-                }
-
-                @Deprecated("Deprecated in Java")
-                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                    if (url.isNullOrEmpty()) return false
-                    return shouldBlockBeamioNdefTopLevelNavigation(Uri.parse(url), true)
-                }
-
-                override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
-                    webContentLivenessProbeToken += 1
-                    webContentLivenessProbeInFlight = false
-                    view.loadUrl(startUrl, HOME_DOCUMENT_REQUEST_HEADERS)
-                    return true
-                }
-            }
-            loadUrl(startUrl, HOME_DOCUMENT_REQUEST_HEADERS)
         }
     }
 

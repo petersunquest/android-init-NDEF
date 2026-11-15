@@ -1326,6 +1326,32 @@ private struct CashTreesSplashOverlay: View {
     }
 }
 
+/// Local-only boot failure panel: shows the reason and a Retry button. No remote fallback.
+struct CashTreesLocalBootErrorView: View {
+    let message: String?
+    let onRetry: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("The local POS app could not start.")
+                .font(.headline)
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+            if let message, !message.isEmpty {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+            }
+            Button("Retry", action: onRetry)
+                .buttonStyle(.borderedProminent)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(cashTreesWebSurfaceSwiftUIColor.ignoresSafeArea())
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var deepLinkStore: CashTreesDeepLinkStore
     @ObservedObject private var localPWAHost = CashTreesLocalPWAHost.shared
@@ -1345,6 +1371,12 @@ struct ContentView: View {
                 )
                 .opacity(webContentVisible ? 1 : 0)
                 .ignoresSafeArea()
+            } else if !webLoadState.isSplashVisible {
+                // Local bundle failed to start. Show the reason and a local retry; never a bare
+                // background (that looked like a black screen) and never a remote page.
+                CashTreesLocalBootErrorView(message: localPWAHost.lastError) {
+                    localPWAHost.retryBoot()
+                }
             }
             if webLoadState.isSplashVisible {
                 CashTreesSplashOverlay(

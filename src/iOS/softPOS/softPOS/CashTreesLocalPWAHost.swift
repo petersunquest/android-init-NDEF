@@ -47,6 +47,15 @@ final class CashTreesLocalPWAHost: ObservableObject {
         }
     }
 
+    /// Retry after a failed boot (user tap on the local error panel). Never loads a remote page.
+    func retryBoot() {
+        guard !isReady else { return }
+        lastError = nil
+        startTask?.cancel()
+        startTask = nil
+        startIfNeeded()
+    }
+
     func activeVersion() -> String {
         bundleStore.activeVersion()
     }

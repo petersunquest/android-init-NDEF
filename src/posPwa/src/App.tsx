@@ -80,7 +80,7 @@ function pathAllowedForBootPhase(phase: PosBootPhase, path: string): boolean {
 function BootRouter() {
 	const navigate = useNavigate()
 	const location = useLocation()
-	const { isBootLoading, bootPhase } = usePosSession()
+	const { isBootLoading, bootPhase, backendUnavailable } = usePosSession()
 
 	useEffect(() => {
 		if (isBootLoading || bootPhase == null) return
@@ -146,6 +146,8 @@ function BootRouter() {
 	}
 
 	return (
+		<>
+		{backendUnavailable ? <BackendUnavailableBanner /> : null}
 		<Suspense fallback={<RouteFallback />}>
 			<Routes>
 				<Route path="/" element={<WelcomePage />} />
@@ -167,6 +169,23 @@ function BootRouter() {
 				<Route path="*" element={<Navigate to="/" replace />} />
 			</Routes>
 		</Suspense>
+		</>
+	)
+}
+
+/**
+ * Shown when a backend read failed or timed out. The screen below uses cached data;
+ * balances and permissions are not refreshed. Payments still require the server.
+ */
+function BackendUnavailableBanner() {
+	return (
+		<div
+			role="alert"
+			className="pointer-events-none fixed inset-x-0 top-0 z-[100] px-3 py-1.5 text-center text-xs font-semibold text-amber-100"
+			style={{ backgroundColor: 'rgba(120, 53, 15, 0.92)', paddingTop: 'max(6px, env(safe-area-inset-top))' }}
+		>
+			Server unavailable: terminal permissions and balances could not be verified. This screen is not a server result.
+		</div>
 	)
 }
 

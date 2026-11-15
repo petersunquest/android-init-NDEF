@@ -166,8 +166,27 @@ final class CashTreesPWABundleStore {
         return pendingVersion
     }
 
+    /// index.html must exist AND every root-relative .js/.css it references must exist.
+    /// An index.html with missing scripts loads as a blank page (black screen), and the
+    /// old index-only check never repaired it.
     private func hasValidBundle(at dir: URL) -> Bool {
-        fileManager.fileExists(atPath: dir.appendingPathComponent("index.html").path)
+        let index = dir.appendingPathComponent("index.html")
+        guard fileManager.fileExists(atPath: index.path),
+              let data = try? Data(contentsOf: index),
+              let html = String(data: data, encoding: .utf8)
+        else { return false }
+        guard let regex = try? NSRegularExpression(pattern: #"(?:src|href)="(/[^"?#]+\.(?:js|css))""#) else {
+            return false
+        }
+        let range = NSRange(html.startIndex..., in: html)
+        for match in regex.matches(in: html, range: range) {
+            guard let r = Range(match.range(at: 1), in: html) else { return false }
+            let rel = String(html[r].drop(while: { $0 == "/" }))
+            if !fileManager.fileExists(atPath: dir.appendingPathComponent(rel).path) {
+                return false
+            }
+        }
+        return true
     }
 
     private func readUpdateInfo(from dir: URL) -> CashTreesPWAUpdateInfo? {

@@ -14,8 +14,6 @@ object EmbeddedPwaConstants {
 
     val entryUrl: String
         get() = "$ASSET_LOADER_ORIGIN/index.html"
-
-    const val REMOTE_FALLBACK_URL = "https://pos.beamio.app/"
 }
 
 data class EmbeddedPwaUpdateInfo(

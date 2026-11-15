@@ -1,6 +1,7 @@
 import { fetchCardAdminInfo } from '@/api/beamioApi'
 import { CONET_RPC } from '@/constants'
 import type { CardAdminInfoResponse, MyPosAddressResponse } from '@/types/pos'
+import { posReadFetch } from '@/api/posReadFetch'
 
 const OWNER_SELECTOR = '0x8da5cb5b'
 const IS_ADMIN_SELECTOR = '0x24d7806c'
@@ -83,7 +84,7 @@ export async function fetchPosProgramCardHomeAccessAllowed(
 
 async function ethCallConet(to: string, data: string): Promise<string | null> {
 	try {
-		const res = await fetch(CONET_RPC, {
+		const res = await posReadFetch(CONET_RPC, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({

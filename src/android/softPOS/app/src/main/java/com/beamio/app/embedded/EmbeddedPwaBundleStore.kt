@@ -31,7 +31,12 @@ class EmbeddedPwaBundleStore(context: Context) {
             if (!hasValidBundle(bundledDir)) {
                 bundledDir.deleteRecursively()
                 if (hasValidBundle(activeDir)) return
-                throw IllegalStateException("Bundled BeamioPOS.zip did not contain index.html")
+                // Broken bundled asset: adopt a complete staged OTA bundle if one exists.
+                if (hasValidBundle(stagingDir)) {
+                    promoteStagingToActive()
+                    return
+                }
+                throw IllegalStateException("Bundled BeamioPOS.zip is incomplete (index.html or referenced JS/CSS missing)")
             }
 
             val activeIsValid = hasValidBundle(activeDir)
@@ -108,8 +113,23 @@ class EmbeddedPwaBundleStore(context: Context) {
         }
     }
 
-    private fun hasValidBundle(dir: File): Boolean =
-        File(dir, "index.html").isFile
+    /**
+     * A bundle is usable only if index.html exists AND every root-relative .js/.css it
+     * references exists. An index.html with a missing script loads as a blank page
+     * (black screen) and would never be repaired, since index.html alone looked valid.
+     */
+    private fun hasValidBundle(dir: File): Boolean {
+        val index = File(dir, "index.html")
+        if (!index.isFile) return false
+        val html = try {
+            index.readText()
+        } catch (_: Exception) {
+            return false
+        }
+        return ASSET_REF.findAll(html).all { m ->
+            File(dir, m.groupValues[1].trimStart('/')).isFile
+        }
+    }
 
     private fun readUpdateInfo(dir: File): EmbeddedPwaUpdateInfo? {
         val file = File(dir, "update.json")
@@ -131,6 +151,9 @@ class EmbeddedPwaBundleStore(context: Context) {
     }
 
     companion object {
+        /** Root-relative script/stylesheet references in the built index.html (POS_PWA_BASE=/). */
+        private val ASSET_REF = Regex("""(?:src|href)="(/[^"?#]+\.(?:js|css))"""")
+
         fun isSemverNewer(oldVer: String, newVer: String): Boolean {
             val oldParts = oldVer.split('.').map { it.toIntOrNull() ?: 0 }
             val newParts = newVer.split('.').map { it.toIntOrNull() ?: 0 }

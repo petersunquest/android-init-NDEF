@@ -1,3 +1,4 @@
+import { posReadFetch, PosBackendUnavailableError } from '@/api/posReadFetch'
 import { Interface } from 'ethers'
 import { ACCOUNT_REGISTRY, BEAMIO_API, CONET_RPC, CONET_RPC_FALLBACK } from '@/constants'
 import type { PosLedgerSnapshot } from '@/utils/posLedgerMetrics'
@@ -184,7 +185,7 @@ export async function searchUsersByCardOwnerOrAdmin(
 			.map((a) => a.trim())
 			.filter((a) => a.startsWith('0x') && a.length >= 42)
 		if (extra.length) params.set('extraCardAddresses', extra.join(','))
-		const res = await fetch(`${BEAMIO_API}/api/search-users-by-card-owner-or-admin?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/search-users-by-card-owner-or-admin?${params}`)
 		if (!res.ok) return null
 		const json = await res.json()
 		return parseProfiles(json)
@@ -198,7 +199,7 @@ export async function searchUsers(keyword: string): Promise<TerminalProfile[] | 
 	if (kw.length < 2) return []
 	try {
 		const params = new URLSearchParams({ keyward: kw })
-		const res = await fetch(`${BEAMIO_API}/api/search-users?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/search-users?${params}`)
 		if (!res.ok) return null
 		const json = await res.json()
 		return parseProfiles(json)
@@ -265,14 +266,24 @@ export async function addUser(params: {
 	}
 }
 
-export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressResponse | null> {
+/**
+ * Throws [PosBackendUnavailableError] on network / timeout / HTTP / JSON failure.
+ * Must NOT return null for failures: null here used to mean "no bound card" and sent
+ * an outage to the Workspaces screen as if the terminal were unbound.
+ */
+export async function fetchMyPosAddress(wallet: string): Promise<MyPosAddressResponse> {
+	const params = new URLSearchParams({ wallet })
+	let res: Response
 	try {
-		const params = new URLSearchParams({ wallet })
-		const res = await fetch(`${BEAMIO_API}/api/myPosAddress?${params}`)
-		if (!res.ok) return null
+		res = await posReadFetch(`${BEAMIO_API}/api/myPosAddress?${params}`)
+	} catch (e) {
+		throw new PosBackendUnavailableError(`myPosAddress: ${e instanceof Error ? e.message : String(e)}`)
+	}
+	if (!res.ok) throw new PosBackendUnavailableError(`myPosAddress: HTTP ${res.status}`)
+	try {
 		return (await res.json()) as MyPosAddressResponse
 	} catch {
-		return null
+		throw new PosBackendUnavailableError('myPosAddress: invalid JSON')
 	}
 }
 
@@ -286,7 +297,7 @@ export type PosCardBindingItem = {
 export async function fetchMyPosAddresses(wallet: string): Promise<PosCardBindingItem[] | null> {
 	try {
 		const params = new URLSearchParams({ wallet })
-		const res = await fetch(`${BEAMIO_API}/api/myPosAddresses?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/myPosAddresses?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as { ok?: boolean; items?: PosCardBindingItem[] }
 		if (json?.ok === false || !Array.isArray(json.items)) return null
@@ -325,7 +336,7 @@ export async function setActivePosAddress(
 export async function fetchPosLedger(eoa: string, infraCard: string): Promise<PosLedgerSnapshot | null> {
 	try {
 		const params = new URLSearchParams({ eoa, infraCard })
-		const res = await fetch(`${BEAMIO_API}/api/posLedger?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/posLedger?${params}`)
 		if (!res.ok) return null
 		const json = await res.json()
 		return parsePosLedgerResponse(json)
@@ -337,7 +348,7 @@ export async function fetchPosLedger(eoa: string, infraCard: string): Promise<Po
 export async function fetchBUnitBalance(address: string): Promise<number | null> {
 	try {
 		const params = new URLSearchParams({ address })
-		const res = await fetch(`${BEAMIO_API}/api/getBUnitBalance?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/getBUnitBalance?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as {
 			ok?: boolean
@@ -370,7 +381,7 @@ export async function fetchCardAdminInfo(
 ): Promise<CardAdminInfoResponse | null> {
 	try {
 		const params = new URLSearchParams({ cardAddress, wallet })
-		const res = await fetch(`${BEAMIO_API}/api/getCardAdminInfo?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/getCardAdminInfo?${params}`)
 		if (!res.ok) return null
 		return (await res.json()) as CardAdminInfoResponse
 	} catch {
@@ -385,7 +396,7 @@ export async function fetchWalletAssets(wallet: string, merchantInfraCard?: stri
 	try {
 		const params = new URLSearchParams({ wallet, cardsScope: 'merchantInfraOnly' })
 		if (merchantInfraCard) params.set('merchantInfraCard', merchantInfraCard)
-		const res = await fetch(`${BEAMIO_API}/api/getWalletAssets?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/getWalletAssets?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as {
 			ok?: boolean
@@ -407,7 +418,7 @@ export async function fetchActiveCoupons(
 ): Promise<MerchantActiveIssuedCoupon[] | null> {
 	try {
 		const params = new URLSearchParams({ card, limit: '50' })
-		const res = await fetch(`${BEAMIO_API}/api/cardActiveIssuedCouponSeries?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/cardActiveIssuedCouponSeries?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as { items?: unknown[] }
 		if (!Array.isArray(json.items)) return []
@@ -451,7 +462,7 @@ export async function fetchCardMetadataRoot(
 ): Promise<{ metadata?: Record<string, unknown> } | null> {
 	try {
 		const params = new URLSearchParams({ cardAddress })
-		const res = await fetch(`${BEAMIO_API}/api/cardMetadata?${params}`)
+		const res = await posReadFetch(`${BEAMIO_API}/api/cardMetadata?${params}`)
 		if (!res.ok) return null
 		const json = (await res.json()) as { metadata?: unknown; metadata_json?: unknown }
 		const metadata = unwrapCardMetadataRoot(json.metadata ?? json.metadata_json)
