@@ -27,6 +27,9 @@ enum BeamioDeepLink {
         "pos.conet.network",
         "beamio.ca",
         "www.beamio.ca",
+        "beamio.app",
+        "www.beamio.app",
+        "pos.beamio.app",
     ]
 
     static var localWebAppBaseURL: URL {
@@ -43,7 +46,7 @@ enum BeamioDeepLink {
         }
         let host = remote.host?.lowercased() ?? ""
         var path = components.path
-        if host == "beamio.ca" || host == "www.beamio.ca" {
+        if host == "beamio.ca" || host == "www.beamio.ca" || host == "beamio.app" || host == "www.beamio.app" {
             if path == "/pos" {
                 path = "/"
             } else if path.hasPrefix("/pos/") {
@@ -122,10 +125,10 @@ enum BeamioDeepLink {
     private static func isAllowedInAppWebTarget(_ url: URL) -> Bool {
         let host = url.host?.lowercased() ?? ""
         let path = url.path
-        if host == posWebHost || host == "pos.conet.network" {
+        if host == posWebHost || host == "pos.beamio.app" || host == "pos.conet.network" {
             return true
         }
-        if host == "beamio.ca" || host == "www.beamio.ca" {
+        if host == "beamio.ca" || host == "www.beamio.ca" || host == "beamio.app" || host == "www.beamio.app" {
             return path == "/pos" || path == "/pos/" || path.hasPrefix("/pos/")
         }
         return false

@@ -905,9 +905,10 @@ class MainActivity : ComponentActivity() {
     private fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {
         if (!isMainFrame) return false
         val host = u.host?.lowercase().orEmpty()
-        if (!host.contains("beamio.ca")) return false
+        // Legacy beamio.app SUN/NDEF payloads on existing tags must be intercepted too (no request is made).
+        if (!host.contains("beamio.ca") && !host.contains("beamio.app")) return false
         if (host.contains("cashtrees.beamio.app")) return false
-        if (host.contains("pos.beamio.ca")) return false
+        if (host.contains("pos.beamio.ca") || host.contains("pos.beamio.app")) return false
         val path = u.path?.lowercase().orEmpty()
         if (path.contains("/api/sun") || path.contains("/sun")) return true
         val hasSunQueries =

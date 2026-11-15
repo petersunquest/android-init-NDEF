@@ -72,8 +72,8 @@ class EmbeddedPwaHost(context: Context) {
         if (shouldBypassEmbeddedAssetLoader(uri)) return null
         var path = uri.path ?: "/"
         when (host) {
-            "pos.beamio.ca", "pos.conet.network" -> Unit
-            "beamio.ca", "www.beamio.ca" -> {
+            "pos.beamio.ca", "pos.beamio.app", "pos.conet.network" -> Unit
+            "beamio.ca", "www.beamio.ca", "beamio.app", "www.beamio.app" -> {
                 when {
                     path == "/pos" || path == "/pos/" -> path = "/index.html"
                     path.startsWith("/pos/") -> path = path.removePrefix("/pos")
