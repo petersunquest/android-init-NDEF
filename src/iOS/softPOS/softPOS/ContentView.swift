@@ -404,6 +404,9 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        #if DEBUG
+        QaNavTrigger.runLaunchNavigationOnce(webView)
+        #endif
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
             self?.beginInitialWebHandoffIfNeeded()
         }

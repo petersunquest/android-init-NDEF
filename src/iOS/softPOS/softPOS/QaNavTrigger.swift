@@ -10,6 +10,7 @@
 #if DEBUG
 import Foundation
 import os
+import WebKit
 
 enum QaNavTrigger {
     static let notificationName = Notification.Name("BeamioQaNavRequested")
@@ -33,6 +34,34 @@ enum QaNavTrigger {
         log.notice("qa-nav request \(target.absoluteString, privacy: .public)")
         NotificationCenter.default.post(name: notificationName, object: nil, userInfo: ["url": target])
         return true
+    }
+
+    /// Launch-argument trigger (no system URL prompt): `xcrun simctl launch <dev> <bundle> -qaNavURL <https url>`.
+    /// Only the six Beamio test hosts are accepted; anything else is ignored and logged.
+    static func validatedLaunchURL(_ raw: String) -> URL? {
+        guard let target = URL(string: raw), target.scheme?.lowercased() == "https",
+              let host = target.host?.lowercased(), allowedHosts.contains(host)
+        else {
+            log.notice("qa launch url ignored (https Beamio hosts only)")
+            return nil
+        }
+        return target
+    }
+
+    private static var didRunLaunchNavigation = false
+
+    /// Called once from the first main-frame load completion; navigates to the launch-argument URL.
+    static func runLaunchNavigationOnce(_ webView: WKWebView) {
+        guard !didRunLaunchNavigation else { return }
+        didRunLaunchNavigation = true
+        guard let raw = UserDefaults.standard.string(forKey: "qaNavURL"),
+              let target = validatedLaunchURL(raw)
+        else { return }
+        log.notice("launch navigation to \(target.absoluteString, privacy: .public)")
+        let js = "window.location.href='\(target.absoluteString)'"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            webView.evaluateJavaScript(js, completionHandler: nil)
+        }
     }
 
     /// Main-frame decision log (policy value is the shared BeamioHostPolicy decision).
