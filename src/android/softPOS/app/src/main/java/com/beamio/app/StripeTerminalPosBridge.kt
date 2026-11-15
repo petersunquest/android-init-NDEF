@@ -67,7 +67,7 @@ class StripeTerminalPosBridge(
             val card = cardAddress
             io.execute {
                 try {
-                    val url = URL("https://beamio.app/api/merchantCardStripe/connectionToken")
+                    val url = URL("https://beamio.ca/api/merchantCardStripe/connectionToken")
                     val connection = (url.openConnection() as HttpURLConnection).apply {
                         requestMethod = "POST"
                         doOutput = true

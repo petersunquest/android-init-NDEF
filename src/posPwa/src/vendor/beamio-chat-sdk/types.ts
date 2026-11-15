@@ -357,7 +357,7 @@ export interface BeamioChatConfig {
 	 */
 	chatIndexRegistryAddress?: string
 	/**
-	 * Cluster API base for the gasless index-pointer relay, e.g. `https://beamio.app`.
+	 * Cluster API base for the gasless index-pointer relay, e.g. `https://beamio.ca`.
 	 * When absent, history still persists to IPFS + local mirror, but the on-chain head
 	 * pointer is not updated (fresh-device recovery would be unavailable).
 	 */

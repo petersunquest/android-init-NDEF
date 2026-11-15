@@ -165,8 +165,8 @@ private func queryIosNfcStatusString() -> String {
 /// 与 Android `MainActivity.shouldBlockBeamioNdefTopLevelNavigation` 一致：拦截 NDEF 写入的 SUN URL，避免 WebView 拾取后跳出。
 private func shouldBlockBeamioNdefTopLevelNavigation(_ url: URL, isMainFrame: Bool) -> Bool {
     guard isMainFrame else { return false }
-    guard let host = url.host?.lowercased(), host.contains("beamio.app") else { return false }
-    if host.contains("cashtrees.beamio.app") || host.contains("pos.beamio.app") { return false }
+    guard let host = url.host?.lowercased(), host.contains("beamio.ca") else { return false }
+    if host.contains("cashtrees.beamio.app") || host.contains("pos.beamio.ca") { return false }
     let path = url.path.lowercased()
     if path.contains("/api/sun") || path.contains("/sun") { return true }
     guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return false }
@@ -368,7 +368,7 @@ final class CashTreesWebCoordinator: NSObject, WKNavigationDelegate, WKUIDelegat
         if navigationAction.targetFrame?.isMainFrame ?? false {
             let host = url.host?.lowercased() ?? ""
             let path = url.path
-            let isConsumerHost = host == "beamio.app" || host == "www.beamio.app"
+            let isConsumerHost = host == "beamio.ca" || host == "www.beamio.ca"
             let isConsumerPath =
                 path == "/app" || path.hasPrefix("/app/")
                 || path == "/app-download" || path.hasPrefix("/app-download/")

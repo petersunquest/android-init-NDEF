@@ -172,7 +172,7 @@ final class StripeTerminalPosBridge: NSObject, ConnectionTokenProvider, Discover
     // MARK: SCPConnectionTokenProvider
 
     func fetchConnectionToken(_ completion: @escaping ConnectionTokenCompletionBlock) {
-        var request = URLRequest(url: URL(string: "https://beamio.app/api/merchantCardStripe/connectionToken")!)
+        var request = URLRequest(url: URL(string: "https://beamio.ca/api/merchantCardStripe/connectionToken")!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: [

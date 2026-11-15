@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Polls `https://pos.beamio.app/update.json`, downloads newer bundles into `staging/`.
+ * Polls `https://pos.beamio.ca/update.json`, downloads newer bundles into `staging/`.
  *
  * Same cadence as Consumer CaehTrees: one serial Handler chain (no overlapping ticks).
  * `checkNow()` only runs [performCheck] — it does not start extra 15-minute chains.

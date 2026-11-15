@@ -9,7 +9,7 @@
 import Foundation
 import UIKit
 
-/// Polls `https://pos.beamio.app/update.json`, downloads newer bundles into `staging/`.
+/// Polls `https://pos.beamio.ca/update.json`, downloads newer bundles into `staging/`.
 @MainActor
 final class CashTreesPWAUpdateDaemon {
     static let shared = CashTreesPWAUpdateDaemon(bundleStore: CashTreesPWABundleStore.shared)

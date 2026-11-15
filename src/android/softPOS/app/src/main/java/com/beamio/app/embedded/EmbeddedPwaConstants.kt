@@ -7,8 +7,8 @@ package com.beamio.app.embedded
 object EmbeddedPwaConstants {
     const val ASSET_LOADER_DOMAIN = "appassets.androidplatform.net"
     const val ASSET_LOADER_ORIGIN = "https://$ASSET_LOADER_DOMAIN"
-    const val REMOTE_UPDATE_MANIFEST = "https://pos.beamio.app/update.json"
-    const val REMOTE_BUNDLE_BASE = "https://pos.beamio.app/"
+    const val REMOTE_UPDATE_MANIFEST = "https://pos.beamio.ca/update.json"
+    const val REMOTE_BUNDLE_BASE = "https://pos.beamio.ca/"
     const val BUNDLE_ASSET_NAME = "BeamioPOS.zip"
     const val ROOT_DIR_NAME = "beamio_pos_pwa"
 

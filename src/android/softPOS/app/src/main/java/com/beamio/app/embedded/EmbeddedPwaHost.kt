@@ -65,15 +65,15 @@ class EmbeddedPwaHost(context: Context) {
 
     /**
      * Map remote POS URLs to the local loader (PUBLIC_URL=/).
-     * API / OG / metadata on beamio.app must bypass.
+     * API / OG / metadata on beamio.ca must bypass.
      */
     fun mapPosUrlToLocal(uri: Uri): Uri? {
         val host = uri.host?.lowercase() ?: return null
         if (shouldBypassEmbeddedAssetLoader(uri)) return null
         var path = uri.path ?: "/"
         when (host) {
-            "pos.beamio.app", "pos.conet.network" -> Unit
-            "beamio.app", "www.beamio.app" -> {
+            "pos.beamio.ca", "pos.conet.network" -> Unit
+            "beamio.ca", "www.beamio.ca" -> {
                 when {
                     path == "/pos" || path == "/pos/" -> path = "/index.html"
                     path.startsWith("/pos/") -> path = path.removePrefix("/pos")

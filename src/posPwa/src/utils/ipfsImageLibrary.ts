@@ -27,14 +27,14 @@ export function normalizeFragmentHash(raw: string | undefined | null): string | 
   return `0x${body.toLowerCase()}`
 }
 
-/** Parse hash from ipfs.conet.network getFragment or beamio.app /api/fragment URLs. */
+/** Parse hash from ipfs.conet.network getFragment or beamio.ca / beamio.app /api/fragment URLs. */
 export function parseFragmentHashFromUrl(url: string): string | null {
   try {
     const u = new URL(url.trim())
     const host = u.hostname.toLowerCase()
     if (host === 'ipfs.conet.network' || host.endsWith('.ipfs.conet.network')) {
       if (!u.pathname.endsWith('/getFragment')) return null
-    } else if (host === 'beamio.app' || host.endsWith('.beamio.app')) {
+    } else if (host === 'beamio.ca' || host.endsWith('.beamio.ca') || host === 'beamio.app' || host.endsWith('.beamio.app')) {
       if (u.pathname !== '/api/fragment') return null
     } else {
       return null

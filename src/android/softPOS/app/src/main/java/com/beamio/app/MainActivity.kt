@@ -277,7 +277,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Reader 结束后立刻重新注册前台分发（下一消息循环即执行），避免出现「Reader 已关、FD 尚未开」的空窗：
-     * 该窗口内系统 Tag Dispatcher 会处理 NDEF https URI，常表现为**外部浏览器**打开 beamio.app。
+     * 该窗口内系统 Tag Dispatcher 会处理 NDEF https URI，常表现为**外部浏览器**打开 beamio.ca。
      * 再在稍晚补一次 enable，减轻部分机型 HAL 释放 RF 与 enableForegroundDispatch 的竞态。
      */
     private fun reclaimNfcForegroundDispatchAfterReader() {
@@ -905,9 +905,9 @@ class MainActivity : ComponentActivity() {
     private fun shouldBlockBeamioNdefTopLevelNavigation(u: Uri, isMainFrame: Boolean): Boolean {
         if (!isMainFrame) return false
         val host = u.host?.lowercase().orEmpty()
-        if (!host.contains("beamio.app")) return false
+        if (!host.contains("beamio.ca")) return false
         if (host.contains("cashtrees.beamio.app")) return false
-        if (host.contains("pos.beamio.app")) return false
+        if (host.contains("pos.beamio.ca")) return false
         val path = u.path?.lowercase().orEmpty()
         if (path.contains("/api/sun") || path.contains("/sun")) return true
         val hasSunQueries =

@@ -167,7 +167,7 @@ export async function runPosCustomerScanFlow(): Promise<PosScanFlowResult> {
 	if (!identity || !customerIdentityHasTarget(identity)) {
 		return {
 			status: 'error',
-			message: 'Cannot parse QR. Scan a beamio.app link or Scan to Pay code.',
+			message: 'Cannot parse QR. Scan a beamio.ca link or Scan to Pay code.',
 		}
 	}
 	const payQr = parseOpenContainerPaymentQr(qr.text)

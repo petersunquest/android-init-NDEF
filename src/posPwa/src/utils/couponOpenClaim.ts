@@ -14,7 +14,7 @@ export function couponOpenClaimUrl(row: MerchantActiveIssuedCoupon): string | nu
 	if (!couponId || !card) return null
 	const cardEnc = encodeURIComponent(card)
 	const couponEnc = encodeURIComponent(couponId)
-	return `https://beamio.app/app/?beamiocard=${cardEnc}&couponId=${couponEnc}&claim=open`
+	return `https://beamio.ca/app/?beamiocard=${cardEnc}&couponId=${couponEnc}&claim=open`
 }
 
 /** iOS `canShareOpenClaim` */

@@ -2,7 +2,7 @@
 //  BeamioDeepLink.swift
 //  softPOS
 //
-//  Universal Links (https://pos.beamio.app/...) + custom scheme (beamiopos://open?...).
+//  Universal Links (https://pos.beamio.ca/...) + custom scheme (beamiopos://open?...).
 //  Must NOT claim `beamio://` or Consumer `/app` / `/app-download` — those belong to
 //  CashTrees / Verra (`com.beamio.beamio`). Sharing `beamio` opened POS when Consumer
 //  was not installed.
@@ -16,17 +16,17 @@ enum BeamioDeepLink {
     static let customOpenHost = "open"
 
     /// Default softPOS WebView entry — posPWA at root base path.
-    static let defaultWebAppURL = URL(string: "https://pos.beamio.app/")!
+    static let defaultWebAppURL = URL(string: "https://pos.beamio.ca/")!
 
-    private static let posWebHost = "pos.beamio.app"
+    private static let posWebHost = "pos.beamio.ca"
 
     /// HTTPS hosts the WebView may load from deep links (allowlist).
-    /// `beamio.app` is only for the `/pos` WebView fallback path — never `/app` or `/app-download`.
+    /// `beamio.ca` is only for the `/pos` WebView fallback path — never `/app` or `/app-download`.
     static let allowedWebHosts: Set<String> = [
         posWebHost,
         "pos.conet.network",
-        "beamio.app",
-        "www.beamio.app",
+        "beamio.ca",
+        "www.beamio.ca",
     ]
 
     static var localWebAppBaseURL: URL {
@@ -43,7 +43,7 @@ enum BeamioDeepLink {
         }
         let host = remote.host?.lowercased() ?? ""
         var path = components.path
-        if host == "beamio.app" || host == "www.beamio.app" {
+        if host == "beamio.ca" || host == "www.beamio.ca" {
             if path == "/pos" {
                 path = "/"
             } else if path.hasPrefix("/pos/") {
@@ -117,7 +117,7 @@ enum BeamioDeepLink {
         return sanitized
     }
 
-    /// POS WebView only: `pos.beamio.app`, `pos.conet.network`, or `beamio.app/pos(/…)`.
+    /// POS WebView only: `pos.beamio.ca`, `pos.conet.network`, or `beamio.ca/pos(/…)`.
     /// Reject Consumer `/app`, `/app-download`, and other marketing paths.
     private static func isAllowedInAppWebTarget(_ url: URL) -> Bool {
         let host = url.host?.lowercased() ?? ""
@@ -125,7 +125,7 @@ enum BeamioDeepLink {
         if host == posWebHost || host == "pos.conet.network" {
             return true
         }
-        if host == "beamio.app" || host == "www.beamio.app" {
+        if host == "beamio.ca" || host == "www.beamio.ca" {
             return path == "/pos" || path == "/pos/" || path.hasPrefix("/pos/")
         }
         return false

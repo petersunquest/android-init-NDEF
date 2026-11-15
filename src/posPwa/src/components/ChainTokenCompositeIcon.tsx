@@ -1,6 +1,6 @@
 import { IpfsImg } from '@/components/IpfsImg'
 const USDC_ICON_URL = 'https://assets.coingecko.com/coins/images/6319/small/usdc.png'
-const BASE_ICON_URL = 'https://beamio.app/app/static/media/base-logo.275b67e94556e30ce59b.png'
+const BASE_ICON_URL = 'https://beamio.ca/app/static/media/base-logo.275b67e94556e30ce59b.png'
 const CADD_ICON_URL = `${import.meta.env.BASE_URL}cadd-icon.png`
 
 function CompositeIcon({

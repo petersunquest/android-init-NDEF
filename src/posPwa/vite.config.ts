@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
-/** `/` for https://pos.conet.network ; default `/pos/` for https://beamio.app/pos/ */
+/** `/` for https://pos.conet.network ; default `/pos/` for https://beamio.ca/pos/ */
 const base = process.env.POS_PWA_BASE ?? '/pos/'
 
 export default defineConfig({

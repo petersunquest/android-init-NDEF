@@ -800,17 +800,20 @@ export function PosSessionProvider({ children }: { children: ReactNode }) {
 				try {
 					await withPosBootCeiling(refreshHomeRef.current())
 				} catch (e) {
+					/* Non-backend failure (a bug, not the network): explicit boot error, never "server unavailable". */
+					if (!(e instanceof PosBackendUnavailableError)) {
+						console.error('[pos-boot] refreshHome failed', e)
+						if (!cancelled) setBootError(true)
+						return
+					}
 					if (!cancelled) {
 						/*
-						 * Give up on the in-flight boot refresh: bump the generation so its late
-						 * results (success or failure) are discarded by every gen guard.
+						 * Give up on the in-flight boot refresh (incl. the boot ceiling): bump the
+						 * generation so its late results are discarded by every gen guard.
 						 */
 						refreshGen.current += 1
 						setBackendUnavailable(true)
 						setBackendUnavailableNoCache(!posHomeTrustedCache.loadInfraCard(addr, activeUpper))
-					}
-					if (!(e instanceof PosBackendUnavailableError)) {
-						console.error('[pos-boot] refreshHome failed', e)
 					}
 				}
 				if (cancelled) return

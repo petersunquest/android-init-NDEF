@@ -8,8 +8,8 @@ import Foundation
 enum CashTreesPWAScheme {
     static let scheme = "beamio-pos-local"
     static let host = "localhost"
-    static let remoteUpdateManifestURL = URL(string: "https://pos.beamio.app/update.json")!
-    static let remoteBundleBaseURL = URL(string: "https://pos.beamio.app/")!
+    static let remoteUpdateManifestURL = URL(string: "https://pos.beamio.ca/update.json")!
+    static let remoteBundleBaseURL = URL(string: "https://pos.beamio.ca/")!
 
     static var entryURL: URL {
         URL(string: "\(scheme)://\(host)/index.html")!

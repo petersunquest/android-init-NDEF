@@ -20,7 +20,7 @@ import type {
 import type { VoiceConflictEvent, VoiceGapEvent } from '@conet.project/chat-sdk/voice-reorder'
 
 const IPFS_BASE_URL = 'https://ipfs.conet.network/api'
-const BEAMIO_API_BASE_URL = 'https://beamio.app/api'
+const BEAMIO_API_BASE_URL = 'https://beamio.ca/api'
 
 type ChatWorkerClient = ReturnType<typeof createBeamioChatClient>
 

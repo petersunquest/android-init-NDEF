@@ -1,4 +1,4 @@
-export const BEAMIO_API = 'https://beamio.app'
+export const BEAMIO_API = 'https://beamio.ca'
 export const CONET_RPC = 'https://rpc1.conet.network'
 export const CONET_RPC_FALLBACK = 'https://publicrpc.conet.network'
 export const BASE_RPC = 'https://base-rpc.conet.network'
