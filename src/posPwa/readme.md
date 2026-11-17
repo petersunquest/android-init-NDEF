@@ -2,13 +2,13 @@
 
 **唯一活跃的 POS 终端 UI。** Merchant terminals run inside **native iOS/Android WebView shells** that load this PWA — not the deprecated native POS apps (`src/CashTrees_iOS/iOS_NDEF/`, `src/android-NDEF/`).
 
-Cold start uses a **bundled Embedded PWA zip** (`BeamioPOS.zip`) inside the shell. Runtime daemon polls `https://pos.beamio.app/update.json` and stages `BeamioPOS-{ver}.zip`; the in-WebView banner (**Update ready** / **Restart**) hot-reloads the new bundle.
+Cold start uses a **bundled Embedded PWA zip** (`BeamioPOS.zip`) inside the shell. Runtime daemon polls `https://pos.beamio.ca/update.json` and stages `BeamioPOS-{ver}.zip`; the in-WebView banner (**Update ready** / **Restart**) hot-reloads the new bundle.
 
 Deployed at:
 
-- `https://pos.beamio.app/` (canonical Embedded OTA + POS WebView fallback)
+- `https://pos.beamio.ca/` (canonical Embedded OTA + POS WebView fallback)
 - `https://pos.conet.network/` (proxy / alternate host; same root-base build)
-- `https://beamio.app/pos/` (alternate path; **not** the native OTA zip source)
+- `https://beamio.ca/pos/` (alternate path; **not** the native OTA zip source)
 
 | Active shell | Path | Default / Embedded |
 |--------------|------|--------------------|
@@ -21,13 +21,13 @@ Same model as Consumer SilentPassUI, **separate** from `/app/`:
 
 | Item | Value |
 |------|--------|
-| Manifest | `https://pos.beamio.app/update.json` → `{"ver","filename"}` |
-| Zip | `https://pos.beamio.app/BeamioPOS-{ver}.zip` (files at zip **root**, `POS_PWA_BASE=/`) |
+| Manifest | `https://pos.beamio.ca/update.json` → `{"ver","filename"}` |
+| Zip | `https://pos.beamio.ca/BeamioPOS-{ver}.zip` (files at zip **root**, `POS_PWA_BASE=/`) |
 | Bootstrap in shell | iOS `src/iOS/softPOS/softPOS/BeamioPOS.zip`; Android `src/android/softPOS/app/src/main/assets/BeamioPOS.zip` |
 | Daemon | 15 min serial `Task.sleep` / Handler chain (same as Consumer); **also** on remote-WebView fallback; foreground resume runs one extra check without stacking timers |
 | Hot apply | `CashTreesIOS` / `CashTreesAndroid.applyEmbeddedPwaUpdate` → promote staging → reload local entry (remote fallback remounts the bundled host) |
 
-`https://beamio.app/pos/` is **not** the native OTA zip source. Do not reuse `SilentPassUI-*.zip` or `beamio.app/app/update.json`.
+`https://beamio.ca/pos/` is **not** the native OTA zip source. Do not reuse `SilentPassUI-*.zip` or `beamio.ca/app/update.json`.
 
 ### No Service Worker updates
 
@@ -79,18 +79,11 @@ Open `http://localhost:5173/pos/` (Vite dev uses `/pos/` base).
 
 ```bash
 cd src/posPwa && npm run build
-# pos.conet.network (root base):
+# root base (for native embedded bundles):
 POS_PWA_BASE=/ npm run build
-# or from repo root:
-./scripts/deployPosConetNetwork.sh
-# beamio.app/pos/ (subpath base):
-./scripts/deployBeamioPosPwa.sh
 ```
 
-| Target | Script | Remote path |
-|--------|--------|-------------|
-| `https://pos.conet.network` / `https://pos.beamio.app` | `./scripts/deployPosConetNetwork.sh` | `/var/www/pos.conet.network/` + Embedded OTA zip |
-| `https://beamio.app/pos/` | `./scripts/deployBeamioPosPwa.sh` | `/var/www/beamio.app/pos/` (not native OTA) |
+Deployment is handled by the release operations process. Deployment targets and server layout are not documented in this repository.
 
 Sync live OTA zip into native shells:
 

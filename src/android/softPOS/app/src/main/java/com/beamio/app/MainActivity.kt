@@ -982,6 +982,17 @@ class MainActivity : ComponentActivity() {
         mountEmbeddedWebView(jsBridge)
     }
 
+    /** 403 with an empty body: a retired beamio.app request is answered locally and never sent. */
+    private fun refusedLegacyHostResponse(): android.webkit.WebResourceResponse =
+        android.webkit.WebResourceResponse(
+            "text/plain",
+            "utf-8",
+            403,
+            "Forbidden",
+            emptyMap(),
+            java.io.ByteArrayInputStream(ByteArray(0)),
+        )
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun createEmbeddedWebView(jsBridge: CashTreesJsBridge, host: EmbeddedPwaHost): WebView {
         val loader = host.assetLoader
@@ -994,11 +1005,14 @@ class MainActivity : ComponentActivity() {
                 ): android.webkit.WebResourceResponse? {
                     val u = request.url ?: return null
                     qaLog("request ${u.scheme}://${u.host}${u.path}")
-                    if (host.shouldBypassEmbeddedAssetLoader(u)) {
-                        return null
-                    }
                     host.mapPosUrlToLocal(u)?.let { local ->
                         return loader.shouldInterceptRequest(local)
+                    }
+                    if (host.isLegacyRemoteHost(u)) {
+                        return refusedLegacyHostResponse()
+                    }
+                    if (host.shouldBypassEmbeddedAssetLoader(u)) {
+                        return null
                     }
                     if (u.host?.lowercase() == EmbeddedPwaConstants.ASSET_LOADER_DOMAIN) {
                         return loader.shouldInterceptRequest(u)
@@ -1023,8 +1037,7 @@ class MainActivity : ComponentActivity() {
                             view.loadUrl(local.toString())
                             return true
                         }
-                        // Legacy pos.beamio.app paths that are not mapped (e.g. /api) must not load remotely.
-                        if (u.host?.lowercase() == "pos.beamio.app") return true
+                        if (host.isLegacyRemoteHost(u)) return true
                     }
                     return false
                 }
@@ -1039,7 +1052,7 @@ class MainActivity : ComponentActivity() {
                         view?.loadUrl(local.toString())
                         return true
                     }
-                    if (u.host?.lowercase() == "pos.beamio.app") return true
+                    if (host.isLegacyRemoteHost(u)) return true
                     return false
                 }
 

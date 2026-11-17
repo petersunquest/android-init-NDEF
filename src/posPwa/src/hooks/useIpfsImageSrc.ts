@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
 	isIpfsFragmentImageUrl,
 	resolveIpfsImageUrlToObjectUrl,
+	safeImgSrcForUnresolved,
 } from '@/utils/ipfsImageLibrary'
 
 /** Local-first IPFS fragment URL → display src (blob URL for cached fragments). */
@@ -10,7 +11,7 @@ export function useIpfsImageSrc(src?: string): string {
 		const s = String(src ?? '').trim()
 		if (!s) return ''
 		if (s.startsWith('data:image/') || s.startsWith('blob:')) return s
-		if (!isIpfsFragmentImageUrl(s)) return s
+		if (!isIpfsFragmentImageUrl(s)) return safeImgSrcForUnresolved(s)
 		return ''
 	})
 
@@ -27,7 +28,7 @@ export function useIpfsImageSrc(src?: string): string {
 		}
 
 		if (!isIpfsFragmentImageUrl(s)) {
-			setImgSrc(s)
+			setImgSrc(safeImgSrcForUnresolved(s))
 			return
 		}
 
@@ -39,7 +40,7 @@ export function useIpfsImageSrc(src?: string): string {
 				objUrl = await resolveIpfsImageUrlToObjectUrl(s)
 				if (alive) setImgSrc(objUrl)
 			} catch {
-				if (alive) setImgSrc(s)
+				if (alive) setImgSrc(safeImgSrcForUnresolved(s))
 			}
 		})()
 

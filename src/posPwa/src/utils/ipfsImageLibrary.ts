@@ -27,14 +27,38 @@ export function normalizeFragmentHash(raw: string | undefined | null): string | 
   return `0x${body.toLowerCase()}`
 }
 
-/** Parse hash from ipfs.conet.network getFragment or beamio.ca / beamio.app /api/fragment URLs. */
+/**
+ * Locked host whitelist for fragment URLs (exact match; no suffix matching for beamio hosts).
+ * - current Beamio hosts: /api/fragment
+ * - legacy beamio.app hosts: /api/fragment (recognised only to extract the hash; never requested)
+ * - IPFS fragment service: ipfs.conet.network family, /getFragment
+ */
+export const BEAMIO_FRAGMENT_HOSTS: ReadonlySet<string> = new Set(['beamio.ca', 'www.beamio.ca'])
+export const LEGACY_BEAMIO_APP_HOSTS: ReadonlySet<string> = new Set(['beamio.app', 'www.beamio.app'])
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url.trim()).hostname.toLowerCase()
+  } catch {
+    return null
+  }
+}
+
+/** True for any URL whose host is a retired beamio.app host (whatever the path). Such URLs are never used as an img src. */
+export function isLegacyBeamioAppUrl(url: string | undefined | null): boolean {
+  const h = url ? hostOf(url) : null
+  return !!h && LEGACY_BEAMIO_APP_HOSTS.has(h)
+}
+
+/** Parse hash from ipfs.conet.network getFragment, beamio.ca /api/fragment, or legacy beamio.app /api/fragment URLs. */
 export function parseFragmentHashFromUrl(url: string): string | null {
   try {
     const u = new URL(url.trim())
+    if (u.protocol !== 'https:') return null
     const host = u.hostname.toLowerCase()
     if (host === 'ipfs.conet.network' || host.endsWith('.ipfs.conet.network')) {
       if (!u.pathname.endsWith('/getFragment')) return null
-    } else if (host === 'beamio.ca' || host.endsWith('.beamio.ca') || host === 'beamio.app' || host.endsWith('.beamio.app')) {
+    } else if (BEAMIO_FRAGMENT_HOSTS.has(host) || LEGACY_BEAMIO_APP_HOSTS.has(host)) {
       if (u.pathname !== '/api/fragment') return null
     } else {
       return null
@@ -44,6 +68,16 @@ export function parseFragmentHashFromUrl(url: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Source to show while a URL is unresolved. Retired beamio.app URLs yield '' (never shown as img src).
+ * Other URLs pass through unchanged.
+ */
+export function safeImgSrcForUnresolved(url: string): string {
+  const trimmed = String(url || '').trim()
+  if (!trimmed) return ''
+  return isLegacyBeamioAppUrl(trimmed) ? '' : trimmed
 }
 
 export function ipfsFragmentUrlFromHash(hash: string): string {
@@ -264,10 +298,10 @@ export async function resolveIpfsImageUrlToObjectUrl(url: string): Promise<strin
   }
 
   const hash = parseFragmentHashFromUrl(trimmed)
-  if (!hash) return trimmed
+  if (!hash) return safeImgSrcForUnresolved(trimmed)
 
   const record = await resolveIpfsFragmentRecord(hash)
-  if (!record) return trimmed
+  if (!record) return isLegacyBeamioAppUrl(trimmed) ? '' : trimmed
 
   const typedBlob =
     record.blob.type === record.mime

@@ -9,6 +9,17 @@ import java.io.File
 
 /** Local POS PWA host: bootstrap bundle, serve via WebViewAssetLoader, OTA daemon. */
 class EmbeddedPwaHost(context: Context) {
+    companion object {
+        /**
+         * Retired beamio.app family: beamio.app and every subdomain (www, pos, cashtrees, ...).
+         * Shared by the embedded bundle path and the remote fallback WebView. Pure string logic.
+         */
+        fun isLegacyHost(host: String?): Boolean {
+            val h = host?.trim()?.lowercase()?.trimEnd('.') ?: return false
+            return h == "beamio.app" || h.endsWith(".beamio.app")
+        }
+    }
+
     private val appContext = context.applicationContext
     val bundleStore = EmbeddedPwaBundleStore(appContext)
 
@@ -88,6 +99,9 @@ class EmbeddedPwaHost(context: Context) {
             .fragment(uri.fragment)
             .build()
     }
+
+    /** Retired beamio.app family (see [isLegacyHost]); requests not mapped to the local bundle are refused. */
+    fun isLegacyRemoteHost(uri: Uri): Boolean = isLegacyHost(uri.host)
 
     fun shouldBypassEmbeddedAssetLoader(uri: Uri): Boolean {
         val path = uri.path?.trim().orEmpty().ifEmpty { "/" }

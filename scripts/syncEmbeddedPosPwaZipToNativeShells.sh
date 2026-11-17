@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sync live Embedded POS OTA zip into POS native shells (bootstrap bundle).
-# Source of truth: https://pos.beamio.app/update.json + matching BeamioPOS-{ver}.zip
+# Source of truth: https://pos.beamio.ca/update.json + matching BeamioPOS-{ver}.zip
 #
 # Usage: ./scripts/syncEmbeddedPosPwaZipToNativeShells.sh
 # Optional: VERSION=0.1.1 (skip live update.json)
@@ -9,8 +9,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-PUBLIC_BASE="${PUBLIC_POS_BASE_URL:-https://pos.beamio.app}"
+PUBLIC_BASE="${PUBLIC_POS_BASE_URL:-https://pos.beamio.ca}"
 UPDATE_URL="${PUBLIC_POS_UPDATE_JSON_URL:-${PUBLIC_BASE}/update.json}"
+
+# Build-time overrides may only point at the production POS host unless explicitly allowed.
+check_pos_host() {
+	case "$1" in
+	https://pos.beamio.ca | https://pos.beamio.ca/*) ;;
+	*)
+		if [[ "${POS_SYNC_ALLOW_NON_PROD:-}" != "1" ]]; then
+			echo "refuse: $2=$1 is not https://pos.beamio.ca (set POS_SYNC_ALLOW_NON_PROD=1 to override)" >&2
+			exit 2
+		fi
+		;;
+	esac
+}
+check_pos_host "$PUBLIC_BASE" PUBLIC_POS_BASE_URL
+check_pos_host "$UPDATE_URL" PUBLIC_POS_UPDATE_JSON_URL
 
 IOS_DIR="$REPO_ROOT/src/iOS/softPOS/softPOS"
 ANDROID_ASSETS="$REPO_ROOT/src/android/softPOS/app/src/main/assets"
